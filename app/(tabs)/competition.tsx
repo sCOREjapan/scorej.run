@@ -29,7 +29,7 @@ import {
 const COMP_KEY = 'trackmate_competitions'
 const ENTRY_KEY = 'trackmate_entry_status'
 import { generateCompetitionPlan } from '../../lib/claude'
-import type { CompetitionPlan, TrackEvent, WeekPlan, UserProfile } from '../../types'
+import type { CompetitionPlan, TrackEvent, AthleticsEvent, WeekPlan, UserProfile } from '../../types'
 
 const BRAND = '#E53E3E'
 const MOCK_USER_ID = 'mock-user-1'
@@ -47,9 +47,14 @@ const MOCK_USER: UserProfile = {
   created_at: new Date().toISOString(),
 }
 
-const EVENTS: TrackEvent[] = [
+const EVENTS: AthleticsEvent[] = [
+  // トラック
   '100m', '200m', '400m', '110mH', '100mH', '400mH',
-  '800m', '1500m', '3000m', '5000m', '10000m', '3000mSC',
+  '800m', '1500m', '3000m', '5000m', '10000m', '3000mSC', '競歩',
+  // フィールド・跳躍
+  '走幅跳', '三段跳', '走高跳', '棒高跳',
+  // 投擲
+  '砲丸投', 'やり投', '円盤投', 'ハンマー投',
 ]
 
 const INTENSITY_COLORS: Record<string, string> = {
@@ -221,11 +226,15 @@ export default function CompetitionScreen() {
   const [activeFilter, setActiveFilter] = useState<FilterOption>('全て')
 
   // フォーム
-  const [compName, setCompName] = useState('')
-  const [compDate, setCompDate] = useState('')
-  const [compEvent, setCompEvent] = useState<TrackEvent>('400m')
-  const [targetMin, setTargetMin] = useState('')
-  const [targetSec, setTargetSec] = useState('')
+  const [compName,     setCompName]     = useState('')
+  const [compDate,     setCompDate]     = useState('')
+  const [compEvent,    setCompEvent]    = useState<AthleticsEvent>('400m')
+  const [targetMin,    setTargetMin]    = useState('')
+  const [targetSec,    setTargetSec]    = useState('')
+  const [targetDistM,  setTargetDistM]  = useState('')  // 投擲・跳躍用（m）
+
+  const FIELD_EVENTS = ['走幅跳','三段跳','走高跳','棒高跳','砲丸投','やり投','円盤投','ハンマー投']
+  const isFieldEvent = FIELD_EVENTS.includes(compEvent)
 
   // ── 通知許可確認 ────────────────────────────────────────────────
   useEffect(() => {
@@ -302,12 +311,14 @@ export default function CompetitionScreen() {
     try {
       const minN = parseInt(targetMin || '0', 10)
       const secN = parseFloat(targetSec || '0')
-      const target_time_ms = (minN * 60 + secN) * 1000 || 0
+      const target_time_ms = isFieldEvent
+        ? (parseFloat(targetDistM || '0') * 1000)  // 投擲・跳躍はm→疑似ms保存
+        : (minN * 60 + secN) * 1000 || 0
 
       const profile: UserProfile = {
         ...MOCK_USER,
-        primary_event: compEvent,
-        event_category: ['100m', '200m', '400m', '110mH', '100mH', '400mH'].includes(compEvent) ? 'sprint' : 'middle',
+        primary_event: isFieldEvent ? '100m' : (compEvent as TrackEvent),  // field eventはAI生成用に100mでフォールバック
+        event_category: ['100m','200m','400m','110mH','100mH','400mH'].includes(compEvent) ? 'sprint' : 'middle',
         target_time_ms,
       }
 
@@ -544,36 +555,55 @@ export default function CompetitionScreen() {
                 </View>
               </ScrollView>
 
-              <Text style={styles.label}>目標タイム（任意）</Text>
-              <View style={styles.timeRow}>
-                <View style={styles.timeCol}>
-                  <Text style={styles.timeUnit}>分</Text>
-                  <TextInput
-                    style={styles.timeInput}
-                    value={targetMin}
-                    onChangeText={setTargetMin}
-                    keyboardType="number-pad"
-                    placeholder="0"
-                    placeholderTextColor="#445577"
-                    maxLength={2}
-                    textAlign="center"
-                  />
-                </View>
-                <Text style={styles.timeSep}>:</Text>
-                <View style={styles.timeCol}>
-                  <Text style={styles.timeUnit}>秒</Text>
-                  <TextInput
-                    style={styles.timeInput}
-                    value={targetSec}
-                    onChangeText={setTargetSec}
-                    keyboardType="decimal-pad"
-                    placeholder="47.00"
-                    placeholderTextColor="#445577"
-                    maxLength={5}
-                    textAlign="center"
-                  />
-                </View>
-              </View>
+              {isFieldEvent ? (
+                <>
+                  <Text style={styles.label}>目標記録（m・任意）</Text>
+                  <View style={styles.timeRow}>
+                    <TextInput
+                      style={[styles.timeInput, { flex: 1, textAlign: 'left', paddingHorizontal: 12 }]}
+                      value={targetDistM}
+                      onChangeText={setTargetDistM}
+                      keyboardType="decimal-pad"
+                      placeholder="例: 7.50"
+                      placeholderTextColor="#445577"
+                    />
+                    <Text style={[styles.timeUnit, { marginLeft: 8 }]}>m</Text>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.label}>目標タイム（任意）</Text>
+                  <View style={styles.timeRow}>
+                    <View style={styles.timeCol}>
+                      <Text style={styles.timeUnit}>分</Text>
+                      <TextInput
+                        style={styles.timeInput}
+                        value={targetMin}
+                        onChangeText={setTargetMin}
+                        keyboardType="number-pad"
+                        placeholder="0"
+                        placeholderTextColor="#445577"
+                        maxLength={2}
+                        textAlign="center"
+                      />
+                    </View>
+                    <Text style={styles.timeSep}>:</Text>
+                    <View style={styles.timeCol}>
+                      <Text style={styles.timeUnit}>秒</Text>
+                      <TextInput
+                        style={styles.timeInput}
+                        value={targetSec}
+                        onChangeText={setTargetSec}
+                        keyboardType="decimal-pad"
+                        placeholder="47.00"
+                        placeholderTextColor="#445577"
+                        maxLength={5}
+                        textAlign="center"
+                      />
+                    </View>
+                  </View>
+                </>
+              )}
 
               <TouchableOpacity style={styles.generateBtn} onPress={handleGenerate} activeOpacity={0.85}>
                 <Ionicons name="sparkles" size={20} color="#fff" />

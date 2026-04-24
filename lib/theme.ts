@@ -1,18 +1,18 @@
-// lib/theme.ts — Nike Podium インスパイアドデザインシステム
-// 哲学: 黒と白を基盤に、色は機能的にのみ使う
+// lib/theme.ts — TrackMate デザインシステム（仕様書 v1.0 準拠）
+// カラーパレットはメシトラ競合分析に基づくアンバー系に統一
 
 // ── ブランドカラー ────────────────────────────────────────
-export const BRAND = '#E53E3E'   // TrackMate レッド（CTAボタン・強調）
+export const BRAND = '#E53935'   // TrackMate レッド（CTAボタン・強調）
 
 // ── 背景 ─────────────────────────────────────────────────
-/** 純ブラック背景 */
-export const BG_GRADIENT = ['#000000', '#000000', '#000000'] as const
+/** 全画面背景色 */
+export const BG_GRADIENT = ['#111111', '#111111', '#111111'] as const
 
 // ── サーフェス ────────────────────────────────────────────
-/** カード・セルの背景 */
-export const SURFACE  = '#111111'
-/** 少し浮いた要素（モーダル等） */
-export const SURFACE2 = '#1A1A1A'
+/** カード・モーダル背景 */
+export const SURFACE  = '#1a1a1a'
+/** アイコン背景・入力欄 */
+export const SURFACE2 = '#252525'
 /** 区切り線 */
 export const DIVIDER  = 'rgba(255,255,255,0.08)'
 
@@ -26,12 +26,14 @@ export const TEXT = {
 // ── 機能的カラー（最小限） ────────────────────────────────
 /** 状態表示にのみ使用 */
 export const NEON = {
-  blue:   '#4A9FFF',
-  purple: '#9B6BFF',
-  cyan:   '#00D4FF',
-  pink:   '#FF4FC8',
-  green:  '#34C759',
-  amber:  '#FF9500',
+  blue:    '#4A9FFF',
+  purple:  '#9B6BFF',
+  cyan:    '#00D4FF',
+  pink:    '#FF4FC8',
+  green:   '#34C759',
+  amber:   '#F5A623',
+  success: '#4ECDC4',
+  danger:  '#FF6B6B',
 } as const
 
 // ── カード ────────────────────────────────────────────────

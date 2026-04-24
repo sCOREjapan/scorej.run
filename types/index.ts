@@ -13,6 +13,7 @@ export type MiddleLongEvent =
   | '800m' | '1500m' | '3000m'
   | '5000m' | '10000m' | '3000mSC'
   | 'half_marathon' | 'marathon'
+  | '競歩'
 
 export type FieldEvent =
   | '走幅跳' | '三段跳' | '走高跳' | '棒高跳'
@@ -73,7 +74,7 @@ export interface TrainingSession {
   user_id: string
   session_date: string         // ISO 8601 date
   session_type: SessionType
-  event?: TrackEvent
+  event?: AthleticsEvent
   time_ms?: number             // メインタイム（ミリ秒）
   distance_m?: number          // 距離（メートル）
   reps?: number                // 本数
@@ -174,7 +175,7 @@ export interface CompetitionPlan {
   user_id: string
   competition_name: string
   competition_date: string
-  event: TrackEvent
+  event: AthleticsEvent
   target_time_ms: number
   days_until: number
   phases: WeekPlan[]

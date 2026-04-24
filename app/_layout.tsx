@@ -15,6 +15,21 @@ if (Platform.OS !== 'web') {
   SplashScreen.preventAutoHideAsync().catch(() => {})
 }
 
+// Service Worker 登録（PWAキャッシュ自動更新）
+if (Platform.OS === 'web' && typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').then(reg => {
+    reg.addEventListener('updatefound', () => {
+      const newWorker = reg.installing
+      newWorker?.addEventListener('statechange', () => {
+        if (newWorker.state === 'activated') {
+          // 新バージョン検知 → 自動リロード
+          window.location.reload()
+        }
+      })
+    })
+  }).catch(() => {})
+}
+
 const MIN_SPLASH_MS = 2200
 
 // 認証ガード — 未ログイン・未ゲスト選択時は auth 画面へ

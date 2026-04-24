@@ -1,4 +1,4 @@
-// app/timer.tsx — スプリット計測タイマー（全画面）
+// app/timer.tsx — タイム計測タイマー（全画面）
 
 import React, { useState, useRef, useCallback } from 'react'
 import {
@@ -17,10 +17,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import Toast from 'react-native-toast-message'
 import { Ionicons } from '@expo/vector-icons'
 import { BRAND, TEXT, SURFACE, SURFACE2, DIVIDER } from '../lib/theme'
-import type { AthleticsEvent, RaceRecord } from '../types'
+import type { AthleticsEvent, TrainingSession } from '../types'
 
 // ─── 定数 ───────────────────────────────────────────────────────────────
-const RECORDS_KEY = 'trackmate_race_records'
+const SESSIONS_KEY = 'trackmate_sessions'
 const MOCK_USER_ID = 'mock-user-1'
 
 const SPLIT_EVENTS: AthleticsEvent[] = [
@@ -148,36 +148,36 @@ export default function TimerScreen() {
   const confirmSave = useCallback(async () => {
     setSaving(true)
     try {
-      // 最初のスプリットタイム（最後に追加されたものが先頭）を使う
-      // splits は降順なので最大 lap を持つものが splits[0]（最後のスプリット）
-      // 要件: 最初のスプリットタイム = splits の中で lap === 1 のもの
+      // Lap 1 があればそのタイム、なければ全体タイムを使用
       const firstSplit = splits.find(s => s.lap === 1)
       const resultMs = firstSplit ? firstSplit.lapMs : displayMs
 
-      const totalSec = resultMs / 1000
-      const display = totalSec < 60
-        ? totalSec.toFixed(2)
-        : `${Math.floor(totalSec / 60)}:${(totalSec % 60).toFixed(2).padStart(5, '0')}`
+      const today = new Date().toISOString().slice(0, 10)
+      const raw = await AsyncStorage.getItem(SESSIONS_KEY)
+      const existing: TrainingSession[] = raw ? JSON.parse(raw) : []
 
-      const raw = await AsyncStorage.getItem(RECORDS_KEY)
-      const existing: RaceRecord[] = raw ? JSON.parse(raw) : []
-
-      const newRecord: RaceRecord = {
+      const newSession: TrainingSession = {
         id: `timer_${Date.now()}`,
         user_id: MOCK_USER_ID,
+        session_date: today,
+        session_type: 'sprint',
         event: selectedEvent,
-        result_display: display,
-        result_ms: Math.round(resultMs),
-        race_date: new Date().toISOString().slice(0, 10),
-        is_pb: false,
-        is_sb: false,
+        time_ms: Math.round(resultMs),
+        fatigue_level: 5,
+        condition_level: 7,
         created_at: new Date().toISOString(),
       }
 
-      await AsyncStorage.setItem(RECORDS_KEY, JSON.stringify([newRecord, ...existing]))
+      await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify([newSession, ...existing]))
+
+      const totalSec = resultMs / 1000
+      const display = totalSec < 60
+        ? `${totalSec.toFixed(2)}秒`
+        : `${Math.floor(totalSec / 60)}:${(totalSec % 60).toFixed(2).padStart(5, '0')}`
+
       Toast.show({
         type: 'success',
-        text1: `${selectedEvent}  ${display} を保存しました`,
+        text1: `${selectedEvent}  ${display} を練習記録に保存しました`,
       })
       setSaveModalVisible(false)
       handleReset()
@@ -214,7 +214,7 @@ export default function TimerScreen() {
         >
           <Ionicons name="chevron-down" size={28} color={TEXT.secondary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>スプリット計測</Text>
+        <Text style={styles.headerTitle}>タイム計測</Text>
         <TouchableOpacity
           style={styles.saveHeaderBtn}
           onPress={handleSave}

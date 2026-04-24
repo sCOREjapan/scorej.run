@@ -260,7 +260,7 @@ export default function GpsRunScreen() {
           <Ionicons name="location-outline" size={64} color={TEXT.hint} />
           <Text style={styles.errorTitle}>位置情報が無効です</Text>
           <Text style={styles.errorBody}>
-            GPS追跡を使用するには、設定アプリから TrackMate の位置情報アクセスを許可してください。
+            GPS追跡を使用するには、設定アプリから sCORE の位置情報アクセスを許可してください。
           </Text>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <Text style={styles.backButtonText}>← 戻る</Text>

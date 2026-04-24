@@ -1,18 +1,19 @@
-// app/terms.tsx — 利用規約
+// app/terms.tsx — 利用規約（詳細版）
 import React from 'react'
 import { View, Text, ScrollView, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { BG_GRADIENT, TEXT } from '../lib/theme'
 
-const LAST_UPDATED = '2025年3月'
-const APP_NAME     = 'TrackMate'
+const LAST_UPDATED = '2026年4月15日'
+const APP_NAME     = 'sCORE'
 const CONTACT      = 'fojpl.office@gmail.com'
+const OPERATOR     = '合同会社sCORE（以下「当社」）'
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ num, title, children }: { num: string; title: string; children: React.ReactNode }) {
   return (
     <View style={s.section}>
-      <Text style={s.sectionTitle}>{title}</Text>
+      <Text style={s.sectionTitle}>{num}　{title}</Text>
       {children}
     </View>
   )
@@ -20,11 +21,19 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function P({ children }: { children: React.ReactNode }) {
   return <Text style={s.body}>{children}</Text>
 }
-function Li({ children }: { children: React.ReactNode }) {
+function Li({ n, children }: { n?: string | number; children: React.ReactNode }) {
   return (
     <View style={s.liRow}>
-      <Text style={s.bullet}>・</Text>
+      <Text style={s.bullet}>{n ? `（${n}）` : '・'}</Text>
       <Text style={[s.body, { flex: 1 }]}>{children}</Text>
+    </View>
+  )
+}
+function Sub({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <View style={s.sub}>
+      <Text style={s.subTitle}>{title}</Text>
+      {children}
     </View>
   )
 }
@@ -36,93 +45,166 @@ export default function TermsScreen() {
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
           <Text style={s.title}>利用規約</Text>
-          <Text style={s.meta}>{APP_NAME} / 最終更新：{LAST_UPDATED}</Text>
+          <Text style={s.meta}>{APP_NAME}　最終改訂：{LAST_UPDATED}</Text>
+          <P>
+            この利用規約（以下「本規約」といいます）は、{OPERATOR}が提供するスマートフォンアプリケーション「{APP_NAME}」（以下「本サービス」といいます）の利用に関する一切の条件を定めるものです。本サービスをご利用いただく前に、本規約の全文をお読みください。本サービスを利用された時点で、ユーザーは本規約の全条項に同意したものとみなします。本規約に同意しない場合は、直ちに本サービスの利用を中止してください。
+          </P>
 
-          <Section title="第1条（総則）">
-            <P>
-              本利用規約（以下「本規約」）は、{APP_NAME}（以下「本サービス」）の利用条件を定めるものです。
-              ユーザーの皆さまには、本規約に同意いただいたうえで本サービスをご利用いただきます。
-            </P>
+          <Section num="第1条" title="定義">
+            <P>本規約において用いる用語の定義は以下のとおりとします。</P>
+            <Li n={1}>「本サービス」とは、当社が運営する陸上競技特化型パフォーマンス管理・怪我予防支援アプリ「{APP_NAME}」およびこれに付帯するすべての機能、コンテンツ、API連携サービスをいいます。</Li>
+            <Li n={2}>「ユーザー」とは、本規約に同意のうえ、本サービスをダウンロード・インストールまたは使用するすべての個人をいいます。</Li>
+            <Li n={3}>「登録情報」とは、ユーザーが本サービスに登録または入力した氏名、所属、競技種目、練習記録、身体情報、食事記録、睡眠データその他一切の情報をいいます。</Li>
+            <Li n={4}>「コンテンツ」とは、本サービスを通じて提供される文章、画像、動画、AIによるアドバイス、リスクスコア、その他一切のデータをいいます。</Li>
+            <Li n={5}>「AIサービス」とは、本サービスが利用するAnthropicの「Claude」APIおよびその他の外部AI APIを通じて提供される機能をいいます。</Li>
+            <Li n={6}>「チーム機能」とは、コーチまたは指導者がチームを作成し、複数の選手を招待・管理することができる機能をいいます。</Li>
           </Section>
 
-          <Section title="第2条（サービスの内容）">
-            <P>本サービスは以下の機能を提供します。</P>
-            <Li>練習記録・トレーニングデータの管理</Li>
-            <Li>AIを活用したフォーム動画分析（Claude API 使用）</Li>
-            <Li>AIによる食事・栄養管理のアドバイス</Li>
-            <Li>怪我リスクスコアの算出と怪我予防のサポート</Li>
-            <Li>リカバリー・テーピングに関する医学的情報の提供</Li>
+          <Section num="第2条" title="本サービスの内容および範囲">
+            <P>本サービスは、以下の機能を提供します。ただし、機能の内容は予告なく変更・追加・削除される場合があります。</P>
+            <Li n={1}>練習記録（トレーニング種別、距離、疲労度、体調スコアの入力および管理）</Li>
+            <Li n={2}>自己ベスト・タイム記録の管理（種目別、期間別フィルタリング機能を含む）</Li>
+            <Li n={3}>怪我リスクスコアの算出（10%ルール、ATL/CTL/TSB指標、睡眠・体調データを組み合わせた独自アルゴリズムによる）</Li>
+            <Li n={4}>AIによる食事・栄養分析および摂取カロリー・PFCバランスのアドバイス（Claude APIを使用）</Li>
+            <Li n={5}>睡眠記録および睡眠の質スコアの管理</Li>
+            <Li n={6}>試合計画・AIペーシング提案機能</Li>
+            <Li n={7}>コーチ・選手間のチームコミュニケーション機能（アナウンス、フォーム動画送付、体調申告等）</Li>
+            <Li n={8}>プッシュ通知による練習リマインダー、怪我リスク警告</Li>
+            <Li n={9}>ゲーミフィケーション機能（レベル、ランク、実績バッジ）</Li>
+            <Li n={10}>カレンダー形式での記録閲覧</Li>
           </Section>
 
-          <Section title="第3条（利用プラン）">
-            <P>本サービスは以下のプランを提供します。</P>
-            <Li>
-              <Text style={s.bold}>無料プラン</Text>
-              {' — '}基本機能を無料で利用できます。動画分析は1日1回まで（お試し）。広告が表示されます。
-            </Li>
-            <Li>
-              <Text style={s.bold}>プレミアムプラン（¥980/月）</Text>
-              {' — '}広告なし・動画分析無制限・高精度AIモデル（Claude Opus）を利用できます。
-            </Li>
-            <Li>
-              <Text style={s.bold}>チーム・学校プラン（¥3,000/月〜）</Text>
-              {' — '}部活・チーム全員で利用できるプランです。複数メンバーのアカウント管理に対応。
-            </Li>
+          <Section num="第3条" title="利用資格">
+            <P>本サービスは、陸上競技に従事するすべての方を対象としています。ただし、以下のいずれかに該当する場合は、本サービスを利用することができません。</P>
+            <Li n={1}>13歳未満の方（13歳未満の方が本サービスを利用する場合は、保護者の同意が必要です）</Li>
+            <Li n={2}>過去に当社により本サービスの利用を禁止された方</Li>
+            <Li n={3}>本規約に違反したことがある方</Li>
+            <Li n={4}>反社会的勢力に属する、または関係する方</Li>
+            <Li n={5}>その他、当社が利用を不適切と判断した方</Li>
           </Section>
 
-          <Section title="第4条（禁止事項）">
-            <P>ユーザーは以下の行為を行ってはなりません。</P>
-            <Li>本サービスを違法な目的に使用すること</Li>
-            <Li>他のユーザーや第三者の権利を侵害すること</Li>
-            <Li>本サービスのシステムに不正にアクセスすること</Li>
-            <Li>虚偽の情報を登録・送信すること</Li>
-            <Li>本サービスを商業目的で無断転用すること</Li>
-            <Li>本サービスの運営を妨害する行為</Li>
+          <Section num="第4条" title="登録および利用開始">
+            <Li n={1}>ユーザーは、本サービスをダウンロードし、初回起動時に本規約およびプライバシーポリシーへの同意を行うことで、本サービスの利用を開始することができます。</Li>
+            <Li n={2}>ユーザーは、設定画面においてプロフィール情報（氏名、競技種目、学年・所属等）を任意で登録することができます。</Li>
+            <Li n={3}>チーム機能を利用するコーチは、チームを新規作成したうえで参加コードを発行し、選手に共有することでチームを構成することができます。</Li>
+            <Li n={4}>選手は、コーチから受け取った参加コードを入力することで、対応するプライベートチームにのみ参加することができます。正当なコードなしにチームへ参加することはできません。</Li>
           </Section>
 
-          <Section title="第5条（医療免責事項）">
-            <P>
-              本サービスが提供する怪我予防・リカバリー・栄養に関する情報は、一般的な参考情報です。
-              医師・トレーナーなど専門家の診断・アドバイスに代わるものではありません。
-              症状が重い場合や継続する場合は、必ず医療機関を受診してください。
-            </P>
-            <P>
-              本サービスの情報を参考にした行動によって生じた損害について、運営者は責任を負いかねます。
-            </P>
+          <Section num="第5条" title="利用料金および課金">
+            <Sub title="（1）無料プラン">
+              <P>基本機能（練習記録、タイム管理、怪我リスク確認等）を無償で利用いただけます。無料プランにおいては、一部機能に回数制限が設けられる場合があります。</P>
+            </Sub>
+            <Sub title="（2）プレミアムプラン">
+              <P>月額980円（税込）で以下の追加機能を利用できます。料金はApp StoreまたはGoogle Playを通じて課金されます。</P>
+              <Li>広告の非表示</Li>
+              <Li>AI機能の利用回数制限の撤廃</Li>
+              <Li>高精度AIモデル（Claude Opus）の使用</Li>
+              <Li>詳細な怪我リスク分析レポートへのアクセス</Li>
+            </Sub>
+            <Sub title="（3）チーム・学校プラン">
+              <P>月額3,000円（税込）〜。部活動・クラブチーム・学校単位での利用を想定したプランです。メンバー数に応じて料金が変動する場合があります。詳細はお問い合わせください。</P>
+            </Sub>
+            <Sub title="（4）課金・解約に関する事項">
+              <Li n={1}>各プランの料金は、各アプリストアの定める方法によりお支払いいただきます。</Li>
+              <Li n={2}>サブスクリプションはいつでも解約できます。解約の手続きはApp StoreまたはGoogle Playの「サブスクリプション管理」画面から行ってください。</Li>
+              <Li n={3}>解約後も当月末日まで各プランの機能をご利用いただけます。日割りでの返金は行いません。</Li>
+              <Li n={4}>課金に関するトラブル（請求誤り等）については、各アプリストアのサポートにお問い合わせください。</Li>
+              <Li n={5}>当社の事情によるサービス停止・廃止の場合を除き、既にお支払いいただいた料金の返金は原則として行いません。</Li>
+            </Sub>
           </Section>
 
-          <Section title="第6条（サービスの変更・停止）">
-            <P>
-              運営者は、ユーザーへの事前通知なしに本サービスの内容を変更、または提供を停止することがあります。
-              これによってユーザーに生じた損害について、運営者は責任を負いかねます。
-            </P>
+          <Section num="第6条" title="禁止事項">
+            <P>ユーザーは、本サービスの利用にあたり、以下の行為を行ってはなりません。</P>
+            <Li n={1}>法令または本規約に違反する行為</Li>
+            <Li n={2}>当社または第三者（他のユーザー、コーチ、選手を含む）の著作権、商標権、特許権その他の知的財産権を侵害する行為</Li>
+            <Li n={3}>当社または第三者の名誉、信用、プライバシーを侵害する行為</Li>
+            <Li n={4}>本サービスのサーバーまたはネットワークに対して不正アクセス、過大な負荷をかける行為、またはその試み</Li>
+            <Li n={5}>本サービスのソフトウェアを逆コンパイル、逆アセンブル、リバースエンジニアリングする行為</Li>
+            <Li n={6}>本サービスを商業目的で無断使用・転用・再配布する行為</Li>
+            <Li n={7}>他のユーザーになりすます行為、または虚偽の情報を登録・送信する行為</Li>
+            <Li n={8}>本サービスを通じてスパム、詐欺的メッセージ、マルウェアを配布する行為</Li>
+            <Li n={9}>反社会的勢力への利益供与その他の反社会的行為</Li>
+            <Li n={10}>選手の個人情報・健康情報をチーム運営以外の目的で第三者に提供する行為</Li>
+            <Li n={11}>チーム機能を悪用して他のチームの情報に不正アクセスする行為</Li>
+            <Li n={12}>その他、当社が不適切と合理的に判断する行為</Li>
           </Section>
 
-          <Section title="第7条（プレミアムプランの解約）">
-            <Li>プレミアムプランはいつでも解約できます</Li>
-            <Li>解約後も当月末まで利用可能です</Li>
-            <Li>日割りでの返金は行いません</Li>
-            <Li>解約方法：設定 → サブスクリプション → 解約</Li>
+          <Section num="第7条" title="医療免責事項および情報の性質">
+            <Li n={1}>本サービスが提供する怪我リスクスコア、リカバリーアドバイス、栄養分析、AIからのコメントその他一切の情報は、一般的な参考情報であり、医学的診断・医療行為・専門家による指導に代わるものではありません。</Li>
+            <Li n={2}>怪我リスクスコアは、ユーザーが入力したデータに基づく統計的・算術的推定値です。スコアが「低」であっても怪我が発生しないことを保証するものではなく、スコアが「高」であっても必ずしも怪我が発生するものではありません。</Li>
+            <Li n={3}>身体に痛みや違和感がある場合、または継続的な不調がある場合は、本サービスの情報のみに頼らず、速やかに医師、理学療法士その他の医療専門家にご相談ください。</Li>
+            <Li n={4}>本サービスのAI機能が提供する食事・栄養に関するアドバイスは、利用者の健康状態、疾患、アレルギー等を考慮したものではありません。食事制限や特別な栄養管理が必要な方は、必ず専門家の指示に従ってください。</Li>
+            <Li n={5}>本サービスの情報を参考に行動したことによって生じた身体的損害、精神的損害、財産的損害について、当社は一切の責任を負いません。</Li>
           </Section>
 
-          <Section title="第8条（知的財産権）">
-            <P>
-              本サービスに含まれるコンテンツ・デザイン・ロゴ等の知的財産権は運営者に帰属します。
-              ユーザーが入力したデータの権利はユーザーに帰属します。
-            </P>
+          <Section num="第8条" title="AIサービスの利用に関する事項">
+            <Li n={1}>本サービスは、Anthropic社が提供するClaude APIを使用しています。AIによる回答の正確性・適切性について当社は保証しません。</Li>
+            <Li n={2}>AIに送信されたユーザーの入力データは、外部APIサーバーへ転送されます。機微な個人情報（氏名、住所、医療記録等）をAI機能に入力しないよう強くお勧めします。</Li>
+            <Li n={3}>AIが生成したコンテンツはAIモデルの特性上、事実と異なる情報（ハルシネーション）を含む場合があります。重要な判断はAIの出力のみに依存しないでください。</Li>
+            <Li n={4}>当社は、AIサービスの提供元（Anthropic社等）に起因するサービス停止・品質変動について責任を負いません。</Li>
           </Section>
 
-          <Section title="第9条（準拠法・管轄裁判所）">
-            <P>
-              本規約は日本法に準拠します。
-              本サービスに関する紛争については、運営者所在地を管轄する裁判所を専属合意管轄とします。
-            </P>
+          <Section num="第9条" title="ユーザーデータの取り扱い">
+            <Li n={1}>本サービスにユーザーが入力した練習記録、タイム、睡眠記録、食事記録その他のデータの権利はユーザー本人に帰属します。</Li>
+            <Li n={2}>当社は、本サービスの品質向上・機能改善・統計分析を目的として、個人を特定できない形に加工したうえでユーザーデータを利用することがあります。</Li>
+            <Li n={3}>ユーザーが本サービスを削除した場合、端末上のローカルデータは削除されます。ただし、チーム機能を通じてSupabaseに保存されたデータについては、当社所定の手続きによる削除申請が必要です。</Li>
+            <Li n={4}>個人情報の取り扱いについては、別途定めるプライバシーポリシーが適用されます。本規約とプライバシーポリシーが矛盾する場合は、プライバシーポリシーが優先されます。</Li>
           </Section>
 
-          <Section title="第10条（お問い合わせ）">
-            <P>本規約に関するご質問は以下までご連絡ください。</P>
-            <P>メール：{CONTACT}</P>
+          <Section num="第10条" title="知的財産権">
+            <Li n={1}>本サービスのソフトウェア、デザイン、UI/UX、ロゴ、テキスト、アルゴリズム（怪我リスク計算式等）その他一切のコンテンツに関する知的財産権は、当社または当社にライセンスを付与した権利者に帰属します。</Li>
+            <Li n={2}>ユーザーは、本規約に基づき本サービスを個人的・非商業的目的においてのみ利用する限定的かつ非独占的なライセンスを付与されます。</Li>
+            <Li n={3}>本サービスのコンテンツを、当社の事前の書面による許可なく複製、改変、配布、販売、出版、公衆送信することを禁じます。</Li>
           </Section>
+
+          <Section num="第11条" title="サービスの変更・停止・終了">
+            <Li n={1}>当社は、ユーザーへの事前通知なしに、本サービスの内容の一部または全部を変更、追加、削除することができます。</Li>
+            <Li n={2}>当社は、システムメンテナンス、障害対応、その他の事由により、本サービスの提供を一時的に停止することがあります。この場合、可能な限り事前告知を行いますが、緊急の場合はこの限りではありません。</Li>
+            <Li n={3}>当社は、事業上の理由その他やむを得ない事由により、30日前の告知をもって本サービスを終了することがあります。</Li>
+            <Li n={4}>前各項に基づくサービス変更・停止・終了によりユーザーに損害が生じた場合でも、当社は一切の責任を負いません。</Li>
+          </Section>
+
+          <Section num="第12条" title="免責事項">
+            <Li n={1}>当社は、本サービスの内容の正確性、完全性、有用性、適法性、安全性について、明示または黙示を問わず何ら保証しません。</Li>
+            <Li n={2}>当社は、以下の事項について一切の責任を負いません。</Li>
+            <View style={{ paddingLeft: 16, marginTop: 4, gap: 4 }}>
+              <Li>ユーザー間のトラブル（チームメンバー間の紛争等）</Li>
+              <Li>第三者による不正アクセス、情報漏洩</Li>
+              <Li>ユーザーの端末・ネットワーク環境に起因する不具合</Li>
+              <Li>AIの出力内容に起因する損害</Li>
+              <Li>本サービスを通じた外部サービス（Supabase, OneSignal, Anthropic API等）に起因する障害</Li>
+              <Li>プッシュ通知が届かなかったことによる損害</Li>
+            </View>
+            <Li n={3}>当社がユーザーに対して損害賠償責任を負う場合であっても、その賠償額は当該ユーザーが当社に支払った直近3か月分の利用料金の総額を上限とします。</Li>
+          </Section>
+
+          <Section num="第13条" title="規約の変更">
+            <Li n={1}>当社は、本規約を随時変更することがあります。重要な変更を行う場合は、本サービス内での告知またはユーザーへのプッシュ通知等の方法により事前に告知します。</Li>
+            <Li n={2}>変更後の規約は、告知後に本サービスを継続利用した時点でユーザーが同意したものとみなします。</Li>
+            <Li n={3}>変更後の規約に同意しない場合は、本サービスの利用を中止してください。</Li>
+          </Section>
+
+          <Section num="第14条" title="分離可能性">
+            <P>本規約のいずれかの条項が、適用ある法令により無効または執行不能とされた場合でも、当該条項以外の条項は引き続き有効に存続します。</P>
+          </Section>
+
+          <Section num="第15条" title="準拠法および管轄裁判所">
+            <Li n={1}>本規約の成立、効力、解釈および履行については、日本法に準拠するものとします。</Li>
+            <Li n={2}>本サービスまたは本規約に起因・関連する一切の紛争については、当社所在地を管轄する地方裁判所または簡易裁判所を第一審の専属的合意管轄裁判所とします。</Li>
+          </Section>
+
+          <Section num="第16条" title="お問い合わせ">
+            <P>本規約に関するご質問、ご意見、削除申請その他のお問い合わせは、下記の連絡先までお送りください。なお、返信にはお時間をいただく場合があります。あらかじめご了承ください。</P>
+            <P>運営者：{OPERATOR}</P>
+            <P>メールアドレス：{CONTACT}</P>
+            <P>受付時間：平日10:00〜18:00（土日祝・年末年始を除く）</P>
+          </Section>
+
+          <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginVertical: 24 }} />
+          <Text style={[s.body, { textAlign: 'center', fontSize: 11 }]}>
+            {APP_NAME}　利用規約　{LAST_UPDATED} 施行{'\n'}
+            本規約は日本語を正文とします。
+          </Text>
 
         </ScrollView>
       </SafeAreaView>
@@ -131,14 +213,16 @@ export default function TermsScreen() {
 }
 
 const s = StyleSheet.create({
-  scroll:        { padding: 20, paddingBottom: 60, gap: 4 },
-  title:         { color: '#fff', fontSize: 22, fontWeight: '800', marginBottom: 4 },
-  meta:          { color: TEXT.hint, fontSize: 12, marginBottom: 20 },
-  section:       { marginBottom: 24 },
-  sectionTitle:  { color: '#fff', fontSize: 15, fontWeight: '800', marginBottom: 8,
-                   borderLeftWidth: 3, borderLeftColor: '#E53935', paddingLeft: 10 },
-  body:          { color: TEXT.secondary, fontSize: 13, lineHeight: 22 },
-  bold:          { color: '#fff', fontWeight: '700' },
-  liRow:         { flexDirection: 'row', marginTop: 4 },
-  bullet:        { color: '#E53935', fontSize: 13, marginTop: 1 },
+  scroll:       { padding: 20, paddingBottom: 60, gap: 4 },
+  title:        { color: '#fff', fontSize: 22, fontWeight: '800', marginBottom: 4 },
+  meta:         { color: TEXT.hint, fontSize: 12, marginBottom: 16 },
+  section:      { marginBottom: 28 },
+  sectionTitle: { color: '#fff', fontSize: 14, fontWeight: '800', marginBottom: 10,
+                  borderLeftWidth: 3, borderLeftColor: '#E53935', paddingLeft: 10 },
+  sub:          { marginTop: 10, marginBottom: 4 },
+  subTitle:     { color: '#aaa', fontSize: 13, fontWeight: '700', marginBottom: 6 },
+  body:         { color: TEXT.secondary, fontSize: 13, lineHeight: 22 },
+  bold:         { color: '#fff', fontWeight: '700' },
+  liRow:        { flexDirection: 'row', marginTop: 5, alignItems: 'flex-start' },
+  bullet:       { color: '#E53935', fontSize: 12, fontWeight: '700', marginRight: 4, marginTop: 1, minWidth: 28 },
 })

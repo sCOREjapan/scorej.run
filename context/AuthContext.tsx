@@ -7,7 +7,7 @@ import { supabase } from '../lib/supabase'
 import Toast from 'react-native-toast-message'
 
 const ONBOARDING_KEY = 'tm_onboarded'
-const SITE_URL = 'https://track-mate-murex.vercel.app'
+const SITE_URL = 'https://transcendent-pie-3fdb66.netlify.app'
 
 interface AuthContextType {
   user:                    User    | null

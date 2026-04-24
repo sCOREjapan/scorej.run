@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { useFocusEffect } from '@react-navigation/native'
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  TextInput, Modal, KeyboardAvoidingView, Platform, Animated, Alert,
+  TextInput, Modal, KeyboardAvoidingView, Platform, Animated, Alert, Dimensions, Pressable,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -14,17 +15,25 @@ import { Sounds, unlockAudio } from '../../lib/sounds'
 import AnimatedSection from '../../components/AnimatedSection'
 import DateSelector from '../../components/DateSelector'
 import TrainingChart from '../../components/TrainingChart'
-import type { RaceRecord, AthleticsEvent, ChartDataPoint } from '../../types'
+import type { RaceRecord, AthleticsEvent, ChartDataPoint, TrainingSession } from '../../types'
+import type { SleepRecord } from '../../types'
 import { exportAllDataCSV, exportAllDataJSON } from '../../lib/export'
 
-const RECORDS_KEY = 'trackmate_race_records'
-const MOCK_USER_ID = 'mock-user-1'
+const RECORDS_KEY       = 'trackmate_race_records'
+const SESSIONS_KEY      = 'trackmate_sessions'
+const CONDITION_MAP_KEY = 'trackmate_condition_map'
+const SLEEP_KEY         = 'trackmate_sleep'
+const WEIGHT_KEY        = 'trackmate_weight'
+const MOCK_USER_ID      = 'mock-user-1'
+
+type WeightRecord = { id: string; date: string; weight_kg: number }
+const SCREEN_W          = Dimensions.get('window').width
 
 // ── 種目定義 ──────────────────────────────────────────────────────
 const TRACK_EVENTS: AthleticsEvent[] = [
   '100m','200m','400m','800m','1500m','3000m',
   '5000m','10000m','110mH','100mH','400mH','3000mSC',
-  'half_marathon','marathon',
+  'half_marathon','marathon','競歩',
 ]
 const FIELD_EVENTS: AthleticsEvent[] = [
   '走幅跳','三段跳','走高跳','棒高跳',
@@ -165,10 +174,921 @@ function PBSummary({ records }: { records: RaceRecord[] }) {
   )
 }
 
+// ── 練習ノート + 進捗タブ ─────────────────────────────────────────
+const TYPE_COLORS: Record<string,string> = {
+  interval:'#E53935', tempo:'#FF9500', easy:'#4ECDC4', long:'#5AC8FA',
+  sprint:'#FF6B6B', drill:'#AF52DE', strength:'#FF6B35', race:'#FFD700', rest:'#555',
+}
+const TYPE_LABELS: Record<string,string> = {
+  interval:'インターバル', tempo:'テンポ走', easy:'ジョグ', long:'ロング走',
+  sprint:'スプリント', drill:'ドリル', strength:'ウェイト', race:'試合', rest:'休養',
+}
+const TYPE_EMOJIS: Record<string,string> = {
+  interval:'⚡', tempo:'🏃', easy:'🌿', long:'🛣️',
+  sprint:'💨', drill:'🔧', strength:'🏋️', race:'🏆', rest:'😴',
+}
+const FATIGUE_EMOJI = (v: number) => v >= 9 ? '🥵' : v >= 7 ? '😰' : v >= 5 ? '😐' : v >= 3 ? '🙂' : '😊'
+
+// マイルストーン定義
+const MILESTONES = [
+  { key:'first',   label:'初練習',  emoji:'🎉', check: (s: TrainingSession[]) => s.length >= 1    },
+  { key:'5th',     label:'5回達成', emoji:'✨', check: (s: TrainingSession[]) => s.length >= 5    },
+  { key:'10th',    label:'10回！',  emoji:'🔥', check: (s: TrainingSession[]) => s.length >= 10   },
+  { key:'30th',    label:'30回',    emoji:'💪', check: (s: TrainingSession[]) => s.length >= 30   },
+  { key:'100th',   label:'100回',   emoji:'🏅', check: (s: TrainingSession[]) => s.length >= 100  },
+  { key:'km10',    label:'10km',    emoji:'👟', check: (s: TrainingSession[]) => s.reduce((a,x)=>a+(x.distance_m??0),0) >= 10000 },
+  { key:'km100',   label:'100km',   emoji:'🗺️', check: (s: TrainingSession[]) => s.reduce((a,x)=>a+(x.distance_m??0),0) >= 100000 },
+  { key:'km500',   label:'500km',   emoji:'🌏', check: (s: TrainingSession[]) => s.reduce((a,x)=>a+(x.distance_m??0),0) >= 500000 },
+]
+
+// ヒートマップ: 全練習記録を横スクロールで表示（週ごとの列、今日が右端）
+function Heatmap({ sessions }: { sessions: TrainingSession[] }) {
+  const scrollRef = useRef<any>(null)
+  const today = new Date()
+  const todayStr = today.toISOString().slice(0, 10)
+  const countByDay: Record<string,number> = {}
+  const typeByDay: Record<string,string> = {}
+  sessions.forEach(s => {
+    countByDay[s.session_date] = (countByDay[s.session_date] ?? 0) + 1
+    if (!typeByDay[s.session_date]) typeByDay[s.session_date] = s.session_type
+  })
+
+  const CELL = 14
+  const GAP  = 3
+  const DOW_LABELS = ['日', '月', '火', '水', '木', '金', '土']
+
+  // 最も古い練習日から今日まで全部カバー（最低52週）
+  const oldestDate = sessions.length > 0
+    ? sessions.reduce((a, s) => s.session_date < a ? s.session_date : a, sessions[0].session_date)
+    : todayStr
+  const oldest = new Date(oldestDate)
+  const minWeeks = 52
+  const weeksNeeded = Math.max(minWeeks, Math.ceil((today.getTime() - oldest.getTime()) / (7 * 86400000)) + 2)
+  const numDays = weeksNeeded * 7
+
+  // 今日の曜日（0=日）に合わせて、今日が右端最下行になるよう末尾パディング
+  const todayDow = today.getDay()
+  const trailingPad = 6 - todayDow  // 土曜まで埋める
+
+  const days: (string | null)[] = []
+  for (let i = numDays - 1; i >= 0; i--) {
+    const d = new Date(today); d.setDate(today.getDate() - i)
+    days.push(d.toISOString().slice(0, 10))
+  }
+  for (let i = 0; i < trailingPad; i++) days.push(null)
+
+  // 7行 × N列のグリッド（列 = 週）
+  const totalCols = Math.ceil(days.length / 7)
+  const cols: (string | null)[][] = Array.from({ length: totalCols }, (_, c) =>
+    days.slice(c * 7, c * 7 + 7)
+  )
+
+  const cellColor = (d: string | null) => {
+    if (!d) return 'transparent'
+    const n = countByDay[d] ?? 0
+    if (n === 0) return 'rgba(255,255,255,0.07)'
+    const type = typeByDay[d]
+    const base =
+      type === 'interval' || type === 'sprint' ? '#E53935' :
+      type === 'tempo'    ? '#FF9500' :
+      type === 'long'     ? '#5AC8FA' :
+      type === 'strength' ? '#FF6B35' :
+      type === 'race'     ? '#FFD700' :
+      type === 'rest'     ? '#5a5a8a' :
+      '#34C759'
+    return n >= 2 ? base : base + '88'
+  }
+
+  return (
+    <View>
+      <ScrollView
+        ref={scrollRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        onLayout={() => { scrollRef.current?.scrollToEnd({ animated: false }) }}
+        contentContainerStyle={{ paddingRight: 4 }}
+      >
+        <View>
+          {/* 月ラベル行 */}
+          <View style={{ flexDirection: 'row', marginLeft: 16 }}>
+            {cols.map((col, ci) => {
+              const firstReal = col.find(d => d !== null)
+              const showMonth = firstReal && new Date(firstReal).getDate() <= 7
+              return (
+                <View key={ci} style={{ width: CELL + GAP, alignItems: 'flex-start' }}>
+                  {showMonth ? (
+                    <Text style={{ color: TEXT.hint, fontSize: 8 }}>
+                      {`${new Date(firstReal!).getMonth()+1}月`}
+                    </Text>
+                  ) : <View style={{ height: 10 }} />}
+                </View>
+              )
+            })}
+          </View>
+
+          {/* セルグリッド */}
+          {DOW_LABELS.map((dow, di) => (
+            <View key={dow} style={{ flexDirection: 'row', alignItems: 'center', marginTop: GAP }}>
+              <Text style={{ color: TEXT.hint, fontSize: 8, width: 16, textAlign: 'right', marginRight: 2 }}>
+                {di % 2 === 0 ? dow : ''}
+              </Text>
+              {cols.map((col, ci) => {
+                const d = col[di] ?? null
+                const isToday = d === todayStr
+                return (
+                  <View
+                    key={ci}
+                    style={{
+                      width: CELL, height: CELL, borderRadius: 3,
+                      marginRight: GAP,
+                      backgroundColor: cellColor(d),
+                      borderWidth: isToday ? 1.5 : 0,
+                      borderColor: BRAND,
+                      opacity: d === null ? 0 : 1,
+                    }}
+                  />
+                )
+              })}
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+
+      {/* 凡例 */}
+      <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        {[
+          { color: '#34C759', label: 'ジョグ' },
+          { color: '#E53935', label: 'スプリント' },
+          { color: '#FF9500', label: 'テンポ走' },
+          { color: '#5AC8FA', label: 'ロング走' },
+          { color: '#FFD700', label: '試合' },
+        ].map(l => (
+          <View key={l.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+            <View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: l.color }} />
+            <Text style={{ color: TEXT.hint, fontSize: 9 }}>{l.label}</Text>
+          </View>
+        ))}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+          <View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: 'transparent', borderWidth: 1.5, borderColor: BRAND }} />
+          <Text style={{ color: TEXT.hint, fontSize: 9 }}>今日</Text>
+        </View>
+      </View>
+    </View>
+  )
+}
+
+// ── セッション詳細シート ────────────────────────────────────────────
+function SessionDetailSheet({ session, onClose, onDelete }: {
+  session: TrainingSession
+  onClose: () => void
+  onDelete: (id: string) => void
+}) {
+  const color = TYPE_COLORS[session.session_type] ?? '#888'
+  const label = TYPE_LABELS[session.session_type] ?? session.session_type
+  const emoji = TYPE_EMOJIS[session.session_type] ?? '📝'
+  const fat   = session.fatigue_level ?? 5
+  const cond  = session.condition_level ?? null
+
+  const fmtMs = (ms: number) => {
+    const s = ms / 1000
+    if (s < 60) return `${s.toFixed(2)}"`
+    return `${Math.floor(s/60)}'${(s%60).toFixed(2).padStart(5,'0')}"`
+  }
+  const fmtDist = (m: number) => m >= 1000 ? `${(m/1000).toFixed(2)}km` : `${m}m`
+
+  const CONDITION_LABELS: Record<number, string> = {2:'最悪',3:'悪い',4:'やや悪',5:'普通',6:'まあまあ',7:'良い',8:'かなり良い',9:'絶好調',10:'最高'}
+
+  const stats: { icon: string; label: string; value: string; color?: string }[] = [
+    ...(session.event     ? [{ icon:'🏟️', label:'種目',   value: session.event }] : []),
+    ...(session.time_ms   ? [{ icon:'⏱',  label:'タイム', value: fmtMs(session.time_ms), color:'#fff' }] : []),
+    ...(session.distance_m? [{ icon:'📏', label:'距離',   value: fmtDist(session.distance_m) }] : []),
+    ...(session.reps      ? [{ icon:'🔁', label:'本数',   value: `${session.reps}本` }] : []),
+    { icon: FATIGUE_EMOJI(fat),  label:'疲労度',   value: `${fat}/10` },
+    ...(cond != null      ? [{ icon: cond >= 7 ? '😊' : cond >= 5 ? '😐' : '😕', label:'体調', value: `${cond}/10  ${CONDITION_LABELS[cond] ?? ''}` }] : []),
+  ]
+
+  return (
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end', zIndex: 999 }]}>
+      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+      <View style={{ backgroundColor: '#111', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+        padding: 20, paddingBottom: 48, borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
+        <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)', alignSelf: 'center', marginBottom: 16 }} />
+
+        {/* ヘッダー */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 18 }}>
+          <View style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: color + '20',
+            borderWidth: 2, borderColor: color + '60', alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontSize: 22 }}>{emoji}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color, fontSize: 16, fontWeight: '900' }}>{label}</Text>
+            <Text style={{ color: TEXT.hint, fontSize: 12, marginTop: 2 }}>
+              {session.session_date}{'  '}
+              {['日','月','火','水','木','金','土'][new Date(session.session_date).getDay()]}曜日
+            </Text>
+          </View>
+          <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+            <Ionicons name="close" size={22} color={TEXT.secondary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* スタッツグリッド */}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
+          {stats.map((s, i) => (
+            <View key={i} style={{ backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12,
+              paddingVertical: 12, paddingHorizontal: 14, gap: 4, minWidth: '44%', flex: 1 }}>
+              <Text style={{ color: TEXT.hint, fontSize: 11 }}>{s.icon} {s.label}</Text>
+              <Text style={{ color: s.color ?? '#fff', fontSize: 15, fontWeight: '800' }}>{s.value}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* ノート（元の入力テキスト） */}
+        {session.notes ? (
+          <View style={{ backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: 14,
+            borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', marginBottom: 12 }}>
+            <Text style={{ color: TEXT.hint, fontSize: 11, fontWeight: '700', marginBottom: 8 }}>📝 メモ</Text>
+            <Text style={{ color: TEXT.secondary, fontSize: 13, lineHeight: 22 }}>{session.notes}</Text>
+          </View>
+        ) : null}
+        {/* 削除ボタン */}
+        <TouchableOpacity
+          onPress={() => { onDelete(session.id); onClose() }}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+            paddingVertical: 13, borderRadius: 12, borderWidth: 1,
+            borderColor: 'rgba(255,59,48,0.35)', backgroundColor: 'rgba(255,59,48,0.08)' }}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="trash-outline" size={16} color="#FF3B30" />
+          <Text style={{ color: '#FF3B30', fontWeight: '700', fontSize: 14 }}>この記録を削除</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  )
+}
+
+// セッション1件のタイムラインカード（タップで詳細表示）
+function SessionTimelineCard({ session, onTap }: { session: TrainingSession; onTap: () => void }) {
+  const color = TYPE_COLORS[session.session_type] ?? '#888'
+  const label = TYPE_LABELS[session.session_type] ?? session.session_type
+  const emoji = TYPE_EMOJIS[session.session_type] ?? '📝'
+  const fat   = session.fatigue_level ?? 5
+  const fmtMs = (ms: number) => {
+    const s = ms / 1000
+    if (s < 60) return `${s.toFixed(2)}"`
+    return `${Math.floor(s/60)}'${(s%60).toFixed(2).padStart(5,'0')}"`
+  }
+  return (
+    <TouchableOpacity onPress={onTap} activeOpacity={0.7} style={{ flexDirection: 'row', gap: 12, paddingVertical: 8 }}>
+      {/* 左: タイムライン線 + ドット */}
+      <View style={{ alignItems: 'center', width: 28 }}>
+        <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: color + '22',
+          borderWidth: 2, borderColor: color, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 13 }}>{emoji}</Text>
+        </View>
+        <View style={{ width: 2, flex: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginTop: 4 }} />
+      </View>
+      {/* 右: 内容 */}
+      <View style={{ flex: 1, gap: 4, paddingBottom: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={{ color, fontSize: 13, fontWeight: '800' }}>{label}</Text>
+          {session.event ? <Text style={{ color: TEXT.hint, fontSize: 12 }}>{session.event}</Text> : null}
+          <Text style={{ color: TEXT.hint, fontSize: 11, marginLeft: 'auto' as any }}>
+            {FATIGUE_EMOJI(fat)} {fat}/10
+          </Text>
+        </View>
+        {/* メトリクス */}
+        <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+          {session.time_ms ? (
+            <View style={{ backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
+              <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>⏱ {fmtMs(session.time_ms)}</Text>
+            </View>
+          ) : null}
+          {session.distance_m ? (
+            <View style={{ backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
+              <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>
+                📏 {session.distance_m >= 1000 ? `${(session.distance_m/1000).toFixed(1)}km` : `${session.distance_m}m`}
+              </Text>
+            </View>
+          ) : null}
+          {session.reps ? (
+            <View style={{ backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
+              <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>🔁 {session.reps}本</Text>
+            </View>
+          ) : null}
+        </View>
+        {/* メモ (1行プレビュー) */}
+        {session.notes ? (
+          <Text style={{ color: TEXT.secondary, fontSize: 12, lineHeight: 18 }} numberOfLines={1}>
+            {session.notes}
+          </Text>
+        ) : null}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+          <Text style={{ color: TEXT.hint, fontSize: 10 }}>詳細を見る</Text>
+          <Ionicons name="chevron-forward" size={10} color={TEXT.hint} />
+        </View>
+      </View>
+    </TouchableOpacity>
+  )
+}
+
+// 日付グループヘッダー
+function DateHeader({ dateStr }: { dateStr: string }) {
+  const now = new Date()
+  const d   = new Date(dateStr)
+  const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000)
+  const label = diffDays === 0 ? '今日' : diffDays === 1 ? '昨日' : diffDays < 7 ? `${diffDays}日前` : dateStr.slice(5).replace('-', '/')
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, marginBottom: 2 }}>
+      <Text style={{ color: diffDays === 0 ? BRAND : TEXT.secondary, fontSize: 12, fontWeight: '800' }}>{label}</Text>
+      <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.06)' }} />
+      <Text style={{ color: TEXT.hint, fontSize: 10 }}>
+        {['日','月','火','水','木','金','土'][d.getDay()]}
+      </Text>
+    </View>
+  )
+}
+
+function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWeight, onDeleteSession }: {
+  sessions: TrainingSession[]
+  loading: boolean
+  weightRecords: WeightRecord[]
+  onAddWeight: (kg: number, date: string) => void
+  onDeleteWeight: (id: string) => void
+  onDeleteSession: (id: string) => void
+}) {
+  const router = useRouter()
+  const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null)
+  if (loading) return <View style={{ gap: 10 }}>{[1,2,3].map(i => <SkeletonRect key={i} h={80} />)}</View>
+
+  const totalKm     = sessions.reduce((a,s) => a+(s.distance_m??0), 0) / 1000
+  const thisWeekSessions = sessions.filter(s => {
+    const d = new Date(s.session_date)
+    return (Date.now() - d.getTime()) <= 7 * 86400000
+  })
+
+  // 連続練習日数
+  let streak = 0
+  const today = new Date().toISOString().slice(0, 10)
+  const dateSet = new Set(sessions.map(s => s.session_date))
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(); d.setDate(d.getDate() - i)
+    const dStr = d.toISOString().slice(0, 10)
+    if (dateSet.has(dStr)) streak++
+    else if (i > 0) break  // streak ends (today OK to be 0)
+  }
+
+  // タイムライン：日付ごとにグループ化
+  const byDate: Record<string, TrainingSession[]> = {}
+  sessions.forEach(s => {
+    byDate[s.session_date] = byDate[s.session_date] ?? []
+    byDate[s.session_date].push(s)
+  })
+  const sortedDates = Object.keys(byDate).sort((a, b) => b.localeCompare(a)).slice(0, 60)
+
+  const unlockedCount = MILESTONES.filter(m => m.check(sessions)).length
+
+  return (
+    <>
+    <View style={{ gap: 14 }}>
+
+      {/* ── 入力ボタン（手動 / AI） ── */}
+      <AnimatedSection delay={0} type="fade-up">
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        <TouchableOpacity
+          style={[styles.inputShortcut, { borderColor: 'rgba(90,200,250,0.4)' }]}
+          activeOpacity={0.8}
+          onPress={() => { unlockAudio(); Sounds.tap(); router.push('/manual-log' as any) }}
+        >
+          <Ionicons name="create-outline" size={20} color="#5AC8FA" />
+          <Text style={[styles.inputShortcutText, { color: '#5AC8FA' }]}>手動入力</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.inputShortcut, { borderColor: 'rgba(229,57,53,0.4)', backgroundColor: 'rgba(229,57,53,0.07)' }]}
+          activeOpacity={0.8}
+          onPress={() => { unlockAudio(); Sounds.whoosh(); router.push('/practice-input' as any) }}
+        >
+          <Text style={{ fontSize: 18 }}>🤖</Text>
+          <Text style={[styles.inputShortcutText, { color: BRAND }]}>AI入力</Text>
+        </TouchableOpacity>
+      </View>
+      </AnimatedSection>
+
+      {/* ── ① ヒーローカード（ストリーク + 統計） ── */}
+      <AnimatedSection delay={0} type="fade-up">
+      <View style={[styles.card, { padding: 16 }]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: TEXT.hint, fontSize: 11, fontWeight: '700', letterSpacing: 1 }}>TRAINING STREAK</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6, marginTop: 4 }}>
+              <Text style={{ color: streak > 0 ? BRAND : '#555', fontSize: 40, fontWeight: '900', lineHeight: 44 }}>
+                {streak}
+              </Text>
+              <Text style={{ color: TEXT.secondary, fontSize: 14, marginBottom: 6 }}>日連続</Text>
+              {streak >= 7  && <Text style={{ fontSize: 20, marginBottom: 4 }}>🔥</Text>}
+              {streak >= 30 && <Text style={{ fontSize: 20, marginBottom: 4 }}>💎</Text>}
+            </View>
+          </View>
+          <View style={{ gap: 10 }}>
+            <View style={{ alignItems: 'flex-end', gap: 2 }}>
+              <Text style={{ color: '#fff', fontSize: 18, fontWeight: '900' }}>{sessions.length}</Text>
+              <Text style={{ color: TEXT.hint, fontSize: 10 }}>総練習数</Text>
+            </View>
+            <View style={{ alignItems: 'flex-end', gap: 2 }}>
+              <Text style={{ color: '#fff', fontSize: 18, fontWeight: '900' }}>{totalKm.toFixed(0)}km</Text>
+              <Text style={{ color: TEXT.hint, fontSize: 10 }}>累計距離</Text>
+            </View>
+          </View>
+        </View>
+        {/* 今週サマリー */}
+        <View style={{ marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)',
+          flexDirection: 'row', gap: 12 }}>
+          <Text style={{ color: TEXT.hint, fontSize: 11 }}>今週</Text>
+          <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{thisWeekSessions.length}回</Text>
+          <Text style={{ color: TEXT.hint, fontSize: 11, marginLeft: 8 }}>今月</Text>
+          <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>
+            {sessions.filter(s => new Date(s.session_date).getMonth() === new Date().getMonth()).length}回
+          </Text>
+          <View style={{ flex: 1 }} />
+          <Text style={{ color: TEXT.hint, fontSize: 11 }}>🏅 {unlockedCount}/{MILESTONES.length}</Text>
+        </View>
+      </View>
+      </AnimatedSection>
+
+      {/* ── ② 4週ヒートマップ ── */}
+      <AnimatedSection delay={60} type="fade-up">
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Text style={{ fontSize: 14 }}>📅</Text>
+          <Text style={styles.cardTitle}>4週間の練習カレンダー</Text>
+        </View>
+        <Heatmap sessions={sessions} />
+      </View>
+      </AnimatedSection>
+
+      {/* ── ③ マイルストーン ── */}
+      <AnimatedSection delay={120} type="fade-up">
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Text style={{ fontSize: 14 }}>🎯</Text>
+          <Text style={styles.cardTitle}>マイルストーン</Text>
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {MILESTONES.map(m => {
+              const unlocked = m.check(sessions)
+              return (
+                <View key={m.key} style={{
+                  alignItems: 'center', gap: 5, padding: 12, borderRadius: 12,
+                  backgroundColor: unlocked ? 'rgba(229,57,53,0.1)' : 'rgba(255,255,255,0.04)',
+                  borderWidth: 1, borderColor: unlocked ? BRAND + '40' : 'rgba(255,255,255,0.06)',
+                  minWidth: 68,
+                  opacity: unlocked ? 1 : 0.45,
+                }}>
+                  <Text style={{ fontSize: 22 }}>{m.emoji}</Text>
+                  <Text style={{ color: unlocked ? '#fff' : '#555', fontSize: 11, fontWeight: '800' }}>{m.label}</Text>
+                </View>
+              )
+            })}
+          </View>
+        </ScrollView>
+      </View>
+      </AnimatedSection>
+
+      {/* ── ④ タイムライン（陸上ノート統合） ── */}
+      <AnimatedSection delay={180} type="fade-up">
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Text style={{ fontSize: 14 }}>📒</Text>
+          <Text style={styles.cardTitle}>練習ノート</Text>
+          <Text style={{ color: TEXT.hint, fontSize: 12 }}>{sessions.length}件</Text>
+        </View>
+        {sessions.length === 0 ? (
+          <View style={styles.empty}>
+            <Text style={{ fontSize: 36 }}>📝</Text>
+            <Text style={styles.emptyText}>まだ練習記録がありません</Text>
+            <Text style={[styles.emptyText, { fontSize: 12, marginTop: 4 }]}>
+              ＋ボタンから今日の練習を記録しよう
+            </Text>
+          </View>
+        ) : (
+          <View>
+            {sortedDates.map(date => (
+              <View key={date}>
+                <DateHeader dateStr={date} />
+                {byDate[date].map(s => (
+                  <SessionTimelineCard key={s.id} session={s} onTap={() => setSelectedSession(s)} />
+                ))}
+              </View>
+            ))}
+            {sessions.length > 60 && (
+              <Text style={{ color: TEXT.hint, fontSize: 12, textAlign: 'center', paddingTop: 8 }}>
+                直近60件を表示中（全{sessions.length}件）
+              </Text>
+            )}
+          </View>
+        )}
+      </View>
+      </AnimatedSection>
+
+    </View>
+
+      {/* ── 体重セクション（最下部） ── */}
+      <WeightSection records={weightRecords} onAdd={onAddWeight} onDelete={onDeleteWeight} />
+
+    {selectedSession && (
+      <SessionDetailSheet session={selectedSession} onClose={() => setSelectedSession(null)} onDelete={onDeleteSession} />
+    )}
+    </>
+  )
+}
+
+// ── 体重折れ線グラフ ──────────────────────────────────────────────
+const Y_AXIS_W = 38
+const PLOT_H   = 110
+const X_AXIS_H = 16
+
+function WeightLineChart({ records }: { records: WeightRecord[] }) {
+  const data = records.slice(-30)  // 最大30件
+  if (data.length === 0) return null
+
+  const PLOT_W = SCREEN_W - 80 - Y_AXIS_W  // card/scroll padding × 2 + y-axis
+
+  const vals = data.map(r => r.weight_kg)
+  const rawMax = Math.max(...vals)
+  const rawMin = Math.min(...vals)
+  const pad    = (rawMax - rawMin) * 0.18 || 1.5
+  const yMax   = rawMax + pad
+  const yMin   = rawMin - pad
+  const yRange = yMax - yMin
+
+  // 3段のY目盛り
+  const yTicks = [yMax, (yMax + yMin) / 2, yMin].map(v => Math.round(v * 10) / 10)
+
+  function xFor(i: number) {
+    return data.length === 1 ? PLOT_W / 2 : (i / (data.length - 1)) * PLOT_W
+  }
+  function yFor(kg: number) {
+    return PLOT_H - ((kg - yMin) / yRange) * PLOT_H
+  }
+
+  // x軸ラベル表示インデックス（最大6個）
+  const step = Math.max(1, Math.floor(data.length / 6))
+
+  return (
+    <View style={{ flexDirection: 'row', marginTop: 4 }}>
+      {/* Y軸ラベル */}
+      <View style={{ width: Y_AXIS_W, height: PLOT_H, justifyContent: 'space-between', alignItems: 'flex-end', paddingRight: 5 }}>
+        {yTicks.map((v, i) => (
+          <Text key={i} style={{ color: TEXT.hint, fontSize: 9 }}>{v}</Text>
+        ))}
+      </View>
+
+      {/* プロット領域 */}
+      <View style={{ width: PLOT_W, height: PLOT_H + X_AXIS_H }}>
+        {/* グリッド横線 */}
+        {yTicks.map((_, i) => {
+          const y = i === 0 ? 0 : i === 1 ? PLOT_H / 2 : PLOT_H - 1
+          return (
+            <View key={i} style={{
+              position: 'absolute', left: 0, right: 0, top: y, height: 1,
+              backgroundColor: 'rgba(255,255,255,0.07)',
+            }} />
+          )
+        })}
+
+        {/* 折れ線 */}
+        {data.slice(0, -1).map((r, i) => {
+          const x1 = xFor(i),     y1 = yFor(r.weight_kg)
+          const x2 = xFor(i + 1), y2 = yFor(data[i + 1].weight_kg)
+          const dx = x2 - x1, dy = y2 - y1
+          const len   = Math.sqrt(dx * dx + dy * dy)
+          const angle = Math.atan2(dy, dx) * 180 / Math.PI
+          const midX  = (x1 + x2) / 2
+          const midY  = (y1 + y2) / 2
+          return (
+            <View key={`l${i}`} style={{
+              position: 'absolute',
+              left: midX - len / 2,
+              top:  midY - 1,
+              width: len, height: 2,
+              backgroundColor: '#5AC8FA',
+              borderRadius: 1,
+              transform: [{ rotate: `${angle}deg` }],
+            }} />
+          )
+        })}
+
+        {/* ドット */}
+        {data.map((r, i) => {
+          const x = xFor(i), y = yFor(r.weight_kg)
+          const isLatest = i === data.length - 1
+          return (
+            <View key={`d${i}`} style={{
+              position: 'absolute',
+              left: x - 4, top: y - 4,
+              width: 8, height: 8, borderRadius: 4,
+              backgroundColor: isLatest ? BRAND : '#5AC8FA',
+              borderWidth: isLatest ? 2 : 1,
+              borderColor: isLatest ? '#fff' : 'rgba(255,255,255,0.4)',
+            }} />
+          )
+        })}
+
+        {/* X軸日付ラベル */}
+        {data.map((r, i) => {
+          if (i % step !== 0 && i !== data.length - 1) return null
+          const x = xFor(i)
+          const d = new Date(r.date)
+          const label = `${d.getMonth()+1}/${d.getDate()}`
+          return (
+            <Text key={`x${i}`} style={{
+              position: 'absolute',
+              left: x - 12, top: PLOT_H + 2,
+              width: 24, textAlign: 'center',
+              color: TEXT.hint, fontSize: 8,
+            }}>{label}</Text>
+          )
+        })}
+      </View>
+    </View>
+  )
+}
+
+// ── 体重セクション（練習履歴タブ末尾 & 体調・睡眠タブ共用）───────────
+function WeightSection({
+  records, onAdd, onDelete,
+}: {
+  records: WeightRecord[]
+  onAdd: (kg: number, date: string) => void
+  onDelete: (id: string) => void
+}) {
+  const today = new Date().toISOString().slice(0, 10)
+  const [input, setInput] = useState('')
+  const [selectedDate, setSelectedDate] = useState(today)
+
+  // ±7日の日付リスト
+  const dateRange = Array.from({ length: 15 }, (_, i) => {
+    const d = new Date(); d.setDate(d.getDate() - 7 + i)
+    return d.toISOString().slice(0, 10)
+  })
+
+  const sorted = [...records].sort((a, b) => a.date.localeCompare(b.date))
+  const latest = sorted[sorted.length - 1]
+
+  // 選択日に既存記録があれば表示
+  const existingForDate = records.find(r => r.date === selectedDate)
+
+  function handleAdd() {
+    const kg = parseFloat(input)
+    if (isNaN(kg) || kg < 20 || kg > 300) return
+    onAdd(kg, selectedDate)
+    setInput('')
+  }
+
+  function formatDateLabel(dateStr: string) {
+    const d = new Date(dateStr)
+    const diff = Math.round((d.getTime() - new Date(today).getTime()) / 86400000)
+    if (diff === 0) return '今日'
+    if (diff === -1) return '昨日'
+    if (diff === 1) return '明日'
+    const dow = ['日','月','火','水','木','金','土'][d.getDay()]
+    return `${d.getMonth()+1}/${d.getDate()}(${dow})`
+  }
+
+  return (
+    <AnimatedSection delay={160} type="fade-up">
+    <View style={styles.card}>
+      <View style={styles.cardHeader}>
+        <Text style={{ fontSize: 15 }}>⚖️</Text>
+        <Text style={styles.cardTitle}>体重の推移</Text>
+        {latest && (
+          <Text style={{ color: BRAND, fontSize: 14, fontWeight: '800', marginLeft: 'auto' as any }}>
+            {latest.weight_kg}kg
+          </Text>
+        )}
+      </View>
+
+      {/* 日付セレクター */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}
+        contentContainerStyle={{ gap: 6, paddingHorizontal: 2 }}>
+        {dateRange.map(d => {
+          const isSelected = d === selectedDate
+          const hasRecord = records.some(r => r.date === d)
+          return (
+            <TouchableOpacity
+              key={d}
+              onPress={() => { setSelectedDate(d); setInput(records.find(r => r.date === d)?.weight_kg.toString() ?? '') }}
+              style={{
+                paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10,
+                backgroundColor: isSelected ? BRAND : 'rgba(255,255,255,0.06)',
+                borderWidth: 1,
+                borderColor: isSelected ? BRAND : hasRecord ? 'rgba(90,200,250,0.4)' : 'rgba(255,255,255,0.1)',
+              }}
+            >
+              <Text style={{ color: isSelected ? '#fff' : hasRecord ? '#5AC8FA' : TEXT.hint, fontSize: 11, fontWeight: '700' }}>
+                {formatDateLabel(d)}
+              </Text>
+              {hasRecord && (
+                <Text style={{ color: isSelected ? 'rgba(255,255,255,0.8)' : '#5AC8FA', fontSize: 9, textAlign: 'center' }}>
+                  {records.find(r => r.date === d)?.weight_kg}kg
+                </Text>
+              )}
+            </TouchableOpacity>
+          )
+        })}
+      </ScrollView>
+
+      {/* 入力 */}
+      <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+        <TextInput
+          value={input}
+          onChangeText={setInput}
+          placeholder={existingForDate ? `現在: ${existingForDate.weight_kg}kg` : `${formatDateLabel(selectedDate)}の体重 (kg)`}
+          placeholderTextColor={TEXT.hint}
+          keyboardType="decimal-pad"
+          style={[styles.weightInput]}
+        />
+        <TouchableOpacity
+          style={[styles.weightAddBtn, (!input.trim()) && { opacity: 0.4 }]}
+          onPress={handleAdd}
+          disabled={!input.trim()}
+          activeOpacity={0.8}
+        >
+          <Text style={{ color: '#fff', fontWeight: '800', fontSize: 13 }}>記録</Text>
+        </TouchableOpacity>
+        {existingForDate && (
+          <TouchableOpacity
+            onPress={() => onDelete(existingForDate.id)}
+            style={{ width: 44, height: 44, borderRadius: 10, backgroundColor: 'rgba(255,59,48,0.15)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,59,48,0.3)' }}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="trash-outline" size={18} color="#FF3B30" />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* グラフ */}
+      {sorted.length === 0 ? (
+        <View style={styles.empty}>
+          <Text style={styles.emptyText}>体重データがありません{'\n'}毎日記録しましょう</Text>
+        </View>
+      ) : (
+        <WeightLineChart records={sorted} />
+      )}
+    </View>
+    </AnimatedSection>
+  )
+}
+
+// ── 体調・睡眠タブ ────────────────────────────────────────────────
+function TrendLine({ data, color, label, format }: {
+  data: { date: string; value: number }[]
+  color: string; label: string; format: (v: number) => string
+}) {
+  if (data.length === 0) return (
+    <View style={{ alignItems: 'center', paddingVertical: 16 }}>
+      <Text style={{ color: TEXT.hint, fontSize: 12 }}>データがありません</Text>
+    </View>
+  )
+  const maxV = Math.max(...data.map(d => d.value))
+  const minV = Math.min(...data.map(d => d.value))
+  const range = maxV - minV || 1
+
+  return (
+    <View style={{ gap: 8 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 80 }}>
+        {data.slice(-14).map((d, i) => {
+          const pct = (d.value - minV) / range
+          const h = Math.max(6, Math.round(pct * 68) + 6)
+          return (
+            <View key={d.date} style={{ alignItems: 'center', flex: 1, gap: 2 }}>
+              <View style={{ height: 68, justifyContent: 'flex-end' }}>
+                <View style={{ height: h, width: 10, backgroundColor: color + 'aa', borderRadius: 3 }} />
+              </View>
+              {i % 3 === 0 ? (
+                <Text style={{ color: TEXT.hint, fontSize: 7 }}>{d.date.slice(8)}</Text>
+              ) : <View style={{ height: 10 }} />}
+            </View>
+          )
+        })}
+      </View>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+        <Text style={{ color: TEXT.hint, fontSize: 11 }}>
+          平均: <Text style={{ color: '#fff', fontWeight: '700' }}>
+            {format(data.reduce((a,d)=>a+d.value,0)/data.length)}
+          </Text>
+        </Text>
+        <Text style={{ color: TEXT.hint, fontSize: 11 }}>
+          最高: <Text style={{ color, fontWeight: '700' }}>{format(maxV)}</Text>
+        </Text>
+      </View>
+    </View>
+  )
+}
+
+function HealthTab({ conditionMap, sleepRecords, weightRecords, onAddWeight, onDeleteWeight, loading }: {
+  conditionMap: Record<string,number>
+  sleepRecords: SleepRecord[]
+  weightRecords: WeightRecord[]
+  onAddWeight: (kg: number, date: string) => void
+  onDeleteWeight: (id: string) => void
+  loading: boolean
+}) {
+  if (loading) return <View style={{ gap: 10 }}>{[1,2].map(i => <SkeletonRect key={i} h={120} />)}</View>
+
+  // 体調データ（日付順）
+  const condData = Object.entries(conditionMap)
+    .sort(([a],[b]) => a.localeCompare(b))
+    .map(([date, value]) => ({ date, value }))
+
+  // 睡眠データ（直近14件）
+  const sleepData = [...sleepRecords]
+    .sort((a,b) => a.sleep_date.localeCompare(b.sleep_date))
+    .slice(-14)
+    .map(s => ({ date: s.sleep_date, value: s.duration_min ? s.duration_min / 60 : 0 }))
+    .filter(d => d.value > 0)
+
+  const COND_EMOJIS = ['😫','😕','😐','😊','💪']
+
+  return (
+    <View style={{ gap: 12 }}>
+      {/* 体調トレンド */}
+      <AnimatedSection delay={0} type="fade-up">
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Text style={{ fontSize: 15 }}>💪</Text>
+          <Text style={styles.cardTitle}>体調の推移</Text>
+        </View>
+        {condData.length === 0 ? (
+          <View style={styles.empty}>
+            <Text style={styles.emptyText}>体調データがありません{'\n'}ホームで毎日入力しましょう</Text>
+          </View>
+        ) : (
+          <>
+            <TrendLine
+              data={condData}
+              color={NEON.green}
+              label="体調"
+              format={v => `${v.toFixed(1)}/10`}
+            />
+            {/* 今日の体調 */}
+            {condData.length > 0 && (
+              <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={{ fontSize: 24 }}>
+                  {COND_EMOJIS[Math.min(4, Math.round((condData[condData.length-1].value - 1) / 2))]}
+                </Text>
+                <View>
+                  <Text style={{ color: TEXT.secondary, fontSize: 11 }}>直近の体調</Text>
+                  <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>
+                    {condData[condData.length-1].value}/10
+                  </Text>
+                </View>
+              </View>
+            )}
+          </>
+        )}
+      </View>
+      </AnimatedSection>
+
+      {/* 睡眠トレンド */}
+      <AnimatedSection delay={80} type="fade-up">
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Text style={{ fontSize: 15 }}>😴</Text>
+          <Text style={styles.cardTitle}>睡眠時間の推移</Text>
+        </View>
+        {sleepData.length === 0 ? (
+          <View style={styles.empty}>
+            <Text style={styles.emptyText}>睡眠データがありません{'\n'}睡眠タブで記録しましょう</Text>
+          </View>
+        ) : (
+          <TrendLine
+            data={sleepData}
+            color={NEON.purple}
+            label="睡眠"
+            format={v => `${v.toFixed(1)}h`}
+          />
+        )}
+      </View>
+      </AnimatedSection>
+
+      {/* 体重トレンド */}
+      <WeightSection records={weightRecords} onAdd={onAddWeight} onDelete={onDeleteWeight} />
+
+    </View>
+  )
+}
+
 // ── メイン ────────────────────────────────────────────────────────
 export default function RecordsScreen() {
   const router = useRouter()
+  const [activeTab, setActiveTab] = useState<'practice'|'records'|'health'>('practice')
   const [records, setRecords] = useState<RaceRecord[]>([])
+  const [sessions, setSessions] = useState<TrainingSession[]>([])
+  const [conditionMap, setConditionMap] = useState<Record<string,number>>({})
+  const [sleepRecords, setSleepRecords] = useState<SleepRecord[]>([])
+  const [weightRecords, setWeightRecords] = useState<WeightRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [modalVisible, setModalVisible] = useState(false)
   const [filterEvent, setFilterEvent] = useState<AthleticsEvent | '全種目'>('全種目')
@@ -189,15 +1109,49 @@ export default function RecordsScreen() {
   const [fNotes, setFNotes]   = useState('')
   const [saving, setSaving]   = useState(false)
 
-  // ロード
-  useEffect(() => {
-    AsyncStorage.getItem(RECORDS_KEY).then(raw => {
-      if (raw) {
-        try { setRecords(JSON.parse(raw)) } catch { /* ignore */ }
-      }
+  // ロード（フォーカス時にも再ロード：manual-log等から戻った時に反映）
+  const loadData = useCallback(() => {
+    Promise.all([
+      AsyncStorage.getItem(RECORDS_KEY),
+      AsyncStorage.getItem(SESSIONS_KEY),
+      AsyncStorage.getItem(CONDITION_MAP_KEY),
+      AsyncStorage.getItem(SLEEP_KEY),
+      AsyncStorage.getItem(WEIGHT_KEY),
+    ]).then(([recRaw, sessRaw, condRaw, sleepRaw, weightRaw]) => {
+      if (recRaw)    { try { setRecords(JSON.parse(recRaw)) }         catch {} }
+      if (sessRaw)   { try { setSessions(JSON.parse(sessRaw)) }       catch {} }
+      if (condRaw)   { try { setConditionMap(JSON.parse(condRaw)) }   catch {} }
+      if (sleepRaw)  { try { setSleepRecords(JSON.parse(sleepRaw)) }  catch {} }
+      if (weightRaw) { try { setWeightRecords(JSON.parse(weightRaw)) }catch {} }
       setLoading(false)
     })
   }, [])
+
+  useEffect(() => { loadData() }, [loadData])
+  useFocusEffect(useCallback(() => { loadData() }, [loadData]))
+
+  const handleAddWeight = useCallback(async (kg: number, date: string) => {
+    const newRec: WeightRecord = { id: `w_${Date.now()}`, date, weight_kg: kg }
+    const next = [...weightRecords.filter(r => r.date !== date), newRec]
+      .sort((a, b) => a.date.localeCompare(b.date))
+    setWeightRecords(next)
+    await AsyncStorage.setItem(WEIGHT_KEY, JSON.stringify(next)).catch(() => {})
+    Toast.show({ type: 'success', text1: `${kg}kg を記録しました`, visibilityTime: 1500 })
+  }, [weightRecords])
+
+  const handleDeleteWeight = useCallback(async (id: string) => {
+    const next = weightRecords.filter(r => r.id !== id)
+    setWeightRecords(next)
+    await AsyncStorage.setItem(WEIGHT_KEY, JSON.stringify(next)).catch(() => {})
+    Toast.show({ type: 'success', text1: '削除しました', visibilityTime: 1200 })
+  }, [weightRecords])
+
+  const handleDeleteSession = useCallback(async (id: string) => {
+    const next = sessions.filter(s => s.id !== id)
+    setSessions(next)
+    await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(next)).catch(() => {})
+    Toast.show({ type: 'success', text1: '練習記録を削除しました', visibilityTime: 1500 })
+  }, [sessions])
 
   function resetForm() {
     setFEvent('100m'); setFDate(new Date().toISOString().slice(0, 10))
@@ -281,7 +1235,7 @@ export default function RecordsScreen() {
 
         {/* ── ヘッダー ── */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>記録管理</Text>
+          <Text style={styles.headerTitle}>進捗</Text>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <TouchableOpacity
               style={styles.iconBtn}
@@ -313,16 +1267,51 @@ export default function RecordsScreen() {
             <TouchableOpacity style={styles.iconBtn} onPress={() => { Sounds.whoosh(); router.push('/timer') }} activeOpacity={0.8}>
               <Ionicons name="timer-outline" size={18} color="#fff" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.iconBtn} onPress={() => { Sounds.whoosh(); router.push('/ranking') }} activeOpacity={0.8}>
-              <Ionicons name="podium-outline" size={18} color="#fff" />
-            </TouchableOpacity>
             <TouchableOpacity style={styles.addBtn} onPress={() => { unlockAudio(); Sounds.whoosh(); setModalVisible(true) }} activeOpacity={0.8}>
               <Ionicons name="add" size={22} color="#fff" />
             </TouchableOpacity>
           </View>
         </View>
 
+        {/* ── タブバー ── */}
+        <View style={styles.tabBar}>
+          {([
+            { key: 'practice', label: '練習履歴' },
+            { key: 'records',  label: 'タイム記録' },
+            { key: 'health',   label: '体調・睡眠' },
+          ] as const).map(t => (
+            <TouchableOpacity
+              key={t.key}
+              style={[styles.tabItem, activeTab === t.key && styles.tabItemActive]}
+              onPress={() => { Sounds.tap(); setActiveTab(t.key) }}
+            >
+              <Text style={[styles.tabLabel, activeTab === t.key && styles.tabLabelActive]}>{t.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+
+          {/* ════ 練習履歴タブ ════ */}
+          {activeTab === 'practice' && (
+            <PracticeTab sessions={sessions} loading={loading} weightRecords={weightRecords} onAddWeight={handleAddWeight} onDeleteWeight={handleDeleteWeight} onDeleteSession={handleDeleteSession} />
+          )}
+
+          {/* ════ タイム記録タブ ════ */}
+          {activeTab === 'records' && <>
+
+          {/* ── タイム入力ボタン ── */}
+          <AnimatedSection delay={0} type="fade-up">
+            <TouchableOpacity
+              style={styles.bigAddBtn}
+              onPress={() => { unlockAudio(); Sounds.whoosh(); setModalVisible(true) }}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="stopwatch-outline" size={22} color="#fff" />
+              <Text style={styles.bigAddBtnText}>タイムを入力する</Text>
+              <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.5)" />
+            </TouchableOpacity>
+          </AnimatedSection>
 
           {/* ── PBサマリー ── */}
           <AnimatedSection delay={0} type="fade-up">
@@ -411,6 +1400,13 @@ export default function RecordsScreen() {
             )}
           </View>
           </AnimatedSection>
+
+          </> /* end タイム記録タブ */}
+
+          {/* ════ 体調・睡眠タブ ════ */}
+          {activeTab === 'health' && (
+            <HealthTab conditionMap={conditionMap} sleepRecords={sleepRecords} weightRecords={weightRecords} onAddWeight={handleAddWeight} onDeleteWeight={handleDeleteWeight} loading={loading} />
+          )}
 
         </ScrollView>
 
@@ -589,6 +1585,14 @@ const styles = StyleSheet.create({
   emptyBtn:   { backgroundColor: BRAND, borderRadius: 10, paddingHorizontal: 20, paddingVertical: 10 },
   emptyBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
 
+  // 体重入力
+  weightInput:   { flex: 1, backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11, color: '#fff', fontSize: 15, borderWidth: 1, borderColor: 'rgba(90,200,250,0.3)' },
+  weightAddBtn:  { backgroundColor: '#5AC8FA', borderRadius: 10, paddingHorizontal: 18, paddingVertical: 11, justifyContent: 'center' },
+
+  // 入力ショートカット
+  inputShortcut:     { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, paddingVertical: 14, borderWidth: 1 },
+  inputShortcutText: { fontSize: 14, fontWeight: '800' },
+
   // モーダル
   modalSafe:    { flex: 1, backgroundColor: '#000000' },
   modalContent: { padding: 20, paddingBottom: 48, gap: 4 },
@@ -619,4 +1623,21 @@ const styles = StyleSheet.create({
   toggleBtnPB: { backgroundColor: 'rgba(52,199,89,0.1)', borderColor: NEON.green },
   toggleBtnSB: { backgroundColor: 'rgba(74,159,255,0.1)', borderColor: NEON.blue },
   toggleText:  { color: TEXT.secondary, fontSize: 12, fontWeight: '600' },
+
+  // タイム入力大ボタン
+  bigAddBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: BRAND, borderRadius: 16,
+    paddingVertical: 18, paddingHorizontal: 20,
+    shadowColor: BRAND, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4, shadowRadius: 12, elevation: 8,
+  },
+  bigAddBtnText: { color: '#fff', fontSize: 16, fontWeight: '800', flex: 1 },
+
+  // タブバー
+  tabBar:          { flexDirection: 'row', backgroundColor: '#111', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 16 },
+  tabItem:         { flex: 1, paddingVertical: 10, alignItems: 'center' },
+  tabItemActive:   { borderBottomWidth: 2, borderBottomColor: BRAND },
+  tabLabel:        { color: TEXT.hint, fontSize: 12, fontWeight: '700' },
+  tabLabelActive:  { color: '#FFFFFF' },
 })

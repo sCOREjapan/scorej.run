@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react'
 import {
-  View, Text, TouchableOpacity, ScrollView,
+  View, Text, TouchableOpacity, ScrollView, TextInput,
   StyleSheet, Platform, Alert, ActivityIndicator,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
@@ -129,6 +129,10 @@ function WebPlayer({ isPremiumUser: isPremiumProp }: { isPremiumUser: boolean })
   const [adGateHardLimited, setAdGateHardLimited] = useState(false)
   const isPremiumUser = isPremiumProp
 
+  // 種目・選手指定
+  const [selectedEvent,   setSelectedEvent]   = useState('')
+  const [athleteColor,    setAthleteColor]     = useState('')
+
   const annotationsRef = useRef<Annotation[]>([])
   useEffect(() => { annotationsRef.current = annotations }, [annotations])
 
@@ -256,7 +260,7 @@ function WebPlayer({ isPremiumUser: isPremiumProp }: { isPremiumUser: boolean })
         model, max_tokens: 512,
         messages: [{ role: 'user', content: [
           { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: dataUrl.split(',')[1] } },
-          { type: 'text', text: `陸上競技バイオメカニクスコーチとして${formatTime(t)}地点のフォームを分析。
+          { type: 'text', text: `陸上競技バイオメカニクスコーチとして${formatTime(t)}地点のフォームを分析。${selectedEvent ? `\n種目: ${selectedEvent}` : ''}${athleteColor ? `\n分析対象選手: ${athleteColor}の服装・シューズの選手に集中して分析してください。` : ''}
 JSON形式のみで回答:
 {"overall":"評価(20字以内)","positives":["良い点1","良い点2"],"improvements":["改善点1(部位明記)","改善点2"]}` }
         ]}]
@@ -287,7 +291,7 @@ JSON形式のみで回答:
         },
         body: JSON.stringify({
           model: isPremiumUser ? 'claude-opus-4-5' : 'claude-haiku-3-5', max_tokens: 1024,
-          messages: [{ role: 'user', content: `陸上競技コーチとして以下のフレーム分析結果を元に総合評価とトレーニングメニューを作成してください。
+          messages: [{ role: 'user', content: `陸上競技コーチとして以下のフレーム分析結果を元に総合評価とトレーニングメニューを作成してください。${selectedEvent ? `\n種目: ${selectedEvent}に特化したアドバイスをしてください。` : ''}
 
 【フレーム分析結果】
 ${summary}
@@ -411,6 +415,39 @@ ${summary}
             <Ionicons name="cloud-upload-outline" size={20} color="#fff" />
             <Text style={s.uploadBtnText}>{videoName ? '動画を変更' : '動画を選ぶ'}</Text>
           </TouchableOpacity>
+
+          {/* ── 種目選択 ── */}
+          <View style={s.settingCard}>
+            <Text style={s.settingTitle}>🏃 分析する種目（任意）</Text>
+            <Text style={s.settingDesc}>選ぶと種目に特化したアドバイスが得られます</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }} contentContainerStyle={{ gap: 6, paddingBottom: 2 }}>
+              {['', '100m','200m','400m','800m','1500m','110mH','100mH','400mH','走幅跳','三段跳','走高跳','棒高跳','砲丸投','やり投','円盤投'].map(ev => (
+                <TouchableOpacity
+                  key={ev || '指定なし'}
+                  onPress={() => setSelectedEvent(ev)}
+                  style={[s.evChip, selectedEvent === ev && s.evChipActive]}
+                >
+                  <Text style={[s.evChipText, selectedEvent === ev && { color: '#fff' }]}>
+                    {ev || '指定なし'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* ── 複数人動画: 選手の服・靴の色 ── */}
+          <View style={s.settingCard}>
+            <Text style={s.settingTitle}>👤 分析する選手の特徴（複数人動画の場合）</Text>
+            <Text style={s.settingDesc}>服の色・靴の色などを入力するとその選手に絞って分析します</Text>
+            <TextInput
+              value={athleteColor}
+              onChangeText={setAthleteColor}
+              placeholder="例: 赤いユニフォーム、白いスパイク　/ 一人の場合は空欄でOK"
+              placeholderTextColor="#555"
+              style={s.colorInput}
+              multiline
+            />
+          </View>
 
           {videoName ? (
             <TouchableOpacity style={s.analyzeBtn} onPress={startAnalysis}>
@@ -702,6 +739,15 @@ const s = StyleSheet.create({
                     paddingHorizontal: 36, paddingVertical: 18, borderRadius: 16, marginBottom: 20 },
   analyzeBtnText: { color: '#fff', fontSize: 18, fontWeight: '800' },
   privacyNote:    { color: '#333', fontSize: 11, textAlign: 'center', lineHeight: 18 },
+
+  /* setting cards before analysis */
+  settingCard:    { width: '100%', maxWidth: 340, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  settingTitle:   { color: '#fff', fontSize: 13, fontWeight: '800', marginBottom: 2 },
+  settingDesc:    { color: '#666', fontSize: 11, lineHeight: 16 },
+  evChip:         { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  evChipActive:   { backgroundColor: '#E53935', borderColor: '#E53935' },
+  evChipText:     { color: '#aaa', fontSize: 12, fontWeight: '700' },
+  colorInput:     { marginTop: 10, backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: '#fff', fontSize: 13, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', minHeight: 50 },
   planBannerFree: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 10,
     backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12,

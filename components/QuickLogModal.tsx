@@ -14,6 +14,62 @@ import Toast from 'react-native-toast-message'
 const SESSIONS_KEY = 'trackmate_sessions'
 const TASKS_KEY    = 'trackmate_tasks'
 
+// ── 正規表現フォールバックパーサー ───────────────────────────────
+function fallbackParse(text: string, today: string): Record<string, any> {
+  const t = text
+
+  // 種目判定
+  let session_type = 'easy'
+  if (/インターバル|interval|本.*レスト|レスト.*本/i.test(t)) session_type = 'interval'
+  else if (/テンポ|ペース走/i.test(t)) session_type = 'tempo'
+  else if (/スプリント|全力|100m.*走|ダッシュ/i.test(t)) session_type = 'sprint'
+  else if (/ロング|長距離|LSD/i.test(t)) session_type = 'long'
+  else if (/ドリル|ハードル|ABCドリル/i.test(t)) session_type = 'drill'
+  else if (/ウェイト|筋トレ|ジム|スクワット|デッド/i.test(t)) session_type = 'strength'
+  else if (/試合|大会|記録会|レース/i.test(t)) session_type = 'race'
+  else if (/休養|オフ|休み/i.test(t)) session_type = 'rest'
+  else if (/ジョグ|jog|easy/i.test(t)) session_type = 'easy'
+
+  // 種目（event）
+  const eventMatch = t.match(/\b(100m|200m|400m|800m|1500m|3000m|5000m|10000m|110mH|100mH|400mH|3000mSC)\b/i)
+  const event = eventMatch ? eventMatch[1] : null
+
+  // タイム (mm:ss.xx / ss.xx / ss"xx)
+  let time_ms: number | null = null
+  const timeMatch = t.match(/(\d{1,2}):(\d{2})[.:](\d{1,2})|(\d{1,2})'(\d{2})[.:]?(\d{0,2})|(\d{2,3})[."秒](\d{0,2})/)
+  if (timeMatch) {
+    if (timeMatch[1]) {
+      time_ms = (parseInt(timeMatch[1]) * 60 + parseInt(timeMatch[2]) + parseInt(timeMatch[3] || '0') / 100) * 1000
+    } else if (timeMatch[4]) {
+      time_ms = (parseInt(timeMatch[4]) * 60 + parseInt(timeMatch[5]) + parseInt(timeMatch[6] || '0') / 100) * 1000
+    } else if (timeMatch[7]) {
+      time_ms = (parseInt(timeMatch[7]) + parseInt(timeMatch[8] || '0') / 100) * 1000
+    }
+    time_ms = time_ms ? Math.round(time_ms) : null
+  }
+
+  // 距離
+  let distance_m: number | null = null
+  const kmMatch  = t.match(/(\d+(?:\.\d+)?)\s*km/i)
+  const mMatch   = t.match(/(\d+)\s*m(?!H|SC)\b/)
+  if (kmMatch) distance_m = Math.round(parseFloat(kmMatch[1]) * 1000)
+  else if (mMatch && parseInt(mMatch[1]) > 50) distance_m = parseInt(mMatch[1])
+
+  // 本数
+  const repsMatch = t.match(/(\d+)\s*(本|set|本セット|×)/)
+  const reps = repsMatch ? parseInt(repsMatch[1]) : null
+
+  // 疲労度
+  const fatMatch = t.match(/疲労\s*[：:=]?\s*(\d+)|疲[れ労]\s*(\d+)/)
+  const fatigue_level = fatMatch ? parseInt(fatMatch[1] ?? fatMatch[2]) : 5
+
+  // 体調
+  const condMatch = t.match(/体調\s*[：:=]?\s*(\d+)/)
+  const condition_level = condMatch ? parseInt(condMatch[1]) : 6
+
+  return { session_date: today, session_type, event, time_ms, distance_m, reps, fatigue_level, condition_level }
+}
+
 /** セッション内容に基づいてルールベースの改善タスクを生成 */
 function generateTasks(sessionType: string, fatigueLevel: number, notes: string): string[] {
   const tasks: string[] = []
@@ -93,8 +149,10 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
 
     const today = new Date().toISOString().slice(0, 10)
 
-    // ── Step 1: AI解析（失敗しても続行） ──────────────────
-    let parsed: Record<string, any> = {}
+    // ── Step 1: まず正規表現でフォールバック解析（必ず結果あり） ─
+    let parsed: Record<string, any> = fallbackParse(freeText, today)
+
+    // ── Step 2: AIでより正確に解析（成功すればフォールバックを上書き） ─
     try {
       const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY
       if (apiKey) {
@@ -107,30 +165,47 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
             'anthropic-dangerous-direct-browser-access': 'true',
           },
           body: JSON.stringify({
-            model: 'claude-3-5-haiku-20241022',
-            max_tokens: 400,
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 500,
             messages: [{
               role: 'user',
-              content: `陸上競技の練習記録テキストをJSONに変換。今日は${today}。
+              content: `陸上競技の練習記録テキストを正確にJSONに変換してください。今日の日付は${today}です。
 
-テキスト: "${freeText}"
+入力テキスト:
+"${freeText}"
 
-JSONのみ返答（説明不要）:
-{"session_date":"YYYY-MM-DD","session_type":"interval|tempo|easy|long|sprint|drill|strength|race|rest","event":"100m|200m|400m|110mH|100mH|400mH|800m|1500m|3000m|5000m|10000m|3000mSC|null","time_ms":数値orNull,"distance_m":数値orNull,"reps":数値orNull,"fatigue_level":1-10,"condition_level":1-10}`,
+ルール:
+- session_type: interval(本数+レスト), tempo(ペース走), easy(ジョグ/LSD), long(30分以上の長距離), sprint(全力短距離), drill(ドリル), strength(ウェイト/筋トレ), race(試合/大会), rest(休養)
+- time_ms: タイムをミリ秒の整数に変換。「46秒80」→46800, 「1:28.50」→88500, 「11"25」→11250。タイムの記載がなければnull
+- distance_m: 距離をメートルの整数に変換。「10km」→10000, 「400m」→400。記載がなければnull
+- reps: 本数（「5本」「×5」→5）。記載がなければnull
+- fatigue_level: 疲労度1〜10。「疲労7」→7。明記なければ雰囲気から推定（きつそうなら7〜8, 普通なら5〜6）
+- condition_level: 体調1〜10。明記なければ6
+- event: 記録した種目（100m, 200m, 400m, 800m, 1500m, 3000m, 5000m, 10000m, 110mH, 100mH, 400mH, 3000mSC のいずれか、なければnull）
+
+必ずJSONのみを返してください（説明・前後の文章は不要）:
+{"session_date":"${today}","session_type":"...","event":"...orNull","time_ms":数値orNull,"distance_m":数値orNull,"reps":数値orNull,"fatigue_level":1〜10の整数,"condition_level":1〜10の整数}`,
             }],
           }),
         })
         if (res.ok) {
           const data = await res.json()
-          const text = data.content?.[0]?.text ?? ''
-          parsed = JSON.parse(text.replace(/```json|```/g, '').trim())
+          const rawText = data.content?.[0]?.text ?? ''
+          // JSONブロックを抽出（余計なテキストが前後についても対応）
+          const jsonMatch = rawText.match(/\{[\s\S]*\}/)
+          if (jsonMatch) {
+            const aiParsed = JSON.parse(jsonMatch[0])
+            // AI結果で上書き（nullでないフィールドのみ）
+            parsed = { ...parsed, ...aiParsed }
+          }
         }
       }
     } catch {
-      // AI解析失敗 → フォールバックで保存継続
+      // AI解析失敗 → fallbackParse の結果をそのまま使う
     }
 
-    // ── Step 2: 必ず保存 ──────────────────────────────────
+    // ── Step 3: 必ず保存 ──────────────────────────────────
+    const toNum = (v: any) => (v !== null && v !== undefined && v !== 'null' && !isNaN(Number(v)) && Number(v) > 0) ? Number(v) : undefined
     try {
       const existing = await AsyncStorage.getItem(SESSIONS_KEY)
       const sessions = existing ? JSON.parse(existing) : []
@@ -140,12 +215,12 @@ JSONのみ返答（説明不要）:
         user_id:         'mock-user-1',
         session_date:    parsed.session_date    || today,
         session_type:    parsed.session_type    || 'easy',
-        event:           parsed.event && parsed.event !== 'null' ? parsed.event : undefined,
-        time_ms:         parsed.time_ms         || undefined,
-        distance_m:      parsed.distance_m      || undefined,
-        reps:            parsed.reps            || undefined,
-        fatigue_level:   parsed.fatigue_level   || 5,
-        condition_level: parsed.condition_level || 7,
+        event:           parsed.event && parsed.event !== 'null' && parsed.event !== null ? String(parsed.event) : undefined,
+        time_ms:         toNum(parsed.time_ms),
+        distance_m:      toNum(parsed.distance_m),
+        reps:            toNum(parsed.reps),
+        fatigue_level:   toNum(parsed.fatigue_level) ?? 5,
+        condition_level: toNum(parsed.condition_level) ?? 7,
         notes:           freeText,
         created_at:      new Date().toISOString(),
       })

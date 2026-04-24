@@ -119,7 +119,7 @@ export function scheduleMorningReminder(): void {
   _morningTimer = setTimeout(() => {
     showNow(
       '🟢 おはようございます！',
-      'TrackMateで今日の怪我リスクを確認しましょう。',
+      'sCOREで今日の怪我リスクを確認しましょう。',
     )
     scheduleMorningReminder()
   }, target.getTime() - now.getTime())

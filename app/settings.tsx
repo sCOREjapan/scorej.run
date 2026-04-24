@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  Switch, Alert, TextInput,
+  Switch, Alert, TextInput, Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -23,7 +23,7 @@ const TEAM_JOINED_KEY  = 'trackmate_team_joined'
 const EVENTS = [
   '100m', '200m', '400m', '800m', '1500m', '5000m', '10000m',
   'ハーフ', 'マラソン', '走幅跳', '三段跳', '棒高跳', '走高跳',
-  '砲丸投', '円盤投', 'やり投', 'ハンマー投', '400mH', '110mH', '100mH', '3000mSC',
+  '砲丸投', '円盤投', 'やり投', 'ハンマー投', '400mH', '110mH', '100mH', '3000mSC', '競歩',
 ]
 
 interface Profile {
@@ -130,8 +130,8 @@ function LabeledInput({
 
 // ── メイン設定画面 ─────────────────────────────────────────
 export default function SettingsScreen() {
-  const { user, signOut } = useAuth()
-  const { scheme, toggle: toggleTheme } = useTheme()
+  const { user, signOut, isGuest } = useAuth()
+  const { colors } = useTheme()
   const router = useRouter()
 
   // プロフィール
@@ -202,21 +202,34 @@ export default function SettingsScreen() {
   }
 
   // キャッシュクリア
-  const handleClearCache = () => {
-    Alert.alert(
-      'キャッシュをクリア',
-      'アプリのキャッシュデータをすべて削除します。この操作は取り消せません。',
-      [
-        { text: 'キャンセル', style: 'cancel' },
-        {
-          text: '削除', style: 'destructive',
-          onPress: async () => {
-            await AsyncStorage.clear().catch(() => {})
-            Alert.alert('完了', 'キャッシュを削除しました')
+  const handleClearCache = async () => {
+    if (Platform.OS === 'web') {
+      const ok = window.confirm('キャッシュをクリアしますか？\nすべての記録データが削除されます。この操作は取り消せません。')
+      if (!ok) return
+      await AsyncStorage.clear().catch(() => {})
+      // Service Worker キャッシュも削除
+      if ('caches' in window) {
+        const keys = await caches.keys().catch(() => [] as string[])
+        await Promise.all(keys.map(k => caches.delete(k))).catch(() => {})
+      }
+      window.alert('キャッシュを削除しました。再読み込みします。')
+      window.location.reload()
+    } else {
+      Alert.alert(
+        'キャッシュをクリア',
+        'アプリのキャッシュデータをすべて削除します。この操作は取り消せません。',
+        [
+          { text: 'キャンセル', style: 'cancel' },
+          {
+            text: '削除', style: 'destructive',
+            onPress: async () => {
+              await AsyncStorage.clear().catch(() => {})
+              Alert.alert('完了', 'キャッシュを削除しました')
+            },
           },
-        },
-      ]
-    )
+        ]
+      )
+    }
   }
 
   return (
@@ -280,17 +293,45 @@ export default function SettingsScreen() {
           {/* ── アカウント ─────────────────────────────────────── */}
           <AnimatedSection delay={80}>
             <SectionCard title="アカウント">
-              <View style={styles.fieldRow}>
-                <Text style={styles.fieldLabel}>メールアドレス</Text>
-                <Text style={styles.fieldValue} numberOfLines={1}>
-                  {user?.email ?? '未ログイン'}
-                </Text>
-              </View>
-              <View style={styles.divider} />
-              <TouchableOpacity style={styles.dangerRow} onPress={handleSignOut} activeOpacity={0.75}>
-                <Ionicons name="log-out-outline" size={18} color="#E53935" />
-                <Text style={styles.dangerText}>ログアウト</Text>
-              </TouchableOpacity>
+              {isGuest ? (
+                /* ゲスト → ログイン誘導 */
+                <>
+                  <View style={styles.fieldRow}>
+                    <Text style={styles.fieldLabel}>ステータス</Text>
+                    <View style={{ backgroundColor: '#FF9500' + '22', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+                      <Text style={{ color: '#FF9500', fontSize: 12, fontWeight: '800' }}>ゲスト</Text>
+                    </View>
+                  </View>
+                  <View style={styles.divider} />
+                  <TouchableOpacity
+                    style={[styles.actionRow, { backgroundColor: '#E53935' + '12', borderRadius: 12, marginTop: 4 }]}
+                    onPress={() => router.replace('/auth')}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="log-in-outline" size={18} color="#E53935" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.actionText, { color: '#E53935', fontWeight: '800' }]}>アカウントを作成 / ログイン</Text>
+                      <Text style={{ color: colors.textHint, fontSize: 11, marginTop: 2 }}>データをクラウドに保存できます</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color="#E53935" />
+                  </TouchableOpacity>
+                </>
+              ) : (
+                /* ログイン済み */
+                <>
+                  <View style={styles.fieldRow}>
+                    <Text style={styles.fieldLabel}>メールアドレス</Text>
+                    <Text style={styles.fieldValue} numberOfLines={1}>
+                      {user?.email ?? '—'}
+                    </Text>
+                  </View>
+                  <View style={styles.divider} />
+                  <TouchableOpacity style={styles.dangerRow} onPress={handleSignOut} activeOpacity={0.75}>
+                    <Ionicons name="log-out-outline" size={18} color="#E53935" />
+                    <Text style={styles.dangerText}>ログアウト</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </SectionCard>
           </AnimatedSection>
 
@@ -337,46 +378,6 @@ export default function SettingsScreen() {
                 <Text style={styles.actionText}>コーチ ↔ 選手を切り替え</Text>
                 <Ionicons name="chevron-forward" size={16} color="#555" />
               </TouchableOpacity>
-            </SectionCard>
-          </AnimatedSection>
-
-          {/* ── 画面テーマ ────────────────────────────────────── */}
-          <AnimatedSection delay={150}>
-            <SectionCard title="画面テーマ">
-              <View style={styles.switchRow}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <Text style={{ fontSize: 20 }}>{scheme === 'dark' ? '🌙' : '☀️'}</Text>
-                  <Text style={styles.switchLabel}>{scheme === 'dark' ? 'ダークモード' : 'ライトモード'}</Text>
-                </View>
-                <Switch
-                  value={scheme === 'light'}
-                  onValueChange={toggleTheme}
-                  trackColor={{ false: '#333', true: '#E53E3E' }}
-                  thumbColor="#fff"
-                />
-              </View>
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-                <TouchableOpacity
-                  style={[{ flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center', borderWidth: 1 },
-                    scheme === 'dark'
-                      ? { backgroundColor: '#222', borderColor: '#E53E3E' }
-                      : { backgroundColor: '#f0f0f0', borderColor: 'rgba(0,0,0,0.1)' }
-                  ]}
-                  onPress={() => scheme !== 'dark' && toggleTheme()}
-                >
-                  <Text style={{ color: scheme === 'dark' ? '#fff' : '#999', fontWeight: '700', fontSize: 13 }}>🌙 ダーク</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[{ flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center', borderWidth: 1 },
-                    scheme === 'light'
-                      ? { backgroundColor: '#fff', borderColor: '#E53E3E' }
-                      : { backgroundColor: '#1a1a1a', borderColor: 'rgba(255,255,255,0.1)' }
-                  ]}
-                  onPress={() => scheme !== 'light' && toggleTheme()}
-                >
-                  <Text style={{ color: scheme === 'light' ? '#111' : '#666', fontWeight: '700', fontSize: 13 }}>☀️ ライト</Text>
-                </TouchableOpacity>
-              </View>
             </SectionCard>
           </AnimatedSection>
 

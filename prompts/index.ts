@@ -42,7 +42,7 @@ ${timingNote}
 }
 
 // prompts/competition.ts
-import type { TrackEvent, EventCategory, UserProfile } from '../types'
+import type { TrackEvent, UserProfile } from '../types'
 
 export function getCompetitionPlanPrompt(
   daysLeft: number,

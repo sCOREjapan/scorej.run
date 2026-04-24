@@ -40,7 +40,7 @@ const ShareCardView: React.FC<ShareCardViewProps> = ({ record }) => (
     {/* ロゴ */}
     <View style={cardStyles.logoRow}>
       <View style={cardStyles.logoDot} />
-      <Text style={cardStyles.logoText}>TrackMate</Text>
+      <Text style={cardStyles.logoText}>sCORE</Text>
     </View>
 
     {/* 種目バッジ */}
@@ -148,14 +148,14 @@ export default function ShareCardScreen() {
     setSharing(true)
     try {
       const text = [
-        `【TrackMate 記録シェア】`,
+        `【sCORE 記録シェア】`,
         `種目: ${selectedRecord.event}`,
         `記録: ${selectedRecord.result_display}`,
         selectedRecord.is_pb ? '🏆 自己ベスト！' : '',
         `日付: ${formatDateJP(selectedRecord.race_date)}`,
         selectedRecord.competition_name ? `大会: ${selectedRecord.competition_name}` : '',
         ``,
-        `TrackMate で記録管理 📱`,
+        `sCORE で記録管理 📱`,
       ].filter(Boolean).join('\n')
 
       if (Platform.OS === 'web') {

@@ -25,7 +25,7 @@ const MOCK_USER_ID = 'mock-user-1'
 const TRACK_EVENTS: AthleticsEvent[] = [
   '100m', '200m', '400m', '800m', '1500m',
   '5000m', '10000m', '110mH', '100mH', '400mH',
-  '3000mSC', 'half_marathon', 'marathon',
+  '3000mSC', 'half_marathon', 'marathon', '競歩',
 ]
 
 const FIELD_EVENTS: AthleticsEvent[] = [

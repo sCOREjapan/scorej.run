@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "TrackMate",
+    "name": "sCORE",
     "slug": "trackmate",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -15,6 +15,6 @@
       ["expo-image-picker", { "photosPermission": "食事・動画を記録するために写真ライブラリを使用します" }]
     ],
     "scheme": "trackmate",
-    "web": { "bundler": "metro" }
+    "web": { "bundler": "metro", "output": "static", "favicon": "./assets/icon.png" }
   }
 }

@@ -1,7 +1,7 @@
 {
-  "name": "TrackMate",
-  "short_name": "TrackMate",
-  "description": "陸上競技トレーニング管理",
+  "name": "sCORE",
+  "short_name": "sCORE",
+  "description": "陸上競技パフォーマンス管理・怪我予防アプリ",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#000000",

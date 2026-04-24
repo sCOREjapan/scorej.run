@@ -1,31 +1,22 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import {
   View, Text, ScrollView, StyleSheet,
-  TouchableOpacity, TextInput, Animated,
+  TouchableOpacity, TextInput, Animated, Dimensions,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
-import { BG_GRADIENT, NEON, TEXT } from '../../lib/theme'
+import { BG_GRADIENT, NEON, TEXT, BRAND } from '../../lib/theme'
 import { Ionicons } from '@expo/vector-icons'
 import Toast from 'react-native-toast-message'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { Sounds, unlockAudio } from '../../lib/sounds'
+import { Sounds } from '../../lib/sounds'
 import AnimatedSection from '../../components/AnimatedSection'
-import DateSelector from '../../components/DateSelector'
-import WheelPicker from '../../components/WheelPicker'
-import TrainingChart from '../../components/TrainingChart'
-import type { SleepRecord, ChartDataPoint } from '../../types'
+import type { SleepRecord } from '../../types'
 
-const BRAND = '#E53E3E'
 const MOCK_USER_ID = 'mock-user-1'
 const SLEEP_KEY = 'trackmate_sleep'
+const SCREEN_W = Dimensions.get('window').width
 
-// ── ホイール用データ ─────────────────────────────────────────
-const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
-const MINS  = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))
-const QUALITY_ITEMS = Array.from({ length: 10 }, (_, i) => String(i + 1))
-
-// ── ユーティリティ ──────────────────────────────────────────
 function qualityColor(q: number) {
   if (q >= 8) return '#34C759'
   if (q >= 5) return '#FF9500'
@@ -39,7 +30,6 @@ function fmtDuration(min?: number) {
   return h > 0 ? `${h}時間${m > 0 ? m + '分' : ''}` : `${m}分`
 }
 
-// ── スケルトン ──────────────────────────────────────────────
 function SkeletonRect({ height = 16, width = '100%' as number | string }) {
   const opacity = useRef(new Animated.Value(0.3)).current
   useEffect(() => {
@@ -52,52 +42,224 @@ function SkeletonRect({ height = 16, width = '100%' as number | string }) {
   return <Animated.View style={{ height, width: width as number, borderRadius: 8, backgroundColor: '#2a2a2a', opacity }} />
 }
 
+// ── +/- ボタン式時刻ピッカー ──────────────────────────────────
+function TimePicker({ label, hour, minute, onChangeHour, onChangeMinte, color }: {
+  label: string
+  hour: number
+  minute: number
+  onChangeHour: (h: number) => void
+  onChangeMinte: (m: number) => void
+  color: string
+}) {
+  function incHour()  { onChangeHour((hour + 1) % 24) }
+  function decHour()  { onChangeHour((hour + 23) % 24) }
+  function incMin()   { onChangeMinte((minute + 5) % 60) }
+  function decMin()   { onChangeMinte(Math.floor((minute + 5) / 5) % 12 * 5) }
+
+  const pad = (n: number) => String(n).padStart(2, '0')
+
+  return (
+    <View style={{ alignItems: 'center', gap: 6 }}>
+      <Text style={{ color: TEXT.secondary, fontSize: 11, fontWeight: '700', letterSpacing: 1 }}>{label}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        {/* 時 */}
+        <View style={{ alignItems: 'center', gap: 4 }}>
+          <TouchableOpacity onPress={incHour} style={tp.btn} activeOpacity={0.7}>
+            <Ionicons name="chevron-up" size={18} color={color} />
+          </TouchableOpacity>
+          <View style={[tp.box, { borderColor: color + '60' }]}>
+            <Text style={[tp.val, { color }]}>{pad(hour)}</Text>
+          </View>
+          <TouchableOpacity onPress={decHour} style={tp.btn} activeOpacity={0.7}>
+            <Ionicons name="chevron-down" size={18} color={color} />
+          </TouchableOpacity>
+        </View>
+        <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 28, fontWeight: '300' }}>:</Text>
+        {/* 分（5分刻み） */}
+        <View style={{ alignItems: 'center', gap: 4 }}>
+          <TouchableOpacity onPress={incMin} style={tp.btn} activeOpacity={0.7}>
+            <Ionicons name="chevron-up" size={18} color={color} />
+          </TouchableOpacity>
+          <View style={[tp.box, { borderColor: color + '60' }]}>
+            <Text style={[tp.val, { color }]}>{pad(minute)}</Text>
+          </View>
+          <TouchableOpacity onPress={decMin} style={tp.btn} activeOpacity={0.7}>
+            <Ionicons name="chevron-down" size={18} color={color} />
+          </TouchableOpacity>
+        </View>
+      </View>
+      <Text style={{ color, fontSize: 12, fontWeight: '700' }}>{pad(hour)}:{pad(minute)}</Text>
+    </View>
+  )
+}
+
+const tp = StyleSheet.create({
+  btn:  { width: 36, height: 28, alignItems: 'center', justifyContent: 'center' },
+  box:  { width: 56, height: 52, borderRadius: 12, borderWidth: 1.5, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' },
+  val:  { fontSize: 26, fontWeight: '800', letterSpacing: 1 },
+})
+
+// ── 睡眠時間の折れ線グラフ ────────────────────────────────────
+const Y_AXIS_W = 36
+const PLOT_H   = 100
+const X_AXIS_H = 16
+
+function SleepLineChart({ records }: { records: SleepRecord[] }) {
+  const data = [...records]
+    .sort((a, b) => a.sleep_date.localeCompare(b.sleep_date))
+    .slice(-20)
+    .filter(r => r.duration_min && r.duration_min > 0)
+    .map(r => ({ date: r.sleep_date, hours: (r.duration_min ?? 0) / 60 }))
+
+  if (data.length < 2) return null
+
+  const PLOT_W = SCREEN_W - 64 - Y_AXIS_W
+
+  const vals = data.map(d => d.hours)
+  const rawMax = Math.max(...vals)
+  const rawMin = Math.min(...vals)
+  const pad    = (rawMax - rawMin) * 0.2 || 1
+  const yMax   = Math.min(12, rawMax + pad)
+  const yMin   = Math.max(0, rawMin - pad)
+  const yRange = yMax - yMin
+
+  const yTicks = [yMax, (yMax + yMin) / 2, yMin].map(v => Math.round(v * 10) / 10)
+
+  function xFor(i: number) {
+    return data.length === 1 ? PLOT_W / 2 : (i / (data.length - 1)) * PLOT_W
+  }
+  function yFor(h: number) {
+    return PLOT_H - ((h - yMin) / yRange) * PLOT_H
+  }
+
+  const step = Math.max(1, Math.floor(data.length / 6))
+
+  return (
+    <View style={{ gap: 8 }}>
+      <Text style={{ color: TEXT.secondary, fontSize: 12, fontWeight: '700' }}>睡眠時間の推移</Text>
+      <View style={{ flexDirection: 'row' }}>
+        {/* Y軸 */}
+        <View style={{ width: Y_AXIS_W, height: PLOT_H, justifyContent: 'space-between', alignItems: 'flex-end', paddingRight: 5 }}>
+          {yTicks.map((v, i) => (
+            <Text key={i} style={{ color: TEXT.hint, fontSize: 9 }}>{v.toFixed(1)}h</Text>
+          ))}
+        </View>
+        {/* プロット */}
+        <View style={{ width: PLOT_W, height: PLOT_H + X_AXIS_H }}>
+          {/* グリッド */}
+          {yTicks.map((_, i) => {
+            const y = i === 0 ? 0 : i === 1 ? PLOT_H / 2 : PLOT_H - 1
+            return <View key={i} style={{ position: 'absolute', left: 0, right: 0, top: y, height: 1, backgroundColor: 'rgba(255,255,255,0.07)' }} />
+          })}
+          {/* 折れ線 */}
+          {data.slice(0, -1).map((d, i) => {
+            const x1 = xFor(i),     y1 = yFor(d.hours)
+            const x2 = xFor(i + 1), y2 = yFor(data[i + 1].hours)
+            const dx = x2 - x1, dy = y2 - y1
+            const len   = Math.sqrt(dx * dx + dy * dy)
+            const angle = Math.atan2(dy, dx) * 180 / Math.PI
+            return (
+              <View key={`l${i}`} style={{
+                position: 'absolute',
+                left: (x1 + x2) / 2 - len / 2, top: (y1 + y2) / 2 - 1,
+                width: len, height: 2,
+                backgroundColor: NEON.blue,
+                borderRadius: 1,
+                transform: [{ rotate: `${angle}deg` }],
+              }} />
+            )
+          })}
+          {/* ドット */}
+          {data.map((d, i) => {
+            const x = xFor(i), y = yFor(d.hours)
+            const isLatest = i === data.length - 1
+            return (
+              <View key={`d${i}`} style={{
+                position: 'absolute',
+                left: x - 4, top: y - 4,
+                width: 8, height: 8, borderRadius: 4,
+                backgroundColor: isLatest ? BRAND : NEON.blue,
+                borderWidth: isLatest ? 2 : 1,
+                borderColor: isLatest ? '#fff' : 'rgba(255,255,255,0.4)',
+              }} />
+            )
+          })}
+          {/* X軸ラベル */}
+          {data.map((d, i) => {
+            if (i % step !== 0 && i !== data.length - 1) return null
+            const x = xFor(i)
+            const dt = new Date(d.date)
+            return (
+              <Text key={`x${i}`} style={{
+                position: 'absolute', left: x - 12, top: PLOT_H + 2,
+                width: 24, textAlign: 'center', color: TEXT.hint, fontSize: 8,
+              }}>{`${dt.getMonth()+1}/${dt.getDate()}`}</Text>
+            )
+          })}
+        </View>
+      </View>
+    </View>
+  )
+}
+
 // ── 睡眠履歴カード ─────────────────────────────────────────
-function SleepCard({ record }: { record: SleepRecord }) {
+function SleepCard({ record, onEdit, onDelete }: {
+  record: SleepRecord
+  onEdit: () => void
+  onDelete: () => void
+}) {
   const color = qualityColor(record.quality_score)
   return (
-    <View style={styles.sleepCard}>
+    <TouchableOpacity onPress={onEdit} activeOpacity={0.75} style={styles.sleepCard}>
       <View style={styles.sleepLeft}>
         <Text style={styles.sleepDate}>{record.sleep_date}</Text>
         {record.duration_min ? (
           <Text style={styles.sleepDuration}>{fmtDuration(record.duration_min)}</Text>
         ) : null}
+        {record.notes ? <Text style={styles.sleepNotes} numberOfLines={1}>{record.notes}</Text> : null}
       </View>
       <View style={[styles.qualityBadge, { borderColor: color }]}>
         <Text style={[styles.qualityValue, { color }]}>{record.quality_score}</Text>
         <Text style={styles.qualityMax}>/10</Text>
       </View>
-      {record.notes ? <Text style={styles.sleepNotes} numberOfLines={1}>{record.notes}</Text> : null}
-    </View>
+      <TouchableOpacity onPress={onDelete} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ padding: 4 }}>
+        <Ionicons name="trash-outline" size={16} color="#555" />
+      </TouchableOpacity>
+    </TouchableOpacity>
   )
 }
 
 // ── メイン ─────────────────────────────────────────────────
 export default function SleepScreen() {
+  const today = new Date().toISOString().slice(0, 10)
   const [records, setRecords] = useState<SleepRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [formOpen, setFormOpen] = useState(false)
-  const [recordDate, setRecordDate] = useState(new Date().toISOString().slice(0, 10))
+  const [recordDate, setRecordDate] = useState(today)
 
-  // ホイール index
-  const [bedHourIdx,  setBedHourIdx]  = useState(23)
-  const [bedMinIdx,   setBedMinIdx]   = useState(0)
-  const [wakeHourIdx, setWakeHourIdx] = useState(6)
-  const [wakeMinIdx,  setWakeMinIdx]  = useState(30)
-  const [qualityIdx,  setQualityIdx]  = useState(6)  // 7/10
+  // 時刻（数値で管理）
+  const [bedHour,  setBedHour]  = useState(23)
+  const [bedMin,   setBedMin]   = useState(30)
+  const [wakeHour, setWakeHour] = useState(7)
+  const [wakeMin,  setWakeMin]  = useState(0)
+  const [quality,  setQuality]  = useState(7)
   const [notes, setNotes] = useState('')
 
-  // 導出値
-  const quality = qualityIdx + 1
-  const bedLabel  = `${HOURS[bedHourIdx]}:${MINS[bedMinIdx]}`
-  const wakeLabel = `${HOURS[wakeHourIdx]}:${MINS[wakeMinIdx]}`
-  const bedTotalMin  = bedHourIdx * 60 + bedMinIdx
-  let wakeTotalMin   = wakeHourIdx * 60 + wakeMinIdx
+  // ±7日の日付リスト
+  const dateRange = Array.from({ length: 15 }, (_, i) => {
+    const d = new Date(); d.setDate(d.getDate() - 7 + i)
+    return d.toISOString().slice(0, 10)
+  })
+
+  // 睡眠時間計算
+  const bedTotalMin  = bedHour * 60 + bedMin
+  let wakeTotalMin   = wakeHour * 60 + wakeMin
   if (wakeTotalMin <= bedTotalMin) wakeTotalMin += 24 * 60
   const durationMin = wakeTotalMin - bedTotalMin
 
-  // AsyncStorage から読み込み
+  const pad = (n: number) => String(n).padStart(2, '0')
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
@@ -109,23 +271,73 @@ export default function SleepScreen() {
 
   useEffect(() => { load() }, [load])
 
+  async function handleDelete(id: string) {
+    const updated = records.filter(r => r.id !== id)
+    setRecords(updated)
+    await AsyncStorage.setItem(SLEEP_KEY, JSON.stringify(updated)).catch(() => {})
+    Toast.show({ type: 'success', text1: '削除しました', visibilityTime: 1200 })
+  }
+
+  function handleEditRecord(record: SleepRecord) {
+    handleSelectDate(record.sleep_date)
+    setFormOpen(true)
+    // スクロールしてフォームが見えるように少し後で実行
+  }
+
+  // 日付選択時に既存記録があれば時刻を復元
+  function handleSelectDate(date: string) {
+    setRecordDate(date)
+    const existing = records.find(r => r.sleep_date === date)
+    if (existing?.sleep_start) {
+      const t = new Date(existing.sleep_start)
+      setBedHour(t.getHours()); setBedMin(t.getMinutes())
+    }
+    if (existing?.sleep_end) {
+      const t = new Date(existing.sleep_end)
+      setWakeHour(t.getHours()); setWakeMin(t.getMinutes())
+    }
+    if (existing) setQuality(existing.quality_score)
+  }
+
+  function formatDateLabel(dateStr: string) {
+    const d = new Date(dateStr)
+    const diff = Math.round((d.getTime() - new Date(today).getTime()) / 86400000)
+    if (diff === 0) return '今日'
+    if (diff === -1) return '昨日'
+    if (diff === 1) return '明日'
+    const dow = ['日','月','火','水','木','金','土'][d.getDay()]
+    return `${d.getMonth()+1}/${d.getDate()}(${dow})`
+  }
+
   async function handleSave() {
     setSaving(true)
     try {
+      // sleep_start/end を ISO 文字列で保存
+      const dateBase = new Date(recordDate + 'T00:00:00')
+      const sleepStart = new Date(dateBase)
+      sleepStart.setHours(bedHour, bedMin, 0, 0)
+      // 就寝が深夜の場合、前日扱い
+      const sleepEnd = new Date(dateBase)
+      sleepEnd.setHours(wakeHour, wakeMin, 0, 0)
+      if (sleepEnd <= sleepStart) sleepEnd.setDate(sleepEnd.getDate() + 1)
+
       const record: SleepRecord = {
         id: `local-${Date.now()}`,
         user_id: MOCK_USER_ID,
         sleep_date: recordDate,
+        sleep_start: sleepStart.toISOString(),
+        sleep_end:   sleepEnd.toISOString(),
         quality_score: quality,
         duration_min: durationMin,
         notes: notes || undefined,
         created_at: new Date().toISOString(),
       }
       const updated = [record, ...records.filter(r => r.sleep_date !== recordDate)]
+        .sort((a, b) => b.sleep_date.localeCompare(a.sleep_date))
       await AsyncStorage.setItem(SLEEP_KEY, JSON.stringify(updated))
       setRecords(updated)
       Sounds.save()
-      Toast.show({ type: 'success', text1: '✅ 睡眠を記録しました', text2: `${bedLabel} → ${wakeLabel}  ${fmtDuration(durationMin)}` })
+      Toast.show({ type: 'success', text1: '✅ 睡眠を記録しました', text2: `${pad(bedHour)}:${pad(bedMin)} → ${pad(wakeHour)}:${pad(wakeMin)}  ${fmtDuration(durationMin)}` })
       setFormOpen(false)
       setNotes('')
     } catch {
@@ -135,8 +347,6 @@ export default function SleepScreen() {
     }
   }
 
-  const chartData: ChartDataPoint[] = records.slice(0, 7).reverse()
-    .map(r => ({ date: r.sleep_date, value: r.quality_score }))
   const avgQuality = records.length > 0
     ? (records.slice(0, 7).reduce((s, r) => s + r.quality_score, 0) / Math.min(records.length, 7)).toFixed(1)
     : null
@@ -144,18 +354,27 @@ export default function SleepScreen() {
     ? Math.round(records.slice(0, 7).reduce((s, r) => s + (r.duration_min ?? 0), 0) / Math.min(records.length, 7))
     : null
 
+  const existingForDate = records.find(r => r.sleep_date === recordDate)
+
   return (
     <View style={{ flex: 1 }}>
       <LinearGradient colors={BG_GRADIENT} style={StyleSheet.absoluteFill} />
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>睡眠・回復</Text>
-          <TouchableOpacity style={styles.addBtn} onPress={() => setFormOpen(v => !v)} activeOpacity={0.8}>
-            <Ionicons name={formOpen ? 'chevron-up' : 'add'} size={22} color="#fff" />
-          </TouchableOpacity>
         </View>
 
         <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+
+          {/* 睡眠を記録ボタン（大きく横長） */}
+          <TouchableOpacity
+            style={[styles.recordBtn, formOpen && styles.recordBtnOpen]}
+            onPress={() => setFormOpen(v => !v)}
+            activeOpacity={0.85}
+          >
+            <Ionicons name={formOpen ? 'chevron-up' : 'moon'} size={22} color="#fff" />
+            <Text style={styles.recordBtnText}>{formOpen ? '閉じる' : '睡眠を記録する'}</Text>
+          </TouchableOpacity>
 
           {/* サマリー */}
           {!loading && records.length > 0 && (
@@ -179,80 +398,88 @@ export default function SleepScreen() {
             <View style={styles.formCard}>
               <Text style={styles.formTitle}>睡眠を記録</Text>
 
-              <DateSelector date={recordDate} onChange={setRecordDate} />
+              {/* 日付セレクター */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 6, paddingHorizontal: 2 }}>
+                {dateRange.map(d => {
+                  const isSelected = d === recordDate
+                  const hasRecord  = records.some(r => r.sleep_date === d)
+                  const isFuture   = d > today
+                  return (
+                    <TouchableOpacity
+                      key={d}
+                      onPress={() => handleSelectDate(d)}
+                      disabled={isFuture}
+                      style={{
+                        paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10,
+                        backgroundColor: isSelected ? NEON.blue : 'rgba(255,255,255,0.06)',
+                        borderWidth: 1,
+                        borderColor: isSelected ? NEON.blue : hasRecord ? 'rgba(90,200,250,0.4)' : 'rgba(255,255,255,0.1)',
+                        opacity: isFuture ? 0.3 : 1,
+                      }}
+                    >
+                      <Text style={{ color: isSelected ? '#fff' : hasRecord ? '#5AC8FA' : TEXT.hint, fontSize: 11, fontWeight: '700' }}>
+                        {formatDateLabel(d)}
+                      </Text>
+                      {hasRecord && (
+                        <Text style={{ color: isSelected ? 'rgba(255,255,255,0.8)' : '#5AC8FA', fontSize: 9, textAlign: 'center' }}>
+                          {fmtDuration(records.find(r => r.sleep_date === d)?.duration_min)}
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  )
+                })}
+              </ScrollView>
 
-              {/* ── ホイールピッカー ── */}
-              <View style={styles.pickersSection}>
+              {existingForDate && (
+                <Text style={{ color: TEXT.hint, fontSize: 11, textAlign: 'center' }}>
+                  既存: {fmtDuration(existingForDate.duration_min)} / 質{existingForDate.quality_score} → 上書き保存
+                </Text>
+              )}
 
-                {/* 就寝 */}
-                <View style={styles.pickerGroup}>
-                  <Text style={styles.pickerGroupLabel}>就寝</Text>
-                  <View style={styles.pickerRow}>
-                    <WheelPicker
-                      items={HOURS}
-                      selectedIndex={bedHourIdx}
-                      onChange={setBedHourIdx}
-                      width={72}
-                      accentColor={NEON.blue}
-                    />
-                    <Text style={styles.colon}>:</Text>
-                    <WheelPicker
-                      items={MINS}
-                      selectedIndex={bedMinIdx}
-                      onChange={setBedMinIdx}
-                      width={72}
-                      accentColor={NEON.blue}
-                    />
-                  </View>
-                  <Text style={styles.timeDisplay}>{bedLabel}</Text>
+              {/* 時刻ピッカー */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' }}>
+                <TimePicker
+                  label="就寝"
+                  hour={bedHour} minute={bedMin}
+                  onChangeHour={setBedHour} onChangeMinte={setBedMin}
+                  color={NEON.blue}
+                />
+                <View style={{ alignItems: 'center', gap: 4 }}>
+                  <Ionicons name="moon" size={20} color={NEON.purple} />
+                  <Text style={{ color: NEON.purple, fontSize: 14, fontWeight: '800' }}>{fmtDuration(durationMin)}</Text>
                 </View>
-
-                <View style={styles.pickerDivider} />
-
-                {/* 起床 */}
-                <View style={styles.pickerGroup}>
-                  <Text style={styles.pickerGroupLabel}>起床</Text>
-                  <View style={styles.pickerRow}>
-                    <WheelPicker
-                      items={HOURS}
-                      selectedIndex={wakeHourIdx}
-                      onChange={setWakeHourIdx}
-                      width={72}
-                      accentColor={NEON.cyan}
-                    />
-                    <Text style={styles.colon}>:</Text>
-                    <WheelPicker
-                      items={MINS}
-                      selectedIndex={wakeMinIdx}
-                      onChange={setWakeMinIdx}
-                      width={72}
-                      accentColor={NEON.cyan}
-                    />
-                  </View>
-                  <Text style={[styles.timeDisplay, { color: NEON.cyan }]}>{wakeLabel}</Text>
-                </View>
-              </View>
-
-              {/* 睡眠時間表示 */}
-              <View style={styles.durationBadge}>
-                <Ionicons name="moon" size={14} color={NEON.purple} />
-                <Text style={styles.durationText}>睡眠時間  </Text>
-                <Text style={[styles.durationValue, { color: NEON.purple }]}>{fmtDuration(durationMin)}</Text>
+                <TimePicker
+                  label="起床"
+                  hour={wakeHour} minute={wakeMin}
+                  onChangeHour={setWakeHour} onChangeMinte={setWakeMin}
+                  color={NEON.cyan}
+                />
               </View>
 
               {/* 質スコア */}
-              <View style={styles.qualitySection}>
-                <Text style={styles.pickerGroupLabel}>睡眠の質</Text>
-                <View style={styles.qualityPickerRow}>
-                  <WheelPicker
-                    items={QUALITY_ITEMS}
-                    selectedIndex={qualityIdx}
-                    onChange={setQualityIdx}
-                    width={64}
-                    accentColor={qualityColor(quality)}
-                    fontSize={26}
-                  />
-                  <Text style={[styles.qualityOutOf, { color: qualityColor(quality) }]}>/10</Text>
+              <View style={{ gap: 8 }}>
+                <Text style={{ color: TEXT.secondary, fontSize: 12, fontWeight: '700', letterSpacing: 1 }}>
+                  睡眠の質: <Text style={{ color: qualityColor(quality) }}>{quality}/10</Text>
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
+                  {Array.from({ length: 10 }, (_, i) => i + 1).map(n => {
+                    const col = qualityColor(n)
+                    return (
+                      <TouchableOpacity
+                        key={n}
+                        onPress={() => setQuality(n)}
+                        style={{
+                          width: 34, height: 34, borderRadius: 17,
+                          borderWidth: 1.5, borderColor: col,
+                          backgroundColor: quality === n ? col : 'transparent',
+                          alignItems: 'center', justifyContent: 'center',
+                        }}
+                      >
+                        <Text style={{ color: quality === n ? '#000' : col, fontSize: 13, fontWeight: '700' }}>{n}</Text>
+                      </TouchableOpacity>
+                    )
+                  })}
                 </View>
               </View>
 
@@ -280,23 +507,14 @@ export default function SleepScreen() {
             </AnimatedSection>
           )}
 
-          {/* チャート */}
-          <AnimatedSection delay={80} type="fade-up">
-          {loading ? (
+          {/* 折れ線グラフ */}
+          {!loading && records.length >= 2 && (
+            <AnimatedSection delay={80} type="fade-up">
             <View style={styles.card}>
-              <SkeletonRect height={20} width="50%" />
-              <SkeletonRect height={160} />
+              <SleepLineChart records={records} />
             </View>
-          ) : chartData.length > 0 ? (
-            <TrainingChart
-              data={chartData}
-              title="睡眠質スコア推移"
-              color="#5AC8FA"
-              unit=""
-              isLoading={false}
-            />
-          ) : null}
-          </AnimatedSection>
+            </AnimatedSection>
+          )}
 
           {/* 履歴 */}
           <AnimatedSection delay={160} type="fade-up">
@@ -319,7 +537,14 @@ export default function SleepScreen() {
               </View>
             ) : (
               <View style={{ gap: 8 }}>
-                {records.map(r => <SleepCard key={r.id} record={r} />)}
+                {records.map(r => (
+                  <SleepCard
+                    key={r.id}
+                    record={r}
+                    onEdit={() => handleEditRecord(r)}
+                    onDelete={() => handleDelete(r.id)}
+                  />
+                ))}
               </View>
             )}
           </View>
@@ -339,50 +564,24 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   headerTitle: { color: TEXT.primary, fontSize: 20, fontWeight: '800' },
-  addBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: NEON.cyan, alignItems: 'center', justifyContent: 'center' },
+  recordBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    backgroundColor: NEON.blue, borderRadius: 16, paddingVertical: 18,
+  },
+  recordBtnOpen: { backgroundColor: 'rgba(90,200,250,0.2)', borderWidth: 1, borderColor: NEON.blue },
+  recordBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
   scroll: { flex: 1 },
-  content: { padding: 16, gap: 14, paddingBottom: 48 },
+  content: { padding: 16, gap: 14, paddingBottom: 100 },
   card: { backgroundColor: '#111111', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', padding: 16, gap: 12 },
 
-  // サマリー
   summaryRow: { flexDirection: 'row', gap: 12 },
   summaryCard: { flex: 1, backgroundColor: '#111111', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', borderRadius: 20, padding: 16, alignItems: 'center', gap: 4 },
   summaryValue: { color: TEXT.primary, fontSize: 24, fontWeight: '800' },
   summaryLabel: { color: TEXT.secondary, fontSize: 12 },
 
-  // フォームカード
-  formCard: { backgroundColor: 'rgba(12,14,35,0.88)', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', padding: 20, gap: 16 },
+  formCard: { backgroundColor: 'rgba(12,14,35,0.92)', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', padding: 20, gap: 18 },
   formTitle: { color: TEXT.primary, fontSize: 16, fontWeight: '700', textAlign: 'center' },
 
-  // ホイールエリア
-  pickersSection: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-  },
-  pickerGroup: { alignItems: 'center', gap: 6 },
-  pickerGroupLabel: { color: TEXT.secondary, fontSize: 12, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
-  pickerRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  colon: { color: 'rgba(255,255,255,0.4)', fontSize: 28, fontWeight: '300', marginBottom: 2, paddingHorizontal: 2 },
-  timeDisplay: { color: NEON.blue, fontSize: 13, fontWeight: '700', letterSpacing: 1 },
-  pickerDivider: { width: 1, height: 120, backgroundColor: 'rgba(255,255,255,0.08)', marginHorizontal: 8 },
-
-  // 睡眠時間バッジ
-  durationBadge: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    backgroundColor: `${NEON.purple}15`, borderRadius: 12, paddingVertical: 10,
-    borderWidth: 1, borderColor: `${NEON.purple}30`,
-  },
-  durationText: { color: TEXT.secondary, fontSize: 14 },
-  durationValue: { fontSize: 16, fontWeight: '800' },
-
-  // 質スコア
-  qualitySection: { alignItems: 'center', gap: 8 },
-  qualityPickerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  qualityOutOf: { fontSize: 22, fontWeight: '700' },
-
-  // メモ
   noteInput: {
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10,
@@ -390,7 +589,6 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
     height: 60, textAlignVertical: 'top',
   },
-
   saveBtn: {
     backgroundColor: NEON.blue, borderRadius: 14,
     paddingVertical: 16, flexDirection: 'row',
@@ -398,7 +596,6 @@ const styles = StyleSheet.create({
   },
   saveBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
 
-  // 履歴
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   sectionTitle: { color: TEXT.primary, fontSize: 15, fontWeight: '700', flex: 1 },
   sleepCard: {
@@ -415,7 +612,6 @@ const styles = StyleSheet.create({
   qualityValue: { fontSize: 16, fontWeight: '800', lineHeight: 18 },
   qualityMax: { color: TEXT.hint, fontSize: 9 },
 
-  // 空状態
   empty: { alignItems: 'center', paddingVertical: 32, gap: 12 },
   emptyText: { color: TEXT.secondary, fontSize: 14 },
   emptyBtn: { backgroundColor: BRAND, borderRadius: 10, paddingHorizontal: 20, paddingVertical: 10 },

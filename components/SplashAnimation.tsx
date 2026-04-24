@@ -98,14 +98,14 @@ export default function SplashAnimation({ onFinish }: Props) {
       {/* 中央コンテンツ */}
       <View style={styles.center}>
 
-        {/* ロゴマーク（T） */}
+        {/* ロゴマーク（S） */}
         <Animated.View style={[styles.logoMark, { opacity: logoOpacity, transform: [{ scale: logoScale }] }]}>
-          <Text style={styles.logoLetter}>T</Text>
+          <Text style={styles.logoLetter}>S</Text>
         </Animated.View>
 
-        {/* TrackMate テキスト */}
+        {/* sCORE テキスト */}
         <Animated.Text style={[styles.brand, { opacity: textOpacity, transform: [{ translateY: textY }] }]}>
-          TrackMate
+          sCORE
         </Animated.Text>
 
         {/* アンダーライン */}

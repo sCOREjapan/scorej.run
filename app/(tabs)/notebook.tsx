@@ -12,13 +12,57 @@ import Toast from 'react-native-toast-message'
 import { useTheme } from '../../context/ThemeContext'
 import { Sounds, unlockAudio } from '../../lib/sounds'
 import { useRouter } from 'expo-router'
+import { useFocusEffect } from '@react-navigation/native'
 import TrainingChart from '../../components/TrainingChart'
 import type { TrainingSession, ChartDataPoint } from '../../types'
 
-const SESSIONS_KEY = 'trackmate_sessions'
-const TASKS_KEY    = 'trackmate_tasks'
-const BRAND        = '#E53935'
-const MOCK_USER_ID = 'mock-user-1'
+const SESSIONS_KEY    = 'trackmate_sessions'
+const TASKS_KEY       = 'trackmate_tasks'
+
+// ── 正規表現フォールバックパーサー ───────────────────────────────
+function fallbackParse(text: string, today: string): Record<string, any> {
+  const t = text
+  let session_type = 'easy'
+  if (/インターバル|interval|本.*レスト|レスト.*本/i.test(t)) session_type = 'interval'
+  else if (/テンポ|ペース走/i.test(t)) session_type = 'tempo'
+  else if (/スプリント|全力|ダッシュ/i.test(t)) session_type = 'sprint'
+  else if (/ロング|長距離|LSD/i.test(t)) session_type = 'long'
+  else if (/ドリル|ABCドリル/i.test(t)) session_type = 'drill'
+  else if (/ウェイト|筋トレ|ジム|スクワット/i.test(t)) session_type = 'strength'
+  else if (/試合|大会|記録会|レース/i.test(t)) session_type = 'race'
+  else if (/休養|オフ|休み/i.test(t)) session_type = 'rest'
+
+  const eventMatch = t.match(/\b(100m|200m|400m|800m|1500m|3000m|5000m|10000m|110mH|100mH|400mH|3000mSC)\b/i)
+  const event = eventMatch ? eventMatch[1] : null
+
+  let time_ms: number | null = null
+  const timeMatch = t.match(/(\d{1,2}):(\d{2})[.:](\d{1,2})|(\d{1,2})'(\d{2})[.:]?(\d{0,2})|(\d{2,3})[."秒](\d{0,2})/)
+  if (timeMatch) {
+    if (timeMatch[1]) time_ms = Math.round((parseInt(timeMatch[1])*60 + parseInt(timeMatch[2]) + parseInt(timeMatch[3]||'0')/100)*1000)
+    else if (timeMatch[4]) time_ms = Math.round((parseInt(timeMatch[4])*60 + parseInt(timeMatch[5]) + parseInt(timeMatch[6]||'0')/100)*1000)
+    else if (timeMatch[7]) time_ms = Math.round((parseInt(timeMatch[7]) + parseInt(timeMatch[8]||'0')/100)*1000)
+  }
+
+  let distance_m: number | null = null
+  const kmMatch = t.match(/(\d+(?:\.\d+)?)\s*km/i)
+  const mMatch  = t.match(/(\d+)\s*m(?!H|SC)\b/)
+  if (kmMatch) distance_m = Math.round(parseFloat(kmMatch[1]) * 1000)
+  else if (mMatch && parseInt(mMatch[1]) > 50) distance_m = parseInt(mMatch[1])
+
+  const repsMatch = t.match(/(\d+)\s*(本|×)/)
+  const reps = repsMatch ? parseInt(repsMatch[1]) : null
+
+  const fatMatch = t.match(/疲労\s*[：:=]?\s*(\d+)|疲[れ労]\s*(\d+)/)
+  const fatigue_level = fatMatch ? parseInt(fatMatch[1] ?? fatMatch[2]) : 5
+
+  const condMatch = t.match(/体調\s*[：:=]?\s*(\d+)/)
+  const condition_level = condMatch ? parseInt(condMatch[1]) : 6
+
+  return { session_date: today, session_type, event, time_ms, distance_m, reps, fatigue_level, condition_level }
+}
+const CONDITION_MAP_KEY = 'trackmate_condition_map'
+const BRAND           = '#E53935'
+const MOCK_USER_ID    = 'mock-user-1'
 
 async function saveImprovementTasks(sessionType: string, fatigue: number, notes: string) {
   const texts: string[] = []
@@ -64,17 +108,35 @@ function fmtDist(m: number) {
   return m >= 1000 ? `${(m / 1000).toFixed(1)}km` : `${m}m`
 }
 
-function SessionCard({ session }: { session: TrainingSession }) {
+const CONDITION_EMOJIS: Record<number,string> = { 2:'😫', 4:'😕', 6:'😐', 8:'😊', 10:'💪' }
+function conditionEmoji(v: number) {
+  const closest = [2,4,6,8,10].reduce((a,b) => Math.abs(b-v) < Math.abs(a-v) ? b : a)
+  return CONDITION_EMOJIS[closest] ?? '😐'
+}
+
+function SessionCard({ session, conditionMap }: { session: TrainingSession; conditionMap: Record<string,number> }) {
   const { colors } = useTheme()
+  const [expanded, setExpanded] = useState(false)
   const info = TYPE_INFO[session.session_type] ?? { label: session.session_type, color: '#888' }
+  const cond = session.condition_level ?? conditionMap[session.session_date]
   return (
-    <View style={[st.sessionCard, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
+    <TouchableOpacity
+      activeOpacity={0.75}
+      onPress={() => setExpanded(e => !e)}
+      style={[st.sessionCard, { backgroundColor: colors.surface2, borderColor: colors.border }]}
+    >
       <View style={[st.typeBar, { backgroundColor: info.color }]} />
       <View style={st.sessionBody}>
         <View style={st.sessionRow}>
           <Text style={[st.typeLabel, { color: info.color }]}>{info.label}</Text>
           {session.event ? <Text style={[st.eventLabel, { color: colors.textSec }]}>{session.event}</Text> : null}
           <Text style={[st.dateLabel, { color: colors.textHint }]}>{session.session_date}</Text>
+          <Ionicons
+            name={expanded ? 'chevron-up' : 'chevron-down'}
+            size={13}
+            color={colors.textHint}
+            style={{ marginLeft: 'auto' as any }}
+          />
         </View>
         <View style={st.sessionRow}>
           {session.time_ms   ? <Text style={[st.sessionStat, { color: colors.text }]}>{fmtTime(session.time_ms)}</Text>   : null}
@@ -83,33 +145,56 @@ function SessionCard({ session }: { session: TrainingSession }) {
           <View style={[st.fatiguePill, { backgroundColor: colors.inputBg }]}>
             <Text style={[st.fatigueNum, { color: colors.textHint }]}>疲労 {session.fatigue_level}/10</Text>
           </View>
+          {cond != null && (
+            <View style={[st.fatiguePill, { backgroundColor: colors.inputBg }]}>
+              <Text style={[st.fatigueNum, { color: colors.textHint }]}>{conditionEmoji(cond)} 体調{cond}/10</Text>
+            </View>
+          )}
         </View>
-        {session.notes
-          ? <Text style={[st.notesText, { color: colors.textHint }]} numberOfLines={2}>{session.notes}</Text>
-          : null}
+        {session.notes ? (
+          <Text style={[st.notesText, { color: colors.textHint }]} numberOfLines={expanded ? undefined : 2}>
+            {session.notes}
+          </Text>
+        ) : null}
+        {expanded && (
+          <View style={[st.expandedDetail, { borderTopColor: colors.border }]}>
+            {session.time_ms    ? <Text style={[st.detailRow, { color: colors.textSec }]}>⏱ タイム: {fmtTime(session.time_ms)}</Text>    : null}
+            {session.distance_m ? <Text style={[st.detailRow, { color: colors.textSec }]}>📏 距離: {fmtDist(session.distance_m)}</Text>   : null}
+            {session.reps       ? <Text style={[st.detailRow, { color: colors.textSec }]}>🔁 本数: {session.reps}本</Text>                : null}
+            {session.event      ? <Text style={[st.detailRow, { color: colors.textSec }]}>🏟️ 種目: {session.event}</Text>                : null}
+            <Text style={[st.detailRow, { color: colors.textSec }]}>💪 疲労度: {session.fatigue_level}/10</Text>
+            {cond != null ? <Text style={[st.detailRow, { color: colors.textSec }]}>{conditionEmoji(cond)} 体調: {cond}/10</Text> : null}
+            <Text style={[st.detailRow, { color: colors.textHint, fontSize: 10 }]}>記録: {session.created_at?.slice(0,16).replace('T',' ') ?? ''}</Text>
+          </View>
+        )}
       </View>
-    </View>
+    </TouchableOpacity>
   )
 }
 
 export default function NotebookScreen() {
   const router = useRouter()
   const { colors } = useTheme()
-  const [sessions, setSessions] = useState<TrainingSession[]>([])
-  const [loading, setLoading]   = useState(true)
-  const [modal, setModal]       = useState(false)
-  const [freeText, setFreeText] = useState('')
-  const [parsing, setParsing]   = useState(false)
+  const [sessions, setSessions]       = useState<TrainingSession[]>([])
+  const [conditionMap, setConditionMap] = useState<Record<string,number>>({})
+  const [loading, setLoading]         = useState(true)
+  const [modal, setModal]             = useState(false)
+  const [freeText, setFreeText]       = useState('')
+  const [parsing, setParsing]         = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const raw = await AsyncStorage.getItem(SESSIONS_KEY)
-      if (raw) setSessions(JSON.parse(raw))
+      const [rawSessions, rawCond] = await AsyncStorage.multiGet([SESSIONS_KEY, CONDITION_MAP_KEY])
+      if (rawSessions[1]) setSessions(JSON.parse(rawSessions[1]))
+      if (rawCond[1])     setConditionMap(JSON.parse(rawCond[1]))
     } finally { setLoading(false) }
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  // 他画面から戻ってきた時にもリロード（manual-log等から保存後）
+  useFocusEffect(useCallback(() => { load() }, [load]))
 
   const weekAgo   = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)
   const monthAgo  = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
@@ -130,8 +215,10 @@ export default function NotebookScreen() {
 
     const today = new Date().toISOString().slice(0, 10)
 
-    // ── Step 1: AI解析（失敗しても続行） ──────────────────
-    let parsed: Record<string, any> = {}
+    // ── Step 1: まず正規表現でフォールバック解析 ──────────
+    let parsed: Record<string, any> = fallbackParse(freeText, today)
+
+    // ── Step 2: AIでより正確に解析（成功すればフォールバックを上書き） ─
     try {
       const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY
       if (apiKey) {
@@ -144,39 +231,46 @@ export default function NotebookScreen() {
             'anthropic-dangerous-direct-browser-access': 'true',
           },
           body: JSON.stringify({
-            model: 'claude-3-5-haiku-20241022', max_tokens: 400,
-            messages: [{ role: 'user', content: `陸上競技の練習記録テキストをJSONに変換。今日は${today}。\nテキスト: "${freeText}"\nJSONのみ返答:\n{"session_date":"YYYY-MM-DD","session_type":"interval|tempo|easy|long|sprint|drill|strength|race|rest","event":"100m|200m|400m|110mH|100mH|400mH|800m|1500m|3000m|5000m|10000m|3000mSC|null","time_ms":数値orNull,"distance_m":数値orNull,"reps":数値orNull,"fatigue_level":1-10,"condition_level":1-10}` }],
+            model: 'claude-haiku-4-5-20251001', max_tokens: 500,
+            messages: [{ role: 'user', content: `陸上競技の練習記録テキストを正確にJSONに変換してください。今日の日付は${today}です。\n\n入力テキスト:\n"${freeText}"\n\nルール:\n- session_type: interval(本数+レスト), tempo(ペース走), easy(ジョグ/LSD), long(長距離), sprint(全力短距離), drill(ドリル), strength(ウェイト/筋トレ), race(試合/大会), rest(休養)\n- time_ms: タイムをミリ秒整数に変換。「46秒80」→46800, 「1:28.50」→88500。なければnull\n- distance_m: 距離をメートル整数に変換。「10km」→10000。なければnull\n- reps: 本数の整数。なければnull\n- fatigue_level: 疲労度1〜10の整数（明記なければ雰囲気から推定）\n- condition_level: 体調1〜10の整数（明記なければ6）\n- event: 100m/200m/400m/800m/1500m/3000m/5000m/10000m/110mH/100mH/400mH/3000mSC/競歩/走幅跳/三段跳/走高跳/棒高跳/砲丸投/やり投/円盤投/ハンマー投 のいずれか、なければnull\n\nJSONのみ返答:\n{"session_date":"${today}","session_type":"...","event":"...orNull","time_ms":数値orNull,"distance_m":数値orNull,"reps":数値orNull,"fatigue_level":整数,"condition_level":整数}` }],
           }),
         })
         if (res.ok) {
           const data = await res.json()
-          const text = data.content?.[0]?.text ?? ''
-          parsed = JSON.parse(text.replace(/```json|```/g, '').trim())
+          const rawText = data.content?.[0]?.text ?? ''
+          const jsonMatch = rawText.match(/\{[\s\S]*\}/)
+          if (jsonMatch) {
+            const aiParsed = JSON.parse(jsonMatch[0])
+            parsed = { ...parsed, ...aiParsed }
+          }
         }
       }
     } catch {
-      // AI解析失敗 → フォールバックで保存継続
+      // AI解析失敗 → fallbackParse の結果をそのまま使う
     }
 
-    // ── Step 2: 必ず保存 ──────────────────────────────────
+    // ── Step 3: 必ず保存 ──────────────────────────────────
+    const toNum = (v: any) => (v !== null && v !== undefined && v !== 'null' && !isNaN(Number(v)) && Number(v) > 0) ? Number(v) : undefined
     try {
       const newSession: TrainingSession = {
         id: `local-${Date.now()}`, user_id: MOCK_USER_ID, created_at: new Date().toISOString(),
         session_date:    parsed.session_date    || today,
         session_type:    parsed.session_type    || 'easy',
-        event:           parsed.event && parsed.event !== 'null' ? parsed.event : undefined,
-        time_ms:         parsed.time_ms         || undefined,
-        distance_m:      parsed.distance_m      || undefined,
-        reps:            parsed.reps            || undefined,
-        fatigue_level:   parsed.fatigue_level   || 5,
-        condition_level: parsed.condition_level || 7,
+        event:           parsed.event && parsed.event !== 'null' && parsed.event !== null ? String(parsed.event) as any : undefined,
+        time_ms:         toNum(parsed.time_ms),
+        distance_m:      toNum(parsed.distance_m),
+        reps:            toNum(parsed.reps),
+        fatigue_level:   toNum(parsed.fatigue_level) ?? 5,
+        condition_level: toNum(parsed.condition_level) ?? conditionMap[today] ?? 6,
         notes: freeText,
       }
-      setSessions(prev => {
-        const next = [newSession, ...prev]
-        AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(next)).catch(() => {})
-        return next
-      })
+      // ストレージへの書き込みを確実に完了させてから状態更新
+      // （他タブのuseFocusEffectが先に走るレースコンディションを防ぐ）
+      const rawExisting = await AsyncStorage.getItem(SESSIONS_KEY)
+      const existing: TrainingSession[] = rawExisting ? JSON.parse(rawExisting) : []
+      const next = [newSession, ...existing]
+      await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(next))
+      setSessions(next)
       // 改善タスク生成
       saveImprovementTasks(newSession.session_type, newSession.fatigue_level ?? 5, freeText)
       Sounds.save()
@@ -256,7 +350,7 @@ export default function NotebookScreen() {
               <FlatList
                 data={sessions}
                 keyExtractor={item => item.id}
-                renderItem={({ item }) => <SessionCard session={item} />}
+                renderItem={({ item }) => <SessionCard session={item} conditionMap={conditionMap} />}
                 scrollEnabled={false}
                 ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
               />
@@ -334,6 +428,8 @@ const st = StyleSheet.create({
   fatiguePill:   { borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
   fatigueNum:    { fontSize: 11 },
   notesText:     { fontSize: 12, lineHeight: 16 },
+  expandedDetail:{ marginTop: 8, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth, gap: 3 },
+  detailRow:     { fontSize: 12, lineHeight: 18 },
   empty:         { alignItems: 'center', paddingVertical: 32, gap: 10 },
   emptyText:     { fontSize: 15 },
   emptySubText:  { fontSize: 12, textAlign: 'center' },

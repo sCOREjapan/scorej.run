@@ -49,6 +49,7 @@ const EVENTS_BY_CATEGORY: Record<string, { label: string; key: AthleticsEvent }[
     { key: '10000m',        label: '10000m' },
     { key: 'half_marathon', label: 'ハーフマラソン' },
     { key: 'marathon',      label: 'マラソン' },
+    { key: '競歩',          label: '競歩' },
   ],
   field: [
     { key: '走幅跳',    label: '走幅跳' },
@@ -407,7 +408,7 @@ export default function OnboardingScreen() {
           ) : (
             <TouchableOpacity style={styles.nextBtn} onPress={handleFinish} activeOpacity={0.85}>
               <Ionicons name="checkmark-circle" size={20} color="#fff" />
-              <Text style={styles.nextBtnText}>TrackMate を始める</Text>
+              <Text style={styles.nextBtnText}>sCORE を始める</Text>
             </TouchableOpacity>
           )}
         </View>

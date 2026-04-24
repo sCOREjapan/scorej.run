@@ -13,7 +13,7 @@ export default async function handler(request: Request): Promise<Response> {
 
   const payload = {
     app_id:            appId,
-    headings:          { en: '📝 TrackMate', ja: '📝 TrackMate' },
+    headings:          { en: '📝 sCORE', ja: '📝 sCORE' },
     contents:          { en: '今日の練習を記録しましょう 💪', ja: '今日の練習を記録しましょう 💪' },
     url:               'https://track-mate-murex.vercel.app',
     included_segments: ['All'],

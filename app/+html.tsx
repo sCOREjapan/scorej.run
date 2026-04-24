@@ -15,7 +15,7 @@ export default function Root({ children }: PropsWithChildren) {
         {/* ── PWA / iPhone ホーム画面対応 ── */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="TrackMate" />
+        <meta name="apple-mobile-web-app-title" content="sCORE" />
         <meta name="theme-color" content="#E53935" />
         <link rel="manifest" href="/manifest.json" />
         {/* Apple タッチアイコン（assets/icon.png を public/ にコピーすると使える） */}

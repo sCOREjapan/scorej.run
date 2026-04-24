@@ -5,17 +5,21 @@ import {
   TextInput, KeyboardAvoidingView, Platform, Modal, Linking,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import Toast from 'react-native-toast-message'
 import { BRAND, TEXT } from '../../lib/theme'
+import AnimatedSection from '../../components/AnimatedSection'
 import { calcInjuryRisk } from '../../lib/injuryRisk'
+import { calcLevelInfo, RANK_TIERS } from '../../lib/gamification'
 import type { TrainingSession } from '../../types'
 import {
   fetchMessages, postMessage, setPinMessage, deleteMessage,
   fetchVideos, submitVideo, markVideoWatched,
   fetchBodyReports, upsertBodyReport,
   fetchMembers, registerMember,
+  createTeam, fetchTeamByCode,
   type TeamMessageRow, type TeamVideoRow, type BodyReportRow, type TeamMemberRow,
 } from '../../lib/supabaseTeam'
 import { useTheme } from '../../context/ThemeContext'
@@ -97,6 +101,54 @@ function formatCode(c: string) { const s = c.toUpperCase().replace(/[^A-Z0-9]/g,
 function daysSince(d: string) { const n = Math.floor((Date.now()-new Date(d).getTime())/86400000); return n===0?'今日':n===1?'昨日':`${n}日前` }
 function timeAgo(iso: string) { const m = Math.floor((Date.now()-new Date(iso).getTime())/60000); return m<1?'たった今':m<60?`${m}分前`:m<1440?`${Math.floor(m/60)}時間前`:daysSince(iso) }
 function daysLeft(iso: string) { return Math.max(0, 7 - Math.floor((Date.now()-new Date(iso).getTime())/86400000)) }
+
+// ── 負荷・リスク設定 ─────────────────────────────────────
+const RISK_CFG = {
+  danger: { color: '#E53935', bg: 'rgba(229,57,53,0.12)', label: '高リスク' },
+  high:   { color: '#FF9500', bg: 'rgba(255,149,0,0.12)', label: '注意' },
+  medium: { color: '#F5A623', bg: 'rgba(245,166,35,0.12)', label: '中程度' },
+  low:    { color: '#34C759', bg: 'rgba(52,199,89,0.12)', label: '良好' },
+} as const
+type RiskCfgKey = keyof typeof RISK_CFG
+
+const LOAD_CFG = {
+  danger: { color: '#E53935', label: '危険' },
+  high:   { color: '#FF9500', label: '高' },
+  medium: { color: '#F5A623', label: '中' },
+  low:    { color: '#34C759', label: '低' },
+} as const
+type LoadCfgKey = keyof typeof LOAD_CFG
+
+const SESSION_LOAD_BASE: Record<string, number> = {
+  sprint: 100, interval: 70, tempo: 50, easy: 20,
+  long: 15, drill: 80, strength: 120, race: 200, rest: 0,
+}
+function calcWeeklyLoad(sessions: TrainingSession[]): number {
+  const now = Date.now()
+  const week = sessions.filter(s => now - new Date(s.session_date).getTime() <= 7 * 86_400_000)
+  return Math.round(week.reduce((sum, s) => {
+    const w = SESSION_LOAD_BASE[s.session_type] ?? 0
+    if (s.session_type === 'sprint' || s.session_type === 'interval') {
+      return sum + (s.distance_m ? (s.distance_m / 100) * (s.reps ?? 1) * w : w)
+    }
+    if (s.session_type === 'tempo' || s.session_type === 'easy' || s.session_type === 'long') {
+      return sum + (s.distance_m ? (s.distance_m / 1000) * w : w)
+    }
+    return sum + w
+  }, 0))
+}
+function loadCfgKey(score: number): LoadCfgKey {
+  if (score >= 1000) return 'danger'
+  if (score >= 700)  return 'high'
+  if (score >= 400)  return 'medium'
+  return 'low'
+}
+function riskCfgKey(score: number): RiskCfgKey {
+  if (score >= 70) return 'danger'
+  if (score >= 55) return 'high'
+  if (score >= 40) return 'medium'
+  return 'low'
+}
 
 const FATIGUE_MAP: Record<number,{emoji:string;label:string;color:string}> = {
   2:{emoji:'😊',label:'楽',color:'#34C759'}, 4:{emoji:'🙂',label:'やや楽',color:'#30D158'},
@@ -286,9 +338,16 @@ function CoachSetupScreen({ onCreated, onBack }: { onCreated:(s:TeamSetup)=>void
   async function create() {
     if (!teamName.trim()||!coachName.trim()) { Toast.show({type:'error',text1:'チーム名とコーチ名を入力してください'}); return }
     setBusy(true)
-    const s: TeamSetup = { teamName:teamName.trim(), coachName:coachName.trim(), code:generateCode(), createdAt:new Date().toISOString() }
-    await AsyncStorage.setItem(SETUP_KEY, JSON.stringify(s))
-    onCreated(s)
+    try {
+      const s: TeamSetup = { teamName:teamName.trim(), coachName:coachName.trim(), code:generateCode(), createdAt:new Date().toISOString() }
+      await AsyncStorage.setItem(SETUP_KEY, JSON.stringify(s))
+      // Supabase にチームを登録（他デバイスからの参加コード検証に使用）
+      await createTeam(s.code, s.teamName, s.coachName)
+      onCreated(s)
+    } catch {
+      Toast.show({type:'error',text1:'チームの作成に失敗しました。再度お試しください'})
+      setBusy(false)
+    }
   }
 
   return (
@@ -347,12 +406,24 @@ function PlayerJoinScreen({ onJoined, onBack }: { onJoined:(j:JoinedTeam)=>void;
     if (!playerName.trim())  { Toast.show({type:'error',text1:'名前を入力してください'}); return }
     setBusy(true)
     try {
-      // ローカルにコーチ設定があれば照合（なければそのまま参加）
-      const raw = await AsyncStorage.getItem(SETUP_KEY)
-      let teamName='チーム', coachName='コーチ'
-      if (raw) {
-        const s: TeamSetup = JSON.parse(raw)
-        if (s.code === cleaned) { teamName = s.teamName; coachName = s.coachName }
+      // Supabase でコードを検証（存在するチームか確認）
+      let teamName = 'チーム', coachName = 'コーチ'
+      const serverTeam = await fetchTeamByCode(cleaned)
+      if (serverTeam) {
+        // Supabase にチームが存在 → その情報を使用
+        teamName  = serverTeam.team_name
+        coachName = serverTeam.coach_name
+      } else {
+        // Supabase 未設定 or オフライン → ローカル照合にフォールバック
+        const raw = await AsyncStorage.getItem(SETUP_KEY)
+        if (raw) {
+          const s: TeamSetup = JSON.parse(raw)
+          if (s.code === cleaned) { teamName = s.teamName; coachName = s.coachName }
+          else {
+            // コードが一致しない + サーバーにもない = 無効なコード
+            Toast.show({type:'error',text1:'チームが見つかりません。コードを確認してください'}); setBusy(false); return
+          }
+        }
       }
       const j: JoinedTeam = { code:cleaned, teamName, coachName, playerName:playerName.trim(), joinedAt:new Date().toISOString() }
       await AsyncStorage.setItem(JOINED_KEY, JSON.stringify(j))
@@ -360,7 +431,7 @@ function PlayerJoinScreen({ onJoined, onBack }: { onJoined:(j:JoinedTeam)=>void;
       await registerMember(cleaned, playerName.trim(), '')
       // コーチに通知
       await sendPush(`👋 新メンバー`, `${playerName.trim()} がチームに参加しました`, 'coaches', cleaned)
-      Toast.show({type:'success',text1:`チームに参加しました！`,visibilityTime:2000})
+      Toast.show({type:'success',text1:`${teamName} に参加しました！`,visibilityTime:2000})
       onJoined(j)
     } catch {
       Toast.show({type:'error',text1:'参加に失敗しました。もう一度お試しください'})
@@ -421,6 +492,7 @@ function PlayerJoinScreen({ onJoined, onBack }: { onJoined:(j:JoinedTeam)=>void;
 // CoachDashboard — シンプル3セクション
 // ─────────────────────────────────────────────────────────
 function CoachDashboard({ setup, onReset }: { setup: TeamSetup; onReset: () => void }) {
+  const router = useRouter()
   const [messages, setMessages] = useState<TeamMessage[]>([])
   const [videos,   setVideos]   = useState<VideoEntry[]>([])
   const [members,  setMembers]  = useState<TeamMemberRow[]>([])
@@ -428,6 +500,7 @@ function CoachDashboard({ setup, onReset }: { setup: TeamSetup; onReset: () => v
   const [msgText,  setMsgText]  = useState('')
   const [tab,      setTab]      = useState<'members'|'messages'|'videos'>('members')
   const [detailMember, setDetailMember] = useState<Member|null>(null)
+  const [memberFilter, setMemberFilter] = useState<'all'|'danger'|'unsubmitted'>('all')
 
   const load = useCallback(async () => {
     const [msgs, vids, mems, rpts] = await Promise.all([
@@ -496,7 +569,34 @@ function CoachDashboard({ setup, onReset }: { setup: TeamSetup; onReset: () => v
       })
     : DEMO_MEMBERS
 
-  const highRisk  = displayMembers.filter(m => m.sessions.length > 0 && calcInjuryRisk(m.sessions,[],m.sessions[0]?.condition_level??6).riskScore>=50).length
+  // メンバーごとの計算済みデータ
+  const memberData = displayMembers.map(m => {
+    const risk       = calcInjuryRisk(m.sessions, [], m.sessions[0]?.condition_level ?? 6)
+    const weeklyLoad = calcWeeklyLoad(m.sessions)
+    const condToday  = m.sessions[0]?.condition_level ?? null
+    return { ...m, risk, weeklyLoad, condToday }
+  })
+
+  // ソート: リスクスコア降順 → 体調未提出を上に → 名前昇順
+  const sortedMembers = [...memberData].sort((a, b) => {
+    if (b.risk.riskScore !== a.risk.riskScore) return b.risk.riskScore - a.risk.riskScore
+    if (!a.condToday && b.condToday) return -1
+    if (a.condToday && !b.condToday) return 1
+    return a.name.localeCompare(b.name)
+  })
+
+  // フィルター適用
+  const filteredMembers = sortedMembers.filter(m => {
+    if (memberFilter === 'danger')      return m.risk.riskScore >= 70
+    if (memberFilter === 'unsubmitted') return !m.condToday
+    return true
+  })
+
+  const highRiskMembers = memberData.filter(m => m.risk.riskScore >= 70)
+  const submittedCount  = memberData.filter(m => m.condToday !== null).length
+  const avgLoad         = memberData.length > 0
+    ? memberData.reduce((s, m) => s + m.weeklyLoad, 0) / memberData.length
+    : 0
   const hasPain   = displayMembers.filter(m => (m.painParts?.length ?? 0) > 0).length
   const newVideos = videos.filter(v => !v.watched).length
 
@@ -544,59 +644,153 @@ function CoachDashboard({ setup, onReset }: { setup: TeamSetup; onReset: () => v
 
           {/* ═══ メンバータブ ═══ */}
           {tab === 'members' && (
+            <AnimatedSection key="members" delay={0} type="fade-up">
             <>
-              {(highRisk>0||hasPain>0) && (
-                <View style={{flexDirection:'row',gap:8}}>
-                  {highRisk>0 && <View style={co.alertChip}><Ionicons name="warning-outline" size={13} color="#FF3B30"/><Text style={{color:'#FF3B30',fontSize:12,fontWeight:'700'}}>怪我リスク {highRisk}人</Text></View>}
-                  {hasPain>0  && <View style={[co.alertChip,{borderColor:'#FF9500'+'40',backgroundColor:'#FF9500'+'10'}]}><Text style={{color:'#FF9500',fontSize:12,fontWeight:'700'}}>痛み報告 {hasPain}人</Text></View>}
-                </View>
+              {/* 要注意選手バナー */}
+              {highRiskMembers.length > 0 && (
+                <TouchableOpacity
+                  style={{backgroundColor:'rgba(229,57,53,0.08)',borderLeftWidth:4,borderLeftColor:'#E53935',borderRadius:12,borderWidth:1,borderColor:'rgba(229,57,53,0.25)',padding:12,flexDirection:'row',alignItems:'flex-start',gap:10}}
+                  onPress={() => setMemberFilter(memberFilter==='danger'?'all':'danger')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={{fontSize:16,marginTop:1}}>⚠️</Text>
+                  <View style={{flex:1}}>
+                    <Text style={{color:'#E53935',fontSize:12,fontWeight:'700',marginBottom:2}}>
+                      {highRiskMembers.length <= 3
+                        ? highRiskMembers.map(m=>m.name.split(' ')[0]).join('・')
+                        : `${highRiskMembers[0].name.split(' ')[0]} ほか${highRiskMembers.length-1}名`
+                      }の負荷が高リスクです
+                    </Text>
+                    <Text style={{color:'#888',fontSize:11}}>今日の練習前に状態を確認してください → タップで絞り込み</Text>
+                  </View>
+                </TouchableOpacity>
               )}
+
+              {/* サマリー3カラム */}
+              <View style={{flexDirection:'row',gap:8}}>
+                {[
+                  { label:'体調提出率', value:`${submittedCount}/${memberData.length}人`, filter:'unsubmitted' as const },
+                  { label:'高リスク', value:`⚠️ ${highRiskMembers.length}人`, color: highRiskMembers.length>0?'#E53935':'#34C759', filter:'danger' as const },
+                  { label:'チーム負荷', value: LOAD_CFG[loadCfgKey(avgLoad)].label, color: LOAD_CFG[loadCfgKey(avgLoad)].color, filter:'all' as const },
+                ].map((item) => (
+                  <TouchableOpacity key={item.label} onPress={() => setMemberFilter(memberFilter===item.filter&&item.filter!=='all'?'all':item.filter)} style={{
+                    flex:1, backgroundColor: memberFilter===item.filter&&item.filter!=='all'?'rgba(229,57,53,0.15)':'rgba(255,255,255,0.04)',
+                    border:1, borderWidth:1, borderColor: memberFilter===item.filter&&item.filter!=='all'?'rgba(229,57,53,0.4)':'rgba(255,255,255,0.06)',
+                    borderRadius:12, paddingVertical:12, paddingHorizontal:10, alignItems:'center',
+                  }} activeOpacity={0.8}>
+                    <Text style={{color:item.color??'#fff',fontSize:14,fontWeight:'800',marginBottom:2}}>{item.value}</Text>
+                    <Text style={{color:'#555',fontSize:10}}>{item.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* フィルター解除 */}
+              {memberFilter !== 'all' && (
+                <TouchableOpacity onPress={() => setMemberFilter('all')} style={{alignSelf:'flex-end',borderWidth:1,borderColor:'#333',borderRadius:999,paddingHorizontal:12,paddingVertical:4}} activeOpacity={0.7}>
+                  <Text style={{color:'#888',fontSize:11}}>× フィルター解除（全{memberData.length}人）</Text>
+                </TouchableOpacity>
+              )}
+
+              {/* デモ表示中の案内 */}
               {members.length === 0 && (
-                <View style={{backgroundColor:'rgba(255,255,255,0.04)',borderRadius:12,borderWidth:1,borderColor:'rgba(255,255,255,0.08)',padding:14,marginBottom:4}}>
+                <View style={{backgroundColor:'rgba(255,255,255,0.04)',borderRadius:12,borderWidth:1,borderColor:'rgba(255,255,255,0.08)',padding:14}}>
                   <Text style={{color:'#555',fontSize:12,textAlign:'center'}}>※ デモデータを表示中。選手がコード「{formatCode(setup.code)}」で参加するとここに表示されます</Text>
                 </View>
               )}
+
+              {/* メンバーカードリスト */}
               <View style={{gap:10}}>
-                {displayMembers.map(m => {
-                  const last    = m.sessions[0]
-                  const fat     = fatigueInfo(last?.fatigue_level ?? 6)
-                  const risk    = calcInjuryRisk(m.sessions, [], last?.condition_level ?? 6)
-                  const rColor  = risk.riskScore>=50?'#FF3B30':risk.riskScore>=25?'#FF9500':'#34C759'
+                {filteredMembers.map((m) => {
+                  const rKey    = riskCfgKey(m.risk.riskScore)
+                  const lKey    = loadCfgKey(m.weeklyLoad)
+                  const rCfg    = RISK_CFG[rKey]
+                  const lCfg    = LOAD_CFG[lKey]
+                  const lvInfo  = calcLevelInfo(m.sessions.length)
+                  const lvTier  = RANK_TIERS.find(t => lvInfo.level >= t.min && lvInfo.level < t.max) ?? RANK_TIERS[0]
+                  const isHigh  = m.risk.riskScore >= 70
                   return (
-                    <TouchableOpacity key={m.id} style={co.memberCard} onPress={() => setDetailMember(m)} activeOpacity={0.85}>
-                      <Avatar name={m.name} size={42} color={avatarColor(m.name)}/>
-                      <View style={{flex:1,gap:4}}>
-                        <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
-                          <Text style={{color:'#fff',fontSize:15,fontWeight:'800'}}>{m.name}</Text>
-                          {m.event ? <Text style={{color:'#555',fontSize:11}}>{m.event}</Text> : null}
+                    <TouchableOpacity
+                      key={m.id}
+                      style={[co.memberCard, isHigh && {borderColor:'rgba(229,57,53,0.25)',backgroundColor:'rgba(229,57,53,0.05)'}]}
+                      onPress={() => setDetailMember(m)}
+                      activeOpacity={0.85}
+                    >
+                      {/* 負荷カラーバー（上端） */}
+                      <View style={{height:3,backgroundColor:lCfg.color,marginHorizontal:-14,marginTop:-14,marginBottom:10,borderTopLeftRadius:14,borderTopRightRadius:14,opacity:0.8}}/>
+
+                      <View style={{flexDirection:'row',alignItems:'flex-start',gap:10}}>
+                        <Avatar name={m.name} size={42} color={avatarColor(m.name)}/>
+                        <View style={{flex:1,gap:4}}>
+                          {/* 名前行 */}
+                          <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
+                            <Text style={{color:'#fff',fontSize:15,fontWeight:'800'}}>{m.name}</Text>
+                            {m.event ? <Text style={{color:'#555',fontSize:11}}>{m.event}</Text> : null}
+                            <TouchableOpacity
+                              onPress={e => { e.stopPropagation(); router.push(`/level-roadmap?name=${encodeURIComponent(m.name)}&sessions=${m.sessions.length}` as any) }}
+                              style={{flexDirection:'row',alignItems:'center',gap:3,backgroundColor:lvTier.color+'22',borderRadius:10,paddingHorizontal:7,paddingVertical:2,borderWidth:1,borderColor:lvTier.color+'44'}}
+                            >
+                              <Text style={{fontSize:11}}>{lvTier.emoji}</Text>
+                              <Text style={{color:lvTier.color,fontSize:10,fontWeight:'800'}}>Lv.{lvInfo.level}</Text>
+                            </TouchableOpacity>
+                          </View>
+
+                          {/* リスクバー */}
+                          <View style={{gap:4}}>
+                            <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
+                              <Text style={{color:'#666',fontSize:10}}>怪我リスク</Text>
+                              <View style={{backgroundColor:rCfg.bg,borderRadius:999,paddingHorizontal:7,paddingVertical:1}}>
+                                <Text style={{color:rCfg.color,fontSize:9,fontWeight:'700'}}>{rCfg.label}</Text>
+                              </View>
+                            </View>
+                            <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
+                              <View style={{flex:1,height:5,borderRadius:3,backgroundColor:'rgba(255,255,255,0.08)',overflow:'hidden'}}>
+                                <View style={{width:`${m.risk.riskScore}%`,height:'100%',borderRadius:3,backgroundColor:rCfg.color}}/>
+                              </View>
+                              <Text style={{color:rCfg.color,fontSize:11,fontWeight:'700',minWidth:24}}>{m.risk.riskScore}</Text>
+                            </View>
+                          </View>
+
+                          {/* 今週の負荷 */}
+                          <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
+                            <Text style={{color:'#666',fontSize:10}}>今週の負荷</Text>
+                            <View style={{flexDirection:'row',alignItems:'center',gap:4}}>
+                              <View style={{backgroundColor:lCfg.color+'22',borderRadius:999,paddingHorizontal:7,paddingVertical:1}}>
+                                <Text style={{color:lCfg.color,fontSize:9,fontWeight:'700'}}>{lCfg.label}</Text>
+                              </View>
+                            </View>
+                          </View>
+
+                          {(m.painParts?.length ?? 0) > 0 && <PainBadges parts={m.painParts!}/>}
                         </View>
-                        <View style={{flexDirection:'row',alignItems:'center',gap:10}}>
-                          <Text style={{fontSize:18}}>{fat.emoji}</Text>
-                          <Text style={{color:fat.color,fontSize:12,fontWeight:'700'}}>{fat.label}</Text>
-                          {m.sessions.length > 0 && (
-                            <>
-                              <View style={{width:5,height:5,borderRadius:3,backgroundColor:rColor}}/>
-                              <Text style={{color:rColor,fontSize:11,fontWeight:'700'}}>
-                                {risk.riskScore>=50?'要注意':risk.riskScore>=25?'注意':'良好'}
-                              </Text>
-                            </>
+
+                        {/* 右: 体調バッジ + 最終アクティブ */}
+                        <View style={{alignItems:'flex-end',gap:4,minWidth:40}}>
+                          {m.condToday ? (
+                            <Text style={{fontSize:18}}>{'😫😕😐😊💪'.charAt(Math.round((m.condToday - 2) / 2))}</Text>
+                          ) : (
+                            <View style={{backgroundColor:'rgba(255,255,255,0.06)',borderRadius:999,paddingHorizontal:6,paddingVertical:2}}>
+                              <Text style={{color:'#888',fontSize:9,fontWeight:'700'}}>未提出</Text>
+                            </View>
                           )}
+                          <Text style={{color:'#444',fontSize:9}}>{daysSince(m.lastActive)}</Text>
                         </View>
-                        {(m.painParts?.length ?? 0) > 0 && <PainBadges parts={m.painParts!}/>}
-                      </View>
-                      <View style={{alignItems:'flex-end',gap:4}}>
-                        <Text style={{color:'#555',fontSize:10}}>{daysSince(m.lastActive)}</Text>
-                        <Ionicons name="chevron-forward" size={14} color="#333"/>
                       </View>
                     </TouchableOpacity>
                   )
                 })}
+                {filteredMembers.length === 0 && (
+                  <View style={{alignItems:'center',paddingVertical:32}}>
+                    <Text style={{color:'#555',fontSize:14}}>該当する選手はいません</Text>
+                  </View>
+                )}
               </View>
             </>
+            </AnimatedSection>
           )}
 
           {/* ═══ アナウンスタブ ═══ */}
           {tab === 'messages' && (
+            <AnimatedSection key="messages" delay={0} type="fade-up">
             <>
               <View style={co.composeBox}>
                 <TextInput
@@ -639,10 +833,12 @@ function CoachDashboard({ setup, onReset }: { setup: TeamSetup; onReset: () => v
                 </View>
               )}
             </>
+            </AnimatedSection>
           )}
 
           {/* ═══ 動画タブ ═══ */}
           {tab === 'videos' && (
+            <AnimatedSection key="videos" delay={0} type="fade-up">
             <>
               {videos.length === 0 ? (
                 <View style={{alignItems:'center',padding:32,gap:8}}>
@@ -684,6 +880,7 @@ function CoachDashboard({ setup, onReset }: { setup: TeamSetup; onReset: () => v
               )}
               <Text style={{color:'#333',fontSize:11,textAlign:'center'}}>動画は投稿から7日後に自動で削除されます</Text>
             </>
+            </AnimatedSection>
           )}
         </ScrollView>
       </SafeAreaView>

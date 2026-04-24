@@ -1,966 +1,1127 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  Modal,
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-  Animated,
+  View, Text, ScrollView, StyleSheet, TouchableOpacity,
+  TextInput, Modal, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
-import { BG_GRADIENT, TEXT } from '../lib/theme'
+import { BG_GRADIENT, TEXT, BRAND, NEON } from '../lib/theme'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import Toast from 'react-native-toast-message'
 
-// ── 定数 ─────────────────────────────────────────────────────────
-const WORKOUT_MENUS_KEY = 'trackmate_workout_menus'
-const BRAND = '#E53935'
+// ── キー ─────────────────────────────────────────────────
+const LIBRARY_KEY  = 'trackmate_exercise_library'
+const HISTORY_KEY  = 'trackmate_ai_menus'
 
-// ── 型定義 ───────────────────────────────────────────────────────
-type Exercise = {
+// ── 型 ───────────────────────────────────────────────────
+export interface LibraryFolder {
   id: string
   name: string
-  type: 'warmup' | 'main' | 'cooldown'
-  sets?: number
-  reps?: number
-  distance?: string
-  restSec?: number
-  note?: string
+  color: string
+  icon: string
+  items: string[]   // 種目名（テキスト）
+  created_at: string
 }
 
-type WorkoutMenu = {
+export interface AIGeneratedMenu {
   id: string
-  title: string
-  date: string
-  category: 'sprint' | 'endurance' | 'jump' | 'throw' | 'hurdle' | 'circuit'
-  exercises: Exercise[]
-  totalDuration?: number
-  rpe?: number
-  memo?: string
-  completed: boolean
+  intent: string
+  result: string
+  created_at: string
 }
 
-// ── カテゴリ設定 ─────────────────────────────────────────────────
-const CATEGORIES: { key: WorkoutMenu['category']; label: string; icon: string; color: string }[] = [
-  { key: 'sprint',    label: 'スプリント', icon: 'flash',          color: '#E53935' },
-  { key: 'endurance', label: '持久',       icon: 'heart',          color: '#2196F3' },
-  { key: 'jump',      label: '跳躍',       icon: 'arrow-up',       color: '#4CAF50' },
-  { key: 'throw',     label: '投擲',       icon: 'radio-button-on',color: '#FF9800' },
-  { key: 'hurdle',    label: 'ハードル',   icon: 'git-branch',     color: '#9C27B0' },
-  { key: 'circuit',   label: 'サーキット', icon: 'repeat',         color: '#FFC107' },
+export interface PickedItem {
+  text: string
+  folderName: string
+  folderColor: string
+  folderId: string
+}
+
+// ── フォルダカラー選択肢 ─────────────────────────────────
+const FOLDER_COLORS = [
+  '#E53935', '#FF9800', '#4CAF50', '#2196F3',
+  '#9C27B0', '#00BCD4', '#FF5722', '#607D8B',
+]
+const FOLDER_ICONS = [
+  'flash', 'walk', 'body', 'barbell',
+  'fitness', 'bicycle', 'stopwatch', 'heart',
 ]
 
-const FILTER_OPTIONS: { key: 'all' | WorkoutMenu['category']; label: string }[] = [
-  { key: 'all',       label: '全て' },
-  { key: 'sprint',    label: 'スプリント' },
-  { key: 'endurance', label: '持久' },
-  { key: 'jump',      label: '跳躍' },
-  { key: 'throw',     label: '投擲' },
-  { key: 'hurdle',    label: 'ハードル' },
-  { key: 'circuit',   label: 'サーキット' },
-]
+// ── uid ──────────────────────────────────────────────────
+function uid() { return `${Date.now()}-${Math.random().toString(36).slice(2,7)}` }
 
-const EXERCISE_TYPE_LABELS: Record<Exercise['type'], string> = {
-  warmup:   'ウォームアップ',
-  main:     'メイン',
-  cooldown: 'クールダウン',
-}
-
-const EXERCISE_TYPE_COLORS: Record<Exercise['type'], string> = {
-  warmup:   '#FF9800',
-  main:     '#E53935',
-  cooldown: '#2196F3',
-}
-
-// ── プリセットテンプレート ────────────────────────────────────────
-type Template = { label: string; category: WorkoutMenu['category']; exercises: Omit<Exercise, 'id'>[] }
-
-const TEMPLATES: Template[] = [
-  {
-    label: '100m練習',
-    category: 'sprint',
-    exercises: [
-      { name: 'ジョグ', type: 'warmup', distance: '1000m', note: '軽めに' },
-      { name: 'ドリル', type: 'warmup', sets: 1, note: 'A走・B走・もも上げ' },
-      { name: '60m走', type: 'main', distance: '60m', sets: 5, restSec: 180 },
-      { name: '100m走', type: 'main', distance: '100m', sets: 3, restSec: 480 },
-      { name: 'ジョグ', type: 'cooldown', distance: '800m' },
-      { name: 'ストレッチ', type: 'cooldown', note: '10分程度' },
-    ],
-  },
-  {
-    label: '400m練習',
-    category: 'sprint',
-    exercises: [
-      { name: 'ジョグ', type: 'warmup', distance: '1500m' },
-      { name: 'ドリル', type: 'warmup', sets: 1 },
-      { name: '200m走', type: 'main', distance: '200m', sets: 4, restSec: 300 },
-      { name: '400m走', type: 'main', distance: '400m', sets: 2, restSec: 600 },
-      { name: 'ジョグ', type: 'cooldown', distance: '1000m' },
-      { name: 'ストレッチ', type: 'cooldown', note: '15分' },
-    ],
-  },
-  {
-    label: '持久走',
-    category: 'endurance',
-    exercises: [
-      { name: 'ジョグ', type: 'warmup', distance: '1000m' },
-      { name: 'ロング走', type: 'main', distance: '8000m', note: '一定ペース' },
-      { name: 'ジョグ', type: 'cooldown', distance: '500m' },
-      { name: 'ストレッチ', type: 'cooldown', note: '10分' },
-    ],
-  },
-  {
-    label: 'サーキット',
-    category: 'circuit',
-    exercises: [
-      { name: 'ジョグ', type: 'warmup', distance: '800m' },
-      { name: 'スクワット', type: 'main', sets: 3, reps: 20, restSec: 60 },
-      { name: 'プッシュアップ', type: 'main', sets: 3, reps: 15, restSec: 60 },
-      { name: 'バーピー', type: 'main', sets: 3, reps: 10, restSec: 90 },
-      { name: 'プランク', type: 'main', sets: 3, note: '30秒 × 3', restSec: 60 },
-      { name: 'ストレッチ', type: 'cooldown', note: '10分' },
-    ],
-  },
-]
-
-// ── ユーティリティ ───────────────────────────────────────────────
-function uid(): string {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(iso)
-  return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`
-}
-
-function getCategoryInfo(cat: WorkoutMenu['category']) {
-  return CATEGORIES.find(c => c.key === cat) ?? CATEGORIES[0]
-}
-
-// ── サブコンポーネント: ExerciseRow ──────────────────────────────
-function ExerciseRow({
-  exercise,
-  onRemove,
+// ── FolderCard ───────────────────────────────────────────
+function FolderCard({
+  folder,
+  onPress,
+  onEdit,
 }: {
-  exercise: Exercise
-  onRemove: () => void
+  folder: LibraryFolder
+  onPress: () => void
+  onEdit: () => void
 }) {
-  const cat = EXERCISE_TYPE_COLORS[exercise.type]
-  const parts: string[] = []
-  if (exercise.distance) parts.push(exercise.distance)
-  if (exercise.sets && exercise.reps) parts.push(`${exercise.sets}セット×${exercise.reps}回`)
-  else if (exercise.sets) parts.push(`${exercise.sets}セット`)
-  else if (exercise.reps) parts.push(`${exercise.reps}回`)
-  if (exercise.restSec) parts.push(`休${exercise.restSec}秒`)
-
   return (
-    <View style={exStyles.row}>
-      <View style={[exStyles.typeBadge, { backgroundColor: cat + '22', borderColor: cat }]}>
-        <Text style={[exStyles.typeText, { color: cat }]}>{EXERCISE_TYPE_LABELS[exercise.type].slice(0, 2)}</Text>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={fc.card}>
+      <View style={[fc.iconWrap, { backgroundColor: folder.color + '22' }]}>
+        <Ionicons name={folder.icon as any} size={22} color={folder.color} />
       </View>
-      <View style={exStyles.info}>
-        <Text style={exStyles.name}>{exercise.name}</Text>
-        {parts.length > 0 && <Text style={exStyles.detail}>{parts.join('  ')}</Text>}
-        {exercise.note ? <Text style={exStyles.note}>{exercise.note}</Text> : null}
+      <View style={{ flex: 1 }}>
+        <Text style={fc.name}>{folder.name}</Text>
+        <Text style={fc.count}>{folder.items.length}種目</Text>
       </View>
-      <TouchableOpacity onPress={onRemove} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-        <Ionicons name="close-circle" size={18} color="#555" />
+      <TouchableOpacity onPress={onEdit} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <Ionicons name="ellipsis-horizontal" size={18} color="#555" />
       </TouchableOpacity>
-    </View>
+    </TouchableOpacity>
   )
 }
-
-const exStyles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 8,
-    padding: 10,
-  },
-  typeBadge: {
-    width: 30,
-    height: 30,
-    borderRadius: 6,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  typeText: { fontSize: 10, fontWeight: '700' },
-  info: { flex: 1, gap: 2 },
-  name: { color: '#fff', fontSize: 13, fontWeight: '600' },
-  detail: { color: '#888', fontSize: 11 },
-  note: { color: '#666', fontSize: 11, fontStyle: 'italic' },
+const fc = StyleSheet.create({
+  card:     { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', padding: 14 },
+  iconWrap: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  name:     { color: '#fff', fontSize: 15, fontWeight: '700' },
+  count:    { color: '#666', fontSize: 12, marginTop: 2 },
 })
 
-// ── サブコンポーネント: AddExerciseForm ──────────────────────────
-function AddExerciseForm({
-  type,
-  onAdd,
-  onCancel,
+// ── ItemRow ──────────────────────────────────────────────
+function ItemRow({
+  text,
+  index,
+  total,
+  onRemove,
+  onMoveUp,
+  onMoveDown,
 }: {
-  type: Exercise['type']
-  onAdd: (ex: Exercise) => void
-  onCancel: () => void
+  text: string
+  index: number
+  total: number
+  onRemove: () => void
+  onMoveUp: () => void
+  onMoveDown: () => void
 }) {
-  const [name, setName] = useState('')
-  const [distance, setDistance] = useState('')
-  const [sets, setSets] = useState('')
-  const [reps, setReps] = useState('')
-  const [restSec, setRestSec] = useState('')
-  const [note, setNote] = useState('')
-
-  const color = EXERCISE_TYPE_COLORS[type]
-  const label = EXERCISE_TYPE_LABELS[type]
-
-  function handleAdd() {
-    if (!name.trim()) {
-      Alert.alert('種目名を入力してください')
-      return
-    }
-    const ex: Exercise = {
-      id: uid(),
-      name: name.trim(),
-      type,
-      distance: distance.trim() || undefined,
-      sets: sets ? parseInt(sets, 10) : undefined,
-      reps: reps ? parseInt(reps, 10) : undefined,
-      restSec: restSec ? parseInt(restSec, 10) : undefined,
-      note: note.trim() || undefined,
-    }
-    onAdd(ex)
-  }
-
   return (
-    <View style={afStyles.container}>
-      <View style={afStyles.header}>
-        <View style={[afStyles.badge, { backgroundColor: color + '22', borderColor: color }]}>
-          <Text style={[afStyles.badgeText, { color }]}>{label}</Text>
-        </View>
-        <TouchableOpacity onPress={onCancel}>
-          <Ionicons name="close" size={20} color="#888" />
+    <View style={ir.row}>
+      {/* 並び替えボタン */}
+      <View style={ir.sortBtns}>
+        <TouchableOpacity
+          onPress={onMoveUp}
+          disabled={index === 0}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          style={[ir.sortBtn, index === 0 && { opacity: 0.2 }]}
+        >
+          <Ionicons name="chevron-up" size={14} color="#aaa" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={onMoveDown}
+          disabled={index === total - 1}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          style={[ir.sortBtn, index === total - 1 && { opacity: 0.2 }]}
+        >
+          <Ionicons name="chevron-down" size={14} color="#aaa" />
         </TouchableOpacity>
       </View>
-
-      <TextInput
-        style={afStyles.input}
-        value={name}
-        onChangeText={setName}
-        placeholder="種目名（例: 60m走）"
-        placeholderTextColor="#445577"
-        returnKeyType="next"
-      />
-      <View style={afStyles.row2}>
-        <TextInput
-          style={[afStyles.input, { flex: 1 }]}
-          value={distance}
-          onChangeText={setDistance}
-          placeholder="距離 (例: 100m)"
-          placeholderTextColor="#445577"
-        />
-        <TextInput
-          style={[afStyles.input, { flex: 1 }]}
-          value={sets}
-          onChangeText={setSets}
-          placeholder="セット数"
-          placeholderTextColor="#445577"
-          keyboardType="number-pad"
-        />
-        <TextInput
-          style={[afStyles.input, { flex: 1 }]}
-          value={reps}
-          onChangeText={setReps}
-          placeholder="回数"
-          placeholderTextColor="#445577"
-          keyboardType="number-pad"
-        />
-      </View>
-      <View style={afStyles.row2}>
-        <TextInput
-          style={[afStyles.input, { flex: 1 }]}
-          value={restSec}
-          onChangeText={setRestSec}
-          placeholder="休憩(秒)"
-          placeholderTextColor="#445577"
-          keyboardType="number-pad"
-        />
-        <TextInput
-          style={[afStyles.input, { flex: 2 }]}
-          value={note}
-          onChangeText={setNote}
-          placeholder="メモ"
-          placeholderTextColor="#445577"
-        />
-      </View>
-      <TouchableOpacity style={[afStyles.addBtn, { backgroundColor: color }]} onPress={handleAdd}>
-        <Ionicons name="add" size={16} color="#fff" />
-        <Text style={afStyles.addBtnText}>{label}に追加</Text>
+      <View style={ir.dot} />
+      <Text style={ir.text}>{text}</Text>
+      <TouchableOpacity onPress={onRemove} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <Ionicons name="close-circle" size={18} color="#444" />
       </TouchableOpacity>
     </View>
   )
 }
-
-const afStyles = StyleSheet.create({
-  container: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 10,
-    padding: 12,
-    gap: 8,
-  },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  badgeText: { fontSize: 12, fontWeight: '700' },
-  input: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 9,
-    color: '#fff',
-    fontSize: 13,
-    borderWidth: 1,
-    borderColor: 'rgba(74,159,255,0.25)',
-  },
-  row2: { flexDirection: 'row', gap: 6 },
-  addBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    borderRadius: 8,
-    paddingVertical: 8,
-  },
-  addBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+const ir = StyleSheet.create({
+  row:      { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.06)' },
+  sortBtns: { flexDirection: 'column', alignItems: 'center', gap: 0 },
+  sortBtn:  { padding: 2 },
+  dot:      { width: 6, height: 6, borderRadius: 3, backgroundColor: BRAND },
+  text:     { flex: 1, color: '#ddd', fontSize: 14 },
 })
 
-// ── メインコンポーネント ──────────────────────────────────────────
+// ── メイン ───────────────────────────────────────────────
 export default function WorkoutMenuScreen() {
-  const [menus, setMenus] = useState<WorkoutMenu[]>([])
-  const [filter, setFilter] = useState<'all' | WorkoutMenu['category']>('all')
-  const [modalVisible, setModalVisible] = useState(false)
-  const [templateModalVisible, setTemplateModalVisible] = useState(false)
+  const [tab, setTab] = useState<'library' | 'history'>('library')
+  const [folders, setFolders] = useState<LibraryFolder[]>([])
+  const [history, setHistory] = useState<AIGeneratedMenu[]>([])
 
-  // フォーム状態
-  const [title, setTitle] = useState('')
-  const [category, setCategory] = useState<WorkoutMenu['category']>('sprint')
-  const [exercises, setExercises] = useState<Exercise[]>([])
-  const [rpe, setRpe] = useState(5)
-  const [memo, setMemo] = useState('')
-  const [addingType, setAddingType] = useState<Exercise['type'] | null>(null)
+  // ピックAIモーダル
+  const [pickModal, setPickModal] = useState(false)
+  const [pickedItems, setPickedItems] = useState<PickedItem[]>([])
+  const [pickIntent, setPickIntent] = useState('')
+  const [expandedFolders, setExpandedFolders] = useState<string[]>([])
+  const [pickStep, setPickStep] = useState<'select' | 'generate'>('select')
+  const [pickLoading, setPickLoading] = useState(false)
+  const [pickResult, setPickResult] = useState('')
+
+  // フォルダ編集モーダル
+  const [folderModal, setFolderModal] = useState(false)
+  const [editFolder, setEditFolder] = useState<LibraryFolder | null>(null)
+  const [folderName, setFolderName] = useState('')
+  const [folderColor, setFolderColor] = useState(FOLDER_COLORS[0])
+  const [folderIcon, setFolderIcon] = useState(FOLDER_ICONS[0])
+
+  // フォルダ詳細モーダル
+  const [detailModal, setDetailModal] = useState(false)
+  const [detailFolder, setDetailFolder] = useState<LibraryFolder | null>(null)
+  const [newItemText, setNewItemText] = useState('')
+
+  // AI生成モーダル
+  const [aiModal, setAiModal] = useState(false)
+  const [aiIntent, setAiIntent] = useState('')
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiResult, setAiResult] = useState('')
+  const [selectedFolderIds, setSelectedFolderIds] = useState<string[]>([])
+
+  // 履歴詳細モーダル
+  const [histModal, setHistModal] = useState(false)
+  const [histItem, setHistItem] = useState<AIGeneratedMenu | null>(null)
 
   const load = useCallback(async () => {
     try {
-      const raw = await AsyncStorage.getItem(WORKOUT_MENUS_KEY)
-      if (raw) setMenus(JSON.parse(raw) as WorkoutMenu[])
-    } catch { /* ignore */ }
+      const [f, h] = await AsyncStorage.multiGet([LIBRARY_KEY, HISTORY_KEY])
+      if (f[1]) setFolders(JSON.parse(f[1]))
+      if (h[1]) setHistory(JSON.parse(h[1]))
+    } catch {}
   }, [])
 
   useEffect(() => { load() }, [load])
 
-  async function saveMenus(updated: WorkoutMenu[]) {
-    setMenus(updated)
-    await AsyncStorage.setItem(WORKOUT_MENUS_KEY, JSON.stringify(updated)).catch(() => {})
+  async function saveFolders(next: LibraryFolder[]) {
+    setFolders(next)
+    await AsyncStorage.setItem(LIBRARY_KEY, JSON.stringify(next)).catch(() => {})
   }
 
-  function resetForm() {
-    setTitle('')
-    setCategory('sprint')
-    setExercises([])
-    setRpe(5)
-    setMemo('')
-    setAddingType(null)
+  // ── フォルダ保存 ──────────────────────────────────────
+  function openAddFolder() {
+    setEditFolder(null)
+    setFolderName('')
+    setFolderColor(FOLDER_COLORS[0])
+    setFolderIcon(FOLDER_ICONS[0])
+    setFolderModal(true)
   }
 
-  async function handleSave() {
-    if (!title.trim()) {
-      Alert.alert('タイトルを入力してください')
-      return
+  function openEditFolder(f: LibraryFolder) {
+    setEditFolder(f)
+    setFolderName(f.name)
+    setFolderColor(f.color)
+    setFolderIcon(f.icon)
+    setFolderModal(true)
+  }
+
+  async function handleSaveFolder() {
+    if (!folderName.trim()) return
+    if (editFolder) {
+      const next = folders.map(f => f.id === editFolder.id
+        ? { ...f, name: folderName.trim(), color: folderColor, icon: folderIcon }
+        : f)
+      await saveFolders(next)
+      if (detailFolder?.id === editFolder.id) {
+        setDetailFolder(next.find(f => f.id === editFolder.id) ?? null)
+      }
+    } else {
+      const newF: LibraryFolder = {
+        id: uid(), name: folderName.trim(), color: folderColor,
+        icon: folderIcon, items: [], created_at: new Date().toISOString(),
+      }
+      await saveFolders([...folders, newF])
     }
-    const newMenu: WorkoutMenu = {
-      id: uid(),
-      title: title.trim(),
-      date: new Date().toISOString(),
-      category,
-      exercises,
-      rpe,
-      memo: memo.trim() || undefined,
-      completed: false,
+    setFolderModal(false)
+  }
+
+  async function handleDeleteFolder(id: string) {
+    const next = folders.filter(f => f.id !== id)
+    await saveFolders(next)
+    setFolderModal(false)
+  }
+
+  // ── 種目追加 ──────────────────────────────────────────
+  async function handleAddItem() {
+    if (!newItemText.trim() || !detailFolder) return
+    const updated: LibraryFolder = { ...detailFolder, items: [...detailFolder.items, newItemText.trim()] }
+    const next = folders.map(f => f.id === detailFolder.id ? updated : f)
+    setDetailFolder(updated)
+    setNewItemText('')
+    await saveFolders(next)
+  }
+
+  async function handleRemoveItem(idx: number) {
+    if (!detailFolder) return
+    const items = detailFolder.items.filter((_, i) => i !== idx)
+    const updated: LibraryFolder = { ...detailFolder, items }
+    const next = folders.map(f => f.id === detailFolder.id ? updated : f)
+    setDetailFolder(updated)
+    await saveFolders(next)
+  }
+
+  async function handleMoveItem(idx: number, dir: 'up' | 'down') {
+    if (!detailFolder) return
+    const items = [...detailFolder.items]
+    const target = dir === 'up' ? idx - 1 : idx + 1
+    if (target < 0 || target >= items.length) return
+    ;[items[idx], items[target]] = [items[target], items[idx]]
+    const updated: LibraryFolder = { ...detailFolder, items }
+    const next = folders.map(f => f.id === detailFolder.id ? updated : f)
+    setDetailFolder(updated)
+    await saveFolders(next)
+  }
+
+  // ── ピックAI ──────────────────────────────────────────
+  function openPicker() {
+    setPickedItems([])
+    setPickIntent('')
+    setPickResult('')
+    setExpandedFolders(folders.length > 0 ? [folders[0].id] : [])
+    setPickStep('select')
+    setPickModal(true)
+  }
+
+  function togglePickItem(folder: LibraryFolder, item: string) {
+    setPickedItems(prev => {
+      const exists = prev.some(p => p.folderId === folder.id && p.text === item)
+      if (exists) return prev.filter(p => !(p.folderId === folder.id && p.text === item))
+      return [...prev, { text: item, folderName: folder.name, folderColor: folder.color, folderId: folder.id }]
+    })
+  }
+
+  function toggleExpandFolder(id: string) {
+    setExpandedFolders(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  async function handleGenerateFromPicked() {
+    if (pickedItems.length === 0) return
+    setPickLoading(true)
+    setPickResult('')
+    try {
+      const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY
+
+      const libraryText = pickedItems.map(p => `・${p.text}（${p.folderName}）`).join('\n')
+
+      const prompt = `あなたは陸上競技の専門コーチです。
+選手が以下の種目をピックアップしました。これらの種目を中心に、今日の練習メニューを組んでください。
+
+【ピックアップした種目】
+${libraryText}
+
+【今日のイメージ・意図】
+${pickIntent.trim() || '特に指定なし'}
+
+以下の形式で出力してください：
+---
+📋 今日のメニュー
+
+【ウォームアップ】
+（種目を記載）
+
+【メイン練習】
+（ピックアップした種目を中心に記載）
+
+【クールダウン】
+（種目を記載）
+
+💬 コーチコメント
+（選手へのひとこと。モチベーションを高める具体的なアドバイスを2〜3文で）
+---
+
+ピックアップされた種目は必ずメインに組み込み、種目は具体的に記載（セット数・距離・インターバルなど）。`
+
+      if (apiKey) {
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'content-type': 'application/json',
+            'anthropic-dangerous-direct-browser-access': 'true',
+          },
+          body: JSON.stringify({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 800,
+            messages: [{ role: 'user', content: prompt }],
+          }),
+        })
+        if (res.ok) {
+          const data = await res.json()
+          const text = data.content?.[0]?.text ?? 'メニューを生成できませんでした'
+          setPickResult(text)
+          const entry: AIGeneratedMenu = {
+            id: uid(),
+            intent: `[ピック] ${pickedItems.map(p => p.text).join('・')}` + (pickIntent.trim() ? ` / ${pickIntent.trim()}` : ''),
+            result: text,
+            created_at: new Date().toISOString(),
+          }
+          const next = [entry, ...history].slice(0, 30)
+          setHistory(next)
+          await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(next)).catch(() => {})
+        } else {
+          setPickResult('APIエラーが発生しました。しばらくしてから再試行してください。')
+        }
+      } else {
+        const demo = `📋 今日のメニュー
+
+【ウォームアップ】
+・ランジウォーク × 20m × 2
+・2ステップ × 20m × 2
+・骨盤ウォーク × 20m
+
+【メイン練習】
+${pickedItems.map(p => `・${p.text}`).join('\n')}
+
+【クールダウン】
+・軽ジョグ 5分
+・静的ストレッチ 10分
+
+💬 コーチコメント
+ピックした種目を中心に、質の高い練習を積み上げましょう！🔥`
+        setPickResult(demo)
+        const entry: AIGeneratedMenu = {
+          id: uid(),
+          intent: `[ピック] ${pickedItems.map(p => p.text).join('・')}`,
+          result: demo,
+          created_at: new Date().toISOString(),
+        }
+        const next = [entry, ...history].slice(0, 30)
+        setHistory(next)
+        await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(next)).catch(() => {})
+      }
+    } catch {
+      setPickResult('生成に失敗しました。もう一度お試しください。')
+    } finally {
+      setPickLoading(false)
     }
-    await saveMenus([newMenu, ...menus])
-    Toast.show({ type: 'success', text1: '練習メニューを保存しました' })
-    resetForm()
-    setModalVisible(false)
   }
 
-  async function handleToggleComplete(id: string) {
-    const updated = menus.map(m => m.id === id ? { ...m, completed: !m.completed } : m)
-    await saveMenus(updated)
+  // ── AI生成 ────────────────────────────────────────────
+  function openAI() {
+    setAiIntent('')
+    setAiResult('')
+    setSelectedFolderIds(folders.map(f => f.id))
+    setAiModal(true)
   }
 
-  async function handleDelete(id: string) {
-    Alert.alert('削除', 'このメニューを削除しますか？', [
-      { text: 'キャンセル', style: 'cancel' },
-      {
-        text: '削除',
-        style: 'destructive',
-        onPress: async () => {
-          const updated = menus.filter(m => m.id !== id)
-          await saveMenus(updated)
-          Toast.show({ type: 'success', text1: '削除しました' })
-        },
-      },
-    ])
+  async function handleGenerate() {
+    if (!aiIntent.trim()) return
+    setAiLoading(true)
+    setAiResult('')
+    try {
+      const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY
+      const useFolders = folders.filter(f => selectedFolderIds.includes(f.id) && f.items.length > 0)
+
+      const libraryText = useFolders.map(f =>
+        `【${f.name}】\n${f.items.map(item => `・${item}`).join('\n')}`
+      ).join('\n\n')
+
+      const prompt = `あなたは陸上競技の専門コーチです。
+以下の「練習ライブラリ」から種目を選んで、今日の練習メニューを組んでください。
+
+【今日のイメージ・意図】
+${aiIntent.trim()}
+
+【練習ライブラリ】
+${libraryText || '（ライブラリ未登録）'}
+
+以下の形式で出力してください：
+---
+📋 今日のメニュー
+
+【ウォームアップ】
+（種目を記載）
+
+【メイン練習】
+（種目を記載）
+
+【クールダウン】
+（種目を記載）
+
+💬 コーチコメント
+（選手へのひとこと。モチベーションを高める具体的なアドバイスを2〜3文で）
+---
+
+ライブラリにある種目を優先して使い、必要なら補完してください。種目は具体的に記載（セット数・距離・インターバルなど）。`
+
+      if (apiKey) {
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'content-type': 'application/json',
+            'anthropic-dangerous-direct-browser-access': 'true',
+          },
+          body: JSON.stringify({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 800,
+            messages: [{ role: 'user', content: prompt }],
+          }),
+        })
+        if (res.ok) {
+          const data = await res.json()
+          const text = data.content?.[0]?.text ?? 'メニューを生成できませんでした'
+          setAiResult(text)
+          // 履歴保存
+          const entry: AIGeneratedMenu = {
+            id: uid(), intent: aiIntent.trim(), result: text,
+            created_at: new Date().toISOString(),
+          }
+          const next = [entry, ...history].slice(0, 30)
+          setHistory(next)
+          await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(next)).catch(() => {})
+        } else {
+          setAiResult('APIエラーが発生しました。しばらくしてから再試行してください。')
+        }
+      } else {
+        // デモ
+        const demo = `📋 今日のメニュー
+
+【ウォームアップ】
+・ランジウォーク × 20m × 2
+・2ステップ × 20m × 2
+・骨盤ウォーク × 20m
+
+【メイン練習】
+・120m × 2 × 2set（MAX、r=5分）
+・スピードスキップ流し × 2
+
+【クールダウン】
+・軽ジョグ 5分
+・静的ストレッチ 10分
+
+💬 コーチコメント
+トレ期終盤のスピード移行期らしく、短い距離でしっかり動きの質を確認しながら走りましょう！明日は完全休養とのことで、今日は思い切ってスピードを出し切ってOK🔥`
+        setAiResult(demo)
+        const entry: AIGeneratedMenu = {
+          id: uid(), intent: aiIntent.trim(), result: demo,
+          created_at: new Date().toISOString(),
+        }
+        const next = [entry, ...history].slice(0, 30)
+        setHistory(next)
+        await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(next)).catch(() => {})
+      }
+    } catch {
+      setAiResult('生成に失敗しました。もう一度お試しください。')
+    } finally {
+      setAiLoading(false)
+    }
   }
 
-  function applyTemplate(template: Template) {
-    setTitle(template.label)
-    setCategory(template.category)
-    setExercises(template.exercises.map(ex => ({ ...ex, id: uid() })))
-    setTemplateModalVisible(false)
-  }
-
-  const filtered = filter === 'all' ? menus : menus.filter(m => m.category === filter)
-  const sortedExercises = [
-    ...exercises.filter(e => e.type === 'warmup'),
-    ...exercises.filter(e => e.type === 'main'),
-    ...exercises.filter(e => e.type === 'cooldown'),
-  ]
+  const todayStr = new Date().toLocaleDateString('ja-JP', { month: 'short', day: 'numeric', weekday: 'short' })
 
   return (
     <View style={{ flex: 1 }}>
       <LinearGradient colors={BG_GRADIENT} style={StyleSheet.absoluteFill} />
-      <SafeAreaView style={styles.safe}>
-        {/* ヘッダー */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>練習メニュー</Text>
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={() => { resetForm(); setModalVisible(true) }}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="add" size={22} color="#fff" />
-          </TouchableOpacity>
+      <SafeAreaView style={s.safe}>
+
+        {/* ── タブ ── */}
+        <View style={s.tabBar}>
+          {([['library', '📁 ライブラリ'], ['history', '🤖 AI生成履歴']] as const).map(([key, label]) => (
+            <TouchableOpacity
+              key={key}
+              onPress={() => setTab(key)}
+              style={[s.tabBtn, tab === key && s.tabBtnActive]}
+              activeOpacity={0.8}
+            >
+              <Text style={[s.tabText, tab === key && s.tabTextActive]}>{label}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
-        {/* フィルターチップ */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.filterScroll}
-          contentContainerStyle={styles.filterContent}
-        >
-          {FILTER_OPTIONS.map(opt => {
-            const catInfo = opt.key !== 'all' ? CATEGORIES.find(c => c.key === opt.key) : null
-            const isActive = filter === opt.key
-            const activeColor = catInfo?.color ?? BRAND
-            return (
-              <TouchableOpacity
-                key={opt.key}
-                style={[
-                  styles.chip,
-                  isActive && { backgroundColor: activeColor, borderColor: activeColor },
-                ]}
-                onPress={() => setFilter(opt.key)}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.chipText, isActive && { color: '#fff' }]}>{opt.label}</Text>
-              </TouchableOpacity>
-            )
-          })}
-        </ScrollView>
+        {tab === 'library' ? (
+          <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
 
-        {/* メニューリスト */}
-        <FlatList
-          data={filtered}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.empty}>
-              <Ionicons name="barbell-outline" size={48} color="#333" />
-              <Text style={styles.emptyText}>練習メニューがありません</Text>
-              <TouchableOpacity style={styles.emptyBtn} onPress={() => { resetForm(); setModalVisible(true) }}>
-                <Text style={styles.emptyBtnText}>メニューを作成する</Text>
+            {/* 手動ピッカーボタン */}
+            <TouchableOpacity style={s.manualBtn} onPress={openPicker} activeOpacity={0.85}>
+              <View style={s.manualBtnIcon}>
+                <Text style={{ fontSize: 24 }}>📋</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.manualBtnTitle}>種目をピックしてAI生成</Text>
+                <Text style={s.manualBtnSub}>使いたい種目を選んでAIにメニューを作ってもらう</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={NEON.green} />
+            </TouchableOpacity>
+
+            {/* AI生成ボタン */}
+            <TouchableOpacity style={s.aiBtn} onPress={openAI} activeOpacity={0.85}>
+              <View style={s.aiBtnIcon}>
+                <Text style={{ fontSize: 24 }}>🤖</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.aiBtnTitle}>AIで今日のメニューを作る</Text>
+                <Text style={s.aiBtnSub}>練習のイメージを伝えるだけ</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={NEON.blue} />
+            </TouchableOpacity>
+
+            {/* フォルダ一覧 */}
+            <View style={s.sectionHeader}>
+              <Text style={s.sectionTitle}>練習ライブラリ</Text>
+              <TouchableOpacity onPress={openAddFolder} style={s.addFolderBtn} activeOpacity={0.8}>
+                <Ionicons name="add" size={16} color="#fff" />
+                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>フォルダ追加</Text>
               </TouchableOpacity>
             </View>
-          }
-          renderItem={({ item }) => {
-            const catInfo = getCategoryInfo(item.category)
-            return (
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onLongPress={() => handleDelete(item.id)}
-                style={[styles.card, item.completed && styles.cardCompleted]}
-              >
-                <View style={styles.cardTop}>
-                  <View style={[styles.catIcon, { backgroundColor: catInfo.color + '22' }]}>
-                    <Ionicons name={catInfo.icon as any} size={18} color={catInfo.color} />
-                  </View>
-                  <View style={styles.cardInfo}>
-                    <Text style={[styles.cardTitle, item.completed && styles.cardTitleCompleted]}>{item.title}</Text>
-                    <View style={styles.cardMeta}>
-                      <Ionicons name="calendar-outline" size={11} color="#555" />
-                      <Text style={styles.cardDate}>{formatDate(item.date)}</Text>
-                      <Text style={styles.cardSep}>·</Text>
-                      <Ionicons name="list-outline" size={11} color="#555" />
-                      <Text style={styles.cardDate}>{item.exercises.length}種目</Text>
+
+            {folders.length === 0 ? (
+              <TouchableOpacity onPress={openAddFolder} style={s.emptyCard} activeOpacity={0.8}>
+                <Text style={{ fontSize: 32, marginBottom: 8 }}>📁</Text>
+                <Text style={{ color: '#888', fontSize: 14 }}>フォルダを作って種目を登録しよう</Text>
+                <Text style={{ color: '#555', fontSize: 12, marginTop: 4 }}>例：ドリルメニュー、ランメニュー</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={{ gap: 10 }}>
+                {folders.map(f => (
+                  <FolderCard
+                    key={f.id}
+                    folder={f}
+                    onPress={() => { setDetailFolder(f); setDetailModal(true) }}
+                    onEdit={() => openEditFolder(f)}
+                  />
+                ))}
+              </View>
+            )}
+          </ScrollView>
+        ) : (
+          <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+            {history.length === 0 ? (
+              <View style={s.emptyCard}>
+                <Text style={{ fontSize: 32, marginBottom: 8 }}>🤖</Text>
+                <Text style={{ color: '#888', fontSize: 14 }}>まだAI生成履歴がありません</Text>
+              </View>
+            ) : (
+              history.map(h => (
+                <TouchableOpacity
+                  key={h.id}
+                  style={s.histCard}
+                  onPress={() => { setHistItem(h); setHistModal(true) }}
+                  activeOpacity={0.8}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    <Text style={{ fontSize: 12 }}>{h.intent.startsWith('[ピック]') ? '📋' : '🤖'}</Text>
+                    <Text style={s.histDate}>{new Date(h.created_at).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric', weekday: 'short' })}</Text>
+                    <View style={{ backgroundColor: h.intent.startsWith('[ピック]') ? 'rgba(52,199,89,0.12)' : 'rgba(90,200,250,0.12)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
+                      <Text style={{ color: h.intent.startsWith('[ピック]') ? '#34C759' : '#5AC8FA', fontSize: 10, fontWeight: '700' }}>
+                        {h.intent.startsWith('[ピック]') ? 'ピック生成' : 'AI生成'}
+                      </Text>
                     </View>
                   </View>
-                  <View style={styles.cardRight}>
-                    {item.rpe !== undefined && (
-                      <View style={[styles.rpeBadge, { backgroundColor: getRpeColor(item.rpe) + '22', borderColor: getRpeColor(item.rpe) }]}>
-                        <Text style={[styles.rpeText, { color: getRpeColor(item.rpe) }]}>RPE {item.rpe}</Text>
-                      </View>
-                    )}
-                    <TouchableOpacity
-                      onPress={() => handleToggleComplete(item.id)}
-                      style={[styles.checkBtn, item.completed && { backgroundColor: BRAND }]}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons
-                        name={item.completed ? 'checkmark' : 'checkmark-outline'}
-                        size={16}
-                        color={item.completed ? '#fff' : '#555'}
-                      />
-                    </TouchableOpacity>
-                  </View>
-                </View>
+                  <Text style={s.histIntent} numberOfLines={2}>「{h.intent.replace('[ピック] ', '')}」</Text>
+                  <Text style={s.histPreview} numberOfLines={2}>{h.result}</Text>
+                </TouchableOpacity>
+              ))
+            )}
+          </ScrollView>
+        )}
 
-                {item.exercises.length > 0 && (
-                  <View style={styles.exPreview}>
-                    {sortExercises(item.exercises).slice(0, 3).map((ex, idx) => {
-                      const exColor = EXERCISE_TYPE_COLORS[ex.type]
-                      return (
-                        <View key={ex.id} style={styles.exTag}>
-                          <View style={[styles.exDot, { backgroundColor: exColor }]} />
-                          <Text style={styles.exTagText}>{ex.name}</Text>
-                        </View>
-                      )
-                    })}
-                    {item.exercises.length > 3 && (
-                      <Text style={styles.exMore}>+{item.exercises.length - 3}</Text>
-                    )}
-                  </View>
-                )}
-              </TouchableOpacity>
-            )
-          }}
-        />
+      </SafeAreaView>
 
-        {/* 作成モーダル */}
-        <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet">
-          <View style={styles.modalBg}>
-            <SafeAreaView style={{ flex: 1 }}>
-              <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-                <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
-                  {/* モーダルヘッダー */}
-                  <View style={styles.modalHeader}>
-                    <TouchableOpacity onPress={() => setModalVisible(false)}>
-                      <Text style={styles.cancelText}>キャンセル</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.modalTitle}>メニュー作成</Text>
-                    <TouchableOpacity onPress={handleSave}>
-                      <Text style={styles.saveText}>保存</Text>
-                    </TouchableOpacity>
-                  </View>
+      {/* ── フォルダ作成/編集モーダル ── */}
+      <Modal visible={folderModal} transparent animationType="slide" onRequestClose={() => setFolderModal(false)}>
+        <View style={m.overlay}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ width: '100%' }}>
+            <View style={m.sheet}>
+              <View style={m.sheetHeader}>
+                <Text style={m.sheetTitle}>{editFolder ? 'フォルダを編集' : 'フォルダを作成'}</Text>
+                <TouchableOpacity onPress={() => setFolderModal(false)}>
+                  <Ionicons name="close" size={22} color="#888" />
+                </TouchableOpacity>
+              </View>
 
-                  {/* テンプレート */}
+              <Text style={m.label}>フォルダ名</Text>
+              <TextInput
+                value={folderName}
+                onChangeText={setFolderName}
+                placeholder="例：ドリルメニュー"
+                placeholderTextColor="#445577"
+                style={m.input}
+              />
+
+              <Text style={m.label}>カラー</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
+                {FOLDER_COLORS.map(c => (
+                  <TouchableOpacity key={c} onPress={() => setFolderColor(c)} activeOpacity={0.8}>
+                    <View style={[m.colorDot, { backgroundColor: c }, folderColor === c && m.colorDotSelected]} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={m.label}>アイコン</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
+                {FOLDER_ICONS.map(icon => (
                   <TouchableOpacity
-                    style={styles.templateBtn}
-                    onPress={() => setTemplateModalVisible(true)}
+                    key={icon}
+                    onPress={() => setFolderIcon(icon)}
+                    style={[m.iconBtn, { borderColor: folderIcon === icon ? folderColor : 'rgba(255,255,255,0.1)' }]}
                     activeOpacity={0.8}
                   >
-                    <Ionicons name="copy-outline" size={16} color={BRAND} />
-                    <Text style={styles.templateBtnText}>テンプレートから選ぶ</Text>
+                    <Ionicons name={icon as any} size={18} color={folderIcon === icon ? folderColor : '#666'} />
                   </TouchableOpacity>
+                ))}
+              </View>
 
-                  {/* タイトル */}
-                  <Text style={styles.label}>タイトル</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={title}
-                    onChangeText={setTitle}
-                    placeholder="例: 月曜スプリント練習"
-                    placeholderTextColor="#445577"
-                  />
+              <TouchableOpacity
+                style={[m.saveBtn, !folderName.trim() && { opacity: 0.4 }]}
+                onPress={handleSaveFolder}
+                disabled={!folderName.trim()}
+                activeOpacity={0.85}
+              >
+                <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>保存</Text>
+              </TouchableOpacity>
 
-                  {/* カテゴリ */}
-                  <Text style={styles.label}>カテゴリ</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
-                    <View style={styles.chipRow}>
-                      {CATEGORIES.map(cat => (
-                        <TouchableOpacity
-                          key={cat.key}
-                          style={[
-                            styles.chip,
-                            category === cat.key && { backgroundColor: cat.color, borderColor: cat.color },
-                          ]}
-                          onPress={() => setCategory(cat.key)}
-                          activeOpacity={0.8}
-                        >
-                          <Ionicons
-                            name={cat.icon as any}
-                            size={13}
-                            color={category === cat.key ? '#fff' : '#888'}
-                            style={{ marginRight: 4 }}
-                          />
-                          <Text style={[styles.chipText, category === cat.key && { color: '#fff' }]}>
-                            {cat.label}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
+              {editFolder && (
+                <TouchableOpacity
+                  style={m.deleteBtn}
+                  onPress={() => handleDeleteFolder(editFolder.id)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="trash-outline" size={15} color="#FF3B30" />
+                  <Text style={{ color: '#FF3B30', fontSize: 13, fontWeight: '700' }}>フォルダを削除</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+
+      {/* ── フォルダ詳細モーダル ── */}
+      <Modal visible={detailModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setDetailModal(false)}>
+        <View style={{ flex: 1, backgroundColor: '#0a0a0a' }}>
+          <SafeAreaView style={{ flex: 1 }}>
+            {detailFolder && (
+              <>
+                <View style={m.sheetHeader}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <View style={[fc.iconWrap, { backgroundColor: detailFolder.color + '22', width: 36, height: 36 }]}>
+                      <Ionicons name={detailFolder.icon as any} size={18} color={detailFolder.color} />
                     </View>
-                  </ScrollView>
+                    <Text style={[m.sheetTitle, { fontSize: 17 }]}>{detailFolder.name}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setDetailModal(false)}>
+                    <Ionicons name="close" size={22} color="#888" />
+                  </TouchableOpacity>
+                </View>
 
-                  {/* エクササイズセクション */}
-                  <Text style={styles.label}>エクササイズ</Text>
+                <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+                  {/* 種目追加 */}
+                  <View style={d.addRow}>
+                    <TextInput
+                      value={newItemText}
+                      onChangeText={setNewItemText}
+                      placeholder="種目を追加（例：2ステップ）"
+                      placeholderTextColor="#445577"
+                      style={[m.input, { flex: 1, marginBottom: 0 }]}
+                      onSubmitEditing={handleAddItem}
+                      returnKeyType="done"
+                    />
+                    <TouchableOpacity
+                      onPress={handleAddItem}
+                      disabled={!newItemText.trim()}
+                      style={[d.addBtn, { backgroundColor: detailFolder.color }, !newItemText.trim() && { opacity: 0.4 }]}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="add" size={20} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
 
-                  {/* 追加済みリスト */}
-                  {sortedExercises.length > 0 && (
-                    <View style={{ gap: 6, marginBottom: 10 }}>
-                      {sortedExercises.map(ex => (
-                        <ExerciseRow
-                          key={ex.id}
-                          exercise={ex}
-                          onRemove={() => setExercises(prev => prev.filter(e => e.id !== ex.id))}
+                  {detailFolder.items.length === 0 ? (
+                    <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                      <Text style={{ color: '#555', fontSize: 14 }}>種目を追加してください</Text>
+                    </View>
+                  ) : (
+                    <View style={{ marginTop: 16 }}>
+                      {detailFolder.items.map((item, idx) => (
+                        <ItemRow
+                          key={idx}
+                          text={item}
+                          index={idx}
+                          total={detailFolder.items.length}
+                          onRemove={() => handleRemoveItem(idx)}
+                          onMoveUp={() => handleMoveItem(idx, 'up')}
+                          onMoveDown={() => handleMoveItem(idx, 'down')}
                         />
                       ))}
                     </View>
                   )}
-
-                  {/* 追加フォーム */}
-                  {addingType ? (
-                    <AddExerciseForm
-                      type={addingType}
-                      onAdd={(ex) => {
-                        setExercises(prev => [...prev, ex])
-                        setAddingType(null)
-                      }}
-                      onCancel={() => setAddingType(null)}
-                    />
-                  ) : (
-                    <View style={styles.addExRow}>
-                      {(['warmup', 'main', 'cooldown'] as Exercise['type'][]).map(t => (
-                        <TouchableOpacity
-                          key={t}
-                          style={[styles.addExBtn, { borderColor: EXERCISE_TYPE_COLORS[t] }]}
-                          onPress={() => setAddingType(t)}
-                          activeOpacity={0.8}
-                        >
-                          <Ionicons name="add" size={14} color={EXERCISE_TYPE_COLORS[t]} />
-                          <Text style={[styles.addExBtnText, { color: EXERCISE_TYPE_COLORS[t] }]}>
-                            {EXERCISE_TYPE_LABELS[t]}追加
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  )}
-
-                  {/* RPEスライダー */}
-                  <Text style={[styles.label, { marginTop: 20 }]}>
-                    RPE（運動強度）: <Text style={{ color: getRpeColor(rpe) }}>{rpe}</Text>/10
-                  </Text>
-                  <View style={styles.rpeSliderRow}>
-                    {Array.from({ length: 10 }, (_, i) => i + 1).map(n => (
-                      <TouchableOpacity
-                        key={n}
-                        style={styles.rpeSliderItem}
-                        onPress={() => setRpe(n)}
-                        activeOpacity={0.8}
-                      >
-                        <View style={[
-                          styles.rpeCircle,
-                          n <= rpe && { backgroundColor: getRpeColor(rpe), borderColor: getRpeColor(rpe) },
-                        ]}>
-                          {n <= rpe && <Text style={styles.rpeNum}>{n}</Text>}
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                  <View style={styles.rpeLabelRow}>
-                    <Text style={styles.rpeLabel}>楽</Text>
-                    <Text style={styles.rpeLabel}>最大</Text>
-                  </View>
-
-                  {/* メモ */}
-                  <Text style={[styles.label, { marginTop: 16 }]}>メモ（任意）</Text>
-                  <TextInput
-                    style={[styles.input, styles.textArea]}
-                    value={memo}
-                    onChangeText={setMemo}
-                    multiline
-                    numberOfLines={3}
-                    placeholder="今日の練習について..."
-                    placeholderTextColor="#445577"
-                  />
                 </ScrollView>
-              </KeyboardAvoidingView>
-            </SafeAreaView>
-          </View>
-        </Modal>
+              </>
+            )}
+          </SafeAreaView>
+        </View>
+      </Modal>
 
-        {/* テンプレート選択モーダル */}
-        <Modal visible={templateModalVisible} animationType="fade" transparent>
-          <View style={styles.overlayBg}>
-            <View style={styles.templateModal}>
-              <Text style={styles.templateModalTitle}>テンプレートを選択</Text>
-              {TEMPLATES.map(tpl => {
-                const catInfo = getCategoryInfo(tpl.category)
-                return (
-                  <TouchableOpacity
-                    key={tpl.label}
-                    style={styles.templateItem}
-                    onPress={() => applyTemplate(tpl)}
-                    activeOpacity={0.8}
-                  >
-                    <View style={[styles.catIcon, { backgroundColor: catInfo.color + '22' }]}>
-                      <Ionicons name={catInfo.icon as any} size={16} color={catInfo.color} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.templateItemTitle}>{tpl.label}</Text>
-                      <Text style={styles.templateItemSub}>{tpl.exercises.length}種目</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={16} color="#555" />
-                  </TouchableOpacity>
-                )
-              })}
-              <TouchableOpacity style={styles.templateCancelBtn} onPress={() => setTemplateModalVisible(false)}>
-                <Text style={styles.cancelText}>キャンセル</Text>
+      {/* ── AI生成モーダル ── */}
+      <Modal visible={aiModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setAiModal(false)}>
+        <View style={{ flex: 1, backgroundColor: '#0a0a0a' }}>
+          <SafeAreaView style={{ flex: 1 }}>
+            <View style={m.sheetHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={{ fontSize: 22 }}>🤖</Text>
+                <Text style={[m.sheetTitle, { fontSize: 17 }]}>AIメニュー生成</Text>
+              </View>
+              <TouchableOpacity onPress={() => setAiModal(false)}>
+                <Ionicons name="close" size={22} color="#888" />
               </TouchableOpacity>
             </View>
+
+            <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+              <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+
+                {/* 使用するフォルダ選択 */}
+                {folders.length > 0 && (
+                  <>
+                    <Text style={m.label}>使用するライブラリ</Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+                      {folders.map(f => {
+                        const selected = selectedFolderIds.includes(f.id)
+                        return (
+                          <TouchableOpacity
+                            key={f.id}
+                            onPress={() => setSelectedFolderIds(prev =>
+                              selected ? prev.filter(id => id !== f.id) : [...prev, f.id]
+                            )}
+                            style={{
+                              flexDirection: 'row', alignItems: 'center', gap: 6,
+                              paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
+                              borderWidth: 1.5,
+                              backgroundColor: selected ? f.color + '22' : 'transparent',
+                              borderColor: selected ? f.color : 'rgba(255,255,255,0.1)',
+                            }}
+                            activeOpacity={0.8}
+                          >
+                            <Ionicons name={f.icon as any} size={13} color={selected ? f.color : '#666'} />
+                            <Text style={{ color: selected ? f.color : '#666', fontSize: 13, fontWeight: '700' }}>{f.name}</Text>
+                          </TouchableOpacity>
+                        )
+                      })}
+                    </View>
+                  </>
+                )}
+
+                {/* 今日のイメージ入力 */}
+                <Text style={m.label}>今日の練習イメージを伝える</Text>
+                <TextInput
+                  value={aiIntent}
+                  onChangeText={setAiIntent}
+                  placeholder={`例：トレ期も終盤に近づき、少しずつスピード練習に移行していきたい。明日は完全休養にする。`}
+                  placeholderTextColor="#445577"
+                  style={[m.input, { height: 100, textAlignVertical: 'top' }]}
+                  multiline
+                />
+
+                <TouchableOpacity
+                  style={[ai.genBtn, (!aiIntent.trim() || aiLoading) && { opacity: 0.4 }]}
+                  onPress={handleGenerate}
+                  disabled={!aiIntent.trim() || aiLoading}
+                  activeOpacity={0.85}
+                >
+                  {aiLoading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={{ fontSize: 18 }}>🤖</Text>
+                  )}
+                  <Text style={ai.genBtnText}>{aiLoading ? 'メニュー生成中...' : 'メニューを生成する'}</Text>
+                </TouchableOpacity>
+
+                {/* 結果表示 */}
+                {aiResult !== '' && (
+                  <View style={ai.resultCard}>
+                    {aiResult.split('\n').map((line, i) => {
+                      const isBold = /^[📋💬【】🔥⚡]/.test(line) || line.startsWith('---')
+                      if (line === '---') return <View key={i} style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginVertical: 8 }} />
+                      return (
+                        <Text key={i} style={[
+                          ai.resultText,
+                          isBold && { color: '#fff', fontWeight: '700', fontSize: 14, marginTop: 10 },
+                        ]}>
+                          {line}
+                        </Text>
+                      )
+                    })}
+                    <TouchableOpacity
+                      style={[ai.regenBtn]}
+                      onPress={handleGenerate}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="refresh" size={14} color={NEON.blue} />
+                      <Text style={{ color: NEON.blue, fontSize: 13, fontWeight: '700' }}>再生成</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </ScrollView>
+            </KeyboardAvoidingView>
+          </SafeAreaView>
+        </View>
+      </Modal>
+
+      {/* ── 手動ピッカーモーダル ── */}
+      <Modal visible={pickModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setPickModal(false)}>
+        <View style={{ flex: 1, backgroundColor: '#0a0a0a' }}>
+          <SafeAreaView style={{ flex: 1 }}>
+            <View style={m.sheetHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={{ fontSize: 22 }}>📋</Text>
+                <Text style={[m.sheetTitle, { fontSize: 17 }]}>
+                  {pickStep === 'select' ? '種目をピックする' : 'AIでメニューを生成'}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setPickModal(false)}>
+                <Ionicons name="close" size={22} color="#888" />
+              </TouchableOpacity>
+            </View>
+
+            {pickStep === 'select' ? (
+              <>
+                <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
+                  {folders.length === 0 ? (
+                    <View style={s.emptyCard}>
+                      <Text style={{ fontSize: 32, marginBottom: 8 }}>📁</Text>
+                      <Text style={{ color: '#888', fontSize: 14 }}>先にライブラリにフォルダを作成してください</Text>
+                    </View>
+                  ) : (
+                    folders.map(folder => {
+                      const isExpanded = expandedFolders.includes(folder.id)
+                      const pickedCount = pickedItems.filter(p => p.folderId === folder.id).length
+                      return (
+                        <View key={folder.id} style={pk.folderWrap}>
+                          <TouchableOpacity
+                            style={[pk.folderHeader, { borderColor: pickedCount > 0 ? folder.color + '66' : 'rgba(255,255,255,0.08)' }]}
+                            onPress={() => toggleExpandFolder(folder.id)}
+                            activeOpacity={0.8}
+                          >
+                            <View style={[fc.iconWrap, { backgroundColor: folder.color + '22', width: 36, height: 36 }]}>
+                              <Ionicons name={folder.icon as any} size={16} color={folder.color} />
+                            </View>
+                            <Text style={pk.folderName}>{folder.name}</Text>
+                            {pickedCount > 0 && (
+                              <View style={[pk.badge, { backgroundColor: folder.color }]}>
+                                <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800' }}>{pickedCount}</Text>
+                              </View>
+                            )}
+                            <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={16} color="#555" />
+                          </TouchableOpacity>
+
+                          {isExpanded && (
+                            <View style={pk.itemList}>
+                              {folder.items.length === 0 ? (
+                                <Text style={{ color: '#555', fontSize: 13, padding: 12 }}>種目がありません</Text>
+                              ) : (
+                                folder.items.map((item, idx) => {
+                                  const picked = pickedItems.some(p => p.folderId === folder.id && p.text === item)
+                                  return (
+                                    <TouchableOpacity
+                                      key={idx}
+                                      style={[pk.itemRow, picked && { backgroundColor: folder.color + '18' }]}
+                                      onPress={() => togglePickItem(folder, item)}
+                                      activeOpacity={0.7}
+                                    >
+                                      <View style={[pk.checkbox, picked && { backgroundColor: folder.color, borderColor: folder.color }]}>
+                                        {picked && <Ionicons name="checkmark" size={12} color="#fff" />}
+                                      </View>
+                                      <Text style={[pk.itemText, picked && { color: '#fff' }]}>{item}</Text>
+                                    </TouchableOpacity>
+                                  )
+                                })
+                              )}
+                            </View>
+                          )}
+                        </View>
+                      )
+                    })
+                  )}
+                </ScrollView>
+
+                {/* 下部バー */}
+                <View style={pk.bottomBar}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: '#888', fontSize: 12 }}>選択中</Text>
+                    <Text style={{ color: '#fff', fontSize: 14, fontWeight: '800' }}>{pickedItems.length}種目</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[pk.nextBtn, pickedItems.length === 0 && { opacity: 0.4 }]}
+                    onPress={() => { setPickResult(''); setPickStep('generate') }}
+                    disabled={pickedItems.length === 0}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>次へ</Text>
+                    <Ionicons name="chevron-forward" size={16} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
+
+                  {/* ピック種目サマリ */}
+                  <Text style={m.label}>ピックした種目 ({pickedItems.length})</Text>
+                  <View style={pk.confirmList}>
+                    {pickedItems.map((p, idx) => (
+                      <View key={idx} style={pk.confirmRow}>
+                        <View style={[pk.folderTag, { backgroundColor: p.folderColor + '22', borderColor: p.folderColor + '55' }]}>
+                          <Text style={{ color: p.folderColor, fontSize: 11, fontWeight: '700' }}>{p.folderName}</Text>
+                        </View>
+                        <Text style={pk.confirmText}>{p.text}</Text>
+                        <TouchableOpacity onPress={() => setPickedItems(prev => prev.filter((_, i) => i !== idx))} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                          <Ionicons name="close-circle" size={18} color="#444" />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+
+                  {/* 意図入力 */}
+                  <Text style={[m.label, { marginTop: 16 }]}>今日の練習イメージ（任意）</Text>
+                  <TextInput
+                    value={pickIntent}
+                    onChangeText={setPickIntent}
+                    placeholder="例：スピード移行期。強度高めで。"
+                    placeholderTextColor="#445577"
+                    style={[m.input, { height: 80, textAlignVertical: 'top' }]}
+                    multiline
+                  />
+
+                  {/* 生成ボタン */}
+                  <TouchableOpacity
+                    style={[ai.genBtn, (pickedItems.length === 0 || pickLoading) && { opacity: 0.4 }]}
+                    onPress={handleGenerateFromPicked}
+                    disabled={pickedItems.length === 0 || pickLoading}
+                    activeOpacity={0.85}
+                  >
+                    {pickLoading
+                      ? <ActivityIndicator size="small" color="#fff" />
+                      : <Text style={{ fontSize: 18 }}>🤖</Text>
+                    }
+                    <Text style={ai.genBtnText}>{pickLoading ? 'メニュー生成中...' : 'このピック内容でAI生成'}</Text>
+                  </TouchableOpacity>
+
+                  {/* 結果 */}
+                  {pickResult !== '' && (
+                    <View style={ai.resultCard}>
+                      {pickResult.split('\n').map((line, i) => {
+                        const isBold = /^[📋💬【】🔥⚡]/.test(line) || line.startsWith('---')
+                        if (line === '---') return <View key={i} style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginVertical: 8 }} />
+                        return (
+                          <Text key={i} style={[ai.resultText, isBold && { color: '#fff', fontWeight: '700', fontSize: 14, marginTop: 10 }]}>
+                            {line}
+                          </Text>
+                        )
+                      })}
+                      <TouchableOpacity style={ai.regenBtn} onPress={handleGenerateFromPicked} activeOpacity={0.8}>
+                        <Ionicons name="refresh" size={14} color={NEON.blue} />
+                        <Text style={{ color: NEON.blue, fontSize: 13, fontWeight: '700' }}>再生成</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </ScrollView>
+
+                <View style={pk.bottomBar}>
+                  <TouchableOpacity onPress={() => setPickStep('select')} style={pk.backBtn} activeOpacity={0.8}>
+                    <Ionicons name="chevron-back" size={16} color="#888" />
+                    <Text style={{ color: '#888', fontWeight: '700' }}>種目を選び直す</Text>
+                  </TouchableOpacity>
+                </View>
+              </KeyboardAvoidingView>
+            )}
+          </SafeAreaView>
+        </View>
+      </Modal>
+
+      {/* ── 履歴詳細モーダル ── */}
+      <Modal visible={histModal} transparent animationType="slide" onRequestClose={() => setHistModal(false)}>
+        <View style={m.overlay}>
+          <View style={[m.sheet, { maxHeight: '85%' }]}>
+            <View style={m.sheetHeader}>
+              <Text style={m.sheetTitle}>生成メニュー</Text>
+              <TouchableOpacity onPress={() => setHistModal(false)}>
+                <Ionicons name="close" size={22} color="#888" />
+              </TouchableOpacity>
+            </View>
+            {histItem && (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <View style={{ backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: 12, marginBottom: 12 }}>
+                  <Text style={{ color: '#888', fontSize: 11 }}>{new Date(histItem.created_at).toLocaleString('ja-JP')}</Text>
+                  <Text style={{ color: '#ccc', fontSize: 13, marginTop: 4 }}>「{histItem.intent}」</Text>
+                </View>
+                {histItem.result.split('\n').map((line, i) => {
+                  const isBold = /^[📋💬【】🔥⚡]/.test(line)
+                  if (line === '---') return <View key={i} style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginVertical: 8 }} />
+                  return (
+                    <Text key={i} style={[ai.resultText, isBold && { color: '#fff', fontWeight: '700', fontSize: 14, marginTop: 10 }]}>
+                      {line}
+                    </Text>
+                  )
+                })}
+              </ScrollView>
+            )}
           </View>
-        </Modal>
-      </SafeAreaView>
+        </View>
+      </Modal>
     </View>
   )
 }
 
-// ── ユーティリティ関数 ───────────────────────────────────────────
-function getRpeColor(rpe: number): string {
-  if (rpe <= 3) return '#4CAF50'
-  if (rpe <= 6) return '#FF9800'
-  return '#E53935'
-}
+// ── スタイル ──────────────────────────────────────────────
+const s = StyleSheet.create({
+  safe:       { flex: 1, backgroundColor: 'transparent' },
+  tabBar:     { flexDirection: 'row', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 6, gap: 8 },
+  tabBtn:     { flex: 1, paddingVertical: 9, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.04)', alignItems: 'center' },
+  tabBtnActive:{ backgroundColor: BRAND, borderColor: BRAND },
+  tabText:    { color: '#666', fontSize: 13, fontWeight: '700' },
+  tabTextActive:{ color: '#fff' },
+  content:    { padding: 16, gap: 12, paddingBottom: 60 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
+  sectionTitle:  { color: TEXT.primary, fontSize: 14, fontWeight: '800', letterSpacing: 0.5 },
+  addFolderBtn:  { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: BRAND, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 },
+  emptyCard:  { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 16, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', borderStyle: 'dashed' },
+  manualBtn:      { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(52,199,89,0.08)', borderRadius: 16, borderWidth: 1.5, borderColor: 'rgba(52,199,89,0.3)', padding: 16 },
+  manualBtnIcon:  { width: 48, height: 48, borderRadius: 14, backgroundColor: 'rgba(52,199,89,0.12)', alignItems: 'center', justifyContent: 'center' },
+  manualBtnTitle: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  manualBtnSub:   { color: '#34C759', fontSize: 12, marginTop: 2 },
+  aiBtn:      { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(90,200,250,0.08)', borderRadius: 16, borderWidth: 1.5, borderColor: 'rgba(90,200,250,0.3)', padding: 16 },
+  aiBtnIcon:  { width: 48, height: 48, borderRadius: 14, backgroundColor: 'rgba(90,200,250,0.12)', alignItems: 'center', justifyContent: 'center' },
+  aiBtnTitle: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  aiBtnSub:   { color: '#5AC8FA', fontSize: 12, marginTop: 2 },
+  histCard:   { backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', padding: 14, gap: 6 },
+  histDate:   { color: '#666', fontSize: 11 },
+  histIntent: { color: '#aaa', fontSize: 13, fontStyle: 'italic' },
+  histPreview:{ color: '#666', fontSize: 12 },
+})
 
-function sortExercises(exs: Exercise[]): Exercise[] {
-  return [
-    ...exs.filter(e => e.type === 'warmup'),
-    ...exs.filter(e => e.type === 'main'),
-    ...exs.filter(e => e.type === 'cooldown'),
-  ]
-}
+const m = StyleSheet.create({
+  overlay:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  sheet:       { backgroundColor: '#161616', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 36 },
+  sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.08)' },
+  sheetTitle:  { color: '#fff', fontSize: 16, fontWeight: '800' },
+  label:       { color: '#888', fontSize: 12, fontWeight: '700', marginBottom: 8 },
+  input:       { backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, color: '#fff', fontSize: 14, borderWidth: 1, borderColor: 'rgba(74,159,255,0.25)', marginBottom: 14 },
+  colorDot:    { width: 28, height: 28, borderRadius: 14 },
+  colorDotSelected: { borderWidth: 2.5, borderColor: '#fff', transform: [{ scale: 1.15 }] },
+  iconBtn:     { width: 40, height: 40, borderRadius: 10, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)' },
+  saveBtn:     { backgroundColor: BRAND, borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginBottom: 10 },
+  deleteBtn:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
+})
 
-// ── スタイル ─────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: 'transparent' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
-  },
-  headerTitle: { color: '#fff', fontSize: 20, fontWeight: '800' },
-  addBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: BRAND,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  filterScroll: { maxHeight: 48 },
-  filterContent: { paddingHorizontal: 16, paddingVertical: 8, gap: 8, flexDirection: 'row', alignItems: 'center' },
-  listContent: { padding: 16, gap: 12, paddingBottom: 48 },
-  card: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    padding: 14,
-    gap: 10,
-  },
-  cardCompleted: { opacity: 0.6 },
-  cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  catIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardInfo: { flex: 1, gap: 4 },
-  cardTitle: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  cardTitleCompleted: { textDecorationLine: 'line-through', color: '#666' },
-  cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  cardDate: { color: '#555', fontSize: 11 },
-  cardSep: { color: '#333', fontSize: 11 },
-  cardRight: { gap: 6, alignItems: 'flex-end' },
-  rpeBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  rpeText: { fontSize: 10, fontWeight: '700' },
-  checkBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  exPreview: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  exTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 6,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-  },
-  exDot: { width: 5, height: 5, borderRadius: 2.5 },
-  exTagText: { color: '#888', fontSize: 11 },
-  exMore: { color: '#555', fontSize: 11, paddingVertical: 3 },
-  empty: { alignItems: 'center', paddingVertical: 60, gap: 12 },
-  emptyText: { color: '#444', fontSize: 14 },
-  emptyBtn: {
-    backgroundColor: BRAND,
-    borderRadius: 10,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    marginTop: 4,
-  },
-  emptyBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-  },
-  chipText: { color: '#888', fontSize: 13, fontWeight: '600' },
-  chipRow: { flexDirection: 'row', gap: 8 },
-  // モーダル
-  modalBg: { flex: 1, backgroundColor: '#0a0a0a' },
-  modalContent: { padding: 20, paddingBottom: 48, gap: 4 },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  modalTitle: { color: '#fff', fontSize: 17, fontWeight: '700' },
-  cancelText: { color: '#888', fontSize: 16 },
-  saveText: { color: BRAND, fontSize: 16, fontWeight: '700' },
-  templateBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(229,57,53,0.1)',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(229,57,53,0.3)',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginBottom: 16,
-    alignSelf: 'flex-start',
-  },
-  templateBtnText: { color: BRAND, fontWeight: '600', fontSize: 14 },
-  label: { color: '#888', fontSize: 13, fontWeight: '600', marginBottom: 6 },
-  input: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    color: '#fff',
-    fontSize: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(74,159,255,0.3)',
-    marginBottom: 12,
-  },
-  textArea: { height: 80, textAlignVertical: 'top' },
-  addExRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginTop: 4, marginBottom: 4 },
-  addExBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-  },
-  addExBtnText: { fontSize: 13, fontWeight: '600' },
-  rpeSliderRow: { flexDirection: 'row', gap: 4, marginBottom: 4 },
-  rpeSliderItem: { flex: 1, alignItems: 'center' },
-  rpeCircle: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rpeNum: { color: '#fff', fontSize: 10, fontWeight: '700' },
-  rpeLabelRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 4 },
-  rpeLabel: { color: '#555', fontSize: 11 },
-  // テンプレートモーダル
-  overlayBg: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'flex-end',
-  },
-  templateModal: {
-    backgroundColor: '#1a1a1a',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    gap: 0,
-  },
-  templateModalTitle: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '700',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  templateItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
-  },
-  templateItemTitle: { color: '#fff', fontSize: 15, fontWeight: '600' },
-  templateItemSub: { color: '#555', fontSize: 12 },
-  templateCancelBtn: {
-    alignItems: 'center',
-    paddingVertical: 14,
-    marginTop: 4,
-  },
+const d = StyleSheet.create({
+  addRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  addBtn: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+})
+
+const pk = StyleSheet.create({
+  folderWrap:   { marginBottom: 10 },
+  folderHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, borderWidth: 1, padding: 12 },
+  folderName:   { flex: 1, color: '#fff', fontSize: 14, fontWeight: '700' },
+  badge:        { minWidth: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  itemList:     { backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 12, marginTop: 4, overflow: 'hidden' },
+  itemRow:      { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 13, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.05)' },
+  checkbox:     { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: '#333', alignItems: 'center', justifyContent: 'center' },
+  itemText:     { flex: 1, color: '#aaa', fontSize: 14 },
+  bottomBar:    { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.08)', backgroundColor: '#0a0a0a' },
+  nextBtn:      { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: BRAND, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 13 },
+  backBtn:      { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  confirmList:  { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', padding: 8 },
+  confirmRow:   { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.06)' },
+  folderTag:    { borderWidth: 1, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 },
+  confirmText:  { flex: 1, color: '#ddd', fontSize: 14 },
+})
+
+const ai = StyleSheet.create({
+  genBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: BRAND, borderRadius: 14, paddingVertical: 16, marginBottom: 20 },
+  genBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+  resultCard: { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', padding: 16, gap: 2 },
+  resultText: { color: '#bbb', fontSize: 13, lineHeight: 22 },
+  regenBtn:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: 'rgba(90,200,250,0.3)', borderRadius: 10, paddingVertical: 10, marginTop: 16 },
 })

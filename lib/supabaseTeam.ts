@@ -6,6 +6,31 @@ const isConfigured = !!(
   process.env.EXPO_PUBLIC_SUPABASE_URL !== 'placeholder'
 )
 
+// ── チーム ────────────────────────────────────────────────
+export interface TeamRow {
+  code: string
+  team_name: string
+  coach_name: string
+  created_at: string
+}
+
+export async function createTeam(code: string, teamName: string, coachName: string): Promise<void> {
+  if (!isConfigured) return
+  await supabase.from('teams').upsert(
+    { code, team_name: teamName, coach_name: coachName },
+    { onConflict: 'code' },
+  )
+}
+
+export async function fetchTeamByCode(code: string): Promise<TeamRow | null> {
+  if (!isConfigured) return null
+  const { data } = await supabase
+    .from('teams').select('*')
+    .eq('code', code)
+    .single()
+  return data as TeamRow | null
+}
+
 // ── メンバー ──────────────────────────────────────────────
 export interface TeamMemberRow {
   id: string

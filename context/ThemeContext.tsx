@@ -1,11 +1,8 @@
-// context/ThemeContext.tsx
-import React, { createContext, useContext, useEffect, useState } from 'react'
-import AsyncStorage from '@react-native-async-storage/async-storage'
+// context/ThemeContext.tsx — ダークモード固定版
+import React, { createContext, useContext, useEffect } from 'react'
 import { Platform } from 'react-native'
 
-const THEME_KEY = 'trackmate_theme'
-
-export type ColorScheme = 'dark' | 'light'
+export type ColorScheme = 'dark'
 
 export interface ThemeColors {
   bg:       string
@@ -33,18 +30,8 @@ export const DARK: ThemeColors = {
   switchTrack: '#333',
 }
 
-export const LIGHT: ThemeColors = {
-  bg:       '#f2f2f7',
-  surface:  '#ffffff',
-  surface2: '#f0f0f5',
-  border:   'rgba(0,0,0,0.08)',
-  text:     '#111111',
-  textSec:  '#555555',
-  textHint: '#999999',
-  card:     '#ffffff',
-  inputBg:  'rgba(0,0,0,0.04)',
-  switchTrack: '#ddd',
-}
+// 後方互換のため LIGHT も同じ値でエクスポート
+export const LIGHT = DARK
 
 interface ThemeCtx {
   scheme: ColorScheme
@@ -59,28 +46,14 @@ const ThemeContext = createContext<ThemeCtx>({
 })
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [scheme, setScheme] = useState<ColorScheme>('dark')
-
-  useEffect(() => {
-    AsyncStorage.getItem(THEME_KEY).then(v => {
-      if (v === 'light' || v === 'dark') setScheme(v)
-    }).catch(() => {})
-  }, [])
-
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      document.body.style.backgroundColor = scheme === 'dark' ? '#0a0a0a' : '#f2f2f7'
+      document.body.style.backgroundColor = '#0a0a0a'
     }
-  }, [scheme])
-
-  function toggle() {
-    const next = scheme === 'dark' ? 'light' : 'dark'
-    setScheme(next)
-    AsyncStorage.setItem(THEME_KEY, next).catch(() => {})
-  }
+  }, [])
 
   return (
-    <ThemeContext.Provider value={{ scheme, colors: scheme === 'dark' ? DARK : LIGHT, toggle }}>
+    <ThemeContext.Provider value={{ scheme: 'dark', colors: DARK, toggle: () => {} }}>
       {children}
     </ThemeContext.Provider>
   )
