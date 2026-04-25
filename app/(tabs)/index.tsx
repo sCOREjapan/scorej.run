@@ -21,13 +21,17 @@ import { Sounds, unlockAudio } from '../../lib/sounds'
 import Logo from '../../components/Logo'
 import PWAInstallPrompt from '../../components/PWAInstallPrompt'
 import QuickLogModal from '../../components/QuickLogModal'
+import StretchHoldButton from '../../components/StretchHoldButton'
 import { registerHomeScroll, unregisterHomeScroll } from '../../lib/homeScroll'
 import { setQuickLogListener, clearQuickLogListener } from '../../lib/quickLogEvent'
+import { getCurrentLocationWeather } from '../../lib/weather'
+import { calcWeatherRiskBonus, getWeatherRiskText } from '../../lib/weatherRisk'
 import type { SleepRecord } from '../../types'
 
 // ── AsyncStorage keys ───────────────────────────────────
 const CONDITION_KEY     = 'trackmate_condition'      // 旧フォーマット（マイグレーション用）
 const CONDITION_MAP_KEY = 'trackmate_condition_map'  // 新フォーマット: { "2026-04-15": 6, ... }
+const STRETCH_RESULT_KEY = 'trackmate_stretch_result'
 const SLEEP_KEY         = 'trackmate_sleep'
 const RECOVERY_KEY  = 'trackmate_recovery_records'
 const TASKS_KEY     = 'trackmate_tasks'
@@ -205,11 +209,15 @@ const READINESS_CFG = [
 
 function ScoreOverviewCard({
   sessions, sleepRecords, conditionLevel, riskResult,
+  effectiveRiskScore, weatherText, onStretchStart,
 }: {
   sessions: import('../../types').TrainingSession[]
   sleepRecords: import('../../types').SleepRecord[]
   conditionLevel: number
   riskResult: ReturnType<typeof calcInjuryRisk> | null
+  effectiveRiskScore?: number
+  weatherText?: string | null
+  onStretchStart?: () => void
 }) {
   const { colors } = useTheme()
   const status = calcRecoveryStatus(sessions, sleepRecords, conditionLevel)
@@ -238,9 +246,9 @@ function ScoreOverviewCard({
     },
   ]
 
-  // 総合準備度（riskResultがあれば使用、なければrecoveryStatusのoverallを利用）
-  const readiness = riskResult ? Math.max(0, 100 - riskResult.riskScore) : status.overall
-  const riskScore = riskResult ? riskResult.riskScore : 100 - status.overall
+  // 総合準備度（effectiveRiskScore優先、なければriskResult、なければrecoveryStatusのoverall）
+  const riskScore = effectiveRiskScore ?? (riskResult ? riskResult.riskScore : 100 - status.overall)
+  const readiness = Math.max(0, 100 - riskScore)
   const cfg = READINESS_CFG.find(c => riskScore <= c.max) ?? READINESS_CFG[3]
 
   return (
@@ -282,6 +290,13 @@ function ScoreOverviewCard({
         ))}
       </View>
 
+      {/* 天気リスクテキスト */}
+      {weatherText && (
+        <View style={[so.weatherRow, { borderTopColor: colors.border }]}>
+          <Text style={so.weatherText}>{weatherText}</Text>
+        </View>
+      )}
+
       {/* ── アドバイス ── */}
       <View style={[so.adviceRow, { borderTopColor: colors.border }]}>
         <Ionicons name="information-circle-outline" size={13} color={colors.textHint} />
@@ -292,6 +307,13 @@ function ScoreOverviewCard({
           <Text style={[so.hint, { color: colors.textHint }]}>記録↑で精度UP</Text>
         )}
       </View>
+
+      {/* ストレッチ長押しボタン（リスク40以上） */}
+      {riskScore >= 40 && onStretchStart && (
+        <View style={{ paddingHorizontal: 14, paddingBottom: 12 }}>
+          <StretchHoldButton riskScore={riskScore} onComplete={onStretchStart} />
+        </View>
+      )}
     </View>
   )
 }
@@ -318,6 +340,8 @@ const so = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 14, paddingVertical: 10 },
   advice:         { fontSize: 11, lineHeight: 16, flex: 1 },
   hint:           { fontSize: 10, fontWeight: '600' },
+  weatherRow:     { borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 14, paddingVertical: 8 },
+  weatherText:    { color: '#F5A623', fontSize: 11, fontWeight: '600' },
 })
 
 
@@ -809,6 +833,10 @@ export default function DashboardScreen() {
   const [showAIAdvice,    setShowAIAdvice]    = useState(false)
   const [aiAdvice,        setAiAdvice]        = useState('')
   const [loadingAI,       setLoadingAI]       = useState(false)
+  const [weatherBonus,    setWeatherBonus]    = useState(0)
+  const [weatherText,     setWeatherText]     = useState<string | null>(null)
+  const [stretchReduction,setStretchReduction]= useState(0)
+  const [recoveryBanner,  setRecoveryBanner]  = useState<{ reduction: number } | null>(null)
 
   // ── 永続データ読み込み ──
   useEffect(() => {
@@ -835,6 +863,16 @@ export default function DashboardScreen() {
     fetchSessions(MOCK_USER_ID)
   }, [])
 
+  // ── 天気取得 ──
+  useEffect(() => {
+    getCurrentLocationWeather().then(w => {
+      if (!w) return
+      const bonus = calcWeatherRiskBonus(w)
+      setWeatherBonus(bonus)
+      setWeatherText(getWeatherRiskText(w, bonus))
+    }).catch(() => {})
+  }, [])
+
   function handleGoalsUpdate(next: Goal[]) {
     setGoals(next)
     AsyncStorage.setItem(GOALS_KEY, JSON.stringify(next)).catch(() => {})
@@ -842,6 +880,18 @@ export default function DashboardScreen() {
 
   const reloadAll = useCallback(() => {
     fetchSessions(MOCK_USER_ID)
+    // ストレッチ結果読み込み
+    const today = new Date().toISOString().slice(0, 10)
+    AsyncStorage.getItem(STRETCH_RESULT_KEY).then(raw => {
+      if (!raw) return
+      const parsed = JSON.parse(raw)
+      if (parsed.date !== today) { setStretchReduction(0); return }
+      setStretchReduction(parsed.reduction ?? 0)
+      if (parsed.showBanner) {
+        setRecoveryBanner({ reduction: parsed.lastReduction ?? parsed.reduction })
+        AsyncStorage.setItem(STRETCH_RESULT_KEY, JSON.stringify({ ...parsed, showBanner: false })).catch(() => {})
+      }
+    }).catch(() => {})
     AsyncStorage.multiGet([CONDITION_MAP_KEY, SLEEP_KEY, TASKS_KEY, RECOVERY_KEY, GOALS_KEY]).then(
       ([[, mapStr], [, sleepStr], [, tasksStr], [, recovStr], [, goalsStr]]) => {
         if (mapStr)   { try { setConditionMap(JSON.parse(mapStr)) }    catch {} }
@@ -977,6 +1027,16 @@ ${sessionsText}
     return calcInjuryRisk(sessions, sleepRecords, avgConditionLevel, hasSymptom)
   }, [sessions, sleepRecords, avgConditionLevel, hasSymptom, loading])
 
+  // 天気ボーナス + ストレッチ減算を反映した有効リスクスコア
+  const effectiveRiskScore = useMemo(() => {
+    if (!riskResult) return null
+    return Math.min(100, Math.max(0, riskResult.riskScore + weatherBonus - stretchReduction))
+  }, [riskResult, weatherBonus, stretchReduction])
+
+  const handleStretchStart = useCallback(() => {
+    router.push({ pathname: '/stretch-recovery', params: { riskScore: (effectiveRiskScore ?? 50).toString() } } as any)
+  }, [effectiveRiskScore])
+
   // ── スクロールトップ ──
   const scrollRef = useRef<ScrollView>(null)
   useEffect(() => {
@@ -1039,6 +1099,9 @@ ${sessionsText}
               sleepRecords={sleepRecords}
               conditionLevel={avgConditionLevel}
               riskResult={riskResult}
+              effectiveRiskScore={effectiveRiskScore ?? undefined}
+              weatherText={weatherText}
+              onStretchStart={handleStretchStart}
             />
           </AnimatedEntry>
 
@@ -1201,6 +1264,20 @@ ${sessionsText}
         </ScrollView>
       </SafeAreaView>
 
+      {/* ── リカバリー完了バナー ── */}
+      {recoveryBanner && (
+        <TouchableOpacity
+          style={s.recovBanner}
+          onPress={() => setRecoveryBanner(null)}
+          activeOpacity={0.8}
+        >
+          <Text style={s.recovBannerText}>
+            ✅ リカバリー完了！怪我リスクが{recoveryBanner.reduction}ポイント下がりました
+          </Text>
+          <Ionicons name="close" size={14} color="#34C759" />
+        </TouchableOpacity>
+      )}
+
       <QuickLogModal
         visible={showQuickLog}
         onClose={() => setShowQuickLog(false)}
@@ -1322,6 +1399,14 @@ const s = StyleSheet.create({
   },
   aiCoachTitle: { fontSize: 14, fontWeight: '800' },
   aiCoachSub:   { fontSize: 11, marginTop: 2 },
+
+  // リカバリーバナー
+  recovBanner: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: 'rgba(52,199,89,0.15)', borderTopWidth: 1,
+    borderTopColor: 'rgba(52,199,89,0.3)', paddingHorizontal: 16, paddingVertical: 10,
+  },
+  recovBannerText: { color: '#34C759', fontSize: 12, fontWeight: '700', flex: 1 },
 
   // AIアドバイスモーダル
   modalOverlay: {
