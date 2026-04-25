@@ -356,7 +356,14 @@ function Slide6({ isActive }: { isActive: boolean }) {
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading]   = useState(false)
 
+  const isInAppBrowser = typeof navigator !== 'undefined' &&
+    /Instagram|FBAN|FBAV|Twitter|Line|MicroMessenger|GSA/i.test(navigator.userAgent)
+
   const handleGoogle = () => {
+    if (isInAppBrowser) {
+      alert('Googleログインはアプリ内ブラウザでは使用できません。\n\nSafari（または Chrome）でこのページを開いてからログインしてください。\n\n右下の「...」→「Safariで開く」をタップしてください。')
+      return
+    }
     unlockAudio(); Sounds.pop()
     setGoogleLoading(true)
     signInWithGoogle().finally(() => setGoogleLoading(false))
