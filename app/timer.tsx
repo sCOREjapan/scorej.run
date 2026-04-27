@@ -365,7 +365,7 @@ export default function TimerScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: '#f6f6f8',
   },
   header: {
     flexDirection: 'row',
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
+    borderBottomColor: 'rgba(0,0,0,0.08)',
   },
   headerBack: {
     width: 44,
@@ -465,7 +465,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
+    borderBottomColor: 'rgba(0,0,0,0.08)',
   },
   splitHeaderText: {
     flex: 1,
@@ -521,7 +521,7 @@ const styles = StyleSheet.create({
   // モーダル
   modalSafe: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: '#f6f6f8',
     padding: 20,
   },
   modalHeader: {

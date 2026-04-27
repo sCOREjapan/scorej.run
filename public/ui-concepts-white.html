@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>sCORE UI — White Concepts</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: #e8e8e8;
+  font-family: -apple-system, 'Hiragino Sans', 'SF Pro Display', sans-serif;
+  padding: 40px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 72px;
+}
+.phone {
+  width: 390px;
+  min-height: 780px;
+  border-radius: 52px;
+  overflow: hidden;
+  position: relative;
+  flex-shrink: 0;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.07);
+}
+.concept-title { color: rgba(0,0,0,0.25); font-size: 11px; font-weight: 800; letter-spacing: 4px; text-align: center; }
+.concept-name { color: #111; font-size: 24px; font-weight: 900; text-align: center; letter-spacing: -0.5px; margin: 6px 0 4px; }
+.concept-desc { color: rgba(0,0,0,0.4); font-size: 13px; text-align: center; line-height: 1.75; margin-bottom: 20px; }
+.divider { width:100%; max-width:500px; height:1px; background:rgba(0,0,0,0.08); }
+.palette { display:flex; gap:10px; justify-content:center; margin-top:14px; flex-wrap:wrap; }
+.swatch { display:flex; align-items:center; gap:6px; }
+.sw-dot { width:10px; height:10px; border-radius:5px; }
+.sw-label { color:rgba(0,0,0,0.4); font-size:11px; }
+.section { display:flex; flex-direction:column; align-items:center; width:100%; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   W1 — PURE WHITE × RED
+   真っ白 × 赤アクセント
+   Apple / Nike 的な清潔感
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.w1 { background: #fff; }
+.w1 .sb { padding:14px 28px 6px; display:flex; justify-content:space-between; color:rgba(0,0,0,0.35); font-size:12px; font-weight:600; }
+.w1 .header { padding:6px 24px 10px; display:flex; justify-content:space-between; align-items:center; }
+.w1 .logo { color:#111; font-size:14px; font-weight:900; letter-spacing:3px; }
+.w1 .notif { width:38px; height:38px; border-radius:12px; background:#f4f4f4; display:flex; align-items:center; justify-content:center; font-size:17px; }
+/* hero */
+.w1 .hero { padding:12px 24px 18px; border-bottom:1px solid #f0f0f0; }
+.w1 .h-tag { color:rgba(0,0,0,0.28); font-size:10px; font-weight:800; letter-spacing:3px; margin-bottom:8px; }
+.w1 .h-row { display:flex; align-items:flex-end; gap:14px; margin-bottom:10px; }
+.w1 .h-num { color:#111; font-size:104px; font-weight:900; line-height:0.88; letter-spacing:-7px; }
+.w1 .h-right { padding-bottom:10px; }
+.w1 .h-status { color:#C8102E; font-size:15px; font-weight:900; }
+.w1 .h-sub { color:rgba(0,0,0,0.35); font-size:12px; margin-top:4px; }
+.w1 .h-bar { height:3px; background:#f0f0f0; border-radius:2px; overflow:hidden; }
+.w1 .h-fill { height:3px; background:#C8102E; width:72%; border-radius:2px; }
+/* factors */
+.w1 .factors { display:flex; gap:8px; padding:16px 20px; }
+.w1 .f { flex:1; background:#f8f8f8; border-radius:16px; padding:13px 10px; text-align:center; }
+.w1 .f-i { font-size:20px; margin-bottom:5px; }
+.w1 .f-v { font-size:18px; font-weight:900; color:#111; }
+.w1 .f-l { color:rgba(0,0,0,0.3); font-size:9px; font-weight:700; margin-top:2px; }
+/* ai */
+.w1 .ai { margin:0 20px 12px; background:#fff5f5; border:1.5px solid rgba(200,16,46,0.15); border-radius:18px; padding:16px; display:flex; gap:12px; }
+.w1 .ai-av { width:38px; height:38px; border-radius:12px; background:#C8102E; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+.w1 .ai-t { color:#C8102E; font-size:10px; font-weight:800; letter-spacing:1px; margin-bottom:3px; }
+.w1 .ai-m { color:rgba(0,0,0,0.55); font-size:12px; line-height:1.75; }
+/* actions */
+.w1 .acts { padding:4px 20px 14px; display:flex; flex-direction:column; }
+.w1 .act { display:flex; align-items:center; justify-content:space-between; padding:14px 0; border-bottom:1px solid #f2f2f2; }
+.w1 .act:last-child { border:none; }
+.w1 .act-l { display:flex; align-items:center; gap:12px; }
+.w1 .act-num { color:rgba(0,0,0,0.15); font-size:11px; font-weight:800; width:18px; }
+.w1 .act-i { font-size:18px; }
+.w1 .act-n { color:#111; font-size:13px; font-weight:700; }
+.w1 .act-a { color:rgba(0,0,0,0.2); font-size:14px; }
+/* bnav */
+.w1 .bnav { margin:4px 20px 20px; background:#f4f4f4; border-radius:26px; padding:10px 6px; display:flex; justify-content:space-around; }
+.w1 .ni { display:flex; flex-direction:column; align-items:center; gap:4px; padding:5px 12px; border-radius:16px; }
+.w1 .ni.on { background:#fff; box-shadow:0 2px 8px rgba(0,0,0,0.08); }
+.w1 .ni-i { font-size:20px; opacity:0.3; }
+.w1 .ni.on .ni-i { opacity:1; }
+.w1 .ni-l { font-size:9px; font-weight:700; color:rgba(0,0,0,0.25); }
+.w1 .ni.on .ni-l { color:#C8102E; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   W2 — CREAM × WARM BLACK
+   クリーム × ウォームブラック
+   高級雑誌・ラグジュアリー感
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.w2 { background: #faf7f2; }
+.w2 .sb { padding:14px 28px 6px; display:flex; justify-content:space-between; color:rgba(30,20,10,0.3); font-size:12px; }
+.w2 .header { padding:6px 24px 12px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(30,20,10,0.07); }
+.w2 .logo { color:#1a1208; font-size:13px; font-weight:900; letter-spacing:4px; }
+.w2 .date { color:rgba(30,20,10,0.3); font-size:11px; font-weight:600; }
+/* score */
+.w2 .score-area { padding:20px 24px 18px; }
+.w2 .sa-label { color:rgba(30,20,10,0.28); font-size:10px; font-weight:800; letter-spacing:3px; margin-bottom:8px; }
+.w2 .sa-num { color:#1a1208; font-size:108px; font-weight:900; line-height:0.85; letter-spacing:-8px; display:block; margin-bottom:12px; }
+.w2 .sa-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.w2 .sa-status { color:#C8102E; font-size:14px; font-weight:900; }
+.w2 .sa-sub { color:rgba(30,20,10,0.35); font-size:11px; }
+.w2 .sa-bar { height:2px; background:rgba(30,20,10,0.08); border-radius:1px; overflow:hidden; }
+.w2 .sa-fill { height:2px; background:#1a1208; width:72%; border-radius:1px; }
+/* metrics */
+.w2 .metrics { display:flex; padding:14px 24px; gap:0; border-top:1px solid rgba(30,20,10,0.07); border-bottom:1px solid rgba(30,20,10,0.07); }
+.w2 .m { flex:1; padding:10px 0; }
+.w2 .m + .m { border-left:1px solid rgba(30,20,10,0.07); padding-left:20px; }
+.w2 .m-v { color:#1a1208; font-size:26px; font-weight:900; }
+.w2 .m-l { color:rgba(30,20,10,0.3); font-size:10px; font-weight:700; margin-top:3px; }
+.w2 .m-red { color:#C8102E; }
+/* ai */
+.w2 .ai { padding:16px 24px; border-bottom:1px solid rgba(30,20,10,0.07); }
+.w2 .ai-tag { color:rgba(30,20,10,0.22); font-size:9px; font-weight:800; letter-spacing:3px; margin-bottom:8px; }
+.w2 .ai-msg { color:rgba(30,20,10,0.62); font-size:14px; line-height:1.8; }
+.w2 .ai-msg strong { color:#1a1208; }
+/* acts */
+.w2 .acts { padding:12px 24px; display:flex; flex-direction:column; }
+.w2 .act { display:flex; align-items:center; justify-content:space-between; padding:13px 0; border-bottom:1px solid rgba(30,20,10,0.06); }
+.w2 .act:last-child { border:none; }
+.w2 .act-l { display:flex; align-items:center; gap:14px; }
+.w2 .act-n { color:#1a1208; font-size:13px; font-weight:700; }
+.w2 .act-i { font-size:18px; }
+.w2 .act-a { color:rgba(30,20,10,0.2); }
+/* bnav */
+.w2 .bnav { padding:12px 24px 24px; display:flex; justify-content:space-around; border-top:1px solid rgba(30,20,10,0.07); }
+.w2 .ni { display:flex; flex-direction:column; align-items:center; gap:4px; }
+.w2 .ni-i { font-size:22px; opacity:0.28; }
+.w2 .ni-i.on { opacity:1; }
+.w2 .ni-l { font-size:9px; font-weight:700; color:rgba(30,20,10,0.28); }
+.w2 .ni-l.on { color:#C8102E; }
+.w2 .ni-dot { width:4px; height:4px; border-radius:2px; background:#C8102E; margin-top:1px; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   W3 — SOFT GREY × ELECTRIC RED
+   柔らかいグレー × 鮮やかな赤
+   モダンSaaS・ビジネス感
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.w3 { background: #f6f6f8; }
+.w3 .sb { padding:14px 28px 6px; display:flex; justify-content:space-between; color:rgba(0,0,0,0.3); font-size:12px; }
+.w3 .header { padding:6px 20px 10px; display:flex; justify-content:space-between; align-items:center; }
+.w3 .logo-pill { background:#111; border-radius:10px; padding:6px 14px; }
+.w3 .logo-pill span { color:#fff; font-size:13px; font-weight:900; letter-spacing:2px; }
+.w3 .header-r { display:flex; gap:8px; }
+.w3 .hbtn { width:36px; height:36px; border-radius:11px; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,0.1); display:flex; align-items:center; justify-content:center; font-size:16px; }
+/* score card */
+.w3 .score-card { margin:6px 18px 12px; background:#fff; border-radius:24px; padding:20px; box-shadow:0 2px 16px rgba(0,0,0,0.07); }
+.w3 .sc-top { display:flex; justify-content:space-between; margin-bottom:10px; }
+.w3 .sc-label { color:rgba(0,0,0,0.3); font-size:10px; font-weight:800; letter-spacing:2px; }
+.w3 .sc-tag { background:#fff0f0; border-radius:8px; padding:4px 10px; color:#C8102E; font-size:10px; font-weight:800; }
+.w3 .sc-num { color:#111; font-size:88px; font-weight:900; line-height:0.9; letter-spacing:-6px; margin-bottom:12px; display:block; }
+.w3 .sc-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.w3 .sc-status { color:#C8102E; font-size:14px; font-weight:800; }
+.w3 .sc-sub { color:rgba(0,0,0,0.3); font-size:12px; }
+.w3 .sc-bar { height:6px; background:#f0f0f0; border-radius:3px; overflow:hidden; }
+.w3 .sc-fill { height:6px; background:linear-gradient(90deg,#FF9500 0%,#C8102E 72%); width:72%; border-radius:3px; }
+/* factors */
+.w3 .factors { display:flex; gap:8px; padding:0 18px 12px; }
+.w3 .fc { flex:1; background:#fff; border-radius:16px; padding:13px 8px; text-align:center; box-shadow:0 1px 6px rgba(0,0,0,0.06); }
+.w3 .fc-i { font-size:19px; margin-bottom:5px; }
+.w3 .fc-v { font-size:17px; font-weight:900; color:#111; }
+.w3 .fc-l { color:rgba(0,0,0,0.3); font-size:9px; font-weight:700; margin-top:2px; }
+/* ai card */
+.w3 .ai { margin:0 18px 12px; background:#fff; border-radius:20px; padding:16px; box-shadow:0 1px 8px rgba(0,0,0,0.06); display:flex; gap:12px; }
+.w3 .ai-av { width:38px; height:38px; border-radius:12px; background:#111; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+.w3 .ai-t { color:rgba(0,0,0,0.4); font-size:10px; font-weight:800; letter-spacing:1px; margin-bottom:3px; }
+.w3 .ai-m { color:rgba(0,0,0,0.6); font-size:12px; line-height:1.75; }
+/* stretch */
+.w3 .stretch { margin:0 18px 14px; background:linear-gradient(135deg,#fff5f5,#fff); border:1.5px solid rgba(200,16,46,0.18); border-radius:18px; padding:14px 18px; display:flex; justify-content:space-between; align-items:center; }
+.w3 .str-l { color:#111; font-size:13px; font-weight:800; }
+.w3 .str-r { background:#C8102E; border-radius:10px; padding:6px 14px; color:#fff; font-size:11px; font-weight:800; }
+/* bnav */
+.w3 .bnav { margin:0 18px 20px; background:#fff; border-radius:26px; padding:10px 6px; display:flex; justify-content:space-around; box-shadow:0 2px 12px rgba(0,0,0,0.08); }
+.w3 .ni { display:flex; flex-direction:column; align-items:center; gap:4px; padding:5px 12px; border-radius:16px; }
+.w3 .ni.on { background:#fff0f0; }
+.w3 .ni-i { font-size:20px; opacity:0.3; }
+.w3 .ni.on .ni-i { opacity:1; }
+.w3 .ni-l { font-size:9px; font-weight:700; color:rgba(0,0,0,0.25); }
+.w3 .ni.on .ni-l { color:#C8102E; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   W4 — WHITE × DEEP GREEN
+   白 × ディープグリーン（スポーツ × 自然）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.w4 { background: #f5f8f5; }
+.w4 .sb { padding:14px 28px 6px; display:flex; justify-content:space-between; color:rgba(0,40,20,0.3); font-size:12px; }
+.w4 .header { padding:8px 22px 12px; display:flex; justify-content:space-between; align-items:center; }
+.w4 .logo { display:flex; align-items:center; gap:8px; }
+.w4 .logo-mark { width:32px; height:32px; border-radius:10px; background:#1B4332; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; font-weight:900; }
+.w4 .logo-text { color:#1B4332; font-size:14px; font-weight:900; letter-spacing:1px; }
+.w4 .profile { width:36px; height:36px; border-radius:50%; background:#d4edda; display:flex; align-items:center; justify-content:center; font-size:18px; }
+/* score */
+.w4 .score-wrap { padding:12px 22px 16px; }
+.w4 .sw-label { color:rgba(0,40,20,0.3); font-size:10px; font-weight:800; letter-spacing:3px; margin-bottom:8px; }
+.w4 .sw-row { display:flex; align-items:flex-end; gap:12px; margin-bottom:12px; }
+.w4 .sw-num { color:#1a1a1a; font-size:104px; font-weight:900; line-height:0.85; letter-spacing:-7px; }
+.w4 .sw-right { padding-bottom:10px; }
+.w4 .sw-status { color:#C8102E; font-size:14px; font-weight:900; margin-bottom:4px; }
+.w4 .sw-sub { color:rgba(0,0,0,0.35); font-size:11px; }
+.w4 .sw-bar { height:6px; background:rgba(27,67,50,0.1); border-radius:3px; overflow:hidden; }
+.w4 .sw-fill { height:6px; background:linear-gradient(90deg,#40916C,#C8102E); width:72%; border-radius:3px; }
+/* cards */
+.w4 .cards { display:flex; gap:8px; padding:0 18px 12px; }
+.w4 .card { flex:1; background:#fff; border-radius:18px; padding:14px 10px; text-align:center; box-shadow:0 1px 8px rgba(0,60,30,0.07); }
+.w4 .cd-i { font-size:20px; margin-bottom:5px; }
+.w4 .cd-v { font-size:19px; font-weight:900; color:#1a1a1a; }
+.w4 .cd-l { color:rgba(0,0,0,0.3); font-size:9px; font-weight:700; margin-top:2px; }
+/* ai */
+.w4 .ai { margin:0 18px 12px; background:#fff; border-radius:20px; padding:16px; box-shadow:0 1px 8px rgba(0,60,30,0.07); display:flex; gap:12px; }
+.w4 .ai-av { width:38px; height:38px; border-radius:12px; background:#1B4332; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+.w4 .ai-t { color:#1B4332; font-size:10px; font-weight:800; letter-spacing:1px; margin-bottom:3px; }
+.w4 .ai-m { color:rgba(0,0,0,0.55); font-size:12px; line-height:1.75; }
+/* stretch */
+.w4 .stretch { margin:0 18px 14px; background:#fff; border:1.5px solid rgba(200,16,46,0.2); border-radius:18px; padding:14px 18px; display:flex; align-items:center; justify-content:space-between; box-shadow:0 1px 8px rgba(0,60,30,0.05); }
+.w4 .str-l { color:#1a1a1a; font-size:13px; font-weight:800; }
+.w4 .str-r { color:#C8102E; font-size:14px; font-weight:800; }
+/* bnav */
+.w4 .bnav { margin:0 18px 20px; background:#fff; border-radius:26px; padding:10px 6px; display:flex; justify-content:space-around; box-shadow:0 2px 12px rgba(0,60,30,0.09); }
+.w4 .ni { display:flex; flex-direction:column; align-items:center; gap:4px; padding:5px 12px; border-radius:16px; }
+.w4 .ni.on { background:#e8f5e9; }
+.w4 .ni-i { font-size:20px; opacity:0.3; }
+.w4 .ni.on .ni-i { opacity:1; }
+.w4 .ni-l { font-size:9px; font-weight:700; color:rgba(0,0,0,0.25); }
+.w4 .ni.on .ni-l { color:#1B4332; }
+</style>
+</head>
+<body>
+
+<!-- W1 -->
+<div class="section">
+  <div class="concept-title">WHITE CONCEPT W1</div>
+  <div class="concept-name">PURE WHITE × RED</div>
+  <div class="concept-desc">真っ白な背景に黒の大きなスコア数字。<br>赤はアラートだけ。Apple / Nike 的な潔さ。</div>
+  <div class="phone w1">
+    <div class="w1 sb"><span>9:41</span><span>●●● 100%</span></div>
+    <div class="w1 header">
+      <span class="w1 logo">sCORE</span>
+      <div class="w1 notif">🔔</div>
+    </div>
+    <div class="w1 hero">
+      <div class="w1 h-tag">INJURY RISK SCORE</div>
+      <div class="w1 h-row">
+        <div class="w1 h-num">72</div>
+        <div class="w1 h-right">
+          <div class="w1 h-status">高リスク</div>
+          <div class="w1 h-sub">強度を落とそう</div>
+        </div>
+      </div>
+      <div class="w1 h-bar"><div class="w1 h-fill"></div></div>
+    </div>
+    <div class="w1 factors">
+      <div class="w1 f"><div class="w1 f-i">⚡</div><div class="w1 f-v" style="color:#C8102E">4/5</div><div class="w1 f-l">疲労</div></div>
+      <div class="w1 f"><div class="w1 f-i">😴</div><div class="w1 f-v" style="color:#FF9500">6h</div><div class="w1 f-l">睡眠</div></div>
+      <div class="w1 f"><div class="w1 f-i">💪</div><div class="w1 f-v" style="color:#34C759">3/5</div><div class="w1 f-l">体調</div></div>
+      <div class="w1 f"><div class="w1 f-i">🌧️</div><div class="w1 f-v" style="color:#888">+12</div><div class="w1 f-l">天気</div></div>
+    </div>
+    <div class="w1 ai">
+      <div class="w1 ai-av">🤖</div>
+      <div><div class="w1 ai-t">AI COACH</div><div class="w1 ai-m">疲労が高いため今日はジョグ30分を推奨。インターバルは明日以降に。</div></div>
+    </div>
+    <div class="w1 acts">
+      <div class="w1 act"><div class="w1 act-l"><span class="w1 act-num">01</span><span class="w1 act-i">🤸</span><span class="w1 act-n">ストレッチでリスクを下げる</span></div><span class="w1 act-a" style="color:#C8102E">→</span></div>
+      <div class="w1 act"><div class="w1 act-l"><span class="w1 act-num">02</span><span class="w1 act-i">📝</span><span class="w1 act-n">今日の体調を記録する</span></div><span class="w1 act-a">→</span></div>
+      <div class="w1 act"><div class="w1 act-l"><span class="w1 act-num">03</span><span class="w1 act-i">🏃</span><span class="w1 act-n">練習を記録する</span></div><span class="w1 act-a">→</span></div>
+    </div>
+    <div class="w1 bnav">
+      <div class="w1 ni on"><span class="w1 ni-i">🏠</span><span class="w1 ni-l">ホーム</span></div>
+      <div class="w1 ni"><span class="w1 ni-i">📊</span><span class="w1 ni-l">記録</span></div>
+      <div class="w1 ni"><span class="w1 ni-i">🤖</span><span class="w1 ni-l">AI</span></div>
+      <div class="w1 ni"><span class="w1 ni-i">🏆</span><span class="w1 ni-l">試合</span></div>
+      <div class="w1 ni"><span class="w1 ni-i">👤</span><span class="w1 ni-l">設定</span></div>
+    </div>
+  </div>
+  <div class="palette">
+    <div class="swatch"><div class="sw-dot" style="background:#fff;border:1px solid rgba(0,0,0,0.15)"></div><span class="sw-label">Pure White</span></div>
+    <div class="swatch"><div class="sw-dot" style="background:#111"></div><span class="sw-label">Near Black</span></div>
+    <div class="swatch"><div class="sw-dot" style="background:#C8102E"></div><span class="sw-label">Alert Red</span></div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- W2 -->
+<div class="section">
+  <div class="concept-title">WHITE CONCEPT W2</div>
+  <div class="concept-name">CREAM × WARM BLACK</div>
+  <div class="concept-desc">生成り（クリーム）の背景 × ウォームブラック。<br>高級ファッション誌・ラグジュアリースポーツブランド感。</div>
+  <div class="phone w2">
+    <div class="w2 sb"><span>9:41</span><span>●●● 100%</span></div>
+    <div class="w2 header">
+      <span class="w2 logo">sCORE</span>
+      <span class="w2 date">4月26日（土）</span>
+    </div>
+    <div class="w2 score-area">
+      <div class="w2 sa-label">INJURY RISK SCORE</div>
+      <span class="w2 sa-num">72</span>
+      <div class="w2 sa-row">
+        <span class="w2 sa-status">高リスク</span>
+        <span class="w2 sa-sub">強度を落とそう</span>
+      </div>
+      <div class="w2 sa-bar"><div class="w2 sa-fill"></div></div>
+    </div>
+    <div class="w2 metrics">
+      <div class="w2 m"><div class="w2 m-v m-red">4/5</div><div class="w2 m-l">疲労</div></div>
+      <div class="w2 m"><div class="w2 m-v" style="color:#FF9500">6h</div><div class="w2 m-l">睡眠</div></div>
+      <div class="w2 m"><div class="w2 m-v" style="color:rgba(30,20,10,0.5)">+12</div><div class="w2 m-l">天気加算</div></div>
+    </div>
+    <div class="w2 ai">
+      <div class="w2 ai-tag">AI COACH</div>
+      <div class="w2 ai-msg">今日は<strong>インターバルを避け</strong>てジョグ30分を推奨。直近3日の負荷が高すぎる。</div>
+    </div>
+    <div class="w2 acts">
+      <div class="w2 act"><div class="w2 act-l"><span class="w2 act-i">🤸</span><span class="w2 act-n">ストレッチでリスクを下げる</span></div><span class="w2 act-a" style="color:#C8102E">→</span></div>
+      <div class="w2 act"><div class="w2 act-l"><span class="w2 act-i">📝</span><span class="w2 act-n">今日の体調を記録する</span></div><span class="w2 act-a">→</span></div>
+      <div class="w2 act"><div class="w2 act-l"><span class="w2 act-i">🏃</span><span class="w2 act-n">練習を記録する</span></div><span class="w2 act-a">→</span></div>
+    </div>
+    <div class="w2 bnav">
+      <div class="w2 ni"><span class="w2 ni-i on">🏠</span><div class="w2 ni-dot"></div><span class="w2 ni-l on">ホーム</span></div>
+      <div class="w2 ni"><span class="w2 ni-i">📊</span><span class="w2 ni-l">記録</span></div>
+      <div class="w2 ni"><span class="w2 ni-i">🤖</span><span class="w2 ni-l">AI</span></div>
+      <div class="w2 ni"><span class="w2 ni-i">🏆</span><span class="w2 ni-l">試合</span></div>
+      <div class="w2 ni"><span class="w2 ni-i">👤</span><span class="w2 ni-l">設定</span></div>
+    </div>
+  </div>
+  <div class="palette">
+    <div class="swatch"><div class="sw-dot" style="background:#faf7f2;border:1px solid rgba(0,0,0,0.1)"></div><span class="sw-label">Cream</span></div>
+    <div class="swatch"><div class="sw-dot" style="background:#1a1208"></div><span class="sw-label">Warm Black</span></div>
+    <div class="swatch"><div class="sw-dot" style="background:#C8102E"></div><span class="sw-label">Red</span></div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- W3 -->
+<div class="section">
+  <div class="concept-title">WHITE CONCEPT W3</div>
+  <div class="concept-name">SOFT GREY × RED — カード浮き上がりUI</div>
+  <div class="concept-desc">薄いグレー背景に白いカードが浮かぶ。<br>モダンなSaaSアプリ・Notionっぽいクリーンさ。</div>
+  <div class="phone w3">
+    <div class="w3 sb"><span>9:41</span><span>●●● 100%</span></div>
+    <div class="w3 header">
+      <div class="w3 logo-pill"><span>sCORE</span></div>
+      <div class="w3 header-r">
+        <div class="w3 hbtn">🔔</div>
+        <div class="w3 hbtn">👤</div>
+      </div>
+    </div>
+    <div class="w3 score-card">
+      <div class="w3 sc-top">
+        <span class="w3 sc-label">INJURY RISK SCORE</span>
+        <span class="w3 sc-tag">🔴 高リスク</span>
+      </div>
+      <span class="w3 sc-num">72</span>
+      <div class="w3 sc-row">
+        <span class="w3 sc-status">強度を落とそう</span>
+        <span class="w3 sc-sub">天気 +12pt</span>
+      </div>
+      <div class="w3 sc-bar"><div class="w3 sc-fill"></div></div>
+    </div>
+    <div class="w3 factors">
+      <div class="w3 fc"><div class="w3 fc-i">⚡</div><div class="w3 fc-v" style="color:#C8102E">4/5</div><div class="w3 fc-l">疲労</div></div>
+      <div class="w3 fc"><div class="w3 fc-i">😴</div><div class="w3 fc-v" style="color:#FF9500">6h</div><div class="w3 fc-l">睡眠</div></div>
+      <div class="w3 fc"><div class="w3 fc-i">💪</div><div class="w3 fc-v" style="color:#34C759">3/5</div><div class="w3 fc-l">体調</div></div>
+      <div class="w3 fc"><div class="w3 fc-i">🌧️</div><div class="w3 fc-v" style="color:#888">+12</div><div class="w3 fc-l">天気</div></div>
+    </div>
+    <div class="w3 ai">
+      <div class="w3 ai-av">🤖</div>
+      <div><div class="w3 ai-t">AI COACH</div><div class="w3 ai-m">疲労が高いため今日はジョグ30分を推奨。インターバルは明日以降に。</div></div>
+    </div>
+    <div class="w3 stretch">
+      <span class="w3 str-l">🤸 ストレッチでリスクを下げる</span>
+      <div class="w3 str-r">開始 →</div>
+    </div>
+    <div class="w3 bnav">
+      <div class="w3 ni on"><span class="w3 ni-i">🏠</span><span class="w3 ni-l">ホーム</span></div>
+      <div class="w3 ni"><span class="w3 ni-i">📊</span><span class="w3 ni-l">記録</span></div>
+      <div class="w3 ni"><span class="w3 ni-i">🤖</span><span class="w3 ni-l">AI</span></div>
+      <div class="w3 ni"><span class="w3 ni-i">🏆</span><span class="w3 ni-l">試合</span></div>
+      <div class="w3 ni"><span class="w3 ni-i">👤</span><span class="w3 ni-l">設定</span></div>
+    </div>
+  </div>
+  <div class="palette">
+    <div class="swatch"><div class="sw-dot" style="background:#f6f6f8;border:1px solid rgba(0,0,0,0.1)"></div><span class="sw-label">Soft Grey</span></div>
+    <div class="swatch"><div class="sw-dot" style="background:#fff;border:1px solid rgba(0,0,0,0.1)"></div><span class="sw-label">White Card</span></div>
+    <div class="swatch"><div class="sw-dot" style="background:#C8102E"></div><span class="sw-label">Electric Red</span></div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- W4 -->
+<div class="section">
+  <div class="concept-title">WHITE CONCEPT W4</div>
+  <div class="concept-name">WHITE × DEEP GREEN</div>
+  <div class="concept-desc">白 × ディープグリーン。自然・健康・スポーツの調和。<br>Whoop の白版のような爽やかさと信頼感。</div>
+  <div class="phone w4">
+    <div class="w4 sb"><span>9:41</span><span>●●● 100%</span></div>
+    <div class="w4 header">
+      <div class="w4 logo">
+        <div class="w4 logo-mark">S</div>
+        <span class="w4 logo-text">sCORE</span>
+      </div>
+      <div class="w4 profile">👤</div>
+    </div>
+    <div class="w4 score-wrap">
+      <div class="w4 sw-label">INJURY RISK SCORE</div>
+      <div class="w4 sw-row">
+        <div class="w4 sw-num">72</div>
+        <div class="w4 sw-right">
+          <div class="w4 sw-status">🔴 高リスク</div>
+          <div class="w4 sw-sub">強度を落とそう</div>
+        </div>
+      </div>
+      <div class="w4 sw-bar"><div class="w4 sw-fill"></div></div>
+    </div>
+    <div class="w4 cards">
+      <div class="w4 card"><div class="w4 cd-i">⚡</div><div class="w4 cd-v" style="color:#C8102E">4/5</div><div class="w4 cd-l">疲労</div></div>
+      <div class="w4 card"><div class="w4 cd-i">😴</div><div class="w4 cd-v" style="color:#FF9500">6h</div><div class="w4 cd-l">睡眠</div></div>
+      <div class="w4 card"><div class="w4 cd-i">💪</div><div class="w4 cd-v" style="color:#40916C">3/5</div><div class="w4 cd-l">体調</div></div>
+    </div>
+    <div class="w4 ai">
+      <div class="w4 ai-av">🤖</div>
+      <div><div class="w4 ai-t">AI COACH</div><div class="w4 ai-m">疲労が高いため今日はジョグ30分を推奨。インターバルは明日以降に。</div></div>
+    </div>
+    <div class="w4 stretch">
+      <span class="w4 str-l">🤸 ストレッチでリスクを下げる</span>
+      <span class="w4 str-r">→</span>
+    </div>
+    <div class="w4 bnav">
+      <div class="w4 ni on"><span class="w4 ni-i">🏠</span><span class="w4 ni-l">ホーム</span></div>
+      <div class="w4 ni"><span class="w4 ni-i">📊</span><span class="w4 ni-l">記録</span></div>
+      <div class="w4 ni"><span class="w4 ni-i">🤖</span><span class="w4 ni-l">AI</span></div>
+      <div class="w4 ni"><span class="w4 ni-i">🏆</span><span class="w4 ni-l">試合</span></div>
+      <div class="w4 ni"><span class="w4 ni-i">👤</span><span class="w4 ni-l">設定</span></div>
+    </div>
+  </div>
+  <div class="palette">
+    <div class="swatch"><div class="sw-dot" style="background:#f5f8f5;border:1px solid rgba(0,0,0,0.1)"></div><span class="sw-label">Soft White</span></div>
+    <div class="swatch"><div class="sw-dot" style="background:#1B4332"></div><span class="sw-label">Deep Green</span></div>
+    <div class="swatch"><div class="sw-dot" style="background:#C8102E"></div><span class="sw-label">Alert Red</span></div>
+  </div>
+</div>
+
+<div style="color:rgba(0,0,0,0.3);font-size:12px;text-align:center;padding:32px;line-height:2.2">
+  WHITE Concept W1〜W4 | 暗い版（A〜H）と合わせて全12案<br>
+  「これで全画面作って」と言えばすぐ実装します
+</div>
+</body>
+</html>

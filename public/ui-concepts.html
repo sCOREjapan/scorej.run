@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>sCORE UI Concepts</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: #111;
+  font-family: -apple-system, 'Hiragino Sans', sans-serif;
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 60px;
+}
+.section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+.concept-title {
+  color: rgba(255,255,255,0.3);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  text-align: center;
+}
+.concept-name {
+  color: #fff;
+  font-size: 22px;
+  font-weight: 900;
+  text-align: center;
+  letter-spacing: -0.5px;
+  margin-bottom: 4px;
+}
+.concept-desc {
+  color: rgba(255,255,255,0.4);
+  font-size: 13px;
+  text-align: center;
+  line-height: 1.7;
+  margin-bottom: 16px;
+}
+
+/* 共通スクリーン枠 */
+.phone {
+  width: 390px;
+  min-height: 760px;
+  border-radius: 48px;
+  overflow: hidden;
+  position: relative;
+  flex-shrink: 0;
+  box-shadow: 0 40px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08);
+}
+
+/* ステータスバー */
+.status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 28px 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   CONCEPT A — ATLAS
+   テーマ: ネイビー × エレクトリックライム
+   形: 大きな円形ゲージ + 横長カード
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.pa {
+  background: #070c1f;
+}
+.pa .status-bar { color: rgba(255,255,255,0.5); }
+.pa .header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 24px 16px;
+}
+.pa .h-left { display: flex; flex-direction: column; gap: 2px; }
+.pa .greeting { color: rgba(255,255,255,0.4); font-size: 11px; font-weight: 700; letter-spacing: 1px; }
+.pa .username { color: #fff; font-size: 20px; font-weight: 900; }
+.pa .notif-btn {
+  width: 42px; height: 42px; border-radius: 14px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+}
+
+/* ゲージエリア */
+.pa .gauge-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 24px 20px;
+  position: relative;
+}
+.pa .gauge-wrap {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  margin-bottom: 16px;
+}
+.pa .gauge-svg { position: absolute; inset: 0; }
+.pa .gauge-center {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+}
+.pa .g-label { color: rgba(255,255,255,0.35); font-size: 10px; font-weight: 800; letter-spacing: 2px; margin-bottom: 4px; }
+.pa .g-score { color: #fff; font-size: 64px; font-weight: 900; line-height: 1; letter-spacing: -3px; }
+.pa .g-status { color: #FF453A; font-size: 12px; font-weight: 800; margin-top: 4px; }
+.pa .gauge-tags { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.pa .g-tag {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 20px; padding: 6px 12px;
+  font-size: 11px; color: rgba(255,255,255,0.6); font-weight: 700;
+}
+
+/* カードエリア */
+.pa .cards { padding: 0 20px 20px; display: flex; flex-direction: column; gap: 10px; }
+.pa .card-row { display: flex; gap: 10px; }
+.pa .card {
+  flex: 1;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 20px; padding: 16px;
+}
+.pa .card-wide { border-radius: 20px; padding: 16px; }
+.pa .c-icon { font-size: 22px; margin-bottom: 8px; }
+.pa .c-label { color: rgba(255,255,255,0.4); font-size: 10px; font-weight: 700; letter-spacing: 1px; margin-bottom: 4px; }
+.pa .c-val { color: #fff; font-size: 22px; font-weight: 900; }
+.pa .c-sub { color: rgba(255,255,255,0.35); font-size: 10px; margin-top: 2px; }
+.pa .lime { color: #00E5A0; }
+
+/* AIバナー */
+.pa .ai-banner {
+  margin: 0 20px 20px;
+  background: linear-gradient(135deg, rgba(0,229,160,0.12), rgba(0,150,255,0.12));
+  border: 1px solid rgba(0,229,160,0.25);
+  border-radius: 20px; padding: 16px;
+  display: flex; gap: 14px; align-items: flex-start;
+}
+.pa .ai-ava {
+  width: 38px; height: 38px; border-radius: 12px;
+  background: linear-gradient(135deg, #00E5A0, #0096FF);
+  display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;
+}
+.pa .ai-body { flex: 1; }
+.pa .ai-title { color: #00E5A0; font-size: 11px; font-weight: 800; letter-spacing: 1px; margin-bottom: 4px; }
+.pa .ai-text { color: rgba(255,255,255,0.65); font-size: 12px; line-height: 1.7; }
+
+/* ストレッチボタン */
+.pa .stretch-btn {
+  margin: 0 20px 20px;
+  background: rgba(255,69,58,0.1);
+  border: 1px solid rgba(255,69,58,0.3);
+  border-radius: 16px; padding: 14px 18px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.pa .sb-left { display: flex; align-items: center; gap: 10px; }
+.pa .sb-dot { width: 8px; height: 8px; border-radius: 4px; background: #FF453A; }
+.pa .sb-text { color: #fff; font-size: 13px; font-weight: 800; }
+.pa .sb-arrow { color: rgba(255,255,255,0.4); font-size: 16px; }
+
+/* ボトムナビ */
+.pa .bottom-nav {
+  margin: 0 20px 20px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 24px; padding: 12px 8px;
+  display: flex; justify-content: space-around; align-items: center;
+}
+.pa .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 4px 12px; border-radius: 14px; }
+.pa .nav-item.active { background: rgba(0,229,160,0.12); }
+.pa .nav-icon { font-size: 20px; }
+.pa .nav-label { font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.3); }
+.pa .nav-item.active .nav-label { color: #00E5A0; }
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   CONCEPT B — MONO SPORT
+   テーマ: 真っ黒 × 白 × 赤のみ
+   形: 大型タイポグラフィ・極限ミニマル
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.pb { background: #000; }
+.pb .status-bar { color: rgba(255,255,255,0.4); }
+.pb .header {
+  padding: 8px 28px 0;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.pb .logo-text { color: #fff; font-size: 16px; font-weight: 900; letter-spacing: 3px; }
+.pb .date-text { color: rgba(255,255,255,0.25); font-size: 11px; font-weight: 700; }
+
+/* スコアヒーロー */
+.pb .hero {
+  padding: 28px 28px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.pb .hero-label { color: rgba(255,255,255,0.25); font-size: 10px; font-weight: 800; letter-spacing: 3px; margin-bottom: 8px; }
+.pb .hero-score-row { display: flex; align-items: flex-end; gap: 12px; margin-bottom: 8px; }
+.pb .hero-num { color: #C8102E; font-size: 96px; font-weight: 900; line-height: 0.9; letter-spacing: -6px; }
+.pb .hero-right { padding-bottom: 8px; }
+.pb .hero-status { color: #fff; font-size: 14px; font-weight: 800; margin-bottom: 4px; }
+.pb .hero-sub { color: rgba(255,255,255,0.3); font-size: 11px; }
+.pb .hero-bar { height: 2px; background: rgba(255,255,255,0.08); border-radius: 1px; overflow: hidden; }
+.pb .hero-fill { height: 2px; background: #C8102E; border-radius: 1px; }
+
+/* メトリクスグリッド */
+.pb .metrics {
+  padding: 20px 28px;
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.pb .metric { padding: 12px 0; }
+.pb .metric + .metric { border-left: 1px solid rgba(255,255,255,0.06); padding-left: 20px; }
+.pb .m-val { color: #fff; font-size: 28px; font-weight: 900; letter-spacing: -1px; }
+.pb .m-label { color: rgba(255,255,255,0.25); font-size: 10px; font-weight: 700; margin-top: 2px; letter-spacing: 0.5px; }
+.pb .m-bad { color: #C8102E; }
+.pb .m-ok { color: rgba(255,255,255,0.6); }
+
+/* AIメッセージ */
+.pb .ai-section {
+  padding: 20px 28px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.pb .ai-tag { color: rgba(255,255,255,0.2); font-size: 9px; font-weight: 800; letter-spacing: 3px; margin-bottom: 10px; }
+.pb .ai-msg { color: rgba(255,255,255,0.65); font-size: 14px; line-height: 1.75; font-weight: 500; }
+.pb .ai-msg strong { color: #fff; font-weight: 800; }
+
+/* 機能リスト */
+.pb .action-list {
+  padding: 16px 28px 20px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.pb .action-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.pb .action-item:last-child { border-bottom: none; }
+.pb .a-left { display: flex; align-items: center; gap: 14px; }
+.pb .a-num { color: rgba(255,255,255,0.15); font-size: 11px; font-weight: 800; width: 20px; }
+.pb .a-icon { font-size: 18px; }
+.pb .a-name { color: #fff; font-size: 14px; font-weight: 700; }
+.pb .a-arrow { color: rgba(255,255,255,0.2); font-size: 14px; }
+
+/* ボトムナビ */
+.pb .bottom-nav {
+  padding: 14px 28px 24px;
+  display: flex; justify-content: space-around; align-items: center;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.pb .nav-it { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.pb .n-icon { font-size: 22px; opacity: 0.35; }
+.pb .n-icon.on { opacity: 1; }
+.pb .n-label { font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.25); letter-spacing: 0.5px; }
+.pb .n-dot { width: 4px; height: 4px; border-radius: 2px; background: #C8102E; }
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   CONCEPT C — GRADIENT SPORT
+   テーマ: ディープパープル × オレンジグラデ
+   形: 大きな半円グラフ + カラフルカード
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.pc { background: #0e0714; }
+.pc .status-bar { color: rgba(255,255,255,0.4); }
+
+/* ヘッダー */
+.pc .header {
+  padding: 8px 22px 12px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.pc .logo-pill {
+  background: linear-gradient(135deg, #FF6B35, #FF3B8A);
+  border-radius: 12px; padding: 6px 14px;
+}
+.pc .logo-pill span { color: #fff; font-size: 15px; font-weight: 900; letter-spacing: 1px; }
+.pc .profile {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: linear-gradient(135deg, #8B5CF6, #EC4899);
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+}
+
+/* スコアカード */
+.pc .score-card {
+  margin: 4px 18px 14px;
+  background: linear-gradient(135deg, #1a0d2e 0%, #0e0a1e 100%);
+  border: 1px solid rgba(139,92,246,0.2);
+  border-radius: 28px; padding: 22px;
+  position: relative; overflow: hidden;
+}
+.pc .sc-glow {
+  position: absolute; width: 300px; height: 300px;
+  background: radial-gradient(circle, rgba(139,92,246,0.2) 0%, transparent 70%);
+  top: -80px; right: -60px;
+}
+.pc .sc-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; }
+.pc .sc-label { color: rgba(255,255,255,0.4); font-size: 10px; font-weight: 800; letter-spacing: 2px; }
+.pc .sc-date { color: rgba(255,255,255,0.25); font-size: 10px; font-weight: 700; }
+.pc .sc-main { display: flex; align-items: center; gap: 18px; margin-bottom: 18px; }
+.pc .sc-ring {
+  position: relative; width: 100px; height: 100px; flex-shrink: 0;
+}
+.pc .sc-ring svg { position: absolute; inset: 0; }
+.pc .sc-ring-center {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.pc .sc-num { color: #fff; font-size: 34px; font-weight: 900; line-height: 1; }
+.pc .sc-pct { color: rgba(255,255,255,0.35); font-size: 9px; font-weight: 700; margin-top: 2px; }
+.pc .sc-right { flex: 1; }
+.pc .sc-status-label { color: rgba(255,255,255,0.35); font-size: 11px; margin-bottom: 6px; font-weight: 600; }
+.pc .sc-status-val { color: #fff; font-size: 20px; font-weight: 900; margin-bottom: 8px; letter-spacing: -0.5px; }
+.pc .sc-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.pc .chip {
+  border-radius: 20px; padding: 4px 10px;
+  font-size: 10px; font-weight: 800;
+}
+.pc .sc-bar-row { display: flex; gap: 4px; }
+.pc .sc-seg { flex: 1; height: 4px; border-radius: 2px; }
+
+/* カラフルカード */
+.pc .stats-row { padding: 0 18px; display: flex; gap: 10px; margin-bottom: 12px; }
+.pc .stat-card {
+  flex: 1; border-radius: 20px; padding: 16px 14px;
+  display: flex; flex-direction: column; gap: 6px; position: relative; overflow: hidden;
+}
+.pc .st-icon { font-size: 22px; }
+.pc .st-val { font-size: 24px; font-weight: 900; color: #fff; }
+.pc .st-label { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.5); }
+
+/* AIカード */
+.pc .ai-card {
+  margin: 0 18px 12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 22px; padding: 16px;
+  display: flex; gap: 12px;
+}
+.pc .ai-orb {
+  width: 42px; height: 42px; border-radius: 14px;
+  background: linear-gradient(135deg, #FF6B35, #FF3B8A);
+  display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;
+}
+.pc .ai-body { flex: 1; }
+.pc .ai-tag { color: rgba(255,107,53,0.9); font-size: 10px; font-weight: 800; letter-spacing: 1.5px; margin-bottom: 4px; }
+.pc .ai-text { color: rgba(255,255,255,0.6); font-size: 12px; line-height: 1.7; }
+
+/* ストレッチ */
+.pc .stretch-card {
+  margin: 0 18px 16px;
+  background: linear-gradient(135deg, rgba(255,69,58,0.12), rgba(255,149,0,0.08));
+  border: 1px solid rgba(255,99,70,0.25);
+  border-radius: 20px; padding: 14px 18px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.pc .sc-left { display: flex; align-items: center; gap: 10px; }
+.pc .sc-pulse {
+  width: 10px; height: 10px; border-radius: 5px; background: #FF453A;
+  box-shadow: 0 0 8px rgba(255,69,58,0.8);
+}
+.pc .sc-text { color: #fff; font-size: 13px; font-weight: 800; }
+.pc .sc-btn {
+  background: rgba(255,69,58,0.2); border: 1px solid rgba(255,69,58,0.4);
+  border-radius: 10px; padding: 6px 14px;
+  color: #FF6B6B; font-size: 11px; font-weight: 800;
+}
+
+/* ボトムナビ */
+.pc .bottom-nav {
+  margin: 0 18px 20px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 26px; padding: 10px 8px;
+  display: flex; justify-content: space-around;
+}
+.pc .nv { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 14px; border-radius: 18px; }
+.pc .nv.on { background: linear-gradient(135deg, rgba(255,107,53,0.2), rgba(255,59,138,0.2)); border: 1px solid rgba(255,107,53,0.3); }
+.pc .nv-icon { font-size: 20px; opacity: 0.45; }
+.pc .nv.on .nv-icon { opacity: 1; }
+.pc .nv-label { font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.25); }
+.pc .nv.on .nv-label { color: #FF6B35; }
+
+/* ラベル行 */
+.concept-labels {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.c-label-item {
+  display: flex; align-items: center; gap: 6px;
+}
+.c-label-dot { width: 8px; height: 8px; border-radius: 4px; }
+.c-label-text { color: rgba(255,255,255,0.45); font-size: 12px; }
+
+/* 区切り */
+.divider {
+  width: 100%;
+  height: 1px;
+  background: rgba(255,255,255,0.06);
+  max-width: 800px;
+}
+</style>
+</head>
+<body>
+
+<!-- ━━ Concept A ━━ -->
+<div class="section">
+  <div class="concept-title">CONCEPT A</div>
+  <div class="concept-name">ATLAS — ネイビー × エレクトリックグリーン</div>
+  <div class="concept-desc">
+    深海ネイビーを基調に、ライムグリーンのアクセント。<br>
+    大きな円形ゲージでスコアを表示。スポーツ分析ツールの雰囲気。
+  </div>
+
+  <div class="phone pa">
+    <!-- status -->
+    <div class="status-bar">
+      <span>9:41</span>
+      <span>●●● 100%</span>
+    </div>
+    <!-- header -->
+    <div class="pa header">
+      <div class="pa h-left">
+        <span class="pa greeting">GOOD MORNING</span>
+        <span class="pa username">田中 一郎</span>
+      </div>
+      <div class="pa notif-btn">🔔</div>
+    </div>
+
+    <!-- gauge -->
+    <div class="pa gauge-section">
+      <div class="pa gauge-wrap">
+        <svg class="pa gauge-svg" viewBox="0 0 220 220">
+          <!-- bg track -->
+          <circle cx="110" cy="110" r="90" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="12"/>
+          <!-- danger zone -->
+          <circle cx="110" cy="110" r="90" fill="none"
+            stroke="url(#gaugeGrad)" stroke-width="12"
+            stroke-linecap="round"
+            stroke-dasharray="565"
+            stroke-dashoffset="158"
+            transform="rotate(-90 110 110)"/>
+          <defs>
+            <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#00E5A0"/>
+              <stop offset="50%" stop-color="#FF9500"/>
+              <stop offset="100%" stop-color="#FF453A"/>
+            </linearGradient>
+          </defs>
+          <!-- tick marks -->
+          <text x="24" y="116" fill="rgba(255,255,255,0.25)" font-size="10" font-weight="700">0</text>
+          <text x="96" y="210" fill="rgba(255,255,255,0.25)" font-size="10" font-weight="700">50</text>
+          <text x="184" y="116" fill="rgba(255,255,255,0.25)" font-size="10" font-weight="700">100</text>
+        </svg>
+        <div class="pa gauge-center">
+          <span class="pa g-label">RISK SCORE</span>
+          <span class="pa g-score">72</span>
+          <span class="pa g-status">🔴 高リスク</span>
+        </div>
+      </div>
+      <div class="pa gauge-tags">
+        <div class="pa g-tag">🏃 練習負荷: 高</div>
+        <div class="pa g-tag">😴 睡眠: 6h</div>
+        <div class="pa g-tag" style="color:#00E5A0;border-color:rgba(0,229,160,0.2)">🌤️ 天気: +12</div>
+      </div>
+    </div>
+
+    <!-- cards -->
+    <div class="pa cards">
+      <div class="pa card-row">
+        <div class="pa card">
+          <div class="pa c-icon">⚡</div>
+          <div class="pa c-label">疲労</div>
+          <div class="pa c-val" style="color:#FF6B6B">4/5</div>
+          <div class="pa c-sub">昨日比 +1</div>
+        </div>
+        <div class="pa card">
+          <div class="pa c-icon">💪</div>
+          <div class="pa c-label">体調</div>
+          <div class="pa c-val pa lime">3/5</div>
+          <div class="pa c-sub">ふつう</div>
+        </div>
+        <div class="pa card">
+          <div class="pa c-icon">😴</div>
+          <div class="pa c-label">睡眠</div>
+          <div class="pa c-val" style="color:#FF9500">6h</div>
+          <div class="pa c-sub">-1h 不足</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ai -->
+    <div class="pa ai-banner">
+      <div class="pa ai-ava">🤖</div>
+      <div class="pa ai-body">
+        <div class="pa ai-title">AI COACH</div>
+        <div class="pa ai-text">疲労が高いため、今日はジョグ30分にしましょう。インターバルは明日以降に。</div>
+      </div>
+    </div>
+
+    <!-- stretch -->
+    <div class="pa stretch-btn">
+      <div class="pa sb-left">
+        <div class="pa sb-dot"></div>
+        <span class="pa sb-text">🤸 ストレッチでリスクを下げる</span>
+      </div>
+      <span class="pa sb-arrow">→</span>
+    </div>
+
+    <!-- bottom nav -->
+    <div class="pa bottom-nav">
+      <div class="pa nav-item active">
+        <span class="pa nav-icon">🏠</span>
+        <span class="pa nav-label" style="color:#00E5A0">ホーム</span>
+      </div>
+      <div class="pa nav-item">
+        <span class="pa nav-icon">📊</span>
+        <span class="pa nav-label">記録</span>
+      </div>
+      <div class="pa nav-item">
+        <span class="pa nav-icon">🤖</span>
+        <span class="pa nav-label">AI</span>
+      </div>
+      <div class="pa nav-item">
+        <span class="pa nav-icon">🏆</span>
+        <span class="pa nav-label">試合</span>
+      </div>
+      <div class="pa nav-item">
+        <span class="pa nav-icon">👤</span>
+        <span class="pa nav-label">設定</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="concept-labels">
+    <div class="c-label-item"><div class="c-label-dot" style="background:#070c1f;border:1px solid rgba(255,255,255,0.3)"></div><span class="c-label-text">背景: Deep Navy</span></div>
+    <div class="c-label-item"><div class="c-label-dot" style="background:#00E5A0"></div><span class="c-label-text">アクセント: Electric Green</span></div>
+    <div class="c-label-item"><div class="c-label-dot" style="background:#FF453A"></div><span class="c-label-text">アラート: Red</span></div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ━━ Concept B ━━ -->
+<div class="section">
+  <div class="concept-title">CONCEPT B</div>
+  <div class="concept-name">MONO SPORT — 真黒 × 白 × 赤</div>
+  <div class="concept-desc">
+    黒・白・赤だけ。96pxの数字が主役。<br>
+    Nike / Apple Watch のような圧倒的ミニマリズム。
+  </div>
+
+  <div class="phone pb">
+    <div class="status-bar pb">
+      <span>9:41</span>
+      <span>● 100%</span>
+    </div>
+    <div class="pb header">
+      <span class="pb logo-text">sCORE</span>
+      <span class="pb date-text">4月26日（土）</span>
+    </div>
+
+    <!-- hero -->
+    <div class="pb hero">
+      <div class="pb hero-label">INJURY RISK SCORE</div>
+      <div class="pb hero-score-row">
+        <div class="pb hero-num">72</div>
+        <div class="pb hero-right">
+          <div class="pb hero-status">高リスク</div>
+          <div class="pb hero-sub">強度を落とすこと</div>
+        </div>
+      </div>
+      <div class="pb hero-bar"><div class="pb hero-fill" style="width:72%"></div></div>
+    </div>
+
+    <!-- metrics -->
+    <div class="pb metrics">
+      <div class="pb metric">
+        <div class="pb m-val pb m-bad">4</div>
+        <div class="pb m-label">疲労 /5</div>
+      </div>
+      <div class="pb metric">
+        <div class="pb m-val pb m-ok">6h</div>
+        <div class="pb m-label">睡眠</div>
+      </div>
+      <div class="pb metric">
+        <div class="pb m-val" style="color:rgba(255,255,255,0.5)">+12</div>
+        <div class="pb m-label">天気加算</div>
+      </div>
+    </div>
+
+    <!-- ai -->
+    <div class="pb ai-section">
+      <div class="pb ai-tag">AI COACH</div>
+      <div class="pb ai-msg">今日は<strong>インターバルを避け</strong>てジョグ30分を推奨。直近3日の負荷が高すぎる。</div>
+    </div>
+
+    <!-- actions -->
+    <div class="pb action-list">
+      <div class="pb action-item">
+        <div class="pb a-left">
+          <span class="pb a-num">01</span>
+          <span class="pb a-icon">🤸</span>
+          <span class="pb a-name">ストレッチでリスクを下げる</span>
+        </div>
+        <span class="pb a-arrow" style="color:#C8102E">→</span>
+      </div>
+      <div class="pb action-item">
+        <div class="pb a-left">
+          <span class="pb a-num">02</span>
+          <span class="pb a-icon">📝</span>
+          <span class="pb a-name">今日の体調を記録する</span>
+        </div>
+        <span class="pb a-arrow">→</span>
+      </div>
+      <div class="pb action-item">
+        <div class="pb a-left">
+          <span class="pb a-num">03</span>
+          <span class="pb a-icon">🏃</span>
+          <span class="pb a-name">練習を記録する</span>
+        </div>
+        <span class="pb a-arrow">→</span>
+      </div>
+    </div>
+
+    <!-- bottom nav -->
+    <div class="pb bottom-nav">
+      <div class="pb nav-it">
+        <span class="pb n-icon on">⊙</span>
+        <div class="pb n-dot"></div>
+        <span class="pb n-label">HOME</span>
+      </div>
+      <div class="pb nav-it">
+        <span class="pb n-icon">▤</span>
+        <span class="pb n-label">LOG</span>
+      </div>
+      <div class="pb nav-it">
+        <span class="pb n-icon">◎</span>
+        <span class="pb n-label">AI</span>
+      </div>
+      <div class="pb nav-it">
+        <span class="pb n-icon">⊞</span>
+        <span class="pb n-label">RACE</span>
+      </div>
+      <div class="pb nav-it">
+        <span class="pb n-icon">◯</span>
+        <span class="pb n-label">ME</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="concept-labels">
+    <div class="c-label-item"><div class="c-label-dot" style="background:#000;border:1px solid rgba(255,255,255,0.3)"></div><span class="c-label-text">背景: Pure Black</span></div>
+    <div class="c-label-item"><div class="c-label-dot" style="background:#fff"></div><span class="c-label-text">テキスト: White</span></div>
+    <div class="c-label-item"><div class="c-label-dot" style="background:#C8102E"></div><span class="c-label-text">アラートのみ: Red</span></div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ━━ Concept C ━━ -->
+<div class="section">
+  <div class="concept-title">CONCEPT C</div>
+  <div class="concept-name">GRADIENT SPORT — パープル × オレンジ</div>
+  <div class="concept-desc">
+    ディープパープルの宇宙感にオレンジのグラデーション。<br>
+    Whoop / Oura Ring のようなウェアラブル系デザイン。
+  </div>
+
+  <div class="phone pc">
+    <div class="status-bar pc">
+      <span>9:41</span>
+      <span>●●● 100%</span>
+    </div>
+
+    <!-- header -->
+    <div class="pc header">
+      <div class="pc logo-pill"><span>sCORE</span></div>
+      <div class="pc profile">👤</div>
+    </div>
+
+    <!-- score card -->
+    <div class="pc score-card">
+      <div class="pc sc-glow"></div>
+      <div class="pc sc-top">
+        <span class="pc sc-label">INJURY RISK</span>
+        <span class="pc sc-date">4月26日（土）</span>
+      </div>
+      <div class="pc sc-main">
+        <!-- ring -->
+        <div class="pc sc-ring">
+          <svg viewBox="0 0 100 100" width="100" height="100">
+            <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8"/>
+            <circle cx="50" cy="50" r="42" fill="none"
+              stroke="url(#ringGrad)" stroke-width="8"
+              stroke-linecap="round"
+              stroke-dasharray="264"
+              stroke-dashoffset="73"
+              transform="rotate(-90 50 50)"/>
+            <defs>
+              <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#FF6B35"/>
+                <stop offset="100%" stop-color="#FF3B8A"/>
+              </linearGradient>
+            </defs>
+          </svg>
+          <div class="pc sc-ring-center">
+            <span class="pc sc-num">72</span>
+            <span class="pc sc-pct">/100</span>
+          </div>
+        </div>
+        <div class="pc sc-right">
+          <div class="pc sc-status-label">今日のステータス</div>
+          <div class="pc sc-status-val">🔴 高リスク</div>
+          <div class="pc sc-chips">
+            <div class="pc chip" style="background:rgba(255,107,53,0.18);color:#FF6B35;border:1px solid rgba(255,107,53,0.3)">練習↑</div>
+            <div class="pc chip" style="background:rgba(139,92,246,0.18);color:#A78BFA;border:1px solid rgba(139,92,246,0.3)">睡眠↓</div>
+            <div class="pc chip" style="background:rgba(74,159,255,0.18);color:#60A5FA;border:1px solid rgba(74,159,255,0.3)">雨天</div>
+          </div>
+        </div>
+      </div>
+      <!-- bar segments -->
+      <div class="pc sc-bar-row">
+        <div class="pc sc-seg" style="background:#34C759; flex:39"></div>
+        <div class="pc sc-seg" style="background:#FF9500; flex:30"></div>
+        <div class="pc sc-seg" style="background:#FF453A; flex:31"></div>
+      </div>
+    </div>
+
+    <!-- stat cards -->
+    <div class="pc stats-row">
+      <div class="pc stat-card" style="background:linear-gradient(135deg,rgba(139,92,246,0.2),rgba(139,92,246,0.08));border:1px solid rgba(139,92,246,0.22)">
+        <div class="pc st-icon">⚡</div>
+        <div class="pc st-val">4/5</div>
+        <div class="pc st-label">疲労</div>
+      </div>
+      <div class="pc stat-card" style="background:linear-gradient(135deg,rgba(168,85,247,0.18),rgba(168,85,247,0.08));border:1px solid rgba(168,85,247,0.2)">
+        <div class="pc st-icon">😴</div>
+        <div class="pc st-val">6h</div>
+        <div class="pc st-label">睡眠</div>
+      </div>
+      <div class="pc stat-card" style="background:linear-gradient(135deg,rgba(74,159,255,0.18),rgba(74,159,255,0.08));border:1px solid rgba(74,159,255,0.2)">
+        <div class="pc st-icon">🌧️</div>
+        <div class="pc st-val">+12</div>
+        <div class="pc st-label">天気</div>
+      </div>
+    </div>
+
+    <!-- ai -->
+    <div class="pc ai-card">
+      <div class="pc ai-orb">🤖</div>
+      <div class="pc ai-body">
+        <div class="pc ai-tag">AI COACH</div>
+        <div class="pc ai-text">疲労が高いため、今日はジョグ30分に。インターバルは明日以降に回しましょう。</div>
+      </div>
+    </div>
+
+    <!-- stretch -->
+    <div class="pc stretch-card">
+      <div class="pc sc-left">
+        <div class="pc sc-pulse"></div>
+        <span class="pc sc-text">🤸 ストレッチでリスクを下げる</span>
+      </div>
+      <div class="pc sc-btn">開始 →</div>
+    </div>
+
+    <!-- bottom nav -->
+    <div class="pc bottom-nav">
+      <div class="pc nv on">
+        <span class="pc nv-icon">🏠</span>
+        <span class="pc nv-label" style="color:#FF6B35">ホーム</span>
+      </div>
+      <div class="pc nv">
+        <span class="pc nv-icon">📊</span>
+        <span class="pc nv-label">記録</span>
+      </div>
+      <div class="pc nv">
+        <span class="pc nv-icon">🤖</span>
+        <span class="pc nv-label">AI</span>
+      </div>
+      <div class="pc nv">
+        <span class="pc nv-icon">🏆</span>
+        <span class="pc nv-label">試合</span>
+      </div>
+      <div class="pc nv">
+        <span class="pc nv-icon">👤</span>
+        <span class="pc nv-label">設定</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="concept-labels">
+    <div class="c-label-item"><div class="c-label-dot" style="background:#0e0714;border:1px solid rgba(255,255,255,0.3)"></div><span class="c-label-text">背景: Deep Purple</span></div>
+    <div class="c-label-item"><div class="c-label-dot" style="background:linear-gradient(135deg,#FF6B35,#FF3B8A)"></div><span class="c-label-text">メイン: Orange→Pink</span></div>
+    <div class="c-label-item"><div class="c-label-dot" style="background:#8B5CF6"></div><span class="c-label-text">サブ: Purple</span></div>
+  </div>
+</div>
+
+<div style="color:rgba(255,255,255,0.2);font-size:12px;text-align:center;padding:24px;line-height:2">
+  3つのコンセプト | 気に入った方向性を教えてください<br>
+  「Aベースで色だけ変えたい」「BとCを混ぜたい」なども可能です
+</div>
+
+</body>
+</html>

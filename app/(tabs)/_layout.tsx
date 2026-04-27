@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react'
 import { Animated, TouchableOpacity, Platform, View, Text, StyleSheet, Pressable, useWindowDimensions } from 'react-native'
-import { Tabs, useRouter } from 'expo-router'
+import { Tabs, useRouter, usePathname } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Sounds, unlockAudio } from '../../lib/sounds'
@@ -137,18 +137,84 @@ function RadialFAB({ bottomOffset }: { bottomOffset: number }) {
   )
 }
 
-function HomeButton({ bottomOffset }: { bottomOffset: number }) {
-  const router = useRouter()
+// ── W3スタイル カスタムタブバー ────────────────────────
+type TabItem = {
+  route: string
+  label: string
+  icon: React.ComponentProps<typeof Ionicons>['name']
+  iconFocused: React.ComponentProps<typeof Ionicons>['name']
+  action?: 'home-scroll' | 'quick-log'
+}
+
+const TAB_ITEMS: TabItem[] = [
+  { route: '/(tabs)/',           label: 'ホーム', icon: 'home-outline',       iconFocused: 'home',        action: 'home-scroll' },
+  { route: '/(tabs)/records',    label: '記録',   icon: 'stats-chart-outline', iconFocused: 'stats-chart' },
+  { route: '',                   label: 'AI',     icon: 'sparkles-outline',    iconFocused: 'sparkles',    action: 'quick-log' },
+  { route: '/(tabs)/competition',label: '試合',   icon: 'trophy-outline',      iconFocused: 'trophy' },
+  { route: '/(tabs)/mypage',     label: '設定',   icon: 'person-outline',      iconFocused: 'person' },
+]
+
+function CustomTabBar({ bottomInset }: { bottomInset: number }) {
+  const router   = useRouter()
+  const pathname = usePathname()
+
+  function isActive(route: string) {
+    if (route === '/(tabs)/') return pathname === '/' || pathname === '/(tabs)' || pathname === '/(tabs)/'
+    return pathname.startsWith(route.replace('/(tabs)', ''))
+  }
+
   return (
-    <TouchableOpacity
-      onPress={() => { unlockAudio(); Sounds.tap(); router.push('/(tabs)/' as any) }}
-      style={[fab.homeBtn, { bottom: bottomOffset + 8 }]}
-      activeOpacity={0.85}
-    >
-      <Ionicons name="home" size={22} color="#6b7280" />
-    </TouchableOpacity>
+    <View style={[tb.container, { paddingBottom: Math.max(bottomInset, 8) }]}>
+      {TAB_ITEMS.map(tab => {
+        const active = tab.route ? isActive(tab.route) : false
+        return (
+          <TouchableOpacity
+            key={tab.label}
+            style={tb.item}
+            activeOpacity={0.7}
+            onPress={() => {
+              unlockAudio()
+              Sounds.tap()
+              if (tab.action === 'home-scroll') {
+                if (active) { triggerHomeScroll(); return }
+                router.push('/(tabs)/' as any)
+              } else if (tab.action === 'quick-log') {
+                triggerQuickLog()
+              } else if (tab.route) {
+                router.push(tab.route as any)
+              }
+            }}
+          >
+            <View style={[tb.iconWrap, active && tb.iconWrapActive]}>
+              <Ionicons
+                name={active ? tab.iconFocused : tab.icon}
+                size={22}
+                color={active ? '#fff' : '#9ca3af'}
+              />
+            </View>
+            <Text style={[tb.label, active && tb.labelActive]}>{tab.label}</Text>
+          </TouchableOpacity>
+        )
+      })}
+    </View>
   )
 }
+
+const tb = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    backgroundColor: '#ffffff',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(0,0,0,0.08)',
+    paddingTop: 8,
+    paddingHorizontal: 8,
+  },
+  item:          { flex: 1, alignItems: 'center', gap: 3 },
+  iconWrap:      { width: 40, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  iconWrapActive:{ backgroundColor: BRAND },
+  label:         { fontSize: 10, fontWeight: '600', color: '#9ca3af' },
+  labelActive:   { color: BRAND, fontWeight: '700' },
+})
 
 const fab = StyleSheet.create({
   btn: {
@@ -191,7 +257,7 @@ const fab = StyleSheet.create({
 // ── メインレイアウト ─────────────────────────────────────
 export default function TabLayout() {
   const insets = useSafeAreaInsets()
-  const fabBottomOffset = Math.max(insets.bottom, 16)
+  const fabBottomOffset = Math.max(insets.bottom, 16) + 56  // タブバー高さ分オフセット
 
   return (
     <View style={{ flex: 1 }}>
@@ -203,63 +269,19 @@ export default function TabLayout() {
           headerTitleStyle: { color: '#111827', fontWeight: '800', letterSpacing: -0.3 },
         }}
       >
-        {/* ── 左端: ホーム ── */}
-        <Tabs.Screen
-          name="index"
-          listeners={({ navigation }) => ({
-            tabPress: () => { if (navigation.isFocused()) triggerHomeScroll() },
-          })}
-          options={{
-            title: 'ホーム',
-            tabBarIcon: tabIcon('home-outline', 'home'),
-            headerShown: false,
-          }}
-        />
-
-        {/* ── 左中: チーム ── */}
-        <Tabs.Screen
-          name="team"
-          options={{
-            title: 'チーム',
-            tabBarIcon: tabIcon('people-outline', 'people'),
-            headerShown: false,
-          }}
-        />
-
-        {/* ── 右中: 進捗 ── */}
-        <Tabs.Screen
-          name="records"
-          options={{
-            title: '進捗',
-            tabBarIcon: tabIcon('stats-chart-outline', 'stats-chart'),
-            headerShown: false,
-          }}
-        />
-
-        {/* ── 右端: 設定 ── */}
-        <Tabs.Screen
-          name="mypage"
-          options={{
-            title: '設定',
-            tabBarIcon: tabIcon('person-circle-outline', 'person-circle'),
-            headerShown: false,
-          }}
-        />
-
-        {/* ── 非表示タブ（ルートとしては有効） ── */}
+        <Tabs.Screen name="index"       options={{ headerShown: false }} />
+        <Tabs.Screen name="team"        options={{ headerShown: false }} />
+        <Tabs.Screen name="records"     options={{ headerShown: false }} />
+        <Tabs.Screen name="mypage"      options={{ headerShown: false }} />
         {(['notebook','calendar','competition','sleep','nutrition'] as const).map(name => (
-          <Tabs.Screen
-            key={name}
-            name={name}
-            options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, headerShown: false }}
-          />
+          <Tabs.Screen key={name} name={name} options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, headerShown: false }} />
         ))}
       </Tabs>
 
-      {/* ── ホームボタン（左下） ── */}
-      <HomeButton bottomOffset={fabBottomOffset} />
+      {/* ── W3 カスタムタブバー ── */}
+      <CustomTabBar bottomInset={insets.bottom} />
 
-      {/* ── ラジアルFAB（全タブ共通オーバーレイ） ── */}
+      {/* ── ラジアルFAB（タブバー上に重なる） ── */}
       <RadialFAB bottomOffset={fabBottomOffset} />
     </View>
   )

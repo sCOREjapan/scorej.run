@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>sCORE UI Concepts Vol.3</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: #141414;
+  font-family: -apple-system, 'Hiragino Sans', 'SF Pro Display', sans-serif;
+  padding: 40px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 80px;
+}
+.phone {
+  width: 390px;
+  min-height: 780px;
+  border-radius: 52px;
+  overflow: hidden;
+  position: relative;
+  flex-shrink: 0;
+}
+.sec { display:flex; flex-direction:column; align-items:center; width:100%; }
+.ct { color:rgba(255,255,255,0.22); font-size:11px; font-weight:800; letter-spacing:4px; text-align:center; }
+.cn { font-size:24px; font-weight:900; text-align:center; letter-spacing:-0.5px; margin:6px 0 4px; }
+.cd { font-size:13px; text-align:center; line-height:1.75; margin-bottom:20px; opacity:0.5; }
+.divider { width:100%; max-width:500px; height:1px; background:rgba(255,255,255,0.06); }
+.pal { display:flex; gap:10px; justify-content:center; margin-top:14px; flex-wrap:wrap; }
+.sw { display:flex; align-items:center; gap:6px; }
+.sd { width:10px; height:10px; border-radius:5px; }
+.sl { font-size:11px; opacity:0.4; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   I — DUAL MODE (昼夜2分割)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.pi { display:flex; gap:16px; flex-wrap:wrap; justify-content:center; }
+.pi .half {
+  width: 187px;
+  min-height: 780px;
+  border-radius: 28px;
+  overflow: hidden;
+  box-shadow: 0 32px 64px rgba(0,0,0,0.5);
+  display: flex;
+  flex-direction: column;
+}
+.pi .day { background:#fff; }
+.pi .night { background:#0a0a0a; }
+.pi .sb { padding:12px 18px 4px; display:flex; justify-content:space-between; font-size:10px; font-weight:600; }
+.pi .day .sb { color:rgba(0,0,0,0.3); }
+.pi .night .sb { color:rgba(255,255,255,0.3); }
+.pi .mode-label { text-align:center; padding:6px; font-size:9px; font-weight:800; letter-spacing:2px; }
+.pi .day .mode-label { color:rgba(0,0,0,0.3); background:#f5f5f5; }
+.pi .night .mode-label { color:rgba(255,255,255,0.3); background:#111; }
+.pi .score-section { padding:14px 16px 10px; border-bottom:1px solid; }
+.pi .day .score-section { border-color:#eee; }
+.pi .night .score-section { border-color:rgba(255,255,255,0.07); }
+.pi .s-tag { font-size:8px; font-weight:800; letter-spacing:2px; margin-bottom:4px; }
+.pi .day .s-tag { color:rgba(0,0,0,0.28); }
+.pi .night .s-tag { color:rgba(255,255,255,0.28); }
+.pi .s-num { font-size:72px; font-weight:900; line-height:0.88; letter-spacing:-5px; }
+.pi .day .s-num { color:#111; }
+.pi .night .s-num { color:#fff; }
+.pi .s-status { font-size:11px; font-weight:800; color:#C8102E; margin-top:6px; }
+.pi .s-bar { height:2px; margin-top:8px; border-radius:1px; overflow:hidden; }
+.pi .day .s-bar { background:#eee; }
+.pi .night .s-bar { background:rgba(255,255,255,0.07); }
+.pi .s-fill { height:2px; background:#C8102E; width:72%; border-radius:1px; }
+.pi .metrics { display:flex; flex-direction:column; gap:1px; padding:0; }
+.pi .m { display:flex; align-items:center; justify-content:space-between; padding:10px 16px; border-bottom:1px solid; }
+.pi .day .m { border-color:#f5f5f5; }
+.pi .night .m { border-color:rgba(255,255,255,0.05); }
+.pi .m-n { font-size:10px; font-weight:700; }
+.pi .day .m-n { color:rgba(0,0,0,0.45); }
+.pi .night .m-n { color:rgba(255,255,255,0.35); }
+.pi .m-v { font-size:15px; font-weight:900; }
+.pi .ai-blk { padding:12px 16px; flex:1; }
+.pi .ai-tag { font-size:8px; font-weight:800; letter-spacing:2px; margin-bottom:6px; }
+.pi .day .ai-tag { color:rgba(0,0,0,0.25); }
+.pi .night .ai-tag { color:rgba(255,255,255,0.22); }
+.pi .ai-msg { font-size:11px; line-height:1.75; }
+.pi .day .ai-msg { color:rgba(0,0,0,0.55); }
+.pi .night .ai-msg { color:rgba(255,255,255,0.5); }
+.pi .bnav { display:flex; justify-content:space-around; padding:10px 6px 18px; border-top:1px solid; margin-top:auto; }
+.pi .day .bnav { border-color:#eee; }
+.pi .night .bnav { border-color:rgba(255,255,255,0.06); }
+.pi .ni { display:flex; flex-direction:column; align-items:center; gap:3px; }
+.pi .ni-i { font-size:17px; opacity:0.3; }
+.pi .ni-i.on { opacity:1; }
+.pi .ni-l { font-size:8px; font-weight:700; opacity:0.25; }
+.pi .ni-l.on { opacity:1; color:#C8102E; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   J — SPORTS NEWSPAPER
+   新聞レイアウト・タイポグラフィ主役
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.pj { background:#fffef9; box-shadow:0 32px 64px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.07); }
+.pj .top-bar { background:#111; padding:10px 22px; display:flex; justify-content:space-between; align-items:center; }
+.pj .tb-logo { color:#fff; font-size:16px; font-weight:900; letter-spacing:4px; }
+.pj .tb-date { color:rgba(255,255,255,0.45); font-size:10px; font-weight:700; }
+.pj .red-bar { height:3px; background:#C8102E; }
+.pj .headline { padding:20px 22px 14px; border-bottom:2px solid #111; }
+.pj .hl-kicker { font-size:10px; font-weight:800; letter-spacing:2px; color:#C8102E; margin-bottom:6px; }
+.pj .hl-main { color:#111; font-size:42px; font-weight:900; line-height:1; letter-spacing:-3px; margin-bottom:4px; }
+.pj .hl-sub { font-size:14px; font-weight:700; color:#333; letter-spacing:-0.3px; }
+.pj .hl-rule { color:rgba(0,0,0,0.3); font-size:11px; margin-top:10px; line-height:1.6; }
+.pj .cols { display:flex; gap:0; padding:0; border-bottom:1px solid #ddd; }
+.pj .col { flex:1; padding:14px 16px; border-right:1px solid #ddd; }
+.pj .col:last-child { border-right:none; }
+.pj .col-head { font-size:9px; font-weight:800; letter-spacing:2px; color:#C8102E; margin-bottom:6px; }
+.pj .col-val { font-size:28px; font-weight:900; color:#111; letter-spacing:-1px; }
+.pj .col-label { font-size:10px; color:#666; margin-top:2px; font-weight:600; }
+.pj .ai-col { padding:14px 22px; border-bottom:1px solid #ddd; }
+.pj .ai-kicker { font-size:9px; font-weight:800; letter-spacing:2px; color:#111; background:#FFD600; display:inline-block; padding:2px 8px; margin-bottom:8px; }
+.pj .ai-body { font-size:12px; line-height:1.8; color:#333; }
+.pj .ai-body strong { color:#111; font-weight:800; }
+.pj .actions { padding:12px 22px; display:flex; flex-direction:column; gap:0; }
+.pj .act { display:flex; justify-content:space-between; align-items:center; padding:11px 0; border-bottom:1px solid #eee; }
+.pj .act:last-child { border:none; }
+.pj .act-l { display:flex; gap:10px; align-items:center; }
+.pj .act-n-idx { font-size:10px; font-weight:800; color:#C8102E; width:16px; }
+.pj .act-name { font-size:12px; font-weight:700; color:#111; }
+.pj .act-arr { font-size:12px; color:#999; }
+.pj .bnav { display:flex; justify-content:space-around; padding:12px 8px 22px; background:#111; margin-top:auto; }
+.pj .ni { display:flex; flex-direction:column; align-items:center; gap:4px; }
+.pj .ni-i { font-size:20px; opacity:0.4; filter:invert(1); }
+.pj .ni-i.on { opacity:1; }
+.pj .ni-l { font-size:9px; font-weight:700; color:rgba(255,255,255,0.3); }
+.pj .ni-l.on { color:#C8102E; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   K — DASHBOARD (グラフ重視)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.pk { background:#0c1117; box-shadow:0 32px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06); }
+.pk .sb { padding:14px 22px 4px; display:flex; justify-content:space-between; color:rgba(255,255,255,0.28); font-size:11px; }
+.pk .header { padding:6px 20px 10px; display:flex; justify-content:space-between; align-items:center; }
+.pk .logo { color:#fff; font-size:13px; font-weight:900; letter-spacing:3px; }
+.pk .header-r { display:flex; gap:6px; }
+.pk .hb { width:34px; height:34px; border-radius:10px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:center; font-size:15px; }
+/* score row */
+.pk .score-row { padding:8px 20px 14px; display:flex; align-items:flex-end; gap:12px; border-bottom:1px solid rgba(255,255,255,0.06); }
+.pk .sc-left { flex:1; }
+.pk .sc-tag { color:rgba(255,255,255,0.28); font-size:10px; font-weight:700; letter-spacing:2px; margin-bottom:4px; }
+.pk .sc-num { color:#fff; font-size:80px; font-weight:900; line-height:0.9; letter-spacing:-6px; }
+.pk .sc-right { padding-bottom:8px; display:flex; flex-direction:column; gap:6px; align-items:flex-end; }
+.pk .sc-badge { background:rgba(200,16,46,0.2); border:1px solid rgba(200,16,46,0.4); border-radius:8px; padding:4px 10px; color:#FF6B6B; font-size:11px; font-weight:800; }
+.pk .sc-sub { color:rgba(255,255,255,0.3); font-size:11px; text-align:right; }
+/* chart section */
+.pk .chart-section { padding:14px 20px; border-bottom:1px solid rgba(255,255,255,0.06); }
+.pk .cs-label { color:rgba(255,255,255,0.28); font-size:10px; font-weight:700; letter-spacing:1px; margin-bottom:10px; display:flex; justify-content:space-between; }
+.pk .bars { display:flex; align-items:flex-end; gap:6px; height:70px; padding-bottom:18px; }
+.pk .bar { flex:1; border-radius:4px 4px 0 0; min-height:4px; position:relative; }
+.pk .bl { position:absolute; bottom:-16px; left:0; right:0; text-align:center; color:rgba(255,255,255,0.25); font-size:9px; }
+/* ring row */
+.pk .rings { display:flex; gap:8px; padding:12px 20px; border-bottom:1px solid rgba(255,255,255,0.06); }
+.pk .ring-card { flex:1; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); border-radius:14px; padding:12px 8px; text-align:center; }
+.pk .rc-svg { display:block; margin:0 auto 4px; }
+.pk .rc-val { color:#fff; font-size:16px; font-weight:900; }
+.pk .rc-label { color:rgba(255,255,255,0.3); font-size:9px; font-weight:700; margin-top:2px; }
+/* ai */
+.pk .ai { margin:10px 20px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); border-radius:16px; padding:14px; display:flex; gap:10px; }
+.pk .ai-av { width:34px; height:34px; border-radius:10px; background:linear-gradient(135deg,#4FC3F7,#0288D1); display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+.pk .ai-t { color:#4FC3F7; font-size:9px; font-weight:800; letter-spacing:1px; margin-bottom:3px; }
+.pk .ai-m { color:rgba(255,255,255,0.5); font-size:11px; line-height:1.7; }
+/* stretch */
+.pk .stretch { margin:0 20px 12px; background:rgba(200,16,46,0.08); border:1px solid rgba(200,16,46,0.22); border-radius:14px; padding:12px 16px; display:flex; justify-content:space-between; align-items:center; }
+.pk .str-t { color:#fff; font-size:12px; font-weight:800; }
+.pk .str-a { color:rgba(200,16,46,0.8); font-size:12px; font-weight:800; }
+/* bnav */
+.pk .bnav { margin:0 18px 20px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); border-radius:24px; padding:9px 4px; display:flex; justify-content:space-around; }
+.pk .ni { display:flex; flex-direction:column; align-items:center; gap:4px; padding:4px 10px; border-radius:14px; }
+.pk .ni.on { background:rgba(79,195,247,0.1); }
+.pk .ni-i { font-size:19px; opacity:0.3; }
+.pk .ni.on .ni-i { opacity:1; }
+.pk .ni-l { font-size:8px; font-weight:700; color:rgba(255,255,255,0.2); }
+.pk .ni.on .ni-l { color:#4FC3F7; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   L — COLORFUL (機能ごとに色)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.pl { background:#0d0d0d; box-shadow:0 32px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06); }
+.pl .sb { padding:14px 22px 4px; display:flex; justify-content:space-between; color:rgba(255,255,255,0.28); font-size:11px; }
+.pl .header { padding:6px 22px 10px; display:flex; justify-content:space-between; align-items:center; }
+.pl .logo { color:#fff; font-size:14px; font-weight:900; letter-spacing:3px; }
+.pl .greeting { color:rgba(255,255,255,0.35); font-size:12px; }
+/* big score — full color block */
+.pl .score-block { margin:0 18px 14px; border-radius:24px; padding:22px; position:relative; overflow:hidden; background:linear-gradient(135deg,#C8102E,#8b0000); }
+.pl .sb-glow { position:absolute; width:200px; height:200px; background:radial-gradient(circle,rgba(255,255,255,0.15) 0%,transparent 70%); top:-60px; right:-40px; }
+.pl .sb-label { color:rgba(255,255,255,0.6); font-size:10px; font-weight:800; letter-spacing:2px; margin-bottom:6px; }
+.pl .sb-num { color:#fff; font-size:86px; font-weight:900; line-height:0.88; letter-spacing:-6px; display:block; text-shadow:0 4px 20px rgba(0,0,0,0.3); }
+.pl .sb-row { display:flex; justify-content:space-between; align-items:center; margin-top:10px; }
+.pl .sb-status { color:rgba(255,255,255,0.9); font-size:13px; font-weight:800; }
+.pl .sb-sub { color:rgba(255,255,255,0.5); font-size:11px; }
+/* color cards */
+.pl .color-cards { display:flex; gap:8px; padding:0 18px 12px; }
+.pl .cc { flex:1; border-radius:18px; padding:14px 10px; display:flex; flex-direction:column; gap:4px; }
+.pl .cc-i { font-size:22px; }
+.pl .cc-v { color:#fff; font-size:19px; font-weight:900; }
+.pl .cc-l { color:rgba(255,255,255,0.55); font-size:9px; font-weight:700; }
+/* feature row */
+.pl .feat-row { display:flex; gap:8px; padding:0 18px 12px; }
+.pl .feat { flex:1; border-radius:18px; padding:14px 12px; }
+.pl .feat-icon { font-size:26px; margin-bottom:8px; }
+.pl .feat-name { color:#fff; font-size:12px; font-weight:800; margin-bottom:4px; }
+.pl .feat-val { font-size:11px; font-weight:700; opacity:0.7; color:#fff; }
+/* ai */
+.pl .ai { margin:0 18px 12px; background:rgba(255,255,255,0.06); border-radius:18px; padding:14px; display:flex; gap:10px; }
+.pl .ai-av { width:36px; height:36px; border-radius:12px; background:linear-gradient(135deg,#A78BFA,#7C3AED); display:flex; align-items:center; justify-content:center; font-size:17px; flex-shrink:0; }
+.pl .ai-t { color:#A78BFA; font-size:10px; font-weight:800; letter-spacing:1px; margin-bottom:3px; }
+.pl .ai-m { color:rgba(255,255,255,0.55); font-size:11px; line-height:1.7; }
+/* stretch */
+.pl .stretch { margin:0 18px 14px; background:rgba(255,69,58,0.12); border:1px solid rgba(255,69,58,0.28); border-radius:16px; padding:13px 16px; display:flex; justify-content:space-between; align-items:center; }
+.pl .str-t { color:#fff; font-size:12px; font-weight:800; }
+.pl .str-a { color:#FF6B6B; font-size:13px; font-weight:800; }
+/* bnav */
+.pl .bnav { margin:0 18px 20px; background:rgba(255,255,255,0.05); border-radius:24px; padding:9px 4px; display:flex; justify-content:space-around; border:1px solid rgba(255,255,255,0.07); }
+.pl .ni { display:flex; flex-direction:column; align-items:center; gap:4px; padding:4px 10px; border-radius:14px; }
+.pl .ni.on { background:rgba(167,139,250,0.12); }
+.pl .ni-i { font-size:19px; opacity:0.3; }
+.pl .ni.on .ni-i { opacity:1; }
+.pl .ni-l { font-size:8px; font-weight:700; color:rgba(255,255,255,0.2); }
+.pl .ni.on .ni-l { color:#A78BFA; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   M — GLASSMORPHISM (すりガラス)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.pm-wrap {
+  width:390px; min-height:780px; position:relative;
+  border-radius:52px; overflow:hidden;
+  box-shadow:0 32px 64px rgba(0,0,0,0.7);
+}
+.pm-bg {
+  position:absolute; inset:0;
+  background: linear-gradient(135deg, #1a0030 0%, #000d20 40%, #001a10 80%, #200010 100%);
+}
+.pm-blob1 { position:absolute; width:300px; height:300px; background:radial-gradient(circle,rgba(139,92,246,0.45) 0%,transparent 70%); top:-60px; left:-60px; border-radius:50%; }
+.pm-blob2 { position:absolute; width:250px; height:250px; background:radial-gradient(circle,rgba(16,200,100,0.35) 0%,transparent 70%); bottom:100px; right:-40px; border-radius:50%; }
+.pm-blob3 { position:absolute; width:200px; height:200px; background:radial-gradient(circle,rgba(200,16,46,0.3) 0%,transparent 70%); top:250px; left:60px; border-radius:50%; }
+.pm { position:relative; z-index:1; display:flex; flex-direction:column; height:100%; }
+.pm .sb { padding:14px 22px 4px; display:flex; justify-content:space-between; color:rgba(255,255,255,0.4); font-size:11px; }
+.pm .header { padding:6px 22px 12px; display:flex; justify-content:space-between; align-items:center; }
+.pm .logo { color:#fff; font-size:14px; font-weight:900; letter-spacing:3px; }
+.pm .notif { width:38px; height:38px; border-radius:12px; background:rgba(255,255,255,0.12); backdrop-filter:blur(12px); border:1px solid rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; font-size:17px; }
+/* score glass card */
+.pm .score-card { margin:0 18px 14px; background:rgba(255,255,255,0.1); backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.2); border-radius:26px; padding:20px; }
+.pm .sc-tag { color:rgba(255,255,255,0.5); font-size:10px; font-weight:800; letter-spacing:2px; margin-bottom:8px; }
+.pm .sc-num { color:#fff; font-size:84px; font-weight:900; line-height:0.88; letter-spacing:-6px; display:block; text-shadow:0 0 40px rgba(255,255,255,0.2); margin-bottom:10px; }
+.pm .sc-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.pm .sc-status { color:#fff; font-size:14px; font-weight:800; }
+.pm .sc-badge { background:rgba(200,16,46,0.35); border:1px solid rgba(255,100,100,0.4); border-radius:10px; padding:4px 10px; color:#FFB3B3; font-size:11px; font-weight:800; }
+.pm .sc-bar { height:4px; background:rgba(255,255,255,0.15); border-radius:2px; overflow:hidden; }
+.pm .sc-fill { height:4px; background:linear-gradient(90deg,rgba(255,255,255,0.6),#FF453A); width:72%; border-radius:2px; }
+/* glass cards row */
+.pm .glass-row { display:flex; gap:8px; padding:0 18px 12px; }
+.pm .gc { flex:1; background:rgba(255,255,255,0.08); backdrop-filter:blur(12px); border:1px solid rgba(255,255,255,0.15); border-radius:18px; padding:13px 8px; text-align:center; }
+.pm .gc-i { font-size:20px; margin-bottom:5px; }
+.pm .gc-v { color:#fff; font-size:18px; font-weight:900; }
+.pm .gc-l { color:rgba(255,255,255,0.45); font-size:9px; font-weight:700; margin-top:2px; }
+/* ai glass */
+.pm .ai { margin:0 18px 12px; background:rgba(255,255,255,0.08); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.18); border-radius:20px; padding:15px; display:flex; gap:12px; }
+.pm .ai-av { width:38px; height:38px; border-radius:12px; background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.25); display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+.pm .ai-t { color:rgba(255,255,255,0.55); font-size:10px; font-weight:800; letter-spacing:1px; margin-bottom:3px; }
+.pm .ai-m { color:rgba(255,255,255,0.65); font-size:12px; line-height:1.75; }
+/* stretch glass */
+.pm .stretch { margin:0 18px 14px; background:rgba(200,16,46,0.18); backdrop-filter:blur(12px); border:1px solid rgba(255,100,100,0.25); border-radius:18px; padding:14px 18px; display:flex; justify-content:space-between; align-items:center; }
+.pm .str-t { color:#fff; font-size:13px; font-weight:800; }
+.pm .str-btn { background:rgba(200,16,46,0.35); border:1px solid rgba(255,100,100,0.35); border-radius:10px; padding:6px 14px; color:#FFB3B3; font-size:11px; font-weight:800; }
+/* bnav glass */
+.pm .bnav { margin:0 18px 20px; background:rgba(255,255,255,0.08); backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.15); border-radius:26px; padding:10px 4px; display:flex; justify-content:space-around; }
+.pm .ni { display:flex; flex-direction:column; align-items:center; gap:4px; padding:5px 10px; border-radius:16px; }
+.pm .ni.on { background:rgba(255,255,255,0.12); }
+.pm .ni-i { font-size:19px; opacity:0.35; }
+.pm .ni.on .ni-i { opacity:1; }
+.pm .ni-l { font-size:8px; font-weight:700; color:rgba(255,255,255,0.28); }
+.pm .ni.on .ni-l { color:#fff; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   N — BOLD TYPE ONLY (文字だけ)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.pn { background:#000; box-shadow:0 32px 64px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.05); }
+.pn .sb { padding:14px 28px 4px; display:flex; justify-content:space-between; color:rgba(255,255,255,0.25); font-size:11px; font-family:monospace; }
+.pn .header { padding:8px 28px 14px; border-bottom:1px solid rgba(255,255,255,0.08); }
+.pn .h-row { display:flex; justify-content:space-between; align-items:baseline; }
+.pn .logo { color:#fff; font-size:22px; font-weight:900; letter-spacing:-1px; }
+.pn .date-tag { color:rgba(255,255,255,0.2); font-size:11px; font-weight:700; letter-spacing:1px; }
+/* huge score */
+.pn .score-section { padding:20px 28px 16px; border-bottom:1px solid rgba(255,255,255,0.07); }
+.pn .risk-label { color:rgba(255,255,255,0.18); font-size:11px; font-weight:800; letter-spacing:4px; text-transform:uppercase; margin-bottom:4px; }
+.pn .huge-num { color:#fff; font-size:120px; font-weight:900; line-height:0.85; letter-spacing:-10px; display:block; margin-bottom:14px; }
+.pn .status-line { display:flex; align-items:center; gap:12px; }
+.pn .status-bar { flex:1; height:2px; background:rgba(255,255,255,0.08); border-radius:1px; overflow:hidden; }
+.pn .status-fill { height:2px; width:72%; background:#fff; border-radius:1px; }
+.pn .status-txt { color:#fff; font-size:12px; font-weight:800; white-space:nowrap; }
+/* data rows */
+.pn .data-rows { border-bottom:1px solid rgba(255,255,255,0.07); }
+.pn .dr { display:flex; align-items:baseline; justify-content:space-between; padding:13px 28px; border-bottom:1px solid rgba(255,255,255,0.05); }
+.pn .dr:last-child { border:none; }
+.pn .dr-label { color:rgba(255,255,255,0.3); font-size:13px; font-weight:700; letter-spacing:0.5px; }
+.pn .dr-val { color:#fff; font-size:22px; font-weight:900; letter-spacing:-1px; }
+.pn .dr-val.bad { color:#C8102E; }
+.pn .dr-val.warn { color:#FF9500; }
+/* ai text block */
+.pn .ai-block { padding:18px 28px; border-bottom:1px solid rgba(255,255,255,0.07); }
+.pn .ai-label { color:rgba(255,255,255,0.18); font-size:10px; font-weight:800; letter-spacing:3px; margin-bottom:8px; }
+.pn .ai-text { color:rgba(255,255,255,0.6); font-size:15px; line-height:1.75; font-weight:500; }
+.pn .ai-text b { color:#fff; font-weight:900; }
+/* action list */
+.pn .actions { padding:12px 28px; display:flex; flex-direction:column; }
+.pn .act { display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid rgba(255,255,255,0.05); }
+.pn .act:last-child { border:none; }
+.pn .act-name { color:rgba(255,255,255,0.7); font-size:14px; font-weight:700; }
+.pn .act-arr { color:rgba(255,255,255,0.2); font-size:16px; }
+/* bnav */
+.pn .bnav { display:flex; justify-content:space-around; padding:12px 24px 24px; border-top:1px solid rgba(255,255,255,0.07); }
+.pn .ni { display:flex; flex-direction:column; align-items:center; gap:4px; }
+.pn .ni-label { font-size:9px; font-weight:800; letter-spacing:1px; color:rgba(255,255,255,0.2); text-transform:uppercase; }
+.pn .ni-label.on { color:#fff; }
+.pn .ni-dot { width:4px; height:4px; border-radius:2px; background:#C8102E; }
+</style>
+</head>
+<body>
+
+<!-- I: DUAL MODE -->
+<div class="sec">
+  <div class="ct">CONCEPT I</div>
+  <div class="cn" style="color:#fff">DUAL MODE — 昼は白・夜は黒</div>
+  <div class="cd" style="color:rgba(255,255,255,0.4)">時間帯で自動切り替え。左が昼（白）、右が夜（黒）。</div>
+  <div class="pi">
+    <!-- DAY -->
+    <div class="pi half day">
+      <div class="pi sb"><span>9:41</span><span>100%</span></div>
+      <div class="pi mode-label">☀️ DAY</div>
+      <div class="pi score-section"><div class="pi s-tag">RISK SCORE</div><div class="pi s-num">72</div><div class="pi s-status">🔴 高リスク</div><div class="pi s-bar"><div class="pi s-fill"></div></div></div>
+      <div class="pi metrics">
+        <div class="pi m"><span class="pi m-n">疲労</span><span class="pi m-v" style="color:#C8102E">4/5</span></div>
+        <div class="pi m"><span class="pi m-n">睡眠</span><span class="pi m-v" style="color:#FF9500">6h</span></div>
+        <div class="pi m"><span class="pi m-n">体調</span><span class="pi m-v" style="color:#34C759">3/5</span></div>
+        <div class="pi m"><span class="pi m-n">天気</span><span class="pi m-v" style="color:#888">+12</span></div>
+      </div>
+      <div class="pi ai-blk"><div class="pi ai-tag">AI COACH</div><div class="pi ai-msg">疲労が高いため今日はジョグ30分を推奨します。</div></div>
+      <div class="pi bnav">
+        <div class="pi ni"><span class="pi ni-i on">🏠</span><span class="pi ni-l on">HOME</span></div>
+        <div class="pi ni"><span class="pi ni-i">📊</span><span class="pi ni-l">LOG</span></div>
+        <div class="pi ni"><span class="pi ni-i">🤖</span><span class="pi ni-l">AI</span></div>
+        <div class="pi ni"><span class="pi ni-i">🏆</span><span class="pi ni-l">RACE</span></div>
+      </div>
+    </div>
+    <!-- NIGHT -->
+    <div class="pi half night">
+      <div class="pi sb"><span>21:30</span><span>100%</span></div>
+      <div class="pi mode-label">🌙 NIGHT</div>
+      <div class="pi score-section"><div class="pi s-tag">RISK SCORE</div><div class="pi s-num">72</div><div class="pi s-status">🔴 高リスク</div><div class="pi s-bar"><div class="pi s-fill"></div></div></div>
+      <div class="pi metrics">
+        <div class="pi m"><span class="pi m-n">疲労</span><span class="pi m-v" style="color:#C8102E">4/5</span></div>
+        <div class="pi m"><span class="pi m-n">睡眠</span><span class="pi m-v" style="color:#FF9500">6h</span></div>
+        <div class="pi m"><span class="pi m-n">体調</span><span class="pi m-v" style="color:#34C759">3/5</span></div>
+        <div class="pi m"><span class="pi m-n">天気</span><span class="pi m-v" style="color:#888">+12</span></div>
+      </div>
+      <div class="pi ai-blk"><div class="pi ai-tag">AI COACH</div><div class="pi ai-msg">疲労が高いため今日はジョグ30分を推奨します。</div></div>
+      <div class="pi bnav">
+        <div class="pi ni"><span class="pi ni-i on">🏠</span><span class="pi ni-l on">HOME</span></div>
+        <div class="pi ni"><span class="pi ni-i">📊</span><span class="pi ni-l">LOG</span></div>
+        <div class="pi ni"><span class="pi ni-i">🤖</span><span class="pi ni-l">AI</span></div>
+        <div class="pi ni"><span class="pi ni-i">🏆</span><span class="pi ni-l">RACE</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- J: SPORTS NEWSPAPER -->
+<div class="sec">
+  <div class="ct">CONCEPT J</div>
+  <div class="cn" style="color:#fff">SPORTS NEWSPAPER — スポーツ新聞</div>
+  <div class="cd" style="color:rgba(255,255,255,0.4)">見出し・段組み・活字。スポーツ新聞・雑誌レイアウト。</div>
+  <div class="phone pj">
+    <div class="pj top-bar"><span class="pj tb-logo">sCORE</span><span class="pj tb-date">2026年4月26日（土）</span></div>
+    <div class="pj red-bar"></div>
+    <div class="pj headline">
+      <div class="pj hl-kicker">INJURY RISK SCORE — TODAY</div>
+      <div class="pj hl-main">72</div>
+      <div class="pj hl-sub">高リスク — 本日は強度を落とすこと</div>
+      <div class="pj hl-rule">練習負荷・睡眠・疲労・天気を統合分析した結果、本日の怪我リスクスコアは72（高リスク）です。インターバルトレーニングは避け、回復を優先してください。</div>
+    </div>
+    <div class="pj cols">
+      <div class="pj col"><div class="pj col-head">FATIGUE</div><div class="pj col-val" style="color:#C8102E">4/5</div><div class="pj col-label">疲労度</div></div>
+      <div class="pj col"><div class="pj col-head">SLEEP</div><div class="pj col-val" style="color:#FF9500">6h</div><div class="pj col-label">睡眠時間</div></div>
+      <div class="pj col"><div class="pj col-head">WEATHER</div><div class="pj col-val" style="color:#555">+12</div><div class="pj col-label">天気加算</div></div>
+    </div>
+    <div class="pj ai-col">
+      <div class="pj ai-kicker">AI COACH</div>
+      <div class="pj ai-body">今日は<strong>インターバルを回避</strong>してジョグ30分を推奨。直近3日の負荷が高すぎる。</div>
+    </div>
+    <div class="pj actions">
+      <div class="pj act"><div class="pj act-l"><span class="pj act-n-idx">01</span><span class="pj act-name">🤸 ストレッチでリスクを下げる</span></div><span class="pj act-arr">→</span></div>
+      <div class="pj act"><div class="pj act-l"><span class="pj act-n-idx">02</span><span class="pj act-name">📝 今日の体調を記録する</span></div><span class="pj act-arr">→</span></div>
+      <div class="pj act"><div class="pj act-l"><span class="pj act-n-idx">03</span><span class="pj act-name">🏃 練習を記録する</span></div><span class="pj act-arr">→</span></div>
+    </div>
+    <div class="pj bnav">
+      <div class="pj ni"><span class="pj ni-i on">🏠</span><span class="pj ni-l on">HOME</span></div>
+      <div class="pj ni"><span class="pj ni-i">📊</span><span class="pj ni-l">LOG</span></div>
+      <div class="pj ni"><span class="pj ni-i">🤖</span><span class="pj ni-l">AI</span></div>
+      <div class="pj ni"><span class="pj ni-i">🏆</span><span class="pj ni-l">RACE</span></div>
+      <div class="pj ni"><span class="pj ni-i">👤</span><span class="pj ni-l">ME</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- K: DASHBOARD -->
+<div class="sec">
+  <div class="ct">CONCEPT K</div>
+  <div class="cn" style="color:#fff">DASHBOARD — グラフ・データ重視</div>
+  <div class="cd" style="color:rgba(255,255,255,0.4)">棒グラフ・リングチャートで週間データを可視化。分析ツール感。</div>
+  <div class="phone pk">
+    <div class="pk sb"><span>9:41</span><span>●●● 100%</span></div>
+    <div class="pk header">
+      <span class="pk logo">sCORE</span>
+      <div class="pk header-r"><div class="pk hb">📅</div><div class="pk hb">🔔</div></div>
+    </div>
+    <div class="pk score-row">
+      <div class="pk sc-left"><div class="pk sc-tag">TODAY'S RISK</div><div class="pk sc-num">72</div></div>
+      <div class="pk sc-right"><div class="pk sc-badge">🔴 高リスク</div><div class="pk sc-sub">先週比 +8</div></div>
+    </div>
+    <div class="pk chart-section">
+      <div class="pk cs-label"><span>7日間リスク推移</span><span style="color:rgba(79,195,247,0.6);font-size:9px">週平均 58</span></div>
+      <div class="pk bars">
+        <div class="pk bar" style="height:45%;background:rgba(52,199,89,0.6)"><span class="pk bl">月</span></div>
+        <div class="pk bar" style="height:58%;background:rgba(255,149,0,0.6)"><span class="pk bl">火</span></div>
+        <div class="pk bar" style="height:72%;background:rgba(255,69,58,0.7)"><span class="pk bl">水</span></div>
+        <div class="pk bar" style="height:60%;background:rgba(255,149,0,0.6)"><span class="pk bl">木</span></div>
+        <div class="pk bar" style="height:85%;background:rgba(255,69,58,0.8)"><span class="pk bl">金</span></div>
+        <div class="pk bar" style="height:68%;background:rgba(255,149,0,0.65)"><span class="pk bl">土</span></div>
+        <div class="pk bar" style="height:92%;background:rgba(255,23,68,0.85);border:1px solid rgba(255,23,68,0.5)"><span class="pk bl" style="color:#FF453A">今</span></div>
+      </div>
+    </div>
+    <div class="pk rings">
+      <div class="pk ring-card">
+        <svg class="pk rc-svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="18" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="5"/><circle cx="24" cy="24" r="18" fill="none" stroke="#FF453A" stroke-width="5" stroke-linecap="round" stroke-dasharray="113" stroke-dashoffset="31" transform="rotate(-90 24 24)"/></svg>
+        <div class="pk rc-val" style="color:#FF453A">4/5</div><div class="pk rc-label">疲労</div>
+      </div>
+      <div class="pk ring-card">
+        <svg class="pk rc-svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="18" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="5"/><circle cx="24" cy="24" r="18" fill="none" stroke="#FF9500" stroke-width="5" stroke-linecap="round" stroke-dasharray="113" stroke-dashoffset="47" transform="rotate(-90 24 24)"/></svg>
+        <div class="pk rc-val" style="color:#FF9500">6h</div><div class="pk rc-label">睡眠</div>
+      </div>
+      <div class="pk ring-card">
+        <svg class="pk rc-svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="18" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="5"/><circle cx="24" cy="24" r="18" fill="none" stroke="#34C759" stroke-width="5" stroke-linecap="round" stroke-dasharray="113" stroke-dashoffset="68" transform="rotate(-90 24 24)"/></svg>
+        <div class="pk rc-val" style="color:#34C759">3/5</div><div class="pk rc-label">体調</div>
+      </div>
+      <div class="pk ring-card">
+        <svg class="pk rc-svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="18" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="5"/><circle cx="24" cy="24" r="18" fill="none" stroke="#4FC3F7" stroke-width="5" stroke-linecap="round" stroke-dasharray="113" stroke-dashoffset="84" transform="rotate(-90 24 24)"/></svg>
+        <div class="pk rc-val" style="color:#4FC3F7">+12</div><div class="pk rc-label">天気</div>
+      </div>
+    </div>
+    <div class="pk ai"><div class="pk ai-av">🤖</div><div><div class="pk ai-t">AI ANALYSIS</div><div class="pk ai-m">疲労が高い。今日はジョグ30分を推奨。インターバルは明日以降に。</div></div></div>
+    <div class="pk stretch"><span class="pk str-t">🤸 ストレッチでリスクを下げる</span><span class="pk str-a">→</span></div>
+    <div class="pk bnav">
+      <div class="pk ni on"><span class="pk ni-i">🏠</span><span class="pk ni-l">HOME</span></div>
+      <div class="pk ni"><span class="pk ni-i">📊</span><span class="pk ni-l">LOG</span></div>
+      <div class="pk ni"><span class="pk ni-i">🤖</span><span class="pk ni-l">AI</span></div>
+      <div class="pk ni"><span class="pk ni-i">🏆</span><span class="pk ni-l">RACE</span></div>
+      <div class="pk ni"><span class="pk ni-i">👤</span><span class="pk ni-l">ME</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- L: COLORFUL -->
+<div class="sec">
+  <div class="ct">CONCEPT L</div>
+  <div class="cn" style="color:#fff">COLORFUL — 機能ごとに鮮やかな色</div>
+  <div class="cd" style="color:rgba(255,255,255,0.4)">スコアカードは赤グラデ、各機能カードに固有カラー。ポップ・エネルギッシュ。</div>
+  <div class="phone pl">
+    <div class="pl sb"><span>9:41</span><span>●●● 100%</span></div>
+    <div class="pl header"><span class="pl logo">sCORE</span><span class="pl greeting">おはよう、田中さん 👋</span></div>
+    <div class="pl score-block">
+      <div class="pl sb-glow"></div>
+      <div class="pl sb-label">INJURY RISK SCORE</div>
+      <span class="pl sb-num">72</span>
+      <div class="pl sb-row"><span class="pl sb-status">🔴 高リスク</span><span class="pl sb-sub">天気 +12pt 含む</span></div>
+    </div>
+    <div class="pl color-cards">
+      <div class="pl cc" style="background:linear-gradient(135deg,rgba(255,69,58,0.25),rgba(255,69,58,0.1));border:1px solid rgba(255,69,58,0.3)"><div class="pl cc-i">⚡</div><div class="pl cc-v" style="color:#FF6B6B">4/5</div><div class="pl cc-l">疲労</div></div>
+      <div class="pl cc" style="background:linear-gradient(135deg,rgba(175,82,222,0.22),rgba(175,82,222,0.08));border:1px solid rgba(175,82,222,0.28)"><div class="pl cc-i">😴</div><div class="pl cc-v" style="color:#CF9FFF">6h</div><div class="pl cc-l">睡眠</div></div>
+      <div class="pl cc" style="background:linear-gradient(135deg,rgba(52,199,89,0.2),rgba(52,199,89,0.08));border:1px solid rgba(52,199,89,0.25)"><div class="pl cc-i">💪</div><div class="pl cc-v" style="color:#34C759">3/5</div><div class="pl cc-l">体調</div></div>
+    </div>
+    <div class="pl feat-row">
+      <div class="pl feat" style="background:linear-gradient(135deg,rgba(74,159,255,0.2),rgba(74,159,255,0.08));border:1px solid rgba(74,159,255,0.25)"><div class="pl feat-icon">🤖</div><div class="pl feat-name">AIコーチ</div><div class="pl feat-val" style="color:#4A9FFF">提案あり</div></div>
+      <div class="pl feat" style="background:linear-gradient(135deg,rgba(255,214,10,0.18),rgba(255,214,10,0.07));border:1px solid rgba(255,214,10,0.22)"><div class="pl feat-icon">🏆</div><div class="pl feat-name">試合まで</div><div class="pl feat-val" style="color:#FFD60A">50日</div></div>
+    </div>
+    <div class="pl ai"><div class="pl ai-av">🤖</div><div><div class="pl ai-t">AI COACH</div><div class="pl ai-m">疲労が高い。今日はジョグ30分を推奨。インターバルは明日以降に。</div></div></div>
+    <div class="pl stretch"><span class="pl str-t">🤸 ストレッチでリスクを下げる</span><span class="pl str-a">→</span></div>
+    <div class="pl bnav">
+      <div class="pl ni on"><span class="pl ni-i">🏠</span><span class="pl ni-l">HOME</span></div>
+      <div class="pl ni"><span class="pl ni-i">📊</span><span class="pl ni-l">LOG</span></div>
+      <div class="pl ni"><span class="pl ni-i">🤖</span><span class="pl ni-l">AI</span></div>
+      <div class="pl ni"><span class="pl ni-i">🏆</span><span class="pl ni-l">RACE</span></div>
+      <div class="pl ni"><span class="pl ni-i">👤</span><span class="pl ni-l">ME</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- M: GLASSMORPHISM -->
+<div class="sec">
+  <div class="ct">CONCEPT M</div>
+  <div class="cn" style="color:#fff">GLASSMORPHISM — すりガラス</div>
+  <div class="cd" style="color:rgba(255,255,255,0.4)">カラフルな背景にすりガラスカード。iOS 16 コントロールセンター感。</div>
+  <div class="pm-wrap">
+    <div class="pm-bg"></div>
+    <div class="pm-blob1"></div>
+    <div class="pm-blob2"></div>
+    <div class="pm-blob3"></div>
+    <div class="pm">
+      <div class="pm sb"><span>9:41</span><span>●●● 100%</span></div>
+      <div class="pm header"><span class="pm logo">sCORE</span><div class="pm notif">🔔</div></div>
+      <div class="pm score-card">
+        <div class="pm sc-tag">INJURY RISK SCORE</div>
+        <span class="pm sc-num">72</span>
+        <div class="pm sc-row"><span class="pm sc-status">高リスク</span><div class="pm sc-badge">🔴 強度を落とそう</div></div>
+        <div class="pm sc-bar"><div class="pm sc-fill"></div></div>
+      </div>
+      <div class="pm glass-row">
+        <div class="pm gc"><div class="pm gc-i">⚡</div><div class="pm gc-v" style="color:#FF6B6B">4/5</div><div class="pm gc-l">疲労</div></div>
+        <div class="pm gc"><div class="pm gc-i">😴</div><div class="pm gc-v" style="color:#FF9500">6h</div><div class="pm gc-l">睡眠</div></div>
+        <div class="pm gc"><div class="pm gc-i">💪</div><div class="pm gc-v" style="color:#34C759">3/5</div><div class="pm gc-l">体調</div></div>
+        <div class="pm gc"><div class="pm gc-i">🌧️</div><div class="pm gc-v" style="color:rgba(255,255,255,0.6)">+12</div><div class="pm gc-l">天気</div></div>
+      </div>
+      <div class="pm ai"><div class="pm ai-av">🤖</div><div><div class="pm ai-t">AI COACH</div><div class="pm ai-m">疲労が高いため今日はジョグ30分を推奨。インターバルは明日以降に。</div></div></div>
+      <div class="pm stretch"><span class="pm str-t">🤸 ストレッチでリスクを下げる</span><div class="pm str-btn">開始 →</div></div>
+      <div style="flex:1"></div>
+      <div class="pm bnav">
+        <div class="pm ni on"><span class="pm ni-i">🏠</span><span class="pm ni-l">HOME</span></div>
+        <div class="pm ni"><span class="pm ni-i">📊</span><span class="pm ni-l">LOG</span></div>
+        <div class="pm ni"><span class="pm ni-i">🤖</span><span class="pm ni-l">AI</span></div>
+        <div class="pm ni"><span class="pm ni-i">🏆</span><span class="pm ni-l">RACE</span></div>
+        <div class="pm ni"><span class="pm ni-i">👤</span><span class="pm ni-l">ME</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- N: BOLD TYPE ONLY -->
+<div class="sec">
+  <div class="ct">CONCEPT N</div>
+  <div class="cn" style="color:#fff">BOLD TYPE ONLY — 文字と数字だけ</div>
+  <div class="cd" style="color:rgba(255,255,255,0.4)">アイコン・カードなし。120pxの超巨大スコア。文字の大小だけで構成。</div>
+  <div class="phone pn">
+    <div class="pn sb"><span>09:41</span><span>100%</span></div>
+    <div class="pn header">
+      <div class="pn h-row">
+        <span class="pn logo">sCORE</span>
+        <span class="pn date-tag">APR 26</span>
+      </div>
+    </div>
+    <div class="pn score-section">
+      <div class="pn risk-label">INJURY RISK SCORE</div>
+      <span class="pn huge-num">72</span>
+      <div class="pn status-line">
+        <div class="pn status-bar"><div class="pn status-fill"></div></div>
+        <span class="pn status-txt">高リスク</span>
+      </div>
+    </div>
+    <div class="pn data-rows">
+      <div class="pn dr"><span class="pn dr-label">疲労</span><span class="pn dr-val bad">4 / 5</span></div>
+      <div class="pn dr"><span class="pn dr-label">睡眠</span><span class="pn dr-val warn">6h</span></div>
+      <div class="pn dr"><span class="pn dr-label">体調</span><span class="pn dr-val" style="color:rgba(255,255,255,0.6)">3 / 5</span></div>
+      <div class="pn dr"><span class="pn dr-label">天気加算</span><span class="pn dr-val" style="color:rgba(255,255,255,0.4)">+12</span></div>
+    </div>
+    <div class="pn ai-block">
+      <div class="pn ai-label">AI COACH</div>
+      <div class="pn ai-text">今日は<b>インターバルを避け</b>てジョグ30分を推奨。直近3日の負荷が高すぎる。</div>
+    </div>
+    <div class="pn actions">
+      <div class="pn act"><span class="pn act-name">🤸 ストレッチでリスクを下げる</span><span class="pn act-arr">→</span></div>
+      <div class="pn act"><span class="pn act-name">📝 今日の体調を記録する</span><span class="pn act-arr">→</span></div>
+      <div class="pn act"><span class="pn act-name">🏃 練習を記録する</span><span class="pn act-arr">→</span></div>
+    </div>
+    <div class="pn bnav">
+      <div class="pn ni"><span class="pn ni-dot"></span><span class="pn ni-label on">HOME</span></div>
+      <div class="pn ni"><span class="pn ni-label">LOG</span></div>
+      <div class="pn ni"><span class="pn ni-label">AI</span></div>
+      <div class="pn ni"><span class="pn ni-label">RACE</span></div>
+      <div class="pn ni"><span class="pn ni-label">ME</span></div>
+    </div>
+  </div>
+</div>
+
+<div style="color:rgba(255,255,255,0.2);font-size:12px;text-align:center;padding:40px;line-height:2.4">
+  Concept I〜N（全6案）<br>
+  Vol.1（A〜C）+ Vol.2（D〜H）+ Vol.3（I〜N）= <strong style="color:rgba(255,255,255,0.4)">全14案</strong><br>
+  White版（W1〜W4）も含めると <strong style="color:rgba(255,255,255,0.4)">全18案</strong><br><br>
+  「これで実装して」と言ってください
+</div>
+
+</body>
+</html>

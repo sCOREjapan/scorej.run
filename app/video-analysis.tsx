@@ -5,6 +5,7 @@ import {
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { BRAND, TEXT } from '../lib/theme'
 import { checkAdGate, recordUsage, grantRewardUse } from '../lib/adGate'
 import { isPremium } from '../lib/subscription'
 import AdGateModal from '../components/AdGateModal'
@@ -65,7 +66,7 @@ function PremiumGate() {
         <View style={{ width: 80, height: 80, borderRadius: 20, backgroundColor: '#E53E3E22', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E53E3E44' }}>
           <Ionicons name="videocam" size={36} color="#E53E3E" />
         </View>
-        <Text style={{ color: '#fff', fontSize: 22, fontWeight: '900', textAlign: 'center' }}>
+        <Text style={{ color: '#111827', fontSize: 22, fontWeight: '900', textAlign: 'center' }}>
           フォーム動画分析
         </Text>
         <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, textAlign: 'center', lineHeight: 22 }}>
@@ -79,16 +80,16 @@ function PremiumGate() {
           { icon: '🏋️', text: 'パーソナル練習メニュー自動生成' },
           { icon: '⚡', text: '高精度モデル（Claude Opus）使用' },
         ].map((item, i) => (
-          <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, alignSelf: 'stretch', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 14 }}>
+          <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, alignSelf: 'stretch', backgroundColor: '#f0f2f5', borderRadius: 12, padding: 14 }}>
             <Text style={{ fontSize: 20 }}>{item.icon}</Text>
-            <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>{item.text}</Text>
+            <Text style={{ color: '#111827', fontSize: 14, fontWeight: '600' }}>{item.text}</Text>
           </View>
         ))}
 
         {/* 料金 */}
         <View style={{ alignSelf: 'stretch', backgroundColor: 'rgba(229,62,62,0.1)', borderRadius: 16, padding: 20, borderWidth: 1, borderColor: 'rgba(229,62,62,0.3)', alignItems: 'center', gap: 8 }}>
           <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>プレミアムプラン</Text>
-          <Text style={{ color: '#fff', fontSize: 32, fontWeight: '900' }}>¥980<Text style={{ fontSize: 14, fontWeight: '400' }}>/月</Text></Text>
+          <Text style={{ color: '#111827', fontSize: 32, fontWeight: '900' }}>¥980<Text style={{ fontSize: 14, fontWeight: '400' }}>/月</Text></Text>
           <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11 }}>いつでもキャンセル可能</Text>
         </View>
 
@@ -714,13 +715,13 @@ function formatTime(sec: number) {
 
 /* ─── スタイル ─── */
 const s = StyleSheet.create({
-  bg:             { flex: 1, backgroundColor: '#0a0a0a' },
-  center:         { flex: 1, backgroundColor: '#0a0a0a', alignItems: 'center', justifyContent: 'center' },
+  bg:             { flex: 1, backgroundColor: '#f6f6f8' },
+  center:         { flex: 1, backgroundColor: '#f6f6f8', alignItems: 'center', justifyContent: 'center' },
   gray16:         { color: '#555', fontSize: 16, marginTop: 12 },
 
   /* upload */
   uploadCenter:   { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 28 },
-  uploadTitle:    { color: '#fff', fontSize: 24, fontWeight: '800', marginTop: 16 },
+  uploadTitle:    { color: '#111827', fontSize: 24, fontWeight: '800', marginTop: 16 },
   uploadSub:      { color: '#666', fontSize: 13, marginTop: 6, marginBottom: 24 },
   stepRow:        { flexDirection: 'row', gap: 16, marginBottom: 28 },
   stepItem:       { alignItems: 'center', width: 90 },
@@ -732,25 +733,25 @@ const s = StyleSheet.create({
                     paddingVertical: 7, borderRadius: 20 },
   fileTagText:    { color: '#4CAF50', fontSize: 13, maxWidth: 220 },
   uploadBtn:      { flexDirection: 'row', alignItems: 'center', gap: 8,
-                    backgroundColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 28,
+                    backgroundColor: '#f0f2f5', paddingHorizontal: 28,
                     paddingVertical: 14, borderRadius: 12, marginBottom: 12 },
-  uploadBtnText:  { color: '#fff', fontSize: 16, fontWeight: '700' },
-  analyzeBtn:     { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#E53935',
+  uploadBtnText:  { color: '#111827', fontSize: 16, fontWeight: '700' },
+  analyzeBtn:     { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: BRAND,
                     paddingHorizontal: 36, paddingVertical: 18, borderRadius: 16, marginBottom: 20 },
-  analyzeBtnText: { color: '#fff', fontSize: 18, fontWeight: '800' },
+  analyzeBtnText: { color: '#ffffff', fontSize: 18, fontWeight: '800' },
   privacyNote:    { color: '#333', fontSize: 11, textAlign: 'center', lineHeight: 18 },
 
   /* setting cards before analysis */
-  settingCard:    { width: '100%', maxWidth: 340, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
-  settingTitle:   { color: '#fff', fontSize: 13, fontWeight: '800', marginBottom: 2 },
+  settingCard:    { width: '100%', maxWidth: 340, backgroundColor: '#ffffff', borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
+  settingTitle:   { color: '#111827', fontSize: 13, fontWeight: '800', marginBottom: 2 },
   settingDesc:    { color: '#666', fontSize: 11, lineHeight: 16 },
-  evChip:         { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  evChipActive:   { backgroundColor: '#E53935', borderColor: '#E53935' },
+  evChip:         { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#f0f2f5', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
+  evChipActive:   { backgroundColor: BRAND, borderColor: BRAND },
   evChipText:     { color: '#aaa', fontSize: 12, fontWeight: '700' },
-  colorInput:     { marginTop: 10, backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: '#fff', fontSize: 13, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', minHeight: 50 },
+  colorInput:     { marginTop: 10, backgroundColor: '#f0f2f5', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: '#111827', fontSize: 13, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', minHeight: 50 },
   planBannerFree: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 10,
-    backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12,
+    backgroundColor: '#f0f2f5', borderRadius: 12,
     borderWidth: 1, borderColor: 'rgba(255,215,0,0.25)',
     padding: 12, width: '100%', maxWidth: 340,
   },
@@ -761,17 +762,17 @@ const s = StyleSheet.create({
     padding: 12, width: '100%', maxWidth: 340,
   },
   planBannerIcon:  { fontSize: 22 },
-  planBannerTitle: { color: '#fff', fontSize: 13, fontWeight: '800' },
+  planBannerTitle: { color: '#111827', fontSize: 13, fontWeight: '800' },
   planBannerSub:   { color: '#888', fontSize: 11, marginTop: 2, lineHeight: 16 },
 
   /* analyzing */
-  analyzeCard:    { backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 20, padding: 32,
+  analyzeCard:    { backgroundColor: '#f0f2f5', borderRadius: 20, padding: 32,
                     alignItems: 'center', width: 300 },
-  analyzeTitle:   { color: '#fff', fontSize: 18, fontWeight: '800', marginTop: 16 },
+  analyzeTitle:   { color: '#111827', fontSize: 18, fontWeight: '800', marginTop: 16 },
   analyzeCount:   { color: '#E53935', fontSize: 28, fontWeight: '800', marginTop: 8 },
   barTrack:       { width: '100%', height: 6, backgroundColor: 'rgba(255,255,255,0.1)',
                     borderRadius: 3, marginTop: 16, overflow: 'hidden' },
-  barFill:        { height: 6, backgroundColor: '#E53935', borderRadius: 3 },
+  barFill:        { height: 6, backgroundColor: BRAND, borderRadius: 3 },
   analyzeSub:     { color: '#aaa', fontSize: 13, marginTop: 12 },
   analyzeNote:    { color: '#444', fontSize: 11, marginTop: 8 },
 
@@ -780,14 +781,14 @@ const s = StyleSheet.create({
   sliderRow:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10 },
   timeText:       { color: '#888', fontSize: 11, minWidth: 54 },
   ctrlRow:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 20, paddingVertical: 8 },
-  iconBtn:        { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.08)',
+  iconBtn:        { width: 44, height: 44, borderRadius: 22, backgroundColor: '#f0f2f5',
                     alignItems: 'center', justifyContent: 'center' },
-  playBtn:        { width: 58, height: 58, borderRadius: 29, backgroundColor: '#E53935',
+  playBtn:        { width: 58, height: 58, borderRadius: 29, backgroundColor: BRAND,
                     alignItems: 'center', justifyContent: 'center' },
   rateRow:        { flexDirection: 'row', justifyContent: 'center', gap: 8, paddingBottom: 12 },
   rateBtn:        { paddingHorizontal: 18, paddingVertical: 8, borderRadius: 20,
-                    backgroundColor: 'rgba(255,255,255,0.07)' },
-  rateBtnActive:  { backgroundColor: '#E53935' },
+                    backgroundColor: '#f0f2f5' },
+  rateBtnActive:  { backgroundColor: BRAND },
   rateTxt:        { color: '#888', fontSize: 13, fontWeight: '700' },
   rateTxtActive:  { color: '#fff' },
 
@@ -795,8 +796,8 @@ const s = StyleSheet.create({
   adviceCard:     { margin: 12, padding: 18, backgroundColor: 'rgba(229,57,53,0.08)',
                     borderRadius: 16, borderLeftWidth: 3, borderLeftColor: '#E53935' },
   adviceTime:     { color: '#E53935', fontSize: 12, fontWeight: '700', marginBottom: 6 },
-  adviceOverall:  { color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 8 },
-  noAdviceCard:   { margin: 12, padding: 14, backgroundColor: 'rgba(255,255,255,0.04)',
+  adviceOverall:  { color: '#111827', fontSize: 16, fontWeight: '700', marginBottom: 8 },
+  noAdviceCard:   { margin: 12, padding: 14, backgroundColor: '#f8f8fa',
                     borderRadius: 12, alignItems: 'center' },
   noAdviceTxt:    { color: '#555', fontSize: 12 },
   sectionLabel:   { color: '#777', fontSize: 11, fontWeight: '700', marginTop: 10, marginBottom: 4 },
@@ -805,34 +806,34 @@ const s = StyleSheet.create({
                     paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8 },
 
   /* thumbnails */
-  thumbCard:      { width: 116, marginRight: 8, backgroundColor: 'rgba(255,255,255,0.05)',
+  thumbCard:      { width: 116, marginRight: 8, backgroundColor: '#f0f2f5',
                     borderRadius: 10, padding: 6, borderWidth: 1.5, borderColor: 'transparent' },
-  thumbActive:    { borderColor: '#E53935' },
+  thumbActive:    { borderColor: BRAND },
   thumbTime:      { color: '#E53935', fontSize: 10, fontWeight: '700', marginTop: 4 },
   thumbOverall:   { color: '#999', fontSize: 10, lineHeight: 14, marginTop: 2 },
 
   /* divider & big section */
   divider:        { height: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginHorizontal: 16, marginVertical: 20 },
-  bigSectionTitle:{ color: '#fff', fontSize: 17, fontWeight: '800', paddingHorizontal: 16, marginBottom: 12 },
+  bigSectionTitle:{ color: '#111827', fontSize: 17, fontWeight: '800', paddingHorizontal: 16, marginBottom: 12 },
 
   /* comprehensive */
   compLoading:    { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 20,
                     justifyContent: 'center' },
   compLoadingTxt: { color: '#555', fontSize: 13 },
   compCard:       { marginHorizontal: 12, marginBottom: 12, padding: 16,
-                    backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16 },
+                    backgroundColor: '#f0f2f5', borderRadius: 16 },
   compCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  compCardTitle:  { color: '#fff', fontSize: 15, fontWeight: '800' },
+  compCardTitle:  { color: '#111827', fontSize: 15, fontWeight: '800' },
   compSummary:    { color: '#ccc', fontSize: 14, lineHeight: 22 },
   findingRow:     { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 6 },
-  findingDot:     { width: 6, height: 6, borderRadius: 3, backgroundColor: '#E53935', marginTop: 6 },
+  findingDot:     { width: 6, height: 6, borderRadius: 3, backgroundColor: BRAND, marginTop: 6 },
   findingTxt:     { color: '#bbb', fontSize: 13, lineHeight: 20, flex: 1 },
   menuItem:       { flexDirection: 'row', alignItems: 'flex-start', gap: 12,
                     paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
   menuNum:        { width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(229,57,53,0.2)',
                     alignItems: 'center', justifyContent: 'center' },
   menuNumTxt:     { color: '#E53935', fontSize: 12, fontWeight: '800' },
-  menuName:       { color: '#fff', fontSize: 14, fontWeight: '700', marginBottom: 2 },
+  menuName:       { color: '#111827', fontSize: 14, fontWeight: '700', marginBottom: 2 },
   menuDetail:     { color: '#888', fontSize: 12, lineHeight: 18 },
   nextStepRow:    { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 8 },
   nextStepNum:    { color: '#E53935', fontSize: 13, fontWeight: '800', minWidth: 16 },

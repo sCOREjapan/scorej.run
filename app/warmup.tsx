@@ -75,7 +75,7 @@ export default function WarmupScreen() {
   const done = checked.size === items.length
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#000' }}>
+    <View style={{ flex: 1, backgroundColor: '#f6f6f8' }}>
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={st.content} showsVerticalScrollIndicator={false}>
 

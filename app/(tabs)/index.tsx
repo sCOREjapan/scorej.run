@@ -16,7 +16,7 @@ import { calcRecoveryStatus } from '../../lib/fatigue'
 import { calcLevelInfo } from '../../lib/gamification'
 import GlassCard from '../../components/GlassCard'
 import PressableScale from '../../components/PressableScale'
-import { BRAND, TEXT, NEON, SURFACE, SURFACE2, DIVIDER } from '../../lib/theme'
+import { BRAND, ALERT, TEXT, NEON, SURFACE, SURFACE2, DIVIDER } from '../../lib/theme'
 import { Sounds, unlockAudio } from '../../lib/sounds'
 import Logo from '../../components/Logo'
 import PWAInstallPrompt from '../../components/PWAInstallPrompt'
@@ -189,7 +189,7 @@ function LevelBadge({ sessionCount }: { sessionCount: number }) {
   )
 }
 const lb = StyleSheet.create({
-  wrap:   { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: 'rgba(229,57,53,0.08)', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(229,57,53,0.2)' },
+  wrap:   { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: BRAND + '12', borderRadius: 20, borderWidth: 1, borderColor: BRAND + '30' },
   emoji:  { fontSize: 16 },
   lv:     { color: BRAND, fontSize: 11, fontWeight: '800', letterSpacing: 0.3 },
   title:  { color: '#6b7280', fontWeight: '600' },
@@ -198,169 +198,157 @@ const lb = StyleSheet.create({
 })
 
 // ────────────────────────────────────────────────────────
-// ScoreOverviewCard — コンディションスコア + 総合アドバイス統合
+// ScoreOverviewCard — W3スタイル INJURY RISK SCORE
 // ────────────────────────────────────────────────────────
-const READINESS_CFG = [
-  { max: 24,  color: '#34C759', bgColor: 'rgba(52,199,89,0.10)',  emoji: '🏃', phrase: '全力で追い込もう！',  detail: 'コンディション最高' },
-  { max: 49,  color: '#FF9500', bgColor: 'rgba(255,149,0,0.10)',  emoji: '⚡', phrase: '軽めを意識しよう',    detail: '疲労に注意' },
-  { max: 74,  color: '#FF6B00', bgColor: 'rgba(255,107,0,0.10)',  emoji: '⚠️', phrase: '強度を落とそう',      detail: '積み重ね疲労あり' },
-  { max: 100, color: '#FF3B30', bgColor: 'rgba(255,59,48,0.10)',  emoji: '🛑', phrase: '今日は休養が必要',    detail: '回復を優先して' },
+const RISK_CFG = [
+  { max: 24,  color: BRAND,     label: '低リスク',   phrase: '全力で追い込もう！' },
+  { max: 49,  color: '#f59e0b', label: 'やや注意',   phrase: '軽めを意識しよう' },
+  { max: 74,  color: '#f97316', label: '要注意',     phrase: '強度を落とそう' },
+  { max: 100, color: ALERT,     label: '高リスク',   phrase: '今日は休養が必要' },
 ]
 
 function ScoreOverviewCard({
   sessions, sleepRecords, conditionLevel, riskResult,
-  effectiveRiskScore, weatherText, onStretchStart,
+  effectiveRiskScore, weatherBonus, onStretchStart,
 }: {
   sessions: import('../../types').TrainingSession[]
   sleepRecords: import('../../types').SleepRecord[]
   conditionLevel: number
   riskResult: ReturnType<typeof calcInjuryRisk> | null
   effectiveRiskScore?: number
-  weatherText?: string | null
+  weatherBonus?: number
   onStretchStart?: () => void
 }) {
   const { colors } = useTheme()
   const status = calcRecoveryStatus(sessions, sleepRecords, conditionLevel)
+  const riskScore = effectiveRiskScore ?? (riskResult ? riskResult.riskScore : Math.round(100 - status.overall))
+  const cfg = RISK_CFG.find(c => riskScore <= c.max) ?? RISK_CFG[3]
 
-  const items = [
+  // 4ステータスカード用データ
+  const fatigueVal  = Math.min(5, Math.round(status.fatigue_score / 20))
+  const condVal     = Math.min(5, Math.round(conditionLevel / 2))
+  const latestSleep = sleepRecords[0]
+  const sleepHours  = latestSleep?.duration_min ? Math.round(latestSleep.duration_min / 60) : null
+  const wBonus      = weatherBonus ?? 0
+
+  const statCards = [
     {
-      label: '睡眠スコア',
-      val: status.sleep_score,
-      color: status.sleep_score >= 70 ? '#5AC8FA' : status.sleep_score >= 45 ? '#FF9500' : '#FF3B30',
-      icon: '😴',
-      noData: sleepRecords.length === 0,
+      emoji: '⚡', label: '疲労',
+      value: sessions.length > 0 ? `${fatigueVal}/5` : '—',
+      color: fatigueVal >= 4 ? ALERT : fatigueVal >= 3 ? '#f59e0b' : BRAND,
     },
     {
-      label: '疲労度',
-      val: status.fatigue_score,
-      color: status.fatigue_score >= 70 ? '#34C759' : status.fatigue_score >= 45 ? '#FF9500' : '#FF3B30',
-      icon: '⚡',
-      noData: sessions.length === 0,
+      emoji: '😴', label: '睡眠',
+      value: sleepHours != null ? `${sleepHours}h` : '—',
+      color: sleepHours == null ? '#9ca3af' : sleepHours >= 7 ? BRAND : sleepHours >= 6 ? '#f59e0b' : ALERT,
     },
     {
-      label: 'コンディション',
-      val: Math.round((conditionLevel / 10) * 100),
-      color: conditionLevel >= 8 ? '#34C759' : conditionLevel >= 5 ? '#FF9500' : '#FF3B30',
-      icon: '💪',
-      noData: false,
+      emoji: '💪', label: '体調',
+      value: `${condVal}/5`,
+      color: condVal >= 4 ? BRAND : condVal >= 3 ? '#f59e0b' : ALERT,
+    },
+    {
+      emoji: '☁️', label: '天気',
+      value: wBonus !== 0 ? `${wBonus > 0 ? '+' : ''}${wBonus}` : '—',
+      color: wBonus > 0 ? ALERT : wBonus < 0 ? BRAND : '#9ca3af',
     },
   ]
 
-  // 総合準備度（effectiveRiskScore優先、なければriskResult、なければrecoveryStatusのoverall）
-  const riskScore = effectiveRiskScore ?? (riskResult ? riskResult.riskScore : 100 - status.overall)
-  const readiness = Math.max(0, 100 - riskScore)
-  const cfg = READINESS_CFG.find(c => riskScore <= c.max) ?? READINESS_CFG[3]
-
   return (
-    <View style={[so.card, { backgroundColor: colors.surface, borderColor: cfg.color + '40' }]}>
-
-      {/* ── 総合バナー ── */}
-      <View style={[so.banner, { backgroundColor: cfg.bgColor }]}>
-        <Text style={so.bannerEmoji}>{cfg.emoji}</Text>
-        <View style={{ flex: 1 }}>
-          <Text style={[so.bannerPhrase, { color: cfg.color }]}>{cfg.phrase}</Text>
-          <Text style={[so.bannerDetail, { color: cfg.color }]}>{cfg.detail}</Text>
+    <>
+      {/* ── INJURY RISK SCORE カード ── */}
+      <View style={[so.card, { backgroundColor: colors.surface }]}>
+        {/* ヘッダー行 */}
+        <View style={so.cardHeader}>
+          <Text style={so.riskLabel}>INJURY RISK SCORE</Text>
+          <View style={[so.riskBadge, { backgroundColor: cfg.color + '18', borderColor: cfg.color + '40' }]}>
+            <View style={[so.riskDot, { backgroundColor: cfg.color }]} />
+            <Text style={[so.riskBadgeText, { color: cfg.color }]}>{cfg.label}</Text>
+          </View>
         </View>
-        <View style={[so.readinessBox, { borderColor: cfg.color + '55', backgroundColor: cfg.color + '18' }]}>
-          <Text style={[so.readinessNum, { color: cfg.color }]}>{readiness}</Text>
-          <Text style={[so.readinessLabel, { color: cfg.color }]}>準備度</Text>
+
+        {/* スコア数字 */}
+        <Text style={so.scoreNum}>{riskScore}</Text>
+
+        {/* フレーズ + 天気 */}
+        <View style={so.phraseRow}>
+          <Text style={[so.phrase, { color: cfg.color }]}>{cfg.phrase}</Text>
+          {wBonus !== 0 && (
+            <Text style={so.weatherPt}>天気 {wBonus > 0 ? '+' : ''}{wBonus}pt</Text>
+          )}
+        </View>
+
+        {/* リスクバー */}
+        <View style={[so.barTrack, { backgroundColor: colors.surface2 }]}>
+          <View style={[so.barFill, { width: `${riskScore}%` as any, backgroundColor: cfg.color }]} />
         </View>
       </View>
 
-      {/* 準備度バー */}
-      <View style={[so.barWrap, { backgroundColor: colors.surface2 }]}>
-        <View style={[so.barFill, { width: `${readiness}%` as any, backgroundColor: cfg.color }]} />
-      </View>
-
-      {/* ── 3指標バッジ ── */}
-      <View style={so.badgesRow}>
-        {items.map(item => (
-          <View key={item.label} style={[so.badge, { borderColor: item.color + '35', backgroundColor: colors.surface2 }]}>
-            <Text style={{ fontSize: 18 }}>{item.icon}</Text>
-            {item.noData ? (
-              <Text style={[so.valNo, { color: colors.textHint }]}>—</Text>
-            ) : (
-              <Text style={[so.val, { color: item.color }]}>{item.val}</Text>
-            )}
-            <View style={[so.minBar, { backgroundColor: colors.border }]}>
-              <View style={[so.minBarFill, { width: `${item.noData ? 0 : item.val}%` as any, backgroundColor: item.color }]} />
-            </View>
-            <Text style={[so.badgeLabel, { color: colors.textHint }]}>{item.label}</Text>
+      {/* ── 4ステータスカード行 ── */}
+      <View style={so.statRow}>
+        {statCards.map(sc => (
+          <View key={sc.label} style={[so.statCard, { backgroundColor: colors.surface }]}>
+            <Text style={{ fontSize: 18 }}>{sc.emoji}</Text>
+            <Text style={[so.statVal, { color: sc.color }]}>{sc.value}</Text>
+            <Text style={[so.statLabel, { color: colors.textHint }]}>{sc.label}</Text>
           </View>
         ))}
       </View>
 
-      {/* 天気リスクテキスト */}
-      {weatherText && (
-        <View style={[so.weatherRow, { borderTopColor: colors.border }]}>
-          <Text style={so.weatherText}>{weatherText}</Text>
-        </View>
-      )}
-
-      {/* ── アドバイス ── */}
-      <View style={[so.adviceRow, { borderTopColor: colors.border }]}>
-        <Ionicons name="information-circle-outline" size={13} color={colors.textHint} />
-        <Text style={[so.advice, { color: colors.textHint }]}>
-          {riskResult ? riskResult.recommendation : status.advice}
-        </Text>
-        {(sleepRecords.length === 0 || sessions.length === 0) && (
-          <Text style={[so.hint, { color: colors.textHint }]}>記録↑で精度UP</Text>
-        )}
-      </View>
-
-      {/* ストレッチボタン（リスク40以上） */}
+      {/* ── ストレッチバナー（リスク40以上） ── */}
       {riskScore >= 40 && onStretchStart && (
-        <View style={{ paddingHorizontal: 14, paddingBottom: 12 }}>
-          <TouchableOpacity
-            onPress={onStretchStart}
-            activeOpacity={0.82}
-            style={{
-              borderRadius: 12,
-              borderWidth: 1,
-              borderColor: (riskScore >= 70 ? '#C8102E' : '#F5A623') + '55',
-              backgroundColor: (riskScore >= 70 ? '#C8102E' : '#F5A623') + '18',
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              paddingHorizontal: 14,
-              paddingVertical: 13,
-            }}
-          >
-            <Text style={{ color: riskScore >= 70 ? '#C8102E' : '#F5A623', fontSize: 13, fontWeight: '800' }}>
-              {riskScore >= 70 ? '🔴 ストレッチでリスクを下げる' : '🟡 ストレッチでリスクを下げる'}
-            </Text>
-            <Text style={{ color: riskScore >= 70 ? '#C8102E' : '#F5A623', fontSize: 14, fontWeight: '700' }}>→</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          onPress={onStretchStart}
+          activeOpacity={0.85}
+          style={[so.stretchBanner, { backgroundColor: colors.surface }]}
+        >
+          <Text style={[so.stretchText, { color: colors.text }]}>🏃 ストレッチでリスクを下げる</Text>
+          <View style={[so.stretchBtn, { backgroundColor: BRAND }]}>
+            <Text style={so.stretchBtnText}>開始 →</Text>
+          </View>
+        </TouchableOpacity>
       )}
-    </View>
+    </>
   )
 }
 
 const so = StyleSheet.create({
-  card:           { borderRadius: 18, borderWidth: 1, overflow: 'hidden' },
-  banner:         { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 14 },
-  bannerEmoji:    { fontSize: 32 },
-  bannerPhrase:   { fontSize: 16, fontWeight: '900', letterSpacing: -0.3 },
-  bannerDetail:   { fontSize: 11, fontWeight: '600', opacity: 0.75, marginTop: 2 },
-  readinessBox:   { borderWidth: 1.5, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6, alignItems: 'center', minWidth: 56 },
-  readinessNum:   { fontSize: 26, fontWeight: '900', letterSpacing: -1, lineHeight: 28 },
-  readinessLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 0.5, marginTop: 1, opacity: 0.7 },
-  barWrap:        { height: 4, marginHorizontal: 16, borderRadius: 2, overflow: 'hidden', marginBottom: 12 },
-  barFill:        { height: 4, borderRadius: 2 },
-  badgesRow:      { flexDirection: 'row', paddingHorizontal: 10, paddingBottom: 12, gap: 8 },
-  badge:          { flex: 1, borderRadius: 14, borderWidth: 1, padding: 12, alignItems: 'center', gap: 3 },
-  val:            { fontSize: 24, fontWeight: '900', lineHeight: 26 },
-  valNo:          { fontSize: 18, fontWeight: '700', lineHeight: 22 },
-  minBar:         { width: '100%', height: 3, borderRadius: 2, overflow: 'hidden', marginTop: 5 },
-  minBarFill:     { height: 3, borderRadius: 2 },
-  badgeLabel:     { fontSize: 9, fontWeight: '700', textAlign: 'center', letterSpacing: 0.3, marginTop: 3 },
-  adviceRow:      { flexDirection: 'row', alignItems: 'center', gap: 5,
-    borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 14, paddingVertical: 10 },
-  advice:         { fontSize: 11, lineHeight: 16, flex: 1 },
-  hint:           { fontSize: 10, fontWeight: '600' },
-  weatherRow:     { borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 14, paddingVertical: 8 },
-  weatherText:    { color: '#F5A623', fontSize: 11, fontWeight: '600' },
+  // メインカード
+  card: {
+    borderRadius: 18, padding: 18,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08, shadowRadius: 12, elevation: 4,
+  },
+  cardHeader:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  riskLabel:     { fontSize: 11, fontWeight: '700', letterSpacing: 1.5, color: '#9ca3af' },
+  riskBadge:     { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
+  riskDot:       { width: 7, height: 7, borderRadius: 4 },
+  riskBadgeText: { fontSize: 11, fontWeight: '700' },
+  scoreNum:      { fontSize: 72, fontWeight: '900', letterSpacing: -3, color: '#111827', lineHeight: 80, marginVertical: 2 },
+  phraseRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+  phrase:        { fontSize: 15, fontWeight: '800' },
+  weatherPt:     { fontSize: 11, color: '#9ca3af', fontWeight: '600' },
+  barTrack:      { height: 5, borderRadius: 3, overflow: 'hidden' },
+  barFill:       { height: 5, borderRadius: 3 },
+  // 4ステータスカード
+  statRow:       { flexDirection: 'row', gap: 8 },
+  statCard:      {
+    flex: 1, borderRadius: 14, padding: 12, alignItems: 'center', gap: 4,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
+  },
+  statVal:       { fontSize: 20, fontWeight: '900', letterSpacing: -0.5 },
+  statLabel:     { fontSize: 10, fontWeight: '700' },
+  // ストレッチバナー
+  stretchBanner: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
+  },
+  stretchText:   { fontSize: 14, fontWeight: '700', flex: 1 },
+  stretchBtn:    { borderRadius: 10, paddingHorizontal: 16, paddingVertical: 8 },
+  stretchBtnText:{ color: '#fff', fontSize: 13, fontWeight: '800' },
 })
 
 
@@ -1073,24 +1061,34 @@ ${sessionsText}
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView ref={scrollRef} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
 
-          {/* ── ヘッダー ── */}
+          {/* ── ヘッダー（W3スタイル） ── */}
           <AnimatedEntry delay={0}>
             <View style={s.header}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <View>
-                  <Text style={[s.appTitle, { color: colors.text }]}>sCORE</Text>
-                  <Text style={[s.dateText, { color: colors.textSec }]}>{todayStr}</Text>
+              {/* ssCORE ブラックピルバッジ */}
+              <TouchableOpacity
+                onPress={() => { unlockAudio(); Sounds.tap(); router.push('/level-roadmap') }}
+                activeOpacity={0.8}
+              >
+                <View style={s.scorePill}>
+                  <Text style={s.scorePillText}>sCORE</Text>
                 </View>
-              </View>
+              </TouchableOpacity>
+              {/* 右アイコン群 */}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <PressableScale haptic="light" scaleAmount={0.95} onPress={() => { unlockAudio(); Sounds.tap(); router.push('/level-roadmap') }}>
-                  <LevelBadge sessionCount={sessions.length} />
-                </PressableScale>
-                <PressableScale haptic="medium" scaleAmount={0.9} onPress={() => { unlockAudio(); Sounds.tap(); router.push('/(tabs)/mypage') }}>
-                  <View style={[s.iconBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <Ionicons name="person-circle-outline" size={20} color={colors.textSec} />
-                  </View>
-                </PressableScale>
+                <TouchableOpacity
+                  style={[s.iconBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                  onPress={() => { unlockAudio(); Sounds.tap(); router.push('/(tabs)/mypage') }}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="notifications-outline" size={18} color={colors.textSec} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.iconBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                  onPress={() => { unlockAudio(); Sounds.tap(); router.push('/(tabs)/mypage') }}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="person-circle-outline" size={18} color={colors.textSec} />
+                </TouchableOpacity>
               </View>
             </View>
           </AnimatedEntry>
@@ -1111,7 +1109,7 @@ ${sessionsText}
             </GlassCard>
           </AnimatedEntry>
 
-          {/* ── コンディションスコア（総合アドバイス統合） ── */}
+          {/* ── INJURY RISK SCORE + ステータスカード ── */}
           <AnimatedEntry delay={90}>
             <ScoreOverviewCard
               sessions={sessions}
@@ -1119,7 +1117,7 @@ ${sessionsText}
               conditionLevel={avgConditionLevel}
               riskResult={riskResult}
               effectiveRiskScore={effectiveRiskScore ?? undefined}
-              weatherText={weatherText}
+              weatherBonus={weatherBonus}
               onStretchStart={handleStretchStart}
             />
           </AnimatedEntry>
@@ -1159,22 +1157,23 @@ ${sessionsText}
             </View>
           </AnimatedEntry>
 
-          {/* ── AIコーチ ── */}
+          {/* ── AIコーチカード（W3スタイル） ── */}
           <AnimatedEntry delay={300}>
             <TouchableOpacity
-              style={[s.aiCoachBtn, { backgroundColor: colors.surface, borderColor: 'rgba(59,130,246,0.3)' }]}
+              style={[s.aiCoachCard, { backgroundColor: colors.surface }]}
               activeOpacity={0.85}
               onPress={() => { unlockAudio(); Sounds.tap(); handleGetAIAdvice() }}
             >
-              <View style={s.aiCoachInner}>
-                <View style={s.aiCoachIcon}>
-                  <Text style={{ fontSize: 22 }}>🤖</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[s.aiCoachTitle, { color: colors.text }]}>AIコーチにアドバイスをもらう</Text>
-                  <Text style={[s.aiCoachSub, { color: colors.textHint }]}>体調・練習・睡眠データから総合分析</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={colors.textHint} />
+              <View style={s.aiCoachDarkIcon}>
+                <Text style={{ fontSize: 20 }}>🤖</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.aiCoachLabel}>AI COACH</Text>
+                <Text style={[s.aiCoachSub, { color: colors.textSec }]}>
+                  {aiAdvice
+                    ? aiAdvice.replace(/\*\*/g, '').split('\n')[0].slice(0, 50)
+                    : '体調・練習・睡眠データから総合分析。タップで取得。'}
+                </Text>
               </View>
             </TouchableOpacity>
           </AnimatedEntry>
@@ -1370,10 +1369,10 @@ ${sessionsText}
 const s = StyleSheet.create({
   content:   { padding: 16, gap: 10, paddingBottom: 110 },
 
-  header:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 },
-  appTitle:  { fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
-  dateText:  { fontSize: 11, marginTop: 1 },
-  iconBtn:   { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  header:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 },
+  scorePill:    { backgroundColor: '#111827', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 8 },
+  scorePillText:{ color: '#ffffff', fontSize: 16, fontWeight: '900', letterSpacing: -0.3 },
+  iconBtn:      { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
 
   sectionRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   sectionLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1 },
@@ -1403,21 +1402,20 @@ const s = StyleSheet.create({
   recoveryTitle: { fontSize: 14, fontWeight: '800' },
   recoverySub:   { fontSize: 11, marginTop: 2 },
 
-  // AIコーチボタン
-  aiCoachBtn: {
-    borderRadius: 14, borderWidth: 1, overflow: 'hidden',
-  },
-  aiCoachInner: {
+  // AIコーチカード（W3スタイル）
+  aiCoachCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: 14, paddingVertical: 14,
+    borderRadius: 16, paddingHorizontal: 16, paddingVertical: 16,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
   },
-  aiCoachIcon: {
+  aiCoachDarkIcon: {
     width: 44, height: 44, borderRadius: 12,
-    backgroundColor: 'rgba(59,130,246,0.10)',
+    backgroundColor: '#111827',
     alignItems: 'center', justifyContent: 'center',
   },
-  aiCoachTitle: { fontSize: 14, fontWeight: '800' },
-  aiCoachSub:   { fontSize: 11, marginTop: 2 },
+  aiCoachLabel: { fontSize: 13, fontWeight: '900', color: '#111827', letterSpacing: 0.5, marginBottom: 3 },
+  aiCoachSub:   { fontSize: 12, lineHeight: 17 },
 
   // リカバリーバナー
   recovBanner: {

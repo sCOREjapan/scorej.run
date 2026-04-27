@@ -8,7 +8,7 @@ import { useTheme } from '../context/ThemeContext'
 import QuickLogModal from '../components/QuickLogModal'
 import { Sounds, unlockAudio } from '../lib/sounds'
 
-const BRAND = '#E53935'
+
 
 export default function PracticeInputScreen() {
   const router = useRouter()

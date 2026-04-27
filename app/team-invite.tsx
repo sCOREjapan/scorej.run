@@ -10,16 +10,16 @@ import {
   ScrollView,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { LinearGradient } from 'expo-linear-gradient'
+
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import Toast from 'react-native-toast-message'
 import { useRouter } from 'expo-router'
-import { BG_GRADIENT, NEON, TEXT } from '../lib/theme'
+import { BRAND, NEON, TEXT } from '../lib/theme'
 import { Sounds } from '../lib/sounds'
 import AnimatedSection from '../components/AnimatedSection'
 
-const BRAND = '#E53E3E'
+
 const TEAM_KEY = 'trackmate_team'
 
 function generateCode(): string {

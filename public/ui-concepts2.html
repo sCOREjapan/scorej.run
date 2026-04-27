@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>sCORE UI Concepts Vol.2 — Big Score</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: #0a0a0a;
+  font-family: -apple-system, 'Hiragino Sans', 'SF Pro Display', sans-serif;
+  padding: 40px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 72px;
+}
+.phone {
+  width: 390px;
+  min-height: 780px;
+  border-radius: 52px;
+  overflow: hidden;
+  position: relative;
+  flex-shrink: 0;
+  box-shadow: 0 48px 96px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.07);
+}
+.concept-title { color: rgba(255,255,255,0.25); font-size: 11px; font-weight: 800; letter-spacing: 4px; text-align: center; }
+.concept-name { color: #fff; font-size: 24px; font-weight: 900; text-align: center; letter-spacing: -0.5px; margin: 6px 0 4px; }
+.concept-desc { color: rgba(255,255,255,0.38); font-size: 13px; text-align: center; line-height: 1.75; margin-bottom: 20px; }
+.divider { width:100%; max-width:500px; height:1px; background:rgba(255,255,255,0.05); }
+.palette { display:flex; gap:10px; justify-content:center; margin-top:14px; flex-wrap:wrap; }
+.swatch { display:flex; align-items:center; gap:6px; }
+.sw-dot { width:10px; height:10px; border-radius:5px; }
+.sw-label { color:rgba(255,255,255,0.35); font-size:11px; }
+.section { display:flex; flex-direction:column; align-items:center; width:100%; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   D — STEEL BLUE
+   チャコール × エレクトリックブルー
+   スコアを左揃え・ライン演出
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.pd { background: #0b0d12; }
+.pd .sb { padding:14px 28px 6px; display:flex; justify-content:space-between; color:rgba(255,255,255,0.35); font-size:12px; font-weight:600; }
+.pd .header { padding:6px 24px 14px; display:flex; justify-content:space-between; align-items:center; }
+.pd .app-logo { color:#4FC3F7; font-size:13px; font-weight:900; letter-spacing:3px; }
+.pd .header-right { display:flex; gap:8px; }
+.pd .icon-btn { width:38px; height:38px; border-radius:12px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.07); display:flex; align-items:center; justify-content:center; font-size:16px; }
+/* big score area */
+.pd .score-area { padding:12px 24px 0; }
+.pd .sa-tag { color:rgba(255,255,255,0.25); font-size:10px; font-weight:800; letter-spacing:3px; margin-bottom:4px; }
+.pd .sa-num { color:#fff; font-size:104px; font-weight:900; line-height:0.9; letter-spacing:-7px; position:relative; display:inline-block; }
+.pd .sa-num::after { content:'/ 100'; color:rgba(255,255,255,0.15); font-size:20px; font-weight:700; letter-spacing:0; position:absolute; bottom:12px; right:-64px; }
+.pd .sa-status { display:flex; align-items:center; gap:10px; margin-top:10px; margin-bottom:6px; }
+.pd .sa-dot { width:8px; height:8px; border-radius:4px; background:#FF453A; box-shadow:0 0 8px rgba(255,69,58,0.6); }
+.pd .sa-label { color:#FF453A; font-size:14px; font-weight:800; }
+.pd .sa-bar { height:3px; background:rgba(255,255,255,0.07); border-radius:2px; overflow:hidden; margin-bottom:20px; }
+.pd .sa-fill { height:3px; background:linear-gradient(90deg, #4FC3F7 0%, #FF453A 100%); width:72%; border-radius:2px; }
+/* factors row */
+.pd .factors { display:flex; gap:8px; padding:0 24px 16px; }
+.pd .factor { flex:1; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); border-radius:16px; padding:13px 10px; text-align:center; }
+.pd .f-i { font-size:19px; margin-bottom:5px; }
+.pd .f-v { font-size:18px; font-weight:900; }
+.pd .f-n { color:rgba(255,255,255,0.28); font-size:9px; font-weight:700; margin-top:2px; }
+/* AI */
+.pd .ai-row { margin:0 20px 12px; background:rgba(79,195,247,0.08); border:1px solid rgba(79,195,247,0.18); border-radius:18px; padding:15px; display:flex; gap:12px; }
+.pd .ai-av { width:36px; height:36px; border-radius:11px; background:linear-gradient(135deg,#4FC3F7,#0288D1); display:flex; align-items:center; justify-content:center; font-size:17px; flex-shrink:0; }
+.pd .ai-t { color:#4FC3F7; font-size:10px; font-weight:800; letter-spacing:1px; margin-bottom:3px; }
+.pd .ai-m { color:rgba(255,255,255,0.6); font-size:12px; line-height:1.7; }
+/* actions */
+.pd .action-list { padding:0 20px 14px; display:flex; flex-direction:column; gap:4px; }
+.pd .act { display:flex; align-items:center; justify-content:space-between; padding:13px 0; border-bottom:1px solid rgba(255,255,255,0.05); }
+.pd .act:last-child { border:none; }
+.pd .act-l { display:flex; align-items:center; gap:12px; }
+.pd .act-num { color:rgba(255,255,255,0.14); font-size:11px; font-weight:800; width:18px; }
+.pd .act-i { font-size:18px; }
+.pd .act-n { color:#fff; font-size:13px; font-weight:700; }
+.pd .act-a { color:rgba(255,255,255,0.2); }
+/* bottom nav */
+.pd .bnav { margin:4px 20px 20px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); border-radius:26px; padding:10px 6px; display:flex; justify-content:space-around; }
+.pd .ni { display:flex; flex-direction:column; align-items:center; gap:4px; padding:5px 12px; border-radius:16px; }
+.pd .ni.on { background:rgba(79,195,247,0.12); }
+.pd .ni-i { font-size:20px; opacity:0.38; }
+.pd .ni.on .ni-i { opacity:1; }
+.pd .ni-l { font-size:9px; font-weight:700; color:rgba(255,255,255,0.24); }
+.pd .ni.on .ni-l { color:#4FC3F7; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   E — NEON GREEN (TERMINAL)
+   真っ黒 × ネオングリーン
+   ターミナル / ハッカー感
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.pe { background: #000; }
+.pe .sb { padding:14px 28px 4px; display:flex; justify-content:space-between; color:rgba(0,255,136,0.35); font-size:11px; font-family:monospace; }
+.pe .header { padding:8px 26px 8px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(0,255,136,0.1); }
+.pe .logo { color:#00FF88; font-size:15px; font-weight:900; letter-spacing:4px; font-family:monospace; }
+.pe .sys-status { color:rgba(0,255,136,0.45); font-size:10px; font-family:monospace; }
+/* score hero */
+.pe .hero { padding:24px 26px 18px; border-bottom:1px solid rgba(0,255,136,0.1); }
+.pe .h-tag { color:rgba(0,255,136,0.4); font-size:10px; font-family:monospace; letter-spacing:2px; margin-bottom:6px; }
+.pe .h-score-row { display:flex; align-items:flex-end; gap:14px; margin-bottom:12px; }
+.pe .h-num { color:#fff; font-size:100px; font-weight:900; line-height:0.88; letter-spacing:-6px; text-shadow:0 0 40px rgba(0,255,136,0.15); }
+.pe .h-right { padding-bottom:8px; }
+.pe .h-status { color:#FF453A; font-size:16px; font-weight:800; font-family:monospace; }
+.pe .h-sub { color:rgba(255,255,255,0.28); font-size:11px; font-family:monospace; margin-top:3px; }
+/* progress bar */
+.pe .prog { height:2px; background:rgba(0,255,136,0.12); border-radius:1px; overflow:hidden; margin-bottom:0; }
+.pe .prog-fill { height:2px; width:72%; background:#00FF88; }
+/* metrics */
+.pe .metrics { display:flex; padding:16px 26px; gap:0; border-bottom:1px solid rgba(0,255,136,0.08); }
+.pe .m { flex:1; }
+.pe .m + .m { border-left:1px solid rgba(0,255,136,0.1); padding-left:18px; }
+.pe .m-v { color:#00FF88; font-size:26px; font-weight:900; font-family:monospace; }
+.pe .m-l { color:rgba(255,255,255,0.22); font-size:10px; font-family:monospace; margin-top:3px; }
+.pe .m-bad { color:#FF453A; }
+/* ai */
+.pe .ai { padding:16px 26px; border-bottom:1px solid rgba(0,255,136,0.08); }
+.pe .ai-head { color:rgba(0,255,136,0.5); font-size:9px; font-family:monospace; letter-spacing:2px; margin-bottom:8px; }
+.pe .ai-msg { color:rgba(255,255,255,0.6); font-size:13px; line-height:1.8; }
+.pe .ai-msg em { color:#00FF88; font-style:normal; font-weight:700; }
+/* actions */
+.pe .acts { padding:14px 26px; display:flex; flex-direction:column; gap:0; }
+.pe .act { display:flex; align-items:center; justify-content:space-between; padding:13px 0; border-bottom:1px solid rgba(0,255,136,0.07); }
+.pe .act:last-child { border:none; }
+.pe .act-l { display:flex; align-items:center; gap:14px; }
+.pe .act-mark { color:rgba(0,255,136,0.4); font-family:monospace; font-size:12px; }
+.pe .act-i { font-size:17px; }
+.pe .act-n { color:#fff; font-size:13px; font-weight:600; }
+.pe .act-arr { color:rgba(0,255,136,0.35); font-family:monospace; font-size:14px; }
+/* bottom nav */
+.pe .bnav { display:flex; justify-content:space-around; padding:12px 0 24px; border-top:1px solid rgba(0,255,136,0.1); }
+.pe .ni { display:flex; flex-direction:column; align-items:center; gap:4px; }
+.pe .ni-i { font-size:20px; opacity:0.3; }
+.pe .ni-i.on { opacity:1; filter:drop-shadow(0 0 6px rgba(0,255,136,0.5)); }
+.pe .ni-l { font-size:9px; font-family:monospace; color:rgba(255,255,255,0.2); }
+.pe .ni-l.on { color:#00FF88; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   F — WARM GOLD
+   深いウォームグレー × アンバー/ゴールド
+   高級感・プレミアム
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.pf { background: #0d0b08; }
+.pf .sb { padding:14px 28px 6px; display:flex; justify-content:space-between; color:rgba(255,255,255,0.3); font-size:12px; }
+.pf .header { padding:6px 24px 12px; display:flex; justify-content:space-between; align-items:center; }
+.pf .logo { color:rgba(255,255,255,0.85); font-size:13px; font-weight:900; letter-spacing:4px; }
+.pf .date { color:rgba(255,255,255,0.25); font-size:11px; font-weight:600; }
+/* score */
+.pf .score-area { padding:10px 24px 16px; border-bottom:1px solid rgba(255,255,255,0.06); }
+.pf .sa-over { color:rgba(255,200,80,0.5); font-size:10px; font-weight:800; letter-spacing:3px; margin-bottom:6px; }
+.pf .sa-row { display:flex; align-items:flex-end; gap:16px; margin-bottom:10px; }
+.pf .sa-num { color:#fff; font-size:100px; font-weight:900; line-height:0.88; letter-spacing:-6px; }
+.pf .sa-side { padding-bottom:10px; display:flex; flex-direction:column; gap:6px; }
+.pf .sa-chip { background:rgba(255,69,58,0.12); border:1px solid rgba(255,69,58,0.28); border-radius:8px; padding:4px 10px; color:#FF6B6B; font-size:11px; font-weight:800; display:inline-block; }
+.pf .sa-sub { color:rgba(255,255,255,0.3); font-size:11px; }
+.pf .sa-bar { height:3px; background:rgba(255,255,255,0.08); border-radius:2px; overflow:hidden; }
+.pf .sa-fill { height:3px; background:linear-gradient(90deg, #FFC850, #FF6B35 72%); border-radius:2px; width:72%; }
+/* grid */
+.pf .grid { padding:14px 20px; display:flex; gap:8px; }
+.pf .gc { flex:1; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); border-radius:18px; padding:14px 12px; text-align:center; }
+.pf .gc-i { font-size:21px; margin-bottom:6px; }
+.pf .gc-v { font-size:20px; font-weight:900; color:#fff; }
+.pf .gc-l { color:rgba(255,255,255,0.28); font-size:9px; font-weight:700; margin-top:3px; }
+/* ai */
+.pf .ai-card { margin:0 20px 12px; background:rgba(255,200,80,0.07); border:1px solid rgba(255,200,80,0.18); border-radius:18px; padding:16px; }
+.pf .ai-top { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.pf .ai-av { width:36px; height:36px; border-radius:11px; background:linear-gradient(135deg,#FFC850,#FF8C35); display:flex; align-items:center; justify-content:center; font-size:17px; }
+.pf .ai-name { color:#FFC850; font-size:11px; font-weight:800; letter-spacing:1px; }
+.pf .ai-msg { color:rgba(255,255,255,0.58); font-size:12px; line-height:1.75; }
+/* stretch */
+.pf .stretch { margin:0 20px 14px; background:rgba(255,69,58,0.08); border:1px solid rgba(255,69,58,0.22); border-radius:16px; padding:14px 18px; display:flex; justify-content:space-between; align-items:center; }
+.pf .str-l { color:#fff; font-size:13px; font-weight:800; }
+.pf .str-r { color:rgba(255,107,107,0.8); font-size:13px; font-weight:800; }
+/* bottom nav */
+.pf .bnav { margin:0 20px 20px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); border-radius:26px; padding:10px 6px; display:flex; justify-content:space-around; }
+.pf .ni { display:flex; flex-direction:column; align-items:center; gap:4px; padding:5px 12px; border-radius:16px; }
+.pf .ni.on { background:rgba(255,200,80,0.12); }
+.pf .ni-i { font-size:20px; opacity:0.35; }
+.pf .ni.on .ni-i { opacity:1; }
+.pf .ni-l { font-size:9px; font-weight:700; color:rgba(255,255,255,0.22); }
+.pf .ni.on .ni-l { color:#FFC850; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   G — FROST / ICE
+   ダークスレート × コールドホワイト/シアン
+   クリニカル・精密感
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.pg { background: #080d12; }
+.pg .sb { padding:14px 28px 6px; display:flex; justify-content:space-between; color:rgba(180,220,255,0.3); font-size:12px; }
+.pg .header { padding:6px 24px 14px; display:flex; justify-content:space-between; align-items:center; }
+.pg .logo { color:rgba(180,220,255,0.85); font-size:13px; font-weight:900; letter-spacing:4px; }
+.pg .pills { display:flex; gap:6px; }
+.pg .pill { background:rgba(180,220,255,0.06); border:1px solid rgba(180,220,255,0.12); border-radius:20px; padding:5px 10px; color:rgba(180,220,255,0.45); font-size:10px; font-weight:700; }
+/* score area */
+.pg .score-area { padding:12px 24px 20px; }
+.pg .sa-date { color:rgba(180,220,255,0.28); font-size:10px; font-weight:700; letter-spacing:2px; margin-bottom:8px; }
+.pg .sa-num { color:#fff; font-size:104px; font-weight:900; line-height:0.88; letter-spacing:-7px; display:block; margin-bottom:10px; }
+.pg .sa-row { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+.pg .sa-status { color:#FF453A; font-size:14px; font-weight:800; }
+.pg .sa-weather { color:rgba(180,220,255,0.6); font-size:12px; font-weight:700; }
+/* bar with ticks */
+.pg .bar-wrap { position:relative; margin-bottom:20px; }
+.pg .bar-bg { height:6px; background:rgba(255,255,255,0.07); border-radius:3px; overflow:hidden; }
+.pg .bar-fill { height:6px; background:linear-gradient(90deg, #56CCF2, #FF6B6B); width:72%; border-radius:3px; }
+.pg .ticks { display:flex; justify-content:space-between; margin-top:5px; }
+.pg .tick { color:rgba(255,255,255,0.2); font-size:9px; font-weight:700; }
+/* 3-col grid */
+.pg .cols { display:flex; gap:8px; padding:0 20px 14px; }
+.pg .col { flex:1; background:rgba(180,220,255,0.04); border:1px solid rgba(180,220,255,0.08); border-radius:18px; padding:14px 10px; text-align:center; }
+.pg .col-i { font-size:20px; margin-bottom:6px; }
+.pg .col-v { font-size:20px; font-weight:900; color:#fff; }
+.pg .col-l { color:rgba(180,220,255,0.3); font-size:9px; font-weight:700; margin-top:3px; }
+/* ai */
+.pg .ai-row { margin:0 20px 12px; background:rgba(86,204,242,0.07); border:1px solid rgba(86,204,242,0.16); border-radius:18px; padding:15px; display:flex; gap:12px; }
+.pg .ai-av { width:36px; height:36px; border-radius:11px; background:linear-gradient(135deg,#56CCF2,#2F80ED); display:flex; align-items:center; justify-content:center; font-size:17px; flex-shrink:0; }
+.pg .ai-t { color:#56CCF2; font-size:10px; font-weight:800; letter-spacing:1px; margin-bottom:3px; }
+.pg .ai-m { color:rgba(255,255,255,0.55); font-size:12px; line-height:1.7; }
+/* stretch */
+.pg .stretch { margin:0 20px 14px; background:rgba(255,69,58,0.07); border:1px solid rgba(255,69,58,0.2); border-radius:16px; padding:13px 18px; display:flex; justify-content:space-between; align-items:center; }
+.pg .str-l { color:#fff; font-size:13px; font-weight:800; }
+.pg .str-r { color:rgba(255,107,107,0.7); font-size:13px; font-weight:800; }
+/* bottom nav */
+.pg .bnav { margin:0 20px 20px; background:rgba(180,220,255,0.04); border:1px solid rgba(180,220,255,0.08); border-radius:26px; padding:10px 6px; display:flex; justify-content:space-around; }
+.pg .ni { display:flex; flex-direction:column; align-items:center; gap:4px; padding:5px 12px; border-radius:16px; }
+.pg .ni.on { background:rgba(86,204,242,0.1); }
+.pg .ni-i { font-size:20px; opacity:0.35; }
+.pg .ni.on .ni-i { opacity:1; }
+.pg .ni-l { font-size:9px; font-weight:700; color:rgba(255,255,255,0.22); }
+.pg .ni.on .ni-l { color:#56CCF2; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   H — EMBER / FIRE
+   超ダーク × 燃えるオレンジ→レッド
+   エナジー・強さ
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.ph { background: #090508; }
+.ph .sb { padding:14px 28px 6px; display:flex; justify-content:space-between; color:rgba(255,255,255,0.3); font-size:12px; }
+.ph .header { padding:6px 24px 12px; display:flex; justify-content:space-between; align-items:center; }
+.ph .logo { background:linear-gradient(90deg, #FF6B35, #FF1744); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; font-size:16px; font-weight:900; letter-spacing:2px; }
+.ph .header-icon { width:40px; height:40px; border-radius:13px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.07); display:flex; align-items:center; justify-content:center; font-size:18px; }
+/* glow bg */
+.ph .glow-bg { position:absolute; width:400px; height:300px; background:radial-gradient(ellipse, rgba(255,107,53,0.1) 0%, transparent 70%); top:60px; left:-40px; pointer-events:none; }
+/* score */
+.ph .score-area { padding:12px 24px 16px; position:relative; }
+.ph .sa-label { color:rgba(255,255,255,0.22); font-size:10px; font-weight:800; letter-spacing:3px; margin-bottom:8px; }
+.ph .sa-num { font-size:112px; font-weight:900; line-height:0.85; letter-spacing:-8px; background:linear-gradient(180deg, #fff 30%, rgba(255,107,53,0.7) 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; display:block; margin-bottom:10px; }
+.ph .sa-status-row { display:flex; align-items:center; gap:8px; margin-bottom:14px; }
+.ph .sa-fire { color:#FF6B35; font-size:14px; font-weight:900; }
+.ph .sa-status-text { color:#fff; font-size:14px; font-weight:800; }
+.ph .sa-bar { height:4px; background:rgba(255,255,255,0.07); border-radius:2px; overflow:hidden; }
+.ph .sa-fill { height:4px; background:linear-gradient(90deg, #FF6B35, #FF1744); width:72%; border-radius:2px; }
+/* cards */
+.ph .cards { padding:12px 20px 14px; display:flex; gap:8px; }
+.ph .card { flex:1; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); border-radius:18px; padding:13px 10px; text-align:center; }
+.ph .card.hot { border-color:rgba(255,107,53,0.28); background:rgba(255,107,53,0.07); }
+.ph .c-i { font-size:20px; margin-bottom:5px; }
+.ph .c-v { font-size:19px; font-weight:900; color:#fff; }
+.ph .c-l { color:rgba(255,255,255,0.28); font-size:9px; font-weight:700; margin-top:3px; }
+/* ai */
+.ph .ai-row { margin:0 20px 12px; background:rgba(255,107,53,0.07); border:1px solid rgba(255,107,53,0.18); border-radius:18px; padding:15px; display:flex; gap:12px; }
+.ph .ai-av { width:36px; height:36px; border-radius:11px; background:linear-gradient(135deg,#FF6B35,#FF1744); display:flex; align-items:center; justify-content:center; font-size:17px; flex-shrink:0; }
+.ph .ai-title { color:#FF6B35; font-size:10px; font-weight:800; letter-spacing:1px; margin-bottom:3px; }
+.ph .ai-msg { color:rgba(255,255,255,0.58); font-size:12px; line-height:1.7; }
+/* stretch */
+.ph .stretch { margin:0 20px 16px; background:rgba(255,23,68,0.1); border:1px solid rgba(255,23,68,0.25); border-radius:16px; padding:15px 18px; display:flex; justify-content:space-between; align-items:center; }
+.ph .str-l { display:flex; align-items:center; gap:8px; }
+.ph .str-dot { width:8px; height:8px; border-radius:4px; background:#FF1744; box-shadow:0 0 8px rgba(255,23,68,0.7); }
+.ph .str-text { color:#fff; font-size:13px; font-weight:800; }
+.ph .str-btn { background:rgba(255,107,53,0.2); border:1px solid rgba(255,107,53,0.38); border-radius:10px; padding:6px 14px; color:#FF6B35; font-size:11px; font-weight:800; }
+/* bottom nav */
+.ph .bnav { margin:0 20px 20px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); border-radius:26px; padding:10px 6px; display:flex; justify-content:space-around; }
+.ph .ni { display:flex; flex-direction:column; align-items:center; gap:4px; padding:5px 12px; border-radius:16px; }
+.ph .ni.on { background:rgba(255,107,53,0.12); }
+.ph .ni-i { font-size:20px; opacity:0.35; }
+.ph .ni.on .ni-i { opacity:1; }
+.ph .ni-l { font-size:9px; font-weight:700; color:rgba(255,255,255,0.22); }
+.ph .ni.on .ni-l { color:#FF6B35; }
+</style>
+</head>
+<body>
+
+<!-- ━━ D ━━ -->
+<div class="section">
+  <div class="concept-title">CONCEPT D</div>
+  <div class="concept-name">STEEL BLUE — チャコール × エレクトリックブルー</div>
+  <div class="concept-desc">スチールグレーの背景に冷たいブルー。<br>スポーツ計測機器・データダッシュボード感。</div>
+  <div class="phone pd">
+    <div class="pd sb"><span>9:41</span><span>●●● 100%</span></div>
+    <div class="pd header">
+      <span class="pd app-logo">sCORE</span>
+      <div class="pd header-right">
+        <div class="pd icon-btn">🔔</div>
+        <div class="pd icon-btn">👤</div>
+      </div>
+    </div>
+    <div class="pd score-area">
+      <div class="pd sa-tag">INJURY RISK SCORE</div>
+      <div class="pd sa-num">72</div>
+      <div class="pd sa-status">
+        <div class="pd sa-dot"></div>
+        <span class="pd sa-label">高リスク — 強度を落とそう</span>
+      </div>
+      <div class="pd sa-bar"><div class="pd sa-fill"></div></div>
+    </div>
+    <div class="pd factors">
+      <div class="pd factor"><div class="pd f-i">🏃</div><div class="pd f-v" style="color:#FF6B6B">高</div><div class="pd f-n">練習</div></div>
+      <div class="pd factor"><div class="pd f-i">😴</div><div class="pd f-v" style="color:#FF9500">6h</div><div class="pd f-n">睡眠</div></div>
+      <div class="pd factor"><div class="pd f-i">⚡</div><div class="pd f-v" style="color:#FF6B6B">4/5</div><div class="pd f-n">疲労</div></div>
+      <div class="pd factor"><div class="pd f-i">🌧️</div><div class="pd f-v" style="color:#4FC3F7">+12</div><div class="pd f-n">天気</div></div>
+    </div>
+    <div class="pd ai-row">
+      <div class="pd ai-av">🤖</div>
+      <div><div class="pd ai-t">AI COACH</div><div class="pd ai-m">疲労が高いため今日はジョグ30分を推奨。インターバルは明日以降に。</div></div>
+    </div>
+    <div class="pd action-list">
+      <div class="pd act"><div class="pd act-l"><span class="pd act-num">01</span><span class="pd act-i">🤸</span><span class="pd act-n">ストレッチでリスクを下げる</span></div><span class="pd act-a" style="color:#4FC3F7">→</span></div>
+      <div class="pd act"><div class="pd act-l"><span class="pd act-num">02</span><span class="pd act-i">📝</span><span class="pd act-n">今日の体調を記録する</span></div><span class="pd act-a">→</span></div>
+      <div class="pd act"><div class="pd act-l"><span class="pd act-num">03</span><span class="pd act-i">🏃</span><span class="pd act-n">練習を記録する</span></div><span class="pd act-a">→</span></div>
+    </div>
+    <div class="pd bnav">
+      <div class="pd ni on"><span class="pd ni-i">🏠</span><span class="pd ni-l">ホーム</span></div>
+      <div class="pd ni"><span class="pd ni-i">📊</span><span class="pd ni-l">記録</span></div>
+      <div class="pd ni"><span class="pd ni-i">🤖</span><span class="pd ni-l">AI</span></div>
+      <div class="pd ni"><span class="pd ni-i">🏆</span><span class="pd ni-l">試合</span></div>
+      <div class="pd ni"><span class="pd ni-i">👤</span><span class="pd ni-l">設定</span></div>
+    </div>
+  </div>
+  <div class="palette">
+    <div class="swatch"><div class="sw-dot" style="background:#0b0d12;border:1px solid rgba(255,255,255,0.25)"></div><span class="sw-label">Charcoal</span></div>
+    <div class="swatch"><div class="sw-dot" style="background:#4FC3F7"></div><span class="sw-label">Electric Blue</span></div>
+    <div class="swatch"><div class="sw-dot" style="background:#FF453A"></div><span class="sw-label">Alert Red</span></div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ━━ E ━━ -->
+<div class="section">
+  <div class="concept-title">CONCEPT E</div>
+  <div class="concept-name">TERMINAL — 真黒 × ネオングリーン</div>
+  <div class="concept-desc">ターミナル / ハッカー的な世界観。<br>等幅フォント × グリーンの光。唯一無二の個性。</div>
+  <div class="phone pe">
+    <div class="pe sb"><span>09:41</span><span>SYS_OK ●●●</span></div>
+    <div class="pe header">
+      <span class="pe logo">sCORE</span>
+      <span class="pe sys-status">SYSTEM ACTIVE</span>
+    </div>
+    <div class="pe hero">
+      <div class="pe h-tag">// INJURY_RISK_SCORE</div>
+      <div class="pe h-score-row">
+        <div class="pe h-num">72</div>
+        <div class="pe h-right">
+          <div class="pe h-status">HIGH_RISK</div>
+          <div class="pe h-sub">REDUCE_INTENSITY</div>
+        </div>
+      </div>
+      <div class="pe prog"><div class="pe prog-fill"></div></div>
+    </div>
+    <div class="pe metrics">
+      <div class="pe m"><div class="pe m-v m-bad">4/5</div><div class="pe m-l">FATIGUE</div></div>
+      <div class="pe m"><div class="pe m-v" style="color:rgba(255,255,255,0.5)">6h</div><div class="pe m-l">SLEEP</div></div>
+      <div class="pe m"><div class="pe m-v" style="color:rgba(0,255,136,0.7)">+12</div><div class="pe m-l">WEATHER</div></div>
+    </div>
+    <div class="pe ai">
+      <div class="pe ai-head">// AI_COACH_OUTPUT</div>
+      <div class="pe ai-msg">今日は<em>インターバルを回避</em>してジョグ30分を推奨。直近3日の負荷が限界域。</div>
+    </div>
+    <div class="pe acts">
+      <div class="pe act"><div class="pe act-l"><span class="pe act-mark">&gt;_</span><span class="pe act-i">🤸</span><span class="pe act-n">ストレッチでリスクを下げる</span></div><span class="pe act-arr">──→</span></div>
+      <div class="pe act"><div class="pe act-l"><span class="pe act-mark">&gt;_</span><span class="pe act-i">📝</span><span class="pe act-n">今日の体調を記録する</span></div><span class="pe act-arr">──→</span></div>
+      <div class="pe act"><div class="pe act-l"><span class="pe act-mark">&gt;_</span><span class="pe act-i">🏃</span><span class="pe act-n">練習を記録する</span></div><span class="pe act-arr">──→</span></div>
+    </div>
+    <div class="pe bnav">
+      <div class="pe ni"><span class="pe ni-i on">⊙</span><span class="pe ni-l on">HOME</span></div>
+      <div class="pe ni"><span class="pe ni-i">▤</span><span class="pe ni-l">LOG</span></div>
+      <div class="pe ni"><span class="pe ni-i">◎</span><span class="pe ni-l">AI</span></div>
+      <div class="pe ni"><span class="pe ni-i">⊞</span><span class="pe ni-l">RACE</span></div>
+      <div class="pe ni"><span class="pe ni-i">◯</span><span class="pe ni-l">ME</span></div>
+    </div>
+  </div>
+  <div class="palette">
+    <div class="swatch"><div class="sw-dot" style="background:#000;border:1px solid rgba(255,255,255,0.25)"></div><span class="sw-label">Pure Black</span></div>
+    <div class="swatch"><div class="sw-dot" style="background:#00FF88"></div><span class="sw-label">Neon Green</span></div>
+    <div class="swatch"><div class="sw-dot" style="background:#FF453A"></div><span class="sw-label">Alert Red</span></div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ━━ F ━━ -->
+<div class="section">
+  <div class="concept-title">CONCEPT F</div>
+  <div class="concept-name">WARM GOLD — ディープブラウン × アンバーゴールド</div>
+  <div class="concept-desc">暖かいチャコール × ゴールドの組み合わせ。<br>高級感・プレミアムスポーツブランド感。</div>
+  <div class="phone pf">
+    <div class="pf sb"><span>9:41</span><span>●●● 100%</span></div>
+    <div class="pf header">
+      <span class="pf logo">sCORE</span>
+      <span class="pf date">4月26日（土）</span>
+    </div>
+    <div class="pf score-area">
+      <div class="pf sa-over">INJURY RISK SCORE</div>
+      <div class="pf sa-row">
+        <div class="pf sa-num">72</div>
+        <div class="pf sa-side">
+          <div class="pf sa-chip">🔴 高リスク</div>
+          <div class="pf sa-sub">強度を落とそう</div>
+        </div>
+      </div>
+      <div class="pf sa-bar"><div class="pf sa-fill"></div></div>
+    </div>
+    <div class="pf grid">
+      <div class="pf gc"><div class="pf gc-i">⚡</div><div class="pf gc-v" style="color:#FF6B6B">4/5</div><div class="pf gc-l">疲労</div></div>
+      <div class="pf gc"><div class="pf gc-i">😴</div><div class="pf gc-v" style="color:#FF9500">6h</div><div class="pf gc-l">睡眠</div></div>
+      <div class="pf gc"><div class="pf gc-i">🌧️</div><div class="pf gc-v" style="color:#FFC850">+12</div><div class="pf gc-l">天気</div></div>
+    </div>
+    <div class="pf ai-card">
+      <div class="pf ai-top"><div class="pf ai-av">🤖</div><span class="pf ai-name">AI COACH</span></div>
+      <div class="pf ai-msg">疲労が高いため今日はジョグ30分を推奨します。インターバルは明日以降にしましょう。</div>
+    </div>
+    <div class="pf stretch"><span class="pf str-l">🤸 ストレッチでリスクを下げる</span><span class="pf str-r">→</span></div>
+    <div class="pf bnav">
+      <div class="pf ni on"><span class="pf ni-i">🏠</span><span class="pf ni-l">ホーム</span></div>
+      <div class="pf ni"><span class="pf ni-i">📊</span><span class="pf ni-l">記録</span></div>
+      <div class="pf ni"><span class="pf ni-i">🤖</span><span class="pf ni-l">AI</span></div>
+      <div class="pf ni"><span class="pf ni-i">🏆</span><span class="pf ni-l">試合</span></div>
+      <div class="pf ni"><span class="pf ni-i">👤</span><span class="pf ni-l">設定</span></div>
+    </div>
+  </div>
+  <div class="palette">
+    <div class="swatch"><div class="sw-dot" style="background:#0d0b08;border:1px solid rgba(255,255,255,0.25)"></div><span class="sw-label">Warm Charcoal</span></div>
+    <div class="swatch"><div class="sw-dot" style="background:#FFC850"></div><span class="sw-label">Amber Gold</span></div>
+    <div class="swatch"><div class="sw-dot" style="background:#FF6B35"></div><span class="sw-label">Warm Orange</span></div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ━━ G ━━ -->
+<div class="section">
+  <div class="concept-title">CONCEPT G</div>
+  <div class="concept-name">FROST / ICE — ダークスレート × コールドシアン</div>
+  <div class="concept-desc">青白い氷のような清潔感。<br>医療機器・精密計測のような信頼感。</div>
+  <div class="phone pg">
+    <div class="pg sb"><span>9:41</span><span>●●● 100%</span></div>
+    <div class="pg header">
+      <span class="pg logo">sCORE</span>
+      <div class="pg pills">
+        <div class="pg pill">🌧️ 雨</div>
+        <div class="pg pill">9℃</div>
+      </div>
+    </div>
+    <div class="pg score-area">
+      <div class="pg sa-date">INJURY RISK — 4月26日</div>
+      <span class="pg sa-num">72</span>
+      <div class="pg sa-row">
+        <span class="pg sa-status">🔴 高リスク</span>
+        <span class="pg sa-weather">天気 +12pt</span>
+      </div>
+      <div class="pg bar-wrap">
+        <div class="pg bar-bg"><div class="pg bar-fill"></div></div>
+        <div class="pg ticks"><span class="pg tick">0</span><span class="pg tick">25</span><span class="pg tick">50</span><span class="pg tick">75</span><span class="pg tick">100</span></div>
+      </div>
+    </div>
+    <div class="pg cols">
+      <div class="pg col"><div class="pg col-i">⚡</div><div class="pg col-v" style="color:#FF6B6B">4/5</div><div class="pg col-l">疲労</div></div>
+      <div class="pg col"><div class="pg col-i">😴</div><div class="pg col-v" style="color:#FF9500">6h</div><div class="pg col-l">睡眠</div></div>
+      <div class="pg col"><div class="pg col-i">💪</div><div class="pg col-v" style="color:#34C759">3/5</div><div class="pg col-l">体調</div></div>
+    </div>
+    <div class="pg ai-row">
+      <div class="pg ai-av">🤖</div>
+      <div><div class="pg ai-t">AI COACH</div><div class="pg ai-m">疲労が高いため今日はジョグ30分を推奨。インターバルは明日以降に。</div></div>
+    </div>
+    <div class="pg stretch"><span class="pg str-l">🤸 ストレッチでリスクを下げる</span><span class="pg str-r">→</span></div>
+    <div class="pg bnav">
+      <div class="pg ni on"><span class="pg ni-i">🏠</span><span class="pg ni-l">ホーム</span></div>
+      <div class="pg ni"><span class="pg ni-i">📊</span><span class="pg ni-l">記録</span></div>
+      <div class="pg ni"><span class="pg ni-i">🤖</span><span class="pg ni-l">AI</span></div>
+      <div class="pg ni"><span class="pg ni-i">🏆</span><span class="pg ni-l">試合</span></div>
+      <div class="pg ni"><span class="pg ni-i">👤</span><span class="pg ni-l">設定</span></div>
+    </div>
+  </div>
+  <div class="palette">
+    <div class="swatch"><div class="sw-dot" style="background:#080d12;border:1px solid rgba(255,255,255,0.25)"></div><span class="sw-label">Dark Slate</span></div>
+    <div class="swatch"><div class="sw-dot" style="background:#56CCF2"></div><span class="sw-label">Cold Cyan</span></div>
+    <div class="swatch"><div class="sw-dot" style="background:#B4DCFF;opacity:0.7"></div><span class="sw-label">Frost White</span></div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ━━ H ━━ -->
+<div class="section">
+  <div class="concept-title">CONCEPT H</div>
+  <div class="concept-name">EMBER / FIRE — 超ダーク × 燃えるオレンジ</div>
+  <div class="concept-desc">超ダークな背景にオレンジ〜レッドのグラデーション。<br>スコアの数字自体が燃えるようなグラデーション。エネルギー・強さ。</div>
+  <div class="phone ph">
+    <div class="ph glow-bg"></div>
+    <div class="ph sb"><span>9:41</span><span>●●● 100%</span></div>
+    <div class="ph header">
+      <span class="ph logo">sCORE</span>
+      <div class="ph header-icon">🔔</div>
+    </div>
+    <div class="ph score-area">
+      <div class="ph sa-label">INJURY RISK SCORE</div>
+      <span class="ph sa-num">72</span>
+      <div class="ph sa-status-row">
+        <span class="ph sa-fire">🔥</span>
+        <span class="ph sa-status-text">高リスク — 強度を落とそう</span>
+      </div>
+      <div class="ph sa-bar"><div class="ph sa-fill"></div></div>
+    </div>
+    <div class="ph cards">
+      <div class="ph card hot"><div class="ph c-i">⚡</div><div class="ph c-v" style="color:#FF6B6B">4/5</div><div class="ph c-l">疲労</div></div>
+      <div class="ph card"><div class="ph c-i">😴</div><div class="ph c-v" style="color:#FF9500">6h</div><div class="ph c-l">睡眠</div></div>
+      <div class="ph card"><div class="ph c-i">🌧️</div><div class="ph c-v" style="color:#FF8C35">+12</div><div class="ph c-l">天気</div></div>
+    </div>
+    <div class="ph ai-row">
+      <div class="ph ai-av">🤖</div>
+      <div><div class="ph ai-title">AI COACH</div><div class="ph ai-msg">疲労が高いため今日はジョグ30分を推奨。インターバルは明日以降に。</div></div>
+    </div>
+    <div class="ph stretch">
+      <div class="ph str-l"><div class="ph str-dot"></div><span class="ph str-text">🤸 ストレッチでリスクを下げる</span></div>
+      <div class="ph str-btn">開始 →</div>
+    </div>
+    <div class="ph bnav">
+      <div class="ph ni on"><span class="ph ni-i">🏠</span><span class="ph ni-l">ホーム</span></div>
+      <div class="ph ni"><span class="ph ni-i">📊</span><span class="ph ni-l">記録</span></div>
+      <div class="ph ni"><span class="ph ni-i">🤖</span><span class="ph ni-l">AI</span></div>
+      <div class="ph ni"><span class="ph ni-i">🏆</span><span class="ph ni-l">試合</span></div>
+      <div class="ph ni"><span class="ph ni-i">👤</span><span class="ph ni-l">設定</span></div>
+    </div>
+  </div>
+  <div class="palette">
+    <div class="swatch"><div class="sw-dot" style="background:#090508;border:1px solid rgba(255,255,255,0.25)"></div><span class="sw-label">Near Black</span></div>
+    <div class="swatch"><div class="sw-dot" style="background:linear-gradient(135deg,#FF6B35,#FF1744)"></div><span class="sw-label">Fire Gradient</span></div>
+    <div class="swatch"><div class="sw-dot" style="background:#FF1744"></div><span class="sw-label">Ember Red</span></div>
+  </div>
+</div>
+
+<div style="color:rgba(255,255,255,0.2);font-size:12px;text-align:center;padding:32px;line-height:2.2">
+  Concept D〜H（全5案） | 「これベースで進めて」と言えば全画面に展開します<br>
+  前回のA〜Cと合わせて8案。ミックスも可能。
+</div>
+
+</body>
+</html>

@@ -645,7 +645,7 @@ function SevBadge({severity}:{severity:Severity}) {
 
 /* ─── スタイル ─── */
 const s = StyleSheet.create({
-  bg:{flex:1,backgroundColor:'#0a0a0a'},
+  bg:{flex:1,backgroundColor:'#f6f6f8'},
   tabBar:{flexDirection:'row',borderBottomWidth:1,borderBottomColor:'rgba(255,255,255,0.08)'},
   tabItem:{flex:1,paddingVertical:12,alignItems:'center'},
   tabActive:{borderBottomWidth:2,borderBottomColor:'#E53935'},
@@ -657,11 +657,11 @@ const s = StyleSheet.create({
   selectedBadge:{flexDirection:'row',alignItems:'center',gap:5,backgroundColor:'rgba(229,57,53,0.12)',
     paddingHorizontal:10,paddingVertical:5,borderRadius:20,marginRight:6,borderWidth:1,borderColor:'rgba(229,57,53,0.3)'},
   selectedTxt:{color:'#E53935',fontSize:12,fontWeight:'700'},
-  clearAll:{paddingHorizontal:10,paddingVertical:5,borderRadius:20,backgroundColor:'rgba(255,255,255,0.05)',justifyContent:'center'},
+  clearAll:{paddingHorizontal:10,paddingVertical:5,borderRadius:20,backgroundColor:'#f0f2f5',justifyContent:'center'},
 
-  viewToggle:{flexDirection:'row',alignSelf:'center',backgroundColor:'rgba(255,255,255,0.06)',borderRadius:20,padding:3,marginBottom:10},
+  viewToggle:{flexDirection:'row',alignSelf:'center',backgroundColor:'#f0f2f5',borderRadius:20,padding:3,marginBottom:10},
   viewBtn:{paddingHorizontal:22,paddingVertical:7,borderRadius:18},
-  viewBtnActive:{backgroundColor:'rgba(255,255,255,0.15)'},
+  viewBtnActive:{backgroundColor:'#ffffff'},
   viewBtnTxt:{color:'#555',fontSize:13,fontWeight:'700'},
   viewBtnTxtActive:{color:'#fff'},
   svgWrap:{alignSelf:'center',marginBottom:8,borderRadius:12,overflow:'hidden'},
@@ -671,12 +671,12 @@ const s = StyleSheet.create({
   levelTxt:{color:'#888',fontSize:11,fontWeight:'700'},
 
   chipRow:{flexDirection:'row',flexWrap:'wrap',gap:8},
-  chip:{paddingHorizontal:14,paddingVertical:8,borderRadius:20,backgroundColor:'rgba(255,255,255,0.05)',borderWidth:1.5,borderColor:'transparent'},
+  chip:{paddingHorizontal:14,paddingVertical:8,borderRadius:20,backgroundColor:'#f0f2f5',borderWidth:1.5,borderColor:'transparent'},
   chipActive:{backgroundColor:'rgba(229,57,53,0.12)',borderColor:'#E53935'},
   chipTxt:{color:'#888',fontSize:13},
   chipTxtActive:{color:'#fff'},
 
-  notesInput:{backgroundColor:'rgba(255,255,255,0.05)',borderRadius:12,padding:14,color:'#fff',fontSize:14,minHeight:72,textAlignVertical:'top',borderWidth:1,borderColor:'rgba(255,255,255,0.08)'},
+  notesInput:{backgroundColor:'#f8f8fa',borderRadius:12,padding:14,color:'#111827',fontSize:14,minHeight:72,textAlignVertical:'top',borderWidth:1,borderColor:'rgba(255,255,255,0.08)'},
   errorBox:{flexDirection:'row',alignItems:'flex-start',gap:6,marginTop:12,padding:12,backgroundColor:'rgba(255,59,48,0.08)',borderRadius:10},
   errorTxt:{color:'#FF3B30',fontSize:12,lineHeight:18,flex:1},
   disclaimer:{flexDirection:'row',alignItems:'flex-start',gap:6,marginTop:14,padding:10,backgroundColor:'rgba(255,255,255,0.03)',borderRadius:10},
@@ -686,10 +686,10 @@ const s = StyleSheet.create({
   submitBtn:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:'#E53935',borderRadius:16,paddingVertical:18,marginTop:16},
   submitTxt:{color:'#fff',fontSize:16,fontWeight:'800'},
 
-  diagCard:{backgroundColor:'rgba(255,255,255,0.05)',borderRadius:14,padding:16,borderLeftWidth:4,marginBottom:12},
+  diagCard:{backgroundColor:'#ffffff',borderRadius:14,padding:16,borderLeftWidth:4,marginBottom:12},
   sevBadge:{paddingHorizontal:10,paddingVertical:3,borderRadius:20},
   sevTxt:{fontSize:11,fontWeight:'800'},
-  sec:{backgroundColor:'rgba(255,255,255,0.04)',borderRadius:14,padding:14,marginBottom:10,borderLeftWidth:3},
+  sec:{backgroundColor:'#f8f8fa',borderRadius:14,padding:14,marginBottom:10,borderLeftWidth:3},
   secHead:{flexDirection:'row',alignItems:'center',gap:6,marginBottom:10},
   secHeadTxt:{fontSize:13,fontWeight:'800'},
   bullet:{flexDirection:'row',alignItems:'flex-start',gap:8,marginBottom:6},
@@ -702,7 +702,7 @@ const s = StyleSheet.create({
   tlDot:{width:10,height:10,borderRadius:5,marginTop:4},
   reBtn:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6,padding:16},
   reBtnTxt:{color:'#444',fontSize:13},
-  histCard:{backgroundColor:'rgba(255,255,255,0.05)',borderRadius:14,padding:14,marginBottom:10},
+  histCard:{backgroundColor:'#ffffff',borderRadius:14,padding:14,marginBottom:10},
   histDate:{color:'#555',fontSize:11},
   histPart:{color:'#888',fontSize:12,marginBottom:4},
   histDiag:{color:'#fff',fontSize:15,fontWeight:'700',paddingRight:24},

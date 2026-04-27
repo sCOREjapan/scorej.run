@@ -12,7 +12,7 @@ import {
   Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { NEON, TEXT, GLASS } from '../../lib/theme'
+import { BRAND, NEON, TEXT, GLASS } from '../../lib/theme'
 import { Ionicons } from '@expo/vector-icons'
 import Toast from 'react-native-toast-message'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -30,7 +30,6 @@ const ENTRY_KEY = 'trackmate_entry_status'
 import { generateCompetitionPlan } from '../../lib/claude'
 import type { CompetitionPlan, TrackEvent, AthleticsEvent, WeekPlan, UserProfile } from '../../types'
 
-const BRAND = '#E53E3E'
 const MOCK_USER_ID = 'mock-user-1'
 
 const MOCK_USER: UserProfile = {

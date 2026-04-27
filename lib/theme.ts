@@ -1,7 +1,8 @@
 // lib/theme.ts — TrackMate デザインシステム（W3 Soft Grey × Red）
 
 // ── ブランドカラー ────────────────────────────────────────
-export const BRAND = '#E53935'   // TrackMate レッド（CTAボタン・強調）
+export const BRAND = '#166534'   // TrackMate ディープグリーン（CTAボタン・強調）
+export const ALERT = '#E53935'   // アラートレッド（高リスク・危険表示のみ）
 
 // ── 背景 ─────────────────────────────────────────────────
 /** 全画面背景色 */

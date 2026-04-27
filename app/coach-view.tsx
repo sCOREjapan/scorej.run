@@ -8,16 +8,16 @@ import {
   Animated,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { LinearGradient } from 'expo-linear-gradient'
+
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useRouter } from 'expo-router'
-import { BG_GRADIENT, NEON, TEXT } from '../lib/theme'
+import { BRAND, NEON, TEXT } from '../lib/theme'
 import { Sounds } from '../lib/sounds'
 import AnimatedSection from '../components/AnimatedSection'
 import type { TrainingSession, RaceRecord, SleepRecord, CoachNote } from '../types'
 
-const BRAND = '#E53E3E'
+
 const SESSIONS_KEY = 'trackmate_sessions'
 const RECORDS_KEY = 'trackmate_race_records'
 const SLEEP_KEY = 'trackmate_sleep'

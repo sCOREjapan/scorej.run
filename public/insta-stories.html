@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>sCORE — Instagram Stories</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: #0a0a0a;
+  font-family: -apple-system, 'Hiragino Sans', 'Yu Gothic UI', sans-serif;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  padding: 28px;
+  justify-content: center;
+}
+
+/* ── カード共通 ── */
+.card {
+  width: 390px;
+  height: 692px;
+  border-radius: 24px;
+  overflow: hidden;
+  position: relative;
+  flex-shrink: 0;
+  background: #0d0d0d;
+}
+
+/* ── ラベル ── */
+.section-title {
+  width: 100%;
+  color: rgba(255,255,255,0.2);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  padding: 8px 4px 0;
+}
+
+/* ── 番号 ── */
+.num {
+  position: absolute;
+  top: 18px; right: 20px;
+  color: rgba(255,255,255,0.18);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  z-index: 20;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   01 — ヒーロー
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.c1 { background: #070707; }
+.c1 .noise {
+  position:absolute; inset:0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  opacity: 0.4;
+}
+.c1 .redglow {
+  position:absolute;
+  width:500px; height:500px;
+  background: radial-gradient(circle, rgba(200,16,46,0.35) 0%, transparent 65%);
+  top:-80px; left:-60px;
+}
+.c1 .blueglow {
+  position:absolute;
+  width:300px; height:300px;
+  background: radial-gradient(circle, rgba(74,159,255,0.12) 0%, transparent 65%);
+  bottom:40px; right:-40px;
+}
+.c1 .body {
+  position:absolute; inset:0;
+  display:flex; flex-direction:column;
+  justify-content:center; align-items:flex-start;
+  padding: 48px 36px;
+}
+.c1 .logo {
+  width:72px; height:72px; border-radius:20px;
+  background: linear-gradient(135deg, #C8102E, #8b0000);
+  display:flex; align-items:center; justify-content:center;
+  margin-bottom:32px;
+  box-shadow: 0 0 40px rgba(200,16,46,0.6), 0 8px 32px rgba(0,0,0,0.5);
+}
+.c1 .logo span { color:#fff; font-size:38px; font-weight:900; }
+.c1 .app { color:#fff; font-size:52px; font-weight:900; letter-spacing:-3px; line-height:1; margin-bottom:6px; }
+.c1 .eng { color:rgba(255,255,255,0.35); font-size:11px; font-weight:700; letter-spacing:3px; text-transform:uppercase; margin-bottom:40px; }
+.c1 .copy { color:#fff; font-size:28px; font-weight:900; line-height:1.45; letter-spacing:-0.5px; margin-bottom:16px; }
+.c1 .sub { color:rgba(255,255,255,0.45); font-size:13px; line-height:1.8; }
+.c1 .url {
+  position:absolute; bottom:28px; left:36px;
+  color:rgba(255,255,255,0.2); font-size:11px; font-weight:700; letter-spacing:1px;
+}
+.c1 .line {
+  position:absolute; top:0; left:0; right:0; height:2px;
+  background: linear-gradient(90deg, #C8102E, transparent);
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   02 — 問題提起
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.c2 { background: #0a0608; }
+.c2 .body { position:absolute; inset:0; padding:52px 28px 36px; display:flex; flex-direction:column; }
+.c2 .eyebrow {
+  display:flex; align-items:center; gap:8px; margin-bottom:16px;
+}
+.c2 .eyebrow-dot { width:6px; height:6px; border-radius:3px; background:#C8102E; }
+.c2 .eyebrow-text { color:#C8102E; font-size:10px; font-weight:800; letter-spacing:2.5px; text-transform:uppercase; }
+.c2 .title { color:#fff; font-size:28px; font-weight:900; line-height:1.35; letter-spacing:-0.5px; margin-bottom:28px; }
+.c2 .items { display:flex; flex-direction:column; gap:10px; flex:1; }
+.c2 .item {
+  display:flex; align-items:center; gap:16px;
+  background:rgba(255,255,255,0.03);
+  border:1px solid rgba(255,255,255,0.07);
+  border-radius:16px; padding:16px 18px;
+}
+.c2 .item-left {
+  width:40px; height:40px; border-radius:12px;
+  background:rgba(200,16,46,0.1); border:1px solid rgba(200,16,46,0.2);
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px; flex-shrink:0;
+}
+.c2 .item-text { color:rgba(255,255,255,0.75); font-size:13px; font-weight:600; line-height:1.5; }
+.c2 .bottom {
+  margin-top:16px;
+  background:rgba(200,16,46,0.1); border:1px solid rgba(200,16,46,0.25);
+  border-radius:16px; padding:18px 20px;
+  display:flex; align-items:center; gap:16px;
+}
+.c2 .b-num { color:#C8102E; font-size:44px; font-weight:900; line-height:1; }
+.c2 .b-text { color:#fff; font-size:14px; font-weight:700; line-height:1.6; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   共通：機能カードレイアウト
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.feat-body { position:absolute; inset:0; padding:48px 26px 36px; display:flex; flex-direction:column; }
+.feat-tag {
+  display:inline-flex; align-items:center; gap:8px;
+  border-radius:30px; padding:6px 14px;
+  margin-bottom:18px; align-self:flex-start;
+}
+.feat-tag .t-dot { width:5px; height:5px; border-radius:3px; }
+.feat-tag .t-text { font-size:10px; font-weight:800; letter-spacing:2px; text-transform:uppercase; }
+.feat-h { color:#fff; font-size:26px; font-weight:900; line-height:1.35; letter-spacing:-0.5px; margin-bottom:8px; }
+.feat-s { color:rgba(255,255,255,0.4); font-size:12px; line-height:1.8; margin-bottom:20px; }
+
+/* mock-phone: アプリ画面っぽいカード */
+.mock {
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.09);
+  border-radius:20px; overflow:hidden;
+}
+.mock-header {
+  padding:12px 16px;
+  border-bottom:1px solid rgba(255,255,255,0.06);
+  display:flex; align-items:center; justify-content:space-between;
+}
+.mock-label { color:rgba(255,255,255,0.35); font-size:10px; font-weight:700; letter-spacing:1px; }
+.mock-body { padding:16px; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   03 — 怪我リスクスコア
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.c3 { background:#080505; }
+.c3 .score-big { color:#FF3B30; font-size:72px; font-weight:900; line-height:1; margin-bottom:6px; }
+.c3 .score-bar-wrap { margin:12px 0 10px; }
+.c3 .score-bar-bg { height:10px; background:rgba(255,255,255,0.07); border-radius:5px; overflow:hidden; }
+.c3 .score-bar-fill { height:10px; background:linear-gradient(90deg,#FF9500,#FF3B30); border-radius:5px; }
+.c3 .score-status { color:#FF3B30; font-size:13px; font-weight:800; }
+.c3 .factors { display:flex; gap:8px; margin-top:14px; }
+.c3 .factor {
+  flex:1; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+  border-radius:14px; padding:12px 8px; align-items:center; display:flex; flex-direction:column; gap:4px;
+}
+.c3 .f-icon { font-size:20px; }
+.c3 .f-val { font-size:16px; font-weight:900; }
+.c3 .f-name { color:rgba(255,255,255,0.35); font-size:9px; font-weight:700; }
+.c3 .levels { display:flex; gap:8px; margin-top:10px; }
+.c3 .lv { flex:1; border-radius:12px; padding:10px 6px; text-align:center; border:1px solid; }
+.c3 .lv-n { font-size:14px; font-weight:900; }
+.c3 .lv-t { font-size:9px; font-weight:700; margin-top:3px; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   04 — 天気連動
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.c4 { background:#05080d; }
+.c4 .weather-hero {
+  background:rgba(74,159,255,0.07); border:1px solid rgba(74,159,255,0.18);
+  border-radius:18px; padding:18px; display:flex; align-items:center; gap:16px; margin-bottom:12px;
+}
+.c4 .w-icon { font-size:56px; }
+.c4 .w-right { flex:1; }
+.c4 .w-main { color:#fff; font-size:17px; font-weight:800; margin-bottom:4px; }
+.c4 .w-sub { color:rgba(255,255,255,0.4); font-size:11px; line-height:1.6; }
+.c4 .risk-add {
+  background:rgba(255,149,0,0.1); border:1px solid rgba(255,149,0,0.28);
+  border-radius:14px; padding:13px 18px; display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;
+}
+.c4 .ra-label { color:rgba(255,255,255,0.55); font-size:12px; font-weight:700; }
+.c4 .ra-val { color:#FF9500; font-size:22px; font-weight:900; }
+.c4 .w-rows { display:flex; flex-direction:column; gap:8px; }
+.c4 .w-row {
+  display:flex; align-items:center; gap:14px;
+  background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06);
+  border-radius:12px; padding:12px 14px;
+}
+.c4 .wr-icon { font-size:18px; width:26px; text-align:center; }
+.c4 .wr-body { flex:1; }
+.c4 .wr-title { color:rgba(255,255,255,0.75); font-size:12px; font-weight:700; }
+.c4 .wr-desc { color:rgba(255,255,255,0.35); font-size:10px; margin-top:2px; }
+.c4 .wr-badge { color:#FF9500; font-size:12px; font-weight:900; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   05 — ストレッチ回復
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.c5 { background:#060a07; }
+.c5 .new-pill {
+  position:absolute; top:18px; left:26px;
+  background:#34C759; border-radius:30px;
+  padding:4px 12px; z-index:20;
+  display:flex; align-items:center; gap:5px;
+}
+.c5 .new-dot { width:5px; height:5px; border-radius:3px; background:#000; }
+.c5 .new-text { color:#000; font-size:10px; font-weight:900; letter-spacing:1px; }
+.c5 .flow { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
+.c5 .step {
+  display:flex; align-items:center; gap:14px;
+  background:rgba(52,199,89,0.05); border:1px solid rgba(52,199,89,0.15);
+  border-radius:16px; padding:14px 16px;
+}
+.c5 .s-num {
+  width:32px; height:32px; border-radius:10px;
+  background:rgba(52,199,89,0.18); border:1px solid rgba(52,199,89,0.35);
+  display:flex; align-items:center; justify-content:center;
+  color:#34C759; font-size:14px; font-weight:900; flex-shrink:0;
+}
+.c5 .s-body { flex:1; }
+.c5 .s-title { color:#fff; font-size:13px; font-weight:800; margin-bottom:2px; }
+.c5 .s-sub { color:rgba(255,255,255,0.38); font-size:10px; }
+.c5 .s-emoji { font-size:26px; }
+.c5 .result {
+  background:rgba(52,199,89,0.08); border:1px solid rgba(52,199,89,0.22);
+  border-radius:16px; padding:16px 20px;
+  display:flex; align-items:center; gap:14px;
+}
+.c5 .r-before { color:#FF3B30; font-size:36px; font-weight:900; }
+.c5 .r-arrow { color:rgba(255,255,255,0.3); font-size:20px; }
+.c5 .r-after { color:#34C759; font-size:36px; font-weight:900; }
+.c5 .r-label { color:rgba(255,255,255,0.5); font-size:12px; font-weight:700; margin-left:6px; line-height:1.5; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   06 — AIコーチ
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.c6 { background:#050510; }
+.c6 .ai-bubble {
+  background:rgba(74,159,255,0.07); border:1px solid rgba(74,159,255,0.18);
+  border-radius:20px; padding:18px; flex:1;
+}
+.c6 .ai-head { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
+.c6 .ai-av {
+  width:40px; height:40px; border-radius:12px;
+  background:linear-gradient(135deg,#4A9FFF,#005fcc);
+  display:flex; align-items:center; justify-content:center; font-size:20px;
+}
+.c6 .ai-name { color:#4A9FFF; font-size:13px; font-weight:800; }
+.c6 .ai-sub { color:rgba(255,255,255,0.3); font-size:10px; margin-top:2px; }
+.c6 .ai-msgs { display:flex; flex-direction:column; gap:10px; }
+.c6 .ai-msg { display:flex; gap:10px; }
+.c6 .ai-icon { font-size:16px; flex-shrink:0; margin-top:2px; }
+.c6 .ai-text { color:rgba(255,255,255,0.72); font-size:12px; line-height:1.75; }
+.c6 .caps { display:flex; gap:8px; margin-top:16px; }
+.c6 .cap {
+  flex:1; background:rgba(74,159,255,0.07); border:1px solid rgba(74,159,255,0.16);
+  border-radius:12px; padding:10px 6px; text-align:center;
+}
+.c6 .cap-i { font-size:18px; margin-bottom:4px; }
+.c6 .cap-n { color:rgba(255,255,255,0.5); font-size:9px; font-weight:700; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   07 — 動画フォーム分析
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.c7 { background:#080808; }
+.c7 .video-box {
+  background:#111; border:1px solid rgba(255,149,0,0.2);
+  border-radius:18px; overflow:hidden; flex:1;
+}
+.c7 .video-screen {
+  height:130px; background:#0a0a0a;
+  display:flex; align-items:center; justify-content:center;
+  position:relative; border-bottom:1px solid rgba(255,255,255,0.05);
+}
+.c7 .play {
+  width:52px; height:52px; border-radius:50%;
+  background:rgba(255,149,0,0.9);
+  display:flex; align-items:center; justify-content:center;
+  font-size:20px; box-shadow:0 0 24px rgba(255,149,0,0.5);
+}
+.c7 .v-runner { position:absolute; font-size:64px; opacity:0.12; }
+.c7 .analysis { padding:14px 16px; }
+.c7 .a-title { color:rgba(255,255,255,0.3); font-size:10px; font-weight:700; letter-spacing:1.5px; margin-bottom:10px; }
+.c7 .a-row { display:flex; gap:8px; margin-bottom:8px; align-items:flex-start; }
+.c7 .a-icon { font-size:14px; flex-shrink:0; margin-top:1px; }
+.c7 .a-text { color:rgba(255,255,255,0.65); font-size:12px; line-height:1.65; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   08 — 食事分析
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.c8 { background:#060a06; }
+.c8 .meal-card {
+  background:rgba(52,199,89,0.06); border:1px solid rgba(52,199,89,0.16);
+  border-radius:18px; padding:16px; margin-bottom:12px;
+}
+.c8 .meal-top { display:flex; gap:14px; margin-bottom:14px; }
+.c8 .meal-photo {
+  width:64px; height:64px; border-radius:14px;
+  background:#111; display:flex; align-items:center; justify-content:center; font-size:34px;
+}
+.c8 .meal-info { flex:1; }
+.c8 .meal-name { color:#fff; font-size:15px; font-weight:800; margin-bottom:4px; }
+.c8 .meal-kcal { display:flex; align-items:baseline; gap:3px; }
+.c8 .kcal-num { color:#34C759; font-size:24px; font-weight:900; }
+.c8 .kcal-unit { color:rgba(255,255,255,0.35); font-size:11px; }
+.c8 .pfc { display:flex; gap:8px; }
+.c8 .pfc-item { flex:1; background:rgba(255,255,255,0.05); border-radius:10px; padding:8px 6px; text-align:center; }
+.c8 .pfc-val { font-size:17px; font-weight:900; }
+.c8 .pfc-name { color:rgba(255,255,255,0.35); font-size:9px; font-weight:700; margin-top:2px; }
+.c8 .ai-tip {
+  background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+  border-radius:14px; padding:14px 16px;
+  display:flex; gap:10px; align-items:flex-start;
+}
+.c8 .tip-icon { font-size:18px; flex-shrink:0; }
+.c8 .tip-text { color:rgba(255,255,255,0.6); font-size:12px; line-height:1.7; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   09 — 睡眠管理
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.c9 { background:#060609; }
+.c9 .sleep-card {
+  background:rgba(175,82,222,0.07); border:1px solid rgba(175,82,222,0.2);
+  border-radius:18px; padding:18px; margin-bottom:12px;
+}
+.c9 .sl-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+.c9 .sl-date { color:rgba(255,255,255,0.4); font-size:11px; font-weight:700; }
+.c9 .sl-grade { color:#AF52DE; font-size:11px; font-weight:800; }
+.c9 .sl-time { display:flex; align-items:center; gap:6px; margin-bottom:10px; }
+.c9 .sl-t { color:#AF52DE; font-size:36px; font-weight:900; line-height:1; }
+.c9 .sl-unit { color:rgba(255,255,255,0.35); font-size:13px; font-weight:700; }
+.c9 .sl-bar-bg { height:8px; background:rgba(255,255,255,0.07); border-radius:4px; overflow:hidden; margin-bottom:12px; }
+.c9 .sl-bar { height:8px; border-radius:4px; background:linear-gradient(90deg,#5E5CE6,#AF52DE); }
+.c9 .sl-stats { display:flex; gap:8px; }
+.c9 .sl-s { flex:1; text-align:center; }
+.c9 .sl-sv { color:#AF52DE; font-size:20px; font-weight:900; }
+.c9 .sl-sl { color:rgba(255,255,255,0.3); font-size:9px; font-weight:700; margin-top:2px; }
+.c9 .pts { display:flex; flex-direction:column; gap:9px; }
+.c9 .pt {
+  display:flex; align-items:flex-start; gap:12px;
+  background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06);
+  border-radius:13px; padding:12px 14px;
+}
+.c9 .pt-icon { font-size:18px; flex-shrink:0; }
+.c9 .pt-title { color:#fff; font-size:12px; font-weight:800; margin-bottom:2px; }
+.c9 .pt-desc { color:rgba(255,255,255,0.38); font-size:10px; line-height:1.5; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   10 — 疲労・体調
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.c10 { background:#080808; }
+.c10 .grid4 { display:flex; gap:8px; margin-bottom:12px; }
+.c10 .g4 {
+  flex:1; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+  border-radius:16px; padding:14px 8px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:5px;
+}
+.c10 .g4-i { font-size:26px; }
+.c10 .g4-v { font-size:20px; font-weight:900; }
+.c10 .g4-l { color:rgba(255,255,255,0.35); font-size:9px; font-weight:700; }
+.c10 .chart-card {
+  background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+  border-radius:16px; padding:16px; flex:1;
+}
+.c10 .ch-label { color:rgba(255,255,255,0.3); font-size:10px; font-weight:700; letter-spacing:1px; margin-bottom:14px; }
+.c10 .bars { display:flex; align-items:flex-end; gap:6px; height:80px; padding-bottom:18px; }
+.c10 .bar { flex:1; border-radius:4px 4px 0 0; position:relative; min-height:6px; }
+.c10 .bar-l { position:absolute; bottom:-15px; left:0; right:0; text-align:center; color:rgba(255,255,255,0.3); font-size:9px; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   11 — 練習記録
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.c11 { background:#060610; }
+.c11 .log-list { display:flex; flex-direction:column; gap:9px; margin-bottom:12px; }
+.c11 .log {
+  display:flex; align-items:center; gap:14px;
+  background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07);
+  border-radius:15px; padding:13px 16px;
+}
+.c11 .log-i { font-size:22px; flex-shrink:0; }
+.c11 .log-b { flex:1; }
+.c11 .log-n { color:#fff; font-size:13px; font-weight:800; margin-bottom:2px; }
+.c11 .log-d { color:rgba(255,255,255,0.38); font-size:10px; }
+.c11 .badge { padding:4px 10px; border-radius:8px; font-size:10px; font-weight:800; }
+.c11 .stats { display:flex; gap:8px; }
+.c11 .st { flex:1; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); border-radius:14px; padding:14px 8px; text-align:center; }
+.c11 .st-v { font-size:24px; font-weight:900; }
+.c11 .st-l { color:rgba(255,255,255,0.35); font-size:9px; font-weight:700; margin-top:3px; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   12 — 試合計画
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.c12 { background:#090700; }
+.c12 .race-card {
+  background:rgba(255,214,10,0.07); border:1px solid rgba(255,214,10,0.2);
+  border-radius:20px; padding:20px; margin-bottom:12px;
+}
+.c12 .rc-head { display:flex; justify-content:space-between; margin-bottom:14px; }
+.c12 .rc-name { color:#fff; font-size:16px; font-weight:900; }
+.c12 .rc-date { color:#FFD60A; font-size:11px; font-weight:700; }
+.c12 .countdown { text-align:center; padding:10px 0 16px; }
+.c12 .cd-num { color:#FFD60A; font-size:60px; font-weight:900; line-height:1; }
+.c12 .cd-lab { color:rgba(255,255,255,0.4); font-size:12px; font-weight:700; margin-top:4px; }
+.c12 .phases { display:flex; gap:8px; }
+.c12 .ph {
+  flex:1; border-radius:12px; padding:10px 6px; text-align:center;
+  background:rgba(255,214,10,0.04); border:1px solid rgba(255,214,10,0.15);
+}
+.c12 .ph-act { background:rgba(255,214,10,0.14); border-color:rgba(255,214,10,0.45); }
+.c12 .ph-i { font-size:16px; margin-bottom:4px; }
+.c12 .ph-n { color:rgba(255,255,255,0.4); font-size:9px; font-weight:700; }
+.c12 .ph-act .ph-n { color:#FFD60A; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   13 — チーム機能
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.c13 { background:#080808; }
+.c13 .member-list { display:flex; flex-direction:column; gap:8px; flex:1; }
+.c13 .member {
+  display:flex; align-items:center; gap:12px;
+  background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07);
+  border-radius:14px; padding:12px 14px;
+}
+.c13 .av { width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+.c13 .m-info { flex:1; }
+.c13 .m-name { color:#fff; font-size:13px; font-weight:800; margin-bottom:2px; }
+.c13 .m-ev { color:rgba(255,255,255,0.38); font-size:10px; }
+.c13 .risk-chip { padding:5px 11px; border-radius:9px; font-size:12px; font-weight:800; }
+.c13 .stats { display:flex; gap:8px; margin-top:10px; }
+.c13 .st { flex:1; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); border-radius:14px; padding:12px 8px; text-align:center; }
+.c13 .st-v { font-size:22px; font-weight:900; }
+.c13 .st-l { color:rgba(255,255,255,0.35); font-size:9px; font-weight:700; margin-top:2px; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   14 — 通知
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.c14 { background:#080808; }
+.c14 .notif-list { display:flex; flex-direction:column; gap:9px; flex:1; }
+.c14 .notif {
+  display:flex; gap:13px; align-items:flex-start;
+  background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07);
+  border-radius:15px; padding:14px 15px;
+}
+.c14 .n-icon { width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:19px; flex-shrink:0; }
+.c14 .n-body { flex:1; }
+.c14 .n-title { color:#fff; font-size:13px; font-weight:800; margin-bottom:3px; }
+.c14 .n-text { color:rgba(255,255,255,0.42); font-size:11px; line-height:1.6; }
+.c14 .n-time { color:rgba(255,255,255,0.22); font-size:10px; margin-top:3px; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   15 — 全機能一覧
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.c15 { background:#080808; }
+.c15 .feat-body { position:absolute; inset:0; padding:46px 22px 32px; display:flex; flex-direction:column; }
+.c15 .tag { color:rgba(255,255,255,0.25); font-size:10px; font-weight:800; letter-spacing:3px; margin-bottom:10px; }
+.c15 .title { color:#fff; font-size:24px; font-weight:900; line-height:1.3; margin-bottom:20px; }
+.c15 .grid { display:flex; flex-wrap:wrap; gap:7px; flex:1; align-content:flex-start; }
+.c15 .gf {
+  width:calc(50% - 3.5px);
+  background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+  border-radius:15px; padding:14px 12px; display:flex; flex-direction:column; gap:5px;
+}
+.c15 .gf-i { font-size:22px; }
+.c15 .gf-n { color:#fff; font-size:12px; font-weight:800; }
+.c15 .gf-d { color:rgba(255,255,255,0.36); font-size:10px; line-height:1.45; }
+.c15 .red { border-color:rgba(200,16,46,0.3); background:rgba(200,16,46,0.07); }
+.c15 .blue { border-color:rgba(74,159,255,0.25); background:rgba(74,159,255,0.06); }
+.c15 .green { border-color:rgba(52,199,89,0.25); background:rgba(52,199,89,0.06); }
+.c15 .yellow { border-color:rgba(255,214,10,0.25); background:rgba(255,214,10,0.06); }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   16 — CTA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.c16 { background:#070707; }
+.c16 .glow1 {
+  position:absolute; width:480px; height:480px;
+  background:radial-gradient(circle,rgba(200,16,46,0.28) 0%,transparent 65%);
+  top:-60px; left:-60px;
+}
+.c16 .glow2 {
+  position:absolute; width:300px; height:300px;
+  background:radial-gradient(circle,rgba(74,159,255,0.1) 0%,transparent 65%);
+  bottom:0; right:-40px;
+}
+.c16 .body {
+  position:absolute; inset:0;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:44px 36px;
+}
+.c16 .logo {
+  width:80px; height:80px; border-radius:22px;
+  background:linear-gradient(135deg,#C8102E,#8b0000);
+  display:flex; align-items:center; justify-content:center;
+  margin-bottom:22px;
+  box-shadow:0 0 50px rgba(200,16,46,0.55), 0 8px 40px rgba(0,0,0,0.6);
+}
+.c16 .logo span { color:#fff; font-size:42px; font-weight:900; }
+.c16 .app { color:#fff; font-size:44px; font-weight:900; letter-spacing:-2.5px; margin-bottom:6px; }
+.c16 .eng { color:rgba(255,255,255,0.3); font-size:11px; font-weight:700; letter-spacing:3px; margin-bottom:36px; }
+.c16 .copy { color:#fff; font-size:24px; font-weight:900; text-align:center; line-height:1.45; margin-bottom:10px; }
+.c16 .sub { color:rgba(255,255,255,0.38); font-size:12px; text-align:center; line-height:1.8; margin-bottom:30px; }
+.c16 .url-box {
+  width:100%; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.14);
+  border-radius:16px; padding:16px 24px; margin-bottom:14px;
+  display:flex; align-items:center; justify-content:center; gap:10px;
+}
+.c16 .url-text { color:#fff; font-size:15px; font-weight:800; letter-spacing:0.5px; }
+.c16 .badges { display:flex; gap:10px; }
+.c16 .bdg { border-radius:12px; padding:8px 18px; border:1px solid; }
+.c16 .foot { position:absolute; bottom:24px; color:rgba(255,255,255,0.18); font-size:10px; }
+
+/* ── ガイド ── */
+.guide {
+  width:100%; text-align:center; color:rgba(255,255,255,0.25);
+  font-size:12px; padding:28px 20px; line-height:2.4;
+}
+</style>
+</head>
+<body>
+
+<div class="section-title">── 導入 ──</div>
+
+<!-- 01 ヒーロー -->
+<div class="card c1">
+  <div class="noise"></div>
+  <div class="redglow"></div>
+  <div class="blueglow"></div>
+  <div class="line"></div>
+  <span class="num">01</span>
+  <div class="body">
+    <div class="logo"><span>S</span></div>
+    <div class="app">sCORE</div>
+    <div class="eng">ATHLETIC PERFORMANCE APP</div>
+    <div class="copy">体のスコアが<br>怪我を防ぎ<br>あなたを強くする。</div>
+    <div class="sub">睡眠・疲労・練習負荷・天気を統合分析<br>AIが今日のベスト練習を導く</div>
+  </div>
+  <div class="url">scorej-run.vercel.app</div>
+</div>
+
+<!-- 02 問題提起 -->
+<div class="card c2">
+  <span class="num">02</span>
+  <div class="body">
+    <div class="eyebrow">
+      <div class="eyebrow-dot"></div>
+      <span class="eyebrow-text">こんな経験ありませんか？</span>
+    </div>
+    <div class="title">頑張っているのに<br>結果が出ない理由</div>
+    <div class="items">
+      <div class="item">
+        <div class="item-left">🤕</div>
+        <div class="item-text">怪我で大事な試合を棒に振ったことがある</div>
+      </div>
+      <div class="item">
+        <div class="item-left">📉</div>
+        <div class="item-text">練習を頑張っているのにタイムが伸びない</div>
+      </div>
+      <div class="item">
+        <div class="item-left">😵</div>
+        <div class="item-text">疲労が抜けているかどうかわからない</div>
+      </div>
+      <div class="item">
+        <div class="item-left">📔</div>
+        <div class="item-text">練習日誌をつけようとしても続かない</div>
+      </div>
+    </div>
+    <div class="bottom">
+      <div class="b-num">4</div>
+      <div class="b-text">つ全部解決するアプリが<br><strong style="color:#C8102E">sCORE</strong> です</div>
+    </div>
+  </div>
+</div>
+
+<div class="section-title">── 機能説明 ──</div>
+
+<!-- 03 怪我リスク -->
+<div class="card c3">
+  <span class="num">03</span>
+  <div class="feat-body">
+    <div class="feat-tag" style="background:rgba(200,16,46,0.12);border:1px solid rgba(200,16,46,0.28)">
+      <div class="t-dot" style="background:#C8102E"></div>
+      <span class="t-text" style="color:#C8102E">FEATURE 01 — 怪我リスク</span>
+    </div>
+    <div class="feat-h">怪我リスクを<br>数値で毎日把握</div>
+    <div class="feat-s">練習負荷・睡眠・疲労・体調・天気を<br>AIが統合分析。0〜100のスコアで判断。</div>
+    <div class="mock">
+      <div class="mock-header">
+        <span class="mock-label">怪我リスクスコア</span>
+        <span style="color:rgba(255,255,255,0.25);font-size:10px">TODAY</span>
+      </div>
+      <div class="mock-body">
+        <div class="c3 score-big">72</div>
+        <div class="score-bar-wrap">
+          <div class="c3 score-bar-bg"><div class="c3 score-bar-fill" style="width:72%"></div></div>
+        </div>
+        <div class="c3 score-status">🔴 高リスク — 強度を落とそう</div>
+        <div class="c3 factors">
+          <div class="c3 factor"><div class="c3 f-icon">🏃</div><div class="c3 f-val" style="color:#FF6B6B">高</div><div class="c3 f-name">練習</div></div>
+          <div class="c3 factor"><div class="c3 f-icon">😴</div><div class="c3 f-val" style="color:#FF9500">中</div><div class="c3 f-name">睡眠</div></div>
+          <div class="c3 factor"><div class="c3 f-icon">⚡</div><div class="c3 f-val" style="color:#FF3B30">高</div><div class="c3 f-name">疲労</div></div>
+          <div class="c3 factor"><div class="c3 f-icon">💪</div><div class="c3 f-val" style="color:#34C759">良</div><div class="c3 f-name">体調</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="c3 levels" style="margin-top:10px">
+      <div class="c3 lv" style="background:rgba(52,199,89,0.08);border-color:rgba(52,199,89,0.25)">
+        <div class="c3 lv-n" style="color:#34C759">0–39</div><div class="c3 lv-t" style="color:#34C759">🟢 安全</div>
+      </div>
+      <div class="c3 lv" style="background:rgba(255,149,0,0.08);border-color:rgba(255,149,0,0.25)">
+        <div class="c3 lv-n" style="color:#FF9500">40–69</div><div class="c3 lv-t" style="color:#FF9500">🟡 注意</div>
+      </div>
+      <div class="c3 lv" style="background:rgba(255,59,48,0.08);border-color:rgba(255,59,48,0.25)">
+        <div class="c3 lv-n" style="color:#FF3B30">70+</div><div class="c3 lv-t" style="color:#FF3B30">🔴 高リスク</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 04 天気連動 -->
+<div class="card c4">
+  <span class="num">04</span>
+  <div class="feat-body">
+    <div class="feat-tag" style="background:rgba(74,159,255,0.1);border:1px solid rgba(74,159,255,0.25)">
+      <div class="t-dot" style="background:#4A9FFF"></div>
+      <span class="t-text" style="color:#4A9FFF">FEATURE 02 — 天気連動</span>
+    </div>
+    <div class="feat-h">今いる場所の天気が<br>リスクに自動反映</div>
+    <div class="feat-s">GPS位置情報から気温・湿度・降雨・積雪を<br>リアルタイム取得。悪天候の日は自動で加算。</div>
+    <div class="c4 weather-hero">
+      <div class="c4 w-icon">🌧️</div>
+      <div class="c4 w-right">
+        <div class="c4 w-main">雨・気温9℃・湿度88%</div>
+        <div class="c4 w-sub">低気温＋雨天＋高湿度<br>体の硬直・グリップ低下に注意</div>
+      </div>
+    </div>
+    <div class="c4 risk-add">
+      <span class="c4 ra-label">🌡️ 天気によるリスク加算</span>
+      <span class="c4 ra-val">+23</span>
+    </div>
+    <div class="c4 w-rows">
+      <div class="c4 w-row"><span class="c4 wr-icon">🌡️</span><div class="c4 wr-body"><div class="c4 wr-title">低温（10℃以下）</div><div class="c4 wr-desc">筋肉の柔軟性低下・肉離れリスク上昇</div></div><span class="c4 wr-badge">+10〜15</span></div>
+      <div class="c4 w-row"><span class="c4 wr-icon">🌧️</span><div class="c4 wr-body"><div class="c4 wr-title">雨天</div><div class="c4 wr-desc">路面スリップ・体温低下に注意</div></div><span class="c4 wr-badge">+8</span></div>
+      <div class="c4 w-row"><span class="c4 wr-icon">❄️</span><div class="c4 wr-body"><div class="c4 wr-title">降雪</div><div class="c4 wr-desc">転倒・関節への負担が大幅増加</div></div><span class="c4 wr-badge">+15</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- 05 ストレッチ -->
+<div class="card c5">
+  <div class="c5 new-pill"><div class="c5 new-dot"></div><span class="c5 new-text">NEW</span></div>
+  <span class="num">05</span>
+  <div class="feat-body" style="padding-top:56px">
+    <div class="feat-tag" style="background:rgba(52,199,89,0.1);border:1px solid rgba(52,199,89,0.25)">
+      <div class="t-dot" style="background:#34C759"></div>
+      <span class="t-text" style="color:#34C759">FEATURE 03 — ストレッチ回復</span>
+    </div>
+    <div class="feat-h">スコアが高い日は<br>その場でケアできる</div>
+    <div class="feat-s">ボタンを押してストレッチを実施するだけ。<br>終わるとリスクスコアが即時低下。</div>
+    <div class="c5 flow">
+      <div class="c5 step"><div class="c5 s-num">1</div><div class="c5 s-body"><div class="c5 s-title">ボタンをタップしてスタート</div><div class="c5 s-sub">リスク40以上でボタンが出現</div></div><div class="c5 s-emoji">👆</div></div>
+      <div class="c5 step"><div class="c5 s-num">2</div><div class="c5 s-body"><div class="c5 s-title">部位を選んでタイマー実施</div><div class="c5 s-sub">6部位・残り5秒でカウント音あり</div></div><div class="c5 s-emoji">🤸</div></div>
+      <div class="c5 step"><div class="c5 s-num">3</div><div class="c5 s-body"><div class="c5 s-title">スコアが即時低下</div><div class="c5 s-sub">最大15ポイント・当日1回まで</div></div><div class="c5 s-emoji">📉</div></div>
+    </div>
+    <div class="c5 result">
+      <span class="c5 r-before">72</span>
+      <span class="c5 r-arrow"> → </span>
+      <span class="c5 r-after">57</span>
+      <span class="c5 r-label">怪我リスクが<br>下がりました！</span>
+    </div>
+  </div>
+</div>
+
+<!-- 06 AIコーチ -->
+<div class="card c6">
+  <span class="num">06</span>
+  <div class="feat-body">
+    <div class="feat-tag" style="background:rgba(74,159,255,0.1);border:1px solid rgba(74,159,255,0.25)">
+      <div class="t-dot" style="background:#4A9FFF"></div>
+      <span class="t-text" style="color:#4A9FFF">FEATURE 04 — AI COACH</span>
+    </div>
+    <div class="feat-h">AIが今日の最適な<br>メニューを設計</div>
+    <div class="feat-s">体のデータをもとにパーソナルアドバイス。</div>
+    <div class="c6 ai-bubble" style="flex:1">
+      <div class="c6 ai-head">
+        <div class="c6 ai-av">🤖</div>
+        <div><div class="c6 ai-name">sCORE AIコーチ</div><div class="c6 ai-sub">今日のアドバイス</div></div>
+      </div>
+      <div class="c6 ai-msgs">
+        <div class="c6 ai-msg"><span class="c6 ai-icon">🏃</span><span class="c6 ai-text">疲労が高いため、インターバルは避けてジョグ30分を推奨します</span></div>
+        <div class="c6 ai-msg"><span class="c6 ai-icon">💪</span><span class="c6 ai-text">直近3日の負荷が高め。明日は完全オフを入れましょう</span></div>
+        <div class="c6 ai-msg"><span class="c6 ai-icon">🍽️</span><span class="c6 ai-text">練習後30分以内にたんぱく質を摂取すると回復が早まります</span></div>
+      </div>
+    </div>
+    <div class="c6 caps">
+      <div class="c6 cap"><div class="c6 cap-i">💬</div><div class="c6 cap-n">練習提案</div></div>
+      <div class="c6 cap"><div class="c6 cap-i">📹</div><div class="c6 cap-n">フォーム分析</div></div>
+      <div class="c6 cap"><div class="c6 cap-i">🍽️</div><div class="c6 cap-n">食事分析</div></div>
+      <div class="c6 cap"><div class="c6 cap-i">📊</div><div class="c6 cap-n">データ解説</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- 07 フォーム分析 -->
+<div class="card c7">
+  <span class="num">07</span>
+  <div class="feat-body">
+    <div class="feat-tag" style="background:rgba(255,149,0,0.1);border:1px solid rgba(255,149,0,0.25)">
+      <div class="t-dot" style="background:#FF9500"></div>
+      <span class="t-text" style="color:#FF9500">FEATURE 05 — フォーム分析</span>
+    </div>
+    <div class="feat-h">動画を送るだけ<br>AIがフォームを診断</div>
+    <div class="feat-s">走りの動画をアップ → AIが改善点を指摘。<br>コーチ不要でプロ級フィードバック。</div>
+    <div class="c7 video-box">
+      <div class="c7 video-screen">
+        <span class="c7 v-runner">🏃</span>
+        <div class="c7 play">▶</div>
+      </div>
+      <div class="c7 analysis">
+        <div class="c7 a-title">AI ANALYSIS</div>
+        <div class="c7 a-row"><span class="c7 a-icon">✅</span><span class="c7 a-text">ピッチは良好。腕振りが安定している</span></div>
+        <div class="c7 a-row"><span class="c7 a-icon">⚠️</span><span class="c7 a-text">着地が踵寄り。足の裏全体で接地するよう意識して</span></div>
+        <div class="c7 a-row"><span class="c7 a-icon">⚠️</span><span class="c7 a-text">腰が少し落ちている。体幹を意識しよう</span></div>
+        <div class="c7 a-row"><span class="c7 a-icon">💡</span><span class="c7 a-text">A-skipドリルを取り入れると改善が早い</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 08 食事分析 -->
+<div class="card c8">
+  <span class="num">08</span>
+  <div class="feat-body">
+    <div class="feat-tag" style="background:rgba(52,199,89,0.1);border:1px solid rgba(52,199,89,0.22)">
+      <div class="t-dot" style="background:#34C759"></div>
+      <span class="t-text" style="color:#34C759">FEATURE 06 — 食事分析</span>
+    </div>
+    <div class="feat-h">写真1枚で<br>栄養管理が完結</div>
+    <div class="feat-s">食事の写真を送るだけ。カロリー・PFCを<br>自動計算してアドバイスを生成。</div>
+    <div class="c8 meal-card">
+      <div class="c8 meal-top">
+        <div class="c8 meal-photo">🍱</div>
+        <div class="c8 meal-info">
+          <div class="c8 meal-name">練習後の食事</div>
+          <div class="c8 meal-kcal"><span class="c8 kcal-num">680</span><span class="c8 kcal-unit">kcal</span></div>
+        </div>
+      </div>
+      <div class="c8 pfc">
+        <div class="c8 pfc-item"><div class="c8 pfc-val" style="color:#4A9FFF">42g</div><div class="c8 pfc-name">たんぱく質</div></div>
+        <div class="c8 pfc-item"><div class="c8 pfc-val" style="color:#FFD60A">88g</div><div class="c8 pfc-name">炭水化物</div></div>
+        <div class="c8 pfc-item"><div class="c8 pfc-val" style="color:#FF9500">12g</div><div class="c8 pfc-name">脂質</div></div>
+        <div class="c8 pfc-item"><div class="c8 pfc-val" style="color:#34C759">◎</div><div class="c8 pfc-name">バランス</div></div>
+      </div>
+    </div>
+    <div class="c8 ai-tip">
+      <span class="c8 tip-icon">🤖</span>
+      <span class="c8 tip-text">たんぱく質は十分です。練習後30分で摂取できており理想的なタイミング。鉄分補給のため明日は赤身肉を追加しましょう。</span>
+    </div>
+    <div style="flex:1"></div>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <div style="flex:1;background:rgba(52,199,89,0.06);border:1px solid rgba(52,199,89,0.15);border-radius:12px;padding:10px;text-align:center">
+        <div style="color:#34C759;font-size:11px;font-weight:800">📸 写真を撮るだけ</div>
+      </div>
+      <div style="flex:1;background:rgba(74,159,255,0.06);border:1px solid rgba(74,159,255,0.15);border-radius:12px;padding:10px;text-align:center">
+        <div style="color:#4A9FFF;font-size:11px;font-weight:800">🤖 AI が自動解析</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 09 睡眠管理 -->
+<div class="card c9">
+  <span class="num">09</span>
+  <div class="feat-body">
+    <div class="feat-tag" style="background:rgba(175,82,222,0.1);border:1px solid rgba(175,82,222,0.25)">
+      <div class="t-dot" style="background:#AF52DE"></div>
+      <span class="t-text" style="color:#AF52DE">FEATURE 07 — 睡眠管理</span>
+    </div>
+    <div class="feat-h">睡眠の質が<br>リスクに直結する</div>
+    <div class="feat-s">睡眠時間・質を記録するだけで<br>怪我リスクスコアに自動反映。</div>
+    <div class="c9 sleep-card">
+      <div class="c9 sl-head"><span class="c9 sl-date">昨夜の睡眠</span><span class="c9 sl-grade">⭐ 良好</span></div>
+      <div class="c9 sl-time"><span class="c9 sl-t">8</span><span class="c9 sl-unit">時間</span></div>
+      <div class="c9 sl-bar-bg"><div class="c9 sl-bar" style="width:80%"></div></div>
+      <div class="c9 sl-stats">
+        <div class="c9 sl-s"><div class="c9 sl-sv">22:30</div><div class="c9 sl-sl">就寝</div></div>
+        <div class="c9 sl-s"><div class="c9 sl-sv">6:30</div><div class="c9 sl-sl">起床</div></div>
+        <div class="c9 sl-s"><div class="c9 sl-sv" style="color:#34C759">−8</div><div class="c9 sl-sl">リスク減算</div></div>
+      </div>
+    </div>
+    <div class="c9 pts">
+      <div class="c9 pt"><span class="c9 pt-icon">😴</span><div><div class="c9 pt-title">7時間以上 → リスク減算</div><div class="c9 pt-desc">十分な睡眠は体の回復を促し怪我リスクを下げる</div></div></div>
+      <div class="c9 pt"><span class="c9 pt-icon">⚠️</span><div><div class="c9 pt-title">5時間未満 → リスク大幅加算</div><div class="c9 pt-desc">睡眠不足は反応速度と判断力を低下させる</div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- 10 疲労・体調 -->
+<div class="card c10">
+  <span class="num">10</span>
+  <div class="feat-body">
+    <div class="feat-tag" style="background:rgba(255,69,58,0.1);border:1px solid rgba(255,69,58,0.25)">
+      <div class="t-dot" style="background:#FF453A"></div>
+      <span class="t-text" style="color:#FF453A">FEATURE 08 — 体調チェック</span>
+    </div>
+    <div class="feat-h">毎朝30秒の<br>体調チェックが命綱</div>
+    <div class="feat-s">疲労・体調・意欲・筋肉痛を5段階で記録。<br>継続するほど自分のパターンが見えてくる。</div>
+    <div class="c10 grid4">
+      <div class="c10 g4"><div class="c10 g4-i">⚡</div><div class="c10 g4-v" style="color:#FF453A">4/5</div><div class="c10 g4-l">疲労</div></div>
+      <div class="c10 g4"><div class="c10 g4-i">💪</div><div class="c10 g4-v" style="color:#34C759">3/5</div><div class="c10 g4-l">体調</div></div>
+      <div class="c10 g4"><div class="c10 g4-i">🔥</div><div class="c10 g4-v" style="color:#FF9500">3/5</div><div class="c10 g4-l">意欲</div></div>
+      <div class="c10 g4"><div class="c10 g4-i">🦵</div><div class="c10 g4-v" style="color:#FF6B6B">あり</div><div class="c10 g4-l">筋肉痛</div></div>
+    </div>
+    <div class="c10 chart-card" style="flex:1">
+      <div class="c10 ch-label">疲労スコア 7日間推移</div>
+      <div class="c10 bars">
+        <div class="c10 bar" style="height:42%;background:rgba(52,199,89,0.55)"><span class="c10 bar-l">月</span></div>
+        <div class="c10 bar" style="height:56%;background:rgba(255,149,0,0.55)"><span class="c10 bar-l">火</span></div>
+        <div class="c10 bar" style="height:68%;background:rgba(255,149,0,0.65)"><span class="c10 bar-l">水</span></div>
+        <div class="c10 bar" style="height:82%;background:rgba(255,69,58,0.7)"><span class="c10 bar-l">木</span></div>
+        <div class="c10 bar" style="height:92%;background:rgba(255,69,58,0.8)"><span class="c10 bar-l">金</span></div>
+        <div class="c10 bar" style="height:60%;background:rgba(255,149,0,0.6)"><span class="c10 bar-l">土</span></div>
+        <div class="c10 bar" style="height:78%;background:rgba(255,69,58,0.72)"><span class="c10 bar-l">日</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 11 練習記録 -->
+<div class="card c11">
+  <span class="num">11</span>
+  <div class="feat-body">
+    <div class="feat-tag" style="background:rgba(100,210,255,0.1);border:1px solid rgba(100,210,255,0.25)">
+      <div class="t-dot" style="background:#64D2FF"></div>
+      <span class="t-text" style="color:#64D2FF">FEATURE 09 — 練習記録</span>
+    </div>
+    <div class="feat-h">練習負荷を記録して<br>オーバートレーニングを防ぐ</div>
+    <div class="feat-s">種目・距離・強度を入力するだけ。<br>週間練習負荷が自動計算される。</div>
+    <div class="c11 log-list">
+      <div class="c11 log"><span class="c11 log-i">🏃</span><div class="c11 log-b"><div class="c11 log-n">インターバル 200m × 10本</div><div class="c11 log-d">強度：高 · 60分</div></div><div class="c11 badge" style="background:rgba(255,69,58,0.15);color:#FF453A;border:1px solid rgba(255,69,58,0.28)">高強度</div></div>
+      <div class="c11 log"><span class="c11 log-i">🔄</span><div class="c11 log-b"><div class="c11 log-n">ウェイトトレーニング</div><div class="c11 log-d">強度：中 · 45分</div></div><div class="c11 badge" style="background:rgba(255,149,0,0.15);color:#FF9500;border:1px solid rgba(255,149,0,0.28)">中強度</div></div>
+      <div class="c11 log"><span class="c11 log-i">🧘</span><div class="c11 log-b"><div class="c11 log-n">ジョグ＆ストレッチ</div><div class="c11 log-d">強度：低 · 30分</div></div><div class="c11 badge" style="background:rgba(52,199,89,0.15);color:#34C759;border:1px solid rgba(52,199,89,0.28)">低強度</div></div>
+    </div>
+    <div class="c11 stats">
+      <div class="c11 st"><div class="c11 st-v" style="color:#FF9500">74</div><div class="c11 st-l">今週の総負荷</div></div>
+      <div class="c11 st"><div class="c11 st-v" style="color:#4A9FFF">5</div><div class="c11 st-l">練習日数</div></div>
+      <div class="c11 st"><div class="c11 st-v" style="color:#34C759">良</div><div class="c11 st-l">バランス</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- 12 試合計画 -->
+<div class="card c12">
+  <span class="num">12</span>
+  <div class="feat-body">
+    <div class="feat-tag" style="background:rgba(255,214,10,0.1);border:1px solid rgba(255,214,10,0.25)">
+      <div class="t-dot" style="background:#FFD60A"></div>
+      <span class="t-text" style="color:#FFD60A">FEATURE 10 — 試合計画</span>
+    </div>
+    <div class="feat-h">大会から逆算した<br>トレーニング管理</div>
+    <div class="feat-s">目標大会を登録するとカウントダウン＋<br>フェーズ管理が自動化。ピーキングを逃さない。</div>
+    <div class="c12 race-card">
+      <div class="c12 rc-head"><span class="c12 rc-name">🏆 インターハイ予選</span><span class="c12 rc-date">2026年6月14日</span></div>
+      <div class="c12 countdown"><div class="c12 cd-num">50</div><div class="c12 cd-lab">日後</div></div>
+      <div class="c12 phases">
+        <div class="c12 ph"><div class="c12 ph-i">💪</div><div class="c12 ph-n">構築期</div></div>
+        <div class="c12 ph ph-act"><div class="c12 ph-i">⚡</div><div class="c12 ph-n">強化期</div></div>
+        <div class="c12 ph"><div class="c12 ph-i">🎯</div><div class="c12 ph-n">調整期</div></div>
+        <div class="c12 ph"><div class="c12 ph-i">🏅</div><div class="c12 ph-n">本番</div></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+      <div style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:13px;padding:12px 14px">
+        <span style="font-size:18px">📅</span>
+        <div><div style="color:#fff;font-size:12px;font-weight:800">複数大会の同時管理</div><div style="color:rgba(255,255,255,0.38);font-size:10px;margin-top:2px">シーズンを通した計画をまとめて管理</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 13 チーム -->
+<div class="card c13">
+  <span class="num">13</span>
+  <div class="feat-body">
+    <div class="feat-tag" style="background:rgba(255,55,95,0.1);border:1px solid rgba(255,55,95,0.25)">
+      <div class="t-dot" style="background:#FF375F"></div>
+      <span class="t-text" style="color:#FF375F">FEATURE 11 — チーム管理</span>
+    </div>
+    <div class="feat-h">コーチが選手全員の<br>状態を一目で把握</div>
+    <div class="feat-s">選手はデータ入力するだけ。<br>コーチはダッシュボードから一括管理。</div>
+    <div class="c13 member-list">
+      <div class="c13 member"><div class="c13 av" style="background:rgba(255,69,58,0.18)">🏃</div><div class="c13 m-info"><div class="c13 m-name">田中 一郎</div><div class="c13 m-ev">100m / 200m</div></div><div class="c13 risk-chip" style="background:rgba(255,69,58,0.15);color:#FF453A;border:1px solid rgba(255,69,58,0.28)">78 🔴</div></div>
+      <div class="c13 member"><div class="c13 av" style="background:rgba(255,149,0,0.18)">🏃</div><div class="c13 m-info"><div class="c13 m-name">佐藤 花子</div><div class="c13 m-ev">400m / 800m</div></div><div class="c13 risk-chip" style="background:rgba(255,149,0,0.15);color:#FF9500;border:1px solid rgba(255,149,0,0.28)">55 🟡</div></div>
+      <div class="c13 member"><div class="c13 av" style="background:rgba(52,199,89,0.18)">🏃</div><div class="c13 m-info"><div class="c13 m-name">山田 次郎</div><div class="c13 m-ev">110mH / 走幅跳</div></div><div class="c13 risk-chip" style="background:rgba(52,199,89,0.15);color:#34C759;border:1px solid rgba(52,199,89,0.28)">28 🟢</div></div>
+      <div class="c13 member"><div class="c13 av" style="background:rgba(255,149,0,0.18)">🏃</div><div class="c13 m-info"><div class="c13 m-name">鈴木 三郎</div><div class="c13 m-ev">1500m / 5000m</div></div><div class="c13 risk-chip" style="background:rgba(255,149,0,0.15);color:#FF9500;border:1px solid rgba(255,149,0,0.28)">62 🟡</div></div>
+    </div>
+    <div class="c13 stats">
+      <div class="c13 st"><div class="c13 st-v" style="color:#fff">12</div><div class="c13 st-l">チーム人数</div></div>
+      <div class="c13 st"><div class="c13 st-v" style="color:#FF453A">3</div><div class="c13 st-l">要注意選手</div></div>
+      <div class="c13 st"><div class="c13 st-v" style="color:#34C759">7</div><div class="c13 st-l">安全圏</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- 14 通知 -->
+<div class="card c14">
+  <span class="num">14</span>
+  <div class="feat-body">
+    <div class="feat-tag" style="background:rgba(255,149,0,0.1);border:1px solid rgba(255,149,0,0.25)">
+      <div class="t-dot" style="background:#FF9500"></div>
+      <span class="t-text" style="color:#FF9500">FEATURE 12 — 通知</span>
+    </div>
+    <div class="feat-h">忘れてもアプリが<br>声をかけてくれる</div>
+    <div class="feat-s">毎朝の体調チェックや記録をリマインド。<br>習慣化をサポート。</div>
+    <div class="c14 notif-list">
+      <div class="c14 notif"><div class="c14 n-icon" style="background:rgba(255,149,0,0.15);border:1px solid rgba(255,149,0,0.22)">☀️</div><div class="c14 n-body"><div class="c14 n-title">おはようございます！</div><div class="c14 n-text">今日の体調チェックをしましょう。30秒で完了します。</div><div class="c14 n-time">毎朝 7:00</div></div></div>
+      <div class="c14 notif"><div class="c14 n-icon" style="background:rgba(255,69,58,0.15);border:1px solid rgba(255,69,58,0.22)">🔴</div><div class="c14 n-body"><div class="c14 n-title">怪我リスクが高まっています</div><div class="c14 n-text">スコアが72です。練習前にストレッチを実施してください。</div><div class="c14 n-time">リスク上昇時</div></div></div>
+      <div class="c14 notif"><div class="c14 n-icon" style="background:rgba(74,159,255,0.15);border:1px solid rgba(74,159,255,0.22)">🤖</div><div class="c14 n-body"><div class="c14 n-title">AIコーチからアドバイス</div><div class="c14 n-text">今週の練習負荷が高め。明日は回復に充てましょう。</div><div class="c14 n-time">週1回</div></div></div>
+      <div class="c14 notif"><div class="c14 n-icon" style="background:rgba(52,199,89,0.15);border:1px solid rgba(52,199,89,0.22)">📝</div><div class="c14 n-body"><div class="c14 n-title">練習記録を入力しよう</div><div class="c14 n-text">今日の練習を記録しておきましょう。</div><div class="c14 n-time">毎夜 21:00</div></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="section-title">── まとめ・CTA ──</div>
+
+<!-- 15 全機能 -->
+<div class="card c15">
+  <span class="num">15</span>
+  <div class="c15 feat-body">
+    <div class="c15 tag">ALL FEATURES</div>
+    <div class="c15 title">sCOREでできること<br>全部入り</div>
+    <div class="c15 grid">
+      <div class="c15 gf red"><div class="c15 gf-i">🛡️</div><div class="c15 gf-n">怪我リスクスコア</div><div class="c15 gf-d">毎日0〜100で算出</div></div>
+      <div class="c15 gf blue"><div class="c15 gf-i">🌤️</div><div class="c15 gf-n">天気連動リスク</div><div class="c15 gf-d">GPS位置情報から自動取得</div></div>
+      <div class="c15 gf green"><div class="c15 gf-i">🤸</div><div class="c15 gf-n">ストレッチ回復</div><div class="c15 gf-d">実施でスコア即時改善</div></div>
+      <div class="c15 gf blue"><div class="c15 gf-i">🤖</div><div class="c15 gf-n">AIコーチ</div><div class="c15 gf-d">最適練習メニューを提案</div></div>
+      <div class="c15 gf"><div class="c15 gf-i">📹</div><div class="c15 gf-n">フォーム分析</div><div class="c15 gf-d">動画AIで改善点を指摘</div></div>
+      <div class="c15 gf"><div class="c15 gf-i">🍽️</div><div class="c15 gf-n">食事分析</div><div class="c15 gf-d">写真でPFC自動計算</div></div>
+      <div class="c15 gf"><div class="c15 gf-i">😴</div><div class="c15 gf-n">睡眠管理</div><div class="c15 gf-d">睡眠がリスクに反映</div></div>
+      <div class="c15 gf yellow"><div class="c15 gf-i">🏆</div><div class="c15 gf-n">試合計画</div><div class="c15 gf-d">大会逆算でピーキング</div></div>
+      <div class="c15 gf"><div class="c15 gf-i">📊</div><div class="c15 gf-n">練習記録</div><div class="c15 gf-d">週間負荷を自動管理</div></div>
+      <div class="c15 gf"><div class="c15 gf-i">👥</div><div class="c15 gf-n">チーム機能</div><div class="c15 gf-d">コーチが一括管理</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- 16 CTA -->
+<div class="card c16">
+  <div class="c16 glow1"></div>
+  <div class="c16 glow2"></div>
+  <span class="num">16</span>
+  <div class="c16 body">
+    <div class="c16 logo"><span>S</span></div>
+    <div class="c16 app">sCORE</div>
+    <div class="c16 eng">ATHLETIC PERFORMANCE APP</div>
+    <div class="c16 copy">今すぐ無料で<br>始めよう</div>
+    <div class="c16 sub">登録・クレジットカード不要<br>スマホのブラウザから即使える</div>
+    <div class="c16 url-box">
+      <span style="font-size:16px">🔗</span>
+      <span class="c16 url-text">scorej-run.vercel.app</span>
+    </div>
+    <div class="c16 badges">
+      <div class="c16 bdg" style="background:rgba(52,199,89,0.12);border-color:rgba(52,199,89,0.28)">
+        <span style="color:#34C759;font-size:12px;font-weight:800">✅ 完全無料</span>
+      </div>
+      <div class="c16 bdg" style="background:rgba(74,159,255,0.1);border-color:rgba(74,159,255,0.25)">
+        <span style="color:#4A9FFF;font-size:12px;font-weight:800">📱 アプリ不要</span>
+      </div>
+    </div>
+  </div>
+  <div class="c16 foot">プロフィールのリンクからアクセス ↑</div>
+</div>
+
+<div class="guide">
+  合計 <strong style="color:rgba(255,255,255,0.5)">16枚</strong>　|　右クリック（スマホ：長押し）→「名前を付けて保存」でダウンロード<br>
+  Mac の場合は <strong style="color:rgba(255,255,255,0.4)">Cmd＋Shift＋4</strong> でスクリーンショット（各カード 390×692 px）<br><br>
+  <span style="color:rgba(255,255,255,0.35)">投稿順：導入（01–02）→ 機能別（03–14）→ まとめ（15–16）</span>
+</div>
+
+</body>
+</html>

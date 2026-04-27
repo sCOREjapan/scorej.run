@@ -401,7 +401,7 @@ export default function GpsRunScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: '#f6f6f8',
   },
   header: {
     flexDirection: 'row',
