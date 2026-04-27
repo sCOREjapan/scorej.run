@@ -164,9 +164,9 @@ function WeekDateBar({
 
 const wb = StyleSheet.create({
   cell:      { alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, gap: 3 },
-  dayName:   { color: '#888', fontSize: 11, fontWeight: '600' },
+  dayName:   { color: '#9ca3af', fontSize: 11, fontWeight: '600' },
   numCircle: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  numText:   { color: '#fff', fontSize: 14, fontWeight: '700' },
+  numText:   { color: '#111827', fontSize: 14, fontWeight: '700' },
   dot:       { width: 5, height: 5, borderRadius: 3 },
   dotEmpty:  { width: 5, height: 5 },
 })
@@ -189,11 +189,11 @@ function LevelBadge({ sessionCount }: { sessionCount: number }) {
   )
 }
 const lb = StyleSheet.create({
-  wrap:   { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: 'rgba(229,57,53,0.12)', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(229,57,53,0.25)' },
+  wrap:   { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: 'rgba(229,57,53,0.08)', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(229,57,53,0.2)' },
   emoji:  { fontSize: 16 },
-  lv:     { color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 0.3 },
-  title:  { color: 'rgba(255,255,255,0.6)', fontWeight: '600' },
-  barBg:  { height: 3, width: 60, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 2, marginTop: 2 },
+  lv:     { color: BRAND, fontSize: 11, fontWeight: '800', letterSpacing: 0.3 },
+  title:  { color: '#6b7280', fontWeight: '600' },
+  barBg:  { height: 3, width: 60, backgroundColor: 'rgba(0,0,0,0.10)', borderRadius: 2, marginTop: 2 },
   barFill:{ height: 3, backgroundColor: BRAND, borderRadius: 2 },
 })
 
@@ -308,10 +308,29 @@ function ScoreOverviewCard({
         )}
       </View>
 
-      {/* ストレッチ長押しボタン（リスク40以上） */}
+      {/* ストレッチボタン（リスク40以上） */}
       {riskScore >= 40 && onStretchStart && (
         <View style={{ paddingHorizontal: 14, paddingBottom: 12 }}>
-          <StretchHoldButton riskScore={riskScore} onComplete={onStretchStart} />
+          <TouchableOpacity
+            onPress={onStretchStart}
+            activeOpacity={0.82}
+            style={{
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: (riskScore >= 70 ? '#C8102E' : '#F5A623') + '55',
+              backgroundColor: (riskScore >= 70 ? '#C8102E' : '#F5A623') + '18',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingHorizontal: 14,
+              paddingVertical: 13,
+            }}
+          >
+            <Text style={{ color: riskScore >= 70 ? '#C8102E' : '#F5A623', fontSize: 13, fontWeight: '800' }}>
+              {riskScore >= 70 ? '🔴 ストレッチでリスクを下げる' : '🟡 ストレッチでリスクを下げる'}
+            </Text>
+            <Text style={{ color: riskScore >= 70 ? '#C8102E' : '#F5A623', fontSize: 14, fontWeight: '700' }}>→</Text>
+          </TouchableOpacity>
         </View>
       )}
     </View>
@@ -373,7 +392,7 @@ const cr = StyleSheet.create({
   label:     { color: TEXT.hint, fontSize: 11, fontWeight: '700', letterSpacing: 0.8 },
   emojis:    { flexDirection: 'row', gap: 4 },
   btn:       { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'transparent' },
-  btnActive: { backgroundColor: SURFACE2, borderColor: 'rgba(255,255,255,0.2)' },
+  btnActive: { backgroundColor: '#f0f2f5', borderColor: 'rgba(0,0,0,0.12)' },
   emoji:     { fontSize: 22 },
 })
 
@@ -416,7 +435,7 @@ function TasksCard({
   )
 }
 const tk = StyleSheet.create({
-  title:     { color: '#fff', fontSize: 13, fontWeight: '800', flex: 1 },
+  title:     { fontSize: 13, fontWeight: '800', flex: 1 },
   badge:     { backgroundColor: BRAND, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 },
   badgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
   row:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 10 },
@@ -742,13 +761,13 @@ function GoalCard({
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
                 <TouchableOpacity onPress={() => setInputProgress(Math.max(0, inputProgress - 10))} style={gc.stepBtn} activeOpacity={0.7}>
-                  <Ionicons name="remove" size={18} color="#fff" />
+                  <Ionicons name="remove" size={18} color="#6b7280" />
                 </TouchableOpacity>
                 <View style={[gc.barBg, { flex: 1, backgroundColor: colors.surface2, height: 8 }]}>
                   <View style={[gc.barFill, { width: `${inputProgress}%` as any, backgroundColor: progressColor(inputProgress), height: 8 }]} />
                 </View>
                 <TouchableOpacity onPress={() => setInputProgress(Math.min(100, inputProgress + 10))} style={gc.stepBtn} activeOpacity={0.7}>
-                  <Ionicons name="add" size={18} color="#fff" />
+                  <Ionicons name="add" size={18} color="#6b7280" />
                 </TouchableOpacity>
               </View>
 
@@ -800,7 +819,7 @@ const gc = StyleSheet.create({
   sheetTitle:   { fontSize: 17, fontWeight: '800' },
   label:        { fontSize: 12, fontWeight: '700', marginBottom: 6 },
   input:        { borderWidth: 1, borderRadius: 12, padding: 12, fontSize: 14, marginBottom: 14, minHeight: 44 },
-  stepBtn:      { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' },
+  stepBtn:      { width: 36, height: 36, borderRadius: 10, backgroundColor: '#f0f2f5', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
   saveBtn:      { backgroundColor: BRAND, borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginBottom: 10 },
   achieveBtn:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: '#34C759', borderRadius: 14, paddingVertical: 13, marginBottom: 10 },
   deleteBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
@@ -1143,7 +1162,7 @@ ${sessionsText}
           {/* ── AIコーチ ── */}
           <AnimatedEntry delay={300}>
             <TouchableOpacity
-              style={[s.aiCoachBtn, { backgroundColor: colors.surface, borderColor: 'rgba(74,159,255,0.4)' }]}
+              style={[s.aiCoachBtn, { backgroundColor: colors.surface, borderColor: 'rgba(59,130,246,0.3)' }]}
               activeOpacity={0.85}
               onPress={() => { unlockAudio(); Sounds.tap(); handleGetAIAdvice() }}
             >
@@ -1181,7 +1200,7 @@ ${sessionsText}
               {loading === 'loading' || loading === 'idle' ? (
                 <View style={{ gap: 10 }}>
                   {[0,1,2].map(i => (
-                    <View key={i} style={{ height: 44, backgroundColor: SURFACE2, borderRadius: 8, opacity: 0.4 }} />
+                    <View key={i} style={{ height: 44, backgroundColor: '#e8eaed', borderRadius: 8, opacity: 0.8 }} />
                   ))}
                 </View>
               ) : sessions.length === 0 ? (
@@ -1244,12 +1263,12 @@ ${sessionsText}
           {/* ── リカバリー ── */}
           <AnimatedEntry delay={420}>
             <TouchableOpacity
-              style={[s.recoveryBtn, { backgroundColor: colors.surface, borderColor: 'rgba(52,199,89,0.35)' }]}
+              style={[s.recoveryBtn, { backgroundColor: colors.surface, borderColor: 'rgba(34,197,94,0.3)' }]}
               activeOpacity={0.85}
               onPress={() => { unlockAudio(); Sounds.tap(); router.push('/recovery' as any) }}
             >
               <View style={s.recoveryInner}>
-                <View style={[s.recoveryIcon, { backgroundColor: 'rgba(52,199,89,0.12)' }]}>
+                <View style={[s.recoveryIcon, { backgroundColor: 'rgba(34,197,94,0.10)' }]}>
                   <Text style={{ fontSize: 22 }}>🩹</Text>
                 </View>
                 <View style={{ flex: 1 }}>
@@ -1331,11 +1350,11 @@ ${sessionsText}
 
             {!loadingAI && (
               <TouchableOpacity
-                style={[s.reloadBtn, { borderColor: 'rgba(74,159,255,0.4)' }]}
+                style={[s.reloadBtn, { borderColor: 'rgba(59,130,246,0.3)' }]}
                 onPress={handleGetAIAdvice}
               >
-                <Ionicons name="refresh" size={15} color="#4A9FFF" />
-                <Text style={{ color: '#4A9FFF', fontSize: 13, fontWeight: '700' }}>再取得</Text>
+                <Ionicons name="refresh" size={15} color="#3b82f6" />
+                <Text style={{ color: '#3b82f6', fontSize: 13, fontWeight: '700' }}>再取得</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -1394,7 +1413,7 @@ const s = StyleSheet.create({
   },
   aiCoachIcon: {
     width: 44, height: 44, borderRadius: 12,
-    backgroundColor: 'rgba(74,159,255,0.12)',
+    backgroundColor: 'rgba(59,130,246,0.10)',
     alignItems: 'center', justifyContent: 'center',
   },
   aiCoachTitle: { fontSize: 14, fontWeight: '800' },

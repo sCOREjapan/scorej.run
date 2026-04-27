@@ -112,6 +112,27 @@ async function saveResult(reduction: number, lastReduction: number) {
   } catch {}
 }
 
+// ── ビープ音（Web Audio API） ─────────────────────────────────
+function playBeep(freq: number = 880, duration: number = 0.12) {
+  if (typeof window === 'undefined') return
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+    if (!AudioCtx) return
+    const ctx  = new AudioCtx()
+    const osc  = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.frequency.value = freq
+    osc.type = 'sine'
+    gain.gain.setValueAtTime(0.4, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration)
+    osc.start(ctx.currentTime)
+    osc.stop(ctx.currentTime + duration)
+    setTimeout(() => ctx.close(), (duration + 0.1) * 1000)
+  } catch {}
+}
+
 // ── 円形タイマー ──────────────────────────────────────────────
 function CircularTimer({ progress, seconds, color }: {
   progress: number
@@ -125,7 +146,7 @@ function CircularTimer({ progress, seconds, color }: {
   return (
     <View style={{ width: 160, height: 160, alignItems: 'center', justifyContent: 'center' }}>
       <Svg width={160} height={160} viewBox="0 0 160 160" style={{ position: 'absolute' }}>
-        <Circle cx={80} cy={80} r={r} fill="none" stroke="#222" strokeWidth={8} />
+        <Circle cx={80} cy={80} r={r} fill="none" stroke="#e5e7eb" strokeWidth={8} />
         <Circle
           cx={80} cy={80} r={r}
           fill="none"
@@ -138,7 +159,7 @@ function CircularTimer({ progress, seconds, color }: {
           origin="80, 80"
         />
       </Svg>
-      <Text style={{ color: '#fff', fontSize: 56, fontWeight: '900', lineHeight: 60 }}>
+      <Text style={{ color: '#111827', fontSize: 56, fontWeight: '900', lineHeight: 60 }}>
         {seconds.toString().padStart(2, '0')}
       </Text>
     </View>
@@ -207,8 +228,8 @@ function PartSelectScreen({
                 </View>
               )}
               <Text style={{ fontSize: 36, marginBottom: 6 }}>{part.icon}</Text>
-              <Text style={[ps.partName, isSelected && { color: '#fff' }]}>{part.name}</Text>
-              <Text style={[ps.partMuscle, isSelected && { color: 'rgba(255,255,255,0.65)' }]}>{part.muscle}</Text>
+              <Text style={[ps.partName, isSelected && { color: '#C8102E' }]}>{part.name}</Text>
+              <Text style={[ps.partMuscle, isSelected && { color: 'rgba(200,16,46,0.6)' }]}>{part.muscle}</Text>
             </TouchableOpacity>
           )
         })}
@@ -229,29 +250,31 @@ function PartSelectScreen({
 
 const ps = StyleSheet.create({
   content:       { padding: 20, paddingBottom: 40 },
-  title:         { color: '#fff', fontSize: 22, fontWeight: '900', marginBottom: 6 },
-  sub:           { color: '#888', fontSize: 13, marginBottom: 22 },
+  title:         { color: '#111827', fontSize: 22, fontWeight: '900', marginBottom: 6 },
+  sub:           { color: '#6b7280', fontSize: 13, marginBottom: 22 },
   grid:          { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
   card:          {
-    width: '47%', backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 16, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.1)',
+    width: '47%', backgroundColor: '#ffffff',
+    borderRadius: 16, borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.08)',
     padding: 16, alignItems: 'center', gap: 4, position: 'relative',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
   },
   cardSelected: {
     borderColor: '#C8102E',
-    backgroundColor: 'rgba(200,16,46,0.12)',
+    backgroundColor: 'rgba(229,57,53,0.05)',
   },
   badge:         {
     position: 'absolute', top: 8, right: 8,
-    backgroundColor: '#F5A623', borderRadius: 6,
+    backgroundColor: '#f59e0b', borderRadius: 6,
     paddingHorizontal: 6, paddingVertical: 2,
   },
-  badgeText:     { color: '#000', fontSize: 9, fontWeight: '900' },
-  partName:      { color: '#eee', fontSize: 13, fontWeight: '800', textAlign: 'center' },
-  partMuscle:    { color: '#666', fontSize: 10, textAlign: 'center' },
+  badgeText:     { color: '#fff', fontSize: 9, fontWeight: '900' },
+  partName:      { color: '#111827', fontSize: 13, fontWeight: '800', textAlign: 'center' },
+  partMuscle:    { color: '#9ca3af', fontSize: 10, textAlign: 'center' },
   startBtn:      {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, backgroundColor: '#C8102E', borderRadius: 16, paddingVertical: 16,
+    gap: 8, backgroundColor: '#E53935', borderRadius: 16, paddingVertical: 16,
   },
   startBtnText:  { color: '#fff', fontSize: 15, fontWeight: '900' },
 })
@@ -277,6 +300,7 @@ function StretchScreen({
   const [currentIndex, setCurrentIndex]   = useState(0)
   const [secondsLeft,  setSecondsLeft]    = useState(secondsPerStretch)
   const [isPaused,     setIsPaused]       = useState(false)
+  const [isStarted,    setIsStarted]      = useState(false)
   const [skipped,      setSkipped]        = useState<Set<PartId>>(new Set())
   const [totalSpent,   setTotalSpent]     = useState(0)
   const [showTimePicker, setShowTimePicker] = useState(false)
@@ -287,22 +311,30 @@ function StretchScreen({
   // タイマーリセット（部位が変わったとき）
   useEffect(() => {
     setSecondsLeft(secondsPerStretch)
+    setIsStarted(false)  // 次の部位はスタート待ち
   }, [currentIndex, secondsPerStretch])
 
   // カウントダウン
   useEffect(() => {
-    if (isPaused) return
+    if (!isStarted || isPaused) return
     if (secondsLeft <= 0) {
-      // 自動で次へ
+      // 完了音（高め×2回）
+      playBeep(1046, 0.15)
+      setTimeout(() => playBeep(1318, 0.2), 180)
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {})
-      setTimeout(() => advanceNext(false), 500)
+      setTimeout(() => advanceNext(false), 600)
       return
+    }
+    // 残り5秒カウントダウン音
+    if (secondsLeft <= 5) {
+      playBeep(secondsLeft === 1 ? 1046 : 660, 0.1)
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {})
     }
     const timer = setInterval(() => {
       setSecondsLeft(s => s - 1)
     }, 1000)
     return () => clearInterval(timer)
-  }, [secondsLeft, isPaused])
+  }, [secondsLeft, isPaused, isStarted])
 
   function advanceNext(wasSkipped: boolean) {
     if (!wasSkipped) {
@@ -388,34 +420,63 @@ function StretchScreen({
         </View>
 
         {/* 操作ボタン */}
-        <View style={ss.btnRow}>
-          <TouchableOpacity
-            style={ss.subBtn}
-            onPress={handleBack}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="arrow-back" size={18} color="#aaa" />
-            <Text style={ss.subBtnText}>戻る</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[ss.mainBtn, isPaused && { backgroundColor: '#34C759' }]}
-            onPress={() => setIsPaused(v => !v)}
-            activeOpacity={0.85}
-          >
-            <Ionicons name={isPaused ? 'play' : 'pause'} size={18} color="#fff" />
-            <Text style={ss.mainBtnText}>{isPaused ? '再開' : '一時停止'}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={ss.subBtn}
-            onPress={() => advanceNext(true)}
-            activeOpacity={0.7}
-          >
-            <Text style={ss.subBtnText}>スキップ</Text>
-            <Ionicons name="arrow-forward" size={18} color="#aaa" />
-          </TouchableOpacity>
-        </View>
+        {!isStarted ? (
+          // ── スタート前 ──
+          <View style={ss.btnRow}>
+            <TouchableOpacity
+              style={ss.subBtn}
+              onPress={handleBack}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="arrow-back" size={18} color="#9ca3af" />
+              <Text style={ss.subBtnText}>戻る</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[ss.mainBtn, { backgroundColor: '#C8102E' }]}
+              onPress={() => setIsStarted(true)}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="play" size={18} color="#fff" />
+              <Text style={ss.mainBtnText}>スタート</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={ss.subBtn}
+              onPress={() => advanceNext(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={ss.subBtnText}>スキップ</Text>
+              <Ionicons name="arrow-forward" size={18} color="#9ca3af" />
+            </TouchableOpacity>
+          </View>
+        ) : (
+          // ── 実施中 ──
+          <View style={ss.btnRow}>
+            <TouchableOpacity
+              style={ss.subBtn}
+              onPress={handleBack}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="arrow-back" size={18} color="#9ca3af" />
+              <Text style={ss.subBtnText}>戻る</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[ss.mainBtn, isPaused && { backgroundColor: '#34C759' }]}
+              onPress={() => setIsPaused(v => !v)}
+              activeOpacity={0.85}
+            >
+              <Ionicons name={isPaused ? 'play' : 'pause'} size={18} color="#fff" />
+              <Text style={ss.mainBtnText}>{isPaused ? '再開' : '一時停止'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={ss.subBtn}
+              onPress={() => advanceNext(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={ss.subBtnText}>スキップ</Text>
+              <Ionicons name="arrow-forward" size={18} color="#9ca3af" />
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
     </View>
   )
@@ -426,41 +487,46 @@ const ss = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12,
   },
-  progressText:  { color: '#888', fontSize: 13, fontWeight: '700' },
+  progressText:  { color: '#6b7280', fontSize: 13, fontWeight: '700' },
   timeBadge:     {
-    backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 8,
+    backgroundColor: '#f0f2f5', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
     paddingHorizontal: 10, paddingVertical: 4,
   },
-  timeBadgeText: { color: '#aaa', fontSize: 12, fontWeight: '700' },
+  timeBadgeText: { color: '#6b7280', fontSize: 12, fontWeight: '700' },
   timePicker:    {
     flexDirection: 'row', justifyContent: 'center', gap: 8,
     paddingHorizontal: 20, paddingBottom: 10,
   },
   timeOpt:       {
-    flex: 1, backgroundColor: 'rgba(255,255,255,0.06)',
+    flex: 1, backgroundColor: '#ffffff',
     borderRadius: 10, paddingVertical: 10, alignItems: 'center',
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
   },
-  timeOptActive: { backgroundColor: 'rgba(200,16,46,0.15)', borderWidth: 1, borderColor: '#C8102E' },
-  timeOptText:   { color: '#aaa', fontSize: 13, fontWeight: '700' },
+  timeOptActive: { backgroundColor: 'rgba(229,57,53,0.08)', borderWidth: 1.5, borderColor: '#E53935' },
+  timeOptText:   { color: '#6b7280', fontSize: 13, fontWeight: '700' },
   content:       { padding: 20, paddingBottom: 40, alignItems: 'center' },
-  partName:      { color: '#fff', fontSize: 22, fontWeight: '900', marginBottom: 4, textAlign: 'center' },
-  muscle:        { color: '#888', fontSize: 12, marginBottom: 10, textAlign: 'center' },
-  desc:          { color: '#999', fontSize: 13, lineHeight: 20, textAlign: 'center', paddingHorizontal: 10 },
+  partName:      { color: '#111827', fontSize: 22, fontWeight: '900', marginBottom: 4, textAlign: 'center' },
+  muscle:        { color: '#6b7280', fontSize: 12, marginBottom: 10, textAlign: 'center' },
+  desc:          { color: '#6b7280', fontSize: 13, lineHeight: 20, textAlign: 'center', paddingHorizontal: 10 },
   btnRow:        {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     width: '100%', marginTop: 8,
   },
   mainBtn:       {
     flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, backgroundColor: '#333', borderRadius: 14, paddingVertical: 14,
+    gap: 6, backgroundColor: '#f0f2f5', borderRadius: 14, paddingVertical: 14,
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
   },
-  mainBtnText:   { color: '#fff', fontSize: 14, fontWeight: '800' },
+  mainBtnText:   { color: '#111827', fontSize: 14, fontWeight: '800' },
   subBtn:        {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    gap: 4, borderWidth: 1, borderColor: 'rgba(0,0,0,0.10)',
     borderRadius: 14, paddingVertical: 14,
+    backgroundColor: '#ffffff',
   },
-  subBtnText:    { color: '#aaa', fontSize: 12, fontWeight: '700' },
+  subBtnText:    { color: '#9ca3af', fontSize: 12, fontWeight: '700' },
 })
 
 // ══════════════════════════════════════════════════════════════
@@ -529,24 +595,26 @@ function CompleteScreen({
 const cs = StyleSheet.create({
   content:    { padding: 24, paddingBottom: 60, alignItems: 'center', justifyContent: 'center', flexGrow: 1 },
   card:       {
-    width: '100%', backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    width: '100%', backgroundColor: '#ffffff',
+    borderRadius: 20, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
     padding: 28, alignItems: 'center', marginBottom: 24,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08, shadowRadius: 16, elevation: 4,
   },
-  title:      { color: '#fff', fontSize: 22, fontWeight: '900', marginBottom: 20 },
+  title:      { color: '#111827', fontSize: 22, fontWeight: '900', marginBottom: 20 },
   statsRow:   { flexDirection: 'row', alignItems: 'center', marginBottom: 24, gap: 20 },
   stat:       { alignItems: 'center', gap: 4 },
-  statNum:    { color: '#fff', fontSize: 24, fontWeight: '900' },
-  statLabel:  { color: '#888', fontSize: 11 },
-  divider:    { width: 1, height: 36, backgroundColor: 'rgba(255,255,255,0.12)' },
-  riskLabel:  { color: '#888', fontSize: 11, fontWeight: '700', marginBottom: 8, letterSpacing: 1 },
+  statNum:    { color: '#111827', fontSize: 24, fontWeight: '900' },
+  statLabel:  { color: '#9ca3af', fontSize: 11 },
+  divider:    { width: 1, height: 36, backgroundColor: 'rgba(0,0,0,0.08)' },
+  riskLabel:  { color: '#9ca3af', fontSize: 11, fontWeight: '700', marginBottom: 8, letterSpacing: 1 },
   riskRow:    { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  riskBefore: { color: '#FF3B30', fontSize: 36, fontWeight: '900' },
-  riskAfter:  { color: '#34C759', fontSize: 36, fontWeight: '900' },
-  riskDelta:  { color: '#34C759', fontSize: 14, fontWeight: '700' },
+  riskBefore: { color: '#ef4444', fontSize: 36, fontWeight: '900' },
+  riskAfter:  { color: '#22c55e', fontSize: 36, fontWeight: '900' },
+  riskDelta:  { color: '#22c55e', fontSize: 14, fontWeight: '700' },
   homeBtn:    {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, backgroundColor: '#C8102E', borderRadius: 16,
+    gap: 8, backgroundColor: '#E53935', borderRadius: 16,
     paddingVertical: 16, width: '100%',
   },
   homeBtnText:{ color: '#fff', fontSize: 15, fontWeight: '900' },
@@ -604,7 +672,7 @@ export default function StretchRecoveryScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#050505' }}>
+    <View style={{ flex: 1, backgroundColor: '#f6f6f8' }}>
       <SafeAreaView style={{ flex: 1 }}>
         {/* ヘッダー */}
         <View style={ms.header}>
@@ -613,7 +681,7 @@ export default function StretchRecoveryScreen() {
             style={ms.backBtn}
             activeOpacity={0.7}
           >
-            <Ionicons name="chevron-back" size={22} color="#fff" />
+            <Ionicons name="chevron-back" size={22} color="#6b7280" />
           </TouchableOpacity>
           <Text style={ms.headerTitle}>{titleMap[phase] || ''}</Text>
           <View style={{ width: 36 }} />
@@ -660,8 +728,9 @@ const ms = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
+    borderBottomColor: 'rgba(0,0,0,0.08)',
+    backgroundColor: '#ffffff',
   },
   backBtn:     { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  headerTitle: { color: '#111827', fontSize: 16, fontWeight: '800' },
 })

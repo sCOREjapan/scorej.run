@@ -191,10 +191,10 @@ function BodyPartSelector({ selected, onChange }: { selected: string[]; onChange
     </View>
   )
 }
-const bp = StyleSheet.create({
+const bp = StyleSheet.create({ // bp = body part
   grid:      { flexDirection:'row', flexWrap:'wrap', gap:8 },
-  chip:      { paddingHorizontal:12, paddingVertical:8, borderRadius:20, borderWidth:1, borderColor:'rgba(255,255,255,0.1)', backgroundColor:'rgba(255,255,255,0.05)' },
-  chipActive:{ borderColor:'#FF3B30', backgroundColor:'rgba(255,59,48,0.12)' },
+  chip:      { paddingHorizontal:12, paddingVertical:8, borderRadius:20, borderWidth:1, borderColor:'rgba(0,0,0,0.08)', backgroundColor:'#f0f2f5' },
+  chipActive:{ borderColor:'#ef4444', backgroundColor:'rgba(239,68,68,0.08)' },
   chipText:  { fontSize:12, fontWeight:'600' },
 })
 
@@ -241,7 +241,7 @@ function VideoSubmitModal({ visible, teamCode, playerName, onClose, onSent }: {
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={vs.overlay}>
         <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':undefined} style={vs.sheet}>
-          <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(255,255,255,0.2)',alignSelf:'center',marginBottom:16}}/>
+          <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:16}}/>
           <View style={{flexDirection:'row',alignItems:'center',marginBottom:20}}>
             <Text style={{color:'#fff',fontSize:18,fontWeight:'800',flex:1}}>動画をコーチに送る</Text>
             <TouchableOpacity onPress={onClose} hitSlop={{top:10,bottom:10,left:10,right:10}}>
@@ -250,13 +250,13 @@ function VideoSubmitModal({ visible, teamCode, playerName, onClose, onSent }: {
           </View>
 
           <Text style={vs.label}>動画のURL（YouTube / Google Drive など）</Text>
-          <TextInput style={vs.input} value={url} onChangeText={setUrl} placeholder="https://..." placeholderTextColor="#444" autoCapitalize="none" keyboardType="url"/>
+          <TextInput style={vs.input} value={url} onChangeText={setUrl} placeholder="https://..." placeholderTextColor="#9ca3af" autoCapitalize="none" keyboardType="url"/>
 
           <Text style={[vs.label,{marginTop:14}]}>説明（任意）</Text>
-          <TextInput style={[vs.input,{height:72,textAlignVertical:'top',paddingTop:10}]} value={desc} onChangeText={setDesc} placeholder="フォームの確認をお願いします..." placeholderTextColor="#444" multiline maxLength={100}/>
+          <TextInput style={[vs.input,{height:72,textAlignVertical:'top',paddingTop:10}]} value={desc} onChangeText={setDesc} placeholder="フォームの確認をお願いします..." placeholderTextColor="#9ca3af" multiline maxLength={100}/>
 
-          <View style={{backgroundColor:'rgba(255,255,255,0.05)',borderRadius:10,padding:12,marginTop:12}}>
-            <Text style={{color:'#666',fontSize:11,lineHeight:18}}>
+          <View style={{backgroundColor:'#f0f2f5',borderRadius:10,padding:12,marginTop:12}}>
+            <Text style={{color:'#6b7280',fontSize:11,lineHeight:18}}>
               💡 YouTubeで「限定公開」にして貼り付けるのがおすすめ。動画は7日後に自動で削除されます。
             </Text>
           </View>
@@ -270,11 +270,11 @@ function VideoSubmitModal({ visible, teamCode, playerName, onClose, onSent }: {
     </Modal>
   )
 }
-const vs = StyleSheet.create({
+const vs = StyleSheet.create({ // vs = video submit
   overlay:{ flex:1, backgroundColor:'rgba(0,0,0,0.8)', justifyContent:'flex-end' },
-  sheet:  { backgroundColor:'#111', borderTopLeftRadius:24, borderTopRightRadius:24, padding:20, paddingBottom:44, borderTopWidth:1, borderColor:'rgba(255,255,255,0.1)' },
+  sheet:  { backgroundColor:'#ffffff', borderTopLeftRadius:24, borderTopRightRadius:24, padding:20, paddingBottom:44, borderTopWidth:1, borderColor:'rgba(0,0,0,0.08)' },
   label:  { color:TEXT.hint, fontSize:11, fontWeight:'700', letterSpacing:0.8, marginBottom:8 },
-  input:  { backgroundColor:'rgba(255,255,255,0.07)', borderRadius:10, borderWidth:1, borderColor:'rgba(255,255,255,0.12)', color:'#fff', fontSize:14, paddingHorizontal:14, paddingVertical:12 },
+  input:  { backgroundColor:'#f8f8fa', borderRadius:10, borderWidth:1, borderColor:'rgba(0,0,0,0.10)', color:TEXT.primary, fontSize:14, paddingHorizontal:14, paddingVertical:12 },
   btn:    { flexDirection:'row', alignItems:'center', justifyContent:'center', gap:8, backgroundColor:BRAND, borderRadius:14, paddingVertical:15, marginTop:16 },
 })
 
@@ -363,18 +363,18 @@ function CoachSetupScreen({ onCreated, onBack }: { onCreated:(s:TeamSetup)=>void
               <View style={{width:60,height:60,borderRadius:16,backgroundColor:BRAND+'18',alignItems:'center',justifyContent:'center'}}>
                 <Ionicons name="shield-checkmark" size={30} color={BRAND}/>
               </View>
-              <Text style={{color:'#fff',fontSize:22,fontWeight:'800'}}>チームを作成</Text>
+              <Text style={{color:TEXT.primary,fontSize:22,fontWeight:'800'}}>チームを作成</Text>
               <Text style={{color:TEXT.secondary,fontSize:13,textAlign:'center',lineHeight:20}}>
                 作成後に参加コードが発行されます
               </Text>
             </View>
             <View style={{gap:6}}>
               <Text style={su.label}>チーム名</Text>
-              <TextInput style={su.input} value={teamName} onChangeText={setTeamName} placeholder="例: ○○高校陸上部" placeholderTextColor="#444" maxLength={30}/>
+              <TextInput style={su.input} value={teamName} onChangeText={setTeamName} placeholder="例: ○○高校陸上部" placeholderTextColor="#9ca3af" maxLength={30}/>
             </View>
             <View style={{gap:6}}>
               <Text style={su.label}>コーチ・監督名</Text>
-              <TextInput style={su.input} value={coachName} onChangeText={setCoachName} placeholder="例: 山本 太郎" placeholderTextColor="#444" maxLength={20}/>
+              <TextInput style={su.input} value={coachName} onChangeText={setCoachName} placeholder="例: 山本 太郎" placeholderTextColor="#9ca3af" maxLength={20}/>
             </View>
             <TouchableOpacity style={[su.btn,busy&&{opacity:0.5}]} onPress={create} disabled={busy} activeOpacity={0.85}>
               <Ionicons name="checkmark-circle" size={20} color="#fff"/>
@@ -388,7 +388,7 @@ function CoachSetupScreen({ onCreated, onBack }: { onCreated:(s:TeamSetup)=>void
 }
 const su = StyleSheet.create({
   label:{ color:TEXT.hint, fontSize:11, fontWeight:'700', letterSpacing:0.8 },
-  input:{ backgroundColor:'rgba(255,255,255,0.07)', borderRadius:12, borderWidth:1, borderColor:'rgba(255,255,255,0.12)', color:'#fff', fontSize:15, paddingHorizontal:14, paddingVertical:12 },
+  input:{ backgroundColor:'#f8f8fa', borderRadius:12, borderWidth:1, borderColor:'rgba(0,0,0,0.10)', color:TEXT.primary, fontSize:15, paddingHorizontal:14, paddingVertical:12 },
   btn:  { flexDirection:'row', alignItems:'center', justifyContent:'center', gap:8, backgroundColor:BRAND, borderRadius:14, paddingVertical:15, marginTop:4 },
 })
 
@@ -451,7 +451,7 @@ function PlayerJoinScreen({ onJoined, onBack }: { onJoined:(j:JoinedTeam)=>void;
               <View style={{width:60,height:60,borderRadius:16,backgroundColor:'#34C759'+'18',alignItems:'center',justifyContent:'center'}}>
                 <Ionicons name="enter-outline" size={30} color="#34C759"/>
               </View>
-              <Text style={{color:'#fff',fontSize:22,fontWeight:'800'}}>チームに参加</Text>
+              <Text style={{color:TEXT.primary,fontSize:22,fontWeight:'800'}}>チームに参加</Text>
               <Text style={{color:TEXT.secondary,fontSize:13,textAlign:'center',lineHeight:20}}>
                 コーチから受け取ったコードと{'\n'}あなたの名前を入力してください
               </Text>
@@ -463,14 +463,14 @@ function PlayerJoinScreen({ onJoined, onBack }: { onJoined:(j:JoinedTeam)=>void;
                 value={formatCode(code)}
                 onChangeText={v => setCode(v.replace(/[^A-Za-z0-9]/g,'').slice(0,6))}
                 placeholder="ABC-123"
-                placeholderTextColor="#333"
+                placeholderTextColor="#9ca3af"
                 autoCapitalize="characters"
                 maxLength={7}
               />
             </View>
             <View style={{gap:6}}>
               <Text style={su.label}>あなたの名前</Text>
-              <TextInput style={su.input} value={playerName} onChangeText={setPlayerName} placeholder="例: 田中 翼" placeholderTextColor="#444" maxLength={20}/>
+              <TextInput style={su.input} value={playerName} onChangeText={setPlayerName} placeholder="例: 田中 翼" placeholderTextColor="#9ca3af" maxLength={20}/>
             </View>
             <TouchableOpacity
               style={[{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:'#34C759',borderRadius:14,paddingVertical:15},(code.replace(/[^A-Za-z0-9]/g,'').length<6||busy)&&{opacity:0.4}]}
@@ -674,11 +674,11 @@ function CoachDashboard({ setup, onReset }: { setup: TeamSetup; onReset: () => v
                   { label:'チーム負荷', value: LOAD_CFG[loadCfgKey(avgLoad)].label, color: LOAD_CFG[loadCfgKey(avgLoad)].color, filter:'all' as const },
                 ].map((item) => (
                   <TouchableOpacity key={item.label} onPress={() => setMemberFilter(memberFilter===item.filter&&item.filter!=='all'?'all':item.filter)} style={{
-                    flex:1, backgroundColor: memberFilter===item.filter&&item.filter!=='all'?'rgba(229,57,53,0.15)':'rgba(255,255,255,0.04)',
-                    border:1, borderWidth:1, borderColor: memberFilter===item.filter&&item.filter!=='all'?'rgba(229,57,53,0.4)':'rgba(255,255,255,0.06)',
+                    flex:1, backgroundColor: memberFilter===item.filter&&item.filter!=='all'?'rgba(229,57,53,0.08)':'#f0f2f5',
+                    border:1, borderWidth:1, borderColor: memberFilter===item.filter&&item.filter!=='all'?'rgba(229,57,53,0.4)':'rgba(0,0,0,0.08)',
                     borderRadius:12, paddingVertical:12, paddingHorizontal:10, alignItems:'center',
                   }} activeOpacity={0.8}>
-                    <Text style={{color:item.color??'#fff',fontSize:14,fontWeight:'800',marginBottom:2}}>{item.value}</Text>
+                    <Text style={{color:item.color??TEXT.primary,fontSize:14,fontWeight:'800',marginBottom:2}}>{item.value}</Text>
                     <Text style={{color:'#555',fontSize:10}}>{item.label}</Text>
                   </TouchableOpacity>
                 ))}
@@ -693,7 +693,7 @@ function CoachDashboard({ setup, onReset }: { setup: TeamSetup; onReset: () => v
 
               {/* デモ表示中の案内 */}
               {members.length === 0 && (
-                <View style={{backgroundColor:'rgba(255,255,255,0.04)',borderRadius:12,borderWidth:1,borderColor:'rgba(255,255,255,0.08)',padding:14}}>
+                <View style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',padding:14}}>
                   <Text style={{color:'#555',fontSize:12,textAlign:'center'}}>※ デモデータを表示中。選手がコード「{formatCode(setup.code)}」で参加するとここに表示されます</Text>
                 </View>
               )}
@@ -723,7 +723,7 @@ function CoachDashboard({ setup, onReset }: { setup: TeamSetup; onReset: () => v
                         <View style={{flex:1,gap:4}}>
                           {/* 名前行 */}
                           <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
-                            <Text style={{color:'#fff',fontSize:15,fontWeight:'800'}}>{m.name}</Text>
+                            <Text style={{color:TEXT.primary,fontSize:15,fontWeight:'800'}}>{m.name}</Text>
                             {m.event ? <Text style={{color:'#555',fontSize:11}}>{m.event}</Text> : null}
                             <TouchableOpacity
                               onPress={e => { e.stopPropagation(); router.push(`/level-roadmap?name=${encodeURIComponent(m.name)}&sessions=${m.sessions.length}` as any) }}
@@ -743,7 +743,7 @@ function CoachDashboard({ setup, onReset }: { setup: TeamSetup; onReset: () => v
                               </View>
                             </View>
                             <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
-                              <View style={{flex:1,height:5,borderRadius:3,backgroundColor:'rgba(255,255,255,0.08)',overflow:'hidden'}}>
+                              <View style={{flex:1,height:5,borderRadius:3,backgroundColor:'rgba(0,0,0,0.08)',overflow:'hidden'}}>
                                 <View style={{width:`${m.risk.riskScore}%`,height:'100%',borderRadius:3,backgroundColor:rCfg.color}}/>
                               </View>
                               <Text style={{color:rCfg.color,fontSize:11,fontWeight:'700',minWidth:24}}>{m.risk.riskScore}</Text>
@@ -768,7 +768,7 @@ function CoachDashboard({ setup, onReset }: { setup: TeamSetup; onReset: () => v
                           {m.condToday ? (
                             <Text style={{fontSize:18}}>{'😫😕😐😊💪'.charAt(Math.round((m.condToday - 2) / 2))}</Text>
                           ) : (
-                            <View style={{backgroundColor:'rgba(255,255,255,0.06)',borderRadius:999,paddingHorizontal:6,paddingVertical:2}}>
+                            <View style={{backgroundColor:'#f0f2f5',borderRadius:999,paddingHorizontal:6,paddingVertical:2}}>
                               <Text style={{color:'#888',fontSize:9,fontWeight:'700'}}>未提出</Text>
                             </View>
                           )}
@@ -798,7 +798,7 @@ function CoachDashboard({ setup, onReset }: { setup: TeamSetup; onReset: () => v
                   value={msgText}
                   onChangeText={setMsgText}
                   placeholder="チームへのメッセージを入力..."
-                  placeholderTextColor="#444"
+                  placeholderTextColor="#9ca3af"
                   multiline
                   maxLength={300}
                 />
@@ -856,7 +856,7 @@ function CoachDashboard({ setup, onReset }: { setup: TeamSetup; onReset: () => v
                         </View>
                         <View style={{flex:1,gap:3}}>
                           <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
-                            <Text style={{color:'#fff',fontSize:14,fontWeight:'700'}}>{v.player_name}</Text>
+                            <Text style={{color:TEXT.primary,fontSize:14,fontWeight:'700'}}>{v.player_name}</Text>
                             {!v.watched && <View style={{backgroundColor:BRAND,borderRadius:4,paddingHorizontal:5,paddingVertical:1}}><Text style={{color:'#fff',fontSize:9,fontWeight:'800'}}>NEW</Text></View>}
                           </View>
                           <Text style={{color:TEXT.secondary,fontSize:13}}>{v.description}</Text>
@@ -899,8 +899,8 @@ function MemberDetailSheet({ member, onClose }: { member: Member; onClose: () =>
   return (
     <View style={[StyleSheet.absoluteFill,{backgroundColor:'rgba(0,0,0,0.85)',justifyContent:'flex-end'}]}>
       <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose}/>
-      <View style={{backgroundColor:'#111',borderTopLeftRadius:24,borderTopRightRadius:24,padding:20,paddingBottom:44,borderTopWidth:1,borderColor:'rgba(255,255,255,0.1)'}}>
-        <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(255,255,255,0.2)',alignSelf:'center',marginBottom:16}}/>
+      <View style={{backgroundColor:'#ffffff',borderTopLeftRadius:24,borderTopRightRadius:24,padding:20,paddingBottom:44,borderTopWidth:1,borderColor:'rgba(0,0,0,0.08)'}}>
+        <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:16}}/>
         <View style={{flexDirection:'row',alignItems:'center',gap:12,marginBottom:18}}>
           <Avatar name={member.name} size={48} color={avatarColor(member.name)}/>
           <View><Text style={{color:'#fff',fontSize:19,fontWeight:'800'}}>{member.name}</Text><Text style={{color:TEXT.hint,fontSize:13}}>{member.event}</Text></View>
@@ -911,17 +911,17 @@ function MemberDetailSheet({ member, onClose }: { member: Member; onClose: () =>
         {member.sessions.length > 0 ? (
           <>
             <View style={{flexDirection:'row',gap:10,marginBottom:14}}>
-              <View style={{flex:1,alignItems:'center',backgroundColor:'rgba(255,255,255,0.05)',borderRadius:12,borderWidth:1,borderColor:'rgba(255,255,255,0.08)',paddingVertical:14,gap:4}}>
+              <View style={{flex:1,alignItems:'center',backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',paddingVertical:14,gap:4}}>
                 <Text style={{fontSize:26}}>{fat.emoji}</Text>
                 <Text style={{color:fat.color,fontSize:12,fontWeight:'700'}}>{fat.label}</Text>
                 <Text style={{color:'#555',fontSize:10}}>疲労度</Text>
               </View>
-              <View style={{flex:1,alignItems:'center',backgroundColor:'rgba(255,255,255,0.05)',borderRadius:12,borderWidth:1,borderColor:'rgba(255,255,255,0.08)',paddingVertical:14,gap:4}}>
+              <View style={{flex:1,alignItems:'center',backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',paddingVertical:14,gap:4}}>
                 <Text style={{color:risk.signalColor,fontSize:22,fontWeight:'800'}}>{risk.riskScore}</Text>
                 <Text style={{color:risk.signalColor,fontSize:11,fontWeight:'700'}}>{risk.label}</Text>
                 <Text style={{color:'#555',fontSize:10}}>怪我リスク</Text>
               </View>
-              <View style={{flex:1,alignItems:'center',backgroundColor:'rgba(255,255,255,0.05)',borderRadius:12,borderWidth:1,borderColor:'rgba(255,255,255,0.08)',paddingVertical:14,gap:4}}>
+              <View style={{flex:1,alignItems:'center',backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',paddingVertical:14,gap:4}}>
                 <Text style={{color:'#fff',fontSize:20,fontWeight:'800'}}>{risk.weeklyKm}<Text style={{fontSize:10,color:'#666'}}>km</Text></Text>
                 <Text style={{color:'#666',fontSize:11}}>先週{risk.prevWeeklyKm}km</Text>
                 <Text style={{color:'#555',fontSize:10}}>今週距離</Text>
@@ -935,7 +935,7 @@ function MemberDetailSheet({ member, onClose }: { member: Member; onClose: () =>
             )}
           </>
         ) : (
-          <View style={{backgroundColor:'rgba(255,255,255,0.04)',borderRadius:12,padding:14,marginBottom:10,alignItems:'center'}}>
+          <View style={{backgroundColor:'#f8f8fa',borderRadius:12,padding:14,marginBottom:10,alignItems:'center'}}>
             <Text style={{color:'#555',fontSize:12}}>まだ練習データがありません</Text>
           </View>
         )}
@@ -1054,7 +1054,7 @@ function PlayerDashboard({ joined, onReset }: { joined: JoinedTeam; onReset: () 
             <View style={{gap:8}}>
               <Text style={pl.sectionTitle}>📣 コーチからのメッセージ</Text>
               {regular.slice(0,5).map(m => (
-                <View key={m.id} style={{backgroundColor:'rgba(255,255,255,0.05)',borderRadius:12,borderWidth:1,borderColor:'rgba(255,255,255,0.08)',padding:14}}>
+                <View key={m.id} style={{backgroundColor:'#ffffff',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',padding:14,shadowColor:'#000',shadowOffset:{width:0,height:1},shadowOpacity:0.05,shadowRadius:4,elevation:1}}>
                   <Text style={{color:BRAND,fontSize:11,fontWeight:'700',marginBottom:6}}>{m.author_name} · {timeAgo(m.created_at)}</Text>
                   <Text style={{color:'#ddd',fontSize:14,lineHeight:22}}>{m.content}</Text>
                 </View>
@@ -1063,22 +1063,22 @@ function PlayerDashboard({ joined, onReset }: { joined: JoinedTeam; onReset: () 
           )}
 
           {messages.length === 0 && (
-            <View style={{backgroundColor:'rgba(255,255,255,0.04)',borderRadius:12,borderWidth:1,borderColor:'rgba(255,255,255,0.08)',padding:20,alignItems:'center',gap:6}}>
-              <Ionicons name="chatbubble-outline" size={26} color="#333"/>
-              <Text style={{color:'#555',fontSize:13}}>コーチからのメッセージはまだありません</Text>
+            <View style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',padding:20,alignItems:'center',gap:6}}>
+              <Ionicons name="chatbubble-outline" size={26} color="#9ca3af"/>
+              <Text style={{color:'#6b7280',fontSize:13}}>コーチからのメッセージはまだありません</Text>
             </View>
           )}
 
           {/* 自分のコンディション */}
           <Text style={pl.sectionTitle}>マイ コンディション</Text>
-          <View style={{backgroundColor:'rgba(255,255,255,0.05)',borderRadius:14,borderWidth:1,borderColor:'rgba(255,255,255,0.08)',padding:14}}>
+          <View style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',padding:14}}>
             <View style={{flexDirection:'row',gap:10,marginBottom:12}}>
-              <View style={{flex:1,alignItems:'center',backgroundColor:'rgba(255,255,255,0.04)',borderRadius:10,paddingVertical:12,gap:3}}>
+              <View style={{flex:1,alignItems:'center',backgroundColor:'#f0f2f5',borderRadius:10,paddingVertical:12,gap:3}}>
                 <Text style={{fontSize:26}}>{fat?.emoji??'—'}</Text>
                 <Text style={{color:fat?.color??'#888',fontSize:12,fontWeight:'700'}}>{fat?.label??'データなし'}</Text>
                 <Text style={{color:'#555',fontSize:10}}>疲労度</Text>
               </View>
-              <View style={{flex:1,alignItems:'center',backgroundColor:'rgba(255,255,255,0.04)',borderRadius:10,paddingVertical:12,gap:3}}>
+              <View style={{flex:1,alignItems:'center',backgroundColor:'#f0f2f5',borderRadius:10,paddingVertical:12,gap:3}}>
                 <Text style={{color:risk.signalColor,fontSize:24,fontWeight:'800'}}>{risk.riskScore}</Text>
                 <Text style={{color:risk.signalColor,fontSize:11,fontWeight:'700'}}>{risk.label}</Text>
                 <Text style={{color:'#555',fontSize:10}}>怪我リスク</Text>
@@ -1098,10 +1098,10 @@ function PlayerDashboard({ joined, onReset }: { joined: JoinedTeam; onReset: () 
       {/* 痛み報告モーダル */}
       <Modal visible={showBody} transparent animationType="slide" onRequestClose={() => setShowBody(false)}>
         <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.8)',justifyContent:'flex-end'}}>
-          <View style={{backgroundColor:'#111',borderTopLeftRadius:24,borderTopRightRadius:24,padding:20,paddingBottom:44,borderTopWidth:1,borderColor:'rgba(255,255,255,0.1)'}}>
-            <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(255,255,255,0.2)',alignSelf:'center',marginBottom:16}}/>
+          <View style={{backgroundColor:'#ffffff',borderTopLeftRadius:24,borderTopRightRadius:24,padding:20,paddingBottom:44,borderTopWidth:1,borderColor:'rgba(0,0,0,0.08)'}}>
+            <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:16}}/>
             <View style={{flexDirection:'row',alignItems:'center',marginBottom:16}}>
-              <Text style={{color:'#fff',fontSize:17,fontWeight:'800',flex:1}}>痛みや違和感のある箇所</Text>
+              <Text style={{color:'#111827',fontSize:17,fontWeight:'800',flex:1}}>痛みや違和感のある箇所</Text>
               <TouchableOpacity onPress={() => setShowBody(false)} hitSlop={{top:10,bottom:10,left:10,right:10}}>
                 <Ionicons name="close" size={22} color={TEXT.secondary}/>
               </TouchableOpacity>
@@ -1116,7 +1116,7 @@ function PlayerDashboard({ joined, onReset }: { joined: JoinedTeam; onReset: () 
                 <Text style={{color:'#fff',fontSize:15,fontWeight:'800'}}>コーチに報告する</Text>
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:'rgba(255,255,255,0.06)',borderRadius:14,paddingVertical:14,marginTop:16}} onPress={saveBodyReport} activeOpacity={0.85}>
+              <TouchableOpacity style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:'#f0f2f5',borderRadius:14,paddingVertical:14,marginTop:16,borderWidth:1,borderColor:'rgba(0,0,0,0.08)'}} onPress={saveBodyReport} activeOpacity={0.85}>
                 <Text style={{color:'#888',fontSize:15,fontWeight:'700'}}>痛みなし（クリア）</Text>
               </TouchableOpacity>
             )}
@@ -1138,25 +1138,25 @@ function PlayerDashboard({ joined, onReset }: { joined: JoinedTeam; onReset: () 
 
 const co = StyleSheet.create({
   header:     { flexDirection:'row', alignItems:'flex-start', justifyContent:'space-between', padding:16, paddingBottom:0 },
-  title:      { color:'#fff', fontSize:20, fontWeight:'800' },
-  codeBox:    { backgroundColor:'rgba(255,51,51,0.1)', borderRadius:10, borderWidth:1, borderColor:BRAND+'30', paddingHorizontal:10, paddingVertical:6, alignItems:'center' },
-  switchBtn:  { width:34, height:34, borderRadius:10, backgroundColor:'rgba(255,255,255,0.06)', borderWidth:1, borderColor:'rgba(255,255,255,0.1)', alignItems:'center', justifyContent:'center' },
-  tabs:       { flexDirection:'row', borderBottomWidth:1, borderColor:'rgba(255,255,255,0.08)', paddingHorizontal:16 },
+  title:      { color:TEXT.primary, fontSize:20, fontWeight:'800' },
+  codeBox:    { backgroundColor:'rgba(229,57,53,0.08)', borderRadius:10, borderWidth:1, borderColor:BRAND+'30', paddingHorizontal:10, paddingVertical:6, alignItems:'center' },
+  switchBtn:  { width:34, height:34, borderRadius:10, backgroundColor:'#f0f2f5', borderWidth:1, borderColor:'rgba(0,0,0,0.08)', alignItems:'center', justifyContent:'center' },
+  tabs:       { flexDirection:'row', borderBottomWidth:1, borderColor:'rgba(0,0,0,0.08)', paddingHorizontal:16, backgroundColor:'#ffffff' },
   tab:        { flex:1, flexDirection:'row', alignItems:'center', justifyContent:'center', gap:5, paddingVertical:12 },
   tabActive:  { borderBottomWidth:2, borderColor:BRAND },
   tabLabel:   { fontSize:13, fontWeight:'700' },
-  badge:      { width:16, height:16, borderRadius:8, backgroundColor:'#FF3B30', alignItems:'center', justifyContent:'center' },
-  alertChip:  { flexDirection:'row', alignItems:'center', gap:5, backgroundColor:'rgba(255,59,48,0.1)', borderRadius:8, borderWidth:1, borderColor:'#FF3B30'+'40', paddingHorizontal:10, paddingVertical:6 },
-  memberCard: { flexDirection:'row', alignItems:'center', gap:12, backgroundColor:'rgba(255,255,255,0.05)', borderRadius:14, borderWidth:1, borderColor:'rgba(255,255,255,0.08)', padding:14 },
-  composeBox: { flexDirection:'row', gap:10, alignItems:'flex-end', backgroundColor:'rgba(255,255,255,0.05)', borderRadius:14, borderWidth:1, borderColor:'rgba(255,255,255,0.1)', padding:12 },
-  composeInput:{ flex:1, color:'#fff', fontSize:14, minHeight:40, maxHeight:100 },
+  badge:      { width:16, height:16, borderRadius:8, backgroundColor:'#ef4444', alignItems:'center', justifyContent:'center' },
+  alertChip:  { flexDirection:'row', alignItems:'center', gap:5, backgroundColor:'rgba(239,68,68,0.08)', borderRadius:8, borderWidth:1, borderColor:'#ef4444'+'40', paddingHorizontal:10, paddingVertical:6 },
+  memberCard: { flexDirection:'row', alignItems:'center', gap:12, backgroundColor:'#ffffff', borderRadius:14, borderWidth:1, borderColor:'rgba(0,0,0,0.08)', padding:14, shadowColor:'#000', shadowOffset:{width:0,height:1}, shadowOpacity:0.05, shadowRadius:4, elevation:1 },
+  composeBox: { flexDirection:'row', gap:10, alignItems:'flex-end', backgroundColor:'#ffffff', borderRadius:14, borderWidth:1, borderColor:'rgba(0,0,0,0.10)', padding:12 },
+  composeInput:{ flex:1, color:TEXT.primary, fontSize:14, minHeight:40, maxHeight:100 },
   sendBtn:    { width:42, height:42, borderRadius:12, backgroundColor:BRAND, alignItems:'center', justifyContent:'center' },
-  msgCard:    { backgroundColor:'rgba(255,255,255,0.05)', borderRadius:12, borderWidth:1, borderColor:'rgba(255,255,255,0.08)', padding:14 },
-  videoCard:  { backgroundColor:'rgba(255,255,255,0.05)', borderRadius:14, borderWidth:1, borderColor:'rgba(255,255,255,0.08)', padding:14 },
+  msgCard:    { backgroundColor:'#ffffff', borderRadius:12, borderWidth:1, borderColor:'rgba(0,0,0,0.08)', padding:14, shadowColor:'#000', shadowOffset:{width:0,height:1}, shadowOpacity:0.04, shadowRadius:4, elevation:1 },
+  videoCard:  { backgroundColor:'#ffffff', borderRadius:14, borderWidth:1, borderColor:'rgba(0,0,0,0.08)', padding:14, shadowColor:'#000', shadowOffset:{width:0,height:1}, shadowOpacity:0.04, shadowRadius:4, elevation:1 },
 })
 const pl = StyleSheet.create({
   sectionTitle: { color:TEXT.hint, fontSize:11, fontWeight:'700', letterSpacing:1 },
-  actionBtn:    { flex:1, flexDirection:'row', alignItems:'center', justifyContent:'center', gap:8, backgroundColor:'rgba(255,255,255,0.06)', borderRadius:14, borderWidth:1, borderColor:'rgba(255,255,255,0.1)', paddingVertical:14 },
+  actionBtn:    { flex:1, flexDirection:'row', alignItems:'center', justifyContent:'center', gap:8, backgroundColor:'#f0f2f5', borderRadius:14, borderWidth:1, borderColor:'rgba(0,0,0,0.08)', paddingVertical:14 },
 })
 
 // ─────────────────────────────────────────────────────────
@@ -1201,11 +1201,11 @@ export default function TeamScreen() {
     setSetup(null); setJoined(null); setState('select-role')
   }
 
-  if (state==='loading')           return <View style={{flex:1,backgroundColor:'#000'}}/>
+  if (state==='loading')           return <View style={{flex:1,backgroundColor:'#f6f6f8'}}/>
   if (state==='select-role')       return <RoleSelectionScreen onSelect={handleSelectRole}/>
   if (state==='coach-setup')       return <CoachSetupScreen onCreated={handleCoachCreated} onBack={() => setState('select-role')}/>
   if (state==='coach' && setup)    return <CoachDashboard setup={setup} onReset={handleReset}/>
   if (state==='player-join')       return <PlayerJoinScreen onJoined={handlePlayerJoined} onBack={() => setState('select-role')}/>
   if (state==='player' && joined)  return <PlayerDashboard joined={joined} onReset={handleReset}/>
-  return <View style={{flex:1,backgroundColor:'#000'}}/>
+  return <View style={{flex:1,backgroundColor:'#f6f6f8'}}/>
 }

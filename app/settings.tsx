@@ -119,7 +119,7 @@ function LabeledInput({
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder ?? ''}
-        placeholderTextColor="#444"
+        placeholderTextColor="#9ca3af"
         keyboardType={keyboardType}
         autoCapitalize="none"
         autoCorrect={false}
@@ -233,7 +233,7 @@ export default function SettingsScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#000' }}>
+    <View style={{ flex: 1, backgroundColor: '#f6f6f8' }}>
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
@@ -374,9 +374,9 @@ export default function SettingsScreen() {
                   }
                 }}
               >
-                <Ionicons name="swap-horizontal-outline" size={18} color="#fff" />
+                <Ionicons name="swap-horizontal-outline" size={18} color="#6b7280" />
                 <Text style={styles.actionText}>コーチ ↔ 選手を切り替え</Text>
-                <Ionicons name="chevron-forward" size={16} color="#555" />
+                <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
               </TouchableOpacity>
             </SectionCard>
           </AnimatedSection>
@@ -389,9 +389,9 @@ export default function SettingsScreen() {
                 <Switch
                   value={notifSettings.practiceReminder}
                   onValueChange={v => toggleNotif('practiceReminder', v)}
-                  trackColor={{ false: '#333', true: '#E53935' }}
+                  trackColor={{ false: '#e5e7eb', true: '#E53935' }}
                   thumbColor="#fff"
-                  ios_backgroundColor="#333"
+                  ios_backgroundColor="#e5e7eb"
                 />
               </View>
               <View style={styles.divider} />
@@ -400,9 +400,9 @@ export default function SettingsScreen() {
                 <Switch
                   value={notifSettings.raceReminder}
                   onValueChange={v => toggleNotif('raceReminder', v)}
-                  trackColor={{ false: '#333', true: '#E53935' }}
+                  trackColor={{ false: '#e5e7eb', true: '#E53935' }}
                   thumbColor="#fff"
-                  ios_backgroundColor="#333"
+                  ios_backgroundColor="#e5e7eb"
                 />
               </View>
             </SectionCard>
@@ -416,9 +416,9 @@ export default function SettingsScreen() {
                 onPress={exportCSV}
                 activeOpacity={0.75}
               >
-                <Ionicons name="download-outline" size={18} color="#fff" />
+                <Ionicons name="download-outline" size={18} color="#6b7280" />
                 <Text style={styles.actionText}>記録をCSVでエクスポート</Text>
-                <Ionicons name="chevron-forward" size={16} color="#555" />
+                <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
               </TouchableOpacity>
               <View style={styles.divider} />
               <TouchableOpacity
@@ -428,7 +428,7 @@ export default function SettingsScreen() {
               >
                 <Ionicons name="trash-outline" size={18} color="#E53935" />
                 <Text style={[styles.actionText, { color: '#E53935' }]}>キャッシュをクリア</Text>
-                <Ionicons name="chevron-forward" size={16} color="#555" />
+                <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
               </TouchableOpacity>
             </SectionCard>
           </AnimatedSection>
@@ -446,9 +446,9 @@ export default function SettingsScreen() {
                 onPress={() => router.push('/privacy')}
                 activeOpacity={0.75}
               >
-                <Ionicons name="shield-checkmark-outline" size={18} color="#fff" />
+                <Ionicons name="shield-checkmark-outline" size={18} color="#6b7280" />
                 <Text style={styles.actionText}>プライバシーポリシー</Text>
-                <Ionicons name="chevron-forward" size={16} color="#555" />
+                <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
               </TouchableOpacity>
               <View style={styles.divider} />
               <TouchableOpacity
@@ -456,9 +456,9 @@ export default function SettingsScreen() {
                 onPress={() => router.push('/terms')}
                 activeOpacity={0.75}
               >
-                <Ionicons name="document-text-outline" size={18} color="#fff" />
+                <Ionicons name="document-text-outline" size={18} color="#6b7280" />
                 <Text style={styles.actionText}>利用規約</Text>
-                <Ionicons name="chevron-forward" size={16} color="#555" />
+                <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
               </TouchableOpacity>
               <View style={styles.divider} />
               <View style={[styles.fieldRow, { paddingBottom: 4 }]}>
@@ -480,10 +480,17 @@ const styles = StyleSheet.create({
 
   // カードセクション
   card: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: '#ffffff',
     borderRadius: 16,
     margin: 16,
     padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   cardTitle: {
     color: '#E53935',
@@ -494,14 +501,14 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
 
-  divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginVertical: 10 },
+  divider: { height: 1, backgroundColor: 'rgba(0,0,0,0.07)', marginVertical: 10 },
 
   // フィールド行
   fieldRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 36 },
-  fieldLabel: { color: '#888', fontSize: 12, flex: 0, minWidth: 72 },
-  fieldValue: { color: '#fff', fontSize: 16, flex: 1, textAlign: 'right' },
+  fieldLabel: { color: '#9ca3af', fontSize: 12, flex: 0, minWidth: 72 },
+  fieldValue: { color: '#111827', fontSize: 16, flex: 1, textAlign: 'right' },
   fieldInput: {
-    flex: 1, color: '#fff', fontSize: 16,
+    flex: 1, color: '#111827', fontSize: 16,
     textAlign: 'right',
     // @ts-ignore
     outlineStyle: 'none',
@@ -514,7 +521,7 @@ const styles = StyleSheet.create({
     borderRadius: 20, borderWidth: 1,
   },
   tagActive:   { backgroundColor: '#E53935', borderColor: '#E53935' },
-  tagInactive: { backgroundColor: 'transparent', borderColor: '#E53935' },
+  tagInactive: { backgroundColor: 'transparent', borderColor: 'rgba(229,57,53,0.4)' },
   tagText:     { color: '#E53935', fontSize: 12, fontWeight: '700' },
 
   // 保存ボタン
@@ -534,9 +541,9 @@ const styles = StyleSheet.create({
 
   // Switch 行
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
-  switchLabel: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  switchLabel: { color: '#111827', fontSize: 15, fontWeight: '600' },
 
   // アクション行（データ）
   actionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
-  actionText: { flex: 1, color: '#fff', fontSize: 15, fontWeight: '600' },
+  actionText: { flex: 1, color: '#111827', fontSize: 15, fontWeight: '600' },
 })

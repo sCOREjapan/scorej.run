@@ -39,7 +39,7 @@ function SkeletonRect({ height = 16, width = '100%' as number | string }) {
     ]))
     a.start(); return () => a.stop()
   }, [opacity])
-  return <Animated.View style={{ height, width: width as number, borderRadius: 8, backgroundColor: '#2a2a2a', opacity }} />
+  return <Animated.View style={{ height, width: width as number, borderRadius: 8, backgroundColor: '#e8eaed', opacity }} />
 }
 
 // ── +/- ボタン式時刻ピッカー ──────────────────────────────────
@@ -74,7 +74,7 @@ function TimePicker({ label, hour, minute, onChangeHour, onChangeMinte, color }:
             <Ionicons name="chevron-down" size={18} color={color} />
           </TouchableOpacity>
         </View>
-        <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 28, fontWeight: '300' }}>:</Text>
+        <Text style={{ color: 'rgba(0,0,0,0.25)', fontSize: 28, fontWeight: '300' }}>:</Text>
         {/* 分（5分刻み） */}
         <View style={{ alignItems: 'center', gap: 4 }}>
           <TouchableOpacity onPress={incMin} style={tp.btn} activeOpacity={0.7}>
@@ -95,7 +95,7 @@ function TimePicker({ label, hour, minute, onChangeHour, onChangeMinte, color }:
 
 const tp = StyleSheet.create({
   btn:  { width: 36, height: 28, alignItems: 'center', justifyContent: 'center' },
-  box:  { width: 56, height: 52, borderRadius: 12, borderWidth: 1.5, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' },
+  box:  { width: 56, height: 52, borderRadius: 12, borderWidth: 1.5, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 1 },
   val:  { fontSize: 26, fontWeight: '800', letterSpacing: 1 },
 })
 
@@ -149,7 +149,7 @@ function SleepLineChart({ records }: { records: SleepRecord[] }) {
           {/* グリッド */}
           {yTicks.map((_, i) => {
             const y = i === 0 ? 0 : i === 1 ? PLOT_H / 2 : PLOT_H - 1
-            return <View key={i} style={{ position: 'absolute', left: 0, right: 0, top: y, height: 1, backgroundColor: 'rgba(255,255,255,0.07)' }} />
+            return <View key={i} style={{ position: 'absolute', left: 0, right: 0, top: y, height: 1, backgroundColor: 'rgba(0,0,0,0.07)' }} />
           })}
           {/* 折れ線 */}
           {data.slice(0, -1).map((d, i) => {
@@ -180,7 +180,7 @@ function SleepLineChart({ records }: { records: SleepRecord[] }) {
                 width: 8, height: 8, borderRadius: 4,
                 backgroundColor: isLatest ? BRAND : NEON.blue,
                 borderWidth: isLatest ? 2 : 1,
-                borderColor: isLatest ? '#fff' : 'rgba(255,255,255,0.4)',
+                borderColor: isLatest ? '#fff' : 'rgba(255,255,255,0.8)',
               }} />
             )
           })}
@@ -357,8 +357,7 @@ export default function SleepScreen() {
   const existingForDate = records.find(r => r.sleep_date === recordDate)
 
   return (
-    <View style={{ flex: 1 }}>
-      <LinearGradient colors={BG_GRADIENT} style={StyleSheet.absoluteFill} />
+    <View style={{ flex: 1, backgroundColor: '#f6f6f8' }}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>睡眠・回復</Text>
@@ -412,17 +411,17 @@ export default function SleepScreen() {
                       disabled={isFuture}
                       style={{
                         paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10,
-                        backgroundColor: isSelected ? NEON.blue : 'rgba(255,255,255,0.06)',
+                        backgroundColor: isSelected ? NEON.blue : '#f0f2f5',
                         borderWidth: 1,
-                        borderColor: isSelected ? NEON.blue : hasRecord ? 'rgba(90,200,250,0.4)' : 'rgba(255,255,255,0.1)',
+                        borderColor: isSelected ? NEON.blue : hasRecord ? 'rgba(59,130,246,0.4)' : 'rgba(0,0,0,0.08)',
                         opacity: isFuture ? 0.3 : 1,
                       }}
                     >
-                      <Text style={{ color: isSelected ? '#fff' : hasRecord ? '#5AC8FA' : TEXT.hint, fontSize: 11, fontWeight: '700' }}>
+                      <Text style={{ color: isSelected ? '#fff' : hasRecord ? '#3b82f6' : TEXT.hint, fontSize: 11, fontWeight: '700' }}>
                         {formatDateLabel(d)}
                       </Text>
                       {hasRecord && (
-                        <Text style={{ color: isSelected ? 'rgba(255,255,255,0.8)' : '#5AC8FA', fontSize: 9, textAlign: 'center' }}>
+                        <Text style={{ color: isSelected ? 'rgba(255,255,255,0.8)' : '#3b82f6', fontSize: 9, textAlign: 'center' }}>
                           {fmtDuration(records.find(r => r.sleep_date === d)?.duration_min)}
                         </Text>
                       )}
@@ -491,7 +490,7 @@ export default function SleepScreen() {
                 multiline
                 numberOfLines={2}
                 placeholder="メモ（途中で起きた、夢を見た...）"
-                placeholderTextColor="#445577"
+                placeholderTextColor="#9ca3af"
               />
 
               <TouchableOpacity
@@ -561,32 +560,45 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.08)',
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(0,0,0,0.08)',
+    backgroundColor: '#ffffff',
   },
   headerTitle: { color: TEXT.primary, fontSize: 20, fontWeight: '800' },
   recordBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
     backgroundColor: NEON.blue, borderRadius: 16, paddingVertical: 18,
   },
-  recordBtnOpen: { backgroundColor: 'rgba(90,200,250,0.2)', borderWidth: 1, borderColor: NEON.blue },
+  recordBtnOpen: { backgroundColor: 'rgba(59,130,246,0.10)', borderWidth: 1, borderColor: NEON.blue },
   recordBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
   scroll: { flex: 1 },
   content: { padding: 16, gap: 14, paddingBottom: 100 },
-  card: { backgroundColor: '#111111', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', padding: 16, gap: 12 },
+  card: {
+    backgroundColor: '#ffffff', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
+    padding: 16, gap: 12,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
+  },
 
   summaryRow: { flexDirection: 'row', gap: 12 },
-  summaryCard: { flex: 1, backgroundColor: '#111111', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', borderRadius: 20, padding: 16, alignItems: 'center', gap: 4 },
+  summaryCard: {
+    flex: 1, backgroundColor: '#ffffff', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
+    borderRadius: 16, padding: 16, alignItems: 'center', gap: 4,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
+  },
   summaryValue: { color: TEXT.primary, fontSize: 24, fontWeight: '800' },
   summaryLabel: { color: TEXT.secondary, fontSize: 12 },
 
-  formCard: { backgroundColor: 'rgba(12,14,35,0.92)', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', padding: 20, gap: 18 },
+  formCard: {
+    backgroundColor: '#ffffff', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
+    padding: 20, gap: 18,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
+  },
   formTitle: { color: TEXT.primary, fontSize: 16, fontWeight: '700', textAlign: 'center' },
 
   noteInput: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: '#f8f8fa',
     borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10,
-    color: '#FFFFFF', fontSize: 14,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    color: TEXT.primary, fontSize: 14,
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
     height: 60, textAlignVertical: 'top',
   },
   saveBtn: {
@@ -600,9 +612,9 @@ const styles = StyleSheet.create({
   sectionTitle: { color: TEXT.primary, fontSize: 15, fontWeight: '700', flex: 1 },
   sleepCard: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1, borderColor: 'rgba(74,159,255,0.12)',
-    borderRadius: 10, padding: 12, gap: 10,
+    backgroundColor: '#f8f8fa',
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)',
+    borderRadius: 12, padding: 12, gap: 10,
   },
   sleepLeft: { flex: 1, gap: 2 },
   sleepDate: { color: TEXT.primary, fontSize: 14, fontWeight: '600' },

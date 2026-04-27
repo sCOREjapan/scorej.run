@@ -87,7 +87,7 @@ function RadialFAB({ bottomOffset }: { bottomOffset: number }) {
       {open && (
         <Pressable
           onPress={toggle}
-          style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.72)', zIndex: 90 }]}
+          style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.55)', zIndex: 90 }]}
         />
       )}
 
@@ -145,7 +145,7 @@ function HomeButton({ bottomOffset }: { bottomOffset: number }) {
       style={[fab.homeBtn, { bottom: bottomOffset + 8 }]}
       activeOpacity={0.85}
     >
-      <Ionicons name="home" size={22} color="#fff" />
+      <Ionicons name="home" size={22} color="#6b7280" />
     </TouchableOpacity>
   )
 }
@@ -157,7 +157,7 @@ const fab = StyleSheet.create({
     backgroundColor: BRAND,
     alignItems: 'center', justifyContent: 'center',
     shadowColor: BRAND, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5, shadowRadius: 10, elevation: 10,
+    shadowOpacity: 0.4, shadowRadius: 12, elevation: 10,
   },
   itemWrap: {
     position: 'absolute',
@@ -166,26 +166,25 @@ const fab = StyleSheet.create({
   },
   item: {
     width: 52, height: 52, borderRadius: 26,
-    backgroundColor: '#1a1a1a',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: '#ffffff',
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.10)',
     alignItems: 'center', justifyContent: 'center',
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4, shadowRadius: 6, elevation: 6,
+    shadowOpacity: 0.12, shadowRadius: 8, elevation: 6,
   },
   homeBtn: {
     position: 'absolute',
     left: 20,
     width: 50, height: 50, borderRadius: 25,
-    backgroundColor: '#1e1e1e',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: '#ffffff',
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.10)',
     alignItems: 'center', justifyContent: 'center',
     zIndex: 100,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4, shadowRadius: 6, elevation: 8,
+    shadowOpacity: 0.12, shadowRadius: 8, elevation: 8,
   },
   itemLabel: {
-    color: '#fff', fontSize: 9, fontWeight: '700',
-    textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3,
+    color: '#111827', fontSize: 9, fontWeight: '700',
   },
 })
 
@@ -199,9 +198,9 @@ export default function TabLayout() {
       <Tabs
         screenOptions={{
           tabBarStyle: { display: 'none' },
-          headerStyle: { backgroundColor: '#111111' },
-          headerTintColor: '#FFFFFF',
-          headerTitleStyle: { color: '#FFFFFF', fontWeight: '800', letterSpacing: -0.3 },
+          headerStyle: { backgroundColor: '#ffffff' },
+          headerTintColor: '#111827',
+          headerTitleStyle: { color: '#111827', fontWeight: '800', letterSpacing: -0.3 },
         }}
       >
         {/* ── 左端: ホーム ── */}

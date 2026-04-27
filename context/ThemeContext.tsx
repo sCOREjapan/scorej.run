@@ -18,16 +18,16 @@ export interface ThemeColors {
 }
 
 export const DARK: ThemeColors = {
-  bg:       '#0a0a0a',
-  surface:  '#111111',
-  surface2: '#1a1a1a',
-  border:   'rgba(255,255,255,0.08)',
-  text:     '#ffffff',
-  textSec:  '#888888',
-  textHint: '#555555',
-  card:     '#111111',
-  inputBg:  'rgba(255,255,255,0.06)',
-  switchTrack: '#333',
+  bg:       '#f6f6f8',
+  surface:  '#ffffff',
+  surface2: '#f0f2f5',
+  border:   'rgba(0,0,0,0.08)',
+  text:     '#111827',
+  textSec:  '#6b7280',
+  textHint: '#9ca3af',
+  card:     '#ffffff',
+  inputBg:  '#f8f8fa',
+  switchTrack: '#e5e7eb',
 }
 
 // 後方互換のため LIGHT も同じ値でエクスポート
@@ -48,7 +48,7 @@ const ThemeContext = createContext<ThemeCtx>({
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      document.body.style.backgroundColor = '#0a0a0a'
+      document.body.style.backgroundColor = '#f6f6f8'
     }
   }, [])
 

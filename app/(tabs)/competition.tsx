@@ -12,8 +12,7 @@ import {
   Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { LinearGradient } from 'expo-linear-gradient'
-import { BG_GRADIENT, NEON, TEXT, GLASS } from '../../lib/theme'
+import { NEON, TEXT, GLASS } from '../../lib/theme'
 import { Ionicons } from '@expo/vector-icons'
 import Toast from 'react-native-toast-message'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -97,7 +96,7 @@ function SkeletonRect({ height = 16, width = '100%' as number | string, radius =
   }, [opacity])
   return (
     <Animated.View
-      style={{ height, width: width as number, borderRadius: radius, backgroundColor: '#2a2a2a', opacity }}
+      style={{ height, width: width as number, borderRadius: radius, backgroundColor: '#e8eaed', opacity }}
     />
   )
 }
@@ -369,8 +368,7 @@ export default function CompetitionScreen() {
   }
 
   return (
-    <View style={{ flex: 1 }}>
-    <LinearGradient colors={BG_GRADIENT} style={StyleSheet.absoluteFill} />
+    <View style={{ flex: 1, backgroundColor: '#f6f6f8' }}>
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>試合モード</Text>
@@ -520,7 +518,7 @@ export default function CompetitionScreen() {
                 value={compName}
                 onChangeText={setCompName}
                 placeholder="例: 春季陸上競技大会"
-                placeholderTextColor="#445577"
+                placeholderTextColor="#9ca3af"
               />
 
               <Text style={styles.label}>試合日</Text>
@@ -535,7 +533,7 @@ export default function CompetitionScreen() {
                   setCompDate(formatted)
                 }}
                 placeholder="2026-05-01"
-                placeholderTextColor="#445577"
+                placeholderTextColor="#9ca3af"
                 keyboardType="number-pad"
                 maxLength={10}
               />
@@ -565,7 +563,7 @@ export default function CompetitionScreen() {
                       onChangeText={setTargetDistM}
                       keyboardType="decimal-pad"
                       placeholder="例: 7.50"
-                      placeholderTextColor="#445577"
+                      placeholderTextColor="#9ca3af"
                     />
                     <Text style={[styles.timeUnit, { marginLeft: 8 }]}>m</Text>
                   </View>
@@ -582,7 +580,7 @@ export default function CompetitionScreen() {
                         onChangeText={setTargetMin}
                         keyboardType="number-pad"
                         placeholder="0"
-                        placeholderTextColor="#445577"
+                        placeholderTextColor="#9ca3af"
                         maxLength={2}
                         textAlign="center"
                       />
@@ -596,7 +594,7 @@ export default function CompetitionScreen() {
                         onChangeText={setTargetSec}
                         keyboardType="decimal-pad"
                         placeholder="47.00"
-                        placeholderTextColor="#445577"
+                        placeholderTextColor="#9ca3af"
                         maxLength={5}
                         textAlign="center"
                       />
@@ -644,7 +642,7 @@ export default function CompetitionScreen() {
                     key={status}
                     style={[
                       styles.entryStatusBtn,
-                      { borderColor: color, backgroundColor: isCurrent ? color + '33' : 'rgba(255,255,255,0.04)' },
+                      { borderColor: color, backgroundColor: isCurrent ? color + '20' : '#f0f2f5' },
                     ]}
                     onPress={() => entryModalComp && saveEntryStatus(entryModalComp.id, status)}
                     activeOpacity={0.8}
@@ -677,13 +675,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
+    borderBottomColor: 'rgba(0,0,0,0.08)',
+    backgroundColor: '#ffffff',
   },
   headerTitle: { color: TEXT.primary, fontSize: 20, fontWeight: '800' },
   addBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center' },
   scroll: { flex: 1 },
   content: { padding: 16, gap: 14, paddingBottom: 48 },
-  card: { backgroundColor: '#111111', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', padding: 16, gap: 12 },
+  card: { backgroundColor: '#ffffff', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 16, gap: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
 
   generatingText: { color: TEXT.primary, fontSize: 15, fontWeight: '700', textAlign: 'center' },
 
@@ -694,20 +693,20 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderColor: 'rgba(0,0,0,0.08)',
+    backgroundColor: '#f0f2f5',
   },
   filterChipText: { color: TEXT.secondary, fontSize: 13, fontWeight: '600' },
 
   // カウントダウン
-  countdownCard: { backgroundColor: '#111111', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', padding: 16, gap: 10 },
+  countdownCard: { backgroundColor: '#ffffff', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 16, gap: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
   countdownTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   compName: { color: TEXT.primary, fontSize: 17, fontWeight: '700' },
   compMeta: { color: TEXT.secondary, fontSize: 13, marginTop: 3 },
-  daysBox: { alignItems: 'center', backgroundColor: BRAND + '22', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: BRAND },
+  daysBox: { alignItems: 'center', backgroundColor: BRAND + '12', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: BRAND + '40' },
   daysNum: { color: BRAND, fontSize: 28, fontWeight: '900', lineHeight: 30 },
   daysLabel: { color: BRAND, fontSize: 11, fontWeight: '700' },
-  adviceBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(74,159,255,0.12)', borderRadius: 10, padding: 10 },
+  adviceBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, backgroundColor: 'rgba(59,130,246,0.06)', borderWidth: 1, borderColor: 'rgba(59,130,246,0.15)', borderRadius: 10, padding: 10 },
   adviceText: { color: TEXT.secondary, fontSize: 13, lineHeight: 20, flex: 1 },
 
   // エントリーバッジ
@@ -729,13 +728,13 @@ const styles = StyleSheet.create({
   entryStatusText: { flex: 1, fontSize: 15, fontWeight: '600' },
 
   // 週カード
-  weekCard: { backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(74,159,255,0.12)', borderRadius: 10, overflow: 'hidden' },
+  weekCard: { backgroundColor: '#f8f8fa', borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)', borderRadius: 10, overflow: 'hidden' },
   weekHeader: { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 10 },
   weekNumBadge: { width: 32, height: 32, borderRadius: 16, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center' },
   weekNumText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   weekTheme: { color: TEXT.primary, fontSize: 14, fontWeight: '700' },
   weekVolume: { color: TEXT.secondary, fontSize: 12 },
-  weekBody: { paddingHorizontal: 12, paddingBottom: 12, gap: 8, borderTopWidth: 1, borderTopColor: 'rgba(74,159,255,0.15)' },
+  weekBody: { paddingHorizontal: 12, paddingBottom: 12, gap: 8, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.07)' },
   keyWorkout: { color: TEXT.secondary, fontSize: 13, lineHeight: 19, paddingTop: 8 },
   sessionRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   intensityDot: { width: 8, height: 8, borderRadius: 4, marginTop: 5 },
@@ -755,19 +754,19 @@ const styles = StyleSheet.create({
   emptyBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15 },
 
   // モーダル
-  modalSafe: { flex: 1, backgroundColor: '#000000' },
+  modalSafe: { flex: 1, backgroundColor: '#f6f6f8' },
   modalContent: { padding: 20, paddingBottom: 40, gap: 4 },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
   modalTitle: { color: TEXT.primary, fontSize: 17, fontWeight: '700' },
   cancelText: { color: TEXT.secondary, fontSize: 16 },
   label: { color: TEXT.secondary, fontSize: 13, fontWeight: '600', marginBottom: 6 },
-  input: { backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, color: '#FFFFFF', fontSize: 15, borderWidth: 1, borderColor: 'rgba(74,159,255,0.3)', marginBottom: 14 },
+  input: { backgroundColor: '#f8f8fa', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, color: TEXT.primary, fontSize: 15, borderWidth: 1, borderColor: 'rgba(59,130,246,0.25)', marginBottom: 14 },
   chipRow: { flexDirection: 'row', gap: 8 },
-  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.06)' },
+  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', backgroundColor: '#f0f2f5' },
   chipText: { color: TEXT.secondary, fontSize: 13, fontWeight: '600' },
   timeRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 14 },
   timeCol: { flex: 1, gap: 4 },
-  timeInput: { backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, color: '#FFFFFF', fontSize: 18, fontWeight: '700', borderWidth: 1, borderColor: 'rgba(74,159,255,0.3)' },
+  timeInput: { backgroundColor: '#f8f8fa', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, color: TEXT.primary, fontSize: 18, fontWeight: '700', borderWidth: 1, borderColor: 'rgba(59,130,246,0.25)' },
   timeUnit: { color: TEXT.secondary, fontSize: 12, fontWeight: '600', textAlign: 'center' },
   timeSep: { color: TEXT.secondary, fontSize: 24, fontWeight: '300', paddingBottom: 10 },
   generateBtn: {

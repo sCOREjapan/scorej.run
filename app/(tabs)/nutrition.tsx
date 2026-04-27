@@ -6,7 +6,6 @@ import {
 import { checkAdGate, recordUsage, grantRewardUse } from '../../lib/adGate'
 import AdGateModal from '../../components/AdGateModal'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { LinearGradient } from 'expo-linear-gradient'
 import * as ImagePicker from 'expo-image-picker'
 import { Ionicons } from '@expo/vector-icons'
 import Toast from 'react-native-toast-message'
@@ -18,7 +17,7 @@ import { analyzeMeal } from '../../lib/claude'
 import AIFeedbackCard from '../../components/AIFeedbackCard'
 import GlassCard from '../../components/GlassCard'
 import PressableScale from '../../components/PressableScale'
-import { BRAND, BG_GRADIENT, NEON, TEXT, GLASS } from '../../lib/theme'
+import { BRAND, NEON, TEXT, GLASS } from '../../lib/theme'
 import { Sounds, unlockAudio } from '../../lib/sounds'
 import AnimatedSection from '../../components/AnimatedSection'
 import type { MealType, MealRecord, MealAnalysisResult, UserProfile } from '../../types'
@@ -55,7 +54,7 @@ function SkeletonRect({ height = 16, width = '100%' as string | number }) {
     ]))
     a.start(); return () => a.stop()
   }, [opacity])
-  return <Animated.View style={{ height, width: width as number, borderRadius: 8, backgroundColor: '#2a2a2a', opacity }} />
+  return <Animated.View style={{ height, width: width as number, borderRadius: 8, backgroundColor: '#e8eaed', opacity }} />
 }
 
 // ─── 栄養素サマリー ─────────────────────────────────────────────────────
@@ -243,8 +242,7 @@ export default function NutritionScreen() {
   }, [result, mealType, timing, today, history])
 
   return (
-    <View style={{ flex: 1 }}>
-    <LinearGradient colors={BG_GRADIENT} style={StyleSheet.absoluteFill} />
+    <View style={{ flex: 1, backgroundColor: '#f6f6f8' }}>
     <SafeAreaView style={styles.safe}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
@@ -406,7 +404,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   title: { color: TEXT.primary, fontSize: 24, fontWeight: '700' },
   date: { color: TEXT.secondary, fontSize: 13 },
-  card: { backgroundColor: '#111111', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', padding: 16, gap: 12 },
+  card: { backgroundColor: '#ffffff', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 16, gap: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
   cardTitle: { color: TEXT.primary, fontSize: 15, fontWeight: '700' },
   macroRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   macroMain: { alignItems: 'center' },
@@ -415,14 +413,14 @@ const styles = StyleSheet.create({
   macroItem: { flex: 1, alignItems: 'center', gap: 2 },
   macroValue: { fontSize: 18, fontWeight: '700' },
   macroLabel: { color: TEXT.secondary, fontSize: 11 },
-  chip: { paddingHorizontal: 14, paddingVertical: 10, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', gap: 4, minWidth: 60 },
+  chip: { paddingHorizontal: 14, paddingVertical: 10, backgroundColor: '#f0f2f5', borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', gap: 4, minWidth: 60 },
   chipActive: { backgroundColor: BRAND, borderColor: BRAND },
   chipIcon: { fontSize: 18 },
   chipText: { color: TEXT.secondary, fontSize: 12, fontWeight: '600' },
   chipTextActive: { color: '#FFFFFF' },
   timingRow: { flexDirection: 'row', gap: 8 },
-  timingBtn: { flex: 1, paddingVertical: 8, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
-  timingBtnActive: { backgroundColor: `${BRAND}22`, borderColor: BRAND },
+  timingBtn: { flex: 1, paddingVertical: 8, backgroundColor: '#f0f2f5', borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
+  timingBtnActive: { backgroundColor: `${BRAND}10`, borderColor: BRAND },
   timingText: { color: TEXT.secondary, fontSize: 13, fontWeight: '600' },
   timingTextActive: { color: BRAND },
   imageBox: { height: 200, borderRadius: 10, overflow: 'hidden' },
@@ -430,20 +428,20 @@ const styles = StyleSheet.create({
   imageClose: { position: 'absolute', top: 8, right: 8 },
   pickRow: { flexDirection: 'row', gap: 10 },
   pickBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: BRAND, borderRadius: 12, paddingVertical: 16 },
-  pickBtnSub: { backgroundColor: 'rgba(255,255,255,0.08)' },
+  pickBtnSub: { backgroundColor: '#f0f2f5', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
   pickBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
   analyzeBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: BRAND, borderRadius: 12, paddingVertical: 16 },
   analyzeBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
-  foodRow: { gap: 4, paddingBottom: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(74,159,255,0.15)' },
+  foodRow: { gap: 4, paddingBottom: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(0,0,0,0.07)' },
   foodName: { color: TEXT.primary, fontSize: 14, fontWeight: '600' },
   foodMacros: { flexDirection: 'row', gap: 8 },
   foodMacro: { color: TEXT.secondary, fontSize: 12 },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(74,159,255,0.15)' },
-  hydration: { backgroundColor: 'rgba(0,212,255,0.08)', borderRadius: 8, padding: 10, borderWidth: 1, borderColor: 'rgba(0,212,255,0.25)' },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(0,0,0,0.07)' },
+  hydration: { backgroundColor: 'rgba(6,182,212,0.08)', borderRadius: 8, padding: 10, borderWidth: 1, borderColor: 'rgba(6,182,212,0.25)' },
   hydrationText: { color: NEON.cyan, fontSize: 13 },
   saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: BRAND, borderRadius: 12, paddingVertical: 16 },
   saveBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
-  historyCard: { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 10, borderWidth: 1, borderColor: 'rgba(74,159,255,0.12)', padding: 12, gap: 5 },
+  historyCard: { backgroundColor: '#f8f8fa', borderRadius: 10, borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)', padding: 12, gap: 5 },
   historyCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
   historyIcon: { fontSize: 16 },
   historyType: { color: TEXT.primary, fontSize: 14, fontWeight: '700', flex: 1 },

@@ -85,7 +85,7 @@ function SkeletonRect({ h = 16, w = '100%' as any }) {
     ]))
     a.start(); return () => a.stop()
   }, [op])
-  return <Animated.View style={{ height: h, width: w, borderRadius: 8, backgroundColor: '#1e2a3a', opacity: op }} />
+  return <Animated.View style={{ height: h, width: w, borderRadius: 8, backgroundColor: '#e8eaed', opacity: op }} />
 }
 
 // ── PBバッジ ──────────────────────────────────────────────────────
@@ -370,9 +370,9 @@ function SessionDetailSheet({ session, onClose, onDelete }: {
   return (
     <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end', zIndex: 999 }]}>
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-      <View style={{ backgroundColor: '#111', borderTopLeftRadius: 24, borderTopRightRadius: 24,
-        padding: 20, paddingBottom: 48, borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
-        <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)', alignSelf: 'center', marginBottom: 16 }} />
+      <View style={{ backgroundColor: '#ffffff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+        padding: 20, paddingBottom: 48, borderTopWidth: 1, borderColor: 'rgba(0,0,0,0.08)' }}>
+        <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(0,0,0,0.12)', alignSelf: 'center', marginBottom: 16 }} />
 
         {/* ヘッダー */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 18 }}>
@@ -788,9 +788,9 @@ function WeightLineChart({ records }: { records: WeightRecord[] }) {
               position: 'absolute',
               left: x - 4, top: y - 4,
               width: 8, height: 8, borderRadius: 4,
-              backgroundColor: isLatest ? BRAND : '#5AC8FA',
+              backgroundColor: isLatest ? BRAND : '#3b82f6',
               borderWidth: isLatest ? 2 : 1,
-              borderColor: isLatest ? '#fff' : 'rgba(255,255,255,0.4)',
+              borderColor: isLatest ? '#fff' : 'rgba(255,255,255,0.9)',
             }} />
           )
         })}
@@ -881,16 +881,16 @@ function WeightSection({
               onPress={() => { setSelectedDate(d); setInput(records.find(r => r.date === d)?.weight_kg.toString() ?? '') }}
               style={{
                 paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10,
-                backgroundColor: isSelected ? BRAND : 'rgba(255,255,255,0.06)',
+                backgroundColor: isSelected ? BRAND : '#f0f2f5',
                 borderWidth: 1,
-                borderColor: isSelected ? BRAND : hasRecord ? 'rgba(90,200,250,0.4)' : 'rgba(255,255,255,0.1)',
+                borderColor: isSelected ? BRAND : hasRecord ? 'rgba(59,130,246,0.4)' : 'rgba(0,0,0,0.08)',
               }}
             >
-              <Text style={{ color: isSelected ? '#fff' : hasRecord ? '#5AC8FA' : TEXT.hint, fontSize: 11, fontWeight: '700' }}>
+              <Text style={{ color: isSelected ? '#fff' : hasRecord ? '#3b82f6' : TEXT.hint, fontSize: 11, fontWeight: '700' }}>
                 {formatDateLabel(d)}
               </Text>
               {hasRecord && (
-                <Text style={{ color: isSelected ? 'rgba(255,255,255,0.8)' : '#5AC8FA', fontSize: 9, textAlign: 'center' }}>
+                <Text style={{ color: isSelected ? 'rgba(255,255,255,0.8)' : '#3b82f6', fontSize: 9, textAlign: 'center' }}>
                   {records.find(r => r.date === d)?.weight_kg}kg
                 </Text>
               )}
@@ -1229,8 +1229,7 @@ export default function RecordsScreen() {
     : []
 
   return (
-    <View style={{ flex: 1 }}>
-      <LinearGradient colors={BG_GRADIENT} style={StyleSheet.absoluteFill} />
+    <View style={{ flex: 1, backgroundColor: '#f6f6f8' }}>
       <SafeAreaView style={styles.safe}>
 
         {/* ── ヘッダー ── */}
@@ -1309,7 +1308,7 @@ export default function RecordsScreen() {
             >
               <Ionicons name="stopwatch-outline" size={22} color="#fff" />
               <Text style={styles.bigAddBtnText}>タイムを入力する</Text>
-              <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.5)" />
+              <Ionicons name="chevron-forward" size={18} color="#9ca3af" />
             </TouchableOpacity>
           </AnimatedSection>
 
@@ -1541,28 +1540,28 @@ const styles = StyleSheet.create({
   safe:    { flex: 1, backgroundColor: 'transparent' },
   scroll:  { flex: 1 },
   content: { padding: 16, gap: 14, paddingBottom: 48 },
-  header:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.08)' },
+  header:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(0,0,0,0.08)', backgroundColor: '#ffffff' },
   headerTitle: { color: TEXT.primary, fontSize: 20, fontWeight: '800' },
   addBtn:  { width: 36, height: 36, borderRadius: 18, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center' },
-  iconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#222', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
+  iconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#f0f2f5', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', alignItems: 'center', justifyContent: 'center' },
 
-  card:    { backgroundColor: '#111111', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', padding: 16, gap: 10 },
+  card:    { backgroundColor: '#ffffff', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 16, gap: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   cardTitle:  { color: TEXT.primary, fontSize: 15, fontWeight: '700', flex: 1 },
   countText:  { color: TEXT.hint, fontSize: 13 },
 
   // PBサマリー
   pbGrid:  { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  pbItem:  { backgroundColor: 'rgba(52,199,89,0.08)', borderRadius: 10, borderWidth: 1, borderColor: 'rgba(52,199,89,0.25)', padding: 10, minWidth: 90, alignItems: 'center' },
+  pbItem:  { backgroundColor: 'rgba(34,197,94,0.08)', borderRadius: 10, borderWidth: 1, borderColor: 'rgba(34,197,94,0.25)', padding: 10, minWidth: 90, alignItems: 'center' },
   pbEvent: { color: TEXT.secondary, fontSize: 11, fontWeight: '600', marginBottom: 2 },
   pbResult:{ color: NEON.green, fontSize: 16, fontWeight: '800' },
   pbDate:  { color: TEXT.hint, fontSize: 10, marginTop: 2 },
 
   // 記録カード
-  recordCard:   { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(74,159,255,0.12)', padding: 12, gap: 10 },
-  recordCardPB: { borderColor: 'rgba(52,199,89,0.4)', backgroundColor: 'rgba(52,199,89,0.05)' },
+  recordCard:   { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8f8fa', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)', padding: 12, gap: 10 },
+  recordCardPB: { borderColor: 'rgba(34,197,94,0.4)', backgroundColor: 'rgba(34,197,94,0.04)' },
   recordLeft:   { width: 62, gap: 4 },
-  eventBadgeWrap: { backgroundColor: `${BRAND}22`, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 3 },
+  eventBadgeWrap: { backgroundColor: `${BRAND}15`, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 3 },
   eventBadgeText: { color: BRAND, fontSize: 11, fontWeight: '700', textAlign: 'center' },
   badge:        { borderRadius: 4, borderWidth: 1, paddingHorizontal: 5, paddingVertical: 1 },
   badgeText:    { fontSize: 10, fontWeight: '800' },
@@ -1574,7 +1573,7 @@ const styles = StyleSheet.create({
   recordDate:   { color: TEXT.hint, fontSize: 11 },
 
   // フィルター
-  filterChip:       { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  filterChip:       { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#f0f2f5', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
   filterChipActive: { backgroundColor: BRAND, borderColor: BRAND },
   filterChipText:   { color: TEXT.secondary, fontSize: 12, fontWeight: '600' },
   filterChipTextActive: { color: '#FFFFFF' },
@@ -1586,15 +1585,15 @@ const styles = StyleSheet.create({
   emptyBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
 
   // 体重入力
-  weightInput:   { flex: 1, backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11, color: '#fff', fontSize: 15, borderWidth: 1, borderColor: 'rgba(90,200,250,0.3)' },
-  weightAddBtn:  { backgroundColor: '#5AC8FA', borderRadius: 10, paddingHorizontal: 18, paddingVertical: 11, justifyContent: 'center' },
+  weightInput:   { flex: 1, backgroundColor: '#f8f8fa', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11, color: TEXT.primary, fontSize: 15, borderWidth: 1, borderColor: 'rgba(59,130,246,0.3)' },
+  weightAddBtn:  { backgroundColor: NEON.blue, borderRadius: 10, paddingHorizontal: 18, paddingVertical: 11, justifyContent: 'center' },
 
   // 入力ショートカット
-  inputShortcut:     { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, paddingVertical: 14, borderWidth: 1 },
+  inputShortcut:     { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#f0f2f5', borderRadius: 14, paddingVertical: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
   inputShortcutText: { fontSize: 14, fontWeight: '800' },
 
   // モーダル
-  modalSafe:    { flex: 1, backgroundColor: '#000000' },
+  modalSafe:    { flex: 1, backgroundColor: '#f6f6f8' },
   modalContent: { padding: 20, paddingBottom: 48, gap: 4 },
   modalHeader:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
   modalTitle:   { color: TEXT.primary, fontSize: 17, fontWeight: '700' },
@@ -1603,25 +1602,25 @@ const styles = StyleSheet.create({
 
   label:    { color: TEXT.secondary, fontSize: 13, fontWeight: '600', marginBottom: 6 },
   subLabel: { color: TEXT.hint, fontSize: 11, fontWeight: '600', marginBottom: 4 },
-  input:    { backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, color: '#FFFFFF', fontSize: 15, borderWidth: 1, borderColor: 'rgba(74,159,255,0.3)', marginBottom: 14 },
+  input:    { backgroundColor: '#f8f8fa', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, color: TEXT.primary, fontSize: 15, borderWidth: 1, borderColor: 'rgba(59,130,246,0.25)', marginBottom: 14 },
   textArea: { height: 80, textAlignVertical: 'top' },
 
   chipRow:      { flexDirection: 'row', gap: 8 },
-  chip:         { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.06)' },
+  chip:         { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', backgroundColor: '#f0f2f5' },
   chipActive:   { backgroundColor: BRAND, borderColor: BRAND },
   chipText:     { color: TEXT.secondary, fontSize: 13, fontWeight: '600' },
   chipTextActive: { color: '#FFFFFF' },
 
   timeRow:     { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 14 },
   timeCol:     { flex: 1, gap: 4 },
-  timeNumInput:{ backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, color: '#FFFFFF', fontSize: 20, fontWeight: '700', borderWidth: 1, borderColor: 'rgba(74,159,255,0.3)' },
+  timeNumInput:{ backgroundColor: '#f8f8fa', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, color: TEXT.primary, fontSize: 20, fontWeight: '700', borderWidth: 1, borderColor: 'rgba(59,130,246,0.25)' },
   timeUnit:    { color: TEXT.secondary, fontSize: 12, fontWeight: '600', textAlign: 'center' },
   timeSep:     { color: TEXT.secondary, fontSize: 24, fontWeight: '300', paddingBottom: 10 },
 
   toggleRow:   { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  toggleBtn:   { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
-  toggleBtnPB: { backgroundColor: 'rgba(52,199,89,0.1)', borderColor: NEON.green },
-  toggleBtnSB: { backgroundColor: 'rgba(74,159,255,0.1)', borderColor: NEON.blue },
+  toggleBtn:   { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, backgroundColor: '#f0f2f5', borderRadius: 10, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
+  toggleBtnPB: { backgroundColor: 'rgba(34,197,94,0.08)', borderColor: NEON.green },
+  toggleBtnSB: { backgroundColor: 'rgba(59,130,246,0.08)', borderColor: NEON.blue },
   toggleText:  { color: TEXT.secondary, fontSize: 12, fontWeight: '600' },
 
   // タイム入力大ボタン
@@ -1630,14 +1629,14 @@ const styles = StyleSheet.create({
     backgroundColor: BRAND, borderRadius: 16,
     paddingVertical: 18, paddingHorizontal: 20,
     shadowColor: BRAND, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4, shadowRadius: 12, elevation: 8,
+    shadowOpacity: 0.35, shadowRadius: 12, elevation: 8,
   },
   bigAddBtnText: { color: '#fff', fontSize: 16, fontWeight: '800', flex: 1 },
 
   // タブバー
-  tabBar:          { flexDirection: 'row', backgroundColor: '#111', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 16 },
+  tabBar:          { flexDirection: 'row', backgroundColor: '#ffffff', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(0,0,0,0.08)', paddingHorizontal: 16 },
   tabItem:         { flex: 1, paddingVertical: 10, alignItems: 'center' },
   tabItemActive:   { borderBottomWidth: 2, borderBottomColor: BRAND },
   tabLabel:        { color: TEXT.hint, fontSize: 12, fontWeight: '700' },
-  tabLabelActive:  { color: '#FFFFFF' },
+  tabLabelActive:  { color: BRAND },
 })
