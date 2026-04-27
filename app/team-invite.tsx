@@ -121,8 +121,7 @@ export default function TeamInviteScreen() {
   }, [joinCode])
 
   return (
-    <View style={{ flex: 1 }}>
-      <LinearGradient colors={BG_GRADIENT} style={StyleSheet.absoluteFill} />
+    <View style={{ flex: 1, backgroundColor: '#f6f6f8' }}>
       <SafeAreaView style={styles.safe}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           {/* ヘッダー */}

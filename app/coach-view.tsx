@@ -166,8 +166,7 @@ export default function CoachViewScreen() {
   const fatigueColor = avgFatigue >= 7 ? BRAND : avgFatigue >= 5 ? NEON.amber : NEON.green
 
   return (
-    <View style={{ flex: 1 }}>
-      <LinearGradient colors={BG_GRADIENT} style={StyleSheet.absoluteFill} />
+    <View style={{ flex: 1, backgroundColor: '#f6f6f8' }}>
       <SafeAreaView style={styles.safe}>
 
         {/* ヘッダー */}

@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { useTheme } from '../context/ThemeContext'
 import QuickLogModal from '../components/QuickLogModal'
 import { Sounds, unlockAudio } from '../lib/sounds'
+import { BRAND } from '../lib/theme'
 
 
 

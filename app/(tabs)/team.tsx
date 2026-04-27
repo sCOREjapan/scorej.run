@@ -629,7 +629,7 @@ function CoachDashboard({ setup, onReset }: { setup: TeamSetup; onReset: () => v
         {/* ─ タブ ─ */}
         <View style={co.tabs}>
           {([
-            { key:'members',  label:'メンバー', badge: hasPain+highRisk > 0 ? hasPain+highRisk : 0 },
+            { key:'members',  label:'メンバー', badge: hasPain+highRiskMembers.length > 0 ? hasPain+highRiskMembers.length : 0 },
             { key:'messages', label:'アナウンス', badge: 0 },
             { key:'videos',   label:'動画', badge: newVideos },
           ] as const).map(t => (
@@ -675,7 +675,7 @@ function CoachDashboard({ setup, onReset }: { setup: TeamSetup; onReset: () => v
                 ].map((item) => (
                   <TouchableOpacity key={item.label} onPress={() => setMemberFilter(memberFilter===item.filter&&item.filter!=='all'?'all':item.filter)} style={{
                     flex:1, backgroundColor: memberFilter===item.filter&&item.filter!=='all'?'rgba(229,57,53,0.08)':'#f0f2f5',
-                    border:1, borderWidth:1, borderColor: memberFilter===item.filter&&item.filter!=='all'?'rgba(229,57,53,0.4)':'rgba(0,0,0,0.08)',
+                    borderWidth:1, borderColor: memberFilter===item.filter&&item.filter!=='all'?'rgba(229,57,53,0.4)':'rgba(0,0,0,0.08)',
                     borderRadius:12, paddingVertical:12, paddingHorizontal:10, alignItems:'center',
                   }} activeOpacity={0.8}>
                     <Text style={{color:item.color??TEXT.primary,fontSize:14,fontWeight:'800',marginBottom:2}}>{item.value}</Text>
