@@ -238,3 +238,19 @@ create policy "members_public"      on team_members      for all using (true) wi
 create policy "messages_public"     on team_messages     for all using (true) with check (true);
 create policy "videos_public"       on team_videos       for all using (true) with check (true);
 create policy "body_reports_public" on team_body_reports for all using (true) with check (true);
+
+-- 選手プロフィール（自己ベスト・レベル）
+create table if not exists team_player_stats (
+  team_code   text not null references teams(code) on delete cascade,
+  player_name text not null,
+  event       text not null default '',      -- 種目（例: 100m）
+  pb_display  text not null default '',      -- 自己ベスト表示用（例: 10.83）
+  level       integer not null default 1,    -- sCOREレベル
+  updated_at  timestamptz default now(),
+  primary key (team_code, player_name)
+);
+
+create index if not exists idx_player_stats_code on team_player_stats(team_code);
+
+alter table team_player_stats enable row level security;
+create policy "player_stats_public" on team_player_stats for all using (true) with check (true);

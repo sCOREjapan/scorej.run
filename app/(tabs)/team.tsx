@@ -20,8 +20,9 @@ import {
   fetchVideos, submitVideo, markVideoWatched,
   fetchBodyReports, upsertBodyReport,
   fetchMembers, registerMember, deleteMember,
+  fetchPlayerStats, upsertPlayerStats,
   createTeam, fetchTeamByCode,
-  type TeamMessageRow, type TeamVideoRow, type BodyReportRow, type TeamMemberRow,
+  type TeamMessageRow, type TeamVideoRow, type BodyReportRow, type TeamMemberRow, type PlayerStatsRow,
 } from '../../lib/supabaseTeam'
 import { useTheme } from '../../context/ThemeContext'
 import {
@@ -1065,19 +1066,29 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
   const [showVideoModal, setShowVideoModal] = useState(false)
   const [editBody,       setEditBody]       = useState<string[]>([])
   const [showMenu,       setShowMenu]       = useState(false)
+  const [showStatsEdit,  setShowStatsEdit]  = useState(false)
+  const [playerStats,    setPlayerStats]    = useState<PlayerStatsRow[]>([])
+  const [editEvent,      setEditEvent]      = useState('')
+  const [editPb,         setEditPb]         = useState('')
 
   const load = useCallback(async () => {
-    const [sr, msgs, mems, rpts] = await Promise.all([
+    const [sr, msgs, mems, rpts, stats] = await Promise.all([
       AsyncStorage.getItem(SESSIONS_KEY),
       fetchMessages(joined.code),
       fetchMembers(joined.code),
       fetchBodyReports(joined.code),
+      fetchPlayerStats(joined.code),
     ])
-    setSessions(sr ? JSON.parse(sr) : [])
+    const sessions: any[] = sr ? JSON.parse(sr) : []
+    setSessions(sessions)
     setMessages(msgs)
     setTeammates(mems.filter(m => m.player_name !== joined.playerName))
+    setPlayerStats(stats)
     const myReport = rpts.find(r => r.player_name === joined.playerName)
     if (myReport) setBodyParts(myReport.parts)
+    // 自分のstatsをedit初期値にセット
+    const myStat = stats.find(s => s.player_name === joined.playerName)
+    if (myStat) { setEditEvent(myStat.event); setEditPb(myStat.pb_display) }
   }, [joined.code, joined.playerName])
 
   useEffect(() => { load() }, [load])
@@ -1099,6 +1110,14 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
       await registerUserTags('player', joined.code)
     })()
   }, [joined.code])
+
+  async function saveStats() {
+    const lvInfo = calcLevelInfo(sessions.length)
+    await upsertPlayerStats(joined.code, joined.playerName, editEvent.trim(), editPb.trim(), lvInfo.level)
+    setShowStatsEdit(false)
+    await load()
+    Toast.show({ type: 'success', text1: 'プロフィールを更新しました', visibilityTime: 1600 })
+  }
 
   async function saveBodyReport() {
     await upsertBodyReport(joined.code, joined.playerName, editBody)
@@ -1140,7 +1159,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
           </View>
           </AnimatedSection>
 
-          {/* アクションボタン2つ */}
+          {/* アクションボタン3つ */}
           <AnimatedSection delay={60} type="fade-up">
           <View style={{flexDirection:'row',gap:10}}>
             <TouchableOpacity style={pl.actionBtn} onPress={() => { setEditBody([...bodyParts]); setShowBody(true) }} activeOpacity={0.85}>
@@ -1151,6 +1170,10 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
             <TouchableOpacity style={pl.actionBtn} onPress={() => setShowVideoModal(true)} activeOpacity={0.85}>
               <Ionicons name="videocam-outline" size={20} color={BRAND}/>
               <Text style={{color:'#fff',fontSize:13,fontWeight:'700'}}>動画を送る</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={pl.actionBtn} onPress={() => setShowStatsEdit(true)} activeOpacity={0.85}>
+              <Ionicons name="trophy-outline" size={20} color="#AF52DE"/>
+              <Text style={{color:'#fff',fontSize:13,fontWeight:'700'}}>PB入力</Text>
             </TouchableOpacity>
           </View>
           </AnimatedSection>
@@ -1225,24 +1248,46 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
             <>
               <Text style={pl.sectionTitle}>👥 チームメイト</Text>
               <View style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',overflow:'hidden'}}>
-                {teammates.map((m, i) => (
-                  <View
-                    key={m.id}
-                    style={{
-                      flexDirection:'row', alignItems:'center', gap:10,
-                      paddingHorizontal:14, paddingVertical:12,
-                      borderBottomWidth: i < teammates.length-1 ? StyleSheet.hairlineWidth : 0,
-                      borderBottomColor:'rgba(0,0,0,0.07)',
-                    }}
-                  >
-                    <Avatar name={m.player_name} size={34} color={avatarColor(m.player_name)}/>
-                    <View style={{flex:1}}>
-                      <Text style={{color:TEXT.primary,fontSize:14,fontWeight:'700'}}>{m.player_name}</Text>
-                      {m.event ? <Text style={{color:TEXT.secondary,fontSize:11}}>{m.event}</Text> : null}
+                {teammates.map((m, i) => {
+                  const stat    = playerStats.find(s => s.player_name === m.player_name)
+                  const lvInfo  = calcLevelInfo(stat?.level ?? 1)
+                  const lvTier  = RANK_TIERS.find(t => lvInfo.level >= t.min && lvInfo.level < t.max) ?? RANK_TIERS[0]
+                  return (
+                    <View
+                      key={m.id}
+                      style={{
+                        flexDirection:'row', alignItems:'center', gap:10,
+                        paddingHorizontal:14, paddingVertical:14,
+                        borderBottomWidth: i < teammates.length-1 ? StyleSheet.hairlineWidth : 0,
+                        borderBottomColor:'rgba(0,0,0,0.07)',
+                      }}
+                    >
+                      <Avatar name={m.player_name} size={38} color={avatarColor(m.player_name)}/>
+                      <View style={{flex:1,gap:3}}>
+                        <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
+                          <Text style={{color:TEXT.primary,fontSize:14,fontWeight:'700'}}>{m.player_name}</Text>
+                          {stat && (
+                            <View style={{flexDirection:'row',alignItems:'center',gap:3,backgroundColor:lvTier.color+'20',borderRadius:8,paddingHorizontal:6,paddingVertical:2,borderWidth:1,borderColor:lvTier.color+'40'}}>
+                              <Text style={{fontSize:10}}>{lvTier.emoji}</Text>
+                              <Text style={{color:lvTier.color,fontSize:10,fontWeight:'800'}}>Lv.{stat.level}</Text>
+                            </View>
+                          )}
+                        </View>
+                        <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
+                          {(stat?.event || m.event) && (
+                            <Text style={{color:TEXT.secondary,fontSize:11}}>{stat?.event || m.event}</Text>
+                          )}
+                          {stat?.pb_display ? (
+                            <View style={{flexDirection:'row',alignItems:'center',gap:3}}>
+                              <Ionicons name="trophy" size={10} color="#FF9500"/>
+                              <Text style={{color:'#FF9500',fontSize:11,fontWeight:'700'}}>{stat.pb_display}</Text>
+                            </View>
+                          ) : null}
+                        </View>
+                      </View>
                     </View>
-                    <Text style={{color:TEXT.hint,fontSize:11}}>{daysSince(m.joined_at)}</Text>
-                  </View>
-                ))}
+                  )
+                })}
               </View>
             </>
             </AnimatedSection>
@@ -1277,6 +1322,49 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
               </TouchableOpacity>
             )}
           </View>
+        </View>
+      </Modal>
+
+      {/* PB・プロフィール編集モーダル */}
+      <Modal visible={showStatsEdit} transparent animationType="slide" onRequestClose={() => setShowStatsEdit(false)}>
+        <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.8)',justifyContent:'flex-end'}}>
+          <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':undefined}>
+            <View style={{backgroundColor:'#fff',borderTopLeftRadius:24,borderTopRightRadius:24,padding:22,paddingBottom:44,gap:16}}>
+              <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center'}}/>
+              <View style={{flexDirection:'row',alignItems:'center'}}>
+                <Text style={{color:'#111827',fontSize:18,fontWeight:'800',flex:1}}>プロフィール・自己ベスト</Text>
+                <TouchableOpacity onPress={() => setShowStatsEdit(false)} hitSlop={{top:10,bottom:10,left:10,right:10}}>
+                  <Ionicons name="close" size={22} color={TEXT.secondary}/>
+                </TouchableOpacity>
+              </View>
+              <Text style={{color:'#6b7280',fontSize:12,lineHeight:18}}>
+                入力するとチームメイトに表示されます。レベルはアプリの練習記録数から自動計算されます。
+              </Text>
+              <View style={{gap:6}}>
+                <Text style={{color:TEXT.hint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>種目</Text>
+                <TextInput
+                  style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:'#111827',fontSize:15,paddingHorizontal:14,paddingVertical:12}}
+                  value={editEvent} onChangeText={setEditEvent}
+                  placeholder="例: 100m, 走り幅跳び" placeholderTextColor="#9ca3af" maxLength={20}
+                />
+              </View>
+              <View style={{gap:6}}>
+                <Text style={{color:TEXT.hint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>自己ベスト</Text>
+                <TextInput
+                  style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:'#111827',fontSize:15,paddingHorizontal:14,paddingVertical:12}}
+                  value={editPb} onChangeText={setEditPb}
+                  placeholder="例: 10.83, 6m42cm" placeholderTextColor="#9ca3af" maxLength={20}
+                />
+              </View>
+              <TouchableOpacity
+                style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:BRAND,borderRadius:14,paddingVertical:15}}
+                onPress={saveStats} activeOpacity={0.85}
+              >
+                <Ionicons name="checkmark-circle" size={18} color="#fff"/>
+                <Text style={{color:'#fff',fontSize:16,fontWeight:'800'}}>チームに公開する</Text>
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
 

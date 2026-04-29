@@ -158,3 +158,31 @@ export async function upsertBodyReport(teamCode: string, playerName: string, par
     { onConflict: 'team_code,player_name' },
   )
 }
+
+// ── 選手プロフィール（自己ベスト・レベル）────────────────
+export interface PlayerStatsRow {
+  team_code:   string
+  player_name: string
+  event:       string
+  pb_display:  string
+  level:       number
+  updated_at:  string
+}
+
+export async function fetchPlayerStats(teamCode: string): Promise<PlayerStatsRow[]> {
+  if (!isConfigured) return []
+  const { data } = await supabase
+    .from('team_player_stats').select('*')
+    .eq('team_code', teamCode)
+  return (data ?? []) as PlayerStatsRow[]
+}
+
+export async function upsertPlayerStats(
+  teamCode: string, playerName: string, event: string, pbDisplay: string, level: number,
+): Promise<void> {
+  if (!isConfigured) return
+  await supabase.from('team_player_stats').upsert(
+    { team_code: teamCode, player_name: playerName, event, pb_display: pbDisplay, level, updated_at: new Date().toISOString() },
+    { onConflict: 'team_code,player_name' },
+  )
+}
