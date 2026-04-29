@@ -219,15 +219,17 @@ function exportOverlayPNG(record: RaceRecord) {
   }
   noShadow()
 
-  // ウォーターマーク（右下）— "sCORE" + "アプリをダウンロード！"
+  // ウォーターマーク — グラスブロック右下
+  const wmX = bx + bw - 44   // ブロック右端から内側
+  const wmBotY = by + bh - 30 // ブロック底辺から上30px
   shadow(10, 'rgba(0,0,0,0.55)')
   c.textAlign = 'right'
-  c.font = '800 38px system-ui, sans-serif'
-  c.fillStyle = 'rgba(255,255,255,0.65)'
-  c.fillText('sCORE', W - 72, H - 110)
-  c.font = '500 28px system-ui, sans-serif'
-  c.fillStyle = 'rgba(255,255,255,0.45)'
-  c.fillText('アプリをダウンロード！', W - 72, H - 65)
+  c.font = '800 34px system-ui, sans-serif'
+  c.fillStyle = 'rgba(255,255,255,0.6)'
+  c.fillText('sCORE', wmX, wmBotY - 44)
+  c.font = '500 26px system-ui, sans-serif'
+  c.fillStyle = 'rgba(255,255,255,0.42)'
+  c.fillText('アプリをダウンロード！', wmX, wmBotY)
   noShadow()
   c.textAlign = 'left'
 
@@ -293,12 +295,12 @@ function OverlayPreview({ record }: { record: RaceRecord }) {
             </View>
           )}
         </View>
-      </View>
 
-      {/* ウォーターマーク */}
-      <View style={pv.watermarkRow}>
-        <Text style={pv.watermark}>sCORE</Text>
-        <Text style={pv.watermarkSub}>アプリをダウンロード！</Text>
+        {/* ウォーターマーク — グラスブロック右下 */}
+        <View style={pv.watermarkRow}>
+          <Text style={pv.watermark}>sCORE</Text>
+          <Text style={pv.watermarkSub}>アプリをダウンロード！</Text>
+        </View>
       </View>
     </LinearGradient>
   )
@@ -601,7 +603,9 @@ const pv = StyleSheet.create({
   },
   watermarkRow: {
     alignItems: 'flex-end',
+    alignSelf: 'flex-end',
     gap: 1,
+    marginTop: 4,
   },
   watermark: {
     color: 'rgba(255,255,255,0.6)',
