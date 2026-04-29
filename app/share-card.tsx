@@ -143,8 +143,16 @@ function exportOverlayPNG(record: RaceRecord) {
     c.closePath()
   }
 
-  // ── ロゴ（左上） — sCORE ──
-  drawScoreLogo(c, 70, 72, 80, true)
+  // ── ロゴ（左上） — "sCORE" テキストのみ ──
+  shadow(14)
+  const logoBaseY = 134  // テキストのベースライン
+  c.font      = `600 45px system-ui, -apple-system, sans-serif`
+  c.fillStyle = '#ffffff'
+  c.fillText('s', 70, logoBaseY)
+  const sW_logo = c.measureText('s').width * 0.92
+  c.font      = `800 60px system-ui, -apple-system, sans-serif`
+  c.fillStyle = '#ffffff'
+  c.fillText('CORE', 70 + sW_logo, logoBaseY)
   noShadow()
 
   // ── グラスブロック（中央） ──
@@ -178,18 +186,18 @@ function exportOverlayPNG(record: RaceRecord) {
   c.fillStyle = '#ffffff'
   c.fillText(record.result_display, tx, by + 94 + fs + 16)
 
-  // PB / SB バッジ
+  // PB / SB バッジ（白）
   const badgeY = by + 94 + fs + 54
   noShadow()
   if (record.is_pb || record.is_sb) {
-    const label = record.is_pb ? 'PB' : 'SB'
-    const color = record.is_pb ? BRAND : '#4A9FFF'
-    c.fillStyle = color + '40'; rr(tx, badgeY, 130, 60, 14); c.fill()
-    c.strokeStyle = color; c.lineWidth = 2.5; rr(tx, badgeY, 130, 60, 14); c.stroke()
+    const label = record.is_pb ? '自己ベスト！' : 'シーズンベスト！'
+    const badgeW = record.is_pb ? 260 : 340
+    c.fillStyle = 'rgba(255,255,255,0.12)'; rr(tx, badgeY, badgeW, 60, 14); c.fill()
+    c.strokeStyle = 'rgba(255,255,255,0.65)'; c.lineWidth = 2; rr(tx, badgeY, badgeW, 60, 14); c.stroke()
     shadow(10, 'rgba(0,0,0,0.6)')
-    c.font = '800 32px system-ui, sans-serif'
-    c.fillStyle = color
-    c.fillText(label, tx + 38, badgeY + 42)
+    c.font = '800 30px system-ui, sans-serif'
+    c.fillStyle = '#ffffff'
+    c.fillText(label, tx + 20, badgeY + 41)
     noShadow()
   }
 
@@ -235,9 +243,8 @@ function OverlayPreview({ record }: { record: RaceRecord }) {
       colors={['#0f2027', '#203a43', '#2c5364']}
       style={pv.container}
     >
-      {/* ロゴ */}
+      {/* ロゴ — テキストのみ */}
       <View style={pv.logoRow}>
-        <ScoreIcon height={20} />
         <Text style={pv.logoTxtS}>s</Text>
         <Text style={pv.logoTxtCore}>CORE</Text>
       </View>
@@ -250,15 +257,15 @@ function OverlayPreview({ record }: { record: RaceRecord }) {
         </Text>
         <View style={pv.badgeRow}>
           {record.is_pb && (
-            <View style={[pv.badge, { backgroundColor: BRAND + '33', borderColor: BRAND }]}>
-              <Ionicons name="trophy" size={12} color={BRAND} />
-              <Text style={[pv.badgeTxt, { color: BRAND }]}>PB</Text>
+            <View style={[pv.badge, { backgroundColor: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.6)' }]}>
+              <Ionicons name="trophy" size={12} color="#ffffff" />
+              <Text style={[pv.badgeTxt, { color: '#ffffff' }]}>自己ベスト！</Text>
             </View>
           )}
           {record.is_sb && !record.is_pb && (
-            <View style={[pv.badge, { backgroundColor: '#4A9FFF33', borderColor: '#4A9FFF' }]}>
-              <Ionicons name="star" size={12} color="#4A9FFF" />
-              <Text style={[pv.badgeTxt, { color: '#4A9FFF' }]}>SB</Text>
+            <View style={[pv.badge, { backgroundColor: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.6)' }]}>
+              <Ionicons name="star" size={12} color="#ffffff" />
+              <Text style={[pv.badgeTxt, { color: '#ffffff' }]}>シーズンベスト！</Text>
             </View>
           )}
         </View>
@@ -470,7 +477,7 @@ export default function ShareCardScreen() {
                 >
                   {r.is_pb && (
                     <View style={s.pbDot}>
-                      <Text style={s.pbDotTxt}>PB</Text>
+                      <Text style={s.pbDotTxt}>自己ベスト</Text>
                     </View>
                   )}
                   <Text style={[s.chipEvent, selected?.id === r.id && { color: '#fff' }]}>
@@ -645,6 +652,6 @@ const s = StyleSheet.create({
   chipActive:  { backgroundColor: BRAND, borderColor: BRAND },
   chipEvent:   { color: 'rgba(255,255,255,0.45)', fontSize: 11, fontWeight: '600' },
   chipResult:  { color: '#fff', fontSize: 16, fontWeight: '800', marginTop: 2 },
-  pbDot:       { position: 'absolute', top: -5, right: -5, backgroundColor: '#34C759', borderRadius: 6, paddingHorizontal: 4, paddingVertical: 1 },
-  pbDotTxt:    { color: '#000', fontSize: 9, fontWeight: '800' },
+  pbDot:       { position: 'absolute', top: -6, right: -6, backgroundColor: '#34C759', borderRadius: 7, paddingHorizontal: 5, paddingVertical: 2 },
+  pbDotTxt:    { color: '#000', fontSize: 8, fontWeight: '800' },
 })
