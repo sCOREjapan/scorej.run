@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  TextInput, KeyboardAvoidingView, Platform, Modal, Linking, Alert,
+  TextInput, KeyboardAvoidingView, Platform, Modal, Linking,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
@@ -212,6 +212,50 @@ function PainBadges({ parts }: { parts: string[] }) {
       ))}
       {parts.length > 3 && <Text style={{ color:'#666', fontSize:10, alignSelf:'center' }}>+{parts.length-3}</Text>}
     </View>
+  )
+}
+
+// ─────────────────────────────────────────────────────────
+// ConfirmSheet — 全プラットフォーム対応の確認モーダル
+// ─────────────────────────────────────────────────────────
+function ConfirmSheet({ visible, title, message, confirmLabel, dangerous, onConfirm, onCancel }: {
+  visible: boolean
+  title: string
+  message: string
+  confirmLabel: string
+  dangerous?: boolean
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.55)',justifyContent:'center',paddingHorizontal:28}}>
+        <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onCancel}/>
+        <View style={{backgroundColor:'#fff',borderRadius:20,padding:24,gap:16,shadowColor:'#000',shadowOffset:{width:0,height:8},shadowOpacity:0.18,shadowRadius:24,elevation:16}}>
+          <View style={{alignItems:'center',gap:8}}>
+            <View style={{width:48,height:48,borderRadius:14,backgroundColor:dangerous?'rgba(239,68,68,0.1)':'rgba(22,101,52,0.1)',alignItems:'center',justifyContent:'center'}}>
+              <Ionicons name={dangerous?'warning-outline':'help-circle-outline'} size={26} color={dangerous?'#ef4444':BRAND}/>
+            </View>
+            <Text style={{color:'#111827',fontSize:17,fontWeight:'800',textAlign:'center'}}>{title}</Text>
+            <Text style={{color:'#6b7280',fontSize:13,lineHeight:20,textAlign:'center'}}>{message}</Text>
+          </View>
+          <View style={{flexDirection:'row',gap:10}}>
+            <TouchableOpacity
+              style={{flex:1,paddingVertical:13,borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',alignItems:'center'}}
+              onPress={onCancel} activeOpacity={0.7}
+            >
+              <Text style={{color:'#6b7280',fontSize:14,fontWeight:'700'}}>キャンセル</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{flex:1,paddingVertical:13,borderRadius:12,backgroundColor:dangerous?'#ef4444':BRAND,alignItems:'center'}}
+              onPress={() => { onConfirm(); onCancel() }} activeOpacity={0.85}
+            >
+              <Text style={{color:'#fff',fontSize:14,fontWeight:'800'}}>{confirmLabel}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
   )
 }
 
@@ -506,6 +550,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
   const [memberFilter,  setMemberFilter]  = useState<'all'|'danger'|'unsubmitted'>('all')
   const [hiddenDemoIds, setHiddenDemoIds] = useState<string[]>([])
   const [showMenu,      setShowMenu]      = useState(false)
+  const [pendingDelete, setPendingDelete] = useState<{id:string;name:string;isDemo:boolean}|null>(null)
 
   const load = useCallback(async () => {
     const [msgs, vids, mems, rpts] = await Promise.all([
@@ -566,27 +611,20 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
   }
 
   function removeMember(id: string, name: string, isDemo: boolean) {
-    Alert.alert(
-      'メンバーを削除',
-      `${name} をチームから削除しますか？`,
-      [
-        { text: 'キャンセル', style: 'cancel' },
-        {
-          text: '削除',
-          style: 'destructive',
-          onPress: async () => {
-            if (isDemo) {
-              setHiddenDemoIds(prev => [...prev, id])
-            } else {
-              await deleteMember(id)
-              setMembers(prev => prev.filter(m => m.id !== id))
-            }
-            if (detailMember?.id === id) setDetailMember(null)
-            Toast.show({ type: 'success', text1: `${name} を削除しました`, visibilityTime: 1600 })
-          },
-        },
-      ],
-    )
+    setPendingDelete({ id, name, isDemo })
+  }
+
+  async function execDelete() {
+    if (!pendingDelete) return
+    const { id, name, isDemo } = pendingDelete
+    if (isDemo) {
+      setHiddenDemoIds(prev => [...prev, id])
+    } else {
+      await deleteMember(id)
+      setMembers(prev => prev.filter(m => m.id !== id))
+    }
+    if (detailMember?.id === id) setDetailMember(null)
+    Toast.show({ type: 'success', text1: `${name} を削除しました`, visibilityTime: 1600 })
   }
 
   async function markWatched(id: string) {
@@ -680,7 +718,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
           ))}
         </View>
 
-        <ScrollView contentContainerStyle={{padding:16,paddingBottom:40,gap:12}} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={{padding:16,paddingBottom:60,gap:18}} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
           {/* ═══ メンバータブ ═══ */}
           {tab === 'members' && (
@@ -939,6 +977,15 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
         onDangerAction={onDeleteTeam}
         onClose={() => setShowMenu(false)}
       />
+      <ConfirmSheet
+        visible={!!pendingDelete}
+        title="メンバーを削除"
+        message={`${pendingDelete?.name ?? ''} をチームから削除しますか？`}
+        confirmLabel="削除する"
+        dangerous
+        onConfirm={execDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </View>
   )
 }
@@ -1073,7 +1120,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
   return (
     <View style={{flex:1,backgroundColor:'#000'}}>
       <SafeAreaView style={{flex:1}}>
-        <ScrollView contentContainerStyle={{padding:16,paddingBottom:40,gap:14}} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={{padding:16,paddingBottom:60,gap:18}} showsVerticalScrollIndicator={false}>
 
           {/* ヘッダー */}
           <AnimatedSection delay={0} type="fade-up">
@@ -1272,7 +1319,7 @@ const co = StyleSheet.create({
   videoCard:  { backgroundColor:'#ffffff', borderRadius:14, borderWidth:1, borderColor:'rgba(0,0,0,0.08)', padding:14, shadowColor:'#000', shadowOffset:{width:0,height:1}, shadowOpacity:0.04, shadowRadius:4, elevation:1 },
 })
 const pl = StyleSheet.create({
-  sectionTitle: { color:TEXT.hint, fontSize:11, fontWeight:'700', letterSpacing:1 },
+  sectionTitle: { color:TEXT.hint, fontSize:11, fontWeight:'700', letterSpacing:1, marginTop:4 },
   actionBtn:    { flex:1, flexDirection:'row', alignItems:'center', justifyContent:'center', gap:8, backgroundColor:'#f0f2f5', borderRadius:14, borderWidth:1, borderColor:'rgba(0,0,0,0.08)', paddingVertical:14 },
 })
 
@@ -1283,77 +1330,81 @@ function TeamMenuSheet({ visible, role, onSwitchRole, onDangerAction, onClose }:
   visible: boolean
   role: 'coach' | 'player'
   onSwitchRole: () => void
-  onDangerAction: () => void   // 削除 or 脱退
+  onDangerAction: () => void
   onClose: () => void
 }) {
-  function confirmDanger() {
-    onClose()
-    const label = role === 'coach' ? 'チームを削除' : 'チームを脱退'
-    const msg   = role === 'coach'
-      ? 'チームを削除すると参加コードが無効になります。本当に削除しますか？'
-      : 'チームを脱退します。再参加するにはコードが必要です。'
-    Alert.alert(label, msg, [
-      { text: 'キャンセル', style: 'cancel' },
-      { text: role === 'coach' ? '削除する' : '脱退する', style: 'destructive', onPress: onDangerAction },
-    ])
-  }
+  const [showConfirm, setShowConfirm] = useState(false)
+
+  const dangerLabel   = role === 'coach' ? 'チームを削除' : 'チームを脱退'
+  const dangerMessage = role === 'coach'
+    ? '参加コードが無効になり、全メンバーのデータが失われます。本当に削除しますか？'
+    : 'チームを脱退します。再参加するにはコードが必要です。本当に脱退しますか？'
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.6)',justifyContent:'flex-end'}}>
-        <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose}/>
-        <View style={{backgroundColor:'#fff',borderTopLeftRadius:24,borderTopRightRadius:24,padding:20,paddingBottom:44,gap:10}}>
-          <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:8}}/>
-          <Text style={{color:'#111827',fontSize:16,fontWeight:'800',marginBottom:4}}>チームメニュー</Text>
+    <>
+      <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+        <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.6)',justifyContent:'flex-end'}}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose}/>
+          <View style={{backgroundColor:'#fff',borderTopLeftRadius:24,borderTopRightRadius:24,padding:24,paddingBottom:48,gap:12}}>
+            <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:4}}/>
+            <Text style={{color:'#111827',fontSize:17,fontWeight:'800'}}>チームメニュー</Text>
 
-          {/* ロール切り替え */}
-          <TouchableOpacity
-            style={{flexDirection:'row',alignItems:'center',gap:12,backgroundColor:'#f0f2f5',borderRadius:14,padding:16}}
-            onPress={() => { onClose(); setTimeout(onSwitchRole, 200) }}
-            activeOpacity={0.8}
-          >
-            <View style={{width:40,height:40,borderRadius:12,backgroundColor:BRAND+'18',alignItems:'center',justifyContent:'center'}}>
-              <Ionicons name="swap-horizontal-outline" size={20} color={BRAND}/>
-            </View>
-            <View style={{flex:1}}>
-              <Text style={{color:'#111827',fontSize:14,fontWeight:'700'}}>ロールを切り替え</Text>
-              <Text style={{color:'#6b7280',fontSize:11,marginTop:1}}>
-                {role === 'coach' ? '選手として参加しているチームへ' : 'コーチとして作成したチームへ'}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color="#9ca3af"/>
-          </TouchableOpacity>
+            {/* ロール切り替え */}
+            <TouchableOpacity
+              style={{flexDirection:'row',alignItems:'center',gap:14,backgroundColor:'#f0f2f5',borderRadius:16,padding:16}}
+              onPress={() => { onClose(); setTimeout(onSwitchRole, 200) }}
+              activeOpacity={0.8}
+            >
+              <View style={{width:44,height:44,borderRadius:13,backgroundColor:BRAND+'18',alignItems:'center',justifyContent:'center'}}>
+                <Ionicons name="swap-horizontal-outline" size={22} color={BRAND}/>
+              </View>
+              <View style={{flex:1}}>
+                <Text style={{color:'#111827',fontSize:15,fontWeight:'700'}}>ロールを切り替え</Text>
+                <Text style={{color:'#6b7280',fontSize:12,marginTop:2}}>
+                  {role === 'coach' ? '選手として参加しているチームへ' : 'コーチとして作成したチームへ'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color="#9ca3af"/>
+            </TouchableOpacity>
 
-          {/* 危険操作 */}
-          <TouchableOpacity
-            style={{flexDirection:'row',alignItems:'center',gap:12,backgroundColor:'rgba(239,68,68,0.06)',borderRadius:14,padding:16,borderWidth:1,borderColor:'rgba(239,68,68,0.15)'}}
-            onPress={confirmDanger}
-            activeOpacity={0.8}
-          >
-            <View style={{width:40,height:40,borderRadius:12,backgroundColor:'rgba(239,68,68,0.1)',alignItems:'center',justifyContent:'center'}}>
-              <Ionicons name={role==='coach'?'trash-outline':'exit-outline'} size={20} color="#ef4444"/>
-            </View>
-            <View style={{flex:1}}>
-              <Text style={{color:'#ef4444',fontSize:14,fontWeight:'700'}}>
-                {role === 'coach' ? 'チームを削除' : 'チームを脱退'}
-              </Text>
-              <Text style={{color:'#9ca3af',fontSize:11,marginTop:1}}>
-                {role === 'coach' ? '参加コードが無効になります' : '再参加にはコードが必要です'}
-              </Text>
-            </View>
-          </TouchableOpacity>
+            {/* 危険操作 */}
+            <TouchableOpacity
+              style={{flexDirection:'row',alignItems:'center',gap:14,backgroundColor:'rgba(239,68,68,0.06)',borderRadius:16,padding:16,borderWidth:1,borderColor:'rgba(239,68,68,0.2)'}}
+              onPress={() => setShowConfirm(true)}
+              activeOpacity={0.8}
+            >
+              <View style={{width:44,height:44,borderRadius:13,backgroundColor:'rgba(239,68,68,0.12)',alignItems:'center',justifyContent:'center'}}>
+                <Ionicons name={role==='coach'?'trash-outline':'exit-outline'} size={22} color="#ef4444"/>
+              </View>
+              <View style={{flex:1}}>
+                <Text style={{color:'#ef4444',fontSize:15,fontWeight:'700'}}>{dangerLabel}</Text>
+                <Text style={{color:'#9ca3af',fontSize:12,marginTop:2}}>
+                  {role === 'coach' ? '参加コードが無効になります' : '再参加にはコードが必要です'}
+                </Text>
+              </View>
+            </TouchableOpacity>
 
-          {/* キャンセル */}
-          <TouchableOpacity
-            style={{alignItems:'center',paddingVertical:14,borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)'}}
-            onPress={onClose}
-            activeOpacity={0.7}
-          >
-            <Text style={{color:'#6b7280',fontSize:15,fontWeight:'600'}}>キャンセル</Text>
-          </TouchableOpacity>
+            {/* キャンセル */}
+            <TouchableOpacity
+              style={{alignItems:'center',paddingVertical:15,borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.09)',marginTop:4}}
+              onPress={onClose} activeOpacity={0.7}
+            >
+              <Text style={{color:'#6b7280',fontSize:15,fontWeight:'600'}}>キャンセル</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-    </Modal>
+      </Modal>
+
+      <ConfirmSheet
+        visible={showConfirm}
+        title={dangerLabel}
+        message={dangerMessage}
+        confirmLabel={role === 'coach' ? '削除する' : '脱退する'}
+        dangerous
+        onConfirm={() => { onClose(); setTimeout(onDangerAction, 100) }}
+        onCancel={() => setShowConfirm(false)}
+      />
+    </>
   )
 }
 
