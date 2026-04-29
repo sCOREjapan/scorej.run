@@ -1102,6 +1102,7 @@ export default function RecordsScreen() {
   const [fMeter, setFMeter]   = useState('')
   const [fCm, setFCm]         = useState('')
   const [fWind, setFWind]     = useState('')
+  const [fWindPos, setFWindPos] = useState(true)   // true=+ / false=-
   const [fVenue, setFVenue]   = useState('')
   const [fComp, setFComp]     = useState('')
   const [fIsPB, setFIsPB]     = useState(false)
@@ -1155,7 +1156,7 @@ export default function RecordsScreen() {
 
   function resetForm() {
     setFEvent('100m'); setFDate(new Date().toISOString().slice(0, 10))
-    setFMin(''); setFSec(''); setFMeter(''); setFCm(''); setFWind('')
+    setFMin(''); setFSec(''); setFMeter(''); setFCm(''); setFWind(''); setFWindPos(true)
     setFVenue(''); setFComp(''); setFIsPB(false); setFIsSB(false); setFNotes('')
   }
 
@@ -1186,7 +1187,7 @@ export default function RecordsScreen() {
         race_date: fDate,
         venue: fVenue || undefined,
         competition_name: fComp || undefined,
-        wind_ms: fWind !== '' ? parseFloat(fWind) : undefined,
+        wind_ms: fWind !== '' ? parseFloat(fWind) * (fWindPos ? 1 : -1) : undefined,
         is_pb: fIsPB,
         is_sb: fIsSB,
         notes: fNotes || undefined,
@@ -1494,8 +1495,27 @@ export default function RecordsScreen() {
                 {hasWind(fEvent) && (
                   <>
                     <Text style={styles.label}>風速（m/s）</Text>
-                    <TextInput style={styles.input} value={fWind} onChangeText={setFWind}
-                      keyboardType="decimal-pad" placeholder="例: +1.2 / -0.5" placeholderTextColor="#445577" />
+                    <View style={styles.windRow}>
+                      {/* +/- トグルボタン */}
+                      <TouchableOpacity
+                        style={[styles.windSignBtn, !fWindPos && styles.windSignBtnMinus]}
+                        onPress={() => setFWindPos(v => !v)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.windSignTxt, !fWindPos && { color: '#ef4444' }]}>
+                          {fWindPos ? '+' : '−'}
+                        </Text>
+                      </TouchableOpacity>
+                      <TextInput
+                        style={[styles.input, styles.windInput]}
+                        value={fWind}
+                        onChangeText={t => setFWind(t.replace(/[^0-9.]/g, ''))}
+                        keyboardType="decimal-pad"
+                        placeholder="1.2"
+                        placeholderTextColor="#445577"
+                      />
+                      <Text style={styles.windUnit}>m/s</Text>
+                    </View>
                   </>
                 )}
 
@@ -1568,6 +1588,12 @@ const styles = StyleSheet.create({
   recordMid:    { flex: 1, gap: 2 },
   recordResult: { color: TEXT.primary, fontSize: 22, fontWeight: '800' },
   windText:     { color: TEXT.hint, fontSize: 11 },
+  windRow:      { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  windSignBtn:  { width: 44, height: 44, borderRadius: 10, backgroundColor: '#f0f2f5', borderWidth: 1, borderColor: 'rgba(0,0,0,0.1)', alignItems: 'center', justifyContent: 'center' },
+  windSignBtnMinus: { backgroundColor: '#fee2e2', borderColor: '#fca5a5' },
+  windSignTxt:  { fontSize: 22, fontWeight: '700', color: '#374151', lineHeight: 26 },
+  windInput:    { flex: 1, marginTop: 0 },
+  windUnit:     { color: '#6b7280', fontSize: 14, fontWeight: '600' },
   recordVenue:  { color: TEXT.secondary, fontSize: 12 },
   recordRight:  { alignItems: 'flex-end', gap: 6 },
   recordDate:   { color: TEXT.hint, fontSize: 11 },
