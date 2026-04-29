@@ -5,545 +5,290 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#000000" />
   <title>sCORE — 陸上競技のパートナー</title>
-  <meta name="description" content="タイム・練習・体調をまとめて管理。陸上競技者のための記録アプリ。無料で今すぐ使える。" />
+  <meta name="description" content="タイム記録・怪我予防・AI練習分析。陸上競技者のために設計されたパートナーアプリ。無料で今すぐ使える。" />
   <meta property="og:title" content="sCORE — 陸上競技のパートナー" />
-  <meta property="og:description" content="タイム・練習・体調をまとめて管理。陸上競技者のための記録アプリ。" />
+  <meta property="og:description" content="タイム記録・怪我予防・AI練習分析。陸上競技者のために設計されたパートナーアプリ。" />
   <meta property="og:url" content="https://scorej-run.vercel.app/lp.html" />
   <meta property="og:type" content="website" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --brand:   #166534;
-      --brand2:  #16a34a;
-      --bg:      #000000;
-      --surf:    #0f0f0f;
-      --surf2:   #1a1a1a;
-      --border:  rgba(255,255,255,0.08);
-      --text:    #ffffff;
-      --sub:     #9ca3af;
-      --hint:    #4b5563;
+      --brand:  #166534;
+      --brand2: #16a34a;
+      --green:  #4ade80;
+      --amber:  #f59e0b;
+      --bg:     #000;
+      --surf:   #0f0f0f;
+      --surf2:  #181818;
+      --border: rgba(255,255,255,0.08);
+      --text:   #ffffff;
+      --sub:    #9ca3af;
+      --hint:   #4b5563;
     }
-
     html { scroll-behavior: smooth; }
-
     body {
-      background: var(--bg);
-      color: var(--text);
+      background: var(--bg); color: var(--text);
       font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
-      -webkit-font-smoothing: antialiased;
-      min-height: 100dvh;
-      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased; overflow-x: hidden;
     }
 
     /* ── HERO ── */
     .hero {
-      position: relative;
-      min-height: 100dvh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 60px 28px 48px;
-      text-align: center;
-      overflow: hidden;
+      position: relative; min-height: 100dvh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 60px 28px 48px; text-align: center; overflow: hidden;
     }
-
-    /* animated gradient blob */
     .hero::before {
-      content: '';
-      position: absolute;
-      top: -20%;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 600px;
-      height: 600px;
+      content: ''; position: absolute; top: -20%; left: 50%;
+      transform: translateX(-50%); width: 600px; height: 600px;
       border-radius: 50%;
       background: radial-gradient(circle, rgba(22,101,52,0.35) 0%, rgba(22,101,52,0.08) 50%, transparent 70%);
-      pointer-events: none;
-      animation: pulse 6s ease-in-out infinite;
+      pointer-events: none; animation: pulse 6s ease-in-out infinite;
     }
-
     @keyframes pulse {
       0%,100% { transform: translateX(-50%) scale(1); opacity: 1; }
-      50%      { transform: translateX(-50%) scale(1.1); opacity: 0.7; }
+      50%      { transform: translateX(-50%) scale(1.12); opacity: 0.7; }
     }
+    .grid-bg { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+    .grid-line { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,0.025); }
+    .grid-h    { position: absolute; left: 0; right: 0; height: 1px; background: rgba(255,255,255,0.025); }
 
-    /* grid lines */
-    .grid-bg {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      pointer-events: none;
-      overflow: hidden;
-    }
-    .grid-line {
-      position: absolute;
-      top: 0; bottom: 0; width: 1px;
-      background: rgba(255,255,255,0.025);
-    }
-    .grid-h {
-      position: absolute;
-      left: 0; right: 0; height: 1px;
-      background: rgba(255,255,255,0.025);
-    }
+    .hero-inner { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 480px; }
 
-    .hero-inner {
-      position: relative;
-      z-index: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0;
-      width: 100%;
-      max-width: 480px;
-    }
-
-    /* logo */
-    .logo-wrap {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 32px;
-    }
-    .logo-mark {
-      width: 56px;
-      height: 56px;
-      border-radius: 16px;
-      background: var(--brand);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 30px;
-      font-weight: 900;
-      color: #fff;
+    .logo-wrap  { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; }
+    .logo-mark  {
+      width: 56px; height: 56px; border-radius: 16px; background: var(--brand);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 30px; font-weight: 900; color: #fff;
       box-shadow: 0 0 32px rgba(22,101,52,0.55), 0 0 80px rgba(22,101,52,0.2);
-      flex-shrink: 0;
     }
-    .logo-text {
-      font-size: 32px;
-      font-weight: 900;
-      letter-spacing: -1.5px;
-      color: #fff;
-    }
-    .logo-text span {
-      color: var(--brand2);
-    }
+    .logo-text       { font-size: 32px; font-weight: 900; letter-spacing: -1.5px; color: #fff; }
+    .logo-text span  { color: var(--brand2); }
 
-    /* badge */
     .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: rgba(22,101,52,0.15);
-      border: 1px solid rgba(22,101,52,0.35);
-      color: #4ade80;
-      font-size: 11px;
-      font-weight: 700;
-      padding: 5px 14px;
-      border-radius: 100px;
-      letter-spacing: 1.5px;
-      margin-bottom: 20px;
-      text-transform: uppercase;
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(22,101,52,0.15); border: 1px solid rgba(22,101,52,0.35);
+      color: var(--green); font-size: 11px; font-weight: 700;
+      padding: 5px 14px; border-radius: 100px; letter-spacing: 1.5px;
+      margin-bottom: 20px; text-transform: uppercase;
     }
+    .headline { font-size: clamp(36px,10vw,58px); font-weight: 900; letter-spacing: -2.5px; line-height: 1.08; margin-bottom: 18px; }
+    .headline em { font-style: normal; color: var(--brand2); }
+    .sub-text  { font-size: 16px; color: var(--sub); line-height: 1.75; margin-bottom: 36px; max-width: 340px; }
 
-    /* headline */
-    .headline {
-      font-size: clamp(36px, 10vw, 58px);
-      font-weight: 900;
-      letter-spacing: -2.5px;
-      line-height: 1.08;
-      margin-bottom: 18px;
-      color: #fff;
-    }
-    .headline em {
-      font-style: normal;
-      color: var(--brand2);
-    }
-
-    /* sub */
-    .sub-text {
-      font-size: 16px;
-      color: var(--sub);
-      line-height: 1.75;
-      margin-bottom: 36px;
-      max-width: 340px;
-    }
-
-    /* CTA */
-    .cta-wrap {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      width: 100%;
-      max-width: 320px;
-    }
-    .btn-primary {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      width: 100%;
-      padding: 18px 24px;
-      border-radius: 16px;
-      background: var(--brand);
-      color: #fff;
-      font-size: 17px;
-      font-weight: 800;
-      text-decoration: none;
-      letter-spacing: -0.3px;
+    .cta-wrap     { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 320px; }
+    .btn-primary  {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      width: 100%; padding: 18px 24px; border-radius: 16px;
+      background: var(--brand); color: #fff; font-size: 17px; font-weight: 800;
+      text-decoration: none; letter-spacing: -0.3px;
       box-shadow: 0 8px 32px rgba(22,101,52,0.45);
-      transition: transform 0.15s, box-shadow 0.15s;
-      -webkit-tap-highlight-color: transparent;
+      transition: transform 0.15s, box-shadow 0.15s; -webkit-tap-highlight-color: transparent;
     }
-    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(22,101,52,0.55); }
+    .btn-primary:hover  { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(22,101,52,0.55); }
     .btn-primary:active { transform: scale(0.97); }
-
     .btn-ghost {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      width: 100%;
-      padding: 16px 24px;
-      border-radius: 16px;
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--sub);
-      font-size: 15px;
-      font-weight: 600;
-      text-decoration: none;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; padding: 16px 24px; border-radius: 16px;
+      background: transparent; border: 1px solid var(--border);
+      color: var(--sub); font-size: 15px; font-weight: 600; text-decoration: none;
       transition: border-color 0.15s, color 0.15s;
-      -webkit-tap-highlight-color: transparent;
     }
     .btn-ghost:hover { border-color: rgba(255,255,255,0.2); color: #fff; }
+    .free-note       { margin-top: 14px; font-size: 12px; color: var(--hint); }
+    .free-note strong { color: var(--green); }
 
-    /* free note */
-    .free-note {
-      margin-top: 14px;
-      font-size: 12px;
-      color: var(--hint);
-      letter-spacing: 0.3px;
-    }
-    .free-note strong { color: #4ade80; }
-
-    /* scroll caret */
     .scroll-hint {
-      position: absolute;
-      bottom: 28px;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-      color: var(--hint);
-      font-size: 11px;
-      letter-spacing: 1px;
-      animation: bounce 2s ease-in-out infinite;
-      z-index: 1;
+      position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      color: var(--hint); animation: bounce 2s ease-in-out infinite; z-index: 1;
     }
-    .scroll-hint svg { opacity: 0.4; }
     @keyframes bounce {
       0%,100% { transform: translateX(-50%) translateY(0); }
       50%      { transform: translateX(-50%) translateY(6px); }
     }
 
-    /* ── STATS STRIP ── */
-    .stats {
-      display: flex;
-      justify-content: center;
-      gap: 0;
-      border-top: 1px solid var(--border);
-      border-bottom: 1px solid var(--border);
-      background: var(--surf);
-    }
-    .stat-item {
-      flex: 1;
-      padding: 22px 12px;
-      text-align: center;
-      border-right: 1px solid var(--border);
-    }
+    /* ── STATS ── */
+    .stats { display: flex; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); background: var(--surf); }
+    .stat-item { flex: 1; padding: 22px 8px; text-align: center; border-right: 1px solid var(--border); }
     .stat-item:last-child { border-right: none; }
-    .stat-num {
-      font-size: 24px;
-      font-weight: 900;
-      letter-spacing: -1px;
-      color: #fff;
-      margin-bottom: 2px;
-    }
-    .stat-label {
-      font-size: 10px;
-      color: var(--sub);
-      letter-spacing: 0.5px;
-    }
+    .stat-num   { font-size: 22px; font-weight: 900; letter-spacing: -1px; color: #fff; margin-bottom: 2px; }
+    .stat-label { font-size: 10px; color: var(--sub); letter-spacing: 0.5px; }
 
-    /* ── FEATURES ── */
-    .section {
-      padding: 60px 24px;
-      max-width: 520px;
-      margin: 0 auto;
-    }
-    .section-tag {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 2px;
-      color: #4ade80;
-      text-transform: uppercase;
-      margin-bottom: 10px;
-    }
-    .section-title {
-      font-size: 26px;
-      font-weight: 900;
-      letter-spacing: -1px;
-      line-height: 1.2;
-      margin-bottom: 8px;
-    }
-    .section-sub {
-      font-size: 14px;
-      color: var(--sub);
-      line-height: 1.7;
-      margin-bottom: 32px;
-    }
+    /* ── SECTIONS ── */
+    .section     { padding: 60px 24px; max-width: 540px; margin: 0 auto; }
+    .section-tag { font-size: 11px; font-weight: 700; letter-spacing: 2px; color: var(--green); text-transform: uppercase; margin-bottom: 10px; }
+    .section-title { font-size: 26px; font-weight: 900; letter-spacing: -1px; line-height: 1.2; margin-bottom: 8px; }
+    .section-sub   { font-size: 14px; color: var(--sub); line-height: 1.7; margin-bottom: 28px; }
 
-    .feature-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
+    /* ── FEATURE GRID ── */
+    .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .feat-card {
-      background: var(--surf);
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      padding: 20px 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      transition: border-color 0.2s;
+      background: var(--surf); border: 1px solid var(--border);
+      border-radius: 18px; padding: 20px 16px;
+      display: flex; flex-direction: column; gap: 8px; transition: border-color 0.2s;
     }
-    .feat-card:hover { border-color: rgba(22,101,52,0.4); }
-    .feat-icon {
-      font-size: 26px;
-      line-height: 1;
-    }
-    .feat-title {
-      font-size: 13px;
-      font-weight: 800;
-      letter-spacing: -0.3px;
-    }
-    .feat-desc {
-      font-size: 11px;
-      color: var(--sub);
-      line-height: 1.6;
-    }
-
-    /* wide card */
-    .feat-card.wide {
-      grid-column: span 2;
-      flex-direction: row;
-      align-items: center;
-      gap: 16px;
-      padding: 22px 20px;
-    }
+    .feat-card:hover   { border-color: rgba(22,101,52,0.4); }
+    .feat-card.hl      { border-color: rgba(22,101,52,0.4); background: rgba(22,101,52,0.08); }
+    .feat-card.hl-red  { border-color: rgba(239,68,68,0.35); background: rgba(239,68,68,0.06); }
+    .feat-card.wide    { grid-column: span 2; flex-direction: row; align-items: center; gap: 16px; padding: 22px 20px; }
     .feat-card.wide .feat-icon { font-size: 32px; flex-shrink: 0; }
     .feat-card.wide .feat-body { flex: 1; }
-    .feat-card.wide .feat-title { font-size: 14px; margin-bottom: 4px; }
-    .feat-card.wide .feat-desc { font-size: 12px; }
+    .feat-icon  { font-size: 26px; line-height: 1; }
+    .feat-title { font-size: 13px; font-weight: 800; letter-spacing: -0.3px; }
+    .feat-desc  { font-size: 11px; color: var(--sub); line-height: 1.6; }
+    .feat-badge {
+      display: inline-block; font-size: 9px; font-weight: 800;
+      padding: 2px 7px; border-radius: 6px; letter-spacing: 0.5px; margin-top: 2px;
+    }
+    .feat-badge.free   { background: rgba(74,222,128,0.15); color: var(--green); }
+    .feat-badge.pro    { background: rgba(22,101,52,0.2);   color: #86efac; }
 
-    /* highlight card */
-    .feat-card.highlight {
-      border-color: rgba(22,101,52,0.4);
-      background: rgba(22,101,52,0.08);
+    /* ── INJURY SECTION ── */
+    .injury-section {
+      padding: 60px 24px;
+      background: linear-gradient(180deg, rgba(239,68,68,0.06) 0%, rgba(239,68,68,0.02) 100%);
+      border-top: 1px solid rgba(239,68,68,0.15);
+      border-bottom: 1px solid rgba(239,68,68,0.15);
+    }
+    .injury-inner { max-width: 540px; margin: 0 auto; }
+    .injury-tag   { font-size: 11px; font-weight: 700; letter-spacing: 2px; color: #f87171; text-transform: uppercase; margin-bottom: 10px; }
+    .injury-title { font-size: 26px; font-weight: 900; letter-spacing: -1px; line-height: 1.2; margin-bottom: 10px; }
+    .injury-lead  { font-size: 14px; color: var(--sub); line-height: 1.8; margin-bottom: 28px; }
+    .injury-lead strong { color: #fca5a5; font-weight: 700; }
+
+    .injury-cards { display: flex; flex-direction: column; gap: 14px; }
+    .inj-card {
+      background: var(--surf2); border: 1px solid rgba(239,68,68,0.2);
+      border-radius: 18px; padding: 20px;
+      display: flex; gap: 16px; align-items: flex-start;
+    }
+    .inj-icon-wrap {
+      width: 48px; height: 48px; border-radius: 14px;
+      background: rgba(239,68,68,0.12);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px; flex-shrink: 0;
+    }
+    .inj-body {}
+    .inj-title { font-size: 15px; font-weight: 800; margin-bottom: 5px; }
+    .inj-desc  { font-size: 12px; color: var(--sub); line-height: 1.7; }
+    .inj-badge {
+      display: inline-block; margin-top: 8px;
+      font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 100px;
+      background: rgba(74,222,128,0.12); color: var(--green); border: 1px solid rgba(74,222,128,0.25);
     }
 
     /* ── SHARE SECTION ── */
-    .share-section {
-      padding: 48px 24px;
-      background: var(--surf);
-      border-top: 1px solid var(--border);
-      border-bottom: 1px solid var(--border);
-    }
-    .share-inner {
-      max-width: 520px;
-      margin: 0 auto;
-    }
-    .share-mockup {
-      width: 100%;
-      max-width: 280px;
-      margin: 0 auto 28px;
-      aspect-ratio: 9/16;
-      border-radius: 24px;
+    .share-section { padding: 60px 24px; background: var(--surf); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .share-inner   { max-width: 540px; margin: 0 auto; }
+    .share-mockup  {
+      width: 100%; max-width: 240px; margin: 0 auto 28px;
+      aspect-ratio: 9/16; border-radius: 24px;
       background: linear-gradient(160deg, #1a1a2e 0%, #0d0d0d 50%, #0a1a0f 100%);
       border: 1px solid rgba(255,255,255,0.1);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      position: relative;
-      overflow: hidden;
-      box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+      position: relative; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.6);
     }
     .share-mockup::before {
-      content: '';
-      position: absolute;
-      inset: 0;
+      content: ''; position: absolute; inset: 0;
       background: radial-gradient(ellipse 80% 50% at 50% 30%, rgba(22,101,52,0.2) 0%, transparent 70%);
     }
-    .mock-logo {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      z-index: 1;
+    .mock-logo  { display: flex; align-items: center; gap: 8px; z-index: 1; }
+    .mock-s     { width: 32px; height: 32px; background: var(--brand); border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 900; color: #fff; }
+    .mock-brand { font-size: 20px; font-weight: 900; letter-spacing: -1px; color: #fff; }
+    .mock-result { z-index: 1; text-align: center; }
+    .mock-event  { font-size: 10px; color: rgba(255,255,255,0.5); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 2px; }
+    .mock-time   { font-size: 36px; font-weight: 900; letter-spacing: -2px; color: #fff; text-shadow: 0 0 30px rgba(255,255,255,0.3); }
+    .mock-pb     { display: inline-block; background: rgba(22,101,52,0.3); border: 1px solid rgba(22,101,52,0.6); color: var(--green); font-size: 10px; font-weight: 800; padding: 3px 10px; border-radius: 100px; letter-spacing: 1px; }
+    .mock-glass  { z-index: 1; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; padding: 8px 16px; display: flex; gap: 16px; }
+    .mock-data   { text-align: center; }
+    .mock-val    { font-size: 13px; font-weight: 900; color: #fff; }
+    .mock-lbl    { font-size: 9px; color: rgba(255,255,255,0.5); margin-top: 1px; }
+
+    /* ── PRICING ── */
+    .pricing-section { padding: 60px 24px; max-width: 540px; margin: 0 auto; }
+    .plan-cards { display: flex; flex-direction: column; gap: 14px; margin-top: 0; }
+
+    .plan-card {
+      background: var(--surf2); border: 1px solid var(--border);
+      border-radius: 20px; padding: 24px; position: relative; overflow: hidden;
     }
-    .mock-s {
-      width: 36px; height: 36px;
-      background: var(--brand);
-      border-radius: 10px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 20px; font-weight: 900; color: #fff;
-      box-shadow: 0 0 20px rgba(22,101,52,0.5);
+    .plan-card.pro   { border-color: rgba(22,101,52,0.5); }
+    .plan-card.elite { border-color: rgba(245,158,11,0.4); }
+
+    .plan-top-badge {
+      position: absolute; top: 0; right: 20px;
+      padding: 5px 14px; border-radius: 0 0 12px 12px;
+      font-size: 10px; font-weight: 800; letter-spacing: 0.5px;
     }
-    .mock-brand {
-      font-size: 22px; font-weight: 900; letter-spacing: -1px; color: #fff;
+    .plan-top-badge.pro   { background: var(--brand);  color: #fff; }
+    .plan-top-badge.elite { background: var(--amber);  color: #fff; }
+
+    .plan-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
+    .plan-name   { font-size: 20px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 3px; }
+    .plan-name.pro   { color: var(--brand2); }
+    .plan-name.free  { color: var(--sub); }
+    .plan-name.elite { color: var(--amber); }
+    .plan-tagline { font-size: 11px; color: var(--sub); }
+    .plan-price   { text-align: right; }
+    .plan-price-main { font-size: 26px; font-weight: 900; letter-spacing: -1px; color: #fff; }
+    .plan-price-main.free { font-size: 20px; color: var(--sub); }
+    .plan-price-sub  { font-size: 11px; color: var(--sub); margin-top: 1px; }
+    .plan-price-ann  { font-size: 11px; color: var(--green); margin-top: 3px; font-weight: 700; }
+
+    .plan-divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+    .plan-feats { display: flex; flex-direction: column; gap: 9px; }
+    .plan-feat  { display: flex; align-items: flex-start; gap: 9px; }
+    .plan-feat-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+    .plan-feat-text { font-size: 12px; color: #d1d5db; line-height: 1.5; }
+    .plan-feat-text em { font-style: normal; color: var(--sub); font-size: 11px; }
+    .plan-feat.dimmed .plan-feat-text { color: var(--hint); }
+
+    .plan-cta {
+      display: block; text-align: center; margin-top: 20px;
+      padding: 14px; border-radius: 12px;
+      font-size: 15px; font-weight: 800; text-decoration: none;
+      transition: opacity 0.2s;
     }
-    .mock-result {
-      z-index: 1;
-      text-align: center;
-    }
-    .mock-event {
-      font-size: 11px;
-      color: rgba(255,255,255,0.5);
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      margin-bottom: 2px;
-    }
-    .mock-time {
-      font-size: 40px;
-      font-weight: 900;
-      letter-spacing: -2px;
-      color: #fff;
-      text-shadow: 0 0 30px rgba(255,255,255,0.3);
-    }
-    .mock-pb {
-      display: inline-block;
-      background: rgba(22,101,52,0.3);
-      border: 1px solid rgba(22,101,52,0.6);
-      color: #4ade80;
-      font-size: 10px;
-      font-weight: 800;
-      padding: 3px 10px;
-      border-radius: 100px;
-      letter-spacing: 1px;
-    }
-    .mock-glass {
-      z-index: 1;
-      background: rgba(255,255,255,0.12);
-      border: 1px solid rgba(255,255,255,0.2);
-      border-radius: 14px;
-      padding: 10px 20px;
-      display: flex;
-      gap: 20px;
-    }
-    .mock-data {
-      text-align: center;
-    }
-    .mock-val { font-size: 14px; font-weight: 900; color: #fff; }
-    .mock-lbl { font-size: 9px; color: rgba(255,255,255,0.5); margin-top: 1px; }
+    .plan-cta:hover { opacity: 0.85; }
+    .plan-cta.free  { background: rgba(255,255,255,0.06); color: var(--sub); border: 1px solid var(--border); }
+    .plan-cta.pro   { background: var(--brand);  color: #fff; box-shadow: 0 4px 20px rgba(22,101,52,0.4); }
+    .plan-cta.elite { background: var(--amber);  color: #fff; box-shadow: 0 4px 20px rgba(245,158,11,0.35); }
 
     /* ── STEPS ── */
-    .steps {
-      display: flex;
-      flex-direction: column;
-      gap: 0;
-    }
-    .step {
-      display: flex;
-      gap: 16px;
-      align-items: flex-start;
-    }
-    .step-left {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      flex-shrink: 0;
-    }
-    .step-num {
-      width: 36px; height: 36px;
-      border-radius: 50%;
-      background: var(--brand);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 14px; font-weight: 900; color: #fff;
-      box-shadow: 0 0 16px rgba(22,101,52,0.4);
-    }
-    .step-line {
-      width: 2px;
-      flex: 1;
-      min-height: 28px;
-      background: var(--border);
-      margin: 4px 0;
-    }
-    .step-body {
-      padding-bottom: 28px;
-      padding-top: 6px;
-    }
+    .steps { display: flex; flex-direction: column; gap: 0; }
+    .step  { display: flex; gap: 16px; align-items: flex-start; }
+    .step-left { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+    .step-num  { width: 36px; height: 36px; border-radius: 50%; background: var(--brand); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 900; color: #fff; box-shadow: 0 0 16px rgba(22,101,52,0.4); }
+    .step-line { width: 2px; flex: 1; min-height: 28px; background: var(--border); margin: 4px 0; }
+    .step-body { padding-bottom: 28px; padding-top: 6px; }
     .step-title { font-size: 15px; font-weight: 800; margin-bottom: 4px; }
     .step-desc  { font-size: 13px; color: var(--sub); line-height: 1.6; }
 
     /* ── CTA BOTTOM ── */
-    .cta-bottom {
-      padding: 60px 24px;
-      text-align: center;
-      position: relative;
-      overflow: hidden;
-    }
+    .cta-bottom { padding: 60px 24px; text-align: center; position: relative; overflow: hidden; }
     .cta-bottom::before {
-      content: '';
-      position: absolute;
-      bottom: -30%;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 400px;
-      height: 400px;
-      border-radius: 50%;
+      content: ''; position: absolute; bottom: -30%; left: 50%; transform: translateX(-50%);
+      width: 400px; height: 400px; border-radius: 50%;
       background: radial-gradient(circle, rgba(22,101,52,0.25) 0%, transparent 70%);
       pointer-events: none;
     }
-    .cta-bottom-inner {
-      position: relative;
-      z-index: 1;
-      max-width: 400px;
-      margin: 0 auto;
-    }
-    .cta-bottom-title {
-      font-size: 28px;
-      font-weight: 900;
-      letter-spacing: -1px;
-      line-height: 1.2;
-      margin-bottom: 14px;
-    }
-    .cta-bottom-sub {
-      font-size: 14px;
-      color: var(--sub);
-      line-height: 1.7;
-      margin-bottom: 32px;
-    }
+    .cta-bottom-inner { position: relative; z-index: 1; max-width: 400px; margin: 0 auto; }
+    .cta-bottom-title { font-size: 28px; font-weight: 900; letter-spacing: -1px; line-height: 1.2; margin-bottom: 14px; }
+    .cta-bottom-sub   { font-size: 14px; color: var(--sub); line-height: 1.7; margin-bottom: 32px; }
 
     /* ── FOOTER ── */
-    footer {
-      border-top: 1px solid var(--border);
-      padding: 28px 24px;
-      text-align: center;
-      color: var(--hint);
-      font-size: 12px;
-    }
+    footer { border-top: 1px solid var(--border); padding: 28px 24px; text-align: center; color: var(--hint); font-size: 12px; }
     footer a { color: var(--hint); text-decoration: none; }
     footer a:hover { color: var(--sub); }
 
-    /* ── RESPONSIVE ── */
     @media (min-width: 480px) {
       .feature-grid { grid-template-columns: 1fr 1fr 1fr; }
       .feat-card.wide { grid-column: span 3; }
+      .plan-cards { flex-direction: row; align-items: stretch; }
+      .plan-card  { flex: 1; }
     }
   </style>
 </head>
@@ -551,7 +296,6 @@
 
 <!-- HERO -->
 <section class="hero">
-  <!-- grid bg -->
   <div class="grid-bg">
     <div class="grid-line" style="left:14.3%"></div>
     <div class="grid-line" style="left:28.6%"></div>
@@ -565,33 +309,21 @@
   </div>
 
   <div class="hero-inner">
-    <!-- logo -->
     <div class="logo-wrap">
       <div class="logo-mark">S</div>
       <div class="logo-text">s<span>CORE</span></div>
     </div>
-
     <div class="badge">🏃 陸上競技 × テクノロジー</div>
-
-    <h1 class="headline">
-      自己ベストを、<br/><em>更新し続ける。</em>
-    </h1>
-
-    <p class="sub-text">
-      タイム記録・練習管理・体調ログをひとつに。<br/>
-      陸上競技者のために設計されたパートナーアプリ。
-    </p>
-
+    <h1 class="headline">自己ベストを、<br/><em>更新し続ける。</em></h1>
+    <p class="sub-text">タイム記録・怪我予防・AI練習分析をひとつに。<br/>陸上競技者のために設計されたパートナーアプリ。</p>
     <div class="cta-wrap">
       <a href="https://scorej-run.vercel.app" class="btn-primary">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/></svg>
         無料で今すぐ使う
       </a>
-      <a href="#features" class="btn-ghost">
-        機能を見る &darr;
-      </a>
+      <a href="#features" class="btn-ghost">機能を見る ↓</a>
     </div>
-    <p class="free-note"><strong>完全無料</strong>・アカウント登録不要・即スタート</p>
+    <p class="free-note"><strong>完全無料</strong>・登録不要・即スタート</p>
   </div>
 
   <div class="scroll-hint">
@@ -601,80 +333,112 @@
 
 <!-- STATS -->
 <div class="stats">
-  <div class="stat-item">
-    <div class="stat-num">10+</div>
-    <div class="stat-label">種目対応</div>
-  </div>
-  <div class="stat-item">
-    <div class="stat-num">0円</div>
-    <div class="stat-label">基本無料</div>
-  </div>
-  <div class="stat-item">
-    <div class="stat-num">即</div>
-    <div class="stat-label">登録不要</div>
-  </div>
-  <div class="stat-item">
-    <div class="stat-num">AI</div>
-    <div class="stat-label">練習分析</div>
-  </div>
+  <div class="stat-item"><div class="stat-num">20+</div><div class="stat-label">種目対応</div></div>
+  <div class="stat-item"><div class="stat-num">0円</div><div class="stat-label">基本無料</div></div>
+  <div class="stat-item"><div class="stat-num">毎日</div><div class="stat-label">怪我チェック</div></div>
+  <div class="stat-item"><div class="stat-num">AI</div><div class="stat-label">練習分析</div></div>
 </div>
 
 <!-- FEATURES -->
 <section class="section" id="features">
   <div class="section-tag">Features</div>
   <div class="section-title">強くなるための<br/>すべての機能</div>
-  <div class="section-sub">タイム記録からAI分析まで。<br/>陸上競技に必要なツールが全部入り。</div>
+  <div class="section-sub">記録・分析・怪我予防まで。<br/>陸上競技に必要なツールが全部入り。</div>
 
   <div class="feature-grid">
-    <div class="feat-card highlight">
+    <div class="feat-card hl">
       <div class="feat-icon">⏱</div>
       <div class="feat-title">タイム記録</div>
-      <div class="feat-desc">自己ベスト・シーズンベストを自動判定。10種以上の種目に対応。</div>
+      <div class="feat-desc">PB・SBを自動判定。全期間の履歴を保存。</div>
+      <span class="feat-badge free">無料</span>
     </div>
     <div class="feat-card">
       <div class="feat-icon">📋</div>
       <div class="feat-title">練習ログ</div>
-      <div class="feat-desc">距離・本数・インターバルを細かく記録。</div>
+      <div class="feat-desc">距離・本数・インターバルを記録。無制限。</div>
+      <span class="feat-badge free">無料</span>
     </div>
     <div class="feat-card">
       <div class="feat-icon">📅</div>
       <div class="feat-title">カレンダー</div>
-      <div class="feat-desc">試合・練習をひと目で確認。</div>
+      <div class="feat-desc">試合・練習をひと目で管理。</div>
+      <span class="feat-badge free">無料</span>
     </div>
-    <div class="feat-card">
-      <div class="feat-icon">💤</div>
-      <div class="feat-title">体調管理</div>
-      <div class="feat-desc">疲労・睡眠・体重を毎日ログ。</div>
-    </div>
-    <div class="feat-card highlight">
+    <div class="feat-card hl">
       <div class="feat-icon">🤖</div>
-      <div class="feat-title">AI分析</div>
-      <div class="feat-desc">練習データをAIが分析。改善ポイントを提案。</div>
+      <div class="feat-title">AI練習分析</div>
+      <div class="feat-desc">練習データをAIが解析。改善ポイントを提案。</div>
+      <span class="feat-badge pro">PRO</span>
     </div>
     <div class="feat-card">
-      <div class="feat-icon">🏆</div>
-      <div class="feat-title">全国ランキング</div>
-      <div class="feat-desc">同世代・種目別で自分の順位がわかる。</div>
+      <div class="feat-icon">🎥</div>
+      <div class="feat-title">動画フォーム分析</div>
+      <div class="feat-desc">フォームをAIが分析してアドバイス。</div>
+      <span class="feat-badge pro">PRO</span>
     </div>
-
-    <div class="feat-card wide">
+    <div class="feat-card">
       <div class="feat-icon">📸</div>
-      <div class="feat-body">
-        <div class="feat-title">シェアカード生成</div>
-        <div class="feat-desc">自己ベスト更新をインスタストーリーにシェア。背景透過オーバーレイで動画の上にそのまま使える。</div>
-      </div>
+      <div class="feat-title">シェアカード</div>
+      <div class="feat-desc">PB更新をインスタストーリーにシェア。</div>
+      <span class="feat-badge free">無料</span>
     </div>
   </div>
 </section>
 
-<!-- SHARE VISUAL -->
+<!-- INJURY PREVENTION -->
+<div class="injury-section">
+  <div class="injury-inner">
+    <div class="injury-tag">🩹 Injury Prevention</div>
+    <div class="injury-title">怪我を防ぐことが、<br/>最強のトレーニング。</div>
+    <div class="injury-lead">
+      sCORE は「記録する」だけのアプリではありません。<br/>
+      <strong>怪我で練習を休むこと</strong>が、選手にとって最大のロスだと考えています。<br/>
+      だから怪我予防に関わる機能は、<strong>すべて無料</strong>で全ユーザーに届けます。
+    </div>
+
+    <div class="injury-cards">
+      <div class="inj-card">
+        <div class="inj-icon-wrap">🧠</div>
+        <div class="inj-body">
+          <div class="inj-title">怪我リスクAI診断</div>
+          <div class="inj-desc">疲労・睡眠・練習量・体調をもとにAIが怪我リスクをスコアリング。「今日は強度を落とすべき」を毎日教えてくれる。</div>
+          <span class="inj-badge">毎日1回 無料</span>
+        </div>
+      </div>
+      <div class="inj-card">
+        <div class="inj-icon-wrap">💊</div>
+        <div class="inj-body">
+          <div class="inj-title">AIリカバリー相談</div>
+          <div class="inj-desc">痛みや疲労の悩みをAIに相談。「この痛みはどうすれば？」「明日の練習は大丈夫？」に的確にアドバイス。怪我したときこそ使ってほしい機能。</div>
+          <span class="inj-badge">完全無料</span>
+        </div>
+      </div>
+      <div class="inj-card">
+        <div class="inj-icon-wrap">🧘</div>
+        <div class="inj-body">
+          <div class="inj-title">ウォームアップ・ストレッチガイド</div>
+          <div class="inj-desc">種目別・部位別のウォームアップメニューをガイド。練習前に正しく体を準備することで怪我を未然に防ぐ。</div>
+          <span class="inj-badge">完全無料</span>
+        </div>
+      </div>
+      <div class="inj-card">
+        <div class="inj-icon-wrap">😴</div>
+        <div class="inj-body">
+          <div class="inj-title">体調・疲労ログ</div>
+          <div class="inj-desc">毎日の睡眠・疲労度・体重を記録。蓄積されたデータが怪我リスク診断の精度を高める。記録するほど、守られる。</div>
+          <span class="inj-badge">完全無料</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SHARE CARD -->
 <div class="share-section">
   <div class="share-inner">
     <div class="section-tag" style="text-align:center">Share Card</div>
     <div class="section-title" style="text-align:center; margin-bottom:8px">自己ベストを<br/>みんなにシェア</div>
-    <div class="section-sub" style="text-align:center">記録したタイムをワンタップで<br/>インスタストーリー用カードに変換</div>
-
-    <!-- mockup -->
+    <div class="section-sub" style="text-align:center; margin-bottom:24px">記録したタイムをワンタップで<br/>インスタストーリー用カードに変換。完全無料。</div>
     <div class="share-mockup">
       <div class="mock-logo">
         <div class="mock-s">S</div>
@@ -686,61 +450,131 @@
         <div class="mock-pb">🏆 自己ベスト</div>
       </div>
       <div class="mock-glass">
-        <div class="mock-data">
-          <div class="mock-val">+1.8</div>
-          <div class="mock-lbl">m/s 風</div>
-        </div>
-        <div class="mock-data">
-          <div class="mock-val">県選</div>
-          <div class="mock-lbl">大会</div>
-        </div>
-        <div class="mock-data">
-          <div class="mock-val">4/29</div>
-          <div class="mock-lbl">日付</div>
-        </div>
+        <div class="mock-data"><div class="mock-val">+1.8</div><div class="mock-lbl">m/s 風</div></div>
+        <div class="mock-data"><div class="mock-val">県選</div><div class="mock-lbl">大会</div></div>
+        <div class="mock-data"><div class="mock-val">5/1</div><div class="mock-lbl">日付</div></div>
       </div>
     </div>
-
-    <a href="https://scorej-run.vercel.app" class="btn-primary" style="max-width:320px; margin:0 auto; display:flex;">
-      シェアカードを作ってみる
+    <a href="https://scorej-run.vercel.app" class="btn-primary" style="max-width:300px; margin:0 auto; display:flex;">
+      シェアカードを作る — 無料
     </a>
   </div>
 </div>
 
+<!-- PRICING -->
+<section class="pricing-section" id="pricing">
+  <div class="section-tag">Pricing</div>
+  <div class="section-title">シンプルな<br/>3つのプラン</div>
+  <div class="section-sub">怪我予防・記録・シェアは永続無料。<br/>AIをもっと使いたくなったらPROへ。</div>
+
+  <div class="plan-cards">
+
+    <!-- FREE -->
+    <div class="plan-card">
+      <div class="plan-header">
+        <div>
+          <div class="plan-name free">FREE</div>
+          <div class="plan-tagline">ずっと無料</div>
+        </div>
+        <div class="plan-price">
+          <div class="plan-price-main free">¥0</div>
+          <div class="plan-price-sub">永久無料</div>
+        </div>
+      </div>
+      <div class="plan-divider"></div>
+      <div class="plan-feats">
+        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">タイム記録・練習ログ <em>無制限</em></div></div>
+        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">記録履歴 全期間</div></div>
+        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">怪我リスクAI診断 <em>毎日1回</em></div></div>
+        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">AIリカバリー相談 <em>無制限</em></div></div>
+        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">ウォームアップ・ストレッチ</div></div>
+        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">シェアカード生成</div></div>
+        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">カレンダー・体調ログ</div></div>
+        <div class="plan-feat dimmed"><div class="plan-feat-icon">—</div><div class="plan-feat-text">AI練習分析 <em>初回3回のみ</em></div></div>
+        <div class="plan-feat dimmed"><div class="plan-feat-icon">—</div><div class="plan-feat-text">動画フォーム分析 <em>初回2回のみ</em></div></div>
+      </div>
+      <a href="https://scorej-run.vercel.app" class="plan-cta free">無料で始める</a>
+    </div>
+
+    <!-- PRO -->
+    <div class="plan-card pro">
+      <div class="plan-top-badge pro">🔥 人気No.1</div>
+      <div class="plan-header">
+        <div>
+          <div class="plan-name pro">PRO</div>
+          <div class="plan-tagline">本格的に強くなりたい選手へ</div>
+        </div>
+        <div class="plan-price">
+          <div class="plan-price-main">¥780<span style="font-size:13px; font-weight:500; color:var(--sub)">/月</span></div>
+          <div class="plan-price-ann">年払い ¥6,800 〈約27%お得〉</div>
+        </div>
+      </div>
+      <div class="plan-divider"></div>
+      <div class="plan-feats">
+        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">FREEの全機能</div></div>
+        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">AI練習分析 <em>無制限</em></div></div>
+        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">動画フォーム分析 <em>月5回</em></div></div>
+        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">怪我リスクAI診断 <em>無制限</em></div></div>
+        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">GPSランニング記録</div></div>
+        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">全国ランキング参加</div></div>
+        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">CSVエクスポート</div></div>
+      </div>
+      <a href="https://scorej-run.vercel.app" class="plan-cta pro">PROを始める</a>
+    </div>
+
+    <!-- ELITE -->
+    <div class="plan-card elite">
+      <div class="plan-top-badge elite">👑 最上位</div>
+      <div class="plan-header">
+        <div>
+          <div class="plan-name elite">ELITE</div>
+          <div class="plan-tagline">競技で勝ちにいく選手・コーチへ</div>
+        </div>
+        <div class="plan-price">
+          <div class="plan-price-main">¥1,480<span style="font-size:13px; font-weight:500; color:var(--sub)">/月</span></div>
+          <div class="plan-price-ann" style="color:var(--amber)">年払い ¥12,800 〈約28%お得〉</div>
+        </div>
+      </div>
+      <div class="plan-divider"></div>
+      <div class="plan-feats">
+        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">PROの全機能</div></div>
+        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">動画フォーム分析 <em>無制限</em></div></div>
+        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">AIコーチチャット <em>練習フィードバック</em></div></div>
+        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">チーム機能 <em>部員10名まで管理</em></div></div>
+        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">コーチビュー <em>選手管理ダッシュボード</em></div></div>
+        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">優先サポート</div></div>
+      </div>
+      <a href="https://scorej-run.vercel.app" class="plan-cta elite">ELITEを始める</a>
+    </div>
+
+  </div>
+</section>
+
 <!-- HOW TO START -->
-<section class="section">
+<section class="section" style="border-top: 1px solid var(--border);">
   <div class="section-tag">How to Start</div>
   <div class="section-title">3ステップで<br/>すぐ使える</div>
   <div class="section-sub" style="margin-bottom:28px">インストール不要。ブラウザで今すぐ。</div>
-
   <div class="steps">
     <div class="step">
-      <div class="step-left">
-        <div class="step-num">1</div>
-        <div class="step-line"></div>
-      </div>
+      <div class="step-left"><div class="step-num">1</div><div class="step-line"></div></div>
       <div class="step-body">
         <div class="step-title">リンクをタップ</div>
         <div class="step-desc">このページのボタンから scorej-run.vercel.app を開く。インストール不要。</div>
       </div>
     </div>
     <div class="step">
-      <div class="step-left">
-        <div class="step-num">2</div>
-        <div class="step-line"></div>
-      </div>
+      <div class="step-left"><div class="step-num">2</div><div class="step-line"></div></div>
       <div class="step-body">
         <div class="step-title">ゲストで即スタート</div>
-        <div class="step-desc">「ゲストで続ける」をタップするだけ。アカウント登録なしで全機能を試せる。</div>
+        <div class="step-desc">「ゲストで続ける」をタップするだけ。アカウント不要で全無料機能が使える。</div>
       </div>
     </div>
     <div class="step">
-      <div class="step-left">
-        <div class="step-num">3</div>
-      </div>
+      <div class="step-left"><div class="step-num">3</div></div>
       <div class="step-body">
-        <div class="step-title">記録してシェア</div>
-        <div class="step-desc">タイムを入力してPBを更新したらシェアカードを作ってインスタに投稿。</div>
+        <div class="step-title">記録・分析・シェア</div>
+        <div class="step-desc">タイムを入力、毎日の体調をログ、PBを更新したらシェアカードでインスタに投稿。</div>
       </div>
     </div>
   </div>
@@ -750,10 +584,7 @@
 <div class="cta-bottom">
   <div class="cta-bottom-inner">
     <div class="cta-bottom-title">今すぐ記録を<br/>始めよう。</div>
-    <div class="cta-bottom-sub">
-      完全無料・登録不要。<br/>
-      あなたの陸上競技を、sCOREが支える。
-    </div>
+    <div class="cta-bottom-sub">完全無料・登録不要。<br/>あなたの陸上競技を、sCOREが支える。</div>
     <div class="cta-wrap" style="margin:0 auto">
       <a href="https://scorej-run.vercel.app" class="btn-primary">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/></svg>
@@ -769,7 +600,7 @@
   <p style="margin-top:8px">
     <a href="https://scorej-run.vercel.app">アプリを開く</a>
     &nbsp;·&nbsp;
-    <a href="plans.html">料金プラン</a>
+    <a href="#pricing">料金プラン</a>
     &nbsp;·&nbsp;
     <a href="mailto:amuletbaby.shop@gmail.com">お問い合わせ</a>
   </p>
