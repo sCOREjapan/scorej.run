@@ -1,11 +1,1 @@
-{
-  "version": "0.0.1",
-  "configurations": [
-    {
-      "name": "trackmate-dev",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["expo", "start", "--web", "--port", "8082"],
-      "port": 8082
-    }
-  ]
-}
+{"version":"0.0.1","configurations":[{"name":"preview-static","runtimeExecutable":"npx","runtimeArgs":["serve","public","-p","4321","--no-clipboard"],"port":4321}]}

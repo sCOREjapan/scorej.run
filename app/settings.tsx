@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router'
 
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
+import { usePurchase } from '../context/PurchaseContext'
 import AnimatedSection from '../components/AnimatedSection'
 import { requestPermission, getPermission, startAllSchedulers } from '../lib/notifications'
 
@@ -133,6 +134,7 @@ function LabeledInput({
 export default function SettingsScreen() {
   const { user, signOut, isGuest, signOutGuest } = useAuth()
   const { colors } = useTheme()
+  const { tier, isPro, isElite, expiresAt } = usePurchase()
   const router = useRouter()
 
   // プロフィール
@@ -309,8 +311,49 @@ export default function SettingsScreen() {
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
-          {/* ── プロフィール ───────────────────────────────────── */}
+          {/* ── プラン ────────────────────────────────────────── */}
           <AnimatedSection delay={0}>
+            <View style={[styles.card, isPro ? { borderWidth: 1.5, borderColor: '#166534' } : {}]}>
+              <Text style={styles.cardTitle}>プラン</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View style={{
+                    backgroundColor: isElite ? '#f59e0b22' : isPro ? '#16653422' : '#6b728022',
+                    borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4,
+                  }}>
+                    <Text style={{
+                      color: isElite ? '#f59e0b' : isPro ? '#166534' : '#6b7280',
+                      fontSize: 13, fontWeight: '800',
+                    }}>
+                      {isElite ? '👑 ELITE' : isPro ? '✦ PRO' : 'FREE'}
+                    </Text>
+                  </View>
+                  {expiresAt && (
+                    <Text style={{ color: '#9ca3af', fontSize: 11 }}>
+                      {new Date(expiresAt).toLocaleDateString('ja-JP')}まで
+                    </Text>
+                  )}
+                </View>
+                {!isPro && (
+                  <TouchableOpacity
+                    style={{ backgroundColor: '#166534', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 }}
+                    onPress={() => router.push('/paywall')}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={{ color: '#fff', fontSize: 13, fontWeight: '800' }}>アップグレード</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              {!isPro && (
+                <Text style={{ color: '#9ca3af', fontSize: 12, marginTop: 10, lineHeight: 18 }}>
+                  PRO にアップグレードするとAI分析・ログ無制限・CSV出力などが使えます
+                </Text>
+              )}
+            </View>
+          </AnimatedSection>
+
+          {/* ── プロフィール ───────────────────────────────────── */}
+          <AnimatedSection delay={40}>
             <SectionCard title="プロフィール">
               <LabeledInput
                 label="名前"

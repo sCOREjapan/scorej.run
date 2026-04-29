@@ -8,6 +8,7 @@ import * as SplashScreen from 'expo-splash-screen'
 import { Ionicons } from '@expo/vector-icons'
 import { AuthProvider, useAuth } from '../context/AuthContext'
 import { ThemeProvider } from '../context/ThemeContext'
+import { PurchaseProvider } from '../context/PurchaseContext'
 import SplashAnimation from '../components/SplashAnimation'
 import { initOneSignal, requestPushPermission } from '../lib/notify'
 
@@ -218,6 +219,10 @@ function RootLayoutNav() {
               headerTitleStyle: { color: '#fff', fontWeight: '800' },
             }}
           />
+          <Stack.Screen
+            name="paywall"
+            options={{ headerShown: false, presentation: 'modal' }}
+          />
         </Stack>
       </AuthGate>
       <Toast />
@@ -230,7 +235,9 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <RootLayoutNav />
+        <PurchaseProvider>
+          <RootLayoutNav />
+        </PurchaseProvider>
       </AuthProvider>
     </ThemeProvider>
   )
