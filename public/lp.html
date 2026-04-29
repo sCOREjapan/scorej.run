@@ -267,6 +267,32 @@
     .step-title { font-size: 15px; font-weight: 800; margin-bottom: 4px; }
     .step-desc  { font-size: 13px; color: var(--sub); line-height: 1.6; }
 
+    /* ── STORY ── */
+    .story-section {
+      padding: 72px 24px;
+      background: linear-gradient(180deg, #000 0%, #0a0f08 50%, #000 100%);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .story-inner { max-width: 540px; margin: 0 auto; }
+    .story-tag   { font-size: 11px; font-weight: 700; letter-spacing: 2px; color: var(--green); text-transform: uppercase; margin-bottom: 20px; }
+    .story-headline {
+      font-size: clamp(26px, 7vw, 38px); font-weight: 900;
+      letter-spacing: -1.5px; line-height: 1.15; margin-bottom: 24px; color: #fff;
+    }
+    .story-headline em { font-style: normal; color: var(--green); }
+    .story-body  { font-size: 15px; color: var(--sub); line-height: 1.9; margin-bottom: 28px; }
+    .story-body strong { color: rgba(255,255,255,0.85); font-weight: 600; }
+    .story-quote-wrap {
+      border-left: 3px solid rgba(22,101,52,0.7);
+      padding: 14px 20px;
+      margin-bottom: 12px;
+      background: rgba(22,101,52,0.06);
+      border-radius: 0 10px 10px 0;
+    }
+    .story-quote { font-size: 17px; font-weight: 700; color: #fff; line-height: 1.6; font-style: italic; margin-bottom: 8px; }
+    .story-sig   { font-size: 12px; color: var(--sub); letter-spacing: 0.5px; }
+
     /* ── CTA BOTTOM ── */
     .cta-bottom { padding: 60px 24px; text-align: center; position: relative; overflow: hidden; }
     .cta-bottom::before {
@@ -313,15 +339,15 @@
       <div class="logo-mark">S</div>
       <div class="logo-text">s<span>CORE</span></div>
     </div>
-    <div class="badge">🏃 陸上競技 × テクノロジー</div>
-    <h1 class="headline">自己ベストを、<br/><em>更新し続ける。</em></h1>
-    <p class="sub-text">タイム記録・怪我予防・AI練習分析をひとつに。<br/>陸上競技者のために設計されたパートナーアプリ。</p>
+    <div class="badge">FROM INSTINCT TO SCORE.</div>
+    <h1 class="headline">本能を、<br/><em>数値へ。</em></h1>
+    <p class="sub-text">怪我ゼロで、もっと速く。<br/>陸上競技者のために創られた、記録・怪我予防・AI分析アプリ。</p>
     <div class="cta-wrap">
       <a href="https://scorej-run.vercel.app" class="btn-primary">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/></svg>
         無料で今すぐ使う
       </a>
-      <a href="#features" class="btn-ghost">機能を見る ↓</a>
+      <a href="#story" class="btn-ghost">開発者について ↓</a>
     </div>
     <p class="free-note"><strong>完全無料</strong>・登録不要・即スタート</p>
   </div>
@@ -338,6 +364,26 @@
   <div class="stat-item"><div class="stat-num">毎日</div><div class="stat-label">怪我チェック</div></div>
   <div class="stat-item"><div class="stat-num">AI</div><div class="stat-label">練習分析</div></div>
 </div>
+
+<!-- STORY -->
+<section class="story-section" id="story">
+  <div class="story-inner">
+    <div class="story-tag">✦ Story</div>
+    <div class="story-headline">怪我で、<br/><em>3年間を棒に振った。</em><br/>だから、創った。</div>
+    <div class="story-body">
+      高校3年間、まともに走れなかった元スプリンターがいます。<br/>
+      オーバートレーニング、疲労骨折、繰り返す肉離れ。<br/>
+      <strong>「あのとき、自分の体の状態が数値で見えていたら。」</strong><br/><br/>
+      その後悔が、sCORE の原点です。<br/><br/>
+      今は鍼灸師を目指しながら、選手時代に欲しかったツールを創り続けています。<br/>
+      このアプリを使う誰かが、同じ後悔をしないために。
+    </div>
+    <div class="story-quote-wrap">
+      <div class="story-quote">"選手時代に、これが欲しかった。"</div>
+      <div class="story-sig">— sCORE 開発者 / 元スプリンター・鍼灸学生</div>
+    </div>
+  </div>
+</section>
 
 <!-- FEATURES -->
 <section class="section" id="features">
@@ -591,8 +637,8 @@
 <!-- CTA BOTTOM -->
 <div class="cta-bottom">
   <div class="cta-bottom-inner">
-    <div class="cta-bottom-title">今すぐ記録を<br/>始めよう。</div>
-    <div class="cta-bottom-sub">完全無料・登録不要。<br/>あなたの陸上競技を、sCOREが支える。</div>
+    <div class="cta-bottom-title">怪我ゼロで、<br/>もっと速く。</div>
+    <div class="cta-bottom-sub">FROM INSTINCT TO SCORE.<br/>完全無料・登録不要。あなたの本能を、数値に変えよう。</div>
     <div class="cta-wrap" style="margin:0 auto">
       <a href="https://scorej-run.vercel.app" class="btn-primary">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/></svg>
