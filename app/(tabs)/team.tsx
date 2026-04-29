@@ -1066,40 +1066,60 @@ function MemberDetailSheet({ member, onClose }: { member: Member; onClose: () =>
 function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
   joined: JoinedTeam; onSwitchRole: () => void; onLeaveTeam: () => void
 }) {
-  const [sessions,       setSessions]       = useState<TrainingSession[]>([])
-  const [messages,       setMessages]       = useState<TeamMessage[]>([])
-  const [teammates,      setTeammates]      = useState<TeamMemberRow[]>([])
-  const [bodyParts,      setBodyParts]      = useState<string[]>([])
-  const [bodyDetail,     setBodyDetail]     = useState('')
-  const [showBody,       setShowBody]       = useState(false)
-  const [showVideoModal, setShowVideoModal] = useState(false)
-  const [editBody,       setEditBody]       = useState<string[]>([])
-  const [editBodyDetail, setEditBodyDetail] = useState('')
-  const [showMenu,       setShowMenu]       = useState(false)
-  const [showStatsEdit,  setShowStatsEdit]  = useState(false)
-  const [playerStats,    setPlayerStats]    = useState<PlayerStatsRow[]>([])
-  const [editEvent,      setEditEvent]      = useState('')
-  const [editPb,         setEditPb]         = useState('')
+  const [sessions,          setSessions]          = useState<TrainingSession[]>([])
+  const [messages,          setMessages]          = useState<TeamMessage[]>([])
+  const [teammates,         setTeammates]         = useState<TeamMemberRow[]>([])
+  const [allBodyReports,    setAllBodyReports]    = useState<BodyReportRow[]>([])
+  const [teamSessionsMap,   setTeamSessionsMap]   = useState<Record<string, TrainingSession[]>>({})
+  const [bodyParts,         setBodyParts]         = useState<string[]>([])
+  const [bodyDetail,        setBodyDetail]        = useState('')
+  const [showBody,          setShowBody]          = useState(false)
+  const [showVideoModal,    setShowVideoModal]    = useState(false)
+  const [editBody,          setEditBody]          = useState<string[]>([])
+  const [editBodyDetail,    setEditBodyDetail]    = useState('')
+  const [showMenu,          setShowMenu]          = useState(false)
+  const [showStatsEdit,     setShowStatsEdit]     = useState(false)
+  const [playerStats,       setPlayerStats]       = useState<PlayerStatsRow[]>([])
+  const [editEvent,         setEditEvent]         = useState('')
+  const [editPb,            setEditPb]            = useState('')
+  const [selectedTeammate,  setSelectedTeammate]  = useState<Member|null>(null)
 
   const load = useCallback(async () => {
-    const [sr, msgs, mems, rpts, stats] = await Promise.all([
+    const [sr, msgs, mems, rpts, stats, teamSessions] = await Promise.all([
       AsyncStorage.getItem(SESSIONS_KEY),
       fetchMessages(joined.code),
       fetchMembers(joined.code),
       fetchBodyReports(joined.code),
       fetchPlayerStats(joined.code),
+      fetchTeamSessions(joined.code),
     ])
     const loadedSessions: TrainingSession[] = sr ? JSON.parse(sr) : []
     setSessions(loadedSessions)
     setMessages(msgs)
     setTeammates(mems.filter(m => m.player_name !== joined.playerName))
     setPlayerStats(stats)
+    setAllBodyReports(rpts)
+    // チームメイトのセッションマップ構築
+    const map: Record<string, TrainingSession[]> = {}
+    for (const ts of teamSessions) {
+      const s: TrainingSession = {
+        id: ts.id, user_id: ts.player_name,
+        session_date: ts.session_date, session_type: ts.session_type as any,
+        fatigue_level: ts.fatigue_level, condition_level: ts.condition_level,
+        distance_m: ts.distance_m ?? undefined,
+        reps: ts.reps ?? undefined, sets: ts.sets ?? undefined,
+        created_at: ts.synced_at,
+      }
+      if (!map[ts.player_name]) map[ts.player_name] = []
+      map[ts.player_name].push(s)
+    }
+    setTeamSessionsMap(map)
     const myReport = rpts.find(r => r.player_name === joined.playerName)
     if (myReport) { setBodyParts(myReport.parts); setBodyDetail(myReport.detail ?? '') }
     // 自分のstatsをedit初期値にセット
     const myStat = stats.find(s => s.player_name === joined.playerName)
     if (myStat) { setEditEvent(myStat.event); setEditPb(myStat.pb_display) }
-    // 自分のセッションをチームに同期（コーチが見れるように）
+    // 自分のセッションをチームに同期（コーチ・チームメイトが見れるように）
     await syncTeamSessions(joined.code, joined.playerName, loadedSessions)
     // レベルを自動同期（PB入力なしでもランクがチームメイトに見える）
     const lvInfo = calcLevelInfo(loadedSessions.length)
@@ -1114,6 +1134,8 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'team_messages',    filter: `team_code=eq.${joined.code}` }, () => load())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members',     filter: `team_code=eq.${joined.code}` }, () => load())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'team_player_stats',filter: `team_code=eq.${joined.code}` }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_sessions',    filter: `team_code=eq.${joined.code}` }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_body_reports',filter: `team_code=eq.${joined.code}` }, () => load())
       .subscribe()
     return () => { supabase.removeChannel(ch) }
   }, [joined.code, joined.playerName, load])
@@ -1272,9 +1294,27 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
                   const stat    = playerStats.find(s => s.player_name === m.player_name)
                   const lvInfo  = calcLevelInfo(stat?.level ?? 1)
                   const lvTier  = RANK_TIERS.find(t => lvInfo.level >= t.min && lvInfo.level < t.max) ?? RANK_TIERS[0]
+                  const tmSessions = teamSessionsMap[m.player_name] ?? []
+                  const tmRisk  = calcInjuryRisk(tmSessions, [], tmSessions[0]?.condition_level ?? 6)
+                  const tmRKey  = riskCfgKey(tmRisk.riskScore)
+                  const tmRCfg  = RISK_CFG[tmRKey]
+                  const hasPain = (allBodyReports.find(r => r.player_name === m.player_name)?.parts?.length ?? 0) > 0
                   return (
-                    <View
+                    <TouchableOpacity
                       key={m.id}
+                      activeOpacity={0.75}
+                      onPress={() => {
+                        const rpt = allBodyReports.find(r => r.player_name === m.player_name)
+                        setSelectedTeammate({
+                          id: m.id,
+                          name: m.player_name,
+                          event: stat?.event || m.event || '',
+                          sessions: tmSessions,
+                          lastActive: m.joined_at,
+                          painParts: rpt?.parts ?? [],
+                          painDetail: rpt?.detail ?? '',
+                        })
+                      }}
                       style={{
                         flexDirection:'row', alignItems:'center', gap:10,
                         paddingHorizontal:14, paddingVertical:14,
@@ -1284,7 +1324,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
                     >
                       <Avatar name={m.player_name} size={38} color={avatarColor(m.player_name)}/>
                       <View style={{flex:1,gap:3}}>
-                        <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
+                        <View style={{flexDirection:'row',alignItems:'center',gap:6,flexWrap:'wrap'}}>
                           <Text style={{color:TEXT.primary,fontSize:14,fontWeight:'700'}}>{m.player_name}</Text>
                           {stat && (
                             <View style={{flexDirection:'row',alignItems:'center',gap:3,backgroundColor:lvTier.color+'20',borderRadius:8,paddingHorizontal:6,paddingVertical:2,borderWidth:1,borderColor:lvTier.color+'40'}}>
@@ -1292,6 +1332,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
                               <Text style={{color:lvTier.color,fontSize:10,fontWeight:'800'}}>Lv.{stat.level}</Text>
                             </View>
                           )}
+                          {hasPain && <Text style={{fontSize:11}}>🤕</Text>}
                         </View>
                         <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
                           {(stat?.event || m.event) && (
@@ -1303,9 +1344,15 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
                               <Text style={{color:'#FF9500',fontSize:11,fontWeight:'700'}}>{stat.pb_display}</Text>
                             </View>
                           ) : null}
+                          {tmSessions.length > 0 && (
+                            <View style={{flexDirection:'row',alignItems:'center',gap:3,backgroundColor:tmRCfg.bg,borderRadius:6,paddingHorizontal:5,paddingVertical:2}}>
+                              <Text style={{color:tmRCfg.color,fontSize:10,fontWeight:'700'}}>{tmRisk.riskScore}</Text>
+                            </View>
+                          )}
                         </View>
                       </View>
-                    </View>
+                      <Ionicons name="chevron-forward" size={14} color="#d1d5db"/>
+                    </TouchableOpacity>
                   )
                 })}
               </View>
@@ -1414,6 +1461,11 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
         onDangerAction={onLeaveTeam}
         onClose={() => setShowMenu(false)}
       />
+
+      {/* チームメイト詳細シート */}
+      {selectedTeammate && (
+        <MemberDetailSheet member={selectedTeammate} onClose={() => setSelectedTeammate(null)}/>
+      )}
     </View>
   )
 }
