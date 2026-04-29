@@ -492,7 +492,9 @@ function PlayerJoinScreen({ onJoined, onBack }: { onJoined:(j:JoinedTeam)=>void;
 // ─────────────────────────────────────────────────────────
 // CoachDashboard — シンプル3セクション
 // ─────────────────────────────────────────────────────────
-function CoachDashboard({ setup, onReset }: { setup: TeamSetup; onReset: () => void }) {
+function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
+  setup: TeamSetup; onSwitchRole: () => void; onDeleteTeam: () => void
+}) {
   const router = useRouter()
   const [messages, setMessages] = useState<TeamMessage[]>([])
   const [videos,   setVideos]   = useState<VideoEntry[]>([])
@@ -503,6 +505,7 @@ function CoachDashboard({ setup, onReset }: { setup: TeamSetup; onReset: () => v
   const [detailMember,  setDetailMember]  = useState<Member|null>(null)
   const [memberFilter,  setMemberFilter]  = useState<'all'|'danger'|'unsubmitted'>('all')
   const [hiddenDemoIds, setHiddenDemoIds] = useState<string[]>([])
+  const [showMenu,      setShowMenu]      = useState(false)
 
   const load = useCallback(async () => {
     const [msgs, vids, mems, rpts] = await Promise.all([
@@ -657,8 +660,8 @@ function CoachDashboard({ setup, onReset }: { setup: TeamSetup; onReset: () => v
               <Text style={{color:'#555',fontSize:9,fontWeight:'700'}}>参加コード</Text>
               <Text style={{color:BRAND,fontSize:15,fontWeight:'900',letterSpacing:3}}>{formatCode(setup.code)}</Text>
             </View>
-            <TouchableOpacity onPress={onReset} style={co.switchBtn} activeOpacity={0.7}>
-              <Ionicons name="swap-horizontal-outline" size={15} color={TEXT.secondary}/>
+            <TouchableOpacity onPress={() => setShowMenu(true)} style={co.switchBtn} activeOpacity={0.7}>
+              <Ionicons name="ellipsis-horizontal" size={15} color={TEXT.secondary}/>
             </TouchableOpacity>
           </View>
         </View>
@@ -929,6 +932,13 @@ function CoachDashboard({ setup, onReset }: { setup: TeamSetup; onReset: () => v
       </SafeAreaView>
 
       {detailMember && <MemberDetailSheet member={detailMember} onClose={() => setDetailMember(null)}/>}
+      <TeamMenuSheet
+        visible={showMenu}
+        role="coach"
+        onSwitchRole={onSwitchRole}
+        onDangerAction={onDeleteTeam}
+        onClose={() => setShowMenu(false)}
+      />
     </View>
   )
 }
@@ -997,7 +1007,9 @@ function MemberDetailSheet({ member, onClose }: { member: Member; onClose: () =>
 // ─────────────────────────────────────────────────────────
 // PlayerDashboard
 // ─────────────────────────────────────────────────────────
-function PlayerDashboard({ joined, onReset }: { joined: JoinedTeam; onReset: () => void }) {
+function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
+  joined: JoinedTeam; onSwitchRole: () => void; onLeaveTeam: () => void
+}) {
   const [sessions,       setSessions]       = useState<TrainingSession[]>([])
   const [messages,       setMessages]       = useState<TeamMessage[]>([])
   const [teammates,      setTeammates]      = useState<TeamMemberRow[]>([])
@@ -1005,6 +1017,7 @@ function PlayerDashboard({ joined, onReset }: { joined: JoinedTeam; onReset: () 
   const [showBody,       setShowBody]       = useState(false)
   const [showVideoModal, setShowVideoModal] = useState(false)
   const [editBody,       setEditBody]       = useState<string[]>([])
+  const [showMenu,       setShowMenu]       = useState(false)
 
   const load = useCallback(async () => {
     const [sr, msgs, mems, rpts] = await Promise.all([
@@ -1074,8 +1087,8 @@ function PlayerDashboard({ joined, onReset }: { joined: JoinedTeam; onReset: () 
                 <Text style={{color:'#555',fontSize:11}}>{joined.playerName}　コーチ: {joined.coachName}</Text>
               </View>
             </View>
-            <TouchableOpacity onPress={onReset} style={co.switchBtn} activeOpacity={0.7}>
-              <Ionicons name="swap-horizontal-outline" size={15} color={TEXT.secondary}/>
+            <TouchableOpacity onPress={() => setShowMenu(true)} style={co.switchBtn} activeOpacity={0.7}>
+              <Ionicons name="ellipsis-horizontal" size={15} color={TEXT.secondary}/>
             </TouchableOpacity>
           </View>
           </AnimatedSection>
@@ -1228,6 +1241,14 @@ function PlayerDashboard({ joined, onReset }: { joined: JoinedTeam; onReset: () 
         onClose={() => setShowVideoModal(false)}
         onSent={load}
       />
+
+      <TeamMenuSheet
+        visible={showMenu}
+        role="player"
+        onSwitchRole={onSwitchRole}
+        onDangerAction={onLeaveTeam}
+        onClose={() => setShowMenu(false)}
+      />
     </View>
   )
 }
@@ -1256,6 +1277,87 @@ const pl = StyleSheet.create({
 })
 
 // ─────────────────────────────────────────────────────────
+// TeamMenuSheet — スワップボタンから開くアクションシート
+// ─────────────────────────────────────────────────────────
+function TeamMenuSheet({ visible, role, onSwitchRole, onDangerAction, onClose }: {
+  visible: boolean
+  role: 'coach' | 'player'
+  onSwitchRole: () => void
+  onDangerAction: () => void   // 削除 or 脱退
+  onClose: () => void
+}) {
+  function confirmDanger() {
+    onClose()
+    const label = role === 'coach' ? 'チームを削除' : 'チームを脱退'
+    const msg   = role === 'coach'
+      ? 'チームを削除すると参加コードが無効になります。本当に削除しますか？'
+      : 'チームを脱退します。再参加するにはコードが必要です。'
+    Alert.alert(label, msg, [
+      { text: 'キャンセル', style: 'cancel' },
+      { text: role === 'coach' ? '削除する' : '脱退する', style: 'destructive', onPress: onDangerAction },
+    ])
+  }
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.6)',justifyContent:'flex-end'}}>
+        <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose}/>
+        <View style={{backgroundColor:'#fff',borderTopLeftRadius:24,borderTopRightRadius:24,padding:20,paddingBottom:44,gap:10}}>
+          <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:8}}/>
+          <Text style={{color:'#111827',fontSize:16,fontWeight:'800',marginBottom:4}}>チームメニュー</Text>
+
+          {/* ロール切り替え */}
+          <TouchableOpacity
+            style={{flexDirection:'row',alignItems:'center',gap:12,backgroundColor:'#f0f2f5',borderRadius:14,padding:16}}
+            onPress={() => { onClose(); setTimeout(onSwitchRole, 200) }}
+            activeOpacity={0.8}
+          >
+            <View style={{width:40,height:40,borderRadius:12,backgroundColor:BRAND+'18',alignItems:'center',justifyContent:'center'}}>
+              <Ionicons name="swap-horizontal-outline" size={20} color={BRAND}/>
+            </View>
+            <View style={{flex:1}}>
+              <Text style={{color:'#111827',fontSize:14,fontWeight:'700'}}>ロールを切り替え</Text>
+              <Text style={{color:'#6b7280',fontSize:11,marginTop:1}}>
+                {role === 'coach' ? '選手として参加しているチームへ' : 'コーチとして作成したチームへ'}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#9ca3af"/>
+          </TouchableOpacity>
+
+          {/* 危険操作 */}
+          <TouchableOpacity
+            style={{flexDirection:'row',alignItems:'center',gap:12,backgroundColor:'rgba(239,68,68,0.06)',borderRadius:14,padding:16,borderWidth:1,borderColor:'rgba(239,68,68,0.15)'}}
+            onPress={confirmDanger}
+            activeOpacity={0.8}
+          >
+            <View style={{width:40,height:40,borderRadius:12,backgroundColor:'rgba(239,68,68,0.1)',alignItems:'center',justifyContent:'center'}}>
+              <Ionicons name={role==='coach'?'trash-outline':'exit-outline'} size={20} color="#ef4444"/>
+            </View>
+            <View style={{flex:1}}>
+              <Text style={{color:'#ef4444',fontSize:14,fontWeight:'700'}}>
+                {role === 'coach' ? 'チームを削除' : 'チームを脱退'}
+              </Text>
+              <Text style={{color:'#9ca3af',fontSize:11,marginTop:1}}>
+                {role === 'coach' ? '参加コードが無効になります' : '再参加にはコードが必要です'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* キャンセル */}
+          <TouchableOpacity
+            style={{alignItems:'center',paddingVertical:14,borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)'}}
+            onPress={onClose}
+            activeOpacity={0.7}
+          >
+            <Text style={{color:'#6b7280',fontSize:15,fontWeight:'600'}}>キャンセル</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  )
+}
+
+// ─────────────────────────────────────────────────────────
 // TeamScreen（エントリーポイント）
 // ─────────────────────────────────────────────────────────
 export default function TeamScreen() {
@@ -1266,7 +1368,6 @@ export default function TeamScreen() {
 
   useEffect(() => {
     async function init() {
-      // OneSignal 初期化（早めに呼ぶ）
       initOneSignal()
       const [roleRaw, setupRaw, joinedRaw] = await Promise.all([
         AsyncStorage.getItem(ROLE_KEY),
@@ -1274,34 +1375,55 @@ export default function TeamScreen() {
         AsyncStorage.getItem(JOINED_KEY),
       ])
       const role = roleRaw as Role|null
+      // 保存済みデータは常にメモリにロード
+      if (setupRaw)  setSetup(JSON.parse(setupRaw))
+      if (joinedRaw) setJoined(JSON.parse(joinedRaw))
+
       if (!role) { setState('select-role'); return }
       if (role === 'coach') {
-        if (setupRaw) { setSetup(JSON.parse(setupRaw)); setState('coach') }
-        else { setState('coach-setup') }
+        setState(setupRaw ? 'coach' : 'coach-setup')
       } else {
-        if (joinedRaw) { setJoined(JSON.parse(joinedRaw)); setState('player') }
-        else { setState('player-join') }
+        setState(joinedRaw ? 'player' : 'player-join')
       }
     }
     init()
   }, [])
 
+  // ロール選択 — 既存データがあれば直接ダッシュボードへ
   async function handleSelectRole(role: Role) {
     await AsyncStorage.setItem(ROLE_KEY, role)
-    setState(role==='coach' ? 'coach-setup' : 'player-join')
-  }
-  function handleCoachCreated(s: TeamSetup) { setSetup(s); setState('coach') }
-  function handlePlayerJoined(j: JoinedTeam) { setJoined(j); setState('player') }
-  async function handleReset() {
-    await AsyncStorage.multiRemove([ROLE_KEY, SETUP_KEY, JOINED_KEY])
-    setSetup(null); setJoined(null); setState('select-role')
+    if (role === 'coach')  { setState(setup  ? 'coach'  : 'coach-setup')  }
+    else                   { setState(joined ? 'player' : 'player-join') }
   }
 
-  if (state==='loading')           return <View style={{flex:1,backgroundColor:'#f6f6f8'}}/>
-  if (state==='select-role')       return <RoleSelectionScreen onSelect={handleSelectRole}/>
-  if (state==='coach-setup')       return <CoachSetupScreen onCreated={handleCoachCreated} onBack={() => setState('select-role')}/>
-  if (state==='coach' && setup)    return <CoachDashboard setup={setup} onReset={handleReset}/>
-  if (state==='player-join')       return <PlayerJoinScreen onJoined={handlePlayerJoined} onBack={() => setState('select-role')}/>
-  if (state==='player' && joined)  return <PlayerDashboard joined={joined} onReset={handleReset}/>
+  function handleCoachCreated(s: TeamSetup)  { setSetup(s);  setState('coach')  }
+  function handlePlayerJoined(j: JoinedTeam) { setJoined(j); setState('player') }
+
+  // ロール切り替え — データは消さない
+  async function handleSwitchRole() {
+    await AsyncStorage.removeItem(ROLE_KEY)
+    setState('select-role')
+  }
+
+  // チーム削除（コーチ）
+  async function handleDeleteTeam() {
+    await AsyncStorage.multiRemove([ROLE_KEY, SETUP_KEY])
+    setSetup(null)
+    setState('select-role')
+  }
+
+  // チーム脱退（選手）
+  async function handleLeaveTeam() {
+    await AsyncStorage.multiRemove([ROLE_KEY, JOINED_KEY])
+    setJoined(null)
+    setState('select-role')
+  }
+
+  if (state==='loading')          return <View style={{flex:1,backgroundColor:'#f6f6f8'}}/>
+  if (state==='select-role')      return <RoleSelectionScreen onSelect={handleSelectRole}/>
+  if (state==='coach-setup')      return <CoachSetupScreen onCreated={handleCoachCreated} onBack={() => setState('select-role')}/>
+  if (state==='coach' && setup)   return <CoachDashboard  setup={setup}   onSwitchRole={handleSwitchRole} onDeleteTeam={handleDeleteTeam}/>
+  if (state==='player-join')      return <PlayerJoinScreen onJoined={handlePlayerJoined} onBack={() => setState('select-role')}/>
+  if (state==='player' && joined) return <PlayerDashboard joined={joined} onSwitchRole={handleSwitchRole} onLeaveTeam={handleLeaveTeam}/>
   return <View style={{flex:1,backgroundColor:'#f6f6f8'}}/>
 }
