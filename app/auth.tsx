@@ -351,6 +351,8 @@ function Slide6({ isActive }: { isActive: boolean }) {
   const { signInWithGoogle, signUpWithEmail, continueAsGuest } = useAuth()
   const [googleLoading, setGoogleLoading] = useState(false)
   const [showSignup, setShowSignup] = useState(false)
+  const [emailSent, setEmailSent]   = useState(false)      // 確認メール送信済み状態
+  const [sentEmail, setSentEmail]   = useState('')
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
@@ -372,8 +374,14 @@ function Slide6({ isActive }: { isActive: boolean }) {
     if (!email.trim() || password.length < 6) return
     unlockAudio(); Sounds.pop()
     setLoading(true)
-    try { await signUpWithEmail(email.trim(), password) }
-    finally { setLoading(false) }
+    try {
+      const result = await signUpWithEmail(email.trim(), password)
+      if (result === 'confirm_email') {
+        setSentEmail(email.trim())
+        setEmailSent(true)  // 確認メール送信済みUIに切替
+      }
+      // 'signed_in' → AuthGate が自動でタブへ遷移
+    } finally { setLoading(false) }
   }
 
   const header  = useFadeUp(isActive, 0)
@@ -413,7 +421,22 @@ function Slide6({ isActive }: { isActive: boolean }) {
           </Animated.View>
 
           <Animated.View style={[{ width: '100%' }, emailBtn]}>
-            {!showSignup ? (
+            {emailSent ? (
+              /* ── 確認メール送信済みUI ── */
+              <View style={lg.confirmBox}>
+                <Text style={{ fontSize: 32, marginBottom: 8 }}>✉️</Text>
+                <Text style={lg.confirmTitle}>確認メールを送信しました</Text>
+                <Text style={lg.confirmSub}>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>{sentEmail}</Text>
+                  {'\n'}に届いた認証リンクをクリックするとログインできます
+                </Text>
+                <Text style={lg.confirmNote}>迷惑メールフォルダも確認してください</Text>
+                <TouchableOpacity onPress={() => { setEmailSent(false); setShowSignup(true) }}
+                  style={{ marginTop: 14, paddingVertical: 8 }}>
+                  <Text style={{ color: TEXT.hint, fontSize: 12 }}>別のメールアドレスで試す</Text>
+                </TouchableOpacity>
+              </View>
+            ) : !showSignup ? (
               <TouchableOpacity style={lg.emailBtn} onPress={() => { setShowSignup(true); Sounds.tap() }} activeOpacity={0.7}>
                 <Ionicons name="person-add-outline" size={17} color={BRAND} />
                 <Text style={lg.emailBtnText}>メールで新規アカウント作成</Text>
@@ -666,6 +689,12 @@ const lg = StyleSheet.create({
     paddingVertical: 18 },
   guestText:   { color: '#444', fontSize: 14 },
   footer:      { color: '#333', fontSize: 10, textAlign: 'center', lineHeight: 16, paddingBottom: 8 },
+
+  confirmBox:  { alignItems: 'center', padding: 20, backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
+  confirmTitle:{ color: '#fff', fontSize: 17, fontWeight: '800', marginBottom: 10, textAlign: 'center' },
+  confirmSub:  { color: '#888', fontSize: 13, lineHeight: 22, textAlign: 'center', marginBottom: 8 },
+  confirmNote: { color: '#555', fontSize: 11, textAlign: 'center' },
 })
 
 const nav = StyleSheet.create({

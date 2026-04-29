@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>sCORE — カード影プレビュー</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #f0f2f5;
+    font-family: -apple-system, 'Hiragino Sans', sans-serif;
+    display: flex;
+    gap: 32px;
+    padding: 40px 24px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  /* ─── 共通 ─── */
+  .column { display: flex; flex-direction: column; gap: 16px; width: 340px; }
+  .label  { text-align: center; font-size: 12px; font-weight: 700;
+            letter-spacing: 1px; text-transform: uppercase; color: #9ca3af;
+            margin-bottom: 4px; }
+
+  /* ─── 現在（影なし・弱め） ─── */
+  .card-now {
+    background: #fff;
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+
+  /* ─── 提案A：ソフトな浮き上がり ─── */
+  .card-a {
+    background: #fff;
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow:
+      0 1px 3px rgba(0,0,0,0.04),
+      0 6px 16px rgba(0,0,0,0.08),
+      0 14px 28px rgba(0,0,0,0.04);
+    transform: translateY(0);
+    transition: box-shadow .2s, transform .2s;
+  }
+  .card-a:hover {
+    box-shadow:
+      0 2px 6px rgba(0,0,0,0.05),
+      0 10px 24px rgba(0,0,0,0.10),
+      0 20px 40px rgba(0,0,0,0.06);
+    transform: translateY(-2px);
+  }
+
+  /* ─── 提案B：くっきり立体 ─── */
+  .card-b {
+    background: #fff;
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow:
+      0 0 0 1px rgba(0,0,0,0.04),
+      0 4px 6px rgba(0,0,0,0.04),
+      0 12px 20px rgba(0,0,0,0.10),
+      0 24px 40px rgba(0,0,0,0.06);
+  }
+
+  /* ─── 提案C：Notion / Linear 風（下だけ深い影） ─── */
+  .card-c {
+    background: #fff;
+    border-radius: 18px;
+    padding: 18px;
+    border: 1px solid rgba(0,0,0,0.07);
+    box-shadow:
+      0 8px 20px rgba(0,0,0,0.08),
+      0 2px 4px rgba(0,0,0,0.04);
+  }
+
+  /* ─── カード内コンテンツ共通 ─── */
+  .risk-label { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; color: #9ca3af; margin-bottom: 4px; }
+  .risk-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: rgba(22,101,52,0.1); border: 1px solid rgba(22,101,52,0.3);
+    border-radius: 20px; padding: 3px 10px; float: right;
+  }
+  .risk-dot  { width: 7px; height: 7px; border-radius: 50%; background: #166534; }
+  .risk-text { font-size: 11px; font-weight: 700; color: #166534; }
+  .score-num { font-size: 72px; font-weight: 900; letter-spacing: -3px; color: #111827; line-height: 1.05; margin: 6px 0; }
+  .phrase    { font-size: 15px; font-weight: 800; color: #166534; }
+  .bar-track { height: 5px; background: #f0f2f5; border-radius: 3px; margin-top: 12px; overflow: hidden; }
+  .bar-fill  { height: 5px; width: 4%; background: #166534; border-radius: 3px; }
+
+  /* ─── ステータスカード ─── */
+  .stat-row  { display: flex; gap: 8px; }
+  .stat-card-now { flex: 1; background: #fff; border-radius: 14px; padding: 12px; text-align: center;
+                   box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .stat-card-a   { flex: 1; background: #fff; border-radius: 14px; padding: 12px; text-align: center;
+                   box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 6px 16px rgba(0,0,0,0.08), 0 14px 28px rgba(0,0,0,0.04); }
+  .stat-card-b   { flex: 1; background: #fff; border-radius: 14px; padding: 12px; text-align: center;
+                   box-shadow: 0 0 0 1px rgba(0,0,0,0.04), 0 4px 6px rgba(0,0,0,0.04), 0 12px 20px rgba(0,0,0,0.10); }
+  .stat-card-c   { flex: 1; background: #fff; border-radius: 14px; padding: 12px; text-align: center;
+                   border: 1px solid rgba(0,0,0,0.07);
+                   box-shadow: 0 8px 20px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04); }
+  .stat-emoji { font-size: 20px; display: block; margin-bottom: 5px; }
+  .stat-val-g { font-size: 18px; font-weight: 900; color: #166534; display: block; }
+  .stat-val-y { font-size: 18px; font-weight: 900; color: #f59e0b; display: block; }
+  .stat-label { font-size: 10px; font-weight: 700; color: #9ca3af; display: block; margin-top: 3px; }
+
+  /* AI コーチカード */
+  .ai-card-now { display: flex; align-items: center; gap: 12; background: #fff; border-radius: 16px; padding: 16px;
+                 box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .ai-card-a   { display: flex; align-items: center; gap: 12; background: #fff; border-radius: 16px; padding: 16px;
+                 box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 6px 16px rgba(0,0,0,0.08), 0 14px 28px rgba(0,0,0,0.04); }
+  .ai-card-b   { display: flex; align-items: center; gap: 12; background: #fff; border-radius: 16px; padding: 16px;
+                 box-shadow: 0 0 0 1px rgba(0,0,0,0.04), 0 4px 6px rgba(0,0,0,0.04), 0 12px 20px rgba(0,0,0,0.10); }
+  .ai-card-c   { display: flex; align-items: center; gap: 12; background: #fff; border-radius: 16px; padding: 16px;
+                 border: 1px solid rgba(0,0,0,0.07);
+                 box-shadow: 0 8px 20px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04); }
+  .ai-icon     { width: 44px; height: 44px; border-radius: 12px; background: #111827;
+                 display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+  .ai-title    { font-size: 13px; font-weight: 900; color: #111827; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .ai-sub      { font-size: 12px; color: #6b7280; line-height: 1.5; }
+
+  /* 列のタイトル */
+  h3 { font-size: 13px; font-weight: 800; color: #374151; text-align: center;
+       margin-bottom: 8px; letter-spacing: 0.5px; }
+  .check { color: #166534; font-size: 18px; text-align: center; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+  <!-- 現在 -->
+  <div class="column">
+    <h3>現在</h3>
+    <div class="card-now">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div class="risk-label">INJURY RISK SCORE</div>
+        <div class="risk-badge"><div class="risk-dot"></div><span class="risk-text">低リスク</span></div>
+      </div>
+      <div class="score-num">4</div>
+      <div class="phrase">全力で追い込もう！</div>
+      <div class="bar-track"><div class="bar-fill"></div></div>
+    </div>
+    <div class="stat-row">
+      <div class="stat-card-now"><span class="stat-emoji">⚡</span><span class="stat-val-g">—</span><span class="stat-label">疲労</span></div>
+      <div class="stat-card-now"><span class="stat-emoji">😴</span><span class="stat-val-g">—</span><span class="stat-label">睡眠</span></div>
+      <div class="stat-card-now"><span class="stat-emoji">💪</span><span class="stat-val-y">3/5</span><span class="stat-label">体調</span></div>
+      <div class="stat-card-now"><span class="stat-emoji">☁️</span><span class="stat-val-g">+4</span><span class="stat-label">天気</span></div>
+    </div>
+    <div class="ai-card-now">
+      <div class="ai-icon">🤖</div>
+      <div><div class="ai-title">AI COACH</div><div class="ai-sub">体調・練習・睡眠データから総合分析</div></div>
+    </div>
+  </div>
+
+  <!-- 提案A: ソフト浮き上がり -->
+  <div class="column">
+    <h3>案 A ― ソフト浮き上がり</h3>
+    <div class="card-a">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div class="risk-label">INJURY RISK SCORE</div>
+        <div class="risk-badge"><div class="risk-dot"></div><span class="risk-text">低リスク</span></div>
+      </div>
+      <div class="score-num">4</div>
+      <div class="phrase">全力で追い込もう！</div>
+      <div class="bar-track"><div class="bar-fill"></div></div>
+    </div>
+    <div class="stat-row">
+      <div class="stat-card-a"><span class="stat-emoji">⚡</span><span class="stat-val-g">—</span><span class="stat-label">疲労</span></div>
+      <div class="stat-card-a"><span class="stat-emoji">😴</span><span class="stat-val-g">—</span><span class="stat-label">睡眠</span></div>
+      <div class="stat-card-a"><span class="stat-emoji">💪</span><span class="stat-val-y">3/5</span><span class="stat-label">体調</span></div>
+      <div class="stat-card-a"><span class="stat-emoji">☁️</span><span class="stat-val-g">+4</span><span class="stat-label">天気</span></div>
+    </div>
+    <div class="ai-card-a">
+      <div class="ai-icon">🤖</div>
+      <div><div class="ai-title">AI COACH</div><div class="ai-sub">体調・練習・睡眠データから総合分析</div></div>
+    </div>
+    <p style="font-size:11px;color:#9ca3af;text-align:center;margin-top:-8px;">shadow: 6px 16px / 14px 28px — 3層</p>
+  </div>
+
+  <!-- 提案B: くっきり立体 -->
+  <div class="column">
+    <h3>案 B ― くっきり立体</h3>
+    <div class="card-b">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div class="risk-label">INJURY RISK SCORE</div>
+        <div class="risk-badge"><div class="risk-dot"></div><span class="risk-text">低リスク</span></div>
+      </div>
+      <div class="score-num">4</div>
+      <div class="phrase">全力で追い込もう！</div>
+      <div class="bar-track"><div class="bar-fill"></div></div>
+    </div>
+    <div class="stat-row">
+      <div class="stat-card-b"><span class="stat-emoji">⚡</span><span class="stat-val-g">—</span><span class="stat-label">疲労</span></div>
+      <div class="stat-card-b"><span class="stat-emoji">😴</span><span class="stat-val-g">—</span><span class="stat-label">睡眠</span></div>
+      <div class="stat-card-b"><span class="stat-emoji">💪</span><span class="stat-val-y">3/5</span><span class="stat-label">体調</span></div>
+      <div class="stat-card-b"><span class="stat-emoji">☁️</span><span class="stat-val-g">+4</span><span class="stat-label">天気</span></div>
+    </div>
+    <div class="ai-card-b">
+      <div class="ai-icon">🤖</div>
+      <div><div class="ai-title">AI COACH</div><div class="ai-sub">体調・練習・睡眠データから総合分析</div></div>
+    </div>
+    <p style="font-size:11px;color:#9ca3af;text-align:center;margin-top:-8px;">shadow: 0px outline + 12px 20px — 4層</p>
+  </div>
+
+  <!-- 提案C: ボーダー + 底面だけ深い -->
+  <div class="column">
+    <h3>案 C ― Notion風ボーダー+底影</h3>
+    <div class="card-c">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div class="risk-label">INJURY RISK SCORE</div>
+        <div class="risk-badge"><div class="risk-dot"></div><span class="risk-text">低リスク</span></div>
+      </div>
+      <div class="score-num">4</div>
+      <div class="phrase">全力で追い込もう！</div>
+      <div class="bar-track"><div class="bar-fill"></div></div>
+    </div>
+    <div class="stat-row">
+      <div class="stat-card-c"><span class="stat-emoji">⚡</span><span class="stat-val-g">—</span><span class="stat-label">疲労</span></div>
+      <div class="stat-card-c"><span class="stat-emoji">😴</span><span class="stat-val-g">—</span><span class="stat-label">睡眠</span></div>
+      <div class="stat-card-c"><span class="stat-emoji">💪</span><span class="stat-val-y">3/5</span><span class="stat-label">体調</span></div>
+      <div class="stat-card-c"><span class="stat-emoji">☁️</span><span class="stat-val-g">+4</span><span class="stat-label">天気</span></div>
+    </div>
+    <div class="ai-card-c">
+      <div class="ai-icon">🤖</div>
+      <div><div class="ai-title">AI COACH</div><div class="ai-sub">体調・練習・睡眠データから総合分析</div></div>
+    </div>
+    <p style="font-size:11px;color:#9ca3af;text-align:center;margin-top:-8px;">border 1px + shadow 8px 20px — 細枠付き</p>
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>sCORE — Instagram 横3枚バナー</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a1a1a; display: flex; flex-direction: column; align-items: center; gap: 40px; padding: 40px 20px; font-family: -apple-system, 'Helvetica Neue', sans-serif; }
+
+  h2 { color: #fff; font-size: 14px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.5; }
+
+  /* ── 3枚まとめてのフレーム（1080×1080×3 = 3240×1080） */
+  .strip {
+    display: flex;
+    width: 1080px; /* プレビュー用縮小 */
+    height: 360px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+
+  .panel {
+    width: 360px;
+    height: 360px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    padding: 28px 24px;
+    text-align: center;
+  }
+
+  /* ──────────────────────────────────────
+     パターン A：ロゴ × キャッチコピー
+  ────────────────────────────────────── */
+
+  /* A-1: ロゴパネル（深緑） */
+  .a1 { background: #166534; }
+  .a1 .logo-pill {
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 14px 28px;
+    margin-bottom: 18px;
+  }
+  .a1 .logo-pill span {
+    font-size: 44px; font-weight: 900; letter-spacing: -1px; color: #166534;
+  }
+  .a1 .tagline {
+    color: rgba(255,255,255,0.85);
+    font-size: 13px; font-weight: 600; letter-spacing: 0.5px; line-height: 1.5;
+  }
+
+  /* A-2: メッセージパネル（白） */
+  .a2 { background: #ffffff; border-left: 1px solid #e5e7eb; border-right: 1px solid #e5e7eb; }
+  .a2 .score-num { font-size: 100px; font-weight: 900; color: #111827; line-height: 1; letter-spacing: -4px; }
+  .a2 .score-label { font-size: 10px; font-weight: 700; color: #9ca3af; letter-spacing: 2px; margin-bottom: 8px; }
+  .a2 .risk-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: rgba(229,57,53,0.10); border: 1px solid rgba(229,57,53,0.3);
+    border-radius: 20px; padding: 4px 12px; margin-top: 10px;
+  }
+  .a2 .risk-dot { width: 7px; height: 7px; border-radius: 50%; background: #E53935; }
+  .a2 .risk-text { font-size: 11px; font-weight: 700; color: #E53935; }
+
+  /* A-3: コピーパネル（深緑） */
+  .a3 { background: #166534; }
+  .a3 .main-copy {
+    font-size: 26px; font-weight: 900; color: #ffffff;
+    line-height: 1.3; letter-spacing: -0.5px; margin-bottom: 14px;
+  }
+  .a3 .main-copy em { font-style: normal; color: #86efac; }
+  .a3 .sub-copy {
+    font-size: 11px; color: rgba(255,255,255,0.7);
+    font-weight: 600; line-height: 1.6;
+  }
+  .a3 .dl-btn {
+    margin-top: 18px;
+    background: #ffffff; border-radius: 10px;
+    padding: 10px 22px;
+    font-size: 12px; font-weight: 800; color: #166534;
+  }
+
+  /* ──────────────────────────────────────
+     パターン B：機能訴求 × スコア × CTA
+  ────────────────────────────────────── */
+
+  /* B-1: キャッチコピー（白） */
+  .b1 { background: #f6f6f8; }
+  .b1 .eyebrow {
+    font-size: 9px; font-weight: 700; letter-spacing: 2.5px; color: #166534;
+    text-transform: uppercase; margin-bottom: 12px;
+  }
+  .b1 .main-copy {
+    font-size: 27px; font-weight: 900; color: #111827;
+    line-height: 1.25; letter-spacing: -0.5px; margin-bottom: 12px;
+  }
+  .b1 .main-copy em { font-style: normal; color: #166534; }
+  .b1 .sub-copy { font-size: 11px; color: #6b7280; font-weight: 500; line-height: 1.6; }
+
+  /* B-2: スコアパネル（深緑） */
+  .b2 { background: #166534; }
+  .b2 .score-label { font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.6); letter-spacing: 2px; margin-bottom: 6px; }
+  .b2 .score-num { font-size: 110px; font-weight: 900; color: #ffffff; line-height: 1; letter-spacing: -4px; }
+  .b2 .score-phrase { font-size: 15px; font-weight: 800; color: #86efac; margin-top: 8px; }
+  .b2 .score-bar-wrap {
+    width: 100%; height: 5px; background: rgba(255,255,255,0.2);
+    border-radius: 3px; overflow: hidden; margin-top: 14px;
+  }
+  .b2 .score-bar { height: 5px; width: 72%; background: #E53935; border-radius: 3px; }
+
+  /* B-3: 機能一覧（白） */
+  .b3 { background: #ffffff; justify-content: flex-start; padding-top: 32px; }
+  .b3 .feat-title { font-size: 13px; font-weight: 900; color: #111827; letter-spacing: 0.3px; margin-bottom: 16px; align-self: flex-start; }
+  .b3 .feat-list { width: 100%; display: flex; flex-direction: column; gap: 9px; }
+  .b3 .feat-item { display: flex; align-items: center; gap: 10px; }
+  .b3 .feat-icon { font-size: 18px; width: 32px; text-align: center; }
+  .b3 .feat-text { font-size: 12px; font-weight: 600; color: #374151; }
+  .b3 .score-logo {
+    position: absolute; bottom: 20px; right: 20px;
+    font-size: 11px; font-weight: 900; color: #166534;
+    background: #f0fdf4; border: 1px solid #bbf7d0;
+    border-radius: 8px; padding: 4px 10px;
+  }
+
+  /* 区切り線（連結感） */
+  .divider-line {
+    position: absolute; top: 0; bottom: 0; left: 0;
+    width: 1px; background: rgba(255,255,255,0.15);
+  }
+
+  /* ラベル */
+  .preview-label {
+    color: #fff; font-size: 18px; font-weight: 700; margin-bottom: 10px;
+    align-self: flex-start;
+  }
+  .preview-sub {
+    color: rgba(255,255,255,0.4); font-size: 12px;
+    align-self: flex-start; margin-bottom: 16px;
+  }
+</style>
+</head>
+<body>
+
+  <!-- ── パターン A ── -->
+  <div style="align-self:flex-start">
+    <div class="preview-label">パターン A</div>
+    <div class="preview-sub">陸上選手のための「記録 × AI アプリ。」</div>
+  </div>
+
+  <div class="strip">
+
+    <!-- A-1: ロゴ -->
+    <div class="panel a1">
+      <div class="logo-pill"><span>sCORE</span></div>
+      <div class="tagline">陸上選手のための<br>「記録 × AI アプリ。」</div>
+    </div>
+
+    <!-- A-2: リスクスコア -->
+    <div class="panel a2">
+      <div class="score-label">INJURY RISK SCORE</div>
+      <div class="score-num">72</div>
+      <div class="risk-badge">
+        <div class="risk-dot"></div>
+        <span class="risk-text">高リスク</span>
+      </div>
+    </div>
+
+    <!-- A-3: コピー -->
+    <div class="panel a3">
+      <div class="main-copy">怪我する前に、<br><em>AIが止める。</em></div>
+      <div class="sub-copy">練習・睡眠・体調を毎日分析。<br>スコアで今日の限界がわかる。</div>
+      <div class="dl-btn">無料で始める →</div>
+    </div>
+
+  </div>
+
+
+  <!-- ── パターン B ── -->
+  <div style="align-self:flex-start">
+    <div class="preview-label">パターン B</div>
+    <div class="preview-sub">怪我ゼロで、もっと速く。</div>
+  </div>
+
+  <div class="strip">
+
+    <!-- B-1: キャッチ -->
+    <div class="panel b1">
+      <div class="eyebrow">sCORE — AI Training App</div>
+      <div class="main-copy">怪我ゼロで、<br><em>もっと速く。</em></div>
+      <div class="sub-copy">AIが毎日あなたの怪我リスクを採点。<br>陸上選手専用のスマートコーチ。</div>
+    </div>
+
+    <!-- B-2: スコア -->
+    <div class="panel b2">
+      <div class="score-label">INJURY RISK SCORE</div>
+      <div class="score-num">72</div>
+      <div class="score-phrase">強度を落とそう</div>
+      <div class="score-bar-wrap"><div class="score-bar"></div></div>
+    </div>
+
+    <!-- B-3: 機能 -->
+    <div class="panel b3">
+      <div class="feat-title">全部入り、一つのアプリ。</div>
+      <div class="feat-list">
+        <div class="feat-item"><div class="feat-icon">🤖</div><div class="feat-text">毎日AIコーチがアドバイス</div></div>
+        <div class="feat-item"><div class="feat-icon">⏱️</div><div class="feat-text">タイム記録・PB管理</div></div>
+        <div class="feat-item"><div class="feat-icon">📹</div><div class="feat-text">動画フォーム分析</div></div>
+        <div class="feat-item"><div class="feat-icon">🏆</div><div class="feat-text">試合プランニング</div></div>
+        <div class="feat-item"><div class="feat-icon">😴</div><div class="feat-text">睡眠・疲労トラッキング</div></div>
+      </div>
+      <div class="score-logo">sCORE</div>
+    </div>
+
+  </div>
+
+  <div style="color:rgba(255,255,255,0.3); font-size:11px; margin-top:10px;">
+    ※ 各パネルは 1080×1080px で書き出し → 3枚連続投稿で横一繋がりになります
+  </div>
+
+</body>
+</html>

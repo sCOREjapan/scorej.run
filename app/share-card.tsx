@@ -1,536 +1,560 @@
-// app/share-card.tsx — 記録シェアカード
-
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+// app/share-card.tsx — シェアカード v2（透過オーバーレイ）
+import React, { useState, useEffect, useCallback } from 'react'
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Platform,
-  ActivityIndicator,
+  View, Text, StyleSheet, TouchableOpacity,
+  ScrollView, Platform, ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import * as Sharing from 'expo-sharing'
 import { Ionicons } from '@expo/vector-icons'
-import { BRAND, TEXT, SURFACE, SURFACE2 } from '../lib/theme'
+import { LinearGradient } from 'expo-linear-gradient'
+import { BRAND } from '../lib/theme'
+import Toast from 'react-native-toast-message'
 import type { RaceRecord } from '../types'
 
-// ─── 定数 ───────────────────────────────────────────────────────────────
 const RECORDS_KEY = 'trackmate_race_records'
 
-// ─── ユーティリティ ─────────────────────────────────────────────────────
-function formatDateJP(dateStr: string): string {
-  const [y, m, d] = dateStr.split('-')
+function formatDateJP(s: string) {
+  const [y, m, d] = s.split('-')
   return `${y}年${m}月${d}日`
 }
 
-// ─── シェアカードビュー ─────────────────────────────────────────────────
-interface ShareCardViewProps {
-  record: RaceRecord
+// ── Canvas Export — 透過PNG (1080×1920) ────────────────────────────────────
+function exportOverlayPNG(record: RaceRecord) {
+  if (typeof document === 'undefined') return
+
+  const W = 1080, H = 1920
+  const cv = document.createElement('canvas')
+  cv.width = W; cv.height = H
+  const c = cv.getContext('2d')!
+  // 背景は塗らない → 完全透明
+
+  function shadow(blur = 20, color = 'rgba(0,0,0,0.92)') {
+    c.shadowColor = color; c.shadowBlur = blur
+  }
+  function noShadow() { c.shadowColor = 'transparent'; c.shadowBlur = 0; c.shadowOffsetX = 0; c.shadowOffsetY = 0 }
+
+  function rr(x: number, y: number, w: number, h: number, r: number) {
+    c.beginPath()
+    c.moveTo(x + r, y); c.lineTo(x + w - r, y)
+    c.quadraticCurveTo(x + w, y, x + w, y + r)
+    c.lineTo(x + w, y + h - r)
+    c.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
+    c.lineTo(x + r, y + h)
+    c.quadraticCurveTo(x, y + h, x, y + h - r)
+    c.lineTo(x, y + r)
+    c.quadraticCurveTo(x, y, x + r, y)
+    c.closePath()
+  }
+
+  // ── ロゴ（左上） ──
+  shadow(24)
+  c.beginPath(); c.arc(82, 120, 18, 0, Math.PI * 2)
+  c.fillStyle = BRAND; c.fill()
+  c.font = '700 42px system-ui, -apple-system, sans-serif'
+  c.fillStyle = '#ffffff'
+  c.fillText('trackmate', 112, 135)
+  noShadow()
+
+  // ── グラスブロック（中央） ──
+  const bx = 68, by = H / 2 - 360, bw = W - 136, bh = 680
+
+  // ブロックの影
+  c.shadowColor = 'rgba(0,0,0,0.45)'; c.shadowBlur = 80; c.shadowOffsetY = 24
+  c.fillStyle = 'rgba(255,255,255,0.17)'
+  rr(bx, by, bw, bh, 44); c.fill()
+  noShadow()
+
+  // グラスの枠線
+  c.strokeStyle = 'rgba(255,255,255,0.38)'; c.lineWidth = 2.5
+  rr(bx, by, bw, bh, 44); c.stroke()
+
+  const tx = bx + 64
+
+  // 種目ラベル
+  shadow(12, 'rgba(0,0,0,0.7)')
+  c.font = '700 40px system-ui, sans-serif'
+  c.fillStyle = BRAND
+  c.fillText(record.event, tx, by + 94)
+
+  // 大きいタイム（自動縮小）
+  let fs = 200
+  c.font = `800 ${fs}px system-ui, sans-serif`
+  while (c.measureText(record.result_display).width > bw - 110 && fs > 96) {
+    fs -= 6; c.font = `800 ${fs}px system-ui, sans-serif`
+  }
+  shadow(30, 'rgba(0,0,0,0.95)')
+  c.fillStyle = '#ffffff'
+  c.fillText(record.result_display, tx, by + 94 + fs + 16)
+
+  // PB / SB バッジ
+  const badgeY = by + 94 + fs + 54
+  noShadow()
+  if (record.is_pb || record.is_sb) {
+    const label = record.is_pb ? 'PB' : 'SB'
+    const color = record.is_pb ? BRAND : '#4A9FFF'
+    c.fillStyle = color + '40'; rr(tx, badgeY, 130, 60, 14); c.fill()
+    c.strokeStyle = color; c.lineWidth = 2.5; rr(tx, badgeY, 130, 60, 14); c.stroke()
+    shadow(10, 'rgba(0,0,0,0.6)')
+    c.font = '800 32px system-ui, sans-serif'
+    c.fillStyle = color
+    c.fillText(label, tx + 38, badgeY + 42)
+    noShadow()
+  }
+
+  // セパレーター
+  const sepY = by + bh - 248
+  c.strokeStyle = 'rgba(255,255,255,0.28)'; c.lineWidth = 1
+  c.beginPath(); c.moveTo(tx, sepY); c.lineTo(bx + bw - 64, sepY); c.stroke()
+
+  // メタ情報
+  shadow(12, 'rgba(0,0,0,0.8)')
+  c.font = '400 36px system-ui, sans-serif'
+  c.fillStyle = 'rgba(255,255,255,0.88)'
+  let my = sepY + 64
+  c.fillText(formatDateJP(record.race_date), tx, my)
+  if (record.competition_name) { my += 56; c.fillText(record.competition_name, tx, my) }
+  if (record.wind_ms !== undefined) {
+    my += 56
+    c.fillText(`wind  ${record.wind_ms >= 0 ? '+' : ''}${record.wind_ms} m/s`, tx, my)
+  }
+  noShadow()
+
+  // ウォーターマーク（右下）
+  shadow(10, 'rgba(0,0,0,0.55)')
+  c.font = '500 30px system-ui, sans-serif'
+  c.fillStyle = 'rgba(255,255,255,0.42)'
+  c.textAlign = 'right'
+  c.fillText('trackmate.app', W - 72, H - 88)
+  noShadow()
+  c.textAlign = 'left'
+
+  // ダウンロード
+  const a = document.createElement('a')
+  a.download = `trackmate-${record.event.replace(/[^a-z0-9]/gi, '')}-overlay.png`
+  a.href = cv.toDataURL('image/png')
+  a.click()
 }
 
-const ShareCardView: React.FC<ShareCardViewProps> = ({ record }) => (
-  <View style={cardStyles.card}>
-    {/* 赤いアクセントライン */}
-    <View style={cardStyles.accentLine} />
-
-    {/* ロゴ */}
-    <View style={cardStyles.logoRow}>
-      <View style={cardStyles.logoDot} />
-      <Text style={cardStyles.logoText}>sCORE</Text>
-    </View>
-
-    {/* 種目バッジ */}
-    <View style={cardStyles.eventBadge}>
-      <Text style={cardStyles.eventBadgeText}>{record.event}</Text>
-    </View>
-
-    {/* 記録（大きく） */}
-    <Text style={cardStyles.resultText}>{record.result_display}</Text>
-
-    {/* PB / SB バッジ */}
-    <View style={cardStyles.badgeRow}>
-      {record.is_pb && (
-        <View style={[cardStyles.badge, { backgroundColor: `${BRAND}33`, borderColor: BRAND }]}>
-          <Ionicons name="trophy" size={14} color={BRAND} />
-          <Text style={[cardStyles.badgeText, { color: BRAND }]}>PB</Text>
-        </View>
-      )}
-      {record.is_sb && !record.is_pb && (
-        <View style={[cardStyles.badge, { backgroundColor: '#4A9FFF33', borderColor: '#4A9FFF' }]}>
-          <Ionicons name="star" size={14} color="#4A9FFF" />
-          <Text style={[cardStyles.badgeText, { color: '#4A9FFF' }]}>SB</Text>
-        </View>
-      )}
-      {!record.is_pb && !record.is_sb && (
-        <View style={[cardStyles.badge, { backgroundColor: 'rgba(255,255,255,0.08)', borderColor: 'rgba(255,255,255,0.2)' }]}>
-          <Text style={[cardStyles.badgeText, { color: TEXT.secondary }]}>記録</Text>
-        </View>
-      )}
-    </View>
-
-    {/* 日付・会場 */}
-    <View style={cardStyles.metaSection}>
-      <View style={cardStyles.metaRow}>
-        <Ionicons name="calendar-outline" size={14} color={TEXT.hint} />
-        <Text style={cardStyles.metaText}>{formatDateJP(record.race_date)}</Text>
+// ── プレビューコンポーネント（アプリ内表示用） ───────────────────────────────
+// LinearGradient = サンプル背景（実際のPNGは透過）
+function OverlayPreview({ record }: { record: RaceRecord }) {
+  return (
+    <LinearGradient
+      colors={['#0f2027', '#203a43', '#2c5364']}
+      style={pv.container}
+    >
+      {/* ロゴ */}
+      <View style={pv.logoRow}>
+        <View style={pv.logoDot} />
+        <Text style={pv.logoTxt}>trackmate</Text>
       </View>
-      {record.competition_name != null && (
-        <View style={cardStyles.metaRow}>
-          <Ionicons name="flag-outline" size={14} color={TEXT.hint} />
-          <Text style={cardStyles.metaText} numberOfLines={1}>{record.competition_name}</Text>
-        </View>
-      )}
-      {record.venue != null && record.competition_name == null && (
-        <View style={cardStyles.metaRow}>
-          <Ionicons name="location-outline" size={14} color={TEXT.hint} />
-          <Text style={cardStyles.metaText} numberOfLines={1}>{record.venue}</Text>
-        </View>
-      )}
-      {record.wind_ms !== undefined && (
-        <View style={cardStyles.metaRow}>
-          <Ionicons name="speedometer-outline" size={14} color={TEXT.hint} />
-          <Text style={cardStyles.metaText}>
-            {record.wind_ms >= 0 ? `+${record.wind_ms}` : record.wind_ms} m/s
-          </Text>
-        </View>
-      )}
-    </View>
 
-    {/* 下部ライン */}
-    <View style={cardStyles.bottomLine} />
-    <Text style={cardStyles.footerText}>陸上競技記録管理アプリ</Text>
-  </View>
-)
+      {/* グラスブロック */}
+      <View style={pv.glass}>
+        <Text style={pv.event}>{record.event}</Text>
+        <Text style={pv.result} adjustsFontSizeToFit numberOfLines={1}>
+          {record.result_display}
+        </Text>
+        <View style={pv.badgeRow}>
+          {record.is_pb && (
+            <View style={[pv.badge, { backgroundColor: BRAND + '33', borderColor: BRAND }]}>
+              <Ionicons name="trophy" size={12} color={BRAND} />
+              <Text style={[pv.badgeTxt, { color: BRAND }]}>PB</Text>
+            </View>
+          )}
+          {record.is_sb && !record.is_pb && (
+            <View style={[pv.badge, { backgroundColor: '#4A9FFF33', borderColor: '#4A9FFF' }]}>
+              <Ionicons name="star" size={12} color="#4A9FFF" />
+              <Text style={[pv.badgeTxt, { color: '#4A9FFF' }]}>SB</Text>
+            </View>
+          )}
+        </View>
+        <View style={pv.divider} />
+        <View style={pv.metaList}>
+          <View style={pv.metaRow}>
+            <Ionicons name="calendar-outline" size={12} color="rgba(255,255,255,0.5)" />
+            <Text style={pv.metaTxt}>{formatDateJP(record.race_date)}</Text>
+          </View>
+          {record.competition_name != null && (
+            <View style={pv.metaRow}>
+              <Ionicons name="flag-outline" size={12} color="rgba(255,255,255,0.5)" />
+              <Text style={pv.metaTxt} numberOfLines={1}>{record.competition_name}</Text>
+            </View>
+          )}
+          {record.wind_ms !== undefined && (
+            <View style={pv.metaRow}>
+              <Ionicons name="cloud-outline" size={12} color="rgba(255,255,255,0.5)" />
+              <Text style={pv.metaTxt}>
+                {record.wind_ms >= 0 ? '+' : ''}{record.wind_ms} m/s
+              </Text>
+            </View>
+          )}
+        </View>
+      </View>
 
-// ─── メインスクリーン ────────────────────────────────────────────────────
+      {/* ウォーターマーク */}
+      <Text style={pv.watermark}>trackmate.app</Text>
+    </LinearGradient>
+  )
+}
+
+// ── メインスクリーン ──────────────────────────────────────────────────────────
 export default function ShareCardScreen() {
   const router = useRouter()
-  const params = useLocalSearchParams<{ recordId?: string }>()
+  const { recordId } = useLocalSearchParams<{ recordId?: string }>()
 
-  const [records, setRecords] = useState<RaceRecord[]>([])
-  const [selectedRecord, setSelectedRecord] = useState<RaceRecord | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [sharing, setSharing] = useState(false)
+  const [records,   setRecords]   = useState<RaceRecord[]>([])
+  const [selected,  setSelected]  = useState<RaceRecord | null>(null)
+  const [loading,   setLoading]   = useState(true)
+  const [exporting, setExporting] = useState(false)
 
-  // データ読み込み
   useEffect(() => {
     ;(async () => {
       try {
         const raw = await AsyncStorage.getItem(RECORDS_KEY)
         const all: RaceRecord[] = raw ? JSON.parse(raw) : []
         setRecords(all)
-
         if (all.length > 0) {
-          if (params.recordId) {
-            const found = all.find(r => r.id === params.recordId)
-            setSelectedRecord(found ?? all[0])
-          } else {
-            // PBがあれば最新のPBを、なければ最新記録を表示
-            const pb = all.find(r => r.is_pb)
-            setSelectedRecord(pb ?? all[0])
-          }
+          const found = recordId ? all.find(r => r.id === recordId) : undefined
+          setSelected(found ?? all.find(r => r.is_pb) ?? all[0])
         }
       } catch {
-        // ignore parse errors
+        // ignore
       } finally {
         setLoading(false)
       }
     })()
-  }, [params.recordId])
+  }, [recordId])
 
-  // シェア処理
-  const handleShare = useCallback(async () => {
-    if (!selectedRecord) return
-    setSharing(true)
+  const handleDownload = useCallback(async () => {
+    if (!selected) return
+    setExporting(true)
     try {
-      const text = [
-        `【sCORE 記録シェア】`,
-        `種目: ${selectedRecord.event}`,
-        `記録: ${selectedRecord.result_display}`,
-        selectedRecord.is_pb ? '🏆 自己ベスト！' : '',
-        `日付: ${formatDateJP(selectedRecord.race_date)}`,
-        selectedRecord.competition_name ? `大会: ${selectedRecord.competition_name}` : '',
-        ``,
-        `sCORE で記録管理 📱`,
-      ].filter(Boolean).join('\n')
-
-      if (Platform.OS === 'web') {
-        if (navigator.clipboard) {
-          await navigator.clipboard.writeText(text)
-        }
-      } else {
-        const isAvailable = await Sharing.isAvailableAsync()
-        if (isAvailable) {
-          // expo-sharing はファイルが必要なため、テキストをシェアシートで開く代替として
-          // 実際のアプリでは expo-view-shot + Sharing を組み合わせる
-          // ここでは文字列ベースの共有情報を提示
-        }
-        // フォールバック: コピー通知
-      }
-      // シェアシート / クリップボードコピー完了を通知
-      // Toast は _layout に配置済み
-      const { default: Toast } = await import('react-native-toast-message')
+      exportOverlayPNG(selected)
       Toast.show({
         type: 'success',
-        text1: 'テキストをコピーしました',
-        text2: `${selectedRecord.event}  ${selectedRecord.result_display}`,
+        text1: '透過PNGをダウンロードしました',
+        text2: 'インスタのストーリーで動画に重ねて使えます',
+        visibilityTime: 2800,
       })
     } catch {
-      const { default: Toast } = await import('react-native-toast-message')
-      Toast.show({ type: 'error', text1: 'シェアに失敗しました' })
+      Toast.show({ type: 'error', text1: 'ダウンロードに失敗しました' })
     } finally {
-      setSharing(false)
+      setExporting(false)
     }
-  }, [selectedRecord])
+  }, [selected])
 
-  // ─── UI ─────────────────────────────────────────────────────
+  const handleCopyText = useCallback(async () => {
+    if (!selected) return
+    const lines = [
+      `${selected.event}  ${selected.result_display}`,
+      selected.is_pb ? '🏆 自己ベスト更新！' : selected.is_sb ? '⭐ シーズンベスト！' : '',
+      formatDateJP(selected.race_date),
+      selected.competition_name ?? '',
+      '',
+      'trackmate.app で記録管理',
+    ].filter(Boolean).join('\n')
+
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(lines)
+      }
+      Toast.show({ type: 'success', text1: 'テキストをコピーしました', visibilityTime: 1800 })
+    } catch {
+      Toast.show({ type: 'error', text1: 'コピーに失敗しました' })
+    }
+  }, [selected])
+
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      {/* ヘッダー */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.headerBack} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={26} color={TEXT.secondary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>記録シェア</Text>
-        <View style={{ width: 44 }} />
-      </View>
+    <View style={s.screen}>
+      <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
 
-      {loading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator color={BRAND} size="large" />
-        </View>
-      ) : records.length === 0 ? (
-        <View style={styles.centered}>
-          <Ionicons name="timer-outline" size={64} color={TEXT.hint} />
-          <Text style={styles.emptyTitle}>記録がありません</Text>
-          <Text style={styles.emptyBody}>「記録管理」タブで記録を追加してください</Text>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Text style={styles.backBtnText}>← 戻る</Text>
+        {/* ヘッダー */}
+        <View style={s.header}>
+          <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={26} color="rgba(255,255,255,0.75)" />
           </TouchableOpacity>
+          <Text style={s.headerTitle}>シェアカード</Text>
+          <View style={{ width: 44 }} />
         </View>
-      ) : (
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* カードプレビュー */}
-          {selectedRecord != null && (
-            <View style={styles.cardWrapper}>
-              <ShareCardView record={selectedRecord} />
-            </View>
-          )}
 
-          {/* シェアボタン */}
-          <TouchableOpacity
-            style={[styles.shareButton, sharing && { opacity: 0.6 }]}
-            onPress={handleShare}
-            disabled={sharing || selectedRecord == null}
-            activeOpacity={0.85}
-          >
-            {sharing ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
-            ) : (
-              <Ionicons name="share-social-outline" size={20} color="#FFFFFF" />
-            )}
-            <Text style={styles.shareButtonText}>
-              {sharing ? '共有中...' : 'コピーして共有'}
-            </Text>
-          </TouchableOpacity>
-
-          {/* 記録セレクター */}
-          <Text style={styles.selectorLabel}>記録を選択</Text>
+        {loading ? (
+          <View style={s.center}>
+            <ActivityIndicator color={BRAND} size="large" />
+          </View>
+        ) : records.length === 0 ? (
+          <View style={s.center}>
+            <Ionicons name="timer-outline" size={60} color="rgba(255,255,255,0.18)" />
+            <Text style={s.emptyTitle}>記録がありません</Text>
+            <Text style={s.emptySub}>「記録管理」タブで記録を追加してください</Text>
+            <TouchableOpacity style={s.goBack} onPress={() => router.back()}>
+              <Text style={s.goBackTxt}>戻る</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
           <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.selectorRow}
+            contentContainerStyle={s.scroll}
+            showsVerticalScrollIndicator={false}
           >
-            {records.map(r => (
+            {/* プレビューヒント */}
+            <View style={s.hintRow}>
+              <Ionicons name="layers-outline" size={14} color={BRAND} />
+              <Text style={s.hintTxt}>
+                背景透過のPNGを書き出します — インスタのストーリーで動画の上に重ねて投稿できます
+              </Text>
+            </View>
+
+            {/* カードプレビュー */}
+            {selected != null && (
+              <View style={s.previewWrap}>
+                <OverlayPreview record={selected} />
+                {/* サンプル背景の注記 */}
+                <View style={s.sampleBadge}>
+                  <Text style={s.sampleTxt}>サンプル背景</Text>
+                </View>
+              </View>
+            )}
+
+            {/* アクションボタン */}
+            <View style={s.actions}>
+              {Platform.OS === 'web' && (
+                <TouchableOpacity
+                  style={[s.dlBtn, exporting && { opacity: 0.6 }]}
+                  onPress={handleDownload}
+                  disabled={exporting || !selected}
+                  activeOpacity={0.85}
+                >
+                  {exporting
+                    ? <ActivityIndicator color="#fff" size="small" />
+                    : <Ionicons name="download-outline" size={20} color="#fff" />
+                  }
+                  <Text style={s.dlTxt}>
+                    {exporting ? 'ダウンロード中...' : '透過PNGをダウンロード'}
+                  </Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
-                key={r.id}
-                style={[
-                  styles.selectorChip,
-                  selectedRecord?.id === r.id && styles.selectorChipActive,
-                ]}
-                onPress={() => setSelectedRecord(r)}
+                style={s.copyBtn}
+                onPress={handleCopyText}
+                disabled={!selected}
                 activeOpacity={0.8}
               >
-                <Text style={[
-                  styles.selectorChipEvent,
-                  selectedRecord?.id === r.id && { color: '#FFFFFF' },
-                ]}>
-                  {r.event}
-                </Text>
-                <Text style={[
-                  styles.selectorChipResult,
-                  selectedRecord?.id === r.id && { color: '#FFFFFF' },
-                ]}>
-                  {r.result_display}
-                </Text>
-                {r.is_pb && (
-                  <View style={styles.selectorPBDot}>
-                    <Text style={styles.selectorPBDotText}>PB</Text>
-                  </View>
-                )}
+                <Ionicons name="copy-outline" size={18} color="rgba(255,255,255,0.65)" />
+                <Text style={s.copyTxt}>テキストをコピー</Text>
               </TouchableOpacity>
-            ))}
+            </View>
+
+            {/* 使い方ガイド */}
+            <View style={s.guide}>
+              {[
+                { n: '1', t: 'PNGをダウンロード' },
+                { n: '2', t: 'インスタでストーリーを開き、動画を背景に設定' },
+                { n: '3', t: 'スタンプ追加 → 「ギャラリー」からPNGを選択' },
+                { n: '4', t: '全画面に広げて投稿' },
+              ].map(step => (
+                <View key={step.n} style={s.guideRow}>
+                  <View style={s.guideNum}>
+                    <Text style={s.guideNumTxt}>{step.n}</Text>
+                  </View>
+                  <Text style={s.guideTxt}>{step.t}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* 記録セレクター */}
+            <Text style={s.selectorLabel}>記録を選択</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={s.chips}
+            >
+              {records.map(r => (
+                <TouchableOpacity
+                  key={r.id}
+                  style={[s.chip, selected?.id === r.id && s.chipActive]}
+                  onPress={() => setSelected(r)}
+                  activeOpacity={0.8}
+                >
+                  {r.is_pb && (
+                    <View style={s.pbDot}>
+                      <Text style={s.pbDotTxt}>PB</Text>
+                    </View>
+                  )}
+                  <Text style={[s.chipEvent, selected?.id === r.id && { color: '#fff' }]}>
+                    {r.event}
+                  </Text>
+                  <Text style={[s.chipResult, selected?.id === r.id && { color: '#fff' }]}>
+                    {r.result_display}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
           </ScrollView>
-        </ScrollView>
-      )}
-    </SafeAreaView>
+        )}
+      </SafeAreaView>
+    </View>
   )
 }
 
-// ─── カードスタイル（独立） ──────────────────────────────────────────────
-const cardStyles = StyleSheet.create({
-  card: {
-    backgroundColor: '#111111',
-    borderRadius: 24,
-    paddingHorizontal: 28,
-    paddingTop: 0,
-    paddingBottom: 28,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    // Instagram Story 風の縦長カード
+// ── プレビュースタイル ─────────────────────────────────────────────────────
+const pv = StyleSheet.create({
+  container: {
     aspectRatio: 9 / 16,
-    justifyContent: 'center',
+    borderRadius: 16,
     overflow: 'hidden',
-    position: 'relative',
-  },
-  accentLine: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 4,
-    backgroundColor: BRAND,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    padding: 18,
+    justifyContent: 'space-between',
   },
   logoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 40,
-    marginTop: 20,
+    gap: 7,
   },
   logoDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
     backgroundColor: BRAND,
+    shadowColor: '#000',
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
   },
-  logoText: {
-    color: TEXT.primary,
+  logoTxt: {
+    color: '#fff',
     fontSize: 14,
     fontWeight: '800',
-    letterSpacing: 1,
+    letterSpacing: 0.4,
+    textShadowColor: 'rgba(0,0,0,0.9)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 8,
   },
-  eventBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: `${BRAND}22`,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderWidth: 1,
-    borderColor: `${BRAND}55`,
-    marginBottom: 16,
+  glass: {
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.35)',
+    padding: 20,
+    gap: 8,
+    ...(Platform.OS === 'web' ? { backdropFilter: 'blur(20px)' } as any : {}),
   },
-  eventBadgeText: {
+  event: {
     color: BRAND,
     fontSize: 13,
     fontWeight: '700',
+    textShadowColor: 'rgba(0,0,0,0.7)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 6,
   },
-  resultText: {
-    color: TEXT.primary,
-    fontSize: 64,
+  result: {
+    color: '#fff',
+    fontSize: 52,
     fontWeight: '800',
     letterSpacing: -1,
-    lineHeight: 72,
-    marginBottom: 16,
+    minWidth: 10,
+    textShadowColor: 'rgba(0,0,0,0.95)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 16,
   },
   badgeRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 32,
+    gap: 6,
   },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 7,
     borderWidth: 1,
   },
-  badgeText: {
-    fontSize: 13,
+  badgeTxt: {
+    fontSize: 12,
     fontWeight: '800',
   },
-  metaSection: {
-    gap: 8,
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    marginVertical: 2,
+  },
+  metaList: {
+    gap: 5,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
-  metaText: {
-    color: TEXT.secondary,
-    fontSize: 14,
+  metaTxt: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 12,
     flex: 1,
+    textShadowColor: 'rgba(0,0,0,0.7)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
-  bottomLine: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    marginTop: 28,
-    marginBottom: 12,
-  },
-  footerText: {
-    color: TEXT.hint,
+  watermark: {
+    color: 'rgba(255,255,255,0.35)',
     fontSize: 11,
     textAlign: 'right',
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
 })
 
-// ─── スクリーンスタイル ──────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
-  },
-  headerBack: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    color: TEXT.primary,
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  scroll: {
-    flex: 1,
-  },
-  content: {
-    padding: 20,
-    paddingBottom: 48,
-    gap: 20,
-  },
-  cardWrapper: {
-    // カードを画面内に収める
-    maxWidth: 360,
-    alignSelf: 'center',
-    width: '100%',
-  },
-  shareButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    backgroundColor: BRAND,
-    borderRadius: 16,
-    paddingVertical: 16,
-  },
-  shareButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  selectorLabel: {
-    color: TEXT.secondary,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  selectorRow: {
-    gap: 10,
-    paddingBottom: 4,
-  },
-  selectorChip: {
-    backgroundColor: '#111111',
-    borderRadius: 14,
+// ── スクリーンスタイル ─────────────────────────────────────────────────────
+const s = StyleSheet.create({
+  screen:      { flex: 1, backgroundColor: '#080c12' },
+  header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
+  backBtn:     { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { color: '#fff', fontSize: 17, fontWeight: '700' },
+  center:      { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 40 },
+  emptyTitle:  { color: '#fff', fontSize: 18, fontWeight: '700' },
+  emptySub:    { color: 'rgba(255,255,255,0.45)', fontSize: 14, textAlign: 'center', lineHeight: 22 },
+  goBack:      { marginTop: 8, paddingHorizontal: 28, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
+  goBackTxt:   { color: BRAND, fontSize: 15, fontWeight: '700' },
+
+  scroll:      { padding: 16, paddingBottom: 56, gap: 18 },
+
+  hintRow:     { flexDirection: 'row', alignItems: 'flex-start', gap: 7, backgroundColor: BRAND + '15', borderRadius: 10, padding: 12, borderWidth: 1, borderColor: BRAND + '30' },
+  hintTxt:     { color: 'rgba(255,255,255,0.65)', fontSize: 12, flex: 1, lineHeight: 18 },
+
+  previewWrap: { maxWidth: 340, alignSelf: 'center', width: '100%', position: 'relative' },
+  sampleBadge: { position: 'absolute', bottom: 10, left: 10, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+  sampleTxt:   { color: 'rgba(255,255,255,0.55)', fontSize: 10 },
+
+  actions:     { gap: 10 },
+  dlBtn:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, backgroundColor: BRAND, borderRadius: 14, paddingVertical: 15 },
+  dlTxt:       { color: '#fff', fontSize: 16, fontWeight: '700' },
+  copyBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 14, paddingVertical: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  copyTxt:     { color: 'rgba(255,255,255,0.65)', fontSize: 15, fontWeight: '600' },
+
+  guide:       { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 14, padding: 16, gap: 12 },
+  guideRow:    { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  guideNum:    { width: 24, height: 24, borderRadius: 12, backgroundColor: BRAND + '33', borderWidth: 1, borderColor: BRAND + '66', alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  guideNumTxt: { color: BRAND, fontSize: 12, fontWeight: '800' },
+  guideTxt:    { color: 'rgba(255,255,255,0.55)', fontSize: 13, flex: 1, lineHeight: 20 },
+
+  selectorLabel: { color: 'rgba(255,255,255,0.35)', fontSize: 11, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase' },
+  chips:         { gap: 10, paddingBottom: 4 },
+  chip: {
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.10)',
-    alignItems: 'center',
+    borderColor: 'rgba(255,255,255,0.09)',
     minWidth: 90,
+    alignItems: 'center',
     position: 'relative',
   },
-  selectorChipActive: {
-    backgroundColor: BRAND,
-    borderColor: BRAND,
-  },
-  selectorChipEvent: {
-    color: TEXT.secondary,
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  selectorChipResult: {
-    color: TEXT.primary,
-    fontSize: 16,
-    fontWeight: '800',
-    marginTop: 2,
-  },
-  selectorPBDot: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    backgroundColor: '#34C759',
-    borderRadius: 6,
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-  },
-  selectorPBDotText: {
-    color: '#000000',
-    fontSize: 9,
-    fontWeight: '800',
-  },
-  // 空状態
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 14,
-    padding: 40,
-  },
-  emptyTitle: {
-    color: TEXT.primary,
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  emptyBody: {
-    color: TEXT.secondary,
-    fontSize: 15,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  backBtn: {
-    paddingHorizontal: 28,
-    paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: '#111111',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-    marginTop: 8,
-  },
-  backBtnText: {
-    color: BRAND,
-    fontSize: 16,
-    fontWeight: '700',
-  },
+  chipActive:  { backgroundColor: BRAND, borderColor: BRAND },
+  chipEvent:   { color: 'rgba(255,255,255,0.45)', fontSize: 11, fontWeight: '600' },
+  chipResult:  { color: '#fff', fontSize: 16, fontWeight: '800', marginTop: 2 },
+  pbDot:       { position: 'absolute', top: -5, right: -5, backgroundColor: '#34C759', borderRadius: 6, paddingHorizontal: 4, paddingVertical: 1 },
+  pbDotTxt:    { color: '#000', fontSize: 9, fontWeight: '800' },
 })

@@ -274,7 +274,7 @@ const ps = StyleSheet.create({
   partMuscle:    { color: '#9ca3af', fontSize: 10, textAlign: 'center' },
   startBtn:      {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, backgroundColor: '#E53935', borderRadius: 16, paddingVertical: 16,
+    gap: 8, backgroundColor: '#166534', borderRadius: 16, paddingVertical: 16,
   },
   startBtnText:  { color: '#fff', fontSize: 15, fontWeight: '900' },
 })
@@ -504,7 +504,7 @@ const ss = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
   },
-  timeOptActive: { backgroundColor: 'rgba(229,57,53,0.08)', borderWidth: 1.5, borderColor: '#E53935' },
+  timeOptActive: { backgroundColor: 'rgba(22,101,52,0.08)', borderWidth: 1.5, borderColor: '#166534' },
   timeOptText:   { color: '#6b7280', fontSize: 13, fontWeight: '700' },
   content:       { padding: 20, paddingBottom: 40, alignItems: 'center' },
   partName:      { color: '#111827', fontSize: 22, fontWeight: '900', marginBottom: 4, textAlign: 'center' },
@@ -614,7 +614,7 @@ const cs = StyleSheet.create({
   riskDelta:  { color: '#22c55e', fontSize: 14, fontWeight: '700' },
   homeBtn:    {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, backgroundColor: '#E53935', borderRadius: 16,
+    gap: 8, backgroundColor: '#166534', borderRadius: 16,
     paddingVertical: 16, width: '100%',
   },
   homeBtnText:{ color: '#fff', fontSize: 15, fontWeight: '900' },

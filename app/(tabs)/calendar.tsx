@@ -526,7 +526,7 @@ function DayCell({ day, isToday, isSelected, dots, dow, onPress, previewLabel }:
   const dayColor = isToday ? '#fff'
     : dow === 0 ? '#E53935'
     : dow === 6 ? '#2196F3'
-    : '#ccc'
+    : '#374151'
 
   // Strip leading emoji (e.g. "📝 ") and take first 5 chars
   const preview = previewLabel
@@ -565,10 +565,10 @@ function SummaryItem({ icon, color, value, label, unit }: {
       <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: color + '22', alignItems: 'center', justifyContent: 'center' }}>
         <Ionicons name={icon as any} size={18} color={color} />
       </View>
-      <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }}>
-        {value}<Text style={{ fontSize: 12, fontWeight: '400', color: '#888' }}>{unit}</Text>
+      <Text style={{ color: '#111827', fontSize: 18, fontWeight: '800' }}>
+        {value}<Text style={{ fontSize: 12, fontWeight: '400', color: '#6b7280' }}>{unit}</Text>
       </Text>
-      <Text style={{ color: '#666', fontSize: 11 }}>{label}</Text>
+      <Text style={{ color: '#6b7280', fontSize: 11 }}>{label}</Text>
     </View>
   )
 }
@@ -578,20 +578,21 @@ const m = StyleSheet.create({
   overlay:  { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.65)' },
   kvWrap:   { flex: 1, justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: '#111', borderTopLeftRadius: 22, borderTopRightRadius: 22,
+    backgroundColor: '#fff', borderTopLeftRadius: 22, borderTopRightRadius: 22,
     paddingHorizontal: 16, paddingBottom: 44, maxHeight: '88%',
-    borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    borderTopWidth: 1, borderColor: 'rgba(0,0,0,0.1)',
+    shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 12,
   },
-  handle:   { width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)', alignSelf: 'center', marginTop: 10, marginBottom: 4 },
+  handle:   { width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(0,0,0,0.1)', alignSelf: 'center', marginTop: 10, marginBottom: 4 },
   header:   { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingVertical: 12 },
-  title:    { color: '#fff', fontSize: 17, fontWeight: '800' },
+  title:    { color: '#111827', fontSize: 17, fontWeight: '800' },
   dateLbl:  { color: TEXT.secondary, fontSize: 12, marginTop: 2 },
   label:    { color: TEXT.hint, fontSize: 11, fontWeight: '700', letterSpacing: 1, marginTop: 16, marginBottom: 8 },
   catRow:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   catBtn:   { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: DIVIDER, backgroundColor: SURFACE2, flexDirection: 'row', alignItems: 'center', gap: 5 },
   catEmoji: { fontSize: 16 },
   catLabel: { fontSize: 12, fontWeight: '700' },
-  input:    { backgroundColor: SURFACE2, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, color: '#fff', fontSize: 15, borderWidth: 1, borderColor: DIVIDER },
+  input:    { backgroundColor: SURFACE2, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, color: '#111827', fontSize: 15, borderWidth: 1, borderColor: DIVIDER },
   inputMulti: { height: 72, textAlignVertical: 'top', paddingTop: 10 },
   saveBtn:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: BRAND, borderRadius: 14, paddingVertical: 15, marginTop: 20 },
   saveTxt:  { color: '#fff', fontSize: 16, fontWeight: '800' },
@@ -601,26 +602,26 @@ const m = StyleSheet.create({
 const st = StyleSheet.create({
   scroll:      { padding: 16, gap: 14, paddingBottom: 48 },
   monthNav:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16, paddingVertical: 4 },
-  navBtn:      { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' },
+  navBtn:      { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   monthTitle:  { color: '#fff', fontSize: 20, fontWeight: '800', minWidth: 140, textAlign: 'center' },
   legend:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 2 },
   legendItem:  { flexDirection: 'row', alignItems: 'center', gap: 4 },
   legendDot:   { width: 7, height: 7, borderRadius: 3.5 },
   legendTxt:   { color: '#666', fontSize: 10 },
-  calCard:     { backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', padding: 12 },
+  calCard:     { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
   weekRow:     { flexDirection: 'row', marginBottom: 6 },
   weekLbl:     { flex: 1, textAlign: 'center', color: '#666', fontSize: 12, fontWeight: '700' },
   grid:        { flexDirection: 'row', flexWrap: 'wrap' },
   dayCell:     { width: `${100 / 7}%`, aspectRatio: 0.75, alignItems: 'center', justifyContent: 'flex-start', paddingTop: 4 },
   dayNum:      { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  todayBg:     { backgroundColor: '#E53935' },
-  selBg:       { backgroundColor: 'rgba(255,255,255,0.15)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
+  todayBg:     { backgroundColor: '#166534' },
+  selBg:       { backgroundColor: 'rgba(22,101,52,0.12)', borderWidth: 1, borderColor: '#166534' },
   dotsRow:     { flexDirection: 'row', gap: 2, marginTop: 2, height: 5, alignItems: 'center' },
   dot:         { width: 4, height: 4, borderRadius: 2 },
   dayPreview:  { fontSize: 8, color: '#888', marginTop: 2, maxWidth: 36, textAlign: 'center' },
 
   // Detail
-  detailCard:   { backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', padding: 14, gap: 10 },
+  detailCard:   { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 14, gap: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
   detailHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   detailTitle:  { color: '#fff', fontSize: 14, fontWeight: '700', flex: 1 },
   addBtn:       { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: BRAND, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
@@ -629,7 +630,7 @@ const st = StyleSheet.create({
   emptyEmoji:   { fontSize: 28, marginBottom: 2 },
   emptyTxt:     { color: '#444', fontSize: 13 },
   emptySub:     { color: '#333', fontSize: 12 },
-  recordRow:    { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 8, padding: 10 },
+  recordRow:    { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(0,0,0,0.03)', borderRadius: 8, padding: 10 },
   recordIcon:   { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   recordLbl:    { color: '#fff', fontSize: 13, fontWeight: '600' },
   recordSub:    { color: '#666', fontSize: 11 },
@@ -638,7 +639,7 @@ const st = StyleSheet.create({
   badgeTxt:     { fontSize: 10, fontWeight: '700' },
 
   // Summary
-  summaryCard:  { backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', padding: 16, gap: 12 },
-  summaryTitle: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  summaryCard:  { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 16, gap: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
+  summaryTitle: { color: '#111827', fontSize: 15, fontWeight: '700' },
   summaryRow:   { flexDirection: 'row', gap: 8 },
 })

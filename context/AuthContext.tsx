@@ -4,10 +4,15 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+import { syncAll } from '../lib/cloudSync'
 import Toast from 'react-native-toast-message'
 
 const ONBOARDING_KEY = 'tm_onboarded'
-const SITE_URL = 'https://transcendent-pie-3fdb66.netlify.app'
+
+// 現在のオリジンを使う（localhost / Vercel / その他デプロイ先すべてに対応）
+const SITE_URL = typeof window !== 'undefined' && window.location?.origin
+  ? window.location.origin
+  : 'https://scorej-run.vercel.app'
 
 interface AuthContextType {
   user:                    User    | null
@@ -24,6 +29,7 @@ interface AuthContextType {
   verifyOtp:               (email: string, token: string) => Promise<boolean>
   signOut:                 () => Promise<void>
   continueAsGuest:         () => void
+  signOutGuest:            () => void
   setOnboarded:            () => Promise<void>
 }
 
@@ -39,6 +45,7 @@ const AuthContext = createContext<AuthContextType>({
   verifyOtp:               async () => false,
   signOut:                 async () => {},
   continueAsGuest:         () => {},
+  signOutGuest:            () => {},
   setOnboarded:            async () => {},
 })
 
@@ -64,6 +71,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (mounted) {
           setSession(s)
           setUser(s?.user ?? null)
+          // 起動時: 既存セッションがあればクラウド同期
+          if (s?.user?.id) {
+            syncAll(s.user.id).catch(() => {})
+          }
         }
       } catch (_) {}
 
@@ -83,8 +94,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (newSession) setIsGuest(false)
 
           if (event === 'SIGNED_IN' || event === 'EMAIL_CONFIRMED') {
-            // 確認メールクリック後などにローディングを解除
             setLoading(false)
+            // ログイン直後: クラウドとローカルを双方向マージ同期
+            // （ゲストで使ったデータをクラウドへ移行 + 他デバイスのデータを取得）
+            if (newSession?.user?.id) {
+              syncAll(newSession.user.id).catch(() => {})
+            }
           }
         },
       )
@@ -175,9 +190,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSession(data.session)
           setUser(data.session.user)
           setIsGuest(false)
+          Toast.show({ type: 'success', text1: '登録完了！', text2: 'アカウントが作成されました' })
           return 'signed_in'
         }
         // 確認メール必要の場合
+        Toast.show({
+          type: 'success',
+          text1: '確認メールを送信しました ✉️',
+          text2: 'メールの認証リンクをクリックするとログインできます',
+          visibilityTime: 5000,
+        })
         return 'confirm_email'
       } catch (e: any) {
         Toast.show({ type: 'error', text1: '登録失敗', text2: e?.message ?? 'エラーが発生しました' })
@@ -274,6 +296,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // ゲストはオンボーディング済みとして扱う（onboarding.tsx で別途処理）
   }, [])
 
+  // ── ゲスト解除（設定画面の「ログイン」ボタン用） ─────────
+  const signOutGuest = useCallback(() => {
+    setIsGuest(false)
+    // AuthGate が authed=false を検知して /auth へ自動リダイレクト
+  }, [])
+
   // ── オンボーディング完了 ──────────────────────────────────
   const setOnboarded = useCallback(async () => {
     setIsOnboarded(true)
@@ -287,7 +315,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signInWithGoogle, signInWithApple,
       signInWithEmail, signUpWithEmail, resendConfirmationEmail,
       sendOtp, verifyOtp,
-      signOut, continueAsGuest, setOnboarded,
+      signOut, continueAsGuest, signOutGuest, setOnboarded,
     }}>
       {children}
     </AuthContext.Provider>

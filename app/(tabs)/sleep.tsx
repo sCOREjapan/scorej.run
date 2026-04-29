@@ -61,30 +61,30 @@ function TimePicker({ label, hour, minute, onChangeHour, onChangeMinte, color }:
   return (
     <View style={{ alignItems: 'center', gap: 6 }}>
       <Text style={{ color: TEXT.secondary, fontSize: 11, fontWeight: '700', letterSpacing: 1 }}>{label}</Text>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
         {/* 時 */}
-        <View style={{ alignItems: 'center', gap: 4 }}>
+        <View style={{ alignItems: 'center', gap: 3 }}>
           <TouchableOpacity onPress={incHour} style={tp.btn} activeOpacity={0.7}>
-            <Ionicons name="chevron-up" size={18} color={color} />
+            <Ionicons name="chevron-up" size={16} color={color} />
           </TouchableOpacity>
           <View style={[tp.box, { borderColor: color + '60' }]}>
             <Text style={[tp.val, { color }]}>{pad(hour)}</Text>
           </View>
           <TouchableOpacity onPress={decHour} style={tp.btn} activeOpacity={0.7}>
-            <Ionicons name="chevron-down" size={18} color={color} />
+            <Ionicons name="chevron-down" size={16} color={color} />
           </TouchableOpacity>
         </View>
-        <Text style={{ color: 'rgba(0,0,0,0.25)', fontSize: 28, fontWeight: '300' }}>:</Text>
+        <Text style={{ color: 'rgba(0,0,0,0.25)', fontSize: 22, fontWeight: '300', marginBottom: 4 }}>:</Text>
         {/* 分（5分刻み） */}
-        <View style={{ alignItems: 'center', gap: 4 }}>
+        <View style={{ alignItems: 'center', gap: 3 }}>
           <TouchableOpacity onPress={incMin} style={tp.btn} activeOpacity={0.7}>
-            <Ionicons name="chevron-up" size={18} color={color} />
+            <Ionicons name="chevron-up" size={16} color={color} />
           </TouchableOpacity>
           <View style={[tp.box, { borderColor: color + '60' }]}>
             <Text style={[tp.val, { color }]}>{pad(minute)}</Text>
           </View>
           <TouchableOpacity onPress={decMin} style={tp.btn} activeOpacity={0.7}>
-            <Ionicons name="chevron-down" size={18} color={color} />
+            <Ionicons name="chevron-down" size={16} color={color} />
           </TouchableOpacity>
         </View>
       </View>
@@ -94,9 +94,9 @@ function TimePicker({ label, hour, minute, onChangeHour, onChangeMinte, color }:
 }
 
 const tp = StyleSheet.create({
-  btn:  { width: 36, height: 28, alignItems: 'center', justifyContent: 'center' },
-  box:  { width: 56, height: 52, borderRadius: 12, borderWidth: 1.5, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 1 },
-  val:  { fontSize: 26, fontWeight: '800', letterSpacing: 1 },
+  btn:  { width: 32, height: 26, alignItems: 'center', justifyContent: 'center' },
+  box:  { width: 46, height: 44, borderRadius: 10, borderWidth: 1.5, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 1 },
+  val:  { fontSize: 22, fontWeight: '800', letterSpacing: 0.5 },
 })
 
 // ── 睡眠時間の折れ線グラフ ────────────────────────────────────
@@ -437,7 +437,7 @@ export default function SleepScreen() {
               )}
 
               {/* 時刻ピッカー */}
-              <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', paddingHorizontal: 4 }}>
                 <TimePicker
                   label="就寝"
                   hour={bedHour} minute={bedMin}

@@ -1,6 +1,6 @@
 // app/settings.tsx — 設定画面
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   Switch, Alert, TextInput, Platform,
@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import AnimatedSection from '../components/AnimatedSection'
+import { requestPermission, getPermission, startAllSchedulers } from '../lib/notifications'
 
 const PROFILE_KEY   = 'trackmate_my_profile'
 const NOTIF_KEY     = 'trackmate_notif_settings'
@@ -130,7 +131,7 @@ function LabeledInput({
 
 // ── メイン設定画面 ─────────────────────────────────────────
 export default function SettingsScreen() {
-  const { user, signOut, isGuest } = useAuth()
+  const { user, signOut, isGuest, signOutGuest } = useAuth()
   const { colors } = useTheme()
   const router = useRouter()
 
@@ -200,6 +201,77 @@ export default function SettingsScreen() {
       )
     }
   }
+
+  // ── 通知・位置情報の許可状態 ──────────────────────────────
+  const [notifPerm, setNotifPerm] = useState<string>('loading')
+  const [locPerm,   setLocPerm]   = useState<string>('loading')
+
+  useEffect(() => {
+    // 通知許可状態（SSR安全）
+    if (typeof window !== 'undefined') {
+      const p = getPermission()
+      setNotifPerm(p)
+    } else {
+      setNotifPerm('unsupported')
+    }
+
+    // 位置情報許可状態
+    if (typeof navigator !== 'undefined' && navigator.permissions) {
+      navigator.permissions.query({ name: 'geolocation' as PermissionName }).then(r => {
+        setLocPerm(r.state)                    // 'granted' | 'denied' | 'prompt'
+        r.onchange = () => setLocPerm(r.state)
+      }).catch(() => setLocPerm('prompt'))     // APIなし → ボタン表示
+    } else if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      setLocPerm('prompt')                     // geolocationはあるがPermissions APIなし
+    } else {
+      setLocPerm('unsupported')
+    }
+  }, [])
+
+  const handleRequestNotifPerm = useCallback(async () => {
+    // iOS Safari (非PWA) は Notification API 非対応
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      Alert.alert(
+        '通知を使うにはホーム画面に追加してください',
+        'iPhoneの場合、Safariで「共有ボタン → ホーム画面に追加」をすると通知が利用できます。',
+      )
+      return
+    }
+    const result = await requestPermission()
+    setNotifPerm(result as string)
+    if (result === 'granted') {
+      startAllSchedulers()
+      Alert.alert('通知をONにしました 🎉', '練習・睡眠リマインダーと怪我リスクアラートをお届けします。')
+    } else if (result === 'denied') {
+      Alert.alert(
+        '通知が拒否されています',
+        'ブラウザの設定から通知を許可してください。\niPhone: 設定 → Safari → 詳細 → 通知',
+      )
+    }
+  }, [])
+
+  const handleRequestLocationPerm = useCallback(() => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      Alert.alert('非対応', 'このブラウザは位置情報に対応していません。')
+      return
+    }
+    // getCurrentPositionを呼ぶことでiOSのネイティブ許可ダイアログが表示される
+    navigator.geolocation.getCurrentPosition(
+      () => {
+        setLocPerm('granted')
+        Alert.alert('位置情報をONにしました ✅', '天気情報を自動取得してリスクスコアに反映します。')
+      },
+      (err) => {
+        if (err.code === 1) {
+          setLocPerm('denied')
+          Alert.alert('位置情報が拒否されています', 'iPhoneの「設定」→「Safari」→「位置情報」から許可してください。')
+        } else {
+          Alert.alert('位置情報の取得に失敗しました', err.message)
+        }
+      },
+      { enableHighAccuracy: false, timeout: 10000 }
+    )
+  }, [])
 
   // キャッシュクリア
   const handleClearCache = async () => {
@@ -304,16 +376,16 @@ export default function SettingsScreen() {
                   </View>
                   <View style={styles.divider} />
                   <TouchableOpacity
-                    style={[styles.actionRow, { backgroundColor: '#E53935' + '12', borderRadius: 12, marginTop: 4 }]}
-                    onPress={() => router.replace('/auth')}
+                    style={[styles.actionRow, { backgroundColor: '#166534' + '12', borderRadius: 12, marginTop: 4 }]}
+                    onPress={() => signOutGuest()}
                     activeOpacity={0.8}
                   >
-                    <Ionicons name="log-in-outline" size={18} color="#E53935" />
+                    <Ionicons name="log-in-outline" size={18} color="#166534" />
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.actionText, { color: '#E53935', fontWeight: '800' }]}>アカウントを作成 / ログイン</Text>
+                      <Text style={[styles.actionText, { color: '#166534', fontWeight: '800' }]}>アカウントを作成 / ログイン</Text>
                       <Text style={{ color: colors.textHint, fontSize: 11, marginTop: 2 }}>データをクラウドに保存できます</Text>
                     </View>
-                    <Ionicons name="chevron-forward" size={16} color="#E53935" />
+                    <Ionicons name="chevron-forward" size={16} color="#166534" />
                   </TouchableOpacity>
                 </>
               ) : (
@@ -342,8 +414,8 @@ export default function SettingsScreen() {
                 <Text style={styles.fieldLabel}>現在のロール</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   {teamRole === 'coach' && (
-                    <View style={{ backgroundColor: '#E53935' + '20', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 }}>
-                      <Text style={{ color: '#E53935', fontSize: 12, fontWeight: '700' }}>コーチ・監督</Text>
+                    <View style={{ backgroundColor: '#166534' + '20', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 }}>
+                      <Text style={{ color: '#166534', fontSize: 12, fontWeight: '700' }}>コーチ・監督</Text>
                     </View>
                   )}
                   {teamRole === 'player' && (
@@ -381,15 +453,96 @@ export default function SettingsScreen() {
             </SectionCard>
           </AnimatedSection>
 
-          {/* ── 通知設定 ──────────────────────────────────────── */}
+          {/* ── アクセス許可 & 通知 ──────────────────────────── */}
           <AnimatedSection delay={160}>
-            <SectionCard title="通知設定">
+            <SectionCard title="アクセス許可 & 通知">
+
+              {/* ── 位置情報 ── */}
+              <View style={styles.permRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                  <View style={[styles.permIcon, { backgroundColor: 'rgba(90,200,250,0.12)' }]}>
+                    <Ionicons name="location-outline" size={20} color="#5AC8FA" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.permTitle}>位置情報</Text>
+                    <Text style={styles.permSub}>
+                      {locPerm === 'granted'     ? '✅ 許可済み — 天気自動取得ON'
+                       : locPerm === 'denied'    ? '🚫 拒否済み — 設定から変更'
+                       : locPerm === 'unsupported' ? '非対応ブラウザ'
+                       : '未設定 — 天気でリスクを補正'}
+                    </Text>
+                  </View>
+                </View>
+                {locPerm !== 'granted' && (
+                  <TouchableOpacity
+                    style={[styles.permBtn, locPerm === 'denied' && { backgroundColor: '#f0f2f5' }]}
+                    onPress={handleRequestLocationPerm}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={[styles.permBtnText, locPerm === 'denied' && { color: '#6b7280' }]}>
+                      {locPerm === 'denied' ? '設定を開く' : '許可する'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <View style={styles.divider} />
+
+              {/* ── プッシュ通知 ── */}
+              <View style={styles.permRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                  <View style={[styles.permIcon, { backgroundColor: 'rgba(22,101,52,0.12)' }]}>
+                    <Ionicons name="notifications-outline" size={20} color="#166534" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.permTitle}>プッシュ通知</Text>
+                    <Text style={styles.permSub}>
+                      {notifPerm === 'granted'     ? '✅ 許可済み — 通知ON'
+                       : notifPerm === 'denied'    ? '🚫 拒否済み — 設定から変更'
+                       : notifPerm === 'unsupported' ? '非対応ブラウザ'
+                       : '未設定 — リスク・睡眠・練習通知'}
+                    </Text>
+                  </View>
+                </View>
+                {notifPerm !== 'granted' && notifPerm !== 'loading' && (
+                  <TouchableOpacity
+                    style={[styles.permBtn, notifPerm === 'denied' && { backgroundColor: '#f0f2f5' }]}
+                    onPress={handleRequestNotifPerm}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={[styles.permBtnText, notifPerm === 'denied' && { color: '#6b7280' }]}>
+                      {notifPerm === 'denied' ? '設定を開く' : '許可する'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <View style={styles.divider} />
+
+              {/* 通知スケジュール説明 */}
+              <View style={{ gap: 6, paddingTop: 4 }}>
+                {[
+                  { time: '17:00', label: '練習記録リマインダー', icon: '📝' },
+                  { time: '20:00', label: '睡眠リマインダー',     icon: '💤' },
+                  { time: 'リアルタイム', label: '怪我リスクアラート',  icon: '🔴' },
+                  { time: '大会前',    label: '大会リマインダー',   icon: '🏆' },
+                ].map(item => (
+                  <View key={item.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Text style={{ fontSize: 14 }}>{item.icon}</Text>
+                    <Text style={{ color: '#6b7280', fontSize: 12, flex: 1 }}>{item.label}</Text>
+                    <Text style={{ color: '#9ca3af', fontSize: 11, fontWeight: '600' }}>{item.time}</Text>
+                  </View>
+                ))}
+              </View>
+
+              <View style={styles.divider} />
+
               <View style={styles.switchRow}>
-                <Text style={styles.switchLabel}>練習リマインダー</Text>
+                <Text style={styles.switchLabel}>練習リマインダー (17時)</Text>
                 <Switch
                   value={notifSettings.practiceReminder}
                   onValueChange={v => toggleNotif('practiceReminder', v)}
-                  trackColor={{ false: '#e5e7eb', true: '#E53935' }}
+                  trackColor={{ false: '#e5e7eb', true: '#166534' }}
                   thumbColor="#fff"
                   ios_backgroundColor="#e5e7eb"
                 />
@@ -400,7 +553,7 @@ export default function SettingsScreen() {
                 <Switch
                   value={notifSettings.raceReminder}
                   onValueChange={v => toggleNotif('raceReminder', v)}
-                  trackColor={{ false: '#e5e7eb', true: '#E53935' }}
+                  trackColor={{ false: '#e5e7eb', true: '#166534' }}
                   thumbColor="#fff"
                   ios_backgroundColor="#e5e7eb"
                 />
@@ -487,13 +640,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.08)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.10,
+    shadowRadius: 20,
+    elevation: 6,
   },
   cardTitle: {
-    color: '#E53935',
+    color: '#166534',
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1.5,
@@ -502,6 +655,14 @@ const styles = StyleSheet.create({
   },
 
   divider: { height: 1, backgroundColor: 'rgba(0,0,0,0.07)', marginVertical: 10 },
+
+  // アクセス許可行
+  permRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingVertical: 4 },
+  permIcon:    { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  permTitle:   { color: '#111827', fontSize: 14, fontWeight: '700' },
+  permSub:     { color: '#6b7280', fontSize: 11, marginTop: 2 },
+  permBtn:     { backgroundColor: '#166534', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
+  permBtnText: { color: '#fff', fontSize: 12, fontWeight: '800' },
 
   // フィールド行
   fieldRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 36 },
@@ -520,14 +681,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 5,
     borderRadius: 20, borderWidth: 1,
   },
-  tagActive:   { backgroundColor: '#E53935', borderColor: '#E53935' },
-  tagInactive: { backgroundColor: 'transparent', borderColor: 'rgba(229,57,53,0.4)' },
-  tagText:     { color: '#E53935', fontSize: 12, fontWeight: '700' },
+  tagActive:   { backgroundColor: '#166534', borderColor: '#166534' },
+  tagInactive: { backgroundColor: 'transparent', borderColor: 'rgba(22,101,52,0.4)' },
+  tagText:     { color: '#166534', fontSize: 12, fontWeight: '700' },
 
   // 保存ボタン
   saveBtn: {
     marginTop: 14,
-    backgroundColor: '#E53935', borderRadius: 12,
+    backgroundColor: '#166534', borderRadius: 12,
     paddingVertical: 12, alignItems: 'center',
   },
   saveBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },

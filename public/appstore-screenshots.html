@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>sCORE — App Store Screenshots</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: #e8eaed;
+  font-family: -apple-system, 'Hiragino Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  padding: 40px 24px 60px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+/* ── iPhone フレーム ── */
+.phone-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.phone-num {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #9ca3af;
+  text-transform: uppercase;
+}
+.phone {
+  width: 390px;
+  height: 844px;
+  border-radius: 54px;
+  background: #1c1c1e;
+  position: relative;
+  box-shadow:
+    0 0 0 2px #3a3a3c,
+    0 30px 80px rgba(0,0,0,0.35),
+    0 10px 30px rgba(0,0,0,0.20);
+  overflow: hidden;
+}
+/* Dynamic Island */
+.dynamic-island {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 34px;
+  background: #000;
+  border-radius: 20px;
+  z-index: 100;
+}
+/* 画面 */
+.screen {
+  position: absolute;
+  inset: 0;
+  background: #f0f2f5;
+  overflow: hidden;
+  border-radius: 52px;
+}
+
+/* ── 共通 UI 部品 ── */
+.status-bar {
+  height: 54px;
+  display: flex;
+  align-items: flex-end;
+  padding: 0 28px 8px;
+  justify-content: space-between;
+  background: #f0f2f5;
+}
+.status-time { font-size: 15px; font-weight: 700; color: #111827; }
+.status-icons { display: flex; gap: 6px; align-items: center; }
+.status-icons span { font-size: 13px; color: #111827; }
+
+/* タブバー */
+.tab-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0; right: 0;
+  height: 82px;
+  background: #fff;
+  border-top: 1px solid rgba(0,0,0,0.08);
+  display: flex;
+  padding: 8px 8px 24px;
+  gap: 0;
+}
+.tab-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding-top: 4px;
+}
+.tab-icon {
+  width: 40px;
+  height: 36px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+.tab-icon.active { background: #166534; }
+.tab-label { font-size: 10px; font-weight: 600; color: #9ca3af; }
+.tab-label.active { color: #166534; font-weight: 700; }
+
+/* FAB */
+.fab {
+  position: absolute;
+  bottom: 96px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 54px;
+  height: 54px;
+  border-radius: 27px;
+  background: #166534;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(22,101,52,0.4);
+  z-index: 10;
+}
+
+/* カード共通 */
+.card {
+  background: #fff;
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.04);
+}
+.card-sm {
+  background: #fff;
+  border-radius: 14px;
+  padding: 12px;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.09), 0 2px 4px rgba(0,0,0,0.04);
+}
+
+/* ヘッダー */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 16px 10px;
+}
+.score-pill {
+  background: #111827;
+  border-radius: 12px;
+  padding: 8px 16px;
+  font-size: 16px;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -0.3px;
+}
+.icon-btn {
+  width: 34px; height: 34px;
+  border-radius: 17px;
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.09);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+/* 日付バー */
+.date-bar {
+  display: flex;
+  padding: 0 8px 8px;
+  gap: 0;
+  overflow: hidden;
+}
+.date-cell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 0;
+}
+.date-name { font-size: 11px; font-weight: 600; color: #9ca3af; }
+.date-num {
+  width: 32px; height: 32px;
+  border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 700; color: #111827;
+}
+.date-num.today { background: #166534; color: #fff; font-weight: 900; }
+.date-dot { width: 5px; height: 5px; border-radius: 3px; }
+
+/* スクロールコンテンツ */
+.scroll-content {
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: calc(844px - 54px - 82px - 16px);
+  overflow: hidden;
+}
+
+/* ─────────────────────────────────
+   画面1: ホーム
+───────────────────────────────── */
+
+.risk-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.risk-label { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; color: #9ca3af; text-transform: uppercase; }
+.risk-badge {
+  display: flex; align-items: center; gap: 5px;
+  background: rgba(22,101,52,0.10);
+  border: 1px solid rgba(22,101,52,0.30);
+  border-radius: 20px;
+  padding: 3px 10px;
+}
+.risk-dot { width: 7px; height: 7px; border-radius: 4px; background: #166534; }
+.risk-badge-text { font-size: 11px; font-weight: 700; color: #166534; }
+
+.score-num { font-size: 72px; font-weight: 900; letter-spacing: -3px; color: #111827; line-height: 1; margin: 4px 0; }
+.score-num.orange { color: #111827; }
+.phrase { font-size: 14px; font-weight: 800; color: #166534; margin-bottom: 10px; }
+.phrase.orange { color: #f97316; }
+.phrase.red { color: #E53935; }
+.bar-track { height: 5px; background: #f0f2f5; border-radius: 3px; overflow: hidden; }
+.bar-fill { height: 5px; border-radius: 3px; }
+
+.stat-row { display: flex; gap: 8px; margin-top: 0; }
+.stat-card {
+  flex: 1;
+  background: #fff;
+  border-radius: 14px;
+  padding: 10px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.09), 0 2px 4px rgba(0,0,0,0.04);
+}
+.stat-emoji { font-size: 18px; }
+.stat-val { font-size: 17px; font-weight: 900; }
+.stat-label-sm { font-size: 9px; font-weight: 700; color: #9ca3af; }
+
+.ai-coach-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.04);
+}
+.ai-icon {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  background: #111827;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+.ai-title { font-size: 13px; font-weight: 900; color: #111827; letter-spacing: 0.5px; margin-bottom: 3px; }
+.ai-sub { font-size: 11px; color: #6b7280; line-height: 1.5; }
+
+/* 体調カード */
+.cond-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.04);
+}
+.cond-label { font-size: 11px; font-weight: 700; color: #9ca3af; letter-spacing: 0.8px; }
+.cond-emojis { display: flex; gap: 4px; }
+.cond-btn {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+}
+.cond-btn.active { background: #f0f2f5; }
+
+/* 目標カード */
+.goal-card {
+  background: #fff;
+  border-radius: 18px;
+  border: 1px solid rgba(0,0,0,0.08);
+  padding: 14px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.04);
+}
+.goal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.goal-title { font-size: 13px; font-weight: 800; color: #111827; }
+.goal-add { width: 28px; height: 28px; border-radius: 14px; background: #166534; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 18px; font-weight: 900; }
+.goal-row { display: flex; flex-direction: column; gap: 6px; }
+.goal-text { font-size: 13px; font-weight: 700; color: #111827; }
+.goal-bar-wrap { display: flex; align-items: center; gap: 8px; }
+.goal-bar-bg { flex: 1; height: 6px; background: #f0f2f5; border-radius: 3px; overflow: hidden; }
+.goal-bar-fill { height: 6px; border-radius: 3px; background: #5AC8FA; }
+.goal-pct { font-size: 11px; font-weight: 800; color: #5AC8FA; width: 32px; text-align: right; }
+
+/* ─────────────────────────────────
+   画面2: 練習記録入力
+───────────────────────────────── */
+.back-header {
+  display: flex; align-items: center;
+  padding: 10px 16px 8px;
+  gap: 4px;
+}
+.back-btn { font-size: 22px; color: #111827; }
+.page-title { font-size: 17px; font-weight: 800; color: #111827; flex: 1; text-align: center; }
+.spacer { width: 40px; }
+
+.input-method-card {
+  background: #fff;
+  border-radius: 18px;
+  border: 1px solid rgba(0,0,0,0.08);
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.04);
+}
+.input-icon {
+  width: 56px; height: 56px;
+  border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px;
+  flex-shrink: 0;
+}
+.input-body { flex: 1; }
+.input-title { font-size: 17px; font-weight: 800; color: #111827; margin-bottom: 4px; }
+.input-desc { font-size: 13px; color: #6b7280; line-height: 1.5; }
+.ai-badge {
+  background: #166534;
+  border-radius: 8px;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #fff;
+  display: inline-block;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.input-method-card.ai-card { border: 1.5px solid rgba(22,101,52,0.4); }
+
+/* AI入力モーダル風 */
+.ai-input-box {
+  background: #fff;
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.04);
+}
+.ai-input-label { font-size: 13px; font-weight: 800; color: #111827; margin-bottom: 10px; }
+.ai-textarea {
+  width: 100%;
+  background: #f8f8fa;
+  border-radius: 12px;
+  border: 1px solid rgba(0,0,0,0.08);
+  padding: 12px;
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.6;
+  min-height: 80px;
+}
+.ai-submit {
+  margin-top: 12px;
+  background: #166534;
+  border-radius: 14px;
+  padding: 14px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 800;
+  color: #fff;
+}
+
+/* ─────────────────────────────────
+   画面3: 試合計画
+───────────────────────────────── */
+.comp-header {
+  padding: 10px 16px 0;
+  font-size: 22px;
+  font-weight: 900;
+  color: #111827;
+  letter-spacing: -0.5px;
+}
+
+.comp-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 14px 16px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.04);
+}
+.comp-date { font-size: 11px; font-weight: 700; color: #9ca3af; margin-bottom: 4px; }
+.comp-name { font-size: 16px; font-weight: 800; color: #111827; margin-bottom: 6px; }
+.comp-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.comp-tag {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.tag-green { background: rgba(22,101,52,0.1); color: #166534; }
+.tag-blue  { background: rgba(90,200,250,0.15); color: #0ea5e9; }
+.tag-amber { background: rgba(245,158,11,0.15); color: #f59e0b; }
+.tag-red   { background: rgba(229,57,53,0.10); color: #E53935; }
+
+.days-chip {
+  background: rgba(22,101,52,0.12);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #166534;
+  display: inline-block;
+}
+.days-chip.urgent { background: rgba(229,57,53,0.10); color: #E53935; }
+
+.target-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-top: 1px solid rgba(0,0,0,0.07);
+}
+.target-label { font-size: 13px; font-weight: 700; color: #374151; }
+.target-val { font-size: 14px; font-weight: 900; color: #166534; }
+
+/* ─────────────────────────────────
+   画面4: チーム
+───────────────────────────────── */
+.member-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.09);
+}
+.avatar {
+  width: 40px; height: 40px;
+  border-radius: 20px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  font-weight: 900;
+  color: #fff;
+  flex-shrink: 0;
+}
+.member-name { font-size: 14px; font-weight: 800; color: #111827; }
+.member-event { font-size: 11px; color: #6b7280; margin-top: 2px; }
+.risk-mini-badge {
+  margin-left: auto;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 800;
+}
+.low  { background: rgba(22,101,52,0.10); color: #166534; }
+.mid  { background: rgba(245,158,11,0.15); color: #f59e0b; }
+.high-r { background: rgba(229,57,53,0.10); color: #E53935; }
+
+/* ─────────────────────────────────
+   画面5: タイム計測
+───────────────────────────────── */
+.timer-screen { background: #f0f2f5; }
+.timer-display {
+  text-align: center;
+  padding: 24px 0 16px;
+}
+.timer-num {
+  font-size: 72px;
+  font-weight: 900;
+  letter-spacing: -3px;
+  color: #111827;
+  font-variant-numeric: tabular-nums;
+}
+.timer-sub { font-size: 20px; font-weight: 700; color: #9ca3af; }
+
+.split-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 10px 14px;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.09);
+}
+.split-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+.split-row:last-child { border-bottom: none; }
+.split-lap { font-size: 12px; font-weight: 700; color: #9ca3af; }
+.split-time { font-size: 16px; font-weight: 900; color: #111827; font-variant-numeric: tabular-nums; }
+.split-diff { font-size: 11px; font-weight: 700; }
+
+.timer-btn-row {
+  display: flex;
+  gap: 12px;
+  padding: 0 16px;
+  margin-top: 8px;
+}
+.timer-btn {
+  flex: 1;
+  height: 56px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 800;
+  gap: 8px;
+}
+.btn-green { background: #166534; color: #fff; box-shadow: 0 4px 14px rgba(22,101,52,0.35); }
+.btn-gray  { background: #f0f2f5; color: #374151; border: 1px solid rgba(0,0,0,0.08); }
+.btn-red   { background: #E53935; color: #fff; box-shadow: 0 4px 14px rgba(229,57,53,0.35); }
+
+/* ─────────────────────────────────
+   画面6: リカバリー / 怪我リスク
+───────────────────────────────── */
+.recovery-score-card {
+  background: #fff;
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.04);
+  text-align: center;
+}
+.stretch-banner {
+  background: #fff;
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.09);
+  margin-top: 0;
+}
+.stretch-btn {
+  background: #166534;
+  border-radius: 10px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.body-zone-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.04);
+}
+.zone-title { font-size: 13px; font-weight: 800; color: #111827; margin-bottom: 10px; }
+.zone-grid { display: flex; gap: 8px; flex-wrap: wrap; }
+.zone-chip {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #f0f2f5;
+  color: #6b7280;
+}
+.zone-chip.sel { background: rgba(22,101,52,0.1); color: #166534; border: 1px solid rgba(22,101,52,0.3); }
+
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════
+  画像 1: ホーム — INJURY RISK SCORE
+════════════════════════════════════ -->
+<div class="phone-wrap">
+  <div class="phone-num">01 — ホーム</div>
+  <div class="phone">
+    <div class="dynamic-island"></div>
+    <div class="screen">
+      <div class="status-bar">
+        <span class="status-time">9:41</span>
+        <div class="status-icons">
+          <span>●●●</span><span>WiFi</span><span>🔋</span>
+        </div>
+      </div>
+
+      <!-- ヘッダー -->
+      <div class="header">
+        <div class="score-pill">sCORE</div>
+        <div style="display:flex;gap:8px;">
+          <div class="icon-btn">🔔</div>
+          <div class="icon-btn">👤</div>
+        </div>
+      </div>
+
+      <!-- 日付バー -->
+      <div class="date-bar">
+        <div class="date-cell">
+          <div class="date-name">金</div>
+          <div class="date-num">24</div>
+          <div class="date-dot" style="background:#34C759"></div>
+        </div>
+        <div class="date-cell">
+          <div class="date-name">土</div>
+          <div class="date-num">25</div>
+          <div class="date-dot" style="background:#f59e0b"></div>
+        </div>
+        <div class="date-cell">
+          <div class="date-name">日</div>
+          <div class="date-num">26</div>
+          <div class="date-dot"></div>
+        </div>
+        <div class="date-cell">
+          <div class="date-name" style="color:#f59e0b">月</div>
+          <div class="date-num today">27</div>
+          <div class="date-dot" style="background:#166534"></div>
+        </div>
+        <div class="date-cell">
+          <div class="date-name">火</div>
+          <div class="date-num">28</div>
+          <div class="date-dot"></div>
+        </div>
+        <div class="date-cell">
+          <div class="date-name">水</div>
+          <div class="date-num">29</div>
+          <div class="date-dot"></div>
+        </div>
+        <div class="date-cell">
+          <div class="date-name">木</div>
+          <div class="date-num">30</div>
+          <div class="date-dot"></div>
+        </div>
+      </div>
+
+      <div class="scroll-content">
+        <!-- 体調 -->
+        <div class="cond-card">
+          <div class="cond-label">今日の体調</div>
+          <div class="cond-emojis">
+            <div class="cond-btn" style="opacity:0.3">😫</div>
+            <div class="cond-btn" style="opacity:0.3">😕</div>
+            <div class="cond-btn active">😐</div>
+            <div class="cond-btn" style="opacity:0.3">😊</div>
+            <div class="cond-btn" style="opacity:0.3">💪</div>
+          </div>
+        </div>
+
+        <!-- リスクカード -->
+        <div class="card">
+          <div class="risk-card-header">
+            <div class="risk-label">INJURY RISK SCORE</div>
+            <div class="risk-badge">
+              <div class="risk-dot"></div>
+              <span class="risk-badge-text">低リスク</span>
+            </div>
+          </div>
+          <div class="score-num">4</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <div class="phrase">全力で追い込もう！</div>
+            <div style="font-size:11px;color:#9ca3af;font-weight:600">天気 +4pt</div>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill" style="width:4%;background:#166534"></div>
+          </div>
+        </div>
+
+        <!-- 4ステータス -->
+        <div class="stat-row">
+          <div class="stat-card">
+            <div class="stat-emoji">⚡</div>
+            <div class="stat-val" style="color:#9ca3af">—</div>
+            <div class="stat-label-sm">疲労</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-emoji">😴</div>
+            <div class="stat-val" style="color:#9ca3af">—</div>
+            <div class="stat-label-sm">睡眠</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-emoji">💪</div>
+            <div class="stat-val" style="color:#f59e0b">3/5</div>
+            <div class="stat-label-sm">体調</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-emoji">☁️</div>
+            <div class="stat-val" style="color:#E53935">+4</div>
+            <div class="stat-label-sm">天気</div>
+          </div>
+        </div>
+
+        <!-- 目標 -->
+        <div class="goal-card">
+          <div class="goal-header">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="font-size:16px">🎯</span>
+              <span class="goal-title">目標</span>
+              <div style="background:rgba(22,101,52,0.15);border-radius:8px;padding:2px 7px;font-size:10px;font-weight:800;color:#166534">2件</div>
+            </div>
+            <div class="goal-add">+</div>
+          </div>
+          <div class="goal-row">
+            <div class="goal-text">100m 11秒台を切る</div>
+            <div class="goal-bar-wrap">
+              <div class="goal-bar-bg"><div class="goal-bar-fill" style="width:65%"></div></div>
+              <div class="goal-pct">65%</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AIコーチ -->
+        <div class="ai-coach-card">
+          <div class="ai-icon">🤖</div>
+          <div>
+            <div class="ai-title">AI COACH</div>
+            <div class="ai-sub">体調・練習・睡眠データから総合分析。タップで取得。</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- タブバー -->
+      <div class="tab-bar">
+        <div class="tab-item">
+          <div class="tab-icon active">🏠</div>
+          <div class="tab-label active">ホーム</div>
+        </div>
+        <div class="tab-item">
+          <div class="tab-icon">📊</div>
+          <div class="tab-label">記録</div>
+        </div>
+        <div class="tab-item">
+          <div class="tab-icon">✨</div>
+          <div class="tab-label">AI</div>
+        </div>
+        <div class="tab-item">
+          <div class="tab-icon">🏆</div>
+          <div class="tab-label">試合</div>
+        </div>
+        <div class="tab-item">
+          <div class="tab-icon">👤</div>
+          <div class="tab-label">設定</div>
+        </div>
+      </div>
+      <div class="fab">+</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+  画像 2: 練習記録入力
+════════════════════════════════════ -->
+<div class="phone-wrap">
+  <div class="phone-num">02 — 練習記録</div>
+  <div class="phone">
+    <div class="dynamic-island"></div>
+    <div class="screen">
+      <div class="status-bar">
+        <span class="status-time">9:41</span>
+        <div class="status-icons"><span>●●●</span><span>🔋</span></div>
+      </div>
+
+      <div class="back-header">
+        <div class="back-btn">‹</div>
+        <div class="page-title">練習記録</div>
+        <div class="spacer"></div>
+      </div>
+
+      <div style="padding:8px 16px 0;color:#9ca3af;font-size:13px;text-align:center">入力方法を選んでください</div>
+
+      <div style="padding:20px 16px;display:flex;flex-direction:column;gap:16px;flex:1;justify-content:center;">
+        <!-- 手動入力 -->
+        <div class="input-method-card">
+          <div class="input-icon" style="background:rgba(90,200,250,0.15)">✏️</div>
+          <div class="input-body">
+            <div class="input-title">手動入力</div>
+            <div class="input-desc">種目・タイム・距離・疲労度を<br>フォームで直接入力する</div>
+          </div>
+          <div style="color:#9ca3af">›</div>
+        </div>
+
+        <!-- AI入力 -->
+        <div class="input-method-card ai-card">
+          <div class="input-icon" style="background:rgba(22,101,52,0.12)">🤖</div>
+          <div class="input-body">
+            <div class="input-title">AI入力 <span class="ai-badge">おすすめ</span></div>
+            <div class="input-desc">練習内容を自由に文章で書くと<br>AIが自動で整理・分類してくれる</div>
+          </div>
+          <div style="color:#9ca3af">›</div>
+        </div>
+
+        <!-- AI入力ボックス例 -->
+        <div class="ai-input-box">
+          <div class="ai-input-label">🤖 練習内容を入力</div>
+          <div class="ai-textarea">400m×5本 レスト3分 68秒 疲労7 少し足が重かった</div>
+          <div class="ai-submit">AIで記録する →</div>
+        </div>
+
+        <div style="font-size:12px;color:#9ca3af;text-align:center;line-height:1.6;padding:0 8px">
+          💡「400m×5本 レスト3分 68秒 疲労7」のように<br>自由に書くだけでOK
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+  画像 3: 試合計画
+════════════════════════════════════ -->
+<div class="phone-wrap">
+  <div class="phone-num">03 — 試合計画</div>
+  <div class="phone">
+    <div class="dynamic-island"></div>
+    <div class="screen">
+      <div class="status-bar">
+        <span class="status-time">9:41</span>
+        <div class="status-icons"><span>●●●</span><span>🔋</span></div>
+      </div>
+
+      <div style="padding:10px 16px 14px">
+        <div style="font-size:24px;font-weight:900;color:#111827;letter-spacing:-0.5px;margin-bottom:4px">試合計画</div>
+        <div style="font-size:13px;color:#9ca3af">次の大会に向けてコンディションを管理</div>
+      </div>
+
+      <div style="padding:0 16px;display:flex;flex-direction:column;gap:10px;overflow:hidden;max-height:660px">
+
+        <!-- 大会カード1 -->
+        <div class="comp-card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <div class="comp-date">2026年5月3日（土）</div>
+              <div class="comp-name">関東インターハイ予選</div>
+              <div class="comp-tags">
+                <div class="comp-tag tag-green">400m</div>
+                <div class="comp-tag tag-amber">残6日</div>
+              </div>
+            </div>
+            <div class="days-chip">6日後</div>
+          </div>
+          <div class="target-row">
+            <div class="target-label">目標タイム</div>
+            <div class="target-val">48.50"</div>
+          </div>
+          <div class="target-row">
+            <div class="target-label">会場</div>
+            <div style="font-size:13px;font-weight:700;color:#374151">等々力陸上競技場</div>
+          </div>
+        </div>
+
+        <!-- 大会カード2 -->
+        <div class="comp-card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <div class="comp-date">2026年6月14日（日）</div>
+              <div class="comp-name">東京都選手権</div>
+              <div class="comp-tags">
+                <div class="comp-tag tag-green">400m</div>
+                <div class="comp-tag tag-blue">4×100mR</div>
+              </div>
+            </div>
+            <div class="days-chip">48日後</div>
+          </div>
+        </div>
+
+        <!-- 今週のコンディション -->
+        <div class="card">
+          <div style="font-size:12px;font-weight:800;color:#9ca3af;letter-spacing:1px;margin-bottom:10px">TODAY'S CONDITION</div>
+          <div style="display:flex;gap:8px">
+            <div class="stat-card" style="flex:1">
+              <div class="stat-emoji">⚡</div>
+              <div class="stat-val" style="color:#166534;font-size:16px">2/5</div>
+              <div class="stat-label-sm">疲労</div>
+            </div>
+            <div class="stat-card" style="flex:1">
+              <div class="stat-emoji">😴</div>
+              <div class="stat-val" style="color:#166534;font-size:16px">7.5h</div>
+              <div class="stat-label-sm">睡眠</div>
+            </div>
+            <div class="stat-card" style="flex:1">
+              <div class="stat-emoji">💪</div>
+              <div class="stat-val" style="color:#166534;font-size:16px">4/5</div>
+              <div class="stat-label-sm">体調</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:#fff;border-radius:14px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 6px 16px rgba(0,0,0,0.09)">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:22px">🏆</span>
+            <div>
+              <div style="font-size:14px;font-weight:800;color:#111827">大会を追加</div>
+              <div style="font-size:11px;color:#9ca3af;margin-top:2px">スケジュールを登録してカウントダウン</div>
+            </div>
+          </div>
+          <div style="background:#166534;border-radius:10px;padding:6px 14px;font-size:13px;font-weight:800;color:#fff">+追加</div>
+        </div>
+      </div>
+
+      <div class="tab-bar">
+        <div class="tab-item"><div class="tab-icon">🏠</div><div class="tab-label">ホーム</div></div>
+        <div class="tab-item"><div class="tab-icon">📊</div><div class="tab-label">記録</div></div>
+        <div class="tab-item"><div class="tab-icon">✨</div><div class="tab-label">AI</div></div>
+        <div class="tab-item"><div class="tab-icon active">🏆</div><div class="tab-label active">試合</div></div>
+        <div class="tab-item"><div class="tab-icon">👤</div><div class="tab-label">設定</div></div>
+      </div>
+      <div class="fab">+</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+  画像 4: チーム管理
+════════════════════════════════════ -->
+<div class="phone-wrap">
+  <div class="phone-num">04 — チーム</div>
+  <div class="phone">
+    <div class="dynamic-island"></div>
+    <div class="screen">
+      <div class="status-bar">
+        <span class="status-time">9:41</span>
+        <div class="status-icons"><span>●●●</span><span>🔋</span></div>
+      </div>
+
+      <div style="padding:10px 16px 14px">
+        <div style="font-size:24px;font-weight:900;color:#111827;letter-spacing:-0.5px;margin-bottom:4px">チーム</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <div style="background:rgba(22,101,52,0.1);border-radius:16px;padding:6px 14px;font-size:12px;font-weight:700;color:#166534">全員 8人</div>
+          <div style="background:#f0f2f5;border-radius:16px;padding:6px 14px;font-size:12px;font-weight:700;color:#6b7280">高リスク 2人</div>
+          <div style="background:#f0f2f5;border-radius:16px;padding:6px 14px;font-size:12px;font-weight:700;color:#6b7280">低リスク 6人</div>
+        </div>
+      </div>
+
+      <!-- チームスコアサマリー -->
+      <div style="padding:0 16px;margin-bottom:10px">
+        <div class="card" style="display:flex;gap:8px">
+          <div class="stat-card" style="flex:1">
+            <div class="stat-val" style="font-size:28px;color:#166534">72</div>
+            <div style="font-size:9px;font-weight:700;color:#9ca3af">チーム平均</div>
+          </div>
+          <div style="flex:2;display:flex;flex-direction:column;gap:4px;justify-content:center">
+            <div style="display:flex;justify-content:space-between">
+              <span style="font-size:11px;color:#6b7280">低リスク</span>
+              <span style="font-size:11px;font-weight:700;color:#166534">6人</span>
+            </div>
+            <div style="height:4px;background:#f0f2f5;border-radius:2px;overflow:hidden"><div style="height:4px;width:75%;background:#166534;border-radius:2px"></div></div>
+            <div style="display:flex;justify-content:space-between">
+              <span style="font-size:11px;color:#6b7280">高リスク</span>
+              <span style="font-size:11px;font-weight:700;color:#E53935">2人</span>
+            </div>
+            <div style="height:4px;background:#f0f2f5;border-radius:2px;overflow:hidden"><div style="height:4px;width:25%;background:#E53935;border-radius:2px"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:0 16px;display:flex;flex-direction:column;gap:8px;overflow:hidden;max-height:520px">
+        <div class="member-card">
+          <div class="avatar" style="background:#166534">田</div>
+          <div>
+            <div class="member-name">田中 太郎</div>
+            <div class="member-event">400m · 疲労2/5</div>
+          </div>
+          <div class="risk-mini-badge low">低リスク 12</div>
+        </div>
+        <div class="member-card">
+          <div class="avatar" style="background:#5AC8FA">山</div>
+          <div>
+            <div class="member-name">山田 花子</div>
+            <div class="member-event">100m · 疲労3/5</div>
+          </div>
+          <div class="risk-mini-badge mid">やや注意 38</div>
+        </div>
+        <div class="member-card">
+          <div class="avatar" style="background:#E53935">佐</div>
+          <div>
+            <div class="member-name">佐藤 健</div>
+            <div class="member-event">800m · 疲労5/5</div>
+          </div>
+          <div class="risk-mini-badge high-r">高リスク 78</div>
+        </div>
+        <div class="member-card">
+          <div class="avatar" style="background:#f59e0b">鈴</div>
+          <div>
+            <div class="member-name">鈴木 美咲</div>
+            <div class="member-event">走幅跳 · 疲労2/5</div>
+          </div>
+          <div class="risk-mini-badge low">低リスク 8</div>
+        </div>
+        <div class="member-card">
+          <div class="avatar" style="background:#AF52DE">伊</div>
+          <div>
+            <div class="member-name">伊藤 大輔</div>
+            <div class="member-event">110mH · 疲労4/5</div>
+          </div>
+          <div class="risk-mini-badge high-r">要注意 65</div>
+        </div>
+      </div>
+
+      <div class="tab-bar">
+        <div class="tab-item"><div class="tab-icon">🏠</div><div class="tab-label">ホーム</div></div>
+        <div class="tab-item"><div class="tab-icon">📊</div><div class="tab-label">記録</div></div>
+        <div class="tab-item"><div class="tab-icon">✨</div><div class="tab-label">AI</div></div>
+        <div class="tab-item"><div class="tab-icon">🏆</div><div class="tab-label">試合</div></div>
+        <div class="tab-item"><div class="tab-icon">👤</div><div class="tab-label">設定</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+  画像 5: タイム計測
+════════════════════════════════════ -->
+<div class="phone-wrap">
+  <div class="phone-num">05 — タイム計測</div>
+  <div class="phone">
+    <div class="dynamic-island"></div>
+    <div class="screen timer-screen">
+      <div class="status-bar" style="background:#f0f2f5">
+        <span class="status-time">9:41</span>
+        <div class="status-icons"><span>●●●</span><span>🔋</span></div>
+      </div>
+
+      <div class="back-header">
+        <div class="back-btn">‹</div>
+        <div class="page-title">タイム計測</div>
+        <div class="spacer"></div>
+      </div>
+
+      <!-- タイマー表示 -->
+      <div class="timer-display">
+        <div style="font-size:11px;font-weight:700;color:#9ca3af;letter-spacing:2px;margin-bottom:8px">400m</div>
+        <div class="timer-num">00:48<span style="font-size:40px">.23</span></div>
+        <div class="timer-sub">LAP 3 / 5</div>
+      </div>
+
+      <!-- スプリット表 -->
+      <div style="padding:0 16px;margin-bottom:12px">
+        <div class="split-card">
+          <div style="font-size:11px;font-weight:800;color:#9ca3af;letter-spacing:1px;margin-bottom:6px">SPLITS</div>
+          <div class="split-row">
+            <div class="split-lap">LAP 1</div>
+            <div class="split-time">00:47.82</div>
+            <div class="split-diff" style="color:#166534">—</div>
+          </div>
+          <div class="split-row">
+            <div class="split-lap">LAP 2</div>
+            <div class="split-time">00:48.56</div>
+            <div class="split-diff" style="color:#E53935">+0.74</div>
+          </div>
+          <div class="split-row" style="background:rgba(22,101,52,0.05);border-radius:8px;padding:6px 2px">
+            <div class="split-lap" style="color:#166534;font-weight:900">LAP 3 ●</div>
+            <div class="split-time" style="color:#166534">00:48.23</div>
+            <div class="split-diff" style="color:#166534">-0.33</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ボタン -->
+      <div class="timer-btn-row">
+        <div class="timer-btn btn-gray">⬛ SPLIT</div>
+        <div class="timer-btn btn-red" style="flex:1.5">⏹ STOP</div>
+      </div>
+
+      <div style="padding:10px 16px;margin-top:6px">
+        <div style="background:#fff;border-radius:14px;padding:12px 14px;box-shadow:0 4px 12px rgba(0,0,0,0.07)">
+          <div style="font-size:11px;color:#9ca3af;font-weight:700;margin-bottom:6px">BEST TIME</div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div style="font-size:28px;font-weight:900;color:#111827;letter-spacing:-1px">00:47.82</div>
+            <div style="background:rgba(245,166,35,0.15);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:900;color:#F5A623">🏅 PB</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+  画像 6: リカバリー / 怪我リスク詳細
+════════════════════════════════════ -->
+<div class="phone-wrap">
+  <div class="phone-num">06 — リカバリー</div>
+  <div class="phone">
+    <div class="dynamic-island"></div>
+    <div class="screen">
+      <div class="status-bar">
+        <span class="status-time">9:41</span>
+        <div class="status-icons"><span>●●●</span><span>🔋</span></div>
+      </div>
+
+      <div class="back-header">
+        <div class="back-btn">‹</div>
+        <div class="page-title">リカバリー記録</div>
+        <div class="spacer"></div>
+      </div>
+
+      <div style="padding:0 16px;display:flex;flex-direction:column;gap:10px;overflow:hidden;max-height:680px">
+
+        <!-- リスクスコア（高め） -->
+        <div class="card">
+          <div class="risk-card-header">
+            <div class="risk-label">INJURY RISK SCORE</div>
+            <div class="risk-badge" style="background:rgba(249,115,22,0.10);border-color:rgba(249,115,22,0.30)">
+              <div class="risk-dot" style="background:#f97316"></div>
+              <span class="risk-badge-text" style="color:#f97316">要注意</span>
+            </div>
+          </div>
+          <div class="score-num">68</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <div class="phrase orange">強度を落とそう</div>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill" style="width:68%;background:#f97316"></div>
+          </div>
+        </div>
+
+        <!-- ストレッチバナー -->
+        <div class="stretch-banner">
+          <span style="font-size:14px;font-weight:700;color:#111827;flex:1">🏃 ストレッチでリスクを下げる</span>
+          <div class="stretch-btn">開始 →</div>
+        </div>
+
+        <!-- 部位選択 -->
+        <div class="body-zone-card">
+          <div class="zone-title">🫀 痛い部位をタップ</div>
+          <div class="zone-grid">
+            <div class="zone-chip sel">右膝</div>
+            <div class="zone-chip">左足首</div>
+            <div class="zone-chip">右ハム</div>
+            <div class="zone-chip sel">腰</div>
+            <div class="zone-chip">右ふくらはぎ</div>
+            <div class="zone-chip">左肩</div>
+            <div class="zone-chip">右アキレス腱</div>
+            <div class="zone-chip">背中</div>
+          </div>
+        </div>
+
+        <!-- 痛みレベル -->
+        <div class="card" style="padding:14px 16px">
+          <div style="font-size:13px;font-weight:800;color:#111827;margin-bottom:10px">
+            📊 痛みレベル: <span style="color:#f97316;font-weight:900">6/10</span>
+          </div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap">
+            {[1,2,3,4,5,6,7,8,9,10].map(() => '')}
+            <div style="display:flex;gap:4px">
+              <div style="width:26px;height:26px;border-radius:13px;border:1.5px solid rgba(22,101,52,0.3);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#166534;background:rgba(22,101,52,0.08)">1</div>
+              <div style="width:26px;height:26px;border-radius:13px;border:1.5px solid rgba(22,101,52,0.3);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#166534;background:rgba(22,101,52,0.08)">2</div>
+              <div style="width:26px;height:26px;border-radius:13px;border:1.5px solid rgba(22,101,52,0.3);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#166534;background:rgba(22,101,52,0.08)">3</div>
+              <div style="width:26px;height:26px;border-radius:13px;border:1.5px solid rgba(22,101,52,0.3);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#166534;background:rgba(22,101,52,0.08)">4</div>
+              <div style="width:26px;height:26px;border-radius:13px;border:1.5px solid rgba(22,101,52,0.3);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#166534;background:rgba(22,101,52,0.08)">5</div>
+              <div style="width:26px;height:26px;border-radius:13px;border:1.5px solid rgba(249,115,22,0.5);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#f97316;background:rgba(249,115,22,0.12)">6</div>
+              <div style="width:26px;height:26px;border-radius:13px;border:1.5px solid transparent;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#9ca3af">7</div>
+              <div style="width:26px;height:26px;border-radius:13px;border:1.5px solid transparent;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#9ca3af">8</div>
+              <div style="width:26px;height:26px;border-radius:13px;border:1.5px solid transparent;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#9ca3af">9</div>
+              <div style="width:26px;height:26px;border-radius:13px;border:1.5px solid transparent;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#9ca3af">10</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 送信ボタン -->
+        <div style="background:#166534;border-radius:16px;padding:16px;text-align:center;font-size:16px;font-weight:800;color:#fff;box-shadow:0 4px 16px rgba(22,101,52,0.35)">
+          🤖 AIに診断してもらう
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

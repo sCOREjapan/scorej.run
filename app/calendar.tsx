@@ -473,7 +473,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  todayBg: { backgroundColor: '#E53935' },
+  todayBg: { backgroundColor: '#166534' },
   selectedBg: { backgroundColor: 'rgba(255,255,255,0.15)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
   dayNum: { fontSize: 13, fontWeight: '500' },
   dotsRow: {

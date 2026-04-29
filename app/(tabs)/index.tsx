@@ -26,6 +26,7 @@ import { registerHomeScroll, unregisterHomeScroll } from '../../lib/homeScroll'
 import { setQuickLogListener, clearQuickLogListener } from '../../lib/quickLogEvent'
 import { getCurrentLocationWeather } from '../../lib/weather'
 import { calcWeatherRiskBonus, getWeatherRiskText } from '../../lib/weatherRisk'
+import { sendRiskAlertIfNeeded, sendStretchReminderIfNeeded, scheduleCompetitionReminder } from '../../lib/notifications'
 import type { SleepRecord } from '../../types'
 
 // ── AsyncStorage keys ───────────────────────────────────
@@ -313,11 +314,11 @@ function ScoreOverviewCard({
 }
 
 const so = StyleSheet.create({
-  // メインカード
+  // メインカード — 案A ソフト浮き上がり
   card: {
     borderRadius: 18, padding: 18,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08, shadowRadius: 12, elevation: 4,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.10, shadowRadius: 20, elevation: 6,
   },
   cardHeader:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
   riskLabel:     { fontSize: 11, fontWeight: '700', letterSpacing: 1.5, color: '#9ca3af' },
@@ -331,20 +332,20 @@ const so = StyleSheet.create({
   barTrack:      { height: 5, borderRadius: 3, overflow: 'hidden' },
   barFill:       { height: 5, borderRadius: 3 },
   // 4ステータスカード
-  statRow:       { flexDirection: 'row', gap: 8 },
+  statRow:       { flexDirection: 'row', gap: 8, marginTop: 10 },
   statCard:      {
     flex: 1, borderRadius: 14, padding: 12, alignItems: 'center', gap: 4,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.09, shadowRadius: 16, elevation: 5,
   },
   statVal:       { fontSize: 20, fontWeight: '900', letterSpacing: -0.5 },
   statLabel:     { fontSize: 10, fontWeight: '700' },
   // ストレッチバナー
   stretchBanner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
+    borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, marginTop: 10,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.09, shadowRadius: 16, elevation: 5,
   },
   stretchText:   { fontSize: 14, fontWeight: '700', flex: 1 },
   stretchBtn:    { borderRadius: 10, paddingHorizontal: 16, paddingVertical: 8 },
@@ -1040,6 +1041,13 @@ ${sessionsText}
     return Math.min(100, Math.max(0, riskResult.riskScore + weatherBonus - stretchReduction))
   }, [riskResult, weatherBonus, stretchReduction])
 
+  // 怪我リスクが高い場合に通知を送る
+  useEffect(() => {
+    if (effectiveRiskScore == null) return
+    sendRiskAlertIfNeeded(effectiveRiskScore)
+    sendStretchReminderIfNeeded(effectiveRiskScore, stretchReduction > 0)
+  }, [effectiveRiskScore, stretchReduction])
+
   const handleStretchStart = useCallback(() => {
     router.push({ pathname: '/stretch-recovery', params: { riskScore: (effectiveRiskScore ?? 50).toString() } } as any)
   }, [effectiveRiskScore])
@@ -1075,13 +1083,15 @@ ${sessionsText}
               </TouchableOpacity>
               {/* 右アイコン群 */}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                {/* 通知ベル → 設定画面の通知セクションへ */}
                 <TouchableOpacity
                   style={[s.iconBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                  onPress={() => { unlockAudio(); Sounds.tap(); router.push('/(tabs)/mypage') }}
+                  onPress={() => { unlockAudio(); Sounds.tap(); router.push('/settings') }}
                   activeOpacity={0.8}
                 >
                   <Ionicons name="notifications-outline" size={18} color={colors.textSec} />
                 </TouchableOpacity>
+                {/* プロフィール → マイページへ */}
                 <TouchableOpacity
                   style={[s.iconBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
                   onPress={() => { unlockAudio(); Sounds.tap(); router.push('/(tabs)/mypage') }}
@@ -1385,7 +1395,8 @@ const s = StyleSheet.create({
   fatiguePill:{ paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
 
   quickLinks: { flexDirection: 'row', gap: 8 },
-  quickLink:  { borderRadius: 12, borderWidth: 1, paddingVertical: 12, alignItems: 'center', gap: 5 },
+  quickLink:  { borderRadius: 12, borderWidth: 1, paddingVertical: 12, alignItems: 'center', gap: 5,
+               shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.07, shadowRadius: 12, elevation: 4 },
   quickLinkLabel: { fontSize: 10, fontWeight: '700', textAlign: 'center' },
 
   // PRバッジ
@@ -1402,12 +1413,12 @@ const s = StyleSheet.create({
   recoveryTitle: { fontSize: 14, fontWeight: '800' },
   recoverySub:   { fontSize: 11, marginTop: 2 },
 
-  // AIコーチカード（W3スタイル）
+  // AIコーチカード（W3スタイル）— 案A ソフト浮き上がり
   aiCoachCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     borderRadius: 16, paddingHorizontal: 16, paddingVertical: 16,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.10, shadowRadius: 20, elevation: 6,
   },
   aiCoachDarkIcon: {
     width: 44, height: 44, borderRadius: 12,

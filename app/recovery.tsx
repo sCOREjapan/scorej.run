@@ -6,9 +6,8 @@ import {
 import { checkAdGate, recordUsage, grantRewardUse } from '../lib/adGate'
 import AdGateModal from '../components/AdGateModal'
 import Svg, {
-  Circle, Ellipse, Path, G, Defs,
-  Pattern, Line, ClipPath, Rect,
-  Text as SvgText, Filter, FeGaussianBlur, FeComposite,
+  Circle, Ellipse, Path, G, Line, Rect,
+  Text as SvgText,
 } from 'react-native-svg'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -40,44 +39,44 @@ type ZoneShape =
   | { type: 'ellipse'; cx: number; cy: number; rx: number; ry: number }
 
 const ZONES: ZoneDef[] = [
-  { id:'head',        label:'頭・首',              front:{type:'circle',cx:110,cy:36,r:26},          back:{type:'circle',cx:110,cy:36,r:26} },
-  { id:'neck',        label:'首・頸部',             front:{type:'ellipse',cx:110,cy:73,rx:13,ry:10},  back:{type:'ellipse',cx:110,cy:73,rx:13,ry:10} },
-  { id:'shoulder_l',  label:'左肩',                front:{type:'ellipse',cx:63,cy:94,rx:20,ry:13},   back:{type:'ellipse',cx:63,cy:94,rx:20,ry:13} },
-  { id:'shoulder_r',  label:'右肩',                front:{type:'ellipse',cx:157,cy:94,rx:20,ry:13},  back:{type:'ellipse',cx:157,cy:94,rx:20,ry:13} },
-  { id:'chest',       label:'胸・肋骨',             front:{type:'ellipse',cx:110,cy:120,rx:36,ry:25} },
-  { id:'upper_back',  label:'背中（上）',            back:{type:'ellipse',cx:110,cy:118,rx:36,ry:25} },
-  { id:'belly',       label:'腹部',                front:{type:'ellipse',cx:110,cy:160,rx:26,ry:17} },
-  { id:'lower_back',  label:'腰・下背部',            back:{type:'ellipse',cx:110,cy:160,rx:26,ry:18} },
-  { id:'upper_arm_l', label:'左上腕',              front:{type:'ellipse',cx:46,cy:130,rx:12,ry:27},  back:{type:'ellipse',cx:46,cy:130,rx:12,ry:27} },
-  { id:'upper_arm_r', label:'右上腕',              front:{type:'ellipse',cx:174,cy:130,rx:12,ry:27}, back:{type:'ellipse',cx:174,cy:130,rx:12,ry:27} },
-  { id:'elbow_l',     label:'左肘',                front:{type:'ellipse',cx:39,cy:173,rx:11,ry:10},  back:{type:'ellipse',cx:39,cy:173,rx:11,ry:10} },
-  { id:'elbow_r',     label:'右肘',                front:{type:'ellipse',cx:181,cy:173,rx:11,ry:10}, back:{type:'ellipse',cx:181,cy:173,rx:11,ry:10} },
-  { id:'forearm_l',   label:'左前腕',              front:{type:'ellipse',cx:34,cy:202,rx:10,ry:22},  back:{type:'ellipse',cx:34,cy:202,rx:10,ry:22} },
-  { id:'forearm_r',   label:'右前腕',              front:{type:'ellipse',cx:186,cy:202,rx:10,ry:22}, back:{type:'ellipse',cx:186,cy:202,rx:10,ry:22} },
-  { id:'wrist_l',     label:'左手首',              front:{type:'ellipse',cx:28,cy:232,rx:9,ry:9},    back:{type:'ellipse',cx:28,cy:232,rx:9,ry:9} },
-  { id:'wrist_r',     label:'右手首',              front:{type:'ellipse',cx:192,cy:232,rx:9,ry:9},   back:{type:'ellipse',cx:192,cy:232,rx:9,ry:9} },
-  { id:'hip_l',       label:'左股関節',             front:{type:'ellipse',cx:88,cy:200,rx:26,ry:19},  back:{type:'ellipse',cx:88,cy:200,rx:26,ry:19} },
-  { id:'hip_r',       label:'右股関節',             front:{type:'ellipse',cx:132,cy:200,rx:26,ry:19}, back:{type:'ellipse',cx:132,cy:200,rx:26,ry:19} },
-  { id:'groin',       label:'鼠径部・内転筋',        front:{type:'ellipse',cx:110,cy:208,rx:14,ry:12} },
-  { id:'buttock',     label:'臀部・お尻',            back:{type:'ellipse',cx:110,cy:205,rx:34,ry:22} },
-  { id:'quad_l',      label:'大腿前（左）',           front:{type:'ellipse',cx:88,cy:258,rx:20,ry:36} },
-  { id:'quad_r',      label:'大腿前（右）',           front:{type:'ellipse',cx:132,cy:258,rx:20,ry:36} },
-  { id:'hamstring_l', label:'ハムストリング（左）',    back:{type:'ellipse',cx:88,cy:257,rx:20,ry:36} },
-  { id:'hamstring_r', label:'ハムストリング（右）',    back:{type:'ellipse',cx:132,cy:257,rx:20,ry:36} },
-  { id:'it_band_l',   label:'腸脛靭帯（左）',         front:{type:'ellipse',cx:72,cy:268,rx:7,ry:32},  back:{type:'ellipse',cx:72,cy:268,rx:7,ry:32} },
-  { id:'it_band_r',   label:'腸脛靭帯（右）',         front:{type:'ellipse',cx:148,cy:268,rx:7,ry:32}, back:{type:'ellipse',cx:148,cy:268,rx:7,ry:32} },
-  { id:'knee_l',      label:'左膝',                front:{type:'ellipse',cx:87,cy:308,rx:17,ry:13},  back:{type:'ellipse',cx:87,cy:308,rx:17,ry:13} },
-  { id:'knee_r',      label:'右膝',                front:{type:'ellipse',cx:133,cy:308,rx:17,ry:13}, back:{type:'ellipse',cx:133,cy:308,rx:17,ry:13} },
-  { id:'shin_l',      label:'すね（左）',             front:{type:'ellipse',cx:85,cy:352,rx:12,ry:30} },
-  { id:'shin_r',      label:'すね（右）',             front:{type:'ellipse',cx:135,cy:352,rx:12,ry:30} },
-  { id:'calf_l',      label:'ふくらはぎ（左）',        back:{type:'ellipse',cx:85,cy:352,rx:13,ry:30} },
-  { id:'calf_r',      label:'ふくらはぎ（右）',        back:{type:'ellipse',cx:135,cy:352,rx:13,ry:30} },
-  { id:'achilles_l',  label:'アキレス腱（左）',        back:{type:'ellipse',cx:83,cy:393,rx:8,ry:14} },
-  { id:'achilles_r',  label:'アキレス腱（右）',        back:{type:'ellipse',cx:137,cy:393,rx:8,ry:14} },
-  { id:'ankle_l',     label:'左足首',              front:{type:'ellipse',cx:83,cy:396,rx:11,ry:9},   back:{type:'ellipse',cx:83,cy:396,rx:11,ry:9} },
-  { id:'ankle_r',     label:'右足首',              front:{type:'ellipse',cx:137,cy:396,rx:11,ry:9},  back:{type:'ellipse',cx:137,cy:396,rx:11,ry:9} },
-  { id:'foot_l',      label:'左足・足底',            front:{type:'ellipse',cx:80,cy:418,rx:18,ry:9},   back:{type:'ellipse',cx:80,cy:418,rx:18,ry:9} },
-  { id:'foot_r',      label:'右足・足底',            front:{type:'ellipse',cx:140,cy:418,rx:18,ry:9},  back:{type:'ellipse',cx:140,cy:418,rx:18,ry:9} },
+  { id:'head',        label:'頭・首',              front:{type:'circle', cx:110,cy:28,r:20},           back:{type:'circle', cx:110,cy:28,r:20} },
+  { id:'neck',        label:'首・頸部',             front:{type:'ellipse',cx:110,cy:62,rx:11,ry:9},    back:{type:'ellipse',cx:110,cy:62,rx:11,ry:9} },
+  { id:'shoulder_l',  label:'左肩',                front:{type:'ellipse',cx:70,cy:85,rx:17,ry:12},    back:{type:'ellipse',cx:70,cy:85,rx:17,ry:12} },
+  { id:'shoulder_r',  label:'右肩',                front:{type:'ellipse',cx:150,cy:85,rx:17,ry:12},   back:{type:'ellipse',cx:150,cy:85,rx:17,ry:12} },
+  { id:'chest',       label:'胸・肋骨',             front:{type:'ellipse',cx:110,cy:114,rx:26,ry:20} },
+  { id:'upper_back',  label:'背中（上）',            back:{type:'ellipse', cx:110,cy:112,rx:26,ry:20} },
+  { id:'belly',       label:'腹部',                front:{type:'ellipse',cx:110,cy:158,rx:20,ry:16} },
+  { id:'lower_back',  label:'腰・下背部',            back:{type:'ellipse', cx:110,cy:158,rx:20,ry:16} },
+  { id:'upper_arm_l', label:'左上腕',              front:{type:'ellipse',cx:53,cy:132,rx:11,ry:26},   back:{type:'ellipse',cx:53,cy:132,rx:11,ry:26} },
+  { id:'upper_arm_r', label:'右上腕',              front:{type:'ellipse',cx:167,cy:132,rx:11,ry:26},  back:{type:'ellipse',cx:167,cy:132,rx:11,ry:26} },
+  { id:'elbow_l',     label:'左肘',                front:{type:'ellipse',cx:48,cy:174,rx:11,ry:10},   back:{type:'ellipse',cx:48,cy:174,rx:11,ry:10} },
+  { id:'elbow_r',     label:'右肘',                front:{type:'ellipse',cx:172,cy:174,rx:11,ry:10},  back:{type:'ellipse',cx:172,cy:174,rx:11,ry:10} },
+  { id:'forearm_l',   label:'左前腕',              front:{type:'ellipse',cx:43,cy:205,rx:10,ry:21},   back:{type:'ellipse',cx:43,cy:205,rx:10,ry:21} },
+  { id:'forearm_r',   label:'右前腕',              front:{type:'ellipse',cx:177,cy:205,rx:10,ry:21},  back:{type:'ellipse',cx:177,cy:205,rx:10,ry:21} },
+  { id:'wrist_l',     label:'左手首',              front:{type:'ellipse',cx:38,cy:234,rx:9,ry:8},     back:{type:'ellipse',cx:38,cy:234,rx:9,ry:8} },
+  { id:'wrist_r',     label:'右手首',              front:{type:'ellipse',cx:182,cy:234,rx:9,ry:8},    back:{type:'ellipse',cx:182,cy:234,rx:9,ry:8} },
+  { id:'hip_l',       label:'左股関節',             front:{type:'ellipse',cx:87,cy:196,rx:21,ry:16},   back:{type:'ellipse',cx:87,cy:196,rx:21,ry:16} },
+  { id:'hip_r',       label:'右股関節',             front:{type:'ellipse',cx:133,cy:196,rx:21,ry:16},  back:{type:'ellipse',cx:133,cy:196,rx:21,ry:16} },
+  { id:'groin',       label:'鼠径部・内転筋',        front:{type:'ellipse',cx:110,cy:206,rx:13,ry:11} },
+  { id:'buttock',     label:'臀部・お尻',            back:{type:'ellipse', cx:110,cy:202,rx:28,ry:19} },
+  { id:'quad_l',      label:'大腿前（左）',           front:{type:'ellipse',cx:85,cy:258,rx:18,ry:34} },
+  { id:'quad_r',      label:'大腿前（右）',           front:{type:'ellipse',cx:135,cy:258,rx:18,ry:34} },
+  { id:'hamstring_l', label:'ハムストリング（左）',    back:{type:'ellipse', cx:85,cy:256,rx:18,ry:34} },
+  { id:'hamstring_r', label:'ハムストリング（右）',    back:{type:'ellipse', cx:135,cy:256,rx:18,ry:34} },
+  { id:'it_band_l',   label:'腸脛靭帯（左）',         front:{type:'ellipse',cx:70,cy:266,rx:6,ry:30},   back:{type:'ellipse',cx:70,cy:266,rx:6,ry:30} },
+  { id:'it_band_r',   label:'腸脛靭帯（右）',         front:{type:'ellipse',cx:150,cy:266,rx:6,ry:30},  back:{type:'ellipse',cx:150,cy:266,rx:6,ry:30} },
+  { id:'knee_l',      label:'左膝',                front:{type:'ellipse',cx:83,cy:310,rx:16,ry:12},   back:{type:'ellipse',cx:83,cy:310,rx:16,ry:12} },
+  { id:'knee_r',      label:'右膝',                front:{type:'ellipse',cx:137,cy:310,rx:16,ry:12},  back:{type:'ellipse',cx:137,cy:310,rx:16,ry:12} },
+  { id:'shin_l',      label:'すね（左）',             front:{type:'ellipse',cx:82,cy:352,rx:11,ry:28} },
+  { id:'shin_r',      label:'すね（右）',             front:{type:'ellipse',cx:138,cy:352,rx:11,ry:28} },
+  { id:'calf_l',      label:'ふくらはぎ（左）',        back:{type:'ellipse', cx:82,cy:352,rx:12,ry:28} },
+  { id:'calf_r',      label:'ふくらはぎ（右）',        back:{type:'ellipse', cx:138,cy:352,rx:12,ry:28} },
+  { id:'achilles_l',  label:'アキレス腱（左）',        back:{type:'ellipse', cx:80,cy:392,rx:7,ry:13} },
+  { id:'achilles_r',  label:'アキレス腱（右）',        back:{type:'ellipse', cx:140,cy:392,rx:7,ry:13} },
+  { id:'ankle_l',     label:'左足首',              front:{type:'ellipse',cx:81,cy:396,rx:11,ry:9},    back:{type:'ellipse',cx:81,cy:396,rx:11,ry:9} },
+  { id:'ankle_r',     label:'右足首',              front:{type:'ellipse',cx:139,cy:396,rx:11,ry:9},   back:{type:'ellipse',cx:139,cy:396,rx:11,ry:9} },
+  { id:'foot_l',      label:'左足・足底',            front:{type:'ellipse',cx:77,cy:420,rx:17,ry:9},    back:{type:'ellipse',cx:77,cy:420,rx:17,ry:9} },
+  { id:'foot_r',      label:'右足・足底',            front:{type:'ellipse',cx:143,cy:420,rx:17,ry:9},   back:{type:'ellipse',cx:143,cy:420,rx:17,ry:9} },
 ]
 
 const PAIN_TYPES     = [{id:'sharp',label:'鋭い・刺すような'},{id:'dull',label:'鈍い・重い'},{id:'burning',label:'燃えるような・しびれ'},{id:'aching',label:'じんじん・疼く'}]
@@ -89,7 +88,7 @@ const STORAGE_KEY = 'trackmate_recovery_records'
 
 /* ════════════════════════════════════════════ */
 export default function RecoveryScreen() {
-  const [bodyParts, setBodyParts] = useState<string[]>([])  // ← 複数選択
+  const [bodyParts, setBodyParts] = useState<string[]>([])
   const [painLevel, setPainLevel] = useState(5)
   const [painType,  setPainType]  = useState('')
   const [timing,    setTiming]    = useState('')
@@ -118,7 +117,7 @@ export default function RecoveryScreen() {
     setBodyParts(prev => prev.includes(id) ? prev.filter(p=>p!==id) : [...prev, id])
   }
 
-  /* ── AI相談（実際のAPI呼び出し） ── */
+  /* ── AI相談 ── */
   const askAICore = async () => {
     setApiError('')
     setLoading(true)
@@ -174,7 +173,6 @@ export default function RecoveryScreen() {
     } finally { setLoading(false) }
   }
 
-  /* ── アドゲートチェック付きエントリーポイント ── */
   const askAI = async () => {
     if (bodyParts.length === 0) { setApiError('部位をタップして選択してください（複数可）'); return }
     if (!painType) { setApiError('痛みの種類を選択してください'); return }
@@ -216,7 +214,7 @@ export default function RecoveryScreen() {
               </Text>
             </View>
 
-            {/* ─ ワイヤーフレームボディマップ ─ */}
+            {/* ─ ボディマップ ─ */}
             <Text style={s.secTitle}>🫀 痛い部位をタップ
               <Text style={{color:'#E53935',fontSize:12}}> （複数選択可）</Text>
             </Text>
@@ -249,9 +247,9 @@ export default function RecoveryScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* ワイヤーフレームSVG */}
+            {/* ボディマップSVG */}
             <View style={s.svgWrap}>
-              <WireframeBody view={view} selected={bodyParts} onToggle={togglePart} />
+              <BodyMap view={view} selected={bodyParts} onToggle={togglePart} />
             </View>
 
             {/* 痛みレベル */}
@@ -263,7 +261,7 @@ export default function RecoveryScreen() {
                   <TouchableOpacity key={n}
                     style={[s.levelBtn,{borderColor:col},painLevel===n&&{backgroundColor:col}]}
                     onPress={()=>setPainLevel(n)}>
-                    <Text style={[s.levelTxt,painLevel===n&&{color:'#000'}]}>{n}</Text>
+                    <Text style={[s.levelTxt,painLevel===n&&{color:'#fff',fontWeight:'800'}]}>{n}</Text>
                   </TouchableOpacity>
                 )
               })}
@@ -298,7 +296,7 @@ export default function RecoveryScreen() {
 
             <Text style={s.secTitle}>📝 追加メモ（任意）</Text>
             <TextInput style={s.notesInput} value={notes} onChangeText={setNotes}
-              placeholder="動作で痛む・過去の怪我など..." placeholderTextColor="#444"
+              placeholder="動作で痛む・過去の怪我など..." placeholderTextColor="#9ca3af"
               multiline numberOfLines={3} />
 
             {apiError ? (
@@ -309,7 +307,7 @@ export default function RecoveryScreen() {
             ) : null}
 
             <View style={s.disclaimer}>
-              <Ionicons name="information-circle-outline" size={13} color="#444" />
+              <Ionicons name="information-circle-outline" size={13} color="#6b7280" />
               <Text style={s.disclaimerTxt}>AIアドバイスは医師の診断の代替ではありません。重篤な症状は医療機関を受診してください。</Text>
             </View>
 
@@ -326,7 +324,7 @@ export default function RecoveryScreen() {
         {tab==='result' && (
           <ScrollView contentContainerStyle={s.content}>
             {!result
-              ? <View style={s.empty}><Ionicons name="medkit-outline" size={48} color="#2a2a2a"/><Text style={s.emptyTxt}>症状入力タブから相談してください</Text></View>
+              ? <View style={s.empty}><Ionicons name="medkit-outline" size={48} color="#9ca3af"/><Text style={s.emptyTxt}>症状入力タブから相談してください</Text></View>
               : <ResultView result={result} onBack={()=>setTab('input')} />
             }
           </ScrollView>
@@ -336,7 +334,7 @@ export default function RecoveryScreen() {
         {tab==='history' && (
           <ScrollView contentContainerStyle={s.content}>
             {history.length===0
-              ? <View style={s.empty}><Ionicons name="time-outline" size={48} color="#2a2a2a"/><Text style={s.emptyTxt}>相談履歴なし</Text></View>
+              ? <View style={s.empty}><Ionicons name="time-outline" size={48} color="#9ca3af"/><Text style={s.emptyTxt}>相談履歴なし</Text></View>
               : history.map(rec=>(
                 <TouchableOpacity key={rec.id} style={s.histCard}
                   onPress={()=>{setResult(rec.result);setTab('result');fadeIn()}}>
@@ -346,7 +344,7 @@ export default function RecoveryScreen() {
                   </View>
                   <Text style={s.histPart}>📍 {rec.bodyParts.map(id=>ZONES.find(z=>z.id===id)?.label??id).join(' / ')}　Lv.{rec.painLevel}</Text>
                   <Text style={s.histDiag}>{rec.result.suspected_condition}</Text>
-                  <Ionicons name="chevron-forward" size={15} color="#444" style={{position:'absolute',right:12,top:20}}/>
+                  <Ionicons name="chevron-forward" size={15} color="#9ca3af" style={{position:'absolute',right:12,top:20}}/>
                 </TouchableOpacity>
               ))
             }
@@ -354,7 +352,6 @@ export default function RecoveryScreen() {
         )}
       </Animated.View>
 
-      {/* ── 広告ゲートモーダル ── */}
       <AdGateModal
         visible={adGateVisible}
         feature="recovery"
@@ -368,100 +365,77 @@ export default function RecoveryScreen() {
         }}
         onUpgrade={() => {
           setAdGateVisible(false)
-          // TODO: プレミアム画面へのナビゲーションを追加
         }}
       />
     </View>
   )
 }
 
-/* ─── ワイヤーフレームボディ SVG ──────────────────── */
-function WireframeBody({ view, selected, onToggle }: {
+/* ─── なめらか人体図 SVG ──────────────────────── */
+function BodyMap({ view, selected, onToggle }: {
   view:'front'|'back'; selected:string[]; onToggle:(id:string)=>void
 }) {
   const W=220, H=440
-
-  // 表示するゾーン
   const zones = ZONES.filter(z => view==='front' ? !!z.front : !!z.back)
-
-  // ゾーンのシェイプ取得
   const getShape = (z: ZoneDef) => view==='front' ? z.front! : z.back!
-
-  // ラベル位置
   const getLabelY = (shape: ZoneShape) => {
     if (shape.type==='circle') return shape.cy - shape.r - 7
     return shape.cy - shape.ry - 7
   }
 
   return (
-    <Svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{backgroundColor:'#050505'}}>
-      <Defs>
-        {/* メッシュグリッドパターン */}
-        <Pattern id="mesh" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse">
-          <Line x1="10" y1="0" x2="0" y2="0" stroke="rgba(255,255,255,0.10)" strokeWidth="0.4"/>
-          <Line x1="0" y1="0" x2="0" y2="10" stroke="rgba(255,255,255,0.10)" strokeWidth="0.4"/>
-        </Pattern>
-        {/* 選択時のメッシュ（赤） */}
-        <Pattern id="meshRed" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse">
-          <Line x1="10" y1="0" x2="0" y2="0" stroke="rgba(229,57,53,0.45)" strokeWidth="0.5"/>
-          <Line x1="0" y1="0" x2="0" y2="10" stroke="rgba(229,57,53,0.45)" strokeWidth="0.5"/>
-        </Pattern>
-      </Defs>
+    <Svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}
+      style={{backgroundColor:'#eef4f9', borderRadius:12}}>
 
-      {/* ── ボディシルエット（ワイヤーフレーム背景） ── */}
-      <BodySilhouette view={view} />
+      {/* なめらかボディシルエット */}
+      <AnatomicalBody view={view} />
 
-      {/* ── 各ゾーン ── */}
+      {/* ゾーンオーバーレイ */}
       {zones.map(zone => {
         const shape = getShape(zone)
         const sel   = selected.includes(zone.id)
-        const meshId = sel ? 'meshRed' : 'mesh'
-        const stroke = sel ? '#E53935' : 'rgba(255,255,255,0.28)'
-        const sw     = sel ? 1.8 : 0.8
-        const glowOpacity = sel ? 0.18 : 0
 
         return (
           <G key={zone.id} onPress={() => onToggle(zone.id)}>
-            {/* グロー効果（選択時） */}
+            {/* 選択時グロー */}
             {sel && shape.type==='circle' && (
-              <Circle cx={shape.cx} cy={shape.cy} r={shape.r+6}
-                fill="rgba(229,57,53,0.08)" stroke="rgba(229,57,53,0.2)" strokeWidth={3}/>
+              <Circle cx={shape.cx} cy={shape.cy} r={shape.r+7}
+                fill="rgba(229,57,53,0.10)" stroke="rgba(229,57,53,0.25)" strokeWidth={2.5}/>
             )}
             {sel && shape.type==='ellipse' && (
-              <Ellipse cx={shape.cx} cy={shape.cy} rx={shape.rx+5} ry={shape.ry+5}
-                fill="rgba(229,57,53,0.08)" stroke="rgba(229,57,53,0.2)" strokeWidth={3}/>
+              <Ellipse cx={shape.cx} cy={shape.cy} rx={shape.rx+6} ry={shape.ry+6}
+                fill="rgba(229,57,53,0.10)" stroke="rgba(229,57,53,0.25)" strokeWidth={2.5}/>
             )}
 
-            {/* メインゾーン */}
+            {/* タップ領域（ほぼ透明） */}
             {shape.type==='circle'
               ? <Circle cx={shape.cx} cy={shape.cy} r={shape.r}
-                  fill={`url(#${meshId})`} stroke={stroke} strokeWidth={sw}/>
+                  fill={sel ? 'rgba(229,57,53,0.20)' : 'rgba(0,0,0,0.001)'}
+                  stroke={sel ? '#E53935' : 'rgba(0,0,0,0)'}
+                  strokeWidth={sel ? 1.8 : 0}/>
               : <Ellipse cx={shape.cx} cy={shape.cy} rx={shape.rx} ry={shape.ry}
-                  fill={`url(#${meshId})`} stroke={stroke} strokeWidth={sw}/>
+                  fill={sel ? 'rgba(229,57,53,0.20)' : 'rgba(0,0,0,0.001)'}
+                  stroke={sel ? '#E53935' : 'rgba(0,0,0,0)'}
+                  strokeWidth={sel ? 1.8 : 0}/>
             }
 
-            {/* 選択中のラベル */}
+            {/* 選択ラベル */}
             {sel && (
               <G>
-                <Rect
-                  x={shape.cx - 32} y={getLabelY(shape) - 12}
-                  width={64} height={14} rx={7}
-                  fill="rgba(229,57,53,0.85)"
-                />
-                <SvgText
-                  x={shape.cx} y={getLabelY(shape) - 1}
-                  textAnchor="middle" fill="#fff"
-                  fontSize={8} fontWeight="bold"
-                >{zone.label}</SvgText>
+                <Rect x={shape.cx-34} y={getLabelY(shape)-13} width={68} height={15} rx={7}
+                  fill="rgba(229,57,53,0.92)"/>
+                <SvgText x={shape.cx} y={getLabelY(shape)-1.5}
+                  textAnchor="middle" fill="#fff" fontSize={8} fontWeight="bold">
+                  {zone.label}
+                </SvgText>
               </G>
             )}
           </G>
         )
       })}
 
-      {/* ヒント */}
       {selected.length===0 && (
-        <SvgText x={110} y={H-6} textAnchor="middle" fill="rgba(255,255,255,0.18)" fontSize={9}>
+        <SvgText x={110} y={H-6} textAnchor="middle" fill="rgba(0,0,0,0.28)" fontSize={9}>
           部位をタップして選択（複数可）
         </SvgText>
       )}
@@ -469,81 +443,168 @@ function WireframeBody({ view, selected, onToggle }: {
   )
 }
 
-/* ─── ボディシルエット（ワイヤーフレーム輪郭） ─── */
-function BodySilhouette({ view }: { view:'front'|'back' }) {
-  const lc = 'rgba(255,255,255,0.14)'  // line color
-  const sw = 0.7
+/* ─── スリムな解剖学的人体シルエット ────────── */
+function AnatomicalBody({ view }: { view:'front'|'back' }) {
+  const fill   = '#d2e8f4'
+  const stroke = '#5a8faa'
+  const sw     = 1.2
+  const detail = '#90bcd0'
 
   return (
     <G>
       {/* 頭 */}
-      <Circle cx={110} cy={36} r={28} fill="rgba(255,255,255,0.03)" stroke={lc} strokeWidth={sw}/>
-      {/* 頭の中央縦線 */}
-      <Line x1={110} y1={10} x2={110} y2={62} stroke={lc} strokeWidth={sw*0.6}/>
-      {/* 頭の横線3本 */}
-      <Line x1={84} y1={28} x2={136} y2={28} stroke={lc} strokeWidth={sw*0.5}/>
-      <Line x1={82} y1={38} x2={138} y2={38} stroke={lc} strokeWidth={sw*0.5}/>
-      <Line x1={86} y1={50} x2={134} y2={50} stroke={lc} strokeWidth={sw*0.5}/>
+      <Ellipse cx={110} cy={27} rx={17} ry={20}
+        fill={fill} stroke={stroke} strokeWidth={sw}/>
 
       {/* 首 */}
-      <Rect x={98} y={64} width={24} height={18} rx={4} fill="none" stroke={lc} strokeWidth={sw}/>
+      <Path d="M103,46 L102,66 Q110,71 118,66 L117,46 Q110,43 103,46 Z"
+        fill={fill} stroke={stroke} strokeWidth={sw}/>
 
-      {/* 胴体アウトライン */}
+      {/*
+        胴体：肩幅 ~76px、胸幅 ~86px、ウエスト ~60px、ヒップ ~62px
+        従来の 142px から大幅スリム化
+      */}
       <Path
-        d="M68,82 Q55,88 48,102 L44,152 L44,192 L68,200 L80,200 L80,186 L140,186 L140,200 L152,200 L176,192 L176,152 L172,102 Q165,88 152,82 L130,78 L90,78 Z"
-        fill="rgba(255,255,255,0.03)" stroke={lc} strokeWidth={sw}
-      />
-      {/* 胴体 縦中線 */}
-      <Line x1={110} y1={82} x2={110} y2={200} stroke={lc} strokeWidth={sw*0.5}/>
-      {/* 胴体 横線 */}
-      {[100,120,140,160,180].map(y=>(
-        <Line key={y} x1={view==='front'?50:50} y1={y} x2={170} y2={y} stroke={lc} strokeWidth={sw*0.5}/>
-      ))}
+        d="M80,78
+           C72,86 68,100 68,118
+           C68,134 72,148 77,160
+           C80,170 80,184 82,196
+           L93,204 L127,204
+           L138,196
+           C140,184 140,170 143,160
+           C148,148 152,134 152,118
+           C152,100 148,86 140,78
+           C130,71 120,70 118,70
+           L102,70
+           C100,70 90,71 80,78 Z"
+        fill={fill} stroke={stroke} strokeWidth={sw}/>
 
-      {/* 左腕 */}
-      <Path d="M48,100 Q38,108 30,140 L24,175 L30,180 L44,176 L54,144 L60,104 Z"
-        fill="rgba(255,255,255,0.03)" stroke={lc} strokeWidth={sw}/>
-      <Path d="M24,175 L18,225 L36,230 L44,178 Z"
-        fill="rgba(255,255,255,0.03)" stroke={lc} strokeWidth={sw}/>
-      {/* 左腕横線 */}
-      {[120,145,165,195,215].map(y=>(
-        <Line key={y} x1={21+(y-120)*0.06} y1={y} x2={48-(y-120)*0.06} y2={y}
-          stroke={lc} strokeWidth={sw*0.45}/>
-      ))}
+      {/* 前面ディテール */}
+      {view === 'front' && (
+        <>
+          {/* 鎖骨 */}
+          <Path d="M103,71 Q90,77 77,84"
+            fill="none" stroke={detail} strokeWidth={0.85}/>
+          <Path d="M117,71 Q130,77 143,84"
+            fill="none" stroke={detail} strokeWidth={0.85}/>
+          {/* 正中線（点線） */}
+          <Line x1={110} y1={96} x2={110} y2={163}
+            stroke={detail} strokeWidth={0.55} strokeDasharray="3,4"/>
+          {/* へそ */}
+          <Circle cx={110} cy={167} r={2}
+            fill="none" stroke={detail} strokeWidth={0.9}/>
+        </>
+      )}
 
-      {/* 右腕 */}
-      <Path d="M172,100 Q182,108 190,140 L196,175 L190,180 L176,176 L166,144 L160,104 Z"
-        fill="rgba(255,255,255,0.03)" stroke={lc} strokeWidth={sw}/>
-      <Path d="M196,175 L202,225 L184,230 L176,178 Z"
-        fill="rgba(255,255,255,0.03)" stroke={lc} strokeWidth={sw}/>
-      {[120,145,165,195,215].map(y=>(
-        <Line key={y} x1={172+(y-120)*0.06} y1={y} x2={199-(y-120)*0.06} y2={y}
-          stroke={lc} strokeWidth={sw*0.45}/>
-      ))}
+      {/* 背面ディテール */}
+      {view === 'back' && (
+        <>
+          {/* 脊椎 */}
+          <Line x1={110} y1={72} x2={110} y2={198}
+            stroke={detail} strokeWidth={0.9} strokeDasharray="2,4"/>
+          {/* 肩甲骨 */}
+          <Ellipse cx={91} cy={112} rx={12} ry={16}
+            fill="none" stroke={detail} strokeWidth={0.8}/>
+          <Ellipse cx={129} cy={112} rx={12} ry={16}
+            fill="none" stroke={detail} strokeWidth={0.8}/>
+        </>
+      )}
 
-      {/* 左脚 */}
-      <Path d="M78,200 L68,206 L62,260 L64,308 L82,314 L98,308 L100,260 L96,206 Z"
-        fill="rgba(255,255,255,0.03)" stroke={lc} strokeWidth={sw}/>
-      <Path d="M64,308 L60,365 L76,370 L90,366 L96,308 Z"
-        fill="rgba(255,255,255,0.03)" stroke={lc} strokeWidth={sw}/>
-      <Path d="M58,365 L50,428 L90,430 L92,368 Z"
-        fill="rgba(255,255,255,0.03)" stroke={lc} strokeWidth={sw}/>
-      {[225,250,275,300,330,360,390].map(y=>(
-        <Line key={y} x1={62+(y-225)*0.03} y1={y} x2={100-(y-225)*0.03} y2={y}
-          stroke={lc} strokeWidth={sw*0.45}/>
-      ))}
+      {/* 左上腕 — 胴体から 3px 離れ、幅 ~18px */}
+      <Path
+        d="M67,82
+           C58,94 52,116 49,140
+           C46,158 45,174 47,188
+           L58,190
+           C62,178 64,162 67,140
+           C70,116 72,96 73,84 Z"
+        fill={fill} stroke={stroke} strokeWidth={sw}/>
 
-      {/* 右脚 */}
-      <Path d="M142,200 L152,206 L158,260 L156,308 L138,314 L122,308 L120,260 L124,206 Z"
-        fill="rgba(255,255,255,0.03)" stroke={lc} strokeWidth={sw}/>
-      <Path d="M156,308 L160,365 L144,370 L130,366 L124,308 Z"
-        fill="rgba(255,255,255,0.03)" stroke={lc} strokeWidth={sw}/>
-      <Path d="M162,365 L170,428 L130,430 L128,368 Z"
-        fill="rgba(255,255,255,0.03)" stroke={lc} strokeWidth={sw}/>
-      {[225,250,275,300,330,360,390].map(y=>(
-        <Line key={y} x1={120+(y-225)*0.03} y1={y} x2={158-(y-225)*0.03} y2={y}
-          stroke={lc} strokeWidth={sw*0.45}/>
-      ))}
+      {/* 左前腕・手首 */}
+      <Path
+        d="M47,188
+           C43,205 39,222 37,236
+           Q43,244 51,242 Q57,240 59,232
+           C59,218 61,204 58,190 Z"
+        fill={fill} stroke={stroke} strokeWidth={sw}/>
+
+      {/* 右上腕 */}
+      <Path
+        d="M153,82
+           C162,94 168,116 171,140
+           C174,158 175,174 173,188
+           L162,190
+           C158,178 156,162 153,140
+           C150,116 148,96 147,84 Z"
+        fill={fill} stroke={stroke} strokeWidth={sw}/>
+
+      {/* 右前腕・手首 */}
+      <Path
+        d="M173,188
+           C177,205 181,222 183,236
+           Q177,244 169,242 Q163,240 161,232
+           C161,218 159,204 162,190 Z"
+        fill={fill} stroke={stroke} strokeWidth={sw}/>
+
+      {/* 左大腿 — 幅 ~36px、脚間に明確なギャップ */}
+      <Path
+        d="M82,202
+           C74,210 68,228 66,252
+           C64,272 65,292 68,312
+           L80,320 C86,322 94,320 100,316
+           L104,306
+           C107,288 107,268 105,248
+           C103,228 99,210 94,200 Z"
+        fill={fill} stroke={stroke} strokeWidth={sw}/>
+
+      {/* 左下腿 */}
+      <Path
+        d="M68,310
+           C64,330 63,350 64,370
+           C65,386 68,398 72,408
+           L87,408
+           C92,406 96,400 97,392
+           C98,380 97,358 97,334
+           L97,308
+           C92,315 80,318 73,314 Z"
+        fill={fill} stroke={stroke} strokeWidth={sw}/>
+
+      {/* 左足 */}
+      <Path
+        d="M64,404 C58,418 54,430 54,435
+           Q64,439 78,439 Q90,438 96,430
+           Q98,420 97,408 Z"
+        fill={fill} stroke={stroke} strokeWidth={sw}/>
+
+      {/* 右大腿 */}
+      <Path
+        d="M138,202
+           C146,210 152,228 154,252
+           C156,272 155,292 152,312
+           L140,320 C134,322 126,320 120,316
+           L116,306
+           C113,288 113,268 115,248
+           C117,228 121,210 126,200 Z"
+        fill={fill} stroke={stroke} strokeWidth={sw}/>
+
+      {/* 右下腿 */}
+      <Path
+        d="M152,310
+           C156,330 157,350 156,370
+           C155,386 152,398 148,408
+           L133,408
+           C128,406 124,400 123,392
+           C122,380 123,358 123,334
+           L123,308
+           C128,315 140,318 147,314 Z"
+        fill={fill} stroke={stroke} strokeWidth={sw}/>
+
+      {/* 右足 */}
+      <Path
+        d="M156,404 C162,418 166,430 166,435
+           Q156,439 142,439 Q130,438 124,430
+           Q122,420 123,408 Z"
+        fill={fill} stroke={stroke} strokeWidth={sw}/>
     </G>
   )
 }
@@ -552,7 +613,6 @@ function BodySilhouette({ view }: { view:'front'|'back' }) {
 function ResultView({ result, onBack }: { result:RecoveryResult; onBack:()=>void }) {
   return (
     <>
-      {/* 免責バナー（結果画面） */}
       <View style={s.disclaimerBanner}>
         <Ionicons name="warning-outline" size={15} color="#FF9500" />
         <Text style={s.disclaimerBannerTxt}>
@@ -563,55 +623,72 @@ function ResultView({ result, onBack }: { result:RecoveryResult; onBack:()=>void
 
       <View style={[s.diagCard,{borderLeftColor:SEVERITY_COLOR[result.severity]}]}>
         <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
-          <Text style={{color:'#888',fontSize:11,fontWeight:'800'}}>疑われる症状</Text>
+          <Text style={{color:'#6b7280',fontSize:11,fontWeight:'800'}}>疑われる症状</Text>
           <SevBadge severity={result.severity}/>
         </View>
-        <Text style={{color:'#fff',fontSize:20,fontWeight:'900'}}>{result.suspected_condition}</Text>
+        <Text style={{color:'#111827',fontSize:20,fontWeight:'900'}}>{result.suspected_condition}</Text>
       </View>
-      <Sec icon="flash"        title="今すぐすべきこと" color="#E53935">
+
+      <Sec icon="flash" title="今すぐすべきこと" color="#E53935">
         {result.immediate_actions.map((a,i)=><Bullet key={i} text={a} color="#E53935"/>)}
       </Sec>
-      <Sec icon="snow"         title="RICE処置" color="#4A9FFF">
+
+      <Sec icon="snow" title="RICE処置" color="#4A9FFF">
         {(['rest','ice','compression','elevation'] as const).map(k=>(
           <View key={k} style={s.riceRow}>
-            <Text style={s.riceLabel}>{k==='rest'?'Rest（安静）':k==='ice'?'Ice（アイシング）':k==='compression'?'Compression（圧迫）':'Elevation（挙上）'}</Text>
+            <Text style={s.riceLabel}>
+              {k==='rest'?'Rest（安静）':k==='ice'?'Ice（アイシング）':k==='compression'?'Compression（圧迫）':'Elevation（挙上）'}
+            </Text>
             <Text style={s.riceVal}>{result.rice_protocol[k]}</Text>
           </View>
         ))}
       </Sec>
-      <Sec icon="bandage"      title="テーピング方法" color="#FF9500">
+
+      <Sec icon="bandage" title="テーピング方法" color="#FF9500">
         <View style={{flexDirection:'row',gap:10,marginBottom:10}}>
-          <View style={{flex:1}}><Text style={[s.riceLabel,{color:'#FF9500'}]}>目的</Text><Text style={s.riceVal}>{result.taping.purpose}</Text></View>
-          <View style={{flex:1}}><Text style={[s.riceLabel,{color:'#FF9500'}]}>テープ種類</Text><Text style={s.riceVal}>{result.taping.tape_type}</Text></View>
+          <View style={{flex:1}}>
+            <Text style={[s.riceLabel,{color:'#FF9500'}]}>目的</Text>
+            <Text style={s.riceVal}>{result.taping.purpose}</Text>
+          </View>
+          <View style={{flex:1}}>
+            <Text style={[s.riceLabel,{color:'#FF9500'}]}>テープ種類</Text>
+            <Text style={s.riceVal}>{result.taping.tape_type}</Text>
+          </View>
         </View>
-        <Text style={[s.riceLabel,{color:'#888',marginBottom:6}]}>貼り方（手順）</Text>
-        <Text style={{color:'#ccc',fontSize:13,lineHeight:22}}>{result.taping.method}</Text>
+        <Text style={[s.riceLabel,{color:'#6b7280',marginBottom:6}]}>貼り方（手順）</Text>
+        <Text style={{color:'#374151',fontSize:13,lineHeight:22}}>{result.taping.method}</Text>
       </Sec>
-      <Sec icon="time"         title="回復スケジュール" color="#34C759">
+
+      <Sec icon="time" title="回復スケジュール" color="#34C759">
         {[result.recovery_timeline.phase1,result.recovery_timeline.phase2,result.recovery_timeline.phase3].map((ph,i)=>(
           <View key={i} style={s.tlRow}>
             <View style={[s.tlDot,{backgroundColor:i===0?'#E53935':i===1?'#FF9500':'#34C759'}]}/>
             <View style={{flex:1}}>
-              <Text style={{color:'#fff',fontSize:12,fontWeight:'800',marginBottom:3}}>{ph.period}</Text>
-              <Text style={{color:'#aaa',fontSize:13,lineHeight:19}}>{ph.description}</Text>
+              <Text style={{color:'#111827',fontSize:12,fontWeight:'800',marginBottom:3}}>{ph.period}</Text>
+              <Text style={{color:'#4b5563',fontSize:13,lineHeight:19}}>{ph.description}</Text>
             </View>
           </View>
         ))}
       </Sec>
-      <Sec icon="fitness"      title="リハビリエクササイズ" color="#A855F7">
+
+      <Sec icon="fitness" title="リハビリエクササイズ" color="#A855F7">
         {result.exercises.map((e,i)=><Bullet key={i} text={e} color="#A855F7"/>)}
       </Sec>
-      <Sec icon="barbell"      title="練習の修正方法" color="#FF9500">
-        <Text style={{color:'#ccc',fontSize:13,lineHeight:20}}>{result.training_modification}</Text>
+
+      <Sec icon="barbell" title="練習の修正方法" color="#FF9500">
+        <Text style={{color:'#374151',fontSize:13,lineHeight:20}}>{result.training_modification}</Text>
       </Sec>
+
       <Sec icon="alert-circle" title="病院を受診すべき症状" color="#FF3B30">
         {result.see_doctor_if.map((e,i)=><Bullet key={i} text={e} color="#FF3B30"/>)}
       </Sec>
-      <Sec icon="library"      title="参考情報" color="#666">
-        <Text style={{color:'#777',fontSize:12,lineHeight:20,fontStyle:'italic'}}>{result.medical_basis}</Text>
+
+      <Sec icon="library" title="参考情報" color="#9ca3af">
+        <Text style={{color:'#6b7280',fontSize:12,lineHeight:20,fontStyle:'italic'}}>{result.medical_basis}</Text>
       </Sec>
+
       <TouchableOpacity style={s.reBtn} onPress={onBack}>
-        <Ionicons name="refresh-outline" size={14} color="#555"/>
+        <Ionicons name="refresh-outline" size={14} color="#6b7280"/>
         <Text style={s.reBtnTxt}>別の症状を入力する</Text>
       </TouchableOpacity>
     </>
@@ -622,11 +699,15 @@ function ResultView({ result, onBack }: { result:RecoveryResult; onBack:()=>void
 function Sec({icon,title,color,children}:{icon:string;title:string;color:string;children:React.ReactNode}) {
   return (
     <View style={[s.sec,{borderLeftColor:color}]}>
-      <View style={s.secHead}><Ionicons name={icon as any} size={15} color={color}/><Text style={[s.secHeadTxt,{color}]}>{title}</Text></View>
+      <View style={s.secHead}>
+        <Ionicons name={icon as any} size={15} color={color}/>
+        <Text style={[s.secHeadTxt,{color}]}>{title}</Text>
+      </View>
       {children}
     </View>
   )
 }
+
 function Bullet({text,color}:{text:string;color:string}) {
   return (
     <View style={s.bullet}>
@@ -635,6 +716,7 @@ function Bullet({text,color}:{text:string;color:string}) {
     </View>
   )
 }
+
 function SevBadge({severity}:{severity:Severity}) {
   return (
     <View style={[s.sevBadge,{backgroundColor:SEVERITY_COLOR[severity]+'22'}]}>
@@ -645,67 +727,86 @@ function SevBadge({severity}:{severity:Severity}) {
 
 /* ─── スタイル ─── */
 const s = StyleSheet.create({
-  bg:{flex:1,backgroundColor:'#f6f6f8'},
-  tabBar:{flexDirection:'row',borderBottomWidth:1,borderBottomColor:'rgba(255,255,255,0.08)'},
-  tabItem:{flex:1,paddingVertical:12,alignItems:'center'},
-  tabActive:{borderBottomWidth:2,borderBottomColor:'#E53935'},
-  tabTxt:{color:'#555',fontSize:13,fontWeight:'700'},
-  tabTxtActive:{color:'#fff'},
-  content:{padding:16,paddingBottom:60},
-  secTitle:{color:'#fff',fontSize:14,fontWeight:'800',marginTop:20,marginBottom:10},
+  bg:               {flex:1,backgroundColor:'#f6f6f8'},
+  tabBar:           {flexDirection:'row',borderBottomWidth:1,borderBottomColor:'rgba(0,0,0,0.08)',backgroundColor:'#fff'},
+  tabItem:          {flex:1,paddingVertical:12,alignItems:'center'},
+  tabActive:        {borderBottomWidth:2,borderBottomColor:'#166534'},
+  tabTxt:           {color:'#6b7280',fontSize:13,fontWeight:'700'},
+  tabTxtActive:     {color:'#166534',fontWeight:'800'},
+  content:          {padding:16,paddingBottom:60},
+  secTitle:         {color:'#111827',fontSize:14,fontWeight:'800',marginTop:20,marginBottom:10},
 
-  selectedBadge:{flexDirection:'row',alignItems:'center',gap:5,backgroundColor:'rgba(229,57,53,0.12)',
-    paddingHorizontal:10,paddingVertical:5,borderRadius:20,marginRight:6,borderWidth:1,borderColor:'rgba(229,57,53,0.3)'},
-  selectedTxt:{color:'#E53935',fontSize:12,fontWeight:'700'},
-  clearAll:{paddingHorizontal:10,paddingVertical:5,borderRadius:20,backgroundColor:'#f0f2f5',justifyContent:'center'},
+  selectedBadge:    {flexDirection:'row',alignItems:'center',gap:5,backgroundColor:'rgba(229,57,53,0.08)',
+                      paddingHorizontal:10,paddingVertical:5,borderRadius:20,marginRight:6,
+                      borderWidth:1,borderColor:'rgba(229,57,53,0.25)'},
+  selectedTxt:      {color:'#E53935',fontSize:12,fontWeight:'700'},
+  clearAll:         {paddingHorizontal:10,paddingVertical:5,borderRadius:20,
+                      backgroundColor:'#e8ecf0',justifyContent:'center'},
 
-  viewToggle:{flexDirection:'row',alignSelf:'center',backgroundColor:'#f0f2f5',borderRadius:20,padding:3,marginBottom:10},
-  viewBtn:{paddingHorizontal:22,paddingVertical:7,borderRadius:18},
-  viewBtnActive:{backgroundColor:'#ffffff'},
-  viewBtnTxt:{color:'#555',fontSize:13,fontWeight:'700'},
-  viewBtnTxtActive:{color:'#fff'},
-  svgWrap:{alignSelf:'center',marginBottom:8,borderRadius:12,overflow:'hidden'},
+  viewToggle:       {flexDirection:'row',alignSelf:'center',backgroundColor:'#dde4ea',
+                      borderRadius:20,padding:3,marginBottom:12},
+  viewBtn:          {paddingHorizontal:24,paddingVertical:8,borderRadius:18},
+  viewBtnActive:    {backgroundColor:'#166534',
+                      shadowColor:'#166534',shadowOffset:{width:0,height:2},
+                      shadowOpacity:0.3,shadowRadius:6,elevation:3},
+  viewBtnTxt:       {color:'#555',fontSize:13,fontWeight:'700'},
+  viewBtnTxtActive: {color:'#fff',fontWeight:'800'},
+  svgWrap:          {alignSelf:'center',marginBottom:10,borderRadius:12,overflow:'hidden',
+                      shadowColor:'#000',shadowOffset:{width:0,height:4},
+                      shadowOpacity:0.08,shadowRadius:12,elevation:4},
 
-  levelRow:{flexDirection:'row',gap:6,flexWrap:'wrap'},
-  levelBtn:{width:29,height:29,borderRadius:15,borderWidth:1.5,alignItems:'center',justifyContent:'center'},
-  levelTxt:{color:'#888',fontSize:11,fontWeight:'700'},
+  levelRow:         {flexDirection:'row',gap:6,flexWrap:'wrap'},
+  levelBtn:         {width:29,height:29,borderRadius:15,borderWidth:1.5,
+                      alignItems:'center',justifyContent:'center'},
+  levelTxt:         {color:'#6b7280',fontSize:11,fontWeight:'700'},
 
-  chipRow:{flexDirection:'row',flexWrap:'wrap',gap:8},
-  chip:{paddingHorizontal:14,paddingVertical:8,borderRadius:20,backgroundColor:'#f0f2f5',borderWidth:1.5,borderColor:'transparent'},
-  chipActive:{backgroundColor:'rgba(229,57,53,0.12)',borderColor:'#E53935'},
-  chipTxt:{color:'#888',fontSize:13},
-  chipTxtActive:{color:'#fff'},
+  chipRow:          {flexDirection:'row',flexWrap:'wrap',gap:8},
+  chip:             {paddingHorizontal:14,paddingVertical:8,borderRadius:20,
+                      backgroundColor:'#f0f2f5',borderWidth:1.5,borderColor:'transparent'},
+  chipActive:       {backgroundColor:'rgba(22,101,52,0.10)',borderColor:'#166534'},
+  chipTxt:          {color:'#555',fontSize:13},
+  chipTxtActive:    {color:'#14532d',fontWeight:'700'},
 
-  notesInput:{backgroundColor:'#f8f8fa',borderRadius:12,padding:14,color:'#111827',fontSize:14,minHeight:72,textAlignVertical:'top',borderWidth:1,borderColor:'rgba(255,255,255,0.08)'},
-  errorBox:{flexDirection:'row',alignItems:'flex-start',gap:6,marginTop:12,padding:12,backgroundColor:'rgba(255,59,48,0.08)',borderRadius:10},
-  errorTxt:{color:'#FF3B30',fontSize:12,lineHeight:18,flex:1},
-  disclaimer:{flexDirection:'row',alignItems:'flex-start',gap:6,marginTop:14,padding:10,backgroundColor:'rgba(255,255,255,0.03)',borderRadius:10},
-  disclaimerTxt:{color:'#444',fontSize:11,lineHeight:16,flex:1},
-  disclaimerBanner:{flexDirection:'row',alignItems:'flex-start',gap:8,padding:12,backgroundColor:'rgba(255,149,0,0.1)',borderRadius:10,borderWidth:1,borderColor:'rgba(255,149,0,0.3)',marginBottom:16},
-  disclaimerBannerTxt:{color:'#FF9500',fontSize:11,lineHeight:17,flex:1},
-  submitBtn:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:'#E53935',borderRadius:16,paddingVertical:18,marginTop:16},
-  submitTxt:{color:'#fff',fontSize:16,fontWeight:'800'},
+  notesInput:       {backgroundColor:'#fff',borderRadius:12,padding:14,color:'#111827',
+                      fontSize:14,minHeight:72,textAlignVertical:'top',
+                      borderWidth:1,borderColor:'rgba(0,0,0,0.12)'},
+  errorBox:         {flexDirection:'row',alignItems:'flex-start',gap:6,marginTop:12,padding:12,
+                      backgroundColor:'rgba(255,59,48,0.08)',borderRadius:10},
+  errorTxt:         {color:'#FF3B30',fontSize:12,lineHeight:18,flex:1},
+  disclaimer:       {flexDirection:'row',alignItems:'flex-start',gap:6,marginTop:14,padding:10,
+                      backgroundColor:'rgba(0,0,0,0.03)',borderRadius:10},
+  disclaimerTxt:    {color:'#6b7280',fontSize:11,lineHeight:16,flex:1},
+  disclaimerBanner: {flexDirection:'row',alignItems:'flex-start',gap:8,padding:12,
+                      backgroundColor:'rgba(255,149,0,0.08)',borderRadius:10,
+                      borderWidth:1,borderColor:'rgba(255,149,0,0.28)',marginBottom:16},
+  disclaimerBannerTxt:{color:'#b45309',fontSize:11,lineHeight:17,flex:1},
+  submitBtn:        {flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,
+                      backgroundColor:'#166534',borderRadius:16,paddingVertical:18,marginTop:16},
+  submitTxt:        {color:'#fff',fontSize:16,fontWeight:'800'},
 
-  diagCard:{backgroundColor:'#ffffff',borderRadius:14,padding:16,borderLeftWidth:4,marginBottom:12},
-  sevBadge:{paddingHorizontal:10,paddingVertical:3,borderRadius:20},
-  sevTxt:{fontSize:11,fontWeight:'800'},
-  sec:{backgroundColor:'#f8f8fa',borderRadius:14,padding:14,marginBottom:10,borderLeftWidth:3},
-  secHead:{flexDirection:'row',alignItems:'center',gap:6,marginBottom:10},
-  secHeadTxt:{fontSize:13,fontWeight:'800'},
-  bullet:{flexDirection:'row',alignItems:'flex-start',gap:8,marginBottom:6},
-  bulletDot:{width:6,height:6,borderRadius:3,marginTop:6},
-  bulletTxt:{color:'#ccc',fontSize:13,lineHeight:20,flex:1},
-  riceRow:{marginBottom:8,paddingBottom:8,borderBottomWidth:1,borderBottomColor:'rgba(255,255,255,0.05)'},
-  riceLabel:{color:'#4A9FFF',fontSize:11,fontWeight:'800',marginBottom:2},
-  riceVal:{color:'#ccc',fontSize:13,lineHeight:18},
-  tlRow:{flexDirection:'row',alignItems:'flex-start',gap:12,marginBottom:12},
-  tlDot:{width:10,height:10,borderRadius:5,marginTop:4},
-  reBtn:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6,padding:16},
-  reBtnTxt:{color:'#444',fontSize:13},
-  histCard:{backgroundColor:'#ffffff',borderRadius:14,padding:14,marginBottom:10},
-  histDate:{color:'#555',fontSize:11},
-  histPart:{color:'#888',fontSize:12,marginBottom:4},
-  histDiag:{color:'#fff',fontSize:15,fontWeight:'700',paddingRight:24},
-  empty:{alignItems:'center',paddingTop:80,gap:12},
-  emptyTxt:{color:'#333',fontSize:14},
+  diagCard:         {backgroundColor:'#fff',borderRadius:14,padding:16,borderLeftWidth:4,marginBottom:12,
+                      shadowColor:'#000',shadowOffset:{width:0,height:2},shadowOpacity:0.06,shadowRadius:8,elevation:2},
+  sevBadge:         {paddingHorizontal:10,paddingVertical:3,borderRadius:20},
+  sevTxt:           {fontSize:11,fontWeight:'800'},
+  sec:              {backgroundColor:'#fff',borderRadius:14,padding:14,marginBottom:10,borderLeftWidth:3,
+                      shadowColor:'#000',shadowOffset:{width:0,height:1},shadowOpacity:0.05,shadowRadius:4,elevation:1},
+  secHead:          {flexDirection:'row',alignItems:'center',gap:6,marginBottom:10},
+  secHeadTxt:       {fontSize:13,fontWeight:'800'},
+  bullet:           {flexDirection:'row',alignItems:'flex-start',gap:8,marginBottom:6},
+  bulletDot:        {width:6,height:6,borderRadius:3,marginTop:6},
+  bulletTxt:        {color:'#374151',fontSize:13,lineHeight:20,flex:1},
+  riceRow:          {marginBottom:8,paddingBottom:8,borderBottomWidth:1,borderBottomColor:'rgba(0,0,0,0.06)'},
+  riceLabel:        {color:'#4A9FFF',fontSize:11,fontWeight:'800',marginBottom:2},
+  riceVal:          {color:'#374151',fontSize:13,lineHeight:18},
+  tlRow:            {flexDirection:'row',alignItems:'flex-start',gap:12,marginBottom:12},
+  tlDot:            {width:10,height:10,borderRadius:5,marginTop:4},
+  reBtn:            {flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6,padding:16},
+  reBtnTxt:         {color:'#6b7280',fontSize:13},
+  histCard:         {backgroundColor:'#fff',borderRadius:14,padding:14,marginBottom:10,
+                      shadowColor:'#000',shadowOffset:{width:0,height:2},shadowOpacity:0.06,shadowRadius:8,elevation:2},
+  histDate:         {color:'#6b7280',fontSize:11},
+  histPart:         {color:'#9ca3af',fontSize:12,marginBottom:4},
+  histDiag:         {color:'#111827',fontSize:15,fontWeight:'700',paddingRight:24},
+  empty:            {alignItems:'center',paddingTop:80,gap:12},
+  emptyTxt:         {color:'#6b7280',fontSize:14},
 })

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React, { useRef, useState, useEffect } from 'react'
 import { Animated, TouchableOpacity, Platform, View, Text, StyleSheet, Pressable, useWindowDimensions } from 'react-native'
 import { Tabs, useRouter, usePathname } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
@@ -7,6 +7,7 @@ import { Sounds, unlockAudio } from '../../lib/sounds'
 import { triggerHomeScroll } from '../../lib/homeScroll'
 import { BRAND } from '../../lib/theme'
 import { triggerQuickLog } from '../../lib/quickLogEvent'
+import { initNotificationsOnFirstLaunch } from '../../lib/notifications'
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name']
 
@@ -258,6 +259,41 @@ const fab = StyleSheet.create({
 export default function TabLayout() {
   const insets = useSafeAreaInsets()
   const fabBottomOffset = Math.max(insets.bottom, 16) + 56  // タブバー高さ分オフセット
+
+  // 初回起動時に通知 → 位置情報の順で許可ダイアログを表示
+  useEffect(() => {
+    const run = async () => {
+      // 1) 通知許可（2秒後に表示）
+      await initNotificationsOnFirstLaunch().catch(() => {})
+
+      // 2) 位置情報許可（通知ダイアログ後、間を置いて表示）
+      const LOC_ASKED_KEY = 'score_location_asked'
+      if (typeof window === 'undefined') return
+      if (typeof navigator === 'undefined' || !navigator.geolocation) return
+      const alreadyAsked = localStorage.getItem(LOC_ASKED_KEY)
+      if (alreadyAsked) return
+
+      // geolocation の許可状態を確認
+      if (navigator.permissions) {
+        try {
+          const status = await navigator.permissions.query({ name: 'geolocation' as PermissionName })
+          if (status.state !== 'prompt') return  // 既に決まっていれば聞かない
+        } catch {}
+      }
+
+      // 通知ダイアログとの間に 1.5 秒空ける
+      await new Promise(r => setTimeout(r, 1500))
+      localStorage.setItem(LOC_ASKED_KEY, '1')
+
+      // iOS ネイティブの位置情報許可ダイアログを表示
+      navigator.geolocation.getCurrentPosition(
+        () => {},   // 許可された
+        () => {},   // 拒否された（どちらでも OK）
+        { enableHighAccuracy: false, timeout: 10000 }
+      )
+    }
+    run()
+  }, [])
 
   return (
     <View style={{ flex: 1 }}>

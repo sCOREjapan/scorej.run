@@ -1,6 +1,6 @@
 {
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
-  "buildCommand": "npx expo export --platform web",
+  "buildCommand": "npx expo export --platform web --clear",
   "outputDirectory": "dist",
   "framework": null,
   "crons": [

@@ -43,7 +43,7 @@ export default function VideoAnalysis() {
   }, [])
 
   if (!premiumChecked) return (
-    <View style={s.center}><ActivityIndicator color="#E53E3E" /></View>
+    <View style={s.center}><ActivityIndicator color="#166534" /></View>
   )
 
   if (Platform.OS !== 'web') {
@@ -63,8 +63,8 @@ function PremiumGate() {
   return (
     <ScrollView contentContainerStyle={{ flexGrow: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
       <View style={{ alignItems: 'center', gap: 20, maxWidth: 400 }}>
-        <View style={{ width: 80, height: 80, borderRadius: 20, backgroundColor: '#E53E3E22', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E53E3E44' }}>
-          <Ionicons name="videocam" size={36} color="#E53E3E" />
+        <View style={{ width: 80, height: 80, borderRadius: 20, backgroundColor: '#16653422', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#16653444' }}>
+          <Ionicons name="videocam" size={36} color="#166534" />
         </View>
         <Text style={{ color: '#111827', fontSize: 22, fontWeight: '900', textAlign: 'center' }}>
           フォーム動画分析
@@ -212,7 +212,7 @@ function WebPlayer({ isPremiumUser: isPremiumProp }: { isPremiumUser: boolean })
     /* 下部バー */
     ctx.fillStyle = 'rgba(0,0,0,0.65)'
     ctx.fillRect(0, cv.height - 80, cv.width, 80)
-    ctx.fillStyle = '#E53935'
+    ctx.fillStyle = '#166534'
     ctx.font = 'bold 13px -apple-system,sans-serif'
     ctx.fillText(`⚡ ${ann.advice.overall}`, 12, cv.height - 52)
     ctx.fillStyle = '#ddd'
@@ -387,7 +387,7 @@ ${summary}
     return (
       <View style={s.bg}>
         <ScrollView contentContainerStyle={s.uploadCenter}>
-          <Ionicons name="film-outline" size={64} color="#E53935" />
+          <Ionicons name="film-outline" size={64} color="#166534" />
           <Text style={s.uploadTitle}>練習フォームをAI分析</Text>
           <Text style={s.uploadSub}>アップロード → AI自動分析 → スローで確認</Text>
           <View style={s.stepRow}>
@@ -398,7 +398,7 @@ ${summary}
             ].map(([icon, label], i) => (
               <View key={i} style={s.stepItem}>
                 <View style={s.stepIcon}>
-                  <Ionicons name={icon as any} size={22} color="#E53935" />
+                  <Ionicons name={icon as any} size={22} color="#166534" />
                 </View>
                 <Text style={s.stepLabel}>{label}</Text>
               </View>
@@ -514,7 +514,7 @@ ${summary}
     return (
       <View style={s.center}>
         <View style={s.analyzeCard}>
-          <ActivityIndicator size="large" color="#E53935" />
+          <ActivityIndicator size="large" color="#166534" />
           <Text style={s.analyzeTitle}>AIがフォームを分析中</Text>
           <Text style={s.analyzeCount}>{progress.done} / {progress.total}</Text>
           <View style={s.barTrack}>
@@ -555,7 +555,7 @@ ${summary}
             type="range" min={0} max={duration || 100} step={0.033}
             value={currentTime}
             onChange={(e: any) => seek(parseFloat(e.target.value))}
-            style={{ flex: 1, accentColor: '#E53935', cursor: 'pointer', margin: '0 10px' } as any}
+            style={{ flex: 1, accentColor: '#166534', cursor: 'pointer', margin: '0 10px' } as any}
           />
           <Text style={s.timeText}>{formatTime(duration)}</Text>
         </View>
@@ -628,7 +628,7 @@ ${summary}
 
         {loadingComp ? (
           <View style={s.compLoading}>
-            <ActivityIndicator size="small" color="#E53935" />
+            <ActivityIndicator size="small" color="#166534" />
             <Text style={s.compLoadingTxt}>AIが総合評価を生成中...</Text>
           </View>
         ) : comprehensive ? (
@@ -636,7 +636,7 @@ ${summary}
             {/* 総合サマリー */}
             <View style={s.compCard}>
               <View style={s.compCardHeader}>
-                <Ionicons name="analytics-outline" size={18} color="#E53935" />
+                <Ionicons name="analytics-outline" size={18} color="#166534" />
                 <Text style={s.compCardTitle}>総合評価</Text>
               </View>
               <Text style={s.compSummary}>{comprehensive.summary}</Text>
@@ -654,7 +654,7 @@ ${summary}
             {/* トレーニングメニュー */}
             <View style={s.compCard}>
               <View style={s.compCardHeader}>
-                <Ionicons name="barbell-outline" size={18} color="#E53935" />
+                <Ionicons name="barbell-outline" size={18} color="#166534" />
                 <Text style={s.compCardTitle}>推奨トレーニングメニュー</Text>
               </View>
               {comprehensive.trainingMenu.map((ex, i) => (
@@ -671,7 +671,7 @@ ${summary}
             {/* 次の練習で意識すること */}
             <View style={s.compCard}>
               <View style={s.compCardHeader}>
-                <Ionicons name="flag-outline" size={18} color="#E53935" />
+                <Ionicons name="flag-outline" size={18} color="#166534" />
                 <Text style={s.compCardTitle}>次の練習で意識すること</Text>
               </View>
               {comprehensive.nextSteps.map((step, i) => (
@@ -727,7 +727,7 @@ const s = StyleSheet.create({
   stepItem:       { alignItems: 'center', width: 90 },
   stepIcon:       { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(229,57,53,0.12)',
                     alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
-  stepLabel:      { color: '#aaa', fontSize: 11, textAlign: 'center' },
+  stepLabel:      { color: '#6b7280', fontSize: 11, textAlign: 'center' },
   fileTag:        { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12,
                     backgroundColor: 'rgba(76,175,80,0.1)', paddingHorizontal: 14,
                     paddingVertical: 7, borderRadius: 20 },
@@ -766,15 +766,17 @@ const s = StyleSheet.create({
   planBannerSub:   { color: '#888', fontSize: 11, marginTop: 2, lineHeight: 16 },
 
   /* analyzing */
-  analyzeCard:    { backgroundColor: '#f0f2f5', borderRadius: 20, padding: 32,
-                    alignItems: 'center', width: 300 },
+  analyzeCard:    { backgroundColor: '#fff', borderRadius: 20, padding: 32,
+                    alignItems: 'center', width: 300,
+                    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 },
   analyzeTitle:   { color: '#111827', fontSize: 18, fontWeight: '800', marginTop: 16 },
-  analyzeCount:   { color: '#E53935', fontSize: 28, fontWeight: '800', marginTop: 8 },
-  barTrack:       { width: '100%', height: 6, backgroundColor: 'rgba(255,255,255,0.1)',
+  analyzeCount:   { color: '#166534', fontSize: 28, fontWeight: '800', marginTop: 8 },
+  barTrack:       { width: '100%', height: 6, backgroundColor: 'rgba(0,0,0,0.08)',
                     borderRadius: 3, marginTop: 16, overflow: 'hidden' },
   barFill:        { height: 6, backgroundColor: BRAND, borderRadius: 3 },
-  analyzeSub:     { color: '#aaa', fontSize: 13, marginTop: 12 },
-  analyzeNote:    { color: '#444', fontSize: 11, marginTop: 8 },
+  analyzeSub:     { color: '#6b7280', fontSize: 13, marginTop: 12 },
+  analyzeNote:    { color: '#9ca3af', fontSize: 11, marginTop: 8 },
 
   /* player */
   videoWrapper:   { width: '100%', height: 260, backgroundColor: '#000', position: 'relative' } as any,
@@ -793,53 +795,57 @@ const s = StyleSheet.create({
   rateTxtActive:  { color: '#fff' },
 
   /* advice */
-  adviceCard:     { margin: 12, padding: 18, backgroundColor: 'rgba(229,57,53,0.08)',
-                    borderRadius: 16, borderLeftWidth: 3, borderLeftColor: '#E53935' },
-  adviceTime:     { color: '#E53935', fontSize: 12, fontWeight: '700', marginBottom: 6 },
+  adviceCard:     { margin: 12, padding: 18, backgroundColor: '#fff',
+                    borderRadius: 16, borderLeftWidth: 3, borderLeftColor: '#166534',
+                    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
+  adviceTime:     { color: '#166534', fontSize: 12, fontWeight: '700', marginBottom: 6 },
   adviceOverall:  { color: '#111827', fontSize: 16, fontWeight: '700', marginBottom: 8 },
   noAdviceCard:   { margin: 12, padding: 14, backgroundColor: '#f8f8fa',
                     borderRadius: 12, alignItems: 'center' },
-  noAdviceTxt:    { color: '#555', fontSize: 12 },
-  sectionLabel:   { color: '#777', fontSize: 11, fontWeight: '700', marginTop: 10, marginBottom: 4 },
-  adviceItem:     { color: '#ccc', fontSize: 13, lineHeight: 20, marginLeft: 4 },
-  sectionTitle:   { color: '#555', fontSize: 11, fontWeight: '700', letterSpacing: 1.2,
+  noAdviceTxt:    { color: '#6b7280', fontSize: 12 },
+  sectionLabel:   { color: '#6b7280', fontSize: 11, fontWeight: '700', marginTop: 10, marginBottom: 4 },
+  adviceItem:     { color: '#374151', fontSize: 13, lineHeight: 20, marginLeft: 4 },
+  sectionTitle:   { color: '#6b7280', fontSize: 11, fontWeight: '700', letterSpacing: 1.2,
                     paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8 },
 
   /* thumbnails */
-  thumbCard:      { width: 116, marginRight: 8, backgroundColor: '#f0f2f5',
-                    borderRadius: 10, padding: 6, borderWidth: 1.5, borderColor: 'transparent' },
+  thumbCard:      { width: 116, marginRight: 8, backgroundColor: '#fff',
+                    borderRadius: 10, padding: 6, borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.08)' },
   thumbActive:    { borderColor: BRAND },
-  thumbTime:      { color: '#E53935', fontSize: 10, fontWeight: '700', marginTop: 4 },
-  thumbOverall:   { color: '#999', fontSize: 10, lineHeight: 14, marginTop: 2 },
+  thumbTime:      { color: '#166534', fontSize: 10, fontWeight: '700', marginTop: 4 },
+  thumbOverall:   { color: '#6b7280', fontSize: 10, lineHeight: 14, marginTop: 2 },
 
   /* divider & big section */
-  divider:        { height: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginHorizontal: 16, marginVertical: 20 },
+  divider:        { height: 1, backgroundColor: 'rgba(0,0,0,0.08)', marginHorizontal: 16, marginVertical: 20 },
   bigSectionTitle:{ color: '#111827', fontSize: 17, fontWeight: '800', paddingHorizontal: 16, marginBottom: 12 },
 
   /* comprehensive */
   compLoading:    { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 20,
                     justifyContent: 'center' },
-  compLoadingTxt: { color: '#555', fontSize: 13 },
+  compLoadingTxt: { color: '#6b7280', fontSize: 13 },
   compCard:       { marginHorizontal: 12, marginBottom: 12, padding: 16,
-                    backgroundColor: '#f0f2f5', borderRadius: 16 },
+                    backgroundColor: '#fff', borderRadius: 16,
+                    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+                    shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
   compCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
   compCardTitle:  { color: '#111827', fontSize: 15, fontWeight: '800' },
-  compSummary:    { color: '#ccc', fontSize: 14, lineHeight: 22 },
+  compSummary:    { color: '#374151', fontSize: 14, lineHeight: 22 },
   findingRow:     { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 6 },
   findingDot:     { width: 6, height: 6, borderRadius: 3, backgroundColor: BRAND, marginTop: 6 },
-  findingTxt:     { color: '#bbb', fontSize: 13, lineHeight: 20, flex: 1 },
+  findingTxt:     { color: '#374151', fontSize: 13, lineHeight: 20, flex: 1 },
   menuItem:       { flexDirection: 'row', alignItems: 'flex-start', gap: 12,
-                    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
-  menuNum:        { width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(229,57,53,0.2)',
+                    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' },
+  menuNum:        { width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(22,101,52,0.12)',
                     alignItems: 'center', justifyContent: 'center' },
-  menuNumTxt:     { color: '#E53935', fontSize: 12, fontWeight: '800' },
+  menuNumTxt:     { color: '#166534', fontSize: 12, fontWeight: '800' },
   menuName:       { color: '#111827', fontSize: 14, fontWeight: '700', marginBottom: 2 },
-  menuDetail:     { color: '#888', fontSize: 12, lineHeight: 18 },
+  menuDetail:     { color: '#4b5563', fontSize: 12, lineHeight: 18 },
   nextStepRow:    { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 8 },
-  nextStepNum:    { color: '#E53935', fontSize: 13, fontWeight: '800', minWidth: 16 },
-  nextStepTxt:    { color: '#ccc', fontSize: 13, lineHeight: 20, flex: 1 },
+  nextStepNum:    { color: '#166534', fontSize: 13, fontWeight: '800', minWidth: 16 },
+  nextStepTxt:    { color: '#374151', fontSize: 13, lineHeight: 20, flex: 1 },
 
   reanalyzeBtn:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
                     gap: 6, padding: 20 },
-  reanalyzeTxt:   { color: '#444', fontSize: 13 },
+  reanalyzeTxt:   { color: '#6b7280', fontSize: 13 },
 })

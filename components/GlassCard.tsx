@@ -31,13 +31,13 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    // iOS / Web shadow
+    // iOS / Web shadow — 案A ソフト浮き上がり
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.10,
+    shadowRadius: 20,
     // Android
-    elevation: 3,
+    elevation: 6,
   },
   accentLine: { height: 3, position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1 },
   content:    { gap: 12, zIndex: 2 },

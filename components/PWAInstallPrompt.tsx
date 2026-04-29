@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
   title:    { color: '#fff', fontSize: 14, fontWeight: '700' },
   subtitle: { color: '#888', fontSize: 12 },
   installBtn: {
-    backgroundColor: '#E53935',
+    backgroundColor: '#166534',
     borderRadius: 20,
     paddingHorizontal: 18,
     paddingVertical: 8,

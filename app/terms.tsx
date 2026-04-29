@@ -218,11 +218,11 @@ const s = StyleSheet.create({
   meta:         { color: TEXT.hint, fontSize: 12, marginBottom: 16 },
   section:      { marginBottom: 28 },
   sectionTitle: { color: '#fff', fontSize: 14, fontWeight: '800', marginBottom: 10,
-                  borderLeftWidth: 3, borderLeftColor: '#E53935', paddingLeft: 10 },
+                  borderLeftWidth: 3, borderLeftColor: '#166534', paddingLeft: 10 },
   sub:          { marginTop: 10, marginBottom: 4 },
   subTitle:     { color: '#aaa', fontSize: 13, fontWeight: '700', marginBottom: 6 },
   body:         { color: TEXT.secondary, fontSize: 13, lineHeight: 22 },
   bold:         { color: '#fff', fontWeight: '700' },
   liRow:        { flexDirection: 'row', marginTop: 5, alignItems: 'flex-start' },
-  bullet:       { color: '#E53935', fontSize: 12, fontWeight: '700', marginRight: 4, marginTop: 1, minWidth: 28 },
+  bullet:       { color: '#166534', fontSize: 12, fontWeight: '700', marginRight: 4, marginTop: 1, minWidth: 28 },
 })

@@ -61,7 +61,7 @@ function fallbackParse(text: string, today: string): Record<string, any> {
   return { session_date: today, session_type, event, time_ms, distance_m, reps, fatigue_level, condition_level }
 }
 const CONDITION_MAP_KEY = 'trackmate_condition_map'
-const BRAND           = '#E53935'
+const BRAND           = '#166534'
 const MOCK_USER_ID    = 'mock-user-1'
 
 async function saveImprovementTasks(sessionType: string, fatigue: number, notes: string) {
@@ -88,7 +88,7 @@ async function saveImprovementTasks(sessionType: string, fatigue: number, notes:
 }
 
 const TYPE_INFO: Record<string, { label: string; color: string }> = {
-  interval: { label: 'インターバル', color: '#E53935' },
+  interval: { label: 'インターバル', color: '#f97316' },
   tempo:    { label: 'テンポ走',     color: '#FF9500' },
   easy:     { label: 'ジョグ',       color: '#34C759' },
   long:     { label: 'ロング走',     color: '#5AC8FA' },
