@@ -9,10 +9,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
-import Svg, {
-  Path, Defs,
-  LinearGradient as SvgGrad, Stop,
-} from 'react-native-svg'
+import Svg, { Path } from 'react-native-svg'
 import { BRAND } from '../lib/theme'
 import Toast from 'react-native-toast-message'
 import type { RaceRecord } from '../types'
@@ -30,26 +27,19 @@ function ScoreIcon({ height = 24 }: { height?: number }) {
   const w = height * 1.55
   return (
     <Svg width={w} height={height} viewBox="0 0 124 80">
-      <Defs>
-        <SvgGrad id="ecgGrad" x1="0" y1="0" x2="1" y2="0">
-          <Stop offset="0"    stopColor="#4ade80" />
-          <Stop offset="0.45" stopColor="#16a34a" />
-          <Stop offset="1"    stopColor="#14532d" />
-        </SvgGrad>
-      </Defs>
       {/* 心拍→上昇カーブ */}
       <Path
         d="M0,52 L28,52 L42,9 L55,72 L65,52 C80,52 83,18 104,10"
-        stroke="url(#ecgGrad)"
+        stroke="#ffffff"
         strokeWidth="8"
         strokeLinecap="round"
         strokeLinejoin="round"
         fill="none"
       />
-      {/* 矢印ヘッド（ダークグリーン）*/}
+      {/* 矢印ヘッド */}
       <Path
         d="M112,4 L97,20 L108,26 Z"
-        fill="#0d2b0d"
+        fill="#ffffff"
       />
     </Svg>
   )
@@ -70,12 +60,7 @@ function drawScoreLogo(
   if (withShadow) { c.shadowColor = 'rgba(0,0,0,0.9)'; c.shadowBlur = 14 }
 
   // ── アイコン：ECG + 上昇カーブ ──
-  const g = c.createLinearGradient(x, 0, x + iW, 0)
-  g.addColorStop(0,    '#4ade80')
-  g.addColorStop(0.45, '#16a34a')
-  g.addColorStop(1,    '#14532d')
-
-  c.strokeStyle = g
+  c.strokeStyle = '#ffffff'
   c.lineWidth   = sw
   c.lineCap     = 'round'
   c.lineJoin    = 'round'
@@ -99,7 +84,7 @@ function drawScoreLogo(
   c.shadowBlur = 0
   const ax = x + iW * 0.905, ay = y + iH * 0.05
   const ah = sw * 2.1
-  c.fillStyle = '#0d2b0d'
+  c.fillStyle = '#ffffff'
   c.beginPath()
   c.moveTo(ax,          ay)                   // 先端
   c.lineTo(ax - ah * 1.2, ay + ah * 1.3)     // 左根元
@@ -114,20 +99,17 @@ function drawScoreLogo(
   const txtX   = x + iW + gap
   const txtY   = y + iH * 0.78
 
-  // "s"（ライトグリーン・小）
+  // "s"（白・小）
   const sSize = logoH * 0.56
   c.font      = `600 ${sSize}px system-ui, -apple-system, sans-serif`
-  c.fillStyle = '#4ade80'
+  c.fillStyle = '#ffffff'
   c.fillText('s', txtX, txtY)
   const sW = c.measureText('s').width * 0.92
 
-  // "CORE"（ダーク→黒グラデーション・大）
+  // "CORE"（白・大）
   const coreSize = logoH * 0.74
-  c.font = `800 ${coreSize}px system-ui, -apple-system, sans-serif`
-  const tg = c.createLinearGradient(txtX + sW, 0, txtX + sW + coreSize * 3, 0)
-  tg.addColorStop(0, '#16a34a')
-  tg.addColorStop(1, '#052e16')
-  c.fillStyle = tg
+  c.font      = `800 ${coreSize}px system-ui, -apple-system, sans-serif`
+  c.fillStyle = '#ffffff'
   c.fillText('CORE', txtX + sW, txtY)
 
   c.shadowBlur = 0
@@ -181,9 +163,9 @@ function exportOverlayPNG(record: RaceRecord) {
   const tx = bx + 64
 
   // 種目ラベル
-  shadow(12, 'rgba(0,0,0,0.7)')
+  shadow(16, 'rgba(0,0,0,0.85)')
   c.font = '700 40px system-ui, sans-serif'
-  c.fillStyle = BRAND
+  c.fillStyle = '#ffffff'
   c.fillText(record.event, tx, by + 94)
 
   // 大きいタイム（自動縮小）
@@ -523,21 +505,21 @@ const pv = StyleSheet.create({
     gap: 3,
   },
   logoTxtS: {
-    color: '#4ade80',
+    color: '#ffffff',
     fontSize: 13,
     fontWeight: '600',
-    textShadowColor: 'rgba(0,0,0,0.9)',
+    textShadowColor: 'rgba(0,0,0,0.95)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 8,
+    textShadowRadius: 10,
   },
   logoTxtCore: {
-    color: '#166534',
+    color: '#ffffff',
     fontSize: 17,
     fontWeight: '800',
     letterSpacing: 0.2,
-    textShadowColor: 'rgba(0,0,0,0.9)',
+    textShadowColor: 'rgba(0,0,0,0.95)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 8,
+    textShadowRadius: 10,
   },
   glass: {
     backgroundColor: 'rgba(255,255,255,0.16)',
@@ -549,12 +531,12 @@ const pv = StyleSheet.create({
     ...(Platform.OS === 'web' ? { backdropFilter: 'blur(20px)' } as any : {}),
   },
   event: {
-    color: BRAND,
+    color: '#ffffff',
     fontSize: 13,
     fontWeight: '700',
-    textShadowColor: 'rgba(0,0,0,0.7)',
+    textShadowColor: 'rgba(0,0,0,0.9)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 6,
+    textShadowRadius: 8,
   },
   result: {
     color: '#fff',
