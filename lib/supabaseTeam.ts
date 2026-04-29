@@ -204,7 +204,7 @@ export async function syncTeamSessions(
   }>,
 ): Promise<void> {
   if (!isConfigured) return
-  const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
   const recent = sessions.filter(s => s.session_date >= cutoff)
   if (!recent.length) return
   const rows = recent.map(s => ({
@@ -224,7 +224,7 @@ export async function syncTeamSessions(
 
 export async function fetchTeamSessions(teamCode: string): Promise<TeamSessionRow[]> {
   if (!isConfigured) return []
-  const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
   const { data } = await supabase
     .from('team_sessions').select('*')
     .eq('team_code', teamCode)

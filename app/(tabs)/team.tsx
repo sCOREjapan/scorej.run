@@ -559,12 +559,86 @@ function PlayerJoinScreen({ onJoined, onBack }: { onJoined:(j:JoinedTeam)=>void;
 }
 
 // ─────────────────────────────────────────────────────────
+// MiniCalendar — インラインカレンダーピッカー
+// ─────────────────────────────────────────────────────────
+function MiniCalendar({ value, onChange }: { value: string; onChange: (d: string) => void }) {
+  const today = new Date()
+  const init  = value ? new Date(value + 'T00:00:00') : today
+  const [vy, setVy] = useState(init.getFullYear())
+  const [vm, setVm] = useState(init.getMonth())
+
+  // カレンダーグリッド構築
+  const firstDay    = new Date(vy, vm, 1).getDay()
+  const daysInMonth = new Date(vy, vm + 1, 0).getDate()
+  const weeks: (number | null)[][] = []
+  let week: (number | null)[] = Array(firstDay).fill(null)
+  for (let d = 1; d <= daysInMonth; d++) {
+    week.push(d)
+    if (week.length === 7) { weeks.push(week); week = [] }
+  }
+  if (week.length > 0) { while (week.length < 7) week.push(null); weeks.push(week) }
+
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`
+  const DAY_LABELS = ['日','月','火','水','木','金','土']
+
+  function prevMonth() {
+    if (vm === 0) { setVy(y => y - 1); setVm(11) } else setVm(m => m - 1)
+  }
+  function nextMonth() {
+    if (vm === 11) { setVy(y => y + 1); setVm(0) } else setVm(m => m + 1)
+  }
+  function pick(d: number) {
+    onChange(`${vy}-${String(vm+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`)
+  }
+
+  return (
+    <View style={{backgroundColor:'#f8f8fa',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',padding:12}}>
+      {/* ヘッダー */}
+      <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+        <TouchableOpacity onPress={prevMonth} hitSlop={{top:10,bottom:10,left:10,right:10}}>
+          <Ionicons name="chevron-back" size={22} color={TEXT.primary}/>
+        </TouchableOpacity>
+        <Text style={{color:TEXT.primary,fontSize:15,fontWeight:'800'}}>{vy}年{vm+1}月</Text>
+        <TouchableOpacity onPress={nextMonth} hitSlop={{top:10,bottom:10,left:10,right:10}}>
+          <Ionicons name="chevron-forward" size={22} color={TEXT.primary}/>
+        </TouchableOpacity>
+      </View>
+      {/* 曜日ヘッダー */}
+      <View style={{flexDirection:'row',marginBottom:4}}>
+        {DAY_LABELS.map((label, i) => (
+          <Text key={label} style={{flex:1,textAlign:'center',fontSize:11,fontWeight:'700',color:i===0?'#ef4444':i===6?'#3b82f6':'#888'}}>{label}</Text>
+        ))}
+      </View>
+      {/* 週行 */}
+      {weeks.map((wk, wi) => (
+        <View key={wi} style={{flexDirection:'row',marginBottom:2}}>
+          {wk.map((d, di) => {
+            if (!d) return <View key={di} style={{flex:1}}/>
+            const ds = `${vy}-${String(vm+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+            const isSel = ds === value
+            const isToday = ds === todayStr
+            return (
+              <TouchableOpacity key={di} onPress={() => pick(d)} style={{flex:1,alignItems:'center',paddingVertical:3}} activeOpacity={0.7}>
+                <View style={{width:32,height:32,borderRadius:16,backgroundColor:isSel?BRAND:isToday?BRAND+'20':'transparent',alignItems:'center',justifyContent:'center'}}>
+                  <Text style={{fontSize:13,fontWeight:isSel||isToday?'800':'400',color:isSel?'#fff':isToday?BRAND:di===0?'#ef4444':di===6?'#3b82f6':TEXT.primary}}>{d}</Text>
+                </View>
+              </TouchableOpacity>
+            )
+          })}
+        </View>
+      ))}
+    </View>
+  )
+}
+
+// ─────────────────────────────────────────────────────────
 // CoachDashboard — シンプル3セクション
 // ─────────────────────────────────────────────────────────
 function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
   setup: TeamSetup; onSwitchRole: () => void; onDeleteTeam: () => void
 }) {
   const router = useRouter()
+  const [loading,  setLoading]  = useState(true)
   const [messages, setMessages] = useState<TeamMessage[]>([])
   const [videos,   setVideos]   = useState<VideoEntry[]>([])
   const [members,  setMembers]  = useState<TeamMemberRow[]>([])
@@ -600,6 +674,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
     setMembers(mems)
     setBodyReports(rpts)
     setTeamEvents(evts)
+    setLoading(false)
     // セッションをプレイヤー名でマップ化
     const map: Record<string, TrainingSession[]> = {}
     for (const ts of teamSessions) {
@@ -716,8 +791,10 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
   }
 
   // 実メンバーをDEMO_MEMBERSと同じ型に変換（痛み・セッション・ack状態をマージ）
-  const displayMembers: Member[] = members.length > 0
-    ? members.map(m => {
+  // loading中はデモを表示しない（チラつき防止）
+  const displayMembers: Member[] = !loading && members.length === 0
+    ? DEMO_MEMBERS.filter(m => !hiddenDemoIds.includes(m.id))
+    : members.map(m => {
         const rpt = bodyReports.find(r => r.player_name === m.player_name)
         return {
           id: m.id,
@@ -730,7 +807,6 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
           sessions: teamSessionsMap[m.player_name] ?? [],
         }
       })
-    : DEMO_MEMBERS.filter(m => !hiddenDemoIds.includes(m.id))
 
   // メンバーごとの計算済みデータ
   const memberData = displayMembers.map(m => {
@@ -811,8 +887,16 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
 
         <ScrollView contentContainerStyle={{padding:16,paddingBottom:60,gap:18}} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
+          {/* ローディング中 */}
+          {loading && (
+            <View style={{alignItems:'center',paddingVertical:60,gap:12}}>
+              <Text style={{fontSize:32}}>⏳</Text>
+              <Text style={{color:'#9ca3af',fontSize:14}}>データを読み込み中...</Text>
+            </View>
+          )}
+
           {/* ═══ メンバータブ ═══ */}
-          {tab === 'members' && (
+          {!loading && tab === 'members' && (
             <AnimatedSection key="members" delay={0} type="fade-up">
             <View style={{gap:14}}>
               {/* 要注意バナー：未確認の痛み報告 */}
@@ -941,10 +1025,16 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
                           {/* リスク + 負荷 + 疲労 */}
                           <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
                             {/* リスクスコア */}
-                            <View style={{backgroundColor:rCfg.bg,borderRadius:8,paddingHorizontal:8,paddingVertical:4,flexDirection:'row',alignItems:'center',gap:4}}>
-                              <Text style={{color:rCfg.color,fontSize:13,fontWeight:'900'}}>{m.risk.riskScore}</Text>
-                              <Text style={{color:rCfg.color,fontSize:10,fontWeight:'700'}}>{rCfg.label}</Text>
-                            </View>
+                            {m.sessions.length === 0 ? (
+                              <View style={{backgroundColor:'#f0f2f5',borderRadius:8,paddingHorizontal:8,paddingVertical:4}}>
+                                <Text style={{color:'#9ca3af',fontSize:10,fontWeight:'700'}}>データ未同期</Text>
+                              </View>
+                            ) : (
+                              <View style={{backgroundColor:rCfg.bg,borderRadius:8,paddingHorizontal:8,paddingVertical:4,flexDirection:'row',alignItems:'center',gap:4}}>
+                                <Text style={{color:rCfg.color,fontSize:13,fontWeight:'900'}}>{m.risk.riskScore}</Text>
+                                <Text style={{color:rCfg.color,fontSize:10,fontWeight:'700'}}>{rCfg.label}</Text>
+                              </View>
+                            )}
                             {/* 週間負荷 */}
                             <View style={{backgroundColor:'rgba(0,0,0,0.04)',borderRadius:8,paddingHorizontal:8,paddingVertical:4,flexDirection:'row',alignItems:'center',gap:3}}>
                               <View style={{width:6,height:6,borderRadius:3,backgroundColor:lCfg.color}}/>
@@ -1000,7 +1090,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
           )}
 
           {/* ═══ アナウンスタブ ═══ */}
-          {tab === 'messages' && (
+          {!loading && tab === 'messages' && (
             <AnimatedSection key="messages" delay={0} type="fade-up">
             <>
               <View style={co.composeBox}>
@@ -1048,7 +1138,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
           )}
 
           {/* ═══ 動画タブ ═══ */}
-          {tab === 'videos' && (
+          {!loading && tab === 'videos' && (
             <AnimatedSection key="videos" delay={0} type="fade-up">
             <>
               {videos.length === 0 ? (
@@ -1095,7 +1185,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
           )}
 
           {/* ═══ カレンダータブ ═══ */}
-          {tab === 'calendar' && (
+          {!loading && tab === 'calendar' && (
             <AnimatedSection key="calendar" delay={0} type="fade-up">
             <View style={{gap:14}}>
               {/* 追加ボタン */}
@@ -1174,15 +1264,18 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
       {/* 予定追加モーダル */}
       <Modal visible={showEventModal} transparent animationType="slide" onRequestClose={() => setShowEventModal(false)}>
         <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.7)',justifyContent:'flex-end'}}>
-          <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':undefined}>
-            <View style={{backgroundColor:'#fff',borderTopLeftRadius:24,borderTopRightRadius:24,padding:22,paddingBottom:44,gap:14}}>
-              <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center'}}/>
-              <View style={{flexDirection:'row',alignItems:'center'}}>
-                <Text style={{color:'#111827',fontSize:18,fontWeight:'800',flex:1}}>📅 予定を追加</Text>
-                <TouchableOpacity onPress={() => setShowEventModal(false)} hitSlop={{top:10,bottom:10,left:10,right:10}}>
-                  <Ionicons name="close" size={22} color={TEXT.secondary}/>
-                </TouchableOpacity>
+          <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':undefined} style={{maxHeight:'90%'}}>
+            <View style={{backgroundColor:'#fff',borderTopLeftRadius:24,borderTopRightRadius:24}}>
+              <View style={{padding:22,paddingBottom:0,gap:0}}>
+                <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:14}}/>
+                <View style={{flexDirection:'row',alignItems:'center',marginBottom:16}}>
+                  <Text style={{color:'#111827',fontSize:18,fontWeight:'800',flex:1}}>📅 予定を追加</Text>
+                  <TouchableOpacity onPress={() => setShowEventModal(false)} hitSlop={{top:10,bottom:10,left:10,right:10}}>
+                    <Ionicons name="close" size={22} color={TEXT.secondary}/>
+                  </TouchableOpacity>
+                </View>
               </View>
+              <ScrollView contentContainerStyle={{paddingHorizontal:22,paddingBottom:44,gap:14}} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
               {/* タイトル */}
               <View style={{gap:6}}>
@@ -1205,18 +1298,19 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
                 </ScrollView>
               </View>
 
-              {/* 日付・時間 */}
-              <View style={{flexDirection:'row',gap:10}}>
-                <View style={{flex:2,gap:6}}>
+              {/* 日付カレンダー */}
+              <View style={{gap:6}}>
+                <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
                   <Text style={{color:TEXT.hint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>日付（必須）</Text>
-                  <TextInput style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:'#111827',fontSize:14,paddingHorizontal:12,paddingVertical:11}}
-                    value={evDate} onChangeText={setEvDate} placeholder="2026-05-10" placeholderTextColor="#9ca3af" maxLength={10}/>
+                  {!!evDate && <Text style={{color:BRAND,fontSize:12,fontWeight:'700'}}>✓ {fmtEventDate(evDate)}</Text>}
                 </View>
-                <View style={{flex:1,gap:6}}>
-                  <Text style={{color:TEXT.hint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>時間</Text>
-                  <TextInput style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:'#111827',fontSize:14,paddingHorizontal:12,paddingVertical:11}}
-                    value={evTime} onChangeText={setEvTime} placeholder="14:00" placeholderTextColor="#9ca3af" maxLength={5}/>
-                </View>
+                <MiniCalendar value={evDate} onChange={setEvDate}/>
+              </View>
+              {/* 時間 */}
+              <View style={{gap:6}}>
+                <Text style={{color:TEXT.hint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>時間（任意）</Text>
+                <TextInput style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:'#111827',fontSize:14,paddingHorizontal:14,paddingVertical:12}}
+                  value={evTime} onChangeText={setEvTime} placeholder="例: 14:00" placeholderTextColor="#9ca3af" maxLength={5}/>
               </View>
 
               {/* 場所 */}
@@ -1240,6 +1334,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
                 <Ionicons name="checkmark-circle" size={20} color="#fff"/>
                 <Text style={{color:'#fff',fontSize:16,fontWeight:'800'}}>追加する</Text>
               </TouchableOpacity>
+              </ScrollView>
             </View>
           </KeyboardAvoidingView>
         </View>
@@ -1494,6 +1589,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
   const [editEvent,         setEditEvent]         = useState('')
   const [editPb,            setEditPb]            = useState('')
   const [selectedTeammate,  setSelectedTeammate]  = useState<TeamMemberRow|null>(null)
+  const [plLoading,         setPlLoading]         = useState(true)
 
   const load = useCallback(async () => {
     const [sr, msgs, mems, rpts, stats, teamSessions, evts] = await Promise.all([
@@ -1512,6 +1608,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
     setPlayerStats(stats)
     setAllBodyReports(rpts)
     setTeamEvents(evts)
+    setPlLoading(false)
     // チームメイトのセッションマップ構築
     const map: Record<string, TrainingSession[]> = {}
     for (const ts of teamSessions) {
@@ -1592,6 +1689,12 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
   return (
     <View style={{flex:1,backgroundColor:'#f6f6f8'}}>
       <SafeAreaView style={{flex:1}}>
+        {plLoading ? (
+          <View style={{flex:1,alignItems:'center',justifyContent:'center',gap:12}}>
+            <Text style={{fontSize:32}}>⏳</Text>
+            <Text style={{color:'#9ca3af',fontSize:14}}>データを読み込み中...</Text>
+          </View>
+        ) : (
         <ScrollView contentContainerStyle={{padding:16,paddingBottom:60,gap:18}} showsVerticalScrollIndicator={false}>
 
           {/* ヘッダー */}
@@ -1708,11 +1811,16 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
           </View>
           </AnimatedSection>
 
-          {/* チームカレンダー */}
-          {teamEvents.length > 0 && (
-            <AnimatedSection delay={230} type="fade-up">
-            <View style={{gap:8}}>
-              <Text style={pl.sectionTitle}>📅 チーム予定</Text>
+          {/* チームカレンダー — 常に表示 */}
+          <AnimatedSection delay={230} type="fade-up">
+          <View style={{gap:8}}>
+            <Text style={pl.sectionTitle}>📅 チーム予定</Text>
+            {teamEvents.length === 0 ? (
+              <View style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',padding:20,alignItems:'center',gap:6}}>
+                <Text style={{fontSize:28}}>📅</Text>
+                <Text style={{color:'#9ca3af',fontSize:13}}>コーチからの予定はまだありません</Text>
+              </View>
+            ) : (
               <View style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',overflow:'hidden'}}>
                 {teamEvents.slice(0, 5).map((ev, i) => {
                   const cfg = EVENT_CFG[ev.event_type] ?? EVENT_CFG.other
@@ -1720,17 +1828,17 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
                   return (
                     <View key={ev.id} style={{
                       flexDirection:'row', alignItems:'center', gap:12,
-                      paddingHorizontal:14, paddingVertical:12,
+                      paddingHorizontal:14, paddingVertical:13,
                       borderBottomWidth: i < Math.min(teamEvents.length, 5)-1 ? StyleSheet.hairlineWidth : 0,
                       borderBottomColor:'rgba(0,0,0,0.07)',
                       opacity: past ? 0.5 : 1,
                     }}>
-                      <View style={{width:36,height:36,borderRadius:10,backgroundColor:cfg.color+'18',alignItems:'center',justifyContent:'center'}}>
+                      <View style={{width:38,height:38,borderRadius:10,backgroundColor:cfg.color+'18',alignItems:'center',justifyContent:'center'}}>
                         <Text style={{fontSize:18}}>{cfg.emoji}</Text>
                       </View>
                       <View style={{flex:1,gap:2}}>
                         <Text style={{color:TEXT.primary,fontSize:14,fontWeight:'700'}}>{ev.title}</Text>
-                        <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
+                        <View style={{flexDirection:'row',alignItems:'center',gap:8,flexWrap:'wrap'}}>
                           <Text style={{color:cfg.color,fontSize:11,fontWeight:'700'}}>{fmtEventDate(ev.event_date)}</Text>
                           {!!ev.event_time && <Text style={{color:'#888',fontSize:11}}>{ev.event_time}</Text>}
                           {!!ev.location && <Text style={{color:'#888',fontSize:11}}>📍{ev.location}</Text>}
@@ -1741,9 +1849,9 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
                   )
                 })}
               </View>
-            </View>
-            </AnimatedSection>
-          )}
+            )}
+          </View>
+          </AnimatedSection>
 
           {/* チームメイト一覧 */}
           {teammates.length > 0 && (
@@ -1811,6 +1919,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
           )}
 
         </ScrollView>
+        )}
       </SafeAreaView>
 
       {/* 痛み報告モーダル */}
