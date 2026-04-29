@@ -214,11 +214,11 @@ function exportOverlayPNG(record: RaceRecord) {
   const wmBotY = by + bh - 30 // ブロック底辺から上30px
   shadow(10, 'rgba(0,0,0,0.55)')
   c.textAlign = 'right'
-  c.font = '800 34px system-ui, sans-serif'
-  c.fillStyle = 'rgba(255,255,255,0.6)'
-  c.fillText('sCORE', wmX, wmBotY - 44)
-  c.font = '500 26px system-ui, sans-serif'
-  c.fillStyle = 'rgba(255,255,255,0.42)'
+  c.font = '800 48px system-ui, sans-serif'
+  c.fillStyle = 'rgba(255,255,255,0.65)'
+  c.fillText('sCORE', wmX, wmBotY - 52)
+  c.font = '500 30px system-ui, sans-serif'
+  c.fillStyle = 'rgba(255,255,255,0.45)'
   c.fillText('アプリをダウンロード！', wmX, wmBotY)
   noShadow()
   c.textAlign = 'left'
@@ -592,8 +592,8 @@ const pv = StyleSheet.create({
     marginTop: 4,
   },
   watermark: {
-    color: 'rgba(255,255,255,0.6)',
-    fontSize: 12,
+    color: 'rgba(255,255,255,0.65)',
+    fontSize: 16,
     fontWeight: '800',
     textAlign: 'right',
     textShadowColor: 'rgba(0,0,0,0.7)',
@@ -602,7 +602,7 @@ const pv = StyleSheet.create({
   },
   watermarkSub: {
     color: 'rgba(255,255,255,0.45)',
-    fontSize: 9,
+    fontSize: 11,
     textAlign: 'right',
     textShadowColor: 'rgba(0,0,0,0.6)',
     textShadowOffset: { width: 0, height: 1 },
