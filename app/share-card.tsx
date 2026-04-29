@@ -222,7 +222,7 @@ function exportOverlayPNG(record: RaceRecord) {
 
   // ダウンロード
   const a = document.createElement('a')
-  a.download = `trackmate-${record.event.replace(/[^a-z0-9]/gi, '')}-overlay.png`
+  a.download = `score-${record.event.replace(/[^a-z0-9]/gi, '')}-overlay.png`
   a.href = cv.toDataURL('image/png')
   a.click()
 }
@@ -345,7 +345,7 @@ export default function ShareCardScreen() {
       formatDateJP(selected.race_date),
       selected.competition_name ?? '',
       '',
-      'trackmate.app で記録管理',
+      'scorej.run で記録管理',
     ].filter(Boolean).join('\n')
 
     try {

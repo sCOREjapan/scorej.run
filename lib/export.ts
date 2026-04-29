@@ -76,7 +76,7 @@ export async function exportAllDataCSV(): Promise<void> {
   }
 
   const dateStr = new Date().toISOString().slice(0, 10)
-  const filename = `trackmate_export_${dateStr}.csv`
+  const filename = `score_export_${dateStr}.csv`
   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -126,7 +126,7 @@ export async function exportAllDataJSON(): Promise<void> {
 
   const json = JSON.stringify(result, null, 2)
   const dateStr = new Date().toISOString().slice(0, 10)
-  const filename = `trackmate_backup_${dateStr}.json`
+  const filename = `score_backup_${dateStr}.json`
   const blob = new Blob([json], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
