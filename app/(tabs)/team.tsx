@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  TextInput, KeyboardAvoidingView, Platform, Modal, Linking,
+  TextInput, KeyboardAvoidingView, Platform, Modal, Linking, Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
@@ -14,11 +14,12 @@ import AnimatedSection from '../../components/AnimatedSection'
 import { calcInjuryRisk } from '../../lib/injuryRisk'
 import { calcLevelInfo, RANK_TIERS } from '../../lib/gamification'
 import type { TrainingSession } from '../../types'
+import { supabase } from '../../lib/supabase'
 import {
   fetchMessages, postMessage, setPinMessage, deleteMessage,
   fetchVideos, submitVideo, markVideoWatched,
   fetchBodyReports, upsertBodyReport,
-  fetchMembers, registerMember,
+  fetchMembers, registerMember, deleteMember,
   createTeam, fetchTeamByCode,
   type TeamMessageRow, type TeamVideoRow, type BodyReportRow, type TeamMemberRow,
 } from '../../lib/supabaseTeam'
@@ -497,10 +498,11 @@ function CoachDashboard({ setup, onReset }: { setup: TeamSetup; onReset: () => v
   const [videos,   setVideos]   = useState<VideoEntry[]>([])
   const [members,  setMembers]  = useState<TeamMemberRow[]>([])
   const [bodyReports, setBodyReports] = useState<BodyReportRow[]>([])
-  const [msgText,  setMsgText]  = useState('')
-  const [tab,      setTab]      = useState<'members'|'messages'|'videos'>('members')
-  const [detailMember, setDetailMember] = useState<Member|null>(null)
-  const [memberFilter, setMemberFilter] = useState<'all'|'danger'|'unsubmitted'>('all')
+  const [msgText,       setMsgText]       = useState('')
+  const [tab,           setTab]           = useState<'members'|'messages'|'videos'>('members')
+  const [detailMember,  setDetailMember]  = useState<Member|null>(null)
+  const [memberFilter,  setMemberFilter]  = useState<'all'|'danger'|'unsubmitted'>('all')
+  const [hiddenDemoIds, setHiddenDemoIds] = useState<string[]>([])
 
   const load = useCallback(async () => {
     const [msgs, vids, mems, rpts] = await Promise.all([
@@ -516,6 +518,17 @@ function CoachDashboard({ setup, onReset }: { setup: TeamSetup; onReset: () => v
   }, [setup.code])
 
   useEffect(() => { load() }, [load])
+
+  // Supabase Realtime — チームデータをリアルタイム同期
+  useEffect(() => {
+    const ch = supabase.channel(`coach:${setup.code}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_messages',     filter: `team_code=eq.${setup.code}` }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members',      filter: `team_code=eq.${setup.code}` }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_body_reports', filter: `team_code=eq.${setup.code}` }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_videos',       filter: `team_code=eq.${setup.code}` }, () => load())
+      .subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [setup.code, load])
 
   // 通知許可 + タグ登録
   useEffect(() => {
@@ -549,6 +562,30 @@ function CoachDashboard({ setup, onReset }: { setup: TeamSetup; onReset: () => v
     setMessages(prev => prev.filter(m => m.id!==id))
   }
 
+  function removeMember(id: string, name: string, isDemo: boolean) {
+    Alert.alert(
+      'メンバーを削除',
+      `${name} をチームから削除しますか？`,
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '削除',
+          style: 'destructive',
+          onPress: async () => {
+            if (isDemo) {
+              setHiddenDemoIds(prev => [...prev, id])
+            } else {
+              await deleteMember(id)
+              setMembers(prev => prev.filter(m => m.id !== id))
+            }
+            if (detailMember?.id === id) setDetailMember(null)
+            Toast.show({ type: 'success', text1: `${name} を削除しました`, visibilityTime: 1600 })
+          },
+        },
+      ],
+    )
+  }
+
   async function markWatched(id: string) {
     await markVideoWatched(id)
     setVideos(prev => prev.map(v => v.id===id ? {...v, watched:true} : v))
@@ -567,7 +604,7 @@ function CoachDashboard({ setup, onReset }: { setup: TeamSetup; onReset: () => v
           sessions: [],
         }
       })
-    : DEMO_MEMBERS
+    : DEMO_MEMBERS.filter(m => !hiddenDemoIds.includes(m.id))
 
   // メンバーごとの計算済みデータ
   const memberData = displayMembers.map(m => {
@@ -763,7 +800,7 @@ function CoachDashboard({ setup, onReset }: { setup: TeamSetup; onReset: () => v
                           {(m.painParts?.length ?? 0) > 0 && <PainBadges parts={m.painParts!}/>}
                         </View>
 
-                        {/* 右: 体調バッジ + 最終アクティブ */}
+                        {/* 右: 体調バッジ + 最終アクティブ + 削除 */}
                         <View style={{alignItems:'flex-end',gap:4,minWidth:40}}>
                           {m.condToday ? (
                             <Text style={{fontSize:18}}>{'😫😕😐😊💪'.charAt(Math.round((m.condToday - 2) / 2))}</Text>
@@ -773,6 +810,12 @@ function CoachDashboard({ setup, onReset }: { setup: TeamSetup; onReset: () => v
                             </View>
                           )}
                           <Text style={{color:'#444',fontSize:9}}>{daysSince(m.lastActive)}</Text>
+                          <TouchableOpacity
+                            onPress={e => { e.stopPropagation(); removeMember(m.id, m.name, m.id.startsWith('demo-')) }}
+                            hitSlop={{top:8,bottom:8,left:8,right:8}}
+                          >
+                            <Ionicons name="trash-outline" size={14} color="#ccc"/>
+                          </TouchableOpacity>
                         </View>
                       </View>
                     </TouchableOpacity>
@@ -957,24 +1000,36 @@ function MemberDetailSheet({ member, onClose }: { member: Member; onClose: () =>
 function PlayerDashboard({ joined, onReset }: { joined: JoinedTeam; onReset: () => void }) {
   const [sessions,       setSessions]       = useState<TrainingSession[]>([])
   const [messages,       setMessages]       = useState<TeamMessage[]>([])
+  const [teammates,      setTeammates]      = useState<TeamMemberRow[]>([])
   const [bodyParts,      setBodyParts]      = useState<string[]>([])
   const [showBody,       setShowBody]       = useState(false)
   const [showVideoModal, setShowVideoModal] = useState(false)
   const [editBody,       setEditBody]       = useState<string[]>([])
 
   const load = useCallback(async () => {
-    const [sr, msgs, rpts] = await Promise.all([
+    const [sr, msgs, mems, rpts] = await Promise.all([
       AsyncStorage.getItem(SESSIONS_KEY),
       fetchMessages(joined.code),
+      fetchMembers(joined.code),
       fetchBodyReports(joined.code),
     ])
     setSessions(sr ? JSON.parse(sr) : [])
     setMessages(msgs)
+    setTeammates(mems.filter(m => m.player_name !== joined.playerName))
     const myReport = rpts.find(r => r.player_name === joined.playerName)
     if (myReport) setBodyParts(myReport.parts)
   }, [joined.code, joined.playerName])
 
   useEffect(() => { load() }, [load])
+
+  // Supabase Realtime — コーチのアナウンスをリアルタイムで受信
+  useEffect(() => {
+    const ch = supabase.channel(`player:${joined.code}:${joined.playerName}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_messages', filter: `team_code=eq.${joined.code}` }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members',  filter: `team_code=eq.${joined.code}` }, () => load())
+      .subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [joined.code, joined.playerName, load])
 
   // 通知許可 + タグ登録
   useEffect(() => {
@@ -1008,6 +1063,7 @@ function PlayerDashboard({ joined, onReset }: { joined: JoinedTeam; onReset: () 
         <ScrollView contentContainerStyle={{padding:16,paddingBottom:40,gap:14}} showsVerticalScrollIndicator={false}>
 
           {/* ヘッダー */}
+          <AnimatedSection delay={0} type="fade-up">
           <View style={{flexDirection:'row',alignItems:'flex-start',justifyContent:'space-between'}}>
             <View style={{gap:2}}>
               <Text style={{color:'#fff',fontSize:20,fontWeight:'800'}}>{joined.teamName}</Text>
@@ -1022,8 +1078,10 @@ function PlayerDashboard({ joined, onReset }: { joined: JoinedTeam; onReset: () 
               <Ionicons name="swap-horizontal-outline" size={15} color={TEXT.secondary}/>
             </TouchableOpacity>
           </View>
+          </AnimatedSection>
 
           {/* アクションボタン2つ */}
+          <AnimatedSection delay={60} type="fade-up">
           <View style={{flexDirection:'row',gap:10}}>
             <TouchableOpacity style={pl.actionBtn} onPress={() => { setEditBody([...bodyParts]); setShowBody(true) }} activeOpacity={0.85}>
               <Ionicons name="body-outline" size={20} color="#FF9500"/>
@@ -1035,9 +1093,11 @@ function PlayerDashboard({ joined, onReset }: { joined: JoinedTeam; onReset: () 
               <Text style={{color:'#fff',fontSize:13,fontWeight:'700'}}>動画を送る</Text>
             </TouchableOpacity>
           </View>
+          </AnimatedSection>
 
           {/* ピン留めメッセージ */}
           {pinned.length > 0 && (
+            <AnimatedSection delay={120} type="fade-up">
             <View style={{gap:8}}>
               <Text style={pl.sectionTitle}>📌 コーチからのお知らせ</Text>
               {pinned.map(m => (
@@ -1047,10 +1107,12 @@ function PlayerDashboard({ joined, onReset }: { joined: JoinedTeam; onReset: () 
                 </View>
               ))}
             </View>
+            </AnimatedSection>
           )}
 
           {/* 通常メッセージ */}
           {regular.length > 0 && (
+            <AnimatedSection delay={160} type="fade-up">
             <View style={{gap:8}}>
               <Text style={pl.sectionTitle}>📣 コーチからのメッセージ</Text>
               {regular.slice(0,5).map(m => (
@@ -1060,16 +1122,20 @@ function PlayerDashboard({ joined, onReset }: { joined: JoinedTeam; onReset: () 
                 </View>
               ))}
             </View>
+            </AnimatedSection>
           )}
 
           {messages.length === 0 && (
+            <AnimatedSection delay={160} type="fade-up">
             <View style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',padding:20,alignItems:'center',gap:6}}>
               <Ionicons name="chatbubble-outline" size={26} color="#9ca3af"/>
               <Text style={{color:'#6b7280',fontSize:13}}>コーチからのメッセージはまだありません</Text>
             </View>
+            </AnimatedSection>
           )}
 
           {/* 自分のコンディション */}
+          <AnimatedSection delay={200} type="fade-up">
           <Text style={pl.sectionTitle}>マイ コンディション</Text>
           <View style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',padding:14}}>
             <View style={{flexDirection:'row',gap:10,marginBottom:12}}>
@@ -1091,6 +1157,36 @@ function PlayerDashboard({ joined, onReset }: { joined: JoinedTeam; onReset: () 
               </View>
             )}
           </View>
+          </AnimatedSection>
+
+          {/* チームメイト一覧 */}
+          {teammates.length > 0 && (
+            <AnimatedSection delay={260} type="fade-up">
+            <>
+              <Text style={pl.sectionTitle}>👥 チームメイト</Text>
+              <View style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',overflow:'hidden'}}>
+                {teammates.map((m, i) => (
+                  <View
+                    key={m.id}
+                    style={{
+                      flexDirection:'row', alignItems:'center', gap:10,
+                      paddingHorizontal:14, paddingVertical:12,
+                      borderBottomWidth: i < teammates.length-1 ? StyleSheet.hairlineWidth : 0,
+                      borderBottomColor:'rgba(0,0,0,0.07)',
+                    }}
+                  >
+                    <Avatar name={m.player_name} size={34} color={avatarColor(m.player_name)}/>
+                    <View style={{flex:1}}>
+                      <Text style={{color:TEXT.primary,fontSize:14,fontWeight:'700'}}>{m.player_name}</Text>
+                      {m.event ? <Text style={{color:TEXT.secondary,fontSize:11}}>{m.event}</Text> : null}
+                    </View>
+                    <Text style={{color:TEXT.hint,fontSize:11}}>{daysSince(m.joined_at)}</Text>
+                  </View>
+                ))}
+              </View>
+            </>
+            </AnimatedSection>
+          )}
 
         </ScrollView>
       </SafeAreaView>
