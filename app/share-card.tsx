@@ -9,6 +9,10 @@ import { useRouter, useLocalSearchParams } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
+import Svg, {
+  Path, Defs,
+  LinearGradient as SvgGrad, Stop,
+} from 'react-native-svg'
 import { BRAND } from '../lib/theme'
 import Toast from 'react-native-toast-message'
 import type { RaceRecord } from '../types'
@@ -18,6 +22,115 @@ const RECORDS_KEY = 'trackmate_race_records'
 function formatDateJP(s: string) {
   const [y, m, d] = s.split('-')
   return `${y}年${m}月${d}日`
+}
+
+// ── sCORE ロゴ（React Native 用 SVG） ────────────────────────────────────────
+// 心拍グラフ→上昇アロー + "sCORE" テキスト
+function ScoreIcon({ height = 24 }: { height?: number }) {
+  const w = height * 1.55
+  return (
+    <Svg width={w} height={height} viewBox="0 0 124 80">
+      <Defs>
+        <SvgGrad id="ecgGrad" x1="0" y1="0" x2="1" y2="0">
+          <Stop offset="0"    stopColor="#4ade80" />
+          <Stop offset="0.45" stopColor="#16a34a" />
+          <Stop offset="1"    stopColor="#14532d" />
+        </SvgGrad>
+      </Defs>
+      {/* 心拍→上昇カーブ */}
+      <Path
+        d="M0,52 L28,52 L42,9 L55,72 L65,52 C80,52 83,18 104,10"
+        stroke="url(#ecgGrad)"
+        strokeWidth="8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      {/* 矢印ヘッド（ダークグリーン）*/}
+      <Path
+        d="M112,4 L97,20 L108,26 Z"
+        fill="#0d2b0d"
+      />
+    </Svg>
+  )
+}
+
+// ── sCORE ロゴ（Canvas 書き出し用） ──────────────────────────────────────────
+function drawScoreLogo(
+  c: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  logoH: number,
+  withShadow = true,
+) {
+  const iW = logoH * 1.55   // アイコン幅
+  const iH = logoH           // アイコン高さ
+  const sw = iH * 0.095      // 線幅
+
+  if (withShadow) { c.shadowColor = 'rgba(0,0,0,0.9)'; c.shadowBlur = 14 }
+
+  // ── アイコン：ECG + 上昇カーブ ──
+  const g = c.createLinearGradient(x, 0, x + iW, 0)
+  g.addColorStop(0,    '#4ade80')
+  g.addColorStop(0.45, '#16a34a')
+  g.addColorStop(1,    '#14532d')
+
+  c.strokeStyle = g
+  c.lineWidth   = sw
+  c.lineCap     = 'round'
+  c.lineJoin    = 'round'
+
+  const base = y + iH * 0.65   // 基準ライン
+
+  c.beginPath()
+  c.moveTo(x, base)
+  c.lineTo(x + iW * 0.225, base)                              // 水平
+  c.lineTo(x + iW * 0.340, y + iH * 0.11)                    // 上スパイク
+  c.lineTo(x + iW * 0.445, y + iH * 0.90)                    // 谷
+  c.lineTo(x + iW * 0.525, base)                              // 戻り
+  c.bezierCurveTo(
+    x + iW * 0.650, base,
+    x + iW * 0.670, y + iH * 0.20,
+    x + iW * 0.840, y + iH * 0.12,
+  )
+  c.stroke()
+
+  // ── 矢印ヘッド ──
+  c.shadowBlur = 0
+  const ax = x + iW * 0.905, ay = y + iH * 0.05
+  const ah = sw * 2.1
+  c.fillStyle = '#0d2b0d'
+  c.beginPath()
+  c.moveTo(ax,          ay)                   // 先端
+  c.lineTo(ax - ah * 1.2, ay + ah * 1.3)     // 左根元
+  c.lineTo(ax + ah * 0.9, ay + ah * 0.55)    // 右根元
+  c.closePath()
+  c.fill()
+
+  if (withShadow) { c.shadowColor = 'rgba(0,0,0,0.9)'; c.shadowBlur = 14 }
+
+  // ── テキスト "sCORE" ──
+  const gap    = logoH * 0.18
+  const txtX   = x + iW + gap
+  const txtY   = y + iH * 0.78
+
+  // "s"（ライトグリーン・小）
+  const sSize = logoH * 0.56
+  c.font      = `600 ${sSize}px system-ui, -apple-system, sans-serif`
+  c.fillStyle = '#4ade80'
+  c.fillText('s', txtX, txtY)
+  const sW = c.measureText('s').width * 0.92
+
+  // "CORE"（ダーク→黒グラデーション・大）
+  const coreSize = logoH * 0.74
+  c.font = `800 ${coreSize}px system-ui, -apple-system, sans-serif`
+  const tg = c.createLinearGradient(txtX + sW, 0, txtX + sW + coreSize * 3, 0)
+  tg.addColorStop(0, '#16a34a')
+  tg.addColorStop(1, '#052e16')
+  c.fillStyle = tg
+  c.fillText('CORE', txtX + sW, txtY)
+
+  c.shadowBlur = 0
 }
 
 // ── Canvas Export — 透過PNG (1080×1920) ────────────────────────────────────
@@ -48,13 +161,8 @@ function exportOverlayPNG(record: RaceRecord) {
     c.closePath()
   }
 
-  // ── ロゴ（左上） ──
-  shadow(24)
-  c.beginPath(); c.arc(82, 120, 18, 0, Math.PI * 2)
-  c.fillStyle = BRAND; c.fill()
-  c.font = '700 42px system-ui, -apple-system, sans-serif'
-  c.fillStyle = '#ffffff'
-  c.fillText('trackmate', 112, 135)
+  // ── ロゴ（左上） — sCORE ──
+  drawScoreLogo(c, 70, 72, 80, true)
   noShadow()
 
   // ── グラスブロック（中央） ──
@@ -126,7 +234,7 @@ function exportOverlayPNG(record: RaceRecord) {
   c.font = '500 30px system-ui, sans-serif'
   c.fillStyle = 'rgba(255,255,255,0.42)'
   c.textAlign = 'right'
-  c.fillText('trackmate.app', W - 72, H - 88)
+  c.fillText('sCORE', W - 72, H - 88)
   noShadow()
   c.textAlign = 'left'
 
@@ -147,8 +255,9 @@ function OverlayPreview({ record }: { record: RaceRecord }) {
     >
       {/* ロゴ */}
       <View style={pv.logoRow}>
-        <View style={pv.logoDot} />
-        <Text style={pv.logoTxt}>trackmate</Text>
+        <ScoreIcon height={20} />
+        <Text style={pv.logoTxtS}>s</Text>
+        <Text style={pv.logoTxtCore}>CORE</Text>
       </View>
 
       {/* グラスブロック */}
@@ -195,7 +304,7 @@ function OverlayPreview({ record }: { record: RaceRecord }) {
       </View>
 
       {/* ウォーターマーク */}
-      <Text style={pv.watermark}>trackmate.app</Text>
+      <Text style={pv.watermark}>sCORE</Text>
     </LinearGradient>
   )
 }
@@ -411,22 +520,21 @@ const pv = StyleSheet.create({
   logoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
+    gap: 3,
   },
-  logoDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: BRAND,
-    shadowColor: '#000',
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
+  logoTxtS: {
+    color: '#4ade80',
+    fontSize: 13,
+    fontWeight: '600',
+    textShadowColor: 'rgba(0,0,0,0.9)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 8,
   },
-  logoTxt: {
-    color: '#fff',
-    fontSize: 14,
+  logoTxtCore: {
+    color: '#166534',
+    fontSize: 17,
     fontWeight: '800',
-    letterSpacing: 0.4,
+    letterSpacing: 0.2,
     textShadowColor: 'rgba(0,0,0,0.9)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 8,
