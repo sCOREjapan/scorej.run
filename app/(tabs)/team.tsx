@@ -770,93 +770,71 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
                 </TouchableOpacity>
               )}
 
-              {/* デモ表示中の案内 */}
-              {members.length === 0 && (
-                <View style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',padding:14}}>
-                  <Text style={{color:'#555',fontSize:12,textAlign:'center'}}>※ デモデータを表示中。選手がコード「{formatCode(setup.code)}」で参加するとここに表示されます</Text>
-                </View>
-              )}
-
               {/* メンバーカードリスト */}
-              <View style={{gap:10}}>
+              <View style={{gap:12}}>
                 {filteredMembers.map((m) => {
-                  const rKey    = riskCfgKey(m.risk.riskScore)
-                  const lKey    = loadCfgKey(m.weeklyLoad)
-                  const rCfg    = RISK_CFG[rKey]
-                  const lCfg    = LOAD_CFG[lKey]
-                  const lvInfo  = calcLevelInfo(m.sessions.length)
-                  const lvTier  = RANK_TIERS.find(t => lvInfo.level >= t.min && lvInfo.level < t.max) ?? RANK_TIERS[0]
-                  const isHigh  = m.risk.riskScore >= 70
+                  const rKey   = riskCfgKey(m.risk.riskScore)
+                  const lKey   = loadCfgKey(m.weeklyLoad)
+                  const rCfg   = RISK_CFG[rKey]
+                  const lCfg   = LOAD_CFG[lKey]
+                  const lvInfo = calcLevelInfo(m.sessions.length)
+                  const lvTier = RANK_TIERS.find(t => lvInfo.level >= t.min && lvInfo.level < t.max) ?? RANK_TIERS[0]
+                  const isHigh = m.risk.riskScore >= 70
                   return (
                     <TouchableOpacity
                       key={m.id}
-                      style={[co.memberCard, isHigh && {borderColor:'rgba(229,57,53,0.25)',backgroundColor:'rgba(229,57,53,0.05)'}]}
+                      style={[co.memberCard, isHigh && {borderColor:'rgba(229,57,53,0.3)',backgroundColor:'rgba(229,57,53,0.03)'}]}
                       onPress={() => setDetailMember(m)}
-                      activeOpacity={0.85}
+                      activeOpacity={0.88}
                     >
                       {/* 負荷カラーバー（上端） */}
-                      <View style={{height:3,backgroundColor:lCfg.color,marginHorizontal:-14,marginTop:-14,marginBottom:10,borderTopLeftRadius:14,borderTopRightRadius:14,opacity:0.8}}/>
+                      <View style={{height:4,backgroundColor:lCfg.color,marginHorizontal:-16,marginTop:-16,marginBottom:14,borderTopLeftRadius:14,borderTopRightRadius:14,opacity:0.7}}/>
 
-                      <View style={{flexDirection:'row',alignItems:'flex-start',gap:10}}>
-                        <Avatar name={m.name} size={42} color={avatarColor(m.name)}/>
-                        <View style={{flex:1,gap:4}}>
-                          {/* 名前行 */}
-                          <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
-                            <Text style={{color:TEXT.primary,fontSize:15,fontWeight:'800'}}>{m.name}</Text>
-                            {m.event ? <Text style={{color:'#555',fontSize:11}}>{m.event}</Text> : null}
-                            <TouchableOpacity
-                              onPress={e => { e.stopPropagation(); router.push(`/level-roadmap?name=${encodeURIComponent(m.name)}&sessions=${m.sessions.length}` as any) }}
-                              style={{flexDirection:'row',alignItems:'center',gap:3,backgroundColor:lvTier.color+'22',borderRadius:10,paddingHorizontal:7,paddingVertical:2,borderWidth:1,borderColor:lvTier.color+'44'}}
-                            >
+                      <View style={{flexDirection:'row',alignItems:'center',gap:12}}>
+                        <Avatar name={m.name} size={46} color={avatarColor(m.name)}/>
+
+                        <View style={{flex:1,gap:8}}>
+                          {/* 名前 + ランク */}
+                          <View style={{flexDirection:'row',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+                            <Text style={{color:TEXT.primary,fontSize:16,fontWeight:'800'}}>{m.name}</Text>
+                            {m.event ? <Text style={{color:TEXT.secondary,fontSize:12}}>{m.event}</Text> : null}
+                            <View style={{flexDirection:'row',alignItems:'center',gap:3,backgroundColor:lvTier.color+'20',borderRadius:8,paddingHorizontal:7,paddingVertical:3,borderWidth:1,borderColor:lvTier.color+'40'}}>
                               <Text style={{fontSize:11}}>{lvTier.emoji}</Text>
-                              <Text style={{color:lvTier.color,fontSize:10,fontWeight:'800'}}>Lv.{lvInfo.level}</Text>
-                            </TouchableOpacity>
+                              <Text style={{color:lvTier.color,fontSize:11,fontWeight:'800'}}>Lv.{lvInfo.level}</Text>
+                            </View>
                           </View>
 
                           {/* リスクバー */}
-                          <View style={{gap:4}}>
-                            <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
-                              <Text style={{color:'#666',fontSize:10}}>怪我リスク</Text>
-                              <View style={{backgroundColor:rCfg.bg,borderRadius:999,paddingHorizontal:7,paddingVertical:1}}>
-                                <Text style={{color:rCfg.color,fontSize:9,fontWeight:'700'}}>{rCfg.label}</Text>
-                              </View>
-                            </View>
+                          <View style={{gap:6}}>
                             <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
-                              <View style={{flex:1,height:5,borderRadius:3,backgroundColor:'rgba(0,0,0,0.08)',overflow:'hidden'}}>
-                                <View style={{width:`${m.risk.riskScore}%`,height:'100%',borderRadius:3,backgroundColor:rCfg.color}}/>
+                              <View style={{flex:1,height:6,borderRadius:4,backgroundColor:'rgba(0,0,0,0.07)',overflow:'hidden'}}>
+                                <View style={{width:`${m.risk.riskScore}%`,height:'100%',borderRadius:4,backgroundColor:rCfg.color}}/>
                               </View>
-                              <Text style={{color:rCfg.color,fontSize:11,fontWeight:'700',minWidth:24}}>{m.risk.riskScore}</Text>
-                            </View>
-                          </View>
-
-                          {/* 今週の負荷 */}
-                          <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
-                            <Text style={{color:'#666',fontSize:10}}>今週の負荷</Text>
-                            <View style={{flexDirection:'row',alignItems:'center',gap:4}}>
-                              <View style={{backgroundColor:lCfg.color+'22',borderRadius:999,paddingHorizontal:7,paddingVertical:1}}>
-                                <Text style={{color:lCfg.color,fontSize:9,fontWeight:'700'}}>{lCfg.label}</Text>
+                              <Text style={{color:rCfg.color,fontSize:13,fontWeight:'800',minWidth:28}}>{m.risk.riskScore}</Text>
+                              <View style={{backgroundColor:rCfg.bg,borderRadius:8,paddingHorizontal:8,paddingVertical:3}}>
+                                <Text style={{color:rCfg.color,fontSize:11,fontWeight:'700'}}>{rCfg.label}</Text>
                               </View>
+                              <View style={{width:8,height:8,borderRadius:4,backgroundColor:lCfg.color}}/>
                             </View>
                           </View>
 
                           {(m.painParts?.length ?? 0) > 0 && <PainBadges parts={m.painParts!}/>}
                         </View>
 
-                        {/* 右: 体調バッジ + 最終アクティブ + 削除 */}
-                        <View style={{alignItems:'flex-end',gap:4,minWidth:40}}>
+                        {/* 右: 体調 + 削除 */}
+                        <View style={{alignItems:'flex-end',gap:8}}>
                           {m.condToday ? (
-                            <Text style={{fontSize:18}}>{'😫😕😐😊💪'.charAt(Math.round((m.condToday - 2) / 2))}</Text>
+                            <Text style={{fontSize:22}}>{'😫😕😐😊💪'.charAt(Math.round((m.condToday - 2) / 2))}</Text>
                           ) : (
-                            <View style={{backgroundColor:'#f0f2f5',borderRadius:999,paddingHorizontal:6,paddingVertical:2}}>
-                              <Text style={{color:'#888',fontSize:9,fontWeight:'700'}}>未提出</Text>
+                            <View style={{backgroundColor:'#f0f2f5',borderRadius:8,paddingHorizontal:7,paddingVertical:4}}>
+                              <Text style={{color:'#888',fontSize:10,fontWeight:'700'}}>未提出</Text>
                             </View>
                           )}
-                          <Text style={{color:'#444',fontSize:9}}>{daysSince(m.lastActive)}</Text>
                           <TouchableOpacity
                             onPress={e => { e.stopPropagation(); removeMember(m.id, m.name, m.id.startsWith('demo-')) }}
-                            hitSlop={{top:8,bottom:8,left:8,right:8}}
+                            hitSlop={{top:10,bottom:10,left:10,right:10}}
                           >
-                            <Ionicons name="trash-outline" size={14} color="#ccc"/>
+                            <Ionicons name="trash-outline" size={16} color="#d1d5db"/>
                           </TouchableOpacity>
                         </View>
                       </View>
@@ -864,8 +842,9 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
                   )
                 })}
                 {filteredMembers.length === 0 && (
-                  <View style={{alignItems:'center',paddingVertical:32}}>
-                    <Text style={{color:'#555',fontSize:14}}>該当する選手はいません</Text>
+                  <View style={{alignItems:'center',paddingVertical:40,gap:8}}>
+                    <Ionicons name="people-outline" size={36} color="#d1d5db"/>
+                    <Text style={{color:'#9ca3af',fontSize:14}}>該当する選手はいません</Text>
                   </View>
                 )}
               </View>
@@ -1389,7 +1368,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
 }
 
 const co = StyleSheet.create({
-  header:     { flexDirection:'row', alignItems:'flex-start', justifyContent:'space-between', padding:16, paddingBottom:0 },
+  header:     { flexDirection:'row', alignItems:'flex-start', justifyContent:'space-between', padding:18, paddingBottom:8 },
   title:      { color:TEXT.primary, fontSize:20, fontWeight:'800' },
   codeBox:    { backgroundColor:'rgba(229,57,53,0.08)', borderRadius:10, borderWidth:1, borderColor:BRAND+'30', paddingHorizontal:10, paddingVertical:6, alignItems:'center' },
   switchBtn:  { width:34, height:34, borderRadius:10, backgroundColor:'#f0f2f5', borderWidth:1, borderColor:'rgba(0,0,0,0.08)', alignItems:'center', justifyContent:'center' },
@@ -1399,7 +1378,7 @@ const co = StyleSheet.create({
   tabLabel:   { fontSize:13, fontWeight:'700' },
   badge:      { width:16, height:16, borderRadius:8, backgroundColor:'#ef4444', alignItems:'center', justifyContent:'center' },
   alertChip:  { flexDirection:'row', alignItems:'center', gap:5, backgroundColor:'rgba(239,68,68,0.08)', borderRadius:8, borderWidth:1, borderColor:'#ef4444'+'40', paddingHorizontal:10, paddingVertical:6 },
-  memberCard: { backgroundColor:'#ffffff', borderRadius:14, borderWidth:1, borderColor:'rgba(0,0,0,0.08)', padding:14, shadowColor:'#000', shadowOffset:{width:0,height:1}, shadowOpacity:0.05, shadowRadius:4, elevation:1 },
+  memberCard: { backgroundColor:'#ffffff', borderRadius:16, borderWidth:1, borderColor:'rgba(0,0,0,0.08)', padding:16, shadowColor:'#000', shadowOffset:{width:0,height:2}, shadowOpacity:0.06, shadowRadius:8, elevation:2 },
   composeBox: { flexDirection:'row', gap:10, alignItems:'flex-end', backgroundColor:'#ffffff', borderRadius:14, borderWidth:1, borderColor:'rgba(0,0,0,0.10)', padding:12 },
   composeInput:{ flex:1, color:TEXT.primary, fontSize:14, minHeight:40, maxHeight:100 },
   sendBtn:    { width:42, height:42, borderRadius:12, backgroundColor:BRAND, alignItems:'center', justifyContent:'center' },

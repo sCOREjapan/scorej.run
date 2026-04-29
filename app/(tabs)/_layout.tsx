@@ -256,8 +256,10 @@ const fab = StyleSheet.create({
 
 // ── メインレイアウト ─────────────────────────────────────
 export default function TabLayout() {
-  const insets = useSafeAreaInsets()
+  const insets   = useSafeAreaInsets()
+  const pathname = usePathname()
   const fabBottomOffset = Math.max(insets.bottom, 16) + 56  // タブバー高さ分オフセット
+  const hideFab  = pathname === '/team' || pathname === '/(tabs)/team'
 
   // 初回起動時に通知 → 位置情報の順で許可ダイアログを表示
   useEffect(() => {
@@ -316,8 +318,8 @@ export default function TabLayout() {
       {/* ── W3 カスタムタブバー ── */}
       <CustomTabBar bottomInset={insets.bottom} />
 
-      {/* ── ラジアルFAB（タブバー上に重なる） ── */}
-      <RadialFAB bottomOffset={fabBottomOffset} />
+      {/* ── ラジアルFAB（チーム画面では非表示） ── */}
+      {!hideFab && <RadialFAB bottomOffset={fabBottomOffset} />}
     </View>
   )
 }
