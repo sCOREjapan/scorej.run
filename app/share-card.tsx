@@ -143,17 +143,7 @@ function exportOverlayPNG(record: RaceRecord) {
     c.closePath()
   }
 
-  // ── ロゴ（左上） — "sCORE" テキストのみ ──
-  shadow(14)
-  const logoBaseY = 134  // テキストのベースライン
-  c.font      = `600 45px system-ui, -apple-system, sans-serif`
-  c.fillStyle = '#ffffff'
-  c.fillText('s', 70, logoBaseY)
-  const sW_logo = c.measureText('s').width * 0.92
-  c.font      = `800 60px system-ui, -apple-system, sans-serif`
-  c.fillStyle = '#ffffff'
-  c.fillText('CORE', 70 + sW_logo, logoBaseY)
-  noShadow()
+  // ロゴなし（グラスブロックのみ）
 
   // ── グラスブロック（中央） ──
   const bx = 68, by = H / 2 - 360, bw = W - 136, bh = 680
@@ -248,12 +238,6 @@ function OverlayPreview({ record }: { record: RaceRecord }) {
       colors={['#0f2027', '#203a43', '#2c5364']}
       style={pv.container}
     >
-      {/* ロゴ — テキストのみ */}
-      <View style={pv.logoRow}>
-        <Text style={pv.logoTxtS}>s</Text>
-        <Text style={pv.logoTxtCore}>CORE</Text>
-      </View>
-
       {/* グラスブロック */}
       <View style={pv.glass}>
         <Text style={pv.event}>{record.event}</Text>
