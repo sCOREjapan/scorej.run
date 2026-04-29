@@ -157,3 +157,84 @@ create policy "sleep_own_data" on sleep_records
 -- ─────────────────────────────────────────
 -- insert into storage.buckets (id, name, public) values ('videos', 'videos', false);
 -- insert into storage.buckets (id, name, public) values ('meal-photos', 'meal-photos', false);
+
+-- ─────────────────────────────────────────
+-- チーム機能テーブル
+-- ─────────────────────────────────────────
+
+-- チーム（コーチが作成）
+create table if not exists teams (
+  code        text primary key,              -- 6文字の参加コード
+  team_name   text not null,
+  coach_name  text not null,
+  created_at  timestamptz default now()
+);
+
+-- チームメンバー（選手が参加）
+create table if not exists team_members (
+  id          text primary key,              -- "{code}_{playerName}"
+  team_code   text not null references teams(code) on delete cascade,
+  player_name text not null,
+  event       text not null default '',
+  joined_at   timestamptz default now()
+);
+
+create index if not exists idx_team_members_code
+  on team_members(team_code);
+
+-- チームメッセージ（コーチ → 選手）
+create table if not exists team_messages (
+  id          uuid primary key default gen_random_uuid(),
+  team_code   text not null references teams(code) on delete cascade,
+  content     text not null,
+  author_name text not null,
+  is_pinned   boolean not null default false,
+  created_at  timestamptz default now()
+);
+
+create index if not exists idx_team_messages_code
+  on team_messages(team_code, created_at desc);
+
+-- チーム動画（選手 → コーチ）
+create table if not exists team_videos (
+  id          uuid primary key default gen_random_uuid(),
+  team_code   text not null references teams(code) on delete cascade,
+  player_name text not null,
+  url         text not null,
+  description text not null default '',
+  watched     boolean not null default false,
+  posted_at   timestamptz default now()
+);
+
+create index if not exists idx_team_videos_code
+  on team_videos(team_code, posted_at desc);
+
+-- 痛み報告（選手 → コーチ）
+create table if not exists team_body_reports (
+  team_code   text not null references teams(code) on delete cascade,
+  player_name text not null,
+  parts       text[] not null default '{}',
+  updated_at  timestamptz default now(),
+  primary key (team_code, player_name)
+);
+
+create index if not exists idx_body_reports_code
+  on team_body_reports(team_code);
+
+-- ─────────────────────────────────────────
+-- RLS（チームテーブルは認証なしでも読み書き可）
+-- ※ コードを知っている人だけが参加できるため、
+--   テーブルレベルのセキュリティは参加コードで担保する
+-- ─────────────────────────────────────────
+alter table teams             enable row level security;
+alter table team_members      enable row level security;
+alter table team_messages     enable row level security;
+alter table team_videos       enable row level security;
+alter table team_body_reports enable row level security;
+
+-- 全員が読み書き可（コード知っている前提）
+create policy "teams_public"        on teams             for all using (true) with check (true);
+create policy "members_public"      on team_members      for all using (true) with check (true);
+create policy "messages_public"     on team_messages     for all using (true) with check (true);
+create policy "videos_public"       on team_videos       for all using (true) with check (true);
+create policy "body_reports_public" on team_body_reports for all using (true) with check (true);

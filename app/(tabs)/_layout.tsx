@@ -148,11 +148,10 @@ type TabItem = {
 }
 
 const TAB_ITEMS: TabItem[] = [
-  { route: '/(tabs)/',           label: 'ホーム', icon: 'home-outline',       iconFocused: 'home',        action: 'home-scroll' },
-  { route: '/(tabs)/records',    label: '記録',   icon: 'stats-chart-outline', iconFocused: 'stats-chart' },
-  { route: '',                   label: 'AI',     icon: 'sparkles-outline',    iconFocused: 'sparkles',    action: 'quick-log' },
-  { route: '/(tabs)/competition',label: '試合',   icon: 'trophy-outline',      iconFocused: 'trophy' },
-  { route: '/(tabs)/mypage',     label: '設定',   icon: 'person-outline',      iconFocused: 'person' },
+  { route: '/(tabs)/',        label: 'ホーム', icon: 'home-outline',        iconFocused: 'home',        action: 'home-scroll' },
+  { route: '/(tabs)/records', label: '記録',   icon: 'stats-chart-outline', iconFocused: 'stats-chart' },
+  { route: '/(tabs)/team',    label: 'チーム', icon: 'people-outline',      iconFocused: 'people'      },
+  { route: '/(tabs)/mypage',  label: '設定',   icon: 'person-outline',      iconFocused: 'person'      },
 ]
 
 function CustomTabBar({ bottomInset }: { bottomInset: number }) {

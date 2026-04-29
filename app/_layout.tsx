@@ -87,10 +87,15 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 function RootLayoutNav() {
   const router = useRouter()
 
-  // アプリ起動時に通知許可をリクエスト
+  // アプリ起動時に OneSignal を初期化（許可ダイアログは初回のみ）
   useEffect(() => {
     if (Platform.OS === 'web') {
-      initOneSignal().then(() => requestPushPermission())
+      initOneSignal().then(() => {
+        if (typeof localStorage !== 'undefined' && !localStorage.getItem('score_push_asked')) {
+          localStorage.setItem('score_push_asked', '1')
+          requestPushPermission()
+        }
+      })
     }
   }, [])
 

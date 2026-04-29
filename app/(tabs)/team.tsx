@@ -634,7 +634,7 @@ function CoachDashboard({ setup, onReset }: { setup: TeamSetup; onReset: () => v
             { key:'videos',   label:'動画', badge: newVideos },
           ] as const).map(t => (
             <TouchableOpacity key={t.key} style={[co.tab, tab===t.key && co.tabActive]} onPress={() => setTab(t.key)} activeOpacity={0.7}>
-              <Text style={[co.tabLabel, { color: tab===t.key ? '#fff' : '#555' }]}>{t.label}</Text>
+              <Text style={[co.tabLabel, { color: tab===t.key ? BRAND : '#555' }]}>{t.label}</Text>
               {t.badge > 0 && <View style={co.badge}><Text style={{color:'#fff',fontSize:9,fontWeight:'800'}}>{t.badge}</Text></View>}
             </TouchableOpacity>
           ))}
@@ -827,7 +827,7 @@ function CoachDashboard({ setup, onReset }: { setup: TeamSetup; onReset: () => v
                           <Ionicons name="trash-outline" size={14} color="#FF3B30"/>
                         </TouchableOpacity>
                       </View>
-                      <Text style={{color:'#ddd',fontSize:14,lineHeight:22}}>{msg.content}</Text>
+                      <Text style={{color:TEXT.primary,fontSize:14,lineHeight:22}}>{msg.content}</Text>
                     </View>
                   ))}
                 </View>
@@ -903,7 +903,7 @@ function MemberDetailSheet({ member, onClose }: { member: Member; onClose: () =>
         <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:16}}/>
         <View style={{flexDirection:'row',alignItems:'center',gap:12,marginBottom:18}}>
           <Avatar name={member.name} size={48} color={avatarColor(member.name)}/>
-          <View><Text style={{color:'#fff',fontSize:19,fontWeight:'800'}}>{member.name}</Text><Text style={{color:TEXT.hint,fontSize:13}}>{member.event}</Text></View>
+          <View><Text style={{color:'#111827',fontSize:19,fontWeight:'800'}}>{member.name}</Text><Text style={{color:TEXT.secondary,fontSize:13}}>{member.event}</Text></View>
           <TouchableOpacity onPress={onClose} style={{marginLeft:'auto' as any}} hitSlop={{top:10,bottom:10,left:10,right:10}}>
             <Ionicons name="close" size={22} color={TEXT.secondary}/>
           </TouchableOpacity>
@@ -922,14 +922,14 @@ function MemberDetailSheet({ member, onClose }: { member: Member; onClose: () =>
                 <Text style={{color:'#555',fontSize:10}}>怪我リスク</Text>
               </View>
               <View style={{flex:1,alignItems:'center',backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',paddingVertical:14,gap:4}}>
-                <Text style={{color:'#fff',fontSize:20,fontWeight:'800'}}>{risk.weeklyKm}<Text style={{fontSize:10,color:'#666'}}>km</Text></Text>
+                <Text style={{color:'#111827',fontSize:20,fontWeight:'800'}}>{risk.weeklyKm}<Text style={{fontSize:10,color:'#666'}}>km</Text></Text>
                 <Text style={{color:'#666',fontSize:11}}>先週{risk.prevWeeklyKm}km</Text>
                 <Text style={{color:'#555',fontSize:10}}>今週距離</Text>
               </View>
             </View>
             {risk.reasons.length > 0 && (
               <View style={{backgroundColor:'rgba(255,149,0,0.08)',borderRadius:12,borderWidth:1,borderColor:'rgba(255,149,0,0.3)',padding:12,marginBottom:10}}>
-                <Text style={{color:'#fff',fontSize:13,fontWeight:'700',marginBottom:8}}>⚠️ 注意ポイント</Text>
+                <Text style={{color:'#92400e',fontSize:13,fontWeight:'700',marginBottom:8}}>⚠️ 注意ポイント</Text>
                 {risk.reasons.map((r,i) => <Text key={i} style={{color:TEXT.secondary,fontSize:12,lineHeight:20}}>• {r}</Text>)}
               </View>
             )}
@@ -1043,7 +1043,7 @@ function PlayerDashboard({ joined, onReset }: { joined: JoinedTeam; onReset: () 
               {pinned.map(m => (
                 <View key={m.id} style={{backgroundColor:'rgba(255,149,0,0.08)',borderRadius:12,borderWidth:1,borderColor:'rgba(255,149,0,0.4)',padding:14}}>
                   <Text style={{color:'#FF9500',fontSize:11,fontWeight:'700',marginBottom:6}}>📌 {m.author_name} · {timeAgo(m.created_at)}</Text>
-                  <Text style={{color:'#ddd',fontSize:14,lineHeight:22}}>{m.content}</Text>
+                  <Text style={{color:TEXT.primary,fontSize:14,lineHeight:22}}>{m.content}</Text>
                 </View>
               ))}
             </View>
@@ -1056,7 +1056,7 @@ function PlayerDashboard({ joined, onReset }: { joined: JoinedTeam; onReset: () 
               {regular.slice(0,5).map(m => (
                 <View key={m.id} style={{backgroundColor:'#ffffff',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',padding:14,shadowColor:'#000',shadowOffset:{width:0,height:1},shadowOpacity:0.05,shadowRadius:4,elevation:1}}>
                   <Text style={{color:BRAND,fontSize:11,fontWeight:'700',marginBottom:6}}>{m.author_name} · {timeAgo(m.created_at)}</Text>
-                  <Text style={{color:'#ddd',fontSize:14,lineHeight:22}}>{m.content}</Text>
+                  <Text style={{color:TEXT.primary,fontSize:14,lineHeight:22}}>{m.content}</Text>
                 </View>
               ))}
             </View>
@@ -1147,7 +1147,7 @@ const co = StyleSheet.create({
   tabLabel:   { fontSize:13, fontWeight:'700' },
   badge:      { width:16, height:16, borderRadius:8, backgroundColor:'#ef4444', alignItems:'center', justifyContent:'center' },
   alertChip:  { flexDirection:'row', alignItems:'center', gap:5, backgroundColor:'rgba(239,68,68,0.08)', borderRadius:8, borderWidth:1, borderColor:'#ef4444'+'40', paddingHorizontal:10, paddingVertical:6 },
-  memberCard: { flexDirection:'row', alignItems:'center', gap:12, backgroundColor:'#ffffff', borderRadius:14, borderWidth:1, borderColor:'rgba(0,0,0,0.08)', padding:14, shadowColor:'#000', shadowOffset:{width:0,height:1}, shadowOpacity:0.05, shadowRadius:4, elevation:1 },
+  memberCard: { backgroundColor:'#ffffff', borderRadius:14, borderWidth:1, borderColor:'rgba(0,0,0,0.08)', padding:14, shadowColor:'#000', shadowOffset:{width:0,height:1}, shadowOpacity:0.05, shadowRadius:4, elevation:1 },
   composeBox: { flexDirection:'row', gap:10, alignItems:'flex-end', backgroundColor:'#ffffff', borderRadius:14, borderWidth:1, borderColor:'rgba(0,0,0,0.10)', padding:12 },
   composeInput:{ flex:1, color:TEXT.primary, fontSize:14, minHeight:40, maxHeight:100 },
   sendBtn:    { width:42, height:42, borderRadius:12, backgroundColor:BRAND, alignItems:'center', justifyContent:'center' },
