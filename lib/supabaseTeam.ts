@@ -260,3 +260,55 @@ export async function upsertPlayerStats(
     { onConflict: 'team_code,player_name' },
   )
 }
+
+// ── チーム共有カレンダー ────────────────────────────────────
+export type TeamEventType = 'practice' | 'race' | 'rest' | 'meeting' | 'other'
+
+export interface TeamEventRow {
+  id:          string
+  team_code:   string
+  title:       string
+  event_date:  string
+  event_time:  string
+  location:    string
+  description: string
+  event_type:  TeamEventType
+  created_by:  string
+  created_at:  string
+}
+
+export async function fetchTeamEvents(teamCode: string): Promise<TeamEventRow[]> {
+  if (!isConfigured) return []
+  const today = new Date().toISOString().slice(0, 10)
+  // 過去7日 + 未来すべて
+  const from = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  const { data } = await supabase
+    .from('team_events').select('*')
+    .eq('team_code', teamCode)
+    .gte('event_date', from)
+    .order('event_date', { ascending: true })
+  return (data ?? []) as TeamEventRow[]
+}
+
+export async function addTeamEvent(
+  teamCode: string,
+  title: string,
+  eventDate: string,
+  eventTime: string,
+  location: string,
+  description: string,
+  eventType: TeamEventType,
+  createdBy: string,
+): Promise<TeamEventRow | null> {
+  if (!isConfigured) return null
+  const { data } = await supabase
+    .from('team_events')
+    .insert({ team_code: teamCode, title, event_date: eventDate, event_time: eventTime, location, description, event_type: eventType, created_by: createdBy })
+    .select().single()
+  return data as TeamEventRow | null
+}
+
+export async function deleteTeamEvent(id: string): Promise<void> {
+  if (!isConfigured) return
+  await supabase.from('team_events').delete().eq('id', id)
+}

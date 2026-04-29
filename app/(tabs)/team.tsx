@@ -22,8 +22,9 @@ import {
   fetchMembers, registerMember, deleteMember,
   fetchPlayerStats, upsertPlayerStats,
   syncTeamSessions, fetchTeamSessions,
+  fetchTeamEvents, addTeamEvent, deleteTeamEvent,
   createTeam, fetchTeamByCode,
-  type TeamMessageRow, type TeamVideoRow, type BodyReportRow, type TeamMemberRow, type PlayerStatsRow, type TeamSessionRow,
+  type TeamMessageRow, type TeamVideoRow, type BodyReportRow, type TeamMemberRow, type PlayerStatsRow, type TeamSessionRow, type TeamEventRow, type TeamEventType,
 } from '../../lib/supabaseTeam'
 import { useTheme } from '../../context/ThemeContext'
 import {
@@ -104,6 +105,28 @@ function formatCode(c: string) { const s = c.toUpperCase().replace(/[^A-Z0-9]/g,
 function daysSince(d: string) { const n = Math.floor((Date.now()-new Date(d).getTime())/86400000); return n===0?'今日':n===1?'昨日':`${n}日前` }
 function timeAgo(iso: string) { const m = Math.floor((Date.now()-new Date(iso).getTime())/60000); return m<1?'たった今':m<60?`${m}分前`:m<1440?`${Math.floor(m/60)}時間前`:daysSince(iso) }
 function daysLeft(iso: string) { return Math.max(0, 7 - Math.floor((Date.now()-new Date(iso).getTime())/86400000)) }
+const JP_DAYS = ['日','月','火','水','木','金','土']
+function fmtEventDate(d: string) {
+  const dt = new Date(d + 'T00:00:00')
+  const today = new Date(); today.setHours(0,0,0,0)
+  const diff = Math.round((dt.getTime()-today.getTime())/86400000)
+  if (diff === 0) return '今日'
+  if (diff === 1) return '明日'
+  if (diff === -1) return '昨日'
+  return `${dt.getMonth()+1}/${dt.getDate()}（${JP_DAYS[dt.getDay()]}）`
+}
+function isPast(d: string) {
+  const dt = new Date(d + 'T00:00:00')
+  const today = new Date(); today.setHours(0,0,0,0)
+  return dt.getTime() < today.getTime()
+}
+const EVENT_CFG: Record<string, { emoji: string; color: string; label: string }> = {
+  practice: { emoji: '🏃', color: '#34C759', label: '練習' },
+  race:     { emoji: '🏁', color: BRAND,     label: '試合' },
+  rest:     { emoji: '😴', color: '#5856D6', label: '休み' },
+  meeting:  { emoji: '💬', color: '#FF9500', label: '集合' },
+  other:    { emoji: '📌', color: '#8E8E93', label: 'その他' },
+}
 
 // ── 負荷・リスク設定 ─────────────────────────────────────
 const RISK_CFG = {
@@ -398,7 +421,7 @@ function CoachSetupScreen({ onCreated, onBack }: { onCreated:(s:TeamSetup)=>void
   }
 
   return (
-    <View style={{flex:1,backgroundColor:'#000'}}>
+    <View style={{flex:1,backgroundColor:'#f6f6f8'}}>
       <SafeAreaView style={{flex:1}}>
         <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':undefined} style={{flex:1}}>
           <ScrollView contentContainerStyle={{padding:24,gap:18}} showsVerticalScrollIndicator={false}>
@@ -486,7 +509,7 @@ function PlayerJoinScreen({ onJoined, onBack }: { onJoined:(j:JoinedTeam)=>void;
   }
 
   return (
-    <View style={{flex:1,backgroundColor:'#000'}}>
+    <View style={{flex:1,backgroundColor:'#f6f6f8'}}>
       <SafeAreaView style={{flex:1}}>
         <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':undefined} style={{flex:1}}>
           <ScrollView contentContainerStyle={{padding:24,gap:18}} showsVerticalScrollIndicator={false}>
@@ -547,26 +570,36 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
   const [members,  setMembers]  = useState<TeamMemberRow[]>([])
   const [bodyReports,     setBodyReports]     = useState<BodyReportRow[]>([])
   const [teamSessionsMap, setTeamSessionsMap] = useState<Record<string, TrainingSession[]>>({})
+  const [teamEvents,    setTeamEvents]    = useState<TeamEventRow[]>([])
   const [msgText,       setMsgText]       = useState('')
-  const [tab,           setTab]           = useState<'members'|'messages'|'videos'>('members')
+  const [tab,           setTab]           = useState<'members'|'messages'|'videos'|'calendar'>('members')
   const [detailMember,  setDetailMember]  = useState<Member|null>(null)
   const [memberFilter,  setMemberFilter]  = useState<'all'|'danger'|'unsubmitted'|'pain'>('all')
   const [hiddenDemoIds, setHiddenDemoIds] = useState<string[]>([])
   const [showMenu,      setShowMenu]      = useState(false)
   const [pendingDelete, setPendingDelete] = useState<{id:string;name:string;isDemo:boolean}|null>(null)
+  const [showEventModal, setShowEventModal] = useState(false)
+  const [evTitle,       setEvTitle]       = useState('')
+  const [evDate,        setEvDate]        = useState('')
+  const [evTime,        setEvTime]        = useState('')
+  const [evLocation,    setEvLocation]    = useState('')
+  const [evDesc,        setEvDesc]        = useState('')
+  const [evType,        setEvType]        = useState<TeamEventType>('practice')
 
   const load = useCallback(async () => {
-    const [msgs, vids, mems, rpts, teamSessions] = await Promise.all([
+    const [msgs, vids, mems, rpts, teamSessions, evts] = await Promise.all([
       fetchMessages(setup.code),
       fetchVideos(setup.code),
       fetchMembers(setup.code),
       fetchBodyReports(setup.code),
       fetchTeamSessions(setup.code),
+      fetchTeamEvents(setup.code),
     ])
     setMessages(msgs)
     setVideos(vids)
     setMembers(mems)
     setBodyReports(rpts)
+    setTeamEvents(evts)
     // セッションをプレイヤー名でマップ化
     const map: Record<string, TrainingSession[]> = {}
     for (const ts of teamSessions) {
@@ -598,6 +631,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'team_body_reports', filter: `team_code=eq.${setup.code}` }, () => load())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'team_videos',       filter: `team_code=eq.${setup.code}` }, () => load())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'team_sessions',     filter: `team_code=eq.${setup.code}` }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_events',       filter: `team_code=eq.${setup.code}` }, () => load())
       .subscribe()
     return () => { supabase.removeChannel(ch) }
   }, [setup.code, load])
@@ -660,6 +694,22 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
     setDetailMember(null)
   }
 
+  async function addEvent() {
+    if (!evTitle.trim() || !evDate.trim()) return
+    await addTeamEvent(setup.code, evTitle.trim(), evDate.trim(), evTime.trim(), evLocation.trim(), evDesc.trim(), evType, setup.coachName)
+    setShowEventModal(false)
+    setEvTitle(''); setEvDate(''); setEvTime(''); setEvLocation(''); setEvDesc(''); setEvType('practice')
+    await load()
+    // 選手に通知
+    await sendPush(`📅 ${setup.teamName}`, `新しい予定：${evTitle.trim()}（${evDate.trim()}）`, 'players', setup.code)
+    Toast.show({ type: 'success', text1: '予定を追加しました', visibilityTime: 1400 })
+  }
+
+  async function removeEvent(id: string) {
+    await deleteTeamEvent(id)
+    setTeamEvents(prev => prev.filter(e => e.id !== id))
+  }
+
   async function markWatched(id: string) {
     await markVideoWatched(id)
     setVideos(prev => prev.map(v => v.id===id ? {...v, watched:true} : v))
@@ -719,7 +769,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
   const newVideos        = videos.filter(v => !v.watched).length
 
   return (
-    <View style={{flex:1,backgroundColor:'#000'}}>
+    <View style={{flex:1,backgroundColor:'#f6f6f8'}}>
       <SafeAreaView style={{flex:1}}>
 
         {/* ─ ヘッダー ─ */}
@@ -747,9 +797,10 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
         {/* ─ タブ ─ */}
         <View style={co.tabs}>
           {([
-            { key:'members',  label:'メンバー', badge: unackedPainCount + highRiskMembers.length },
+            { key:'members',  label:'メンバー',  badge: unackedPainCount + highRiskMembers.length },
             { key:'messages', label:'アナウンス', badge: 0 },
-            { key:'videos',   label:'動画', badge: newVideos },
+            { key:'videos',   label:'動画',      badge: newVideos },
+            { key:'calendar', label:'予定',      badge: 0 },
           ] as const).map(t => (
             <TouchableOpacity key={t.key} style={[co.tab, tab===t.key && co.tabActive]} onPress={() => setTab(t.key)} activeOpacity={0.7}>
               <Text style={[co.tabLabel, { color: tab===t.key ? BRAND : '#555' }]}>{t.label}</Text>
@@ -763,7 +814,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
           {/* ═══ メンバータブ ═══ */}
           {tab === 'members' && (
             <AnimatedSection key="members" delay={0} type="fade-up">
-            <>
+            <View style={{gap:14}}>
               {/* 要注意バナー：未確認の痛み報告 */}
               {unackedPainCount > 0 && (
                 <TouchableOpacity
@@ -944,7 +995,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
                   </View>
                 )}
               </View>
-            </>
+            </View>
             </AnimatedSection>
           )}
 
@@ -1042,8 +1093,157 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
             </>
             </AnimatedSection>
           )}
+
+          {/* ═══ カレンダータブ ═══ */}
+          {tab === 'calendar' && (
+            <AnimatedSection key="calendar" delay={0} type="fade-up">
+            <View style={{gap:14}}>
+              {/* 追加ボタン */}
+              <TouchableOpacity
+                style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:BRAND,borderRadius:14,paddingVertical:14}}
+                onPress={() => setShowEventModal(true)}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="add-circle-outline" size={20} color="#fff"/>
+                <Text style={{color:'#fff',fontSize:15,fontWeight:'800'}}>予定を追加する</Text>
+              </TouchableOpacity>
+
+              {teamEvents.length === 0 ? (
+                <View style={{alignItems:'center',padding:40,gap:8}}>
+                  <Text style={{fontSize:36}}>📅</Text>
+                  <Text style={{color:'#9ca3af',fontSize:14}}>予定はまだありません</Text>
+                  <Text style={{color:'#c4c4c4',fontSize:12}}>上のボタンから追加してください</Text>
+                </View>
+              ) : (
+                <View style={{gap:10}}>
+                  {teamEvents.map(ev => {
+                    const cfg = EVENT_CFG[ev.event_type] ?? EVENT_CFG.other
+                    const past = isPast(ev.event_date)
+                    return (
+                      <View key={ev.id} style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor: past ? 'rgba(0,0,0,0.06)' : cfg.color+'30',padding:14,opacity: past ? 0.55 : 1,shadowColor:'#000',shadowOffset:{width:0,height:1},shadowOpacity:0.05,shadowRadius:4,elevation:1}}>
+                        <View style={{flexDirection:'row',alignItems:'flex-start',gap:10}}>
+                          <View style={{width:46,height:46,borderRadius:12,backgroundColor:cfg.color+'18',alignItems:'center',justifyContent:'center'}}>
+                            <Text style={{fontSize:22}}>{cfg.emoji}</Text>
+                          </View>
+                          <View style={{flex:1,gap:3}}>
+                            <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
+                              <View style={{backgroundColor:cfg.color+'20',borderRadius:6,paddingHorizontal:6,paddingVertical:2}}>
+                                <Text style={{color:cfg.color,fontSize:10,fontWeight:'800'}}>{cfg.label}</Text>
+                              </View>
+                              {past && <View style={{backgroundColor:'#6b7280'+'20',borderRadius:6,paddingHorizontal:6,paddingVertical:2}}><Text style={{color:'#6b7280',fontSize:10,fontWeight:'700'}}>終了</Text></View>}
+                            </View>
+                            <Text style={{color:TEXT.primary,fontSize:15,fontWeight:'800'}}>{ev.title}</Text>
+                            <View style={{flexDirection:'row',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+                              <View style={{flexDirection:'row',alignItems:'center',gap:4}}>
+                                <Ionicons name="calendar-outline" size={12} color="#6b7280"/>
+                                <Text style={{color:'#6b7280',fontSize:12,fontWeight:'700'}}>{fmtEventDate(ev.event_date)}</Text>
+                              </View>
+                              {!!ev.event_time && (
+                                <View style={{flexDirection:'row',alignItems:'center',gap:4}}>
+                                  <Ionicons name="time-outline" size={12} color="#6b7280"/>
+                                  <Text style={{color:'#6b7280',fontSize:12}}>{ev.event_time}</Text>
+                                </View>
+                              )}
+                              {!!ev.location && (
+                                <View style={{flexDirection:'row',alignItems:'center',gap:4}}>
+                                  <Ionicons name="location-outline" size={12} color="#6b7280"/>
+                                  <Text style={{color:'#6b7280',fontSize:12}}>{ev.location}</Text>
+                                </View>
+                              )}
+                            </View>
+                            {!!ev.description && (
+                              <Text style={{color:'#555',fontSize:13,lineHeight:20,marginTop:4}}>{ev.description}</Text>
+                            )}
+                          </View>
+                          <TouchableOpacity onPress={() => removeEvent(ev.id)} hitSlop={{top:10,bottom:10,left:10,right:10}}>
+                            <Ionicons name="trash-outline" size={18} color="#ef4444"/>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    )
+                  })}
+                </View>
+              )}
+            </View>
+            </AnimatedSection>
+          )}
+
         </ScrollView>
       </SafeAreaView>
+
+      {/* 予定追加モーダル */}
+      <Modal visible={showEventModal} transparent animationType="slide" onRequestClose={() => setShowEventModal(false)}>
+        <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.7)',justifyContent:'flex-end'}}>
+          <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':undefined}>
+            <View style={{backgroundColor:'#fff',borderTopLeftRadius:24,borderTopRightRadius:24,padding:22,paddingBottom:44,gap:14}}>
+              <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center'}}/>
+              <View style={{flexDirection:'row',alignItems:'center'}}>
+                <Text style={{color:'#111827',fontSize:18,fontWeight:'800',flex:1}}>📅 予定を追加</Text>
+                <TouchableOpacity onPress={() => setShowEventModal(false)} hitSlop={{top:10,bottom:10,left:10,right:10}}>
+                  <Ionicons name="close" size={22} color={TEXT.secondary}/>
+                </TouchableOpacity>
+              </View>
+
+              {/* タイトル */}
+              <View style={{gap:6}}>
+                <Text style={{color:TEXT.hint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>タイトル（必須）</Text>
+                <TextInput style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:'#111827',fontSize:15,paddingHorizontal:14,paddingVertical:12}}
+                  value={evTitle} onChangeText={setEvTitle} placeholder="例: 400mインターバル" placeholderTextColor="#9ca3af" maxLength={40}/>
+              </View>
+
+              {/* 種別 */}
+              <View style={{gap:6}}>
+                <Text style={{color:TEXT.hint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>種別</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:8}}>
+                  {(Object.entries(EVENT_CFG) as [TeamEventType, typeof EVENT_CFG[string]][]).map(([k, v]) => (
+                    <TouchableOpacity key={k} onPress={() => setEvType(k)} activeOpacity={0.8}
+                      style={{flexDirection:'row',alignItems:'center',gap:5,paddingHorizontal:12,paddingVertical:8,borderRadius:10,borderWidth:2,borderColor: evType===k ? v.color : 'rgba(0,0,0,0.10)', backgroundColor: evType===k ? v.color+'18' : '#f8f8fa'}}>
+                      <Text style={{fontSize:14}}>{v.emoji}</Text>
+                      <Text style={{color: evType===k ? v.color : '#666',fontSize:12,fontWeight:'700'}}>{v.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* 日付・時間 */}
+              <View style={{flexDirection:'row',gap:10}}>
+                <View style={{flex:2,gap:6}}>
+                  <Text style={{color:TEXT.hint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>日付（必須）</Text>
+                  <TextInput style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:'#111827',fontSize:14,paddingHorizontal:12,paddingVertical:11}}
+                    value={evDate} onChangeText={setEvDate} placeholder="2026-05-10" placeholderTextColor="#9ca3af" maxLength={10}/>
+                </View>
+                <View style={{flex:1,gap:6}}>
+                  <Text style={{color:TEXT.hint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>時間</Text>
+                  <TextInput style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:'#111827',fontSize:14,paddingHorizontal:12,paddingVertical:11}}
+                    value={evTime} onChangeText={setEvTime} placeholder="14:00" placeholderTextColor="#9ca3af" maxLength={5}/>
+                </View>
+              </View>
+
+              {/* 場所 */}
+              <View style={{gap:6}}>
+                <Text style={{color:TEXT.hint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>場所（任意）</Text>
+                <TextInput style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:'#111827',fontSize:14,paddingHorizontal:14,paddingVertical:11}}
+                  value={evLocation} onChangeText={setEvLocation} placeholder="例: 第二グラウンド" placeholderTextColor="#9ca3af" maxLength={40}/>
+              </View>
+
+              {/* メモ */}
+              <View style={{gap:6}}>
+                <Text style={{color:TEXT.hint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>メモ（任意）</Text>
+                <TextInput style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:'#111827',fontSize:13,paddingHorizontal:14,paddingVertical:10,minHeight:56,textAlignVertical:'top'}}
+                  value={evDesc} onChangeText={setEvDesc} placeholder="備考など..." placeholderTextColor="#9ca3af" multiline maxLength={120}/>
+              </View>
+
+              <TouchableOpacity
+                style={[{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:BRAND,borderRadius:14,paddingVertical:15},(!evTitle.trim()||!evDate.trim())&&{opacity:0.4}]}
+                onPress={addEvent} disabled={!evTitle.trim()||!evDate.trim()} activeOpacity={0.85}
+              >
+                <Ionicons name="checkmark-circle" size={20} color="#fff"/>
+                <Text style={{color:'#fff',fontSize:16,fontWeight:'800'}}>追加する</Text>
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
 
       {detailMember && (
         <MemberDetailSheet
@@ -1281,6 +1481,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
   const [teammates,         setTeammates]         = useState<TeamMemberRow[]>([])
   const [allBodyReports,    setAllBodyReports]    = useState<BodyReportRow[]>([])
   const [teamSessionsMap,   setTeamSessionsMap]   = useState<Record<string, TrainingSession[]>>({})
+  const [teamEvents,        setTeamEvents]        = useState<TeamEventRow[]>([])
   const [bodyParts,         setBodyParts]         = useState<string[]>([])
   const [bodyDetail,        setBodyDetail]        = useState('')
   const [showBody,          setShowBody]          = useState(false)
@@ -1295,13 +1496,14 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
   const [selectedTeammate,  setSelectedTeammate]  = useState<TeamMemberRow|null>(null)
 
   const load = useCallback(async () => {
-    const [sr, msgs, mems, rpts, stats, teamSessions] = await Promise.all([
+    const [sr, msgs, mems, rpts, stats, teamSessions, evts] = await Promise.all([
       AsyncStorage.getItem(SESSIONS_KEY),
       fetchMessages(joined.code),
       fetchMembers(joined.code),
       fetchBodyReports(joined.code),
       fetchPlayerStats(joined.code),
       fetchTeamSessions(joined.code),
+      fetchTeamEvents(joined.code),
     ])
     const loadedSessions: TrainingSession[] = sr ? JSON.parse(sr) : []
     setSessions(loadedSessions)
@@ -1309,6 +1511,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
     setTeammates(mems.filter(m => m.player_name !== joined.playerName))
     setPlayerStats(stats)
     setAllBodyReports(rpts)
+    setTeamEvents(evts)
     // チームメイトのセッションマップ構築
     const map: Record<string, TrainingSession[]> = {}
     for (const ts of teamSessions) {
@@ -1346,6 +1549,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'team_player_stats',filter: `team_code=eq.${joined.code}` }, () => load())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'team_sessions',    filter: `team_code=eq.${joined.code}` }, () => load())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'team_body_reports',filter: `team_code=eq.${joined.code}` }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_events',      filter: `team_code=eq.${joined.code}` }, () => load())
       .subscribe()
     return () => { supabase.removeChannel(ch) }
   }, [joined.code, joined.playerName, load])
@@ -1386,7 +1590,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
   const regular = messages.filter(m => !m.is_pinned)
 
   return (
-    <View style={{flex:1,backgroundColor:'#000'}}>
+    <View style={{flex:1,backgroundColor:'#f6f6f8'}}>
       <SafeAreaView style={{flex:1}}>
         <ScrollView contentContainerStyle={{padding:16,paddingBottom:60,gap:18}} showsVerticalScrollIndicator={false}>
 
@@ -1394,7 +1598,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
           <AnimatedSection delay={0} type="fade-up">
           <View style={{flexDirection:'row',alignItems:'flex-start',justifyContent:'space-between'}}>
             <View style={{gap:2}}>
-              <Text style={{color:'#fff',fontSize:20,fontWeight:'800'}}>{joined.teamName}</Text>
+              <Text style={{color:TEXT.primary,fontSize:20,fontWeight:'800'}}>{joined.teamName}</Text>
               <View style={{flexDirection:'row',gap:6,alignItems:'center',marginTop:2}}>
                 <View style={{backgroundColor:'#34C759'+'20',borderRadius:6,paddingHorizontal:7,paddingVertical:2}}>
                   <Text style={{color:'#34C759',fontSize:11,fontWeight:'700'}}>選手</Text>
@@ -1413,16 +1617,16 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
           <View style={{flexDirection:'row',gap:10}}>
             <TouchableOpacity style={pl.actionBtn} onPress={() => { setEditBody([...bodyParts]); setEditBodyDetail(bodyDetail); setShowBody(true) }} activeOpacity={0.85}>
               <Ionicons name="body-outline" size={20} color="#FF9500"/>
-              <Text style={{color:'#fff',fontSize:13,fontWeight:'700'}}>痛みを報告</Text>
+              <Text style={{color:TEXT.primary,fontSize:13,fontWeight:'700'}}>痛みを報告</Text>
               {bodyParts.length > 0 && <View style={{backgroundColor:'#FF9500',borderRadius:8,paddingHorizontal:6,paddingVertical:1}}><Text style={{color:'#fff',fontSize:9,fontWeight:'800'}}>{bodyParts.length}箇所</Text></View>}
             </TouchableOpacity>
             <TouchableOpacity style={pl.actionBtn} onPress={() => setShowVideoModal(true)} activeOpacity={0.85}>
               <Ionicons name="videocam-outline" size={20} color={BRAND}/>
-              <Text style={{color:'#fff',fontSize:13,fontWeight:'700'}}>動画を送る</Text>
+              <Text style={{color:TEXT.primary,fontSize:13,fontWeight:'700'}}>動画を送る</Text>
             </TouchableOpacity>
             <TouchableOpacity style={pl.actionBtn} onPress={() => setShowStatsEdit(true)} activeOpacity={0.85}>
               <Ionicons name="trophy-outline" size={20} color="#AF52DE"/>
-              <Text style={{color:'#fff',fontSize:13,fontWeight:'700'}}>PB入力</Text>
+              <Text style={{color:TEXT.primary,fontSize:13,fontWeight:'700'}}>PB入力</Text>
             </TouchableOpacity>
           </View>
           </AnimatedSection>
@@ -1446,13 +1650,23 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
           {regular.length > 0 && (
             <AnimatedSection delay={160} type="fade-up">
             <View style={{gap:8}}>
-              <Text style={pl.sectionTitle}>📣 コーチからのメッセージ</Text>
-              {regular.slice(0,5).map(m => (
-                <View key={m.id} style={{backgroundColor:'#ffffff',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',padding:14,shadowColor:'#000',shadowOffset:{width:0,height:1},shadowOpacity:0.05,shadowRadius:4,elevation:1}}>
-                  <Text style={{color:BRAND,fontSize:11,fontWeight:'700',marginBottom:6}}>{m.author_name} · {timeAgo(m.created_at)}</Text>
-                  <Text style={{color:TEXT.primary,fontSize:14,lineHeight:22}}>{m.content}</Text>
-                </View>
-              ))}
+              <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
+                <Text style={pl.sectionTitle}>📣 コーチからのメッセージ</Text>
+                {regular.length > 3 && <Text style={{color:'#9ca3af',fontSize:10}}>{regular.length}件</Text>}
+              </View>
+              <ScrollView
+                style={{maxHeight:228,borderRadius:12}}
+                nestedScrollEnabled
+                showsVerticalScrollIndicator={regular.length > 3}
+                contentContainerStyle={{gap:8}}
+              >
+                {regular.map(m => (
+                  <View key={m.id} style={{backgroundColor:'#ffffff',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',padding:14,shadowColor:'#000',shadowOffset:{width:0,height:1},shadowOpacity:0.05,shadowRadius:4,elevation:1}}>
+                    <Text style={{color:BRAND,fontSize:11,fontWeight:'700',marginBottom:6}}>{m.author_name} · {timeAgo(m.created_at)}</Text>
+                    <Text style={{color:TEXT.primary,fontSize:14,lineHeight:22}}>{m.content}</Text>
+                  </View>
+                ))}
+              </ScrollView>
             </View>
             </AnimatedSection>
           )}
@@ -1493,6 +1707,43 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
             )}
           </View>
           </AnimatedSection>
+
+          {/* チームカレンダー */}
+          {teamEvents.length > 0 && (
+            <AnimatedSection delay={230} type="fade-up">
+            <View style={{gap:8}}>
+              <Text style={pl.sectionTitle}>📅 チーム予定</Text>
+              <View style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',overflow:'hidden'}}>
+                {teamEvents.slice(0, 5).map((ev, i) => {
+                  const cfg = EVENT_CFG[ev.event_type] ?? EVENT_CFG.other
+                  const past = isPast(ev.event_date)
+                  return (
+                    <View key={ev.id} style={{
+                      flexDirection:'row', alignItems:'center', gap:12,
+                      paddingHorizontal:14, paddingVertical:12,
+                      borderBottomWidth: i < Math.min(teamEvents.length, 5)-1 ? StyleSheet.hairlineWidth : 0,
+                      borderBottomColor:'rgba(0,0,0,0.07)',
+                      opacity: past ? 0.5 : 1,
+                    }}>
+                      <View style={{width:36,height:36,borderRadius:10,backgroundColor:cfg.color+'18',alignItems:'center',justifyContent:'center'}}>
+                        <Text style={{fontSize:18}}>{cfg.emoji}</Text>
+                      </View>
+                      <View style={{flex:1,gap:2}}>
+                        <Text style={{color:TEXT.primary,fontSize:14,fontWeight:'700'}}>{ev.title}</Text>
+                        <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
+                          <Text style={{color:cfg.color,fontSize:11,fontWeight:'700'}}>{fmtEventDate(ev.event_date)}</Text>
+                          {!!ev.event_time && <Text style={{color:'#888',fontSize:11}}>{ev.event_time}</Text>}
+                          {!!ev.location && <Text style={{color:'#888',fontSize:11}}>📍{ev.location}</Text>}
+                        </View>
+                        {!!ev.description && <Text style={{color:'#6b7280',fontSize:12,lineHeight:18}}>{ev.description}</Text>}
+                      </View>
+                    </View>
+                  )
+                })}
+              </View>
+            </View>
+            </AnimatedSection>
+          )}
 
           {/* チームメイト一覧 */}
           {teammates.length > 0 && (

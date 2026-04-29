@@ -26,6 +26,7 @@ import { registerHomeScroll, unregisterHomeScroll } from '../../lib/homeScroll'
 import { setQuickLogListener, clearQuickLogListener } from '../../lib/quickLogEvent'
 import { getCurrentLocationWeather } from '../../lib/weather'
 import { calcWeatherRiskBonus, getWeatherRiskText } from '../../lib/weatherRisk'
+import { autoSyncTeam } from '../../lib/teamAutoSync'
 import { sendRiskAlertIfNeeded, sendStretchReminderIfNeeded, scheduleCompetitionReminder } from '../../lib/notifications'
 import type { SleepRecord } from '../../types'
 
@@ -916,7 +917,13 @@ export default function DashboardScreen() {
       }
     ).catch(() => {})
   }, [fetchSessions])
-  useFocusEffect(useCallback(() => { reloadAll() }, [reloadAll]))
+  useFocusEffect(useCallback(() => {
+    reloadAll()
+    // ホーム画面が表示されるたびにチームへセッションを同期
+    AsyncStorage.getItem('trackmate_sessions').then(raw => {
+      if (raw) autoSyncTeam(JSON.parse(raw)).catch(() => {})
+    }).catch(() => {})
+  }, [reloadAll]))
 
   function loadTasks() {
     AsyncStorage.getItem(TASKS_KEY).then(r => {

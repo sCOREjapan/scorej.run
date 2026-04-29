@@ -281,3 +281,24 @@ create policy "team_sessions_public" on team_sessions for all using (true) with 
 alter table team_body_reports add column if not exists detail text not null default '';
 -- コーチ確認フラグ（既存テーブルに追加）
 alter table team_body_reports add column if not exists acked_by_coach boolean not null default false;
+
+-- ─────────────────────────────────────────
+-- チーム共有カレンダー
+-- ─────────────────────────────────────────
+create table if not exists team_events (
+  id          uuid primary key default gen_random_uuid(),
+  team_code   text not null references teams(code) on delete cascade,
+  title       text not null,
+  event_date  date not null,
+  event_time  text not null default '',
+  location    text not null default '',
+  description text not null default '',
+  event_type  text not null default 'practice'
+    check (event_type in ('practice','race','rest','meeting','other')),
+  created_by  text not null,
+  created_at  timestamptz default now()
+);
+
+create index if not exists idx_team_events_code on team_events(team_code, event_date asc);
+alter table team_events enable row level security;
+create policy "team_events_public" on team_events for all using (true) with check (true);
