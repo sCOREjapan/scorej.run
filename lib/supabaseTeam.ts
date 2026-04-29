@@ -140,6 +140,7 @@ export interface BodyReportRow {
   team_code: string
   player_name: string
   parts: string[]
+  detail: string
   updated_at: string
 }
 
@@ -151,12 +152,76 @@ export async function fetchBodyReports(teamCode: string): Promise<BodyReportRow[
   return (data ?? []) as BodyReportRow[]
 }
 
-export async function upsertBodyReport(teamCode: string, playerName: string, parts: string[]): Promise<void> {
+export async function upsertBodyReport(
+  teamCode: string,
+  playerName: string,
+  parts: string[],
+  detail = '',
+): Promise<void> {
   if (!isConfigured) return
   await supabase.from('team_body_reports').upsert(
-    { team_code: teamCode, player_name: playerName, parts, updated_at: new Date().toISOString() },
+    { team_code: teamCode, player_name: playerName, parts, detail, updated_at: new Date().toISOString() },
     { onConflict: 'team_code,player_name' },
   )
+}
+
+// ── 選手セッション共有（コーチが選手記録を閲覧）────────────
+export interface TeamSessionRow {
+  id: string
+  team_code: string
+  player_name: string
+  session_date: string
+  session_type: string
+  fatigue_level: number
+  condition_level: number
+  distance_m: number | null
+  reps: number | null
+  sets: number | null
+  synced_at: string
+}
+
+export async function syncTeamSessions(
+  teamCode: string,
+  playerName: string,
+  sessions: Array<{
+    id: string
+    session_date: string
+    session_type: string
+    fatigue_level: number
+    condition_level: number
+    distance_m?: number
+    reps?: number
+    sets?: number
+  }>,
+): Promise<void> {
+  if (!isConfigured) return
+  const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  const recent = sessions.filter(s => s.session_date >= cutoff)
+  if (!recent.length) return
+  const rows = recent.map(s => ({
+    id: s.id,
+    team_code: teamCode,
+    player_name: playerName,
+    session_date: s.session_date,
+    session_type: s.session_type,
+    fatigue_level: s.fatigue_level,
+    condition_level: s.condition_level,
+    distance_m: s.distance_m ?? null,
+    reps: s.reps ?? null,
+    sets: s.sets ?? null,
+  }))
+  await supabase.from('team_sessions').upsert(rows, { onConflict: 'id' })
+}
+
+export async function fetchTeamSessions(teamCode: string): Promise<TeamSessionRow[]> {
+  if (!isConfigured) return []
+  const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  const { data } = await supabase
+    .from('team_sessions').select('*')
+    .eq('team_code', teamCode)
+    .gte('session_date', cutoff)
+    .order('session_date', { ascending: false })
+  return (data ?? []) as TeamSessionRow[]
 }
 
 // ── 選手プロフィール（自己ベスト・レベル）────────────────

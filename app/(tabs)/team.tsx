@@ -21,8 +21,9 @@ import {
   fetchBodyReports, upsertBodyReport,
   fetchMembers, registerMember, deleteMember,
   fetchPlayerStats, upsertPlayerStats,
+  syncTeamSessions, fetchTeamSessions,
   createTeam, fetchTeamByCode,
-  type TeamMessageRow, type TeamVideoRow, type BodyReportRow, type TeamMemberRow, type PlayerStatsRow,
+  type TeamMessageRow, type TeamVideoRow, type BodyReportRow, type TeamMemberRow, type PlayerStatsRow, type TeamSessionRow,
 } from '../../lib/supabaseTeam'
 import { useTheme } from '../../context/ThemeContext'
 import {
@@ -61,7 +62,7 @@ const BODY_PARTS = [
 ]
 
 // ── デモメンバー（Supabaseにデータがない時のフォールバック）─
-type Member = { id: string; name: string; event: string; sessions: TrainingSession[]; lastActive: string; painParts?: string[] }
+type Member = { id: string; name: string; event: string; sessions: TrainingSession[]; lastActive: string; painParts?: string[]; painDetail?: string }
 const DEMO_MEMBERS: Member[] = [
   {
     id: 'demo-tanaka', name: '田中 翼', event: '100m / 200m',
@@ -544,7 +545,8 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
   const [messages, setMessages] = useState<TeamMessage[]>([])
   const [videos,   setVideos]   = useState<VideoEntry[]>([])
   const [members,  setMembers]  = useState<TeamMemberRow[]>([])
-  const [bodyReports, setBodyReports] = useState<BodyReportRow[]>([])
+  const [bodyReports,     setBodyReports]     = useState<BodyReportRow[]>([])
+  const [teamSessionsMap, setTeamSessionsMap] = useState<Record<string, TrainingSession[]>>({})
   const [msgText,       setMsgText]       = useState('')
   const [tab,           setTab]           = useState<'members'|'messages'|'videos'>('members')
   const [detailMember,  setDetailMember]  = useState<Member|null>(null)
@@ -554,16 +556,36 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
   const [pendingDelete, setPendingDelete] = useState<{id:string;name:string;isDemo:boolean}|null>(null)
 
   const load = useCallback(async () => {
-    const [msgs, vids, mems, rpts] = await Promise.all([
+    const [msgs, vids, mems, rpts, teamSessions] = await Promise.all([
       fetchMessages(setup.code),
       fetchVideos(setup.code),
       fetchMembers(setup.code),
       fetchBodyReports(setup.code),
+      fetchTeamSessions(setup.code),
     ])
     setMessages(msgs)
     setVideos(vids)
     setMembers(mems)
     setBodyReports(rpts)
+    // セッションをプレイヤー名でマップ化
+    const map: Record<string, TrainingSession[]> = {}
+    for (const ts of teamSessions) {
+      const s: TrainingSession = {
+        id: ts.id,
+        user_id: ts.player_name,
+        session_date: ts.session_date,
+        session_type: ts.session_type as any,
+        fatigue_level: ts.fatigue_level,
+        condition_level: ts.condition_level,
+        distance_m: ts.distance_m ?? undefined,
+        reps: ts.reps ?? undefined,
+        sets: ts.sets ?? undefined,
+        created_at: ts.synced_at,
+      }
+      if (!map[ts.player_name]) map[ts.player_name] = []
+      map[ts.player_name].push(s)
+    }
+    setTeamSessionsMap(map)
   }, [setup.code])
 
   useEffect(() => { load() }, [load])
@@ -575,6 +597,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members',      filter: `team_code=eq.${setup.code}` }, () => load())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'team_body_reports', filter: `team_code=eq.${setup.code}` }, () => load())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'team_videos',       filter: `team_code=eq.${setup.code}` }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_sessions',     filter: `team_code=eq.${setup.code}` }, () => load())
       .subscribe()
     return () => { supabase.removeChannel(ch) }
   }, [setup.code, load])
@@ -633,7 +656,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
     setVideos(prev => prev.map(v => v.id===id ? {...v, watched:true} : v))
   }
 
-  // 実メンバーをDEMO_MEMBERSと同じ型に変換（痛みデータをマージ）
+  // 実メンバーをDEMO_MEMBERSと同じ型に変換（痛み・セッションデータをマージ）
   const displayMembers: Member[] = members.length > 0
     ? members.map(m => {
         const rpt = bodyReports.find(r => r.player_name === m.player_name)
@@ -643,7 +666,8 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
           event: m.event || '',
           lastActive: m.joined_at,
           painParts: rpt?.parts ?? [],
-          sessions: [],
+          painDetail: rpt?.detail ?? '',
+          sessions: teamSessionsMap[m.player_name] ?? [],
         }
       })
     : DEMO_MEMBERS.filter(m => !hiddenDemoIds.includes(m.id))
@@ -1023,6 +1047,11 @@ function MemberDetailSheet({ member, onClose }: { member: Member; onClose: () =>
           <View style={{backgroundColor:'rgba(255,59,48,0.08)',borderRadius:12,borderWidth:1,borderColor:'#FF3B30'+'30',padding:12,marginBottom:10}}>
             <Text style={{color:'#FF3B30',fontSize:13,fontWeight:'700',marginBottom:8}}>🤕 痛み・違和感の報告</Text>
             <PainBadges parts={member.painParts!}/>
+            {!!member.painDetail && (
+              <View style={{marginTop:8,backgroundColor:'rgba(255,59,48,0.06)',borderRadius:8,padding:8}}>
+                <Text style={{color:'#555',fontSize:12,lineHeight:18}}>📝 {member.painDetail}</Text>
+              </View>
+            )}
           </View>
         )}
         <Text style={{color:'#444',fontSize:11,textAlign:'center',marginTop:14}}>参加日: {daysSince(member.lastActive)}</Text>
@@ -1041,9 +1070,11 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
   const [messages,       setMessages]       = useState<TeamMessage[]>([])
   const [teammates,      setTeammates]      = useState<TeamMemberRow[]>([])
   const [bodyParts,      setBodyParts]      = useState<string[]>([])
+  const [bodyDetail,     setBodyDetail]     = useState('')
   const [showBody,       setShowBody]       = useState(false)
   const [showVideoModal, setShowVideoModal] = useState(false)
   const [editBody,       setEditBody]       = useState<string[]>([])
+  const [editBodyDetail, setEditBodyDetail] = useState('')
   const [showMenu,       setShowMenu]       = useState(false)
   const [showStatsEdit,  setShowStatsEdit]  = useState(false)
   const [playerStats,    setPlayerStats]    = useState<PlayerStatsRow[]>([])
@@ -1058,25 +1089,31 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
       fetchBodyReports(joined.code),
       fetchPlayerStats(joined.code),
     ])
-    const sessions: any[] = sr ? JSON.parse(sr) : []
-    setSessions(sessions)
+    const loadedSessions: TrainingSession[] = sr ? JSON.parse(sr) : []
+    setSessions(loadedSessions)
     setMessages(msgs)
     setTeammates(mems.filter(m => m.player_name !== joined.playerName))
     setPlayerStats(stats)
     const myReport = rpts.find(r => r.player_name === joined.playerName)
-    if (myReport) setBodyParts(myReport.parts)
+    if (myReport) { setBodyParts(myReport.parts); setBodyDetail(myReport.detail ?? '') }
     // 自分のstatsをedit初期値にセット
     const myStat = stats.find(s => s.player_name === joined.playerName)
     if (myStat) { setEditEvent(myStat.event); setEditPb(myStat.pb_display) }
+    // 自分のセッションをチームに同期（コーチが見れるように）
+    await syncTeamSessions(joined.code, joined.playerName, loadedSessions)
+    // レベルを自動同期（PB入力なしでもランクがチームメイトに見える）
+    const lvInfo = calcLevelInfo(loadedSessions.length)
+    await upsertPlayerStats(joined.code, joined.playerName, myStat?.event ?? '', myStat?.pb_display ?? '', lvInfo.level)
   }, [joined.code, joined.playerName])
 
   useEffect(() => { load() }, [load])
 
-  // Supabase Realtime — コーチのアナウンスをリアルタイムで受信
+  // Supabase Realtime — コーチのアナウンス・チームメイト情報をリアルタイムで受信
   useEffect(() => {
     const ch = supabase.channel(`player:${joined.code}:${joined.playerName}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_messages', filter: `team_code=eq.${joined.code}` }, () => load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members',  filter: `team_code=eq.${joined.code}` }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_messages',    filter: `team_code=eq.${joined.code}` }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members',     filter: `team_code=eq.${joined.code}` }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_player_stats',filter: `team_code=eq.${joined.code}` }, () => load())
       .subscribe()
     return () => { supabase.removeChannel(ch) }
   }, [joined.code, joined.playerName, load])
@@ -1099,12 +1136,13 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
   }
 
   async function saveBodyReport() {
-    await upsertBodyReport(joined.code, joined.playerName, editBody)
-    setBodyParts(editBody); setShowBody(false)
+    await upsertBodyReport(joined.code, joined.playerName, editBody, editBodyDetail.trim())
+    setBodyParts(editBody); setBodyDetail(editBodyDetail.trim()); setShowBody(false)
     // 痛みがある場合はコーチに通知
     if (editBody.length > 0) {
       const labels = editBody.map(id => BODY_PARTS.find(p=>p.id===id)?.label??id).join('、')
-      await sendPush(`🤕 ${joined.playerName}`, `痛み報告: ${labels}`, 'coaches', joined.code)
+      const msg = editBodyDetail.trim() ? `${labels}：${editBodyDetail.trim()}` : `痛み報告: ${labels}`
+      await sendPush(`🤕 ${joined.playerName}`, msg, 'coaches', joined.code)
     }
     Toast.show({type:'success',text1:'痛みの報告を送りました',visibilityTime:1600})
   }
@@ -1141,7 +1179,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
           {/* アクションボタン3つ */}
           <AnimatedSection delay={60} type="fade-up">
           <View style={{flexDirection:'row',gap:10}}>
-            <TouchableOpacity style={pl.actionBtn} onPress={() => { setEditBody([...bodyParts]); setShowBody(true) }} activeOpacity={0.85}>
+            <TouchableOpacity style={pl.actionBtn} onPress={() => { setEditBody([...bodyParts]); setEditBodyDetail(bodyDetail); setShowBody(true) }} activeOpacity={0.85}>
               <Ionicons name="body-outline" size={20} color="#FF9500"/>
               <Text style={{color:'#fff',fontSize:13,fontWeight:'700'}}>痛みを報告</Text>
               {bodyParts.length > 0 && <View style={{backgroundColor:'#FF9500',borderRadius:8,paddingHorizontal:6,paddingVertical:1}}><Text style={{color:'#fff',fontSize:9,fontWeight:'800'}}>{bodyParts.length}箇所</Text></View>}
@@ -1216,6 +1254,9 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
               <View style={{backgroundColor:'rgba(255,59,48,0.08)',borderRadius:10,padding:10}}>
                 <Text style={{color:'#FF3B30',fontSize:11,fontWeight:'700',marginBottom:6}}>現在の痛み報告</Text>
                 <PainBadges parts={bodyParts}/>
+                {!!bodyDetail && (
+                  <Text style={{color:'#555',fontSize:12,marginTop:6,lineHeight:18}}>📝 {bodyDetail}</Text>
+                )}
               </View>
             )}
           </View>
@@ -1290,13 +1331,23 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
               痛い箇所をタップして選択してください（複数OK）。コーチに伝わります。
             </Text>
             <BodyPartSelector selected={editBody} onChange={setEditBody}/>
+            <Text style={{color:TEXT.hint,fontSize:11,fontWeight:'700',letterSpacing:0.8,marginTop:16,marginBottom:6}}>詳細・メモ（任意）</Text>
+            <TextInput
+              style={{backgroundColor:'#f8f8fa',borderRadius:10,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:TEXT.primary,fontSize:14,paddingHorizontal:14,paddingVertical:10,minHeight:60,textAlignVertical:'top'}}
+              value={editBodyDetail}
+              onChangeText={setEditBodyDetail}
+              placeholder="例: 走ると右膝が痛む、昨日から違和感がある..."
+              placeholderTextColor="#9ca3af"
+              multiline
+              maxLength={120}
+            />
             {editBody.length > 0 ? (
-              <TouchableOpacity style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:BRAND,borderRadius:14,paddingVertical:14,marginTop:16}} onPress={saveBodyReport} activeOpacity={0.85}>
+              <TouchableOpacity style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:BRAND,borderRadius:14,paddingVertical:14,marginTop:14}} onPress={saveBodyReport} activeOpacity={0.85}>
                 <Ionicons name="send" size={18} color="#fff"/>
                 <Text style={{color:'#fff',fontSize:15,fontWeight:'800'}}>コーチに報告する</Text>
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:'#f0f2f5',borderRadius:14,paddingVertical:14,marginTop:16,borderWidth:1,borderColor:'rgba(0,0,0,0.08)'}} onPress={saveBodyReport} activeOpacity={0.85}>
+              <TouchableOpacity style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:'#f0f2f5',borderRadius:14,paddingVertical:14,marginTop:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)'}} onPress={saveBodyReport} activeOpacity={0.85}>
                 <Text style={{color:'#888',fontSize:15,fontWeight:'700'}}>痛みなし（クリア）</Text>
               </TouchableOpacity>
             )}

@@ -254,3 +254,28 @@ create index if not exists idx_player_stats_code on team_player_stats(team_code)
 
 alter table team_player_stats enable row level security;
 create policy "player_stats_public" on team_player_stats for all using (true) with check (true);
+
+-- ─────────────────────────────────────────
+-- 選手セッション共有（コーチが記録を確認）
+-- ─────────────────────────────────────────
+create table if not exists team_sessions (
+  id          text primary key,             -- TrainingSession.id と同じ
+  team_code   text not null references teams(code) on delete cascade,
+  player_name text not null,
+  session_date date not null,
+  session_type text not null,
+  fatigue_level   integer not null default 5,
+  condition_level integer not null default 5,
+  distance_m  integer,
+  reps        integer,
+  sets        integer,
+  synced_at   timestamptz default now()
+);
+
+create index if not exists idx_team_sessions_code on team_sessions(team_code, player_name);
+
+alter table team_sessions enable row level security;
+create policy "team_sessions_public" on team_sessions for all using (true) with check (true);
+
+-- 痛み詳細カラム（既存テーブルに追加）
+alter table team_body_reports add column if not exists detail text not null default '';
