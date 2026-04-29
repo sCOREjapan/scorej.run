@@ -279,3 +279,5 @@ create policy "team_sessions_public" on team_sessions for all using (true) with 
 
 -- 痛み詳細カラム（既存テーブルに追加）
 alter table team_body_reports add column if not exists detail text not null default '';
+-- コーチ確認フラグ（既存テーブルに追加）
+alter table team_body_reports add column if not exists acked_by_coach boolean not null default false;

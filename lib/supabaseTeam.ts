@@ -137,11 +137,12 @@ export async function markVideoWatched(id: string): Promise<void> {
 
 // ── 痛み報告 ─────────────────────────────────────────────
 export interface BodyReportRow {
-  team_code: string
-  player_name: string
-  parts: string[]
-  detail: string
-  updated_at: string
+  team_code:       string
+  player_name:     string
+  parts:           string[]
+  detail:          string
+  acked_by_coach:  boolean
+  updated_at:      string
 }
 
 export async function fetchBodyReports(teamCode: string): Promise<BodyReportRow[]> {
@@ -160,9 +161,17 @@ export async function upsertBodyReport(
 ): Promise<void> {
   if (!isConfigured) return
   await supabase.from('team_body_reports').upsert(
-    { team_code: teamCode, player_name: playerName, parts, detail, updated_at: new Date().toISOString() },
+    { team_code: teamCode, player_name: playerName, parts, detail, acked_by_coach: false, updated_at: new Date().toISOString() },
     { onConflict: 'team_code,player_name' },
   )
+}
+
+export async function ackBodyReport(teamCode: string, playerName: string): Promise<void> {
+  if (!isConfigured) return
+  await supabase.from('team_body_reports')
+    .update({ acked_by_coach: true })
+    .eq('team_code', teamCode)
+    .eq('player_name', playerName)
 }
 
 // ── 選手セッション共有（コーチが選手記録を閲覧）────────────
