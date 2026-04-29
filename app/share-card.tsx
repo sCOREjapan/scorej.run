@@ -219,12 +219,15 @@ function exportOverlayPNG(record: RaceRecord) {
   }
   noShadow()
 
-  // ウォーターマーク（右下）
+  // ウォーターマーク（右下）— "sCORE" + "アプリをダウンロード！"
   shadow(10, 'rgba(0,0,0,0.55)')
-  c.font = '500 30px system-ui, sans-serif'
-  c.fillStyle = 'rgba(255,255,255,0.42)'
   c.textAlign = 'right'
-  c.fillText('sCORE', W - 72, H - 88)
+  c.font = '800 38px system-ui, sans-serif'
+  c.fillStyle = 'rgba(255,255,255,0.65)'
+  c.fillText('sCORE', W - 72, H - 110)
+  c.font = '500 28px system-ui, sans-serif'
+  c.fillStyle = 'rgba(255,255,255,0.45)'
+  c.fillText('アプリをダウンロード！', W - 72, H - 65)
   noShadow()
   c.textAlign = 'left'
 
@@ -293,7 +296,10 @@ function OverlayPreview({ record }: { record: RaceRecord }) {
       </View>
 
       {/* ウォーターマーク */}
-      <Text style={pv.watermark}>sCORE</Text>
+      <View style={pv.watermarkRow}>
+        <Text style={pv.watermark}>sCORE</Text>
+        <Text style={pv.watermarkSub}>アプリをダウンロード！</Text>
+      </View>
     </LinearGradient>
   )
 }
@@ -593,13 +599,26 @@ const pv = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
+  watermarkRow: {
+    alignItems: 'flex-end',
+    gap: 1,
+  },
   watermark: {
-    color: 'rgba(255,255,255,0.35)',
-    fontSize: 11,
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 12,
+    fontWeight: '800',
+    textAlign: 'right',
+    textShadowColor: 'rgba(0,0,0,0.7)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  watermarkSub: {
+    color: 'rgba(255,255,255,0.45)',
+    fontSize: 9,
     textAlign: 'right',
     textShadowColor: 'rgba(0,0,0,0.6)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    textShadowRadius: 3,
   },
 })
 

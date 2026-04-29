@@ -130,12 +130,15 @@ function RecordCard({ record, onDelete }: { record: RaceRecord; onDelete: () => 
 
       <View style={styles.recordRight}>
         <Text style={styles.recordDate}>{record.race_date}</Text>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          {record.is_pb && (
-            <TouchableOpacity onPress={() => router.push({ pathname: '/share-card', params: { recordId: record.id } })} style={{ padding: 4 }}>
-              <Ionicons name="share-outline" size={14} color={NEON.blue} />
-            </TouchableOpacity>
-          )}
+        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+          <TouchableOpacity
+            onPress={() => router.push({ pathname: '/share-card', params: { recordId: record.id } })}
+            style={styles.shareBtn}
+            activeOpacity={0.75}
+          >
+            <Ionicons name="share-social-outline" size={13} color="#fff" />
+            <Text style={styles.shareBtnTxt}>シェア</Text>
+          </TouchableOpacity>
           <TouchableOpacity onPress={onDelete} style={{ padding: 4 }}>
             <Ionicons name="trash-outline" size={14} color={TEXT.hint} />
           </TouchableOpacity>
@@ -1596,6 +1599,8 @@ const styles = StyleSheet.create({
   windUnit:     { color: '#6b7280', fontSize: 14, fontWeight: '600' },
   recordVenue:  { color: TEXT.secondary, fontSize: 12 },
   recordRight:  { alignItems: 'flex-end', gap: 6 },
+  shareBtn:     { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: BRAND, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
+  shareBtnTxt:  { color: '#fff', fontSize: 11, fontWeight: '700' },
   recordDate:   { color: TEXT.hint, fontSize: 11 },
 
   // フィルター
