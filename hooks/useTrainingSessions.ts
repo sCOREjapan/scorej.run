@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import type { TrainingSession, LoadingState } from '../types'
+import { autoSyncTeam } from '../lib/teamAutoSync'
 
 const SESSIONS_KEY = 'trackmate_sessions'
 
@@ -55,7 +56,9 @@ export function useTrainingSessions(): UseTrainingSessionsReturn {
         }
         setSessions(prev => {
           const next = [newSession, ...prev]
-          AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(next)).catch(() => {})
+          AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(next))
+            .then(() => autoSyncTeam(next))
+            .catch(() => {})
           return next
         })
         return newSession
@@ -76,7 +79,9 @@ export function useTrainingSessions(): UseTrainingSessionsReturn {
     ): Promise<void> => {
       setSessions(prev => {
         const next = prev.map(s => (s.id === id ? { ...s, ...updates } : s))
-        AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(next)).catch(() => {})
+        AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(next))
+          .then(() => autoSyncTeam(next))
+          .catch(() => {})
         return next
       })
     },

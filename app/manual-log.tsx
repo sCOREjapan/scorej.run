@@ -12,6 +12,7 @@ import Toast from 'react-native-toast-message'
 import { useTheme } from '../context/ThemeContext'
 import { Sounds, unlockAudio } from '../lib/sounds'
 import type { TrainingSession, AthleticsEvent } from '../types'
+import { autoSyncTeam } from '../lib/teamAutoSync'
 
 const SESSIONS_KEY      = 'trackmate_sessions'
 const CONDITION_MAP_KEY = 'trackmate_condition_map'
@@ -212,6 +213,7 @@ export default function ManualLogScreen() {
       const sessions: TrainingSession[] = raw ? JSON.parse(raw) : []
       sessions.unshift(newSession)
       await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions))
+      autoSyncTeam(sessions).catch(() => {})
       Toast.show({ type: 'success', text1: '練習を記録しました ✓', visibilityTime: 1500 })
       setTimeout(() => router.back(), 400)
     } catch {

@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { BRAND, TEXT } from '../lib/theme'
 import { Sounds, unlockAudio } from '../lib/sounds'
 import Toast from 'react-native-toast-message'
+import { autoSyncTeam } from '../lib/teamAutoSync'
 
 const SESSIONS_KEY = 'trackmate_sessions'
 const TASKS_KEY    = 'trackmate_tasks'
@@ -226,6 +227,7 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
       })
 
       await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions))
+      autoSyncTeam(sessions).catch(() => {})
 
       // 改善タスクを自動生成してホーム画面に表示
       const taskTexts = generateTasks(

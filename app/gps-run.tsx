@@ -18,6 +18,7 @@ import Toast from 'react-native-toast-message'
 import { Ionicons } from '@expo/vector-icons'
 import { BRAND, TEXT, SURFACE, SURFACE2, DIVIDER } from '../lib/theme'
 import type { TrainingSession } from '../types'
+import { autoSyncTeam } from '../lib/teamAutoSync'
 
 // ─── 定数 ──────────────────────────────────────────────────────────────
 const SESSIONS_KEY = 'trackmate_sessions'
@@ -227,7 +228,9 @@ export default function GpsRunScreen() {
         condition_level: 7,
         created_at: new Date().toISOString(),
       }
-      await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify([newSession, ...existing]))
+      const saved = [newSession, ...existing]
+      await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(saved))
+      autoSyncTeam(saved).catch(() => {})
       Toast.show({ type: 'success', text1: '練習を保存しました', text2: `${(distM / 1000).toFixed(2)} km / ${formatElapsed(ms)}` })
       resetAll()
       router.back()
