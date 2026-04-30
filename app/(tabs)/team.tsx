@@ -14,6 +14,8 @@ import { BRAND, TEXT } from '../../lib/theme'
 import AnimatedSection from '../../components/AnimatedSection'
 import { calcInjuryRisk } from '../../lib/injuryRisk'
 import { calcLevelInfo, RANK_TIERS } from '../../lib/gamification'
+import { getCurrentLocationWeather } from '../../lib/weather'
+import { calcWeatherRiskBonus } from '../../lib/weatherRisk'
 import type { TrainingSession, SleepRecord } from '../../types'
 import { supabase } from '../../lib/supabase'
 import {
@@ -33,13 +35,14 @@ import {
 } from '../../lib/notify'
 
 // ── ストレージキー（ローカル設定のみ） ────────────────────
-const ROLE_KEY          = 'trackmate_team_role'
-const SESSIONS_KEY      = 'trackmate_sessions'
-const SETUP_KEY         = 'trackmate_team_setup'
-const JOINED_KEY        = 'trackmate_team_joined'
-const SLEEP_KEY         = 'trackmate_sleep'
-const CONDITION_MAP_KEY = 'trackmate_condition_map'
-const RECOVERY_KEY      = 'trackmate_recovery_records'
+const ROLE_KEY            = 'trackmate_team_role'
+const SESSIONS_KEY        = 'trackmate_sessions'
+const SETUP_KEY           = 'trackmate_team_setup'
+const JOINED_KEY          = 'trackmate_team_joined'
+const SLEEP_KEY           = 'trackmate_sleep'
+const CONDITION_MAP_KEY   = 'trackmate_condition_map'
+const RECOVERY_KEY        = 'trackmate_recovery_records'
+const STRETCH_RESULT_KEY  = 'trackmate_stretch_result'
 
 type Role = 'coach' | 'player'
 
@@ -1697,14 +1700,17 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
   const [conditionMap,      setConditionMap]      = useState<Record<string,number>>({})
   const [sleepRecs,         setSleepRecs]         = useState<SleepRecord[]>([])
   const [hasSymptom,        setHasSymptom]        = useState(false)
+  const [weatherBonus,      setWeatherBonus]      = useState(0)
+  const [stretchReduction,  setStretchReduction]  = useState(0)
   const [plTab,             setPlTab]             = useState<'home'|'members'>('home')
 
   const load = useCallback(async () => {
-    const [sr, sleepRaw, condRaw, recovRaw, msgs, mems, rpts, stats, teamSessions, evts] = await Promise.all([
+    const [sr, sleepRaw, condRaw, recovRaw, stretchRaw, msgs, mems, rpts, stats, teamSessions, evts] = await Promise.all([
       AsyncStorage.getItem(SESSIONS_KEY),
       AsyncStorage.getItem(SLEEP_KEY),
       AsyncStorage.getItem(CONDITION_MAP_KEY),
       AsyncStorage.getItem(RECOVERY_KEY),
+      AsyncStorage.getItem(STRETCH_RESULT_KEY),
       fetchMessages(joined.code),
       fetchMembers(joined.code),
       fetchBodyReports(joined.code),
@@ -1716,13 +1722,22 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
     setSessions(loadedSessions)
     setSleepRecs(sleepRaw ? JSON.parse(sleepRaw) : [])
     setConditionMap(condRaw ? JSON.parse(condRaw) : {})
-    // ホームと同じ hasSymptom 計算：直近7日の回復記録 OR チーム痛み報告
+    // ホーム画面と完全一致の hasSymptom 計算：回復記録のみ（痛み報告は含めない）
     try {
       const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)
       const recovRecs = recovRaw ? (JSON.parse(recovRaw) as Array<{ date: string }>) : []
-      const myReport  = (rpts ?? []).find(r => r.player_name === joined.playerName)
-      setHasSymptom(recovRecs.some(r => r.date >= sevenDaysAgo) || (myReport?.parts?.length ?? 0) > 0)
+      setHasSymptom(recovRecs.some(r => r.date >= sevenDaysAgo))
     } catch { setHasSymptom(false) }
+    // ホーム画面と同じストレッチ補正（今日分のみ）
+    try {
+      const today = new Date().toISOString().slice(0, 10)
+      if (stretchRaw) {
+        const parsed = JSON.parse(stretchRaw)
+        setStretchReduction(parsed.date === today ? (parsed.reduction ?? 0) : 0)
+      } else {
+        setStretchReduction(0)
+      }
+    } catch { setStretchReduction(0) }
     setMessages(msgs)
     setTeammates(mems.filter(m => m.player_name !== joined.playerName))
     setPlayerStats(stats)
@@ -1788,6 +1803,14 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
     return () => { supabase.removeChannel(ch) }
   }, [joined.code, joined.playerName, load])
 
+  // 天気ボーナス — ホーム画面と同じソースから取得
+  useEffect(() => {
+    getCurrentLocationWeather().then(w => {
+      if (!w) return
+      setWeatherBonus(calcWeatherRiskBonus(w))
+    }).catch(() => {})
+  }, [])
+
   // 通知許可 + タグ登録
   useEffect(() => {
     (async () => {
@@ -1830,16 +1853,23 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
 
   const last    = sessions[0]
   const fat     = last ? fatigueInfo(last.fatigue_level) : null
-  // ホーム画面と同じ計算式でスコアを出す
+  // ホーム画面と完全一致の計算式（fallback も index.tsx と同じ conditionMap[today] ?? 6）
   const avgCondLv = useMemo(() => {
+    const todayISO = new Date().toISOString().slice(0, 10)
+    const conditionLevel = conditionMap[todayISO] ?? 6
     const today = new Date()
     const vals = Array.from({ length: 7 }, (_, i) => {
       const d = new Date(today); d.setDate(d.getDate() - i)
       return conditionMap[d.toISOString().slice(0, 10)]
     }).filter((v): v is number => v !== undefined)
-    return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : (last?.condition_level ?? 7)
-  }, [conditionMap, last])
-  const risk    = calcInjuryRisk(sessions, sleepRecs, avgCondLv, hasSymptom)
+    return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : conditionLevel
+  }, [conditionMap])
+  // ホーム画面と完全一致：base + 天気補正 + ストレッチ補正
+  const risk = useMemo(() => {
+    const base = calcInjuryRisk(sessions, sleepRecs, avgCondLv, hasSymptom)
+    const effective = Math.min(100, Math.max(0, base.riskScore + weatherBonus - stretchReduction))
+    return { ...base, riskScore: effective }
+  }, [sessions, sleepRecs, avgCondLv, hasSymptom, weatherBonus, stretchReduction])
   const pinned  = messages.filter(m => m.is_pinned)
   const regular = messages.filter(m => !m.is_pinned)
 

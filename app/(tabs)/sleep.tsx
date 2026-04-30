@@ -53,8 +53,8 @@ function TimePicker({ label, hour, minute, onChangeHour, onChangeMinte, color }:
 }) {
   function incHour()  { onChangeHour((hour + 1) % 24) }
   function decHour()  { onChangeHour((hour + 23) % 24) }
-  function incMin()   { onChangeMinte((minute + 5) % 60) }
-  function decMin()   { onChangeMinte(Math.floor((minute + 5) / 5) % 12 * 5) }
+  function incMin()   { onChangeMinte((Math.floor(minute / 5) * 5 + 5) % 60) }
+  function decMin()   { onChangeMinte(((Math.ceil(minute / 5) * 5 - 5) + 60) % 60) }
 
   const pad = (n: number) => String(n).padStart(2, '0')
 

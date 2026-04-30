@@ -230,14 +230,36 @@ function exportOverlayPNG(record: RaceRecord) {
   a.click()
 }
 
+// ── カードテーマ定義 ──────────────────────────────────────────────────────────
+const CARD_THEMES = [
+  { id: 'ocean',    label: 'オーシャン',   colors: ['#0f2027', '#203a43', '#2c5364'] as const, dot: '#5bc8f5' },
+  { id: 'fire',     label: 'ファイア',     colors: ['#1a0800', '#5c1a00', '#c0392b'] as const, dot: '#ff6b35' },
+  { id: 'forest',   label: 'フォレスト',   colors: ['#001a0a', '#073d1f', '#145a32'] as const, dot: '#2ecc71' },
+  { id: 'galaxy',   label: 'ギャラクシー', colors: ['#0d0019', '#1a0033', '#4a0080'] as const, dot: '#c39bd3' },
+  { id: 'gold',     label: 'ゴールド',     colors: ['#1a1000', '#3d2800', '#7d5a00'] as const, dot: '#f1c40f' },
+  { id: 'midnight', label: 'ミッドナイト', colors: ['#0a0a0a', '#1a1a2e', '#16213e'] as const, dot: '#a0a8c0' },
+] as const
+type ThemeId = typeof CARD_THEMES[number]['id']
+
 // ── プレビューコンポーネント（アプリ内表示用） ───────────────────────────────
-// LinearGradient = サンプル背景（実際のPNGは透過）
-function OverlayPreview({ record }: { record: RaceRecord }) {
+function OverlayPreview({ record, themeId }: { record: RaceRecord; themeId: ThemeId }) {
+  const theme = CARD_THEMES.find(t => t.id === themeId) ?? CARD_THEMES[0]
   return (
     <LinearGradient
-      colors={['#0f2027', '#203a43', '#2c5364']}
+      colors={theme.colors as unknown as [string, string, ...string[]]}
       style={pv.container}
+      start={{ x: 0.15, y: 0 }}
+      end={{ x: 0.85, y: 1 }}
     >
+      {/* ── sCORE ロゴヘッダー（大きく目立つように） ── */}
+      <View style={pv.logoHeader}>
+        <ScoreIcon height={36} />
+        <View style={pv.logoTextWrap}>
+          <Text style={pv.logoS}>s</Text>
+          <Text style={pv.logoCORE}>CORE</Text>
+        </View>
+      </View>
+
       {/* グラスブロック */}
       <View style={pv.glass}>
         <Text style={pv.event}>{record.event}</Text>
@@ -279,12 +301,12 @@ function OverlayPreview({ record }: { record: RaceRecord }) {
             </View>
           )}
         </View>
+      </View>
 
-        {/* ウォーターマーク — グラスブロック右下 */}
-        <View style={pv.watermarkRow}>
-          <Text style={pv.watermark}>sCORE</Text>
-          <Text style={pv.watermarkSub}>アプリをダウンロード！</Text>
-        </View>
+      {/* フッター */}
+      <View style={pv.footer}>
+        <Text style={pv.footerUrl}>scorej.run</Text>
+        <Text style={pv.footerTag}>#sCORE陸上</Text>
       </View>
     </LinearGradient>
   )
@@ -299,6 +321,7 @@ export default function ShareCardScreen() {
   const [selected,  setSelected]  = useState<RaceRecord | null>(null)
   const [loading,   setLoading]   = useState(true)
   const [exporting, setExporting] = useState(false)
+  const [themeId,   setThemeId]   = useState<ThemeId>('ocean')
 
   useEffect(() => {
     ;(async () => {
@@ -399,13 +422,46 @@ export default function ShareCardScreen() {
             {/* カードプレビュー */}
             {selected != null && (
               <View style={s.previewWrap}>
-                <OverlayPreview record={selected} />
-                {/* サンプル背景の注記 */}
+                <OverlayPreview record={selected} themeId={themeId} />
                 <View style={s.sampleBadge}>
                   <Text style={s.sampleTxt}>サンプル背景</Text>
                 </View>
               </View>
             )}
+
+            {/* テーマ選択 */}
+            <View style={{ gap: 8 }}>
+              <Text style={s.selectorLabel}>背景テーマ</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 2 }}>
+                {CARD_THEMES.map(t => {
+                  const active = t.id === themeId
+                  return (
+                    <TouchableOpacity
+                      key={t.id}
+                      onPress={() => setThemeId(t.id)}
+                      activeOpacity={0.8}
+                      style={{
+                        alignItems: 'center', gap: 5,
+                        paddingHorizontal: 10, paddingVertical: 7,
+                        borderRadius: 12,
+                        borderWidth: active ? 1.5 : 1,
+                        borderColor: active ? t.dot : 'rgba(255,255,255,0.1)',
+                        backgroundColor: active ? t.dot + '22' : 'rgba(255,255,255,0.05)',
+                      }}
+                    >
+                      <LinearGradient
+                        colors={t.colors as unknown as [string, string, ...string[]]}
+                        style={{ width: 36, height: 36, borderRadius: 10 }}
+                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                      />
+                      <Text style={{ color: active ? t.dot : 'rgba(255,255,255,0.45)', fontSize: 10, fontWeight: active ? '800' : '500' }}>
+                        {t.label}
+                      </Text>
+                    </TouchableOpacity>
+                  )
+                })}
+              </ScrollView>
+            </View>
 
             {/* アクションボタン */}
             <View style={s.actions}>
@@ -498,28 +554,39 @@ const pv = StyleSheet.create({
     padding: 18,
     justifyContent: 'space-between',
   },
-  logoRow: {
+  // ── sCORE ロゴヘッダー ──
+  logoHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: 10,
+    paddingTop: 4,
+    paddingBottom: 6,
   },
-  logoTxtS: {
+  logoTextWrap: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 0,
+  },
+  logoS: {
     color: '#ffffff',
-    fontSize: 13,
+    fontSize: 22,
     fontWeight: '600',
     textShadowColor: 'rgba(0,0,0,0.95)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 10,
+    textShadowRadius: 12,
+    lineHeight: 30,
   },
-  logoTxtCore: {
+  logoCORE: {
     color: '#ffffff',
-    fontSize: 17,
-    fontWeight: '800',
-    letterSpacing: 0.2,
+    fontSize: 30,
+    fontWeight: '900',
+    letterSpacing: 1,
     textShadowColor: 'rgba(0,0,0,0.95)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 10,
+    textShadowRadius: 12,
+    lineHeight: 34,
   },
+  // ── グラスブロック ──
   glass: {
     backgroundColor: 'rgba(255,255,255,0.16)',
     borderRadius: 18,
@@ -585,25 +652,24 @@ const pv = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
-  watermarkRow: {
-    alignItems: 'flex-end',
-    alignSelf: 'flex-end',
-    gap: 1,
-    marginTop: 4,
+  // ── フッター ──
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 6,
   },
-  watermark: {
-    color: 'rgba(255,255,255,0.65)',
-    fontSize: 16,
-    fontWeight: '800',
-    textAlign: 'right',
+  footerUrl: {
+    color: 'rgba(255,255,255,0.55)',
+    fontSize: 12,
+    fontWeight: '700',
     textShadowColor: 'rgba(0,0,0,0.7)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
-  watermarkSub: {
-    color: 'rgba(255,255,255,0.45)',
+  footerTag: {
+    color: 'rgba(255,255,255,0.40)',
     fontSize: 11,
-    textAlign: 'right',
     textShadowColor: 'rgba(0,0,0,0.6)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
