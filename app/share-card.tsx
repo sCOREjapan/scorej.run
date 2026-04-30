@@ -71,7 +71,7 @@ function drawCard(
   const sh = (blur = 20, col = 'rgba(0,0,0,0.92)') => { c.shadowColor = col; c.shadowBlur = blur }
   const ns = () => { c.shadowColor = 'transparent'; c.shadowBlur = 0; c.shadowOffsetX = 0; c.shadowOffsetY = 0 }
 
-  const bx = 68, by = H / 2 - 340, bw = W - 136, bh = 680
+  const bx = 36, by = H / 2 - 340, bw = W - 72, bh = 680
 
   // グラスブロック
   c.shadowColor = 'rgba(0,0,0,0.50)'; c.shadowBlur = 80; c.shadowOffsetY = 24
@@ -572,7 +572,8 @@ const pv = StyleSheet.create({
     aspectRatio: 9 / 16,
     borderRadius: 16,
     overflow: 'hidden',
-    padding: 18,
+    paddingHorizontal: 10,
+    paddingVertical: 18,
     justifyContent: 'center',
     // 背景透過 — アプリの暗背景がそのまま見える
   },
