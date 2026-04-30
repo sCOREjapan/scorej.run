@@ -244,6 +244,7 @@ export interface PlayerStatsRow {
   last_fatigue:      number
   last_session_date: string
   sessions_30d:      number
+  goal:              string
   updated_at:        string
 }
 
@@ -265,6 +266,7 @@ export async function upsertPlayerStats(
   lastFatigue = 5,
   lastSessionDate = '',
   sessions30d = 0,
+  goal = '',
 ): Promise<void> {
   if (!isConfigured) return
   await supabase.from('team_player_stats').upsert(
@@ -272,6 +274,7 @@ export async function upsertPlayerStats(
       team_code: teamCode, player_name: playerName, event, pb_display: pbDisplay, level,
       last_condition: lastCondition, last_fatigue: lastFatigue,
       last_session_date: lastSessionDate, sessions_30d: sessions30d,
+      goal,
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'team_code,player_name' },

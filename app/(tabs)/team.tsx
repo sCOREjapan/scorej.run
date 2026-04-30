@@ -1,5 +1,5 @@
 // app/(tabs)/team.tsx — チーム機能 v3（Supabase同期 + OneSignal通知）
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   TextInput, KeyboardAvoidingView, Platform, Modal, Linking, Dimensions,
@@ -14,7 +14,7 @@ import { BRAND, TEXT } from '../../lib/theme'
 import AnimatedSection from '../../components/AnimatedSection'
 import { calcInjuryRisk } from '../../lib/injuryRisk'
 import { calcLevelInfo, RANK_TIERS } from '../../lib/gamification'
-import type { TrainingSession } from '../../types'
+import type { TrainingSession, SleepRecord } from '../../types'
 import { supabase } from '../../lib/supabase'
 import {
   fetchMessages, postMessage, setPinMessage, deleteMessage,
@@ -33,10 +33,12 @@ import {
 } from '../../lib/notify'
 
 // ── ストレージキー（ローカル設定のみ） ────────────────────
-const ROLE_KEY     = 'trackmate_team_role'
-const SESSIONS_KEY = 'trackmate_sessions'
-const SETUP_KEY    = 'trackmate_team_setup'
-const JOINED_KEY   = 'trackmate_team_joined'
+const ROLE_KEY          = 'trackmate_team_role'
+const SESSIONS_KEY      = 'trackmate_sessions'
+const SETUP_KEY         = 'trackmate_team_setup'
+const JOINED_KEY        = 'trackmate_team_joined'
+const SLEEP_KEY         = 'trackmate_sleep'
+const CONDITION_MAP_KEY = 'trackmate_condition_map'
 
 type Role = 'coach' | 'player'
 
@@ -175,6 +177,22 @@ function riskCfgKey(score: number): RiskCfgKey {
   if (score >= 55) return 'high'
   if (score >= 40) return 'medium'
   return 'low'
+}
+
+/** セッションの連続日数を計算 */
+function calcStreak(sessions: { session_date: string }[]): number {
+  if (!sessions.length) return 0
+  const dates = [...new Set(sessions.map(s => s.session_date))].sort((a, b) => b.localeCompare(a))
+  const today = new Date().toISOString().slice(0, 10)
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
+  if (dates[0] !== today && dates[0] !== yesterday) return 0
+  let streak = 1
+  for (let i = 1; i < dates.length; i++) {
+    const expected = new Date(new Date(dates[i-1] + 'T00:00:00').getTime() - 86400000).toISOString().slice(0, 10)
+    if (dates[i] === expected) streak++
+    else break
+  }
+  return streak
 }
 
 const FATIGUE_MAP: Record<number,{emoji:string;label:string;color:string}> = {
@@ -776,13 +794,27 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
 
   async function addEvent() {
     if (!evTitle.trim() || !evDate.trim()) return
-    await addTeamEvent(setup.code, evTitle.trim(), evDate.trim(), evTime.trim(), evLocation.trim(), evDesc.trim(), evType, setup.coachName)
-    setShowEventModal(false)
-    setEvTitle(''); setEvDate(''); setEvTime(''); setEvLocation(''); setEvDesc(''); setEvType('practice')
-    await load()
-    // 選手に通知
-    await sendPush(`📅 ${setup.teamName}`, `新しい予定：${evTitle.trim()}（${evDate.trim()}）`, 'players', setup.code)
-    Toast.show({ type: 'success', text1: '予定を追加しました', visibilityTime: 1400 })
+    // 状態リセット前に値をキャプチャ
+    const title    = evTitle.trim()
+    const date     = evDate.trim()
+    const time     = evTime.trim()
+    const location = evLocation.trim()
+    const desc     = evDesc.trim()
+    const type     = evType
+    try {
+      const result = await addTeamEvent(setup.code, title, date, time, location, desc, type, setup.coachName)
+      if (!result) throw new Error('insert returned null')
+      setShowEventModal(false)
+      setEvTitle(''); setEvDate(''); setEvTime(''); setEvLocation(''); setEvDesc(''); setEvType('practice')
+      // 表示を即時更新してからリロード
+      setTeamEvents(prev => [...prev, result].sort((a, b) => a.event_date.localeCompare(b.event_date)))
+      await load()
+      sendPush(`📅 ${setup.teamName}`, `新しい予定：${title}（${date}）`, 'players', setup.code)
+      Toast.show({ type: 'success', text1: '予定を追加しました', visibilityTime: 1400 })
+    } catch (e) {
+      console.error('[addEvent]', e)
+      Toast.show({ type: 'error', text1: '追加できませんでした', text2: String(e), visibilityTime: 2500 })
+    }
   }
 
   async function removeEvent(id: string) {
@@ -1546,15 +1578,18 @@ function MemberDetailSheet({ member, onClose, onAck }: {
 // ─────────────────────────────────────────────────────────
 // TeammateProfileSheet — 選手同士用（ランク・PBのみ）
 // ─────────────────────────────────────────────────────────
-function TeammateProfileSheet({ member, stats, onClose }: {
+function TeammateProfileSheet({ member, stats, sessions, onClose }: {
   member: TeamMemberRow
   stats: PlayerStatsRow | undefined
+  sessions: TrainingSession[]
   onClose: () => void
 }) {
   const lvInfo = calcLevelInfo(stats?.level ?? 1)
   const lvTier = RANK_TIERS.find(t => lvInfo.level >= t.min && lvInfo.level < t.max) ?? RANK_TIERS[0]
   const event  = stats?.event || member.event || ''
   const pb     = stats?.pb_display || ''
+  const streak = calcStreak(sessions)
+  const goal   = stats?.goal || ''
 
   return (
     <View style={[StyleSheet.absoluteFill,{backgroundColor:'rgba(0,0,0,0.85)',justifyContent:'flex-end'}]}>
@@ -1595,6 +1630,24 @@ function TeammateProfileSheet({ member, stats, onClose }: {
           </View>
         </View>
 
+        {/* ストリーク */}
+        {streak > 0 && (
+          <View style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:'rgba(255,107,53,0.08)',borderRadius:14,borderWidth:1.5,borderColor:'rgba(255,107,53,0.25)',paddingVertical:14,marginBottom:16}}>
+            <Text style={{fontSize:28}}>🔥</Text>
+            <View style={{gap:2}}>
+              <Text style={{color:'#FF6B35',fontSize:26,fontWeight:'900'}}>{streak}日連続中！</Text>
+              <Text style={{color:'#888',fontSize:11,textAlign:'center'}}>継続は力なり</Text>
+            </View>
+          </View>
+        )}
+        {/* 目標 */}
+        {goal ? (
+          <View style={{backgroundColor:'rgba(0,122,255,0.06)',borderRadius:12,borderWidth:1,borderColor:'rgba(0,122,255,0.15)',padding:14,marginBottom:16}}>
+            <Text style={{color:'#007AFF',fontSize:11,fontWeight:'700',marginBottom:4}}>🎯 目標</Text>
+            <Text style={{color:TEXT.primary,fontSize:15,fontWeight:'600'}}>{goal}</Text>
+          </View>
+        ) : null}
+
         <Text style={{color:'#aaa',fontSize:11,textAlign:'center'}}>
           参加日: {daysSince(member.joined_at)}
         </Text>
@@ -1626,12 +1679,18 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
   const [playerStats,       setPlayerStats]       = useState<PlayerStatsRow[]>([])
   const [editEvent,         setEditEvent]         = useState('')
   const [editPb,            setEditPb]            = useState('')
+  const [editGoal,          setEditGoal]          = useState('')
   const [selectedTeammate,  setSelectedTeammate]  = useState<TeamMemberRow|null>(null)
   const [plLoading,         setPlLoading]         = useState(true)
+  const [conditionMap,      setConditionMap]      = useState<Record<string,number>>({})
+  const [sleepRecs,         setSleepRecs]         = useState<SleepRecord[]>([])
+  const [plTab,             setPlTab]             = useState<'home'|'members'>('home')
 
   const load = useCallback(async () => {
-    const [sr, msgs, mems, rpts, stats, teamSessions, evts] = await Promise.all([
+    const [sr, sleepRaw, condRaw, msgs, mems, rpts, stats, teamSessions, evts] = await Promise.all([
       AsyncStorage.getItem(SESSIONS_KEY),
+      AsyncStorage.getItem(SLEEP_KEY),
+      AsyncStorage.getItem(CONDITION_MAP_KEY),
       fetchMessages(joined.code),
       fetchMembers(joined.code),
       fetchBodyReports(joined.code),
@@ -1641,6 +1700,8 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
     ])
     const loadedSessions: TrainingSession[] = sr ? JSON.parse(sr) : []
     setSessions(loadedSessions)
+    setSleepRecs(sleepRaw ? JSON.parse(sleepRaw) : [])
+    setConditionMap(condRaw ? JSON.parse(condRaw) : {})
     setMessages(msgs)
     setTeammates(mems.filter(m => m.player_name !== joined.playerName))
     setPlayerStats(stats)
@@ -1666,7 +1727,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
     if (myReport) { setBodyParts(myReport.parts); setBodyDetail(myReport.detail ?? '') }
     // 自分のstatsをedit初期値にセット
     const myStat = stats.find(s => s.player_name === joined.playerName)
-    if (myStat) { setEditEvent(myStat.event); setEditPb(myStat.pb_display) }
+    if (myStat) { setEditEvent(myStat.event); setEditPb(myStat.pb_display); setEditGoal(myStat.goal ?? '') }
     // 自分のセッションをチームに同期（コーチ・チームメイトが見れるように）
     await syncTeamSessions(joined.code, joined.playerName, loadedSessions)
     // レベル + 最新コンディションを自動同期
@@ -1674,11 +1735,13 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
     const cutoff30 = new Date(Date.now() - 30*24*60*60*1000).toISOString().slice(0,10)
     const recent30 = loadedSessions.filter(s => s.session_date >= cutoff30)
     const lastSess = loadedSessions[0]
-    await upsertPlayerStats(
-      joined.code, joined.playerName, myStat?.event ?? '', myStat?.pb_display ?? '', lvInfo.level,
-      lastSess?.condition_level ?? 7, lastSess?.fatigue_level ?? 5,
-      lastSess?.session_date ?? '', recent30.length,
-    )
+    try {
+      await upsertPlayerStats(
+        joined.code, joined.playerName, myStat?.event ?? '', myStat?.pb_display ?? '', lvInfo.level,
+        lastSess?.condition_level ?? 7, lastSess?.fatigue_level ?? 5,
+        lastSess?.session_date ?? '', recent30.length, myStat?.goal ?? '',
+      )
+    } catch { /* DB列未追加時もサイレントに無視 */ }
   }, [joined.code, joined.playerName])
 
   useEffect(() => { load() }, [load])
@@ -1707,7 +1770,14 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
 
   async function saveStats() {
     const lvInfo = calcLevelInfo(sessions.length)
-    await upsertPlayerStats(joined.code, joined.playerName, editEvent.trim(), editPb.trim(), lvInfo.level)
+    const lastSess = sessions[0]
+    const cutoff30 = new Date(Date.now() - 30*24*60*60*1000).toISOString().slice(0,10)
+    const recent30 = sessions.filter(s => s.session_date >= cutoff30)
+    await upsertPlayerStats(
+      joined.code, joined.playerName, editEvent.trim(), editPb.trim(), lvInfo.level,
+      lastSess?.condition_level ?? 7, lastSess?.fatigue_level ?? 5,
+      lastSess?.session_date ?? '', recent30.length, editGoal.trim(),
+    )
     setShowStatsEdit(false)
     await load()
     Toast.show({ type: 'success', text1: 'プロフィールを更新しました', visibilityTime: 1600 })
@@ -1727,7 +1797,16 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
 
   const last    = sessions[0]
   const fat     = last ? fatigueInfo(last.fatigue_level) : null
-  const risk    = calcInjuryRisk(sessions, [], last?.condition_level ?? 7)
+  // ホーム画面と同じ計算式でスコアを出す
+  const avgCondLv = useMemo(() => {
+    const today = new Date()
+    const vals = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today); d.setDate(d.getDate() - i)
+      return conditionMap[d.toISOString().slice(0, 10)]
+    }).filter((v): v is number => v !== undefined)
+    return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : (last?.condition_level ?? 7)
+  }, [conditionMap, last])
+  const risk    = calcInjuryRisk(sessions, sleepRecs, avgCondLv, bodyParts.length > 0)
   const pinned  = messages.filter(m => m.is_pinned)
   const regular = messages.filter(m => !m.is_pinned)
 
@@ -1740,230 +1819,258 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
             <Text style={{color:'#9ca3af',fontSize:14}}>データを読み込み中...</Text>
           </View>
         ) : (
-        <ScrollView contentContainerStyle={{padding:16,paddingBottom:60,gap:18}} showsVerticalScrollIndicator={false}>
-
-          {/* ヘッダー */}
-          <AnimatedSection delay={0} type="fade-up">
-          <View style={{flexDirection:'row',alignItems:'flex-start',justifyContent:'space-between'}}>
-            <View style={{gap:2}}>
-              <Text style={{color:TEXT.primary,fontSize:20,fontWeight:'800'}}>{joined.teamName}</Text>
-              <View style={{flexDirection:'row',gap:6,alignItems:'center',marginTop:2}}>
-                <View style={{backgroundColor:'#34C759'+'20',borderRadius:6,paddingHorizontal:7,paddingVertical:2}}>
-                  <Text style={{color:'#34C759',fontSize:11,fontWeight:'700'}}>選手</Text>
+          <>
+            {/* ─ 固定ヘッダー ─ */}
+            <View style={{paddingHorizontal:16,paddingTop:12,paddingBottom:10,backgroundColor:'#f6f6f8'}}>
+              <View style={{flexDirection:'row',alignItems:'flex-start',justifyContent:'space-between',marginBottom:10}}>
+                <View style={{gap:2}}>
+                  <Text style={{color:TEXT.primary,fontSize:20,fontWeight:'800'}}>{joined.teamName}</Text>
+                  <View style={{flexDirection:'row',gap:6,alignItems:'center',marginTop:2}}>
+                    <View style={{backgroundColor:'#34C759'+'20',borderRadius:6,paddingHorizontal:7,paddingVertical:2}}>
+                      <Text style={{color:'#34C759',fontSize:11,fontWeight:'700'}}>選手</Text>
+                    </View>
+                    <Text style={{color:'#555',fontSize:11}}>{joined.playerName}　コーチ: {joined.coachName}</Text>
+                  </View>
                 </View>
-                <Text style={{color:'#555',fontSize:11}}>{joined.playerName}　コーチ: {joined.coachName}</Text>
+                <TouchableOpacity onPress={() => setShowMenu(true)} style={co.switchBtn} activeOpacity={0.7}>
+                  <Ionicons name="ellipsis-horizontal" size={15} color={TEXT.secondary}/>
+                </TouchableOpacity>
+              </View>
+              {/* アクションボタン3つ */}
+              <View style={{flexDirection:'row',gap:8}}>
+                <TouchableOpacity style={pl.actionBtn} onPress={() => { setEditBody([...bodyParts]); setEditBodyDetail(bodyDetail); setShowBody(true) }} activeOpacity={0.85}>
+                  <Ionicons name="body-outline" size={18} color="#FF9500"/>
+                  <Text style={{color:TEXT.primary,fontSize:12,fontWeight:'700'}}>痛みを報告</Text>
+                  {bodyParts.length > 0 && <View style={{backgroundColor:'#FF9500',borderRadius:8,paddingHorizontal:5,paddingVertical:1}}><Text style={{color:'#fff',fontSize:9,fontWeight:'800'}}>{bodyParts.length}</Text></View>}
+                </TouchableOpacity>
+                <TouchableOpacity style={pl.actionBtn} onPress={() => setShowVideoModal(true)} activeOpacity={0.85}>
+                  <Ionicons name="videocam-outline" size={18} color={BRAND}/>
+                  <Text style={{color:TEXT.primary,fontSize:12,fontWeight:'700'}}>動画を送る</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={pl.actionBtn} onPress={() => setShowStatsEdit(true)} activeOpacity={0.85}>
+                  <Ionicons name="person-circle-outline" size={18} color="#AF52DE"/>
+                  <Text style={{color:TEXT.primary,fontSize:12,fontWeight:'700'}}>プロフィール</Text>
+                </TouchableOpacity>
               </View>
             </View>
-            <TouchableOpacity onPress={() => setShowMenu(true)} style={co.switchBtn} activeOpacity={0.7}>
-              <Ionicons name="ellipsis-horizontal" size={15} color={TEXT.secondary}/>
-            </TouchableOpacity>
-          </View>
-          </AnimatedSection>
 
-          {/* アクションボタン3つ */}
-          <AnimatedSection delay={60} type="fade-up">
-          <View style={{flexDirection:'row',gap:10}}>
-            <TouchableOpacity style={pl.actionBtn} onPress={() => { setEditBody([...bodyParts]); setEditBodyDetail(bodyDetail); setShowBody(true) }} activeOpacity={0.85}>
-              <Ionicons name="body-outline" size={20} color="#FF9500"/>
-              <Text style={{color:TEXT.primary,fontSize:13,fontWeight:'700'}}>痛みを報告</Text>
-              {bodyParts.length > 0 && <View style={{backgroundColor:'#FF9500',borderRadius:8,paddingHorizontal:6,paddingVertical:1}}><Text style={{color:'#fff',fontSize:9,fontWeight:'800'}}>{bodyParts.length}箇所</Text></View>}
-            </TouchableOpacity>
-            <TouchableOpacity style={pl.actionBtn} onPress={() => setShowVideoModal(true)} activeOpacity={0.85}>
-              <Ionicons name="videocam-outline" size={20} color={BRAND}/>
-              <Text style={{color:TEXT.primary,fontSize:13,fontWeight:'700'}}>動画を送る</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={pl.actionBtn} onPress={() => setShowStatsEdit(true)} activeOpacity={0.85}>
-              <Ionicons name="trophy-outline" size={20} color="#AF52DE"/>
-              <Text style={{color:TEXT.primary,fontSize:13,fontWeight:'700'}}>PB入力</Text>
-            </TouchableOpacity>
-          </View>
-          </AnimatedSection>
-
-          {/* ピン留めメッセージ */}
-          {pinned.length > 0 && (
-            <AnimatedSection delay={120} type="fade-up">
-            <View style={{gap:8}}>
-              <Text style={pl.sectionTitle}>📌 コーチからのお知らせ</Text>
-              {pinned.map(m => (
-                <View key={m.id} style={{backgroundColor:'rgba(255,149,0,0.08)',borderRadius:12,borderWidth:1,borderColor:'rgba(255,149,0,0.4)',padding:14}}>
-                  <Text style={{color:'#FF9500',fontSize:11,fontWeight:'700',marginBottom:6}}>📌 {m.author_name} · {timeAgo(m.created_at)}</Text>
-                  <Text style={{color:TEXT.primary,fontSize:14,lineHeight:22}}>{m.content}</Text>
-                </View>
+            {/* ─ タブバー ─ */}
+            <View style={co.tabs}>
+              {([
+                { key:'home'    as const, label:'ホーム',        badge: (pinned.length + regular.length) > 0 ? 0 : 0 },
+                { key:'members' as const, label:'チームメイト',  badge: 0 },
+              ]).map(t => (
+                <TouchableOpacity key={t.key} style={[co.tab, plTab===t.key && co.tabActive]} onPress={() => setPlTab(t.key)} activeOpacity={0.7}>
+                  <Text style={[co.tabLabel, { color: plTab===t.key ? BRAND : '#555' }]}>{t.label}</Text>
+                </TouchableOpacity>
               ))}
             </View>
-            </AnimatedSection>
-          )}
 
-          {/* 通常メッセージ */}
-          {regular.length > 0 && (
-            <AnimatedSection delay={160} type="fade-up">
-            <View style={{gap:8}}>
-              <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
-                <Text style={pl.sectionTitle}>📣 コーチからのメッセージ</Text>
-                {regular.length > 3 && <Text style={{color:'#9ca3af',fontSize:10}}>{regular.length}件</Text>}
-              </View>
-              <ScrollView
-                style={{maxHeight:228,borderRadius:12}}
-                nestedScrollEnabled
-                showsVerticalScrollIndicator={regular.length > 3}
-                contentContainerStyle={{gap:8}}
-              >
-                {regular.map(m => (
-                  <View key={m.id} style={{backgroundColor:'#ffffff',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',padding:14,shadowColor:'#000',shadowOffset:{width:0,height:1},shadowOpacity:0.05,shadowRadius:4,elevation:1}}>
-                    <Text style={{color:BRAND,fontSize:11,fontWeight:'700',marginBottom:6}}>{m.author_name} · {timeAgo(m.created_at)}</Text>
-                    <Text style={{color:TEXT.primary,fontSize:14,lineHeight:22}}>{m.content}</Text>
+            {/* ─ ホームタブ ─ */}
+            {plTab === 'home' && (
+              <ScrollView contentContainerStyle={{padding:16,paddingBottom:80,gap:18}} showsVerticalScrollIndicator={false}>
+
+                {/* ピン留めメッセージ */}
+                {pinned.length > 0 && (
+                  <AnimatedSection delay={0} type="fade-up">
+                  <View style={{gap:8}}>
+                    <Text style={pl.sectionTitle}>📌 コーチからのお知らせ</Text>
+                    {pinned.map(m => (
+                      <View key={m.id} style={{backgroundColor:'rgba(255,149,0,0.08)',borderRadius:12,borderWidth:1,borderColor:'rgba(255,149,0,0.4)',padding:14}}>
+                        <Text style={{color:'#FF9500',fontSize:11,fontWeight:'700',marginBottom:6}}>📌 {m.author_name} · {timeAgo(m.created_at)}</Text>
+                        <Text style={{color:TEXT.primary,fontSize:14,lineHeight:22}}>{m.content}</Text>
+                      </View>
+                    ))}
                   </View>
-                ))}
-              </ScrollView>
-            </View>
-            </AnimatedSection>
-          )}
-
-          {messages.length === 0 && (
-            <AnimatedSection delay={160} type="fade-up">
-            <View style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',padding:20,alignItems:'center',gap:6}}>
-              <Ionicons name="chatbubble-outline" size={26} color="#9ca3af"/>
-              <Text style={{color:'#6b7280',fontSize:13}}>コーチからのメッセージはまだありません</Text>
-            </View>
-            </AnimatedSection>
-          )}
-
-          {/* 自分のコンディション */}
-          <AnimatedSection delay={200} type="fade-up">
-          <Text style={pl.sectionTitle}>マイ コンディション</Text>
-          <View style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',padding:14}}>
-            <View style={{flexDirection:'row',gap:10,marginBottom:12}}>
-              <View style={{flex:1,alignItems:'center',backgroundColor:'#f0f2f5',borderRadius:10,paddingVertical:12,gap:3}}>
-                <Text style={{fontSize:26}}>{fat?.emoji??'—'}</Text>
-                <Text style={{color:fat?.color??'#888',fontSize:12,fontWeight:'700'}}>{fat?.label??'データなし'}</Text>
-                <Text style={{color:'#555',fontSize:10}}>疲労度</Text>
-              </View>
-              <View style={{flex:1,alignItems:'center',backgroundColor:'#f0f2f5',borderRadius:10,paddingVertical:12,gap:3}}>
-                <Text style={{color:risk.signalColor,fontSize:24,fontWeight:'800'}}>{risk.riskScore}</Text>
-                <Text style={{color:risk.signalColor,fontSize:11,fontWeight:'700'}}>{risk.label}</Text>
-                <Text style={{color:'#555',fontSize:10}}>怪我リスク</Text>
-              </View>
-            </View>
-            {bodyParts.length > 0 && (
-              <View style={{backgroundColor:'rgba(255,59,48,0.08)',borderRadius:10,padding:10}}>
-                <Text style={{color:'#FF3B30',fontSize:11,fontWeight:'700',marginBottom:6}}>現在の痛み報告</Text>
-                <PainBadges parts={bodyParts}/>
-                {!!bodyDetail && (
-                  <Text style={{color:'#555',fontSize:12,marginTop:6,lineHeight:18}}>📝 {bodyDetail}</Text>
+                  </AnimatedSection>
                 )}
-              </View>
-            )}
-          </View>
-          </AnimatedSection>
 
-          {/* チームカレンダー — 常に表示 */}
-          <AnimatedSection delay={230} type="fade-up">
-          <View style={{gap:8}}>
-            <Text style={pl.sectionTitle}>📅 チーム予定</Text>
-            {teamEvents.length === 0 ? (
-              <View style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',padding:20,alignItems:'center',gap:6}}>
-                <Text style={{fontSize:28}}>📅</Text>
-                <Text style={{color:'#9ca3af',fontSize:13}}>コーチからの予定はまだありません</Text>
-              </View>
-            ) : (
-              <View style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',overflow:'hidden'}}>
-                {teamEvents.slice(0, 5).map((ev, i) => {
-                  const cfg = EVENT_CFG[ev.event_type] ?? EVENT_CFG.other
-                  const past = isPast(ev.event_date)
-                  return (
-                    <View key={ev.id} style={{
-                      flexDirection:'row', alignItems:'center', gap:12,
-                      paddingHorizontal:14, paddingVertical:13,
-                      borderBottomWidth: i < Math.min(teamEvents.length, 5)-1 ? StyleSheet.hairlineWidth : 0,
-                      borderBottomColor:'rgba(0,0,0,0.07)',
-                      opacity: past ? 0.5 : 1,
-                    }}>
-                      <View style={{width:38,height:38,borderRadius:10,backgroundColor:cfg.color+'18',alignItems:'center',justifyContent:'center'}}>
-                        <Text style={{fontSize:18}}>{cfg.emoji}</Text>
-                      </View>
-                      <View style={{flex:1,gap:2}}>
-                        <Text style={{color:TEXT.primary,fontSize:14,fontWeight:'700'}}>{ev.title}</Text>
-                        <View style={{flexDirection:'row',alignItems:'center',gap:8,flexWrap:'wrap'}}>
-                          <Text style={{color:cfg.color,fontSize:11,fontWeight:'700'}}>{fmtEventDate(ev.event_date)}</Text>
-                          {!!ev.event_time && <Text style={{color:'#888',fontSize:11}}>{ev.event_time}</Text>}
-                          {!!ev.location && <Text style={{color:'#888',fontSize:11}}>📍{ev.location}</Text>}
-                        </View>
-                        {!!ev.description && <Text style={{color:'#6b7280',fontSize:12,lineHeight:18}}>{ev.description}</Text>}
-                      </View>
+                {/* 通常メッセージ */}
+                {regular.length > 0 && (
+                  <AnimatedSection delay={60} type="fade-up">
+                  <View style={{gap:8}}>
+                    <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
+                      <Text style={pl.sectionTitle}>📣 コーチからのメッセージ</Text>
+                      {regular.length > 3 && <Text style={{color:'#9ca3af',fontSize:10}}>{regular.length}件</Text>}
                     </View>
-                  )
-                })}
-              </View>
+                    <ScrollView style={{maxHeight:228,borderRadius:12}} nestedScrollEnabled showsVerticalScrollIndicator={regular.length > 3} contentContainerStyle={{gap:8}}>
+                      {regular.map(m => (
+                        <View key={m.id} style={{backgroundColor:'#ffffff',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',padding:14}}>
+                          <Text style={{color:BRAND,fontSize:11,fontWeight:'700',marginBottom:6}}>{m.author_name} · {timeAgo(m.created_at)}</Text>
+                          <Text style={{color:TEXT.primary,fontSize:14,lineHeight:22}}>{m.content}</Text>
+                        </View>
+                      ))}
+                    </ScrollView>
+                  </View>
+                  </AnimatedSection>
+                )}
+
+                {messages.length === 0 && (
+                  <AnimatedSection delay={0} type="fade-up">
+                  <View style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',padding:20,alignItems:'center',gap:6}}>
+                    <Ionicons name="chatbubble-outline" size={26} color="#9ca3af"/>
+                    <Text style={{color:'#6b7280',fontSize:13}}>コーチからのメッセージはまだありません</Text>
+                  </View>
+                  </AnimatedSection>
+                )}
+
+                {/* チームカレンダー */}
+                <AnimatedSection delay={80} type="fade-up">
+                <View style={{gap:8}}>
+                  <Text style={pl.sectionTitle}>📅 チーム予定</Text>
+                  {teamEvents.length === 0 ? (
+                    <View style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',padding:20,alignItems:'center',gap:6}}>
+                      <Text style={{fontSize:28}}>📅</Text>
+                      <Text style={{color:'#9ca3af',fontSize:13}}>コーチからの予定はまだありません</Text>
+                    </View>
+                  ) : (
+                    <View style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',overflow:'hidden'}}>
+                      {teamEvents.map((ev, i) => {
+                        const cfg = EVENT_CFG[ev.event_type] ?? EVENT_CFG.other
+                        const past = isPast(ev.event_date)
+                        return (
+                          <View key={ev.id} style={{
+                            flexDirection:'row', alignItems:'center', gap:12,
+                            paddingHorizontal:14, paddingVertical:13,
+                            borderBottomWidth: i < teamEvents.length-1 ? StyleSheet.hairlineWidth : 0,
+                            borderBottomColor:'rgba(0,0,0,0.07)',
+                            opacity: past ? 0.5 : 1,
+                          }}>
+                            <View style={{width:38,height:38,borderRadius:10,backgroundColor:cfg.color+'18',alignItems:'center',justifyContent:'center'}}>
+                              <Text style={{fontSize:18}}>{cfg.emoji}</Text>
+                            </View>
+                            <View style={{flex:1,gap:2}}>
+                              <Text style={{color:TEXT.primary,fontSize:14,fontWeight:'700'}}>{ev.title}</Text>
+                              <View style={{flexDirection:'row',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+                                <Text style={{color:cfg.color,fontSize:11,fontWeight:'700'}}>{fmtEventDate(ev.event_date)}</Text>
+                                {!!ev.event_time && <Text style={{color:'#888',fontSize:11}}>{ev.event_time}</Text>}
+                                {!!ev.location && <Text style={{color:'#888',fontSize:11}}>📍{ev.location}</Text>}
+                              </View>
+                              {!!ev.description && <Text style={{color:'#6b7280',fontSize:12,lineHeight:18}}>{ev.description}</Text>}
+                            </View>
+                          </View>
+                        )
+                      })}
+                    </View>
+                  )}
+                </View>
+                </AnimatedSection>
+
+                {/* マイ コンディション */}
+                <AnimatedSection delay={120} type="fade-up">
+                <Text style={pl.sectionTitle}>マイ コンディション</Text>
+                <View style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',padding:14}}>
+                  <View style={{flexDirection:'row',gap:10,marginBottom:bodyParts.length>0?12:0}}>
+                    <View style={{flex:1,alignItems:'center',backgroundColor:'#f0f2f5',borderRadius:10,paddingVertical:12,gap:3}}>
+                      <Text style={{fontSize:26}}>{fat?.emoji??'—'}</Text>
+                      <Text style={{color:fat?.color??'#888',fontSize:12,fontWeight:'700'}}>{fat?.label??'データなし'}</Text>
+                      <Text style={{color:'#555',fontSize:10}}>疲労度</Text>
+                    </View>
+                    <View style={{flex:1,alignItems:'center',backgroundColor:'#f0f2f5',borderRadius:10,paddingVertical:12,gap:3}}>
+                      <Text style={{color:risk.signalColor,fontSize:24,fontWeight:'800'}}>{risk.riskScore}</Text>
+                      <Text style={{color:risk.signalColor,fontSize:11,fontWeight:'700'}}>{risk.label}</Text>
+                      <Text style={{color:'#555',fontSize:10}}>怪我リスク</Text>
+                    </View>
+                  </View>
+                  {bodyParts.length > 0 && (
+                    <View style={{backgroundColor:'rgba(255,59,48,0.08)',borderRadius:10,padding:10}}>
+                      <Text style={{color:'#FF3B30',fontSize:11,fontWeight:'700',marginBottom:6}}>現在の痛み報告</Text>
+                      <PainBadges parts={bodyParts}/>
+                      {!!bodyDetail && <Text style={{color:'#555',fontSize:12,marginTop:6,lineHeight:18}}>📝 {bodyDetail}</Text>}
+                    </View>
+                  )}
+                </View>
+                </AnimatedSection>
+
+              </ScrollView>
             )}
-          </View>
-          </AnimatedSection>
 
-          {/* チームメイト一覧 */}
-          {teammates.length > 0 && (
-            <AnimatedSection delay={260} type="fade-up">
-            <>
-              <Text style={pl.sectionTitle}>👥 チームメイト</Text>
-              <View style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',overflow:'hidden'}}>
-                {teammates.map((m, i) => {
-                  const stat    = playerStats.find(s => s.player_name === m.player_name)
-                  const lvInfo  = calcLevelInfo(stat?.level ?? 1)
-                  const lvTier  = RANK_TIERS.find(t => lvInfo.level >= t.min && lvInfo.level < t.max) ?? RANK_TIERS[0]
-                  const tmSessions = teamSessionsMap[m.player_name] ?? []
-                  const tmRisk  = calcInjuryRisk(tmSessions, [], tmSessions[0]?.condition_level ?? 6)
-                  const tmRKey  = riskCfgKey(tmRisk.riskScore)
-                  const tmRCfg  = RISK_CFG[tmRKey]
-                  const hasPain = (allBodyReports.find(r => r.player_name === m.player_name)?.parts?.length ?? 0) > 0
-                  return (
-                    <TouchableOpacity
-                      key={m.id}
-                      activeOpacity={0.75}
-                      onPress={() => setSelectedTeammate(m)}
-                      style={{
-                        flexDirection:'row', alignItems:'center', gap:10,
-                        paddingHorizontal:14, paddingVertical:14,
-                        borderBottomWidth: i < teammates.length-1 ? StyleSheet.hairlineWidth : 0,
-                        borderBottomColor:'rgba(0,0,0,0.07)',
-                      }}
-                    >
-                      <Avatar name={m.player_name} size={38} color={avatarColor(m.player_name)}/>
-                      <View style={{flex:1,gap:3}}>
-                        <View style={{flexDirection:'row',alignItems:'center',gap:6,flexWrap:'wrap'}}>
-                          <Text style={{color:TEXT.primary,fontSize:14,fontWeight:'700'}}>{m.player_name}</Text>
-                          {stat && (
-                            <View style={{flexDirection:'row',alignItems:'center',gap:3,backgroundColor:lvTier.color+'20',borderRadius:8,paddingHorizontal:6,paddingVertical:2,borderWidth:1,borderColor:lvTier.color+'40'}}>
-                              <Text style={{fontSize:10}}>{lvTier.emoji}</Text>
-                              <Text style={{color:lvTier.color,fontSize:10,fontWeight:'800'}}>Lv.{stat.level}</Text>
+            {/* ─ チームメイトタブ ─ */}
+            {plTab === 'members' && (
+              <ScrollView contentContainerStyle={{padding:16,paddingBottom:80,gap:14}} showsVerticalScrollIndicator={false}>
+                {teammates.length === 0 ? (
+                  <View style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',padding:32,alignItems:'center',gap:8,marginTop:8}}>
+                    <Text style={{fontSize:32}}>👥</Text>
+                    <Text style={{color:TEXT.primary,fontSize:15,fontWeight:'700'}}>まだチームメイトがいません</Text>
+                    <Text style={{color:'#9ca3af',fontSize:13,textAlign:'center'}}>コーチが他のメンバーを招待すると\nここに表示されます</Text>
+                  </View>
+                ) : (
+                  <AnimatedSection delay={0} type="fade-up">
+                  <View style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',overflow:'hidden'}}>
+                    {teammates.map((m, i) => {
+                      const stat      = playerStats.find(s => s.player_name === m.player_name)
+                      const lvInfo    = calcLevelInfo(stat?.level ?? 1)
+                      const lvTier    = RANK_TIERS.find(t => lvInfo.level >= t.min && lvInfo.level < t.max) ?? RANK_TIERS[0]
+                      const tmSessions = teamSessionsMap[m.player_name] ?? []
+                      const streak    = calcStreak(tmSessions)
+                      const hasPain   = (allBodyReports.find(r => r.player_name === m.player_name)?.parts?.length ?? 0) > 0
+                      const event     = stat?.event || m.event || ''
+                      const pb        = stat?.pb_display || ''
+                      const goal      = stat?.goal || ''
+                      return (
+                        <TouchableOpacity
+                          key={m.id}
+                          activeOpacity={0.75}
+                          onPress={() => setSelectedTeammate(m)}
+                          style={{
+                            paddingHorizontal:14, paddingVertical:14,
+                            borderBottomWidth: i < teammates.length-1 ? StyleSheet.hairlineWidth : 0,
+                            borderBottomColor:'rgba(0,0,0,0.07)',
+                          }}
+                        >
+                          {/* 上段: アバター(Lv角バッジ) + 名前+ランク + 連続日数 */}
+                          <View style={{flexDirection:'row',alignItems:'center',gap:10,marginBottom:8}}>
+                            <View style={{position:'relative'}}>
+                              <Avatar name={m.player_name} size={44} color={avatarColor(m.player_name)}/>
+                              <View style={{position:'absolute',bottom:-4,right:-4,backgroundColor:lvTier.color,borderRadius:8,paddingHorizontal:4,paddingVertical:1,borderWidth:1.5,borderColor:'#fff'}}>
+                                <Text style={{color:'#fff',fontSize:9,fontWeight:'900'}}>Lv{lvInfo.level}</Text>
+                              </View>
                             </View>
-                          )}
-                          {hasPain && <Text style={{fontSize:11}}>🤕</Text>}
-                        </View>
-                        <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
-                          {(stat?.event || m.event) && (
-                            <Text style={{color:TEXT.secondary,fontSize:11}}>{stat?.event || m.event}</Text>
-                          )}
-                          {stat?.pb_display ? (
-                            <View style={{flexDirection:'row',alignItems:'center',gap:3}}>
-                              <Ionicons name="trophy" size={10} color="#FF9500"/>
-                              <Text style={{color:'#FF9500',fontSize:11,fontWeight:'700'}}>{stat.pb_display}</Text>
+                            <View style={{flex:1,gap:2}}>
+                              <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
+                                <Text style={{color:TEXT.primary,fontSize:15,fontWeight:'800'}}>{m.player_name}</Text>
+                                {hasPain && <Text style={{fontSize:12}}>🤕</Text>}
+                              </View>
+                              <View style={{flexDirection:'row',alignItems:'center',gap:5}}>
+                                <Text style={{fontSize:12}}>{lvTier.emoji}</Text>
+                                <Text style={{color:lvTier.color,fontSize:12,fontWeight:'700'}}>{lvTier.title}</Text>
+                                {event ? <Text style={{color:'#9ca3af',fontSize:11}}>· {event}</Text> : null}
+                              </View>
                             </View>
-                          ) : null}
-                          {tmSessions.length > 0 && (
-                            <View style={{flexDirection:'row',alignItems:'center',gap:3,backgroundColor:tmRCfg.bg,borderRadius:6,paddingHorizontal:5,paddingVertical:2}}>
-                              <Text style={{color:tmRCfg.color,fontSize:10,fontWeight:'700'}}>{tmRisk.riskScore}</Text>
+                            <View style={{alignItems:'flex-end',gap:4}}>
+                              {streak > 0 && (
+                                <View style={{flexDirection:'row',alignItems:'center',gap:3,backgroundColor:'rgba(255,107,53,0.10)',borderRadius:10,paddingHorizontal:8,paddingVertical:4,borderWidth:1,borderColor:'rgba(255,107,53,0.25)'}}>
+                                  <Text style={{fontSize:13}}>🔥</Text>
+                                  <Text style={{color:'#FF6B35',fontSize:12,fontWeight:'900'}}>{streak}日連続</Text>
+                                </View>
+                              )}
+                              <Ionicons name="chevron-forward" size={13} color="#d1d5db"/>
                             </View>
-                          )}
-                        </View>
-                      </View>
-                      <Ionicons name="chevron-forward" size={14} color="#d1d5db"/>
-                    </TouchableOpacity>
-                  )
-                })}
-              </View>
-            </>
-            </AnimatedSection>
-          )}
-
-        </ScrollView>
+                          </View>
+                          {/* 下段: PB + 目標 */}
+                          <View style={{flexDirection:'row',alignItems:'center',gap:8,marginLeft:54}}>
+                            {pb ? (
+                              <View style={{flexDirection:'row',alignItems:'center',gap:4,backgroundColor:'rgba(255,149,0,0.10)',borderRadius:8,paddingHorizontal:8,paddingVertical:4,borderWidth:1,borderColor:'rgba(255,149,0,0.25)'}}>
+                                <Ionicons name="trophy" size={12} color="#FF9500"/>
+                                <Text style={{color:'#FF9500',fontSize:13,fontWeight:'800'}}>{pb}</Text>
+                              </View>
+                            ) : (
+                              <View style={{flexDirection:'row',alignItems:'center',gap:4,backgroundColor:'#f0f2f5',borderRadius:8,paddingHorizontal:8,paddingVertical:4}}>
+                                <Ionicons name="trophy-outline" size={12} color="#bbb"/>
+                                <Text style={{color:'#bbb',fontSize:12}}>PB未入力</Text>
+                              </View>
+                            )}
+                            {goal ? <Text style={{color:'#6b7280',fontSize:12,flex:1}} numberOfLines={1}>🎯 {goal}</Text> : null}
+                          </View>
+                        </TouchableOpacity>
+                      )
+                    })}
+                  </View>
+                  </AnimatedSection>
+                )}
+              </ScrollView>
+            )}
+          </>
         )}
       </SafeAreaView>
 
@@ -2010,40 +2117,55 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
       <Modal visible={showStatsEdit} transparent animationType="slide" onRequestClose={() => setShowStatsEdit(false)}>
         <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.8)',justifyContent:'flex-end'}}>
           <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':undefined}>
-            <View style={{backgroundColor:'#fff',borderTopLeftRadius:24,borderTopRightRadius:24,padding:22,paddingBottom:44,gap:16}}>
-              <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center'}}/>
-              <View style={{flexDirection:'row',alignItems:'center'}}>
-                <Text style={{color:'#111827',fontSize:18,fontWeight:'800',flex:1}}>プロフィール・自己ベスト</Text>
-                <TouchableOpacity onPress={() => setShowStatsEdit(false)} hitSlop={{top:10,bottom:10,left:10,right:10}}>
-                  <Ionicons name="close" size={22} color={TEXT.secondary}/>
+            <View style={{backgroundColor:'#fff',borderTopLeftRadius:24,borderTopRightRadius:24,maxHeight:SCREEN_H*0.85}}>
+              <View style={{paddingHorizontal:22,paddingTop:18,paddingBottom:4}}>
+                <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center'}}/>
+                <View style={{flexDirection:'row',alignItems:'center',marginTop:14}}>
+                  <Text style={{color:'#111827',fontSize:18,fontWeight:'800',flex:1}}>プロフィール編集</Text>
+                  <TouchableOpacity onPress={() => setShowStatsEdit(false)} hitSlop={{top:10,bottom:10,left:10,right:10}}>
+                    <Ionicons name="close" size={22} color={TEXT.secondary}/>
+                  </TouchableOpacity>
+                </View>
+                <Text style={{color:'#6b7280',fontSize:12,lineHeight:18,marginTop:8}}>
+                  入力するとチームメイトに表示されます。レベルはアプリの練習記録数から自動計算されます。
+                </Text>
+              </View>
+              <ScrollView style={{flex:1}} contentContainerStyle={{paddingHorizontal:22,paddingBottom:48,gap:14}} keyboardShouldPersistTaps="handled">
+                {/* 種目 */}
+                <View style={{gap:6}}>
+                  <Text style={{color:TEXT.hint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>種目</Text>
+                  <TextInput
+                    style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:'#111827',fontSize:15,paddingHorizontal:14,paddingVertical:12}}
+                    value={editEvent} onChangeText={setEditEvent}
+                    placeholder="例: 100m, 走り幅跳び" placeholderTextColor="#9ca3af" maxLength={20}
+                  />
+                </View>
+                {/* 自己ベスト */}
+                <View style={{gap:6}}>
+                  <Text style={{color:TEXT.hint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>自己ベスト</Text>
+                  <TextInput
+                    style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:'#111827',fontSize:15,paddingHorizontal:14,paddingVertical:12}}
+                    value={editPb} onChangeText={setEditPb}
+                    placeholder="例: 10.83, 6m42cm" placeholderTextColor="#9ca3af" maxLength={20}
+                  />
+                </View>
+                {/* 目標 */}
+                <View style={{gap:6}}>
+                  <Text style={{color:TEXT.hint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>目標</Text>
+                  <TextInput
+                    style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:'#111827',fontSize:15,paddingHorizontal:14,paddingVertical:12}}
+                    value={editGoal} onChangeText={setEditGoal}
+                    placeholder="例: 都大会入賞、自己ベスト更新" placeholderTextColor="#9ca3af" maxLength={40}
+                  />
+                </View>
+                <TouchableOpacity
+                  style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:BRAND,borderRadius:14,paddingVertical:15}}
+                  onPress={saveStats} activeOpacity={0.85}
+                >
+                  <Ionicons name="checkmark-circle" size={18} color="#fff"/>
+                  <Text style={{color:'#fff',fontSize:16,fontWeight:'800'}}>チームに公開する</Text>
                 </TouchableOpacity>
-              </View>
-              <Text style={{color:'#6b7280',fontSize:12,lineHeight:18}}>
-                入力するとチームメイトに表示されます。レベルはアプリの練習記録数から自動計算されます。
-              </Text>
-              <View style={{gap:6}}>
-                <Text style={{color:TEXT.hint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>種目</Text>
-                <TextInput
-                  style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:'#111827',fontSize:15,paddingHorizontal:14,paddingVertical:12}}
-                  value={editEvent} onChangeText={setEditEvent}
-                  placeholder="例: 100m, 走り幅跳び" placeholderTextColor="#9ca3af" maxLength={20}
-                />
-              </View>
-              <View style={{gap:6}}>
-                <Text style={{color:TEXT.hint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>自己ベスト</Text>
-                <TextInput
-                  style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:'#111827',fontSize:15,paddingHorizontal:14,paddingVertical:12}}
-                  value={editPb} onChangeText={setEditPb}
-                  placeholder="例: 10.83, 6m42cm" placeholderTextColor="#9ca3af" maxLength={20}
-                />
-              </View>
-              <TouchableOpacity
-                style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:BRAND,borderRadius:14,paddingVertical:15}}
-                onPress={saveStats} activeOpacity={0.85}
-              >
-                <Ionicons name="checkmark-circle" size={18} color="#fff"/>
-                <Text style={{color:'#fff',fontSize:16,fontWeight:'800'}}>チームに公開する</Text>
-              </TouchableOpacity>
+              </ScrollView>
             </View>
           </KeyboardAvoidingView>
         </View>
@@ -2071,6 +2193,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
         <TeammateProfileSheet
           member={selectedTeammate}
           stats={playerStats.find(s => s.player_name === selectedTeammate.player_name)}
+          sessions={teamSessionsMap[selectedTeammate.player_name] ?? []}
           onClose={() => setSelectedTeammate(null)}
         />
       )}

@@ -45,6 +45,7 @@ export async function autoSyncTeam(sessions: TrainingSession[]): Promise<void> {
       lastS?.fatigue_level   ?? 5,
       lastS?.session_date    ?? '',
       recent.length,
+      mine?.goal ?? '',
     )
   } catch {
     // 同期エラーはサイレントに無視（ローカル記録を妨げない）
