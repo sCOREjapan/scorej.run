@@ -1,4 +1,4 @@
-// app/share-card.tsx — シェアカード v2（透過オーバーレイ）
+// app/share-card.tsx — シェアカード v3（透過PNG + スピン動画）
 import React, { useState, useEffect, useCallback } from 'react'
 import {
   View, Text, StyleSheet, TouchableOpacity,
@@ -36,87 +36,82 @@ const CARD_THEMES = [
 ] as const
 type ThemeId = typeof CARD_THEMES[number]['id']
 
-// ── Canvas Export — テーマ色tint付き透過PNG (1080×1920) ──────────────────────
-function exportOverlayPNG(record: RaceRecord, themeId: ThemeId) {
-  if (typeof document === 'undefined') return
+// ── 共通 Canvas ユーティリティ ─────────────────────────────────────────────
+function rrPath(
+  c: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number, r: number,
+) {
+  c.beginPath()
+  c.moveTo(x + r, y); c.lineTo(x + w - r, y)
+  c.quadraticCurveTo(x + w, y, x + w, y + r)
+  c.lineTo(x + w, y + h - r)
+  c.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
+  c.lineTo(x + r, y + h)
+  c.quadraticCurveTo(x, y + h, x, y + h - r)
+  c.lineTo(x, y + r)
+  c.quadraticCurveTo(x, y, x + r, y)
+  c.closePath()
+}
 
-  const W = 1080, H = 1920
-  const cv = document.createElement('canvas')
-  cv.width = W; cv.height = H
-  const c = cv.getContext('2d')!
-
-  // テーマに合わせた微妙な色づきの背景（透過ベース：約22% opacity）
-  const theme = CARD_THEMES.find(t => t.id === themeId) ?? CARD_THEMES[0]
-  const bgGrad = c.createLinearGradient(W * 0.15, 0, W * 0.85, H)
-  theme.colors.forEach((hex, i) => {
-    bgGrad.addColorStop(i / (theme.colors.length - 1), `rgba(${hexRgb(hex)},0.22)`)
-  })
-  c.fillStyle = bgGrad
-  c.fillRect(0, 0, W, H)
-
-  function shadow(blur = 20, color = 'rgba(0,0,0,0.92)') {
-    c.shadowColor = color; c.shadowBlur = blur
-  }
-  function noShadow() {
-    c.shadowColor = 'transparent'; c.shadowBlur = 0; c.shadowOffsetX = 0; c.shadowOffsetY = 0
-  }
-
-  function rr(x: number, y: number, w: number, h: number, r: number) {
-    c.beginPath()
-    c.moveTo(x + r, y); c.lineTo(x + w - r, y)
-    c.quadraticCurveTo(x + w, y, x + w, y + r)
-    c.lineTo(x + w, y + h - r)
-    c.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
-    c.lineTo(x + r, y + h)
-    c.quadraticCurveTo(x, y + h, x, y + h - r)
-    c.lineTo(x, y + r)
-    c.quadraticCurveTo(x, y, x + r, y)
-    c.closePath()
-  }
-
-  // ── グラスブロック（中央） ──
-  const bx = 68, by = H / 2 - 360, bw = W - 136, bh = 680
-
+/**
+ * カードをCanvasContextに描画（背景なし — 透過PNG/動画共通）
+ * bgAlpha:     グラス背景の不透明度 — PNG: 0.15  / 動画: 0.72
+ * borderAlpha: 枠線の不透明度       — PNG: 0.40  / 動画: 0.90
+ */
+function drawCard(
+  c: CanvasRenderingContext2D,
+  record: RaceRecord,
+  theme: typeof CARD_THEMES[number],
+  W: number, H: number,
+  bgAlpha = 0.15,
+  borderAlpha = 0.40,
+) {
   const dotRgb = hexRgb(theme.dot)
-  c.shadowColor = 'rgba(0,0,0,0.45)'; c.shadowBlur = 80; c.shadowOffsetY = 24
-  c.fillStyle = `rgba(${dotRgb},0.15)`
-  rr(bx, by, bw, bh, 44); c.fill()
-  noShadow()
+  const sh = (blur = 20, col = 'rgba(0,0,0,0.92)') => { c.shadowColor = col; c.shadowBlur = blur }
+  const ns = () => { c.shadowColor = 'transparent'; c.shadowBlur = 0; c.shadowOffsetX = 0; c.shadowOffsetY = 0 }
 
-  c.strokeStyle = `rgba(${dotRgb},0.40)`; c.lineWidth = 2.5
-  rr(bx, by, bw, bh, 44); c.stroke()
+  const bx = 68, by = H / 2 - 340, bw = W - 136, bh = 680
+
+  // グラスブロック
+  c.shadowColor = 'rgba(0,0,0,0.50)'; c.shadowBlur = 80; c.shadowOffsetY = 24
+  c.fillStyle = `rgba(${dotRgb},${bgAlpha})`
+  rrPath(c, bx, by, bw, bh, 44); c.fill()
+  ns()
+
+  c.strokeStyle = `rgba(${dotRgb},${borderAlpha})`
+  c.lineWidth = bgAlpha > 0.5 ? 3 : 2.5
+  rrPath(c, bx, by, bw, bh, 44); c.stroke()
 
   const tx = bx + 64
 
-  // 種目ラベル
-  shadow(16, 'rgba(0,0,0,0.85)')
+  // 種目
+  sh(16, 'rgba(0,0,0,0.85)')
   c.font = '700 40px system-ui, sans-serif'
   c.fillStyle = '#ffffff'
   c.fillText(record.event, tx, by + 94)
 
-  // 大きいタイム（自動縮小）
+  // タイム（自動縮小）
   let fs = 200
   c.font = `800 ${fs}px system-ui, sans-serif`
   while (c.measureText(record.result_display).width > bw - 110 && fs > 96) {
     fs -= 6; c.font = `800 ${fs}px system-ui, sans-serif`
   }
-  shadow(30, 'rgba(0,0,0,0.95)')
+  sh(30, 'rgba(0,0,0,0.95)')
   c.fillStyle = '#ffffff'
   c.fillText(record.result_display, tx, by + 94 + fs + 16)
 
   // PB / SB バッジ
   const badgeY = by + 94 + fs + 54
-  noShadow()
+  ns()
   if (record.is_pb || record.is_sb) {
-    const label = record.is_pb ? '自己ベスト！' : 'シーズンベスト！'
+    const label  = record.is_pb ? '自己ベスト！' : 'シーズンベスト！'
     const badgeW = record.is_pb ? 260 : 340
-    c.fillStyle = 'rgba(255,255,255,0.12)'; rr(tx, badgeY, badgeW, 60, 14); c.fill()
-    c.strokeStyle = 'rgba(255,255,255,0.65)'; c.lineWidth = 2; rr(tx, badgeY, badgeW, 60, 14); c.stroke()
-    shadow(10, 'rgba(0,0,0,0.6)')
-    c.font = '800 30px system-ui, sans-serif'
-    c.fillStyle = '#ffffff'
+    c.fillStyle   = 'rgba(255,255,255,0.12)'; rrPath(c, tx, badgeY, badgeW, 60, 14); c.fill()
+    c.strokeStyle = 'rgba(255,255,255,0.65)'; c.lineWidth = 2; rrPath(c, tx, badgeY, badgeW, 60, 14); c.stroke()
+    sh(10, 'rgba(0,0,0,0.6)')
+    c.font = '800 30px system-ui, sans-serif'; c.fillStyle = '#ffffff'
     c.fillText(label, tx + 20, badgeY + 41)
-    noShadow()
+    ns()
   }
 
   // セパレーター
@@ -125,9 +120,8 @@ function exportOverlayPNG(record: RaceRecord, themeId: ThemeId) {
   c.beginPath(); c.moveTo(tx, sepY); c.lineTo(bx + bw - 64, sepY); c.stroke()
 
   // メタ情報
-  shadow(12, 'rgba(0,0,0,0.8)')
-  c.font = '400 36px system-ui, sans-serif'
-  c.fillStyle = 'rgba(255,255,255,0.88)'
+  sh(12, 'rgba(0,0,0,0.8)')
+  c.font = '400 36px system-ui, sans-serif'; c.fillStyle = 'rgba(255,255,255,0.88)'
   let my = sepY + 64
   c.fillText(formatDateJP(record.race_date), tx, my)
   if (record.competition_name) { my += 56; c.fillText(record.competition_name, tx, my) }
@@ -135,36 +129,117 @@ function exportOverlayPNG(record: RaceRecord, themeId: ThemeId) {
     my += 56
     c.fillText(`wind  ${record.wind_ms >= 0 ? '+' : ''}${record.wind_ms} m/s`, tx, my)
   }
-  noShadow()
+  ns()
 
-  // sCORE ウォーターマーク — グラスブロック右下
-  shadow(12, 'rgba(0,0,0,0.6)')
+  // sCORE ウォーターマーク — 右下
+  sh(12, 'rgba(0,0,0,0.6)')
   c.textAlign = 'right'
-  c.font = '900 72px system-ui, sans-serif'
-  c.fillStyle = 'rgba(255,255,255,0.70)'
+  c.font = '900 72px system-ui, sans-serif'; c.fillStyle = 'rgba(255,255,255,0.70)'
   c.fillText('sCORE', bx + bw - 44, by + bh - 36)
-  noShadow()
-  c.textAlign = 'left'
-
-  // ダウンロード
-  const a = document.createElement('a')
-  a.download = `score-${record.event.replace(/[^a-z0-9]/gi, '')}-overlay.png`
-  a.href = cv.toDataURL('image/png')
-  a.click()
+  ns(); c.textAlign = 'left'
 }
 
-// ── プレビューコンポーネント（アプリ内表示用） ───────────────────────────────
+// ── PNG Export — カードのみ、背景完全透過 ────────────────────────────────────
+function exportOverlayPNG(record: RaceRecord, themeId: ThemeId) {
+  if (typeof document === 'undefined') return
+  const W = 1080, H = 1920
+  const cv = document.createElement('canvas')
+  cv.width = W; cv.height = H
+  const c = cv.getContext('2d')!
+  // 背景は一切塗らない → 完全透過
+  const theme = CARD_THEMES.find(t => t.id === themeId) ?? CARD_THEMES[0]
+  drawCard(c, record, theme, W, H, 0.15, 0.40)
+  const a = document.createElement('a')
+  a.download = `score-${record.event.replace(/[^a-z0-9]/gi, '')}-overlay.png`
+  a.href = cv.toDataURL('image/png'); a.click()
+}
+
+// ── スピン動画 Export — 透過WebM (VP9) ────────────────────────────────────
+function exportSpinVideo(record: RaceRecord, themeId: ThemeId): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (typeof document === 'undefined') { reject(new Error('no_document')); return }
+
+    const MIME = 'video/webm;codecs=vp9'
+    if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported(MIME)) {
+      reject(new Error('VP9_UNSUPPORTED')); return
+    }
+
+    const W = 1080, H = 1920
+    const theme = CARD_THEMES.find(t => t.id === themeId) ?? CARD_THEMES[0]
+
+    // カードを offscreen に一度描画（動画用: より不透明なガラス）
+    const offscreen = document.createElement('canvas')
+    offscreen.width = W; offscreen.height = H
+    drawCard(offscreen.getContext('2d', { alpha: true })!, record, theme, W, H, 0.72, 0.90)
+
+    // 録画用 canvas
+    const cv = document.createElement('canvas')
+    cv.width = W; cv.height = H
+    const c = cv.getContext('2d', { alpha: true })!
+
+    const OMEGA = 2 * Math.PI  // 1回転/秒
+    const TOTAL = 3.6          // 3.6秒 = 3.6回転
+
+    const stream = cv.captureStream(30)
+    const chunks: Blob[] = []
+    let recorder: MediaRecorder
+
+    try {
+      recorder = new MediaRecorder(stream, { mimeType: MIME, videoBitsPerSecond: 6_000_000 })
+    } catch {
+      reject(new Error('VP9_UNSUPPORTED')); return
+    }
+
+    recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data) }
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, { type: MIME })
+      const url  = URL.createObjectURL(blob)
+      const a    = document.createElement('a')
+      a.download = `score-${record.event.replace(/[^a-z0-9]/gi, '')}-spin.webm`
+      a.href = url; a.click()
+      URL.revokeObjectURL(url)
+      resolve()
+    }
+    recorder.onerror = () => reject(new Error('recorder_error'))
+    recorder.start(200)
+
+    let t0: number | null = null
+    const frame = (ts: number) => {
+      if (!t0) t0 = ts
+      const elapsed = (ts - t0) / 1000
+
+      if (elapsed >= TOTAL) {
+        // 最後に正面で1フレーム描いてから停止
+        c.clearRect(0, 0, W, H); c.drawImage(offscreen, 0, 0)
+        setTimeout(() => recorder.stop(), 200)
+        return
+      }
+
+      const scaleX = Math.cos(elapsed * OMEGA)
+      c.clearRect(0, 0, W, H)
+      if (Math.abs(scaleX) > 0.01) {
+        c.save()
+        c.translate(W / 2, H / 2)
+        c.scale(scaleX, 1)
+        c.translate(-W / 2, -H / 2)
+        c.drawImage(offscreen, 0, 0)
+        c.restore()
+      }
+      requestAnimationFrame(frame)
+    }
+    requestAnimationFrame(frame)
+  })
+}
+
+// ── プレビューコンポーネント ───────────────────────────────────────────────
 function OverlayPreview({ record, themeId }: { record: RaceRecord; themeId: ThemeId }) {
   const theme = CARD_THEMES.find(t => t.id === themeId) ?? CARD_THEMES[0]
   return (
-    <LinearGradient
-      colors={theme.colors as unknown as [string, string, ...string[]]}
-      style={pv.container}
-      start={{ x: 0.15, y: 0 }}
-      end={{ x: 0.85, y: 1 }}
-    >
-      {/* グラスブロック — テーマ色で染める */}
-      <View style={[pv.glass, { backgroundColor: theme.dot + '20', borderColor: theme.dot + '60' }]}>
+    <View style={pv.container}>
+      <View style={[pv.glass, {
+        backgroundColor: theme.dot + '20',
+        borderColor:     theme.dot + '60',
+      }]}>
         <Text style={pv.event}>{record.event}</Text>
         <Text style={pv.result} adjustsFontSizeToFit numberOfLines={1}>
           {record.result_display}
@@ -204,10 +279,9 @@ function OverlayPreview({ record, themeId }: { record: RaceRecord; themeId: Them
             </View>
           )}
         </View>
-        {/* sCORE ウォーターマーク — 右下 */}
         <Text style={pv.wmScore}>sCORE</Text>
       </View>
-    </LinearGradient>
+    </View>
   )
 }
 
@@ -216,11 +290,12 @@ export default function ShareCardScreen() {
   const router = useRouter()
   const { recordId } = useLocalSearchParams<{ recordId?: string }>()
 
-  const [records,   setRecords]   = useState<RaceRecord[]>([])
-  const [selected,  setSelected]  = useState<RaceRecord | null>(null)
-  const [loading,   setLoading]   = useState(true)
-  const [exporting, setExporting] = useState(false)
-  const [themeId,   setThemeId]   = useState<ThemeId>('ocean')
+  const [records,    setRecords]    = useState<RaceRecord[]>([])
+  const [selected,   setSelected]   = useState<RaceRecord | null>(null)
+  const [loading,    setLoading]    = useState(true)
+  const [exporting,  setExporting]  = useState(false)
+  const [themeId,    setThemeId]    = useState<ThemeId>('ocean')
+  const [exportMode, setExportMode] = useState<'png' | 'video'>('png')
 
   useEffect(() => {
     ;(async () => {
@@ -248,11 +323,38 @@ export default function ShareCardScreen() {
       Toast.show({
         type: 'success',
         text1: '透過PNGをダウンロードしました',
-        text2: 'インスタのストーリーで動画に重ねて使えます',
+        text2: 'インスタのストーリーで動画の上に重ねて使えます',
         visibilityTime: 2800,
       })
     } catch {
       Toast.show({ type: 'error', text1: 'ダウンロードに失敗しました' })
+    } finally {
+      setExporting(false)
+    }
+  }, [selected, themeId])
+
+  const handleVideoExport = useCallback(async () => {
+    if (!selected) return
+    setExporting(true)
+    try {
+      await exportSpinVideo(selected, themeId)
+      Toast.show({
+        type: 'success',
+        text1: 'スピン動画をダウンロードしました',
+        text2: 'CapCutなどで手のひら動画に重ねてください',
+        visibilityTime: 3200,
+      })
+    } catch (e: any) {
+      if (e?.message === 'VP9_UNSUPPORTED') {
+        Toast.show({
+          type: 'error',
+          text1: '透過動画に対応していないブラウザです',
+          text2: 'Chromeでお試しください',
+          visibilityTime: 3500,
+        })
+      } else {
+        Toast.show({ type: 'error', text1: '動画の作成に失敗しました' })
+      }
     } finally {
       setExporting(false)
     }
@@ -268,7 +370,6 @@ export default function ShareCardScreen() {
       '',
       'scorej.run で記録管理',
     ].filter(Boolean).join('\n')
-
     try {
       if (typeof navigator !== 'undefined' && navigator.clipboard) {
         await navigator.clipboard.writeText(lines)
@@ -278,6 +379,8 @@ export default function ShareCardScreen() {
       Toast.show({ type: 'error', text1: 'コピーに失敗しました' })
     }
   }, [selected])
+
+  const isVideo = exportMode === 'video'
 
   return (
     <View style={s.screen}>
@@ -306,15 +409,37 @@ export default function ShareCardScreen() {
             </TouchableOpacity>
           </View>
         ) : (
-          <ScrollView
-            contentContainerStyle={s.scroll}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* プレビューヒント */}
+          <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+
+            {/* PNG / 動画 モード切替 */}
+            <View style={s.modeToggle}>
+              {(['png', 'video'] as const).map(m => (
+                <TouchableOpacity
+                  key={m}
+                  style={[s.modeBtn, exportMode === m && s.modeBtnActive]}
+                  onPress={() => setExportMode(m)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name={m === 'png' ? 'image-outline' : 'videocam-outline'}
+                    size={15}
+                    color={exportMode === m ? '#fff' : 'rgba(255,255,255,0.45)'}
+                  />
+                  <Text style={[s.modeTxt, exportMode === m && { color: '#fff' }]}>
+                    {m === 'png' ? '透過PNG' : 'スピン動画'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* ヒント */}
             <View style={s.hintRow}>
-              <Ionicons name="layers-outline" size={14} color={BRAND} />
+              <Ionicons name={isVideo ? 'sync-outline' : 'layers-outline'} size={14} color={BRAND} />
               <Text style={s.hintTxt}>
-                背景透過のPNGを書き出します — インスタのストーリーで動画の上に重ねて投稿できます
+                {isVideo
+                  ? 'カードがくるくる回る透過WebM動画を書き出します — CapCutなどで手のひら動画の上に重ねてください（Chrome推奨）'
+                  : '背景透過のPNGを書き出します — インスタのストーリーで動画の上に重ねて投稿できます'
+                }
               </Text>
             </View>
 
@@ -322,9 +447,6 @@ export default function ShareCardScreen() {
             {selected != null && (
               <View style={s.previewWrap}>
                 <OverlayPreview record={selected} themeId={themeId} />
-                <View style={s.sampleBadge}>
-                  <Text style={s.sampleTxt}>サンプル背景</Text>
-                </View>
               </View>
             )}
 
@@ -367,16 +489,19 @@ export default function ShareCardScreen() {
               {Platform.OS === 'web' && (
                 <TouchableOpacity
                   style={[s.dlBtn, exporting && { opacity: 0.6 }]}
-                  onPress={handleDownload}
+                  onPress={isVideo ? handleVideoExport : handleDownload}
                   disabled={exporting || !selected}
                   activeOpacity={0.85}
                 >
                   {exporting
                     ? <ActivityIndicator color="#fff" size="small" />
-                    : <Ionicons name="download-outline" size={20} color="#fff" />
+                    : <Ionicons name={isVideo ? 'videocam-outline' : 'download-outline'} size={20} color="#fff" />
                   }
                   <Text style={s.dlTxt}>
-                    {exporting ? 'ダウンロード中...' : '透過PNGをダウンロード'}
+                    {exporting
+                      ? (isVideo ? '動画を作成中...' : 'ダウンロード中...')
+                      : (isVideo ? 'スピン動画をダウンロード' : '透過PNGをダウンロード')
+                    }
                   </Text>
                 </TouchableOpacity>
               )}
@@ -393,16 +518,19 @@ export default function ShareCardScreen() {
 
             {/* 使い方ガイド */}
             <View style={s.guide}>
-              {[
+              {(isVideo ? [
+                { n: '1', t: 'スピン動画をダウンロード（Chrome推奨）' },
+                { n: '2', t: 'CapCutなどで手のひらの動画を背景に設定' },
+                { n: '3', t: 'レイヤーに動画を追加して全画面に広げる' },
+                { n: '4', t: 'SNSに投稿' },
+              ] : [
                 { n: '1', t: 'PNGをダウンロード' },
                 { n: '2', t: 'インスタでストーリーを開き、動画を背景に設定' },
                 { n: '3', t: 'スタンプ追加 → 「ギャラリー」からPNGを選択' },
                 { n: '4', t: '全画面に広げて投稿' },
-              ].map(step => (
+              ]).map(step => (
                 <View key={step.n} style={s.guideRow}>
-                  <View style={s.guideNum}>
-                    <Text style={s.guideNumTxt}>{step.n}</Text>
-                  </View>
+                  <View style={s.guideNum}><Text style={s.guideNumTxt}>{step.n}</Text></View>
                   <Text style={s.guideTxt}>{step.t}</Text>
                 </View>
               ))}
@@ -410,11 +538,7 @@ export default function ShareCardScreen() {
 
             {/* 記録セレクター */}
             <Text style={s.selectorLabel}>記録を選択</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={s.chips}
-            >
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>
               {records.map(r => (
                 <TouchableOpacity
                   key={r.id}
@@ -423,16 +547,10 @@ export default function ShareCardScreen() {
                   activeOpacity={0.8}
                 >
                   {r.is_pb && (
-                    <View style={s.pbDot}>
-                      <Text style={s.pbDotTxt}>自己ベスト</Text>
-                    </View>
+                    <View style={s.pbDot}><Text style={s.pbDotTxt}>自己ベスト</Text></View>
                   )}
-                  <Text style={[s.chipEvent, selected?.id === r.id && { color: '#fff' }]}>
-                    {r.event}
-                  </Text>
-                  <Text style={[s.chipResult, selected?.id === r.id && { color: '#fff' }]}>
-                    {r.result_display}
-                  </Text>
+                  <Text style={[s.chipEvent, selected?.id === r.id && { color: '#fff' }]}>{r.event}</Text>
+                  <Text style={[s.chipResult, selected?.id === r.id && { color: '#fff' }]}>{r.result_display}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -452,84 +570,44 @@ const pv = StyleSheet.create({
     overflow: 'hidden',
     padding: 18,
     justifyContent: 'center',
+    // 背景透過 — アプリの暗背景がそのまま見える
   },
-  // ── グラスブロック ──
   glass: {
-    backgroundColor: 'rgba(255,255,255,0.16)',
     borderRadius: 18,
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.35)',
     padding: 20,
     gap: 8,
     ...(Platform.OS === 'web' ? { backdropFilter: 'blur(20px)' } as any : {}),
   },
   event: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '700',
+    color: '#ffffff', fontSize: 13, fontWeight: '700',
     textShadowColor: 'rgba(0,0,0,0.9)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 8,
+    textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 8,
   },
   result: {
-    color: '#fff',
-    fontSize: 52,
-    fontWeight: '800',
-    letterSpacing: -1,
-    minWidth: 10,
+    color: '#fff', fontSize: 52, fontWeight: '800', letterSpacing: -1, minWidth: 10,
     textShadowColor: 'rgba(0,0,0,0.95)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 16,
+    textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 16,
   },
-  badgeRow: {
-    flexDirection: 'row',
-    gap: 6,
-  },
+  badgeRow: { flexDirection: 'row', gap: 6 },
   badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 7,
-    borderWidth: 1,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 9, paddingVertical: 4, borderRadius: 7, borderWidth: 1,
   },
-  badgeTxt: {
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    marginVertical: 2,
-  },
-  metaList: {
-    gap: 5,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
+  badgeTxt: { fontSize: 12, fontWeight: '800' },
+  divider:  { height: 1, backgroundColor: 'rgba(255,255,255,0.25)', marginVertical: 2 },
+  metaList: { gap: 5 },
+  metaRow:  { flexDirection: 'row', alignItems: 'center', gap: 6 },
   metaTxt: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 12,
-    flex: 1,
+    color: 'rgba(255,255,255,0.8)', fontSize: 12, flex: 1,
     textShadowColor: 'rgba(0,0,0,0.7)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
   },
-  // ── sCORE ウォーターマーク（右下）──
   wmScore: {
-    color: 'rgba(255,255,255,0.70)',
-    fontSize: 28,
-    fontWeight: '900',
-    letterSpacing: 2,
-    textAlign: 'right',
-    marginTop: 6,
+    color: 'rgba(255,255,255,0.70)', fontSize: 28, fontWeight: '900',
+    letterSpacing: 2, textAlign: 'right', marginTop: 6,
     textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 10,
+    textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 10,
   },
 })
 
@@ -545,20 +623,23 @@ const s = StyleSheet.create({
   goBack:      { marginTop: 8, paddingHorizontal: 28, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
   goBackTxt:   { color: BRAND, fontSize: 15, fontWeight: '700' },
 
-  scroll:      { padding: 16, paddingBottom: 56, gap: 18 },
+  scroll: { padding: 16, paddingBottom: 56, gap: 18 },
 
-  hintRow:     { flexDirection: 'row', alignItems: 'flex-start', gap: 7, backgroundColor: BRAND + '15', borderRadius: 10, padding: 12, borderWidth: 1, borderColor: BRAND + '30' },
-  hintTxt:     { color: 'rgba(255,255,255,0.65)', fontSize: 12, flex: 1, lineHeight: 18 },
+  modeToggle:    { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 12, padding: 3, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  modeBtn:       { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 10 },
+  modeBtnActive: { backgroundColor: BRAND },
+  modeTxt:       { color: 'rgba(255,255,255,0.45)', fontSize: 13, fontWeight: '700' },
 
-  previewWrap: { maxWidth: 340, alignSelf: 'center', width: '100%', position: 'relative' },
-  sampleBadge: { position: 'absolute', bottom: 10, left: 10, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
-  sampleTxt:   { color: 'rgba(255,255,255,0.55)', fontSize: 10 },
+  hintRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 7, backgroundColor: BRAND + '15', borderRadius: 10, padding: 12, borderWidth: 1, borderColor: BRAND + '30' },
+  hintTxt: { color: 'rgba(255,255,255,0.65)', fontSize: 12, flex: 1, lineHeight: 18 },
 
-  actions:     { gap: 10 },
-  dlBtn:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, backgroundColor: BRAND, borderRadius: 14, paddingVertical: 15 },
-  dlTxt:       { color: '#fff', fontSize: 16, fontWeight: '700' },
-  copyBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 14, paddingVertical: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  copyTxt:     { color: 'rgba(255,255,255,0.65)', fontSize: 15, fontWeight: '600' },
+  previewWrap: { maxWidth: 340, alignSelf: 'center', width: '100%' },
+
+  actions:  { gap: 10 },
+  dlBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, backgroundColor: BRAND, borderRadius: 14, paddingVertical: 15 },
+  dlTxt:    { color: '#fff', fontSize: 16, fontWeight: '700' },
+  copyBtn:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 14, paddingVertical: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  copyTxt:  { color: 'rgba(255,255,255,0.65)', fontSize: 15, fontWeight: '600' },
 
   guide:       { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 14, padding: 16, gap: 12 },
   guideRow:    { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
@@ -567,17 +648,12 @@ const s = StyleSheet.create({
   guideTxt:    { color: 'rgba(255,255,255,0.55)', fontSize: 13, flex: 1, lineHeight: 20 },
 
   selectorLabel: { color: 'rgba(255,255,255,0.35)', fontSize: 11, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase' },
-  chips:         { gap: 10, paddingBottom: 4 },
+  chips: { gap: 10, paddingBottom: 4 },
   chip: {
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.09)',
-    minWidth: 90,
-    alignItems: 'center',
-    position: 'relative',
+    backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 10,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.09)',
+    minWidth: 90, alignItems: 'center', position: 'relative',
   },
   chipActive:  { backgroundColor: BRAND, borderColor: BRAND },
   chipEvent:   { color: 'rgba(255,255,255,0.45)', fontSize: 11, fontWeight: '600' },
