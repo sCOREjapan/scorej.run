@@ -9,7 +9,6 @@ import { useRouter, useLocalSearchParams } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
-import Svg, { Path } from 'react-native-svg'
 import { BRAND } from '../lib/theme'
 import Toast from 'react-native-toast-message'
 import type { RaceRecord } from '../types'
@@ -21,114 +20,46 @@ function formatDateJP(s: string) {
   return `${y}年${m}月${d}日`
 }
 
-// ── sCORE ロゴ（React Native 用 SVG） ────────────────────────────────────────
-// 心拍グラフ→上昇アロー + "sCORE" テキスト
-function ScoreIcon({ height = 24 }: { height?: number }) {
-  const w = height * 1.55
-  return (
-    <Svg width={w} height={height} viewBox="0 0 124 80">
-      {/* 心拍→上昇カーブ */}
-      <Path
-        d="M0,52 L28,52 L42,9 L55,72 L65,52 C80,52 83,18 104,10"
-        stroke="#ffffff"
-        strokeWidth="8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-      {/* 矢印ヘッド */}
-      <Path
-        d="M112,4 L97,20 L108,26 Z"
-        fill="#ffffff"
-      />
-    </Svg>
-  )
+/** hex (#rrggbb) → "r,g,b" string for rgba() */
+function hexRgb(hex: string): string {
+  return `${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)}`
 }
 
-// ── sCORE ロゴ（Canvas 書き出し用） ──────────────────────────────────────────
-function drawScoreLogo(
-  c: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  logoH: number,
-  withShadow = true,
-) {
-  const iW = logoH * 1.55   // アイコン幅
-  const iH = logoH           // アイコン高さ
-  const sw = iH * 0.095      // 線幅
+// ── カードテーマ定義 ──────────────────────────────────────────────────────────
+const CARD_THEMES = [
+  { id: 'ocean',    label: 'オーシャン',   colors: ['#0f2027', '#203a43', '#2c5364'] as const, dot: '#5bc8f5' },
+  { id: 'fire',     label: 'ファイア',     colors: ['#1a0800', '#5c1a00', '#c0392b'] as const, dot: '#ff6b35' },
+  { id: 'forest',   label: 'フォレスト',   colors: ['#001a0a', '#073d1f', '#145a32'] as const, dot: '#2ecc71' },
+  { id: 'galaxy',   label: 'ギャラクシー', colors: ['#0d0019', '#1a0033', '#4a0080'] as const, dot: '#c39bd3' },
+  { id: 'gold',     label: 'ゴールド',     colors: ['#1a1000', '#3d2800', '#7d5a00'] as const, dot: '#f1c40f' },
+  { id: 'midnight', label: 'ミッドナイト', colors: ['#0a0a0a', '#1a1a2e', '#16213e'] as const, dot: '#a0a8c0' },
+] as const
+type ThemeId = typeof CARD_THEMES[number]['id']
 
-  if (withShadow) { c.shadowColor = 'rgba(0,0,0,0.9)'; c.shadowBlur = 14 }
-
-  // ── アイコン：ECG + 上昇カーブ ──
-  c.strokeStyle = '#ffffff'
-  c.lineWidth   = sw
-  c.lineCap     = 'round'
-  c.lineJoin    = 'round'
-
-  const base = y + iH * 0.65   // 基準ライン
-
-  c.beginPath()
-  c.moveTo(x, base)
-  c.lineTo(x + iW * 0.225, base)                              // 水平
-  c.lineTo(x + iW * 0.340, y + iH * 0.11)                    // 上スパイク
-  c.lineTo(x + iW * 0.445, y + iH * 0.90)                    // 谷
-  c.lineTo(x + iW * 0.525, base)                              // 戻り
-  c.bezierCurveTo(
-    x + iW * 0.650, base,
-    x + iW * 0.670, y + iH * 0.20,
-    x + iW * 0.840, y + iH * 0.12,
-  )
-  c.stroke()
-
-  // ── 矢印ヘッド ──
-  c.shadowBlur = 0
-  const ax = x + iW * 0.905, ay = y + iH * 0.05
-  const ah = sw * 2.1
-  c.fillStyle = '#ffffff'
-  c.beginPath()
-  c.moveTo(ax,          ay)                   // 先端
-  c.lineTo(ax - ah * 1.2, ay + ah * 1.3)     // 左根元
-  c.lineTo(ax + ah * 0.9, ay + ah * 0.55)    // 右根元
-  c.closePath()
-  c.fill()
-
-  if (withShadow) { c.shadowColor = 'rgba(0,0,0,0.9)'; c.shadowBlur = 14 }
-
-  // ── テキスト "sCORE" ──
-  const gap    = logoH * 0.18
-  const txtX   = x + iW + gap
-  const txtY   = y + iH * 0.78
-
-  // "s"（白・小）
-  const sSize = logoH * 0.56
-  c.font      = `600 ${sSize}px system-ui, -apple-system, sans-serif`
-  c.fillStyle = '#ffffff'
-  c.fillText('s', txtX, txtY)
-  const sW = c.measureText('s').width * 0.92
-
-  // "CORE"（白・大）
-  const coreSize = logoH * 0.74
-  c.font      = `800 ${coreSize}px system-ui, -apple-system, sans-serif`
-  c.fillStyle = '#ffffff'
-  c.fillText('CORE', txtX + sW, txtY)
-
-  c.shadowBlur = 0
-}
-
-// ── Canvas Export — 透過PNG (1080×1920) ────────────────────────────────────
-function exportOverlayPNG(record: RaceRecord) {
+// ── Canvas Export — テーマ色tint付き透過PNG (1080×1920) ──────────────────────
+function exportOverlayPNG(record: RaceRecord, themeId: ThemeId) {
   if (typeof document === 'undefined') return
 
   const W = 1080, H = 1920
   const cv = document.createElement('canvas')
   cv.width = W; cv.height = H
   const c = cv.getContext('2d')!
-  // 背景は塗らない → 完全透明
+
+  // テーマに合わせた微妙な色づきの背景（透過ベース：約22% opacity）
+  const theme = CARD_THEMES.find(t => t.id === themeId) ?? CARD_THEMES[0]
+  const bgGrad = c.createLinearGradient(W * 0.15, 0, W * 0.85, H)
+  theme.colors.forEach((hex, i) => {
+    bgGrad.addColorStop(i / (theme.colors.length - 1), `rgba(${hexRgb(hex)},0.22)`)
+  })
+  c.fillStyle = bgGrad
+  c.fillRect(0, 0, W, H)
 
   function shadow(blur = 20, color = 'rgba(0,0,0,0.92)') {
     c.shadowColor = color; c.shadowBlur = blur
   }
-  function noShadow() { c.shadowColor = 'transparent'; c.shadowBlur = 0; c.shadowOffsetX = 0; c.shadowOffsetY = 0 }
+  function noShadow() {
+    c.shadowColor = 'transparent'; c.shadowBlur = 0; c.shadowOffsetX = 0; c.shadowOffsetY = 0
+  }
 
   function rr(x: number, y: number, w: number, h: number, r: number) {
     c.beginPath()
@@ -143,18 +74,14 @@ function exportOverlayPNG(record: RaceRecord) {
     c.closePath()
   }
 
-  // ロゴなし（グラスブロックのみ）
-
   // ── グラスブロック（中央） ──
   const bx = 68, by = H / 2 - 360, bw = W - 136, bh = 680
 
-  // ブロックの影
   c.shadowColor = 'rgba(0,0,0,0.45)'; c.shadowBlur = 80; c.shadowOffsetY = 24
   c.fillStyle = 'rgba(255,255,255,0.17)'
   rr(bx, by, bw, bh, 44); c.fill()
   noShadow()
 
-  // グラスの枠線
   c.strokeStyle = 'rgba(255,255,255,0.38)'; c.lineWidth = 2.5
   rr(bx, by, bw, bh, 44); c.stroke()
 
@@ -176,7 +103,7 @@ function exportOverlayPNG(record: RaceRecord) {
   c.fillStyle = '#ffffff'
   c.fillText(record.result_display, tx, by + 94 + fs + 16)
 
-  // PB / SB バッジ（白）
+  // PB / SB バッジ
   const badgeY = by + 94 + fs + 54
   noShadow()
   if (record.is_pb || record.is_sb) {
@@ -209,17 +136,12 @@ function exportOverlayPNG(record: RaceRecord) {
   }
   noShadow()
 
-  // ウォーターマーク — グラスブロック右下
-  const wmX = bx + bw - 44   // ブロック右端から内側
-  const wmBotY = by + bh - 30 // ブロック底辺から上30px
+  // sCORE ウォーターマーク — グラスブロック右下
   shadow(10, 'rgba(0,0,0,0.55)')
   c.textAlign = 'right'
-  c.font = '800 48px system-ui, sans-serif'
+  c.font = '900 52px system-ui, sans-serif'
   c.fillStyle = 'rgba(255,255,255,0.65)'
-  c.fillText('sCORE', wmX, wmBotY - 52)
-  c.font = '500 30px system-ui, sans-serif'
-  c.fillStyle = 'rgba(255,255,255,0.45)'
-  c.fillText('アプリをダウンロード！', wmX, wmBotY)
+  c.fillText('sCORE', bx + bw - 44, by + bh - 36)
   noShadow()
   c.textAlign = 'left'
 
@@ -229,17 +151,6 @@ function exportOverlayPNG(record: RaceRecord) {
   a.href = cv.toDataURL('image/png')
   a.click()
 }
-
-// ── カードテーマ定義 ──────────────────────────────────────────────────────────
-const CARD_THEMES = [
-  { id: 'ocean',    label: 'オーシャン',   colors: ['#0f2027', '#203a43', '#2c5364'] as const, dot: '#5bc8f5' },
-  { id: 'fire',     label: 'ファイア',     colors: ['#1a0800', '#5c1a00', '#c0392b'] as const, dot: '#ff6b35' },
-  { id: 'forest',   label: 'フォレスト',   colors: ['#001a0a', '#073d1f', '#145a32'] as const, dot: '#2ecc71' },
-  { id: 'galaxy',   label: 'ギャラクシー', colors: ['#0d0019', '#1a0033', '#4a0080'] as const, dot: '#c39bd3' },
-  { id: 'gold',     label: 'ゴールド',     colors: ['#1a1000', '#3d2800', '#7d5a00'] as const, dot: '#f1c40f' },
-  { id: 'midnight', label: 'ミッドナイト', colors: ['#0a0a0a', '#1a1a2e', '#16213e'] as const, dot: '#a0a8c0' },
-] as const
-type ThemeId = typeof CARD_THEMES[number]['id']
 
 // ── プレビューコンポーネント（アプリ内表示用） ───────────────────────────────
 function OverlayPreview({ record, themeId }: { record: RaceRecord; themeId: ThemeId }) {
@@ -251,15 +162,6 @@ function OverlayPreview({ record, themeId }: { record: RaceRecord; themeId: Them
       start={{ x: 0.15, y: 0 }}
       end={{ x: 0.85, y: 1 }}
     >
-      {/* ── sCORE ロゴヘッダー（大きく目立つように） ── */}
-      <View style={pv.logoHeader}>
-        <ScoreIcon height={36} />
-        <View style={pv.logoTextWrap}>
-          <Text style={pv.logoS}>s</Text>
-          <Text style={pv.logoCORE}>CORE</Text>
-        </View>
-      </View>
-
       {/* グラスブロック */}
       <View style={pv.glass}>
         <Text style={pv.event}>{record.event}</Text>
@@ -301,12 +203,8 @@ function OverlayPreview({ record, themeId }: { record: RaceRecord; themeId: Them
             </View>
           )}
         </View>
-      </View>
-
-      {/* フッター */}
-      <View style={pv.footer}>
-        <Text style={pv.footerUrl}>scorej.run</Text>
-        <Text style={pv.footerTag}>#sCORE陸上</Text>
+        {/* sCORE ウォーターマーク — 右下 */}
+        <Text style={pv.wmScore}>sCORE</Text>
       </View>
     </LinearGradient>
   )
@@ -345,7 +243,7 @@ export default function ShareCardScreen() {
     if (!selected) return
     setExporting(true)
     try {
-      exportOverlayPNG(selected)
+      exportOverlayPNG(selected, themeId)
       Toast.show({
         type: 'success',
         text1: '透過PNGをダウンロードしました',
@@ -357,7 +255,7 @@ export default function ShareCardScreen() {
     } finally {
       setExporting(false)
     }
-  }, [selected])
+  }, [selected, themeId])
 
   const handleCopyText = useCallback(async () => {
     if (!selected) return
@@ -552,39 +450,7 @@ const pv = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     padding: 18,
-    justifyContent: 'space-between',
-  },
-  // ── sCORE ロゴヘッダー ──
-  logoHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingTop: 4,
-    paddingBottom: 6,
-  },
-  logoTextWrap: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 0,
-  },
-  logoS: {
-    color: '#ffffff',
-    fontSize: 22,
-    fontWeight: '600',
-    textShadowColor: 'rgba(0,0,0,0.95)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 12,
-    lineHeight: 30,
-  },
-  logoCORE: {
-    color: '#ffffff',
-    fontSize: 30,
-    fontWeight: '900',
-    letterSpacing: 1,
-    textShadowColor: 'rgba(0,0,0,0.95)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 12,
-    lineHeight: 34,
+    justifyContent: 'center',
   },
   // ── グラスブロック ──
   glass: {
@@ -652,27 +518,17 @@ const pv = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
-  // ── フッター ──
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 6,
-  },
-  footerUrl: {
+  // ── sCORE ウォーターマーク（右下）──
+  wmScore: {
     color: 'rgba(255,255,255,0.55)',
-    fontSize: 12,
-    fontWeight: '700',
-    textShadowColor: 'rgba(0,0,0,0.7)',
+    fontSize: 20,
+    fontWeight: '900',
+    letterSpacing: 1,
+    textAlign: 'right',
+    marginTop: 4,
+    textShadowColor: 'rgba(0,0,0,0.8)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-  },
-  footerTag: {
-    color: 'rgba(255,255,255,0.40)',
-    fontSize: 11,
-    textShadowColor: 'rgba(0,0,0,0.6)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    textShadowRadius: 8,
   },
 })
 
