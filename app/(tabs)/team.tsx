@@ -127,6 +127,11 @@ function isPast(d: string) {
   const today = new Date(); today.setHours(0,0,0,0)
   return dt.getTime() < today.getTime()
 }
+function isNewEvent(createdAt: string) {
+  // 3日以内に追加された予定を "NEW" 扱い
+  return Date.now() - new Date(createdAt).getTime() < 3 * 24 * 60 * 60 * 1000
+}
+const EVENT_CONFIRMED_KEY = 'event_confirmed_ids'
 const EVENT_CFG: Record<string, { emoji: string; color: string; label: string }> = {
   practice: { emoji: '🏃', color: '#34C759', label: '練習' },
   race:     { emoji: '🏁', color: BRAND,     label: '試合' },
@@ -1683,6 +1688,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
   const [allBodyReports,    setAllBodyReports]    = useState<BodyReportRow[]>([])
   const [teamSessionsMap,   setTeamSessionsMap]   = useState<Record<string, TrainingSession[]>>({})
   const [teamEvents,        setTeamEvents]        = useState<TeamEventRow[]>([])
+  const [confirmedEventIds, setConfirmedEventIds] = useState<Set<string>>(new Set())
   const [bodyParts,         setBodyParts]         = useState<string[]>([])
   const [bodyDetail,        setBodyDetail]        = useState('')
   const [showBody,          setShowBody]          = useState(false)
@@ -1705,7 +1711,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
   const [plTab,             setPlTab]             = useState<'home'|'members'>('home')
 
   const load = useCallback(async () => {
-    const [sr, sleepRaw, condRaw, recovRaw, stretchRaw, msgs, mems, rpts, stats, teamSessions, evts] = await Promise.all([
+    const [sr, sleepRaw, condRaw, recovRaw, stretchRaw, msgs, mems, rpts, stats, teamSessions, evts, confirmedRaw] = await Promise.all([
       AsyncStorage.getItem(SESSIONS_KEY),
       AsyncStorage.getItem(SLEEP_KEY),
       AsyncStorage.getItem(CONDITION_MAP_KEY),
@@ -1717,10 +1723,12 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
       fetchPlayerStats(joined.code),
       fetchTeamSessions(joined.code),
       fetchTeamEvents(joined.code),
+      AsyncStorage.getItem(EVENT_CONFIRMED_KEY),
     ])
     const loadedSessions: TrainingSession[] = sr ? JSON.parse(sr) : []
     setSessions(loadedSessions)
     setSleepRecs(sleepRaw ? JSON.parse(sleepRaw) : [])
+    setConfirmedEventIds(new Set(confirmedRaw ? JSON.parse(confirmedRaw) : []))
     setConditionMap(condRaw ? JSON.parse(condRaw) : {})
     // ホーム画面と完全一致の hasSymptom 計算：回復記録のみ（痛み報告は含めない）
     try {
@@ -1789,6 +1797,17 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
     const t = setInterval(() => { load() }, 20000)
     return () => clearInterval(t)
   }, [load])
+
+  // 予定の確認済みトグル（端末ローカル保存 / コーチへ送信なし）
+  const toggleEventConfirm = useCallback(async (eventId: string) => {
+    setConfirmedEventIds(prev => {
+      const next = new Set(prev)
+      if (next.has(eventId)) next.delete(eventId)
+      else next.add(eventId)
+      AsyncStorage.setItem(EVENT_CONFIRMED_KEY, JSON.stringify([...next]))
+      return next
+    })
+  }, [])
 
   // Supabase Realtime — コーチのアナウンス・チームメイト情報をリアルタイムで受信
   useEffect(() => {
@@ -1997,7 +2016,22 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                 <AnimatedSection delay={80} type="fade-up">
                 <View style={{gap:8}}>
                   <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
-                    <Text style={pl.sectionTitle}>📅 チーム予定</Text>
+                    <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
+                      <Text style={pl.sectionTitle}>📅 チーム予定</Text>
+                      {/* 未確認の新着件数バッジ */}
+                      {(() => {
+                        const unconfirmedNew = teamEvents.filter(e =>
+                          !isPast(e.event_date) &&
+                          isNewEvent(e.created_at) &&
+                          !confirmedEventIds.has(e.id)
+                        ).length
+                        return unconfirmedNew > 0 ? (
+                          <View style={{backgroundColor:'#FF3B30',borderRadius:10,minWidth:18,height:18,alignItems:'center',justifyContent:'center',paddingHorizontal:5}}>
+                            <Text style={{color:'#fff',fontSize:10,fontWeight:'800'}}>{unconfirmedNew}</Text>
+                          </View>
+                        ) : null
+                      })()}
+                    </View>
                     {teamEvents.length > 0 && <Text style={{color:'#9ca3af',fontSize:11}}>{teamEvents.length}件</Text>}
                   </View>
                   {teamEvents.length === 0 ? (
@@ -2007,41 +2041,98 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                     </View>
                   ) : (
                     <View style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',overflow:'hidden'}}>
-                      {/* 最大3件分の高さで内部スクロール — コーチからのメッセージと同じレイアウト */}
                       <ScrollView
-                        style={{maxHeight: 210}}
+                        style={{maxHeight: 260}}
                         showsVerticalScrollIndicator={false}
                         nestedScrollEnabled
                         bounces={false}
                       >
                         {teamEvents.map((ev, i) => {
-                          const cfg = EVENT_CFG[ev.event_type] ?? EVENT_CFG.other
-                          const past = isPast(ev.event_date)
+                          const cfg      = EVENT_CFG[ev.event_type] ?? EVENT_CFG.other
+                          const past     = isPast(ev.event_date)
+                          const isNew    = !past && isNewEvent(ev.created_at)
+                          const confirmed = confirmedEventIds.has(ev.id)
                           return (
                             <View key={ev.id} style={{
-                              flexDirection:'row', alignItems:'center', gap:12,
-                              paddingHorizontal:14, paddingVertical:13,
                               borderBottomWidth: i < teamEvents.length-1 ? StyleSheet.hairlineWidth : 0,
                               borderBottomColor:'rgba(0,0,0,0.07)',
-                              opacity: past ? 0.5 : 1,
+                              backgroundColor: isNew && !confirmed ? 'rgba(0,180,216,0.05)' : 'transparent',
                             }}>
-                              <View style={{width:38,height:38,borderRadius:10,backgroundColor:cfg.color+'18',alignItems:'center',justifyContent:'center'}}>
-                                <Text style={{fontSize:18}}>{cfg.emoji}</Text>
-                              </View>
-                              <View style={{flex:1,gap:2}}>
-                                <Text style={{color:TEXT.primary,fontSize:14,fontWeight:'700'}}>{ev.title}</Text>
-                                <View style={{flexDirection:'row',alignItems:'center',gap:8,flexWrap:'wrap'}}>
-                                  <Text style={{color:cfg.color,fontSize:11,fontWeight:'700'}}>{fmtEventDate(ev.event_date)}</Text>
-                                  {!!ev.event_time && <Text style={{color:'#888',fontSize:11}}>{ev.event_time}</Text>}
-                                  {!!ev.location && <Text style={{color:'#888',fontSize:11}}>📍{ev.location}</Text>}
+                              {/* NEW バッジ帯 */}
+                              {isNew && !confirmed && (
+                                <View style={{flexDirection:'row',alignItems:'center',gap:6,paddingHorizontal:14,paddingTop:8,paddingBottom:0}}>
+                                  <View style={{backgroundColor:'#FF3B30',borderRadius:4,paddingHorizontal:6,paddingVertical:2}}>
+                                    <Text style={{color:'#fff',fontSize:9,fontWeight:'800',letterSpacing:0.5}}>NEW</Text>
+                                  </View>
+                                  <Text style={{color:'#FF3B30',fontSize:10,fontWeight:'600'}}>新しい予定が追加されました</Text>
                                 </View>
-                                {!!ev.description && <Text style={{color:'#6b7280',fontSize:12,lineHeight:18}}>{ev.description}</Text>}
+                              )}
+                              <View style={{
+                                flexDirection:'row', alignItems:'center', gap:12,
+                                paddingHorizontal:14,
+                                paddingTop: isNew && !confirmed ? 6 : 13,
+                                paddingBottom:13,
+                                opacity: past ? 0.45 : 1,
+                              }}>
+                                {/* 左: イベントアイコン */}
+                                <View style={{
+                                  width:40, height:40, borderRadius:12,
+                                  backgroundColor: confirmed ? '#f0f2f5' : cfg.color+'18',
+                                  alignItems:'center', justifyContent:'center',
+                                  borderWidth: confirmed ? 1.5 : 0,
+                                  borderColor: confirmed ? '#34C759' : 'transparent',
+                                }}>
+                                  {confirmed
+                                    ? <Ionicons name="checkmark-circle" size={22} color="#34C759"/>
+                                    : <Text style={{fontSize:18}}>{cfg.emoji}</Text>
+                                  }
+                                </View>
+                                {/* 中: 内容 */}
+                                <View style={{flex:1,gap:2}}>
+                                  <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
+                                    <Text style={{
+                                      color: confirmed ? '#9ca3af' : TEXT.primary,
+                                      fontSize:14, fontWeight:'700',
+                                      textDecorationLine: confirmed ? 'line-through' : 'none',
+                                    }}>{ev.title}</Text>
+                                    {confirmed && (
+                                      <View style={{backgroundColor:'#e8f8ed',borderRadius:4,paddingHorizontal:5,paddingVertical:1}}>
+                                        <Text style={{color:'#34C759',fontSize:9,fontWeight:'700'}}>確認済</Text>
+                                      </View>
+                                    )}
+                                  </View>
+                                  <View style={{flexDirection:'row',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+                                    <Text style={{color: confirmed ? '#bbb' : cfg.color, fontSize:11,fontWeight:'700'}}>{fmtEventDate(ev.event_date)}</Text>
+                                    {!!ev.event_time && <Text style={{color:'#888',fontSize:11}}>{ev.event_time}</Text>}
+                                    {!!ev.location && <Text style={{color:'#888',fontSize:11}}>📍{ev.location}</Text>}
+                                  </View>
+                                  {!!ev.description && <Text style={{color:'#6b7280',fontSize:12,lineHeight:18}}>{ev.description}</Text>}
+                                </View>
+                                {/* 右: 確認ボタン */}
+                                {!past && (
+                                  <TouchableOpacity
+                                    onPress={() => toggleEventConfirm(ev.id)}
+                                    style={{
+                                      width:52, height:30, borderRadius:15,
+                                      backgroundColor: confirmed ? '#e8f8ed' : BRAND+'22',
+                                      borderWidth:1.5,
+                                      borderColor: confirmed ? '#34C759' : BRAND,
+                                      alignItems:'center', justifyContent:'center',
+                                    }}
+                                    hitSlop={{top:8,bottom:8,left:8,right:8}}
+                                  >
+                                    <Text style={{
+                                      fontSize:10, fontWeight:'700',
+                                      color: confirmed ? '#34C759' : BRAND,
+                                    }}>{confirmed ? '確認済' : '確認'}</Text>
+                                  </TouchableOpacity>
+                                )}
                               </View>
                             </View>
                           )
                         })}
                       </ScrollView>
-                      {/* 3件超のときに下にスクロールできることを示すグラデーション */}
+                      {/* スクロール可能サイン */}
                       {teamEvents.length > 3 && (
                         <View style={{height:24,backgroundColor:'#ffffff',borderTopWidth:StyleSheet.hairlineWidth,borderTopColor:'rgba(0,0,0,0.06)',alignItems:'center',justifyContent:'center'}}>
                           <Ionicons name="chevron-down" size={14} color="#bbb"/>
