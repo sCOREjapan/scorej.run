@@ -77,12 +77,13 @@ function exportOverlayPNG(record: RaceRecord, themeId: ThemeId) {
   // ── グラスブロック（中央） ──
   const bx = 68, by = H / 2 - 360, bw = W - 136, bh = 680
 
+  const dotRgb = hexRgb(theme.dot)
   c.shadowColor = 'rgba(0,0,0,0.45)'; c.shadowBlur = 80; c.shadowOffsetY = 24
-  c.fillStyle = 'rgba(255,255,255,0.17)'
+  c.fillStyle = `rgba(${dotRgb},0.15)`
   rr(bx, by, bw, bh, 44); c.fill()
   noShadow()
 
-  c.strokeStyle = 'rgba(255,255,255,0.38)'; c.lineWidth = 2.5
+  c.strokeStyle = `rgba(${dotRgb},0.40)`; c.lineWidth = 2.5
   rr(bx, by, bw, bh, 44); c.stroke()
 
   const tx = bx + 64
@@ -137,10 +138,10 @@ function exportOverlayPNG(record: RaceRecord, themeId: ThemeId) {
   noShadow()
 
   // sCORE ウォーターマーク — グラスブロック右下
-  shadow(10, 'rgba(0,0,0,0.55)')
+  shadow(12, 'rgba(0,0,0,0.6)')
   c.textAlign = 'right'
-  c.font = '900 52px system-ui, sans-serif'
-  c.fillStyle = 'rgba(255,255,255,0.65)'
+  c.font = '900 72px system-ui, sans-serif'
+  c.fillStyle = 'rgba(255,255,255,0.70)'
   c.fillText('sCORE', bx + bw - 44, by + bh - 36)
   noShadow()
   c.textAlign = 'left'
@@ -162,8 +163,8 @@ function OverlayPreview({ record, themeId }: { record: RaceRecord; themeId: Them
       start={{ x: 0.15, y: 0 }}
       end={{ x: 0.85, y: 1 }}
     >
-      {/* グラスブロック */}
-      <View style={pv.glass}>
+      {/* グラスブロック — テーマ色で染める */}
+      <View style={[pv.glass, { backgroundColor: theme.dot + '20', borderColor: theme.dot + '60' }]}>
         <Text style={pv.event}>{record.event}</Text>
         <Text style={pv.result} adjustsFontSizeToFit numberOfLines={1}>
           {record.result_display}
@@ -520,15 +521,15 @@ const pv = StyleSheet.create({
   },
   // ── sCORE ウォーターマーク（右下）──
   wmScore: {
-    color: 'rgba(255,255,255,0.55)',
-    fontSize: 20,
+    color: 'rgba(255,255,255,0.70)',
+    fontSize: 28,
     fontWeight: '900',
-    letterSpacing: 1,
+    letterSpacing: 2,
     textAlign: 'right',
-    marginTop: 4,
+    marginTop: 6,
     textShadowColor: 'rgba(0,0,0,0.8)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 8,
+    textShadowRadius: 10,
   },
 })
 
