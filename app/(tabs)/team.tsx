@@ -6,7 +6,7 @@ import {
 } from 'react-native'
 const SCREEN_H = Dimensions.get('window').height
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+import { useRouter, useFocusEffect } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import Toast from 'react-native-toast-message'
@@ -719,6 +719,8 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
   }, [setup.code])
 
   useEffect(() => { load() }, [load])
+  // タブに戻るたびに再ロード（Realtimeの補完）
+  useFocusEffect(useCallback(() => { load() }, [load]))
 
   // Supabase Realtime — チームデータをリアルタイム同期
   useEffect(() => {
@@ -803,7 +805,6 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
     const type     = evType
     try {
       const result = await addTeamEvent(setup.code, title, date, time, location, desc, type, setup.coachName)
-      if (!result) throw new Error('insert returned null')
       setShowEventModal(false)
       setEvTitle(''); setEvDate(''); setEvTime(''); setEvLocation(''); setEvDesc(''); setEvType('practice')
       // 表示を即時更新してからリロード
@@ -1729,7 +1730,9 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
     const myStat = stats.find(s => s.player_name === joined.playerName)
     if (myStat) { setEditEvent(myStat.event); setEditPb(myStat.pb_display); setEditGoal(myStat.goal ?? '') }
     // 自分のセッションをチームに同期（コーチ・チームメイトが見れるように）
-    await syncTeamSessions(joined.code, joined.playerName, loadedSessions)
+    try {
+      await syncTeamSessions(joined.code, joined.playerName, loadedSessions)
+    } catch (e) { console.error('[load] syncTeamSessions:', e) }
     // レベル + 最新コンディションを自動同期
     const lvInfo = calcLevelInfo(loadedSessions.length)
     const cutoff30 = new Date(Date.now() - 30*24*60*60*1000).toISOString().slice(0,10)
@@ -1745,6 +1748,8 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
   }, [joined.code, joined.playerName])
 
   useEffect(() => { load() }, [load])
+  // タブに戻るたびに再ロード（Realtimeの補完）
+  useFocusEffect(useCallback(() => { load() }, [load]))
 
   // Supabase Realtime — コーチのアナウンス・チームメイト情報をリアルタイムで受信
   useEffect(() => {

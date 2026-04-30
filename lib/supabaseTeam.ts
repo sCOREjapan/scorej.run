@@ -219,7 +219,8 @@ export async function syncTeamSessions(
     reps: s.reps ?? null,
     sets: s.sets ?? null,
   }))
-  await supabase.from('team_sessions').upsert(rows, { onConflict: 'id' })
+  const { error } = await supabase.from('team_sessions').upsert(rows, { onConflict: 'id' })
+  if (error) console.error('[syncTeamSessions]', error.message)
 }
 
 export async function fetchTeamSessions(teamCode: string): Promise<TeamSessionRow[]> {
@@ -269,16 +270,25 @@ export async function upsertPlayerStats(
   goal = '',
 ): Promise<void> {
   if (!isConfigured) return
-  await supabase.from('team_player_stats').upsert(
-    {
-      team_code: teamCode, player_name: playerName, event, pb_display: pbDisplay, level,
-      last_condition: lastCondition, last_fatigue: lastFatigue,
-      last_session_date: lastSessionDate, sessions_30d: sessions30d,
-      goal,
-      updated_at: new Date().toISOString(),
-    },
+  // goal列が未作成の場合に備えてフォールバック付きで upsert
+  const baseRow = {
+    team_code: teamCode, player_name: playerName, event, pb_display: pbDisplay, level,
+    last_condition: lastCondition, last_fatigue: lastFatigue,
+    last_session_date: lastSessionDate, sessions_30d: sessions30d,
+    updated_at: new Date().toISOString(),
+  }
+  const { error } = await supabase.from('team_player_stats').upsert(
+    goal !== undefined ? { ...baseRow, goal } : baseRow,
     { onConflict: 'team_code,player_name' },
   )
+  if (error) {
+    console.error('[upsertPlayerStats] full upsert failed:', error.message)
+    // goal列未作成の場合はgoalなしでリトライ
+    const { error: e2 } = await supabase.from('team_player_stats').upsert(
+      baseRow, { onConflict: 'team_code,player_name' },
+    )
+    if (e2) console.error('[upsertPlayerStats] retry failed:', e2.message)
+  }
 }
 
 // ── チーム共有カレンダー ────────────────────────────────────
@@ -320,11 +330,12 @@ export async function addTeamEvent(
   eventType: TeamEventType,
   createdBy: string,
 ): Promise<TeamEventRow | null> {
-  if (!isConfigured) return null
-  const { data } = await supabase
+  if (!isConfigured) throw new Error('Supabase未設定 — 環境変数を確認してください')
+  const { data, error } = await supabase
     .from('team_events')
     .insert({ team_code: teamCode, title, event_date: eventDate, event_time: eventTime, location, description, event_type: eventType, created_by: createdBy })
     .select().single()
+  if (error) throw new Error(error.message)
   return data as TeamEventRow | null
 }
 
