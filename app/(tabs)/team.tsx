@@ -1857,9 +1857,14 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
                     <Text style={{color:'#555',fontSize:11}}>{joined.playerName}　コーチ: {joined.coachName}</Text>
                   </View>
                 </View>
-                <TouchableOpacity onPress={() => setShowMenu(true)} style={co.switchBtn} activeOpacity={0.7}>
-                  <Ionicons name="ellipsis-horizontal" size={15} color={TEXT.secondary}/>
-                </TouchableOpacity>
+                <View style={{flexDirection:'row',gap:8,alignItems:'center'}}>
+                  <TouchableOpacity onPress={() => load()} style={co.switchBtn} activeOpacity={0.7}>
+                    <Ionicons name="refresh-outline" size={15} color={TEXT.secondary}/>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setShowMenu(true)} style={co.switchBtn} activeOpacity={0.7}>
+                    <Ionicons name="ellipsis-horizontal" size={15} color={TEXT.secondary}/>
+                  </TouchableOpacity>
+                </View>
               </View>
               {/* アクションボタン3つ */}
               <View style={{flexDirection:'row',gap:8}}>
