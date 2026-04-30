@@ -1,4 +1,4 @@
-// app/share-card.tsx — シェアカード v3（透過PNG + スピン動画）
+// app/share-card.tsx — シェアカード v3（透過PNG + ふわふわ動画）
 import React, { useState, useEffect, useCallback } from 'react'
 import {
   View, Text, StyleSheet, TouchableOpacity,
@@ -155,7 +155,7 @@ function exportOverlayPNG(record: RaceRecord, themeId: ThemeId) {
   a.href = cv.toDataURL('image/png'); a.click()
 }
 
-// ── スピン動画 Export — 透過WebM (VP9) ────────────────────────────────────
+// ── ふわふわ動画 Export — 透過WebM (VP9) ────────────────────────────────────
 function exportSpinVideo(record: RaceRecord, themeId: ThemeId): Promise<void> {
   return new Promise((resolve, reject) => {
     if (typeof document === 'undefined') { reject(new Error('no_document')); return }
@@ -178,10 +178,11 @@ function exportSpinVideo(record: RaceRecord, themeId: ThemeId): Promise<void> {
     cv.width = W; cv.height = H
     const c = cv.getContext('2d', { alpha: true })!
 
-    const OMEGA       = (2 * Math.PI) / 2.5  // 1回転 2.5秒（ゆっくり）
-    const FLOAT_AMP   = 45                   // 上下 ±45px
-    const FLOAT_OMEGA = Math.PI * 0.85       // 上下周期 ~2.35秒（スピンと微妙にズレて有機的）
-    const TOTAL       = 5.5                  // 5.5秒 = 約2.2回転
+    const FLOAT_AMP   = 32                   // 上下 ±32px
+    const FLOAT_OMEGA = Math.PI * 0.45       // 上下周期 ~4.4秒（ゆったり）
+    const TILT_AMP    = 0.022                // 左右傾き ±1.3度（有機的なゆらぎ）
+    const TILT_OMEGA  = Math.PI * 0.32       // 傾き周期 ~6.25秒（浮きと意図的にズレ）
+    const TOTAL       = 5.0                  // 5秒
 
     const stream = cv.captureStream(30)
     const chunks: Blob[] = []
@@ -198,7 +199,7 @@ function exportSpinVideo(record: RaceRecord, themeId: ThemeId): Promise<void> {
       const blob = new Blob(chunks, { type: MIME })
       const url  = URL.createObjectURL(blob)
       const a    = document.createElement('a')
-      a.download = `score-${record.event.replace(/[^a-z0-9]/gi, '')}-spin.webm`
+      a.download = `score-${record.event.replace(/[^a-z0-9]/gi, '')}-float.webm`
       a.href = url; a.click()
       URL.revokeObjectURL(url)
       resolve()
@@ -218,17 +219,15 @@ function exportSpinVideo(record: RaceRecord, themeId: ThemeId): Promise<void> {
         return
       }
 
-      const scaleX = Math.cos(elapsed * OMEGA)
       const floatY = Math.sin(elapsed * FLOAT_OMEGA) * FLOAT_AMP
+      const tilt   = Math.sin(elapsed * TILT_OMEGA)  * TILT_AMP
       c.clearRect(0, 0, W, H)
-      if (Math.abs(scaleX) > 0.01) {
-        c.save()
-        c.translate(W / 2, H / 2 + floatY)
-        c.scale(scaleX, 1)
-        c.translate(-W / 2, -H / 2)
-        c.drawImage(offscreen, 0, 0)
-        c.restore()
-      }
+      c.save()
+      c.translate(W / 2, H / 2 + floatY)
+      c.rotate(tilt)
+      c.translate(-W / 2, -H / 2)
+      c.drawImage(offscreen, 0, 0)
+      c.restore()
       requestAnimationFrame(frame)
     }
     requestAnimationFrame(frame)
@@ -344,7 +343,7 @@ export default function ShareCardScreen() {
       await exportSpinVideo(selected, themeId)
       Toast.show({
         type: 'success',
-        text1: 'スピン動画をダウンロードしました',
+        text1: 'ふわふわ動画をダウンロードしました',
         text2: 'CapCutなどで手のひら動画に重ねてください',
         visibilityTime: 3200,
       })
@@ -430,7 +429,7 @@ export default function ShareCardScreen() {
                     color={exportMode === m ? '#fff' : 'rgba(255,255,255,0.45)'}
                   />
                   <Text style={[s.modeTxt, exportMode === m && { color: '#fff' }]}>
-                    {m === 'png' ? '透過PNG' : 'スピン動画'}
+                    {m === 'png' ? '透過PNG' : 'ふわふわ動画'}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -441,7 +440,7 @@ export default function ShareCardScreen() {
               <Ionicons name={isVideo ? 'sync-outline' : 'layers-outline'} size={14} color={BRAND} />
               <Text style={s.hintTxt}>
                 {isVideo
-                  ? 'カードがくるくる回る透過WebM動画を書き出します — CapCutなどで手のひら動画の上に重ねてください（Chrome推奨）'
+                  ? 'カードがふわふわ浮く透過WebM動画を書き出します — CapCutなどで手のひら動画の上に重ねてください（Chrome推奨）'
                   : '背景透過のPNGを書き出します — インスタのストーリーで動画の上に重ねて投稿できます'
                 }
               </Text>
@@ -504,7 +503,7 @@ export default function ShareCardScreen() {
                   <Text style={s.dlTxt}>
                     {exporting
                       ? (isVideo ? '動画を作成中...' : 'ダウンロード中...')
-                      : (isVideo ? 'スピン動画をダウンロード' : '透過PNGをダウンロード')
+                      : (isVideo ? 'ふわふわ動画をダウンロード' : '透過PNGをダウンロード')
                     }
                   </Text>
                 </TouchableOpacity>
@@ -523,7 +522,7 @@ export default function ShareCardScreen() {
             {/* 使い方ガイド */}
             <View style={s.guide}>
               {(isVideo ? [
-                { n: '1', t: 'スピン動画をダウンロード（Chrome推奨）' },
+                { n: '1', t: '動画をダウンロード（Chrome推奨）' },
                 { n: '2', t: 'CapCutなどで手のひらの動画を背景に設定' },
                 { n: '3', t: 'レイヤーに動画を追加して全画面に広げる' },
                 { n: '4', t: 'SNSに投稿' },
