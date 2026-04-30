@@ -28,16 +28,23 @@ export async function autoSyncTeam(sessions: TrainingSession[]): Promise<void> {
     // セッション同期
     await syncTeamSessions(joined.code, joined.playerName, sessions)
 
-    // レベルのみ更新（PB・種目は既存値を保持）
-    const lvInfo = calcLevelInfo(sessions.length)
-    const stats  = await fetchPlayerStats(joined.code)
-    const mine   = stats.find(s => s.player_name === joined.playerName)
+    // レベル + 最新コンディションを更新（PB・種目は既存値を保持）
+    const lvInfo  = calcLevelInfo(sessions.length)
+    const stats   = await fetchPlayerStats(joined.code)
+    const mine    = stats.find(s => s.player_name === joined.playerName)
+    const cutoff  = new Date(Date.now() - 30*24*60*60*1000).toISOString().slice(0,10)
+    const recent  = sessions.filter(s => s.session_date >= cutoff)
+    const lastS   = sessions[0]
     await upsertPlayerStats(
       joined.code,
       joined.playerName,
       mine?.event      ?? '',
       mine?.pb_display ?? '',
       lvInfo.level,
+      lastS?.condition_level ?? 7,
+      lastS?.fatigue_level   ?? 5,
+      lastS?.session_date    ?? '',
+      recent.length,
     )
   } catch {
     // 同期エラーはサイレントに無視（ローカル記録を妨げない）

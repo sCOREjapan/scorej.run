@@ -235,12 +235,16 @@ export async function fetchTeamSessions(teamCode: string): Promise<TeamSessionRo
 
 // ── 選手プロフィール（自己ベスト・レベル）────────────────
 export interface PlayerStatsRow {
-  team_code:   string
-  player_name: string
-  event:       string
-  pb_display:  string
-  level:       number
-  updated_at:  string
+  team_code:         string
+  player_name:       string
+  event:             string
+  pb_display:        string
+  level:             number
+  last_condition:    number
+  last_fatigue:      number
+  last_session_date: string
+  sessions_30d:      number
+  updated_at:        string
 }
 
 export async function fetchPlayerStats(teamCode: string): Promise<PlayerStatsRow[]> {
@@ -252,11 +256,24 @@ export async function fetchPlayerStats(teamCode: string): Promise<PlayerStatsRow
 }
 
 export async function upsertPlayerStats(
-  teamCode: string, playerName: string, event: string, pbDisplay: string, level: number,
+  teamCode: string,
+  playerName: string,
+  event: string,
+  pbDisplay: string,
+  level: number,
+  lastCondition = 7,
+  lastFatigue = 5,
+  lastSessionDate = '',
+  sessions30d = 0,
 ): Promise<void> {
   if (!isConfigured) return
   await supabase.from('team_player_stats').upsert(
-    { team_code: teamCode, player_name: playerName, event, pb_display: pbDisplay, level, updated_at: new Date().toISOString() },
+    {
+      team_code: teamCode, player_name: playerName, event, pb_display: pbDisplay, level,
+      last_condition: lastCondition, last_fatigue: lastFatigue,
+      last_session_date: lastSessionDate, sessions_30d: sessions30d,
+      updated_at: new Date().toISOString(),
+    },
     { onConflict: 'team_code,player_name' },
   )
 }

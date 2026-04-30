@@ -2,8 +2,9 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  TextInput, KeyboardAvoidingView, Platform, Modal, Linking,
+  TextInput, KeyboardAvoidingView, Platform, Modal, Linking, Dimensions,
 } from 'react-native'
+const SCREEN_H = Dimensions.get('window').height
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
@@ -638,11 +639,12 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
   setup: TeamSetup; onSwitchRole: () => void; onDeleteTeam: () => void
 }) {
   const router = useRouter()
-  const [loading,  setLoading]  = useState(true)
-  const [messages, setMessages] = useState<TeamMessage[]>([])
-  const [videos,   setVideos]   = useState<VideoEntry[]>([])
-  const [members,  setMembers]  = useState<TeamMemberRow[]>([])
+  const [loading,     setLoading]     = useState(true)
+  const [messages,    setMessages]    = useState<TeamMessage[]>([])
+  const [videos,      setVideos]      = useState<VideoEntry[]>([])
+  const [members,     setMembers]     = useState<TeamMemberRow[]>([])
   const [bodyReports,     setBodyReports]     = useState<BodyReportRow[]>([])
+  const [coachPlayerStats, setCoachPlayerStats] = useState<PlayerStatsRow[]>([])
   const [teamSessionsMap, setTeamSessionsMap] = useState<Record<string, TrainingSession[]>>({})
   const [teamEvents,    setTeamEvents]    = useState<TeamEventRow[]>([])
   const [msgText,       setMsgText]       = useState('')
@@ -661,19 +663,21 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
   const [evType,        setEvType]        = useState<TeamEventType>('practice')
 
   const load = useCallback(async () => {
-    const [msgs, vids, mems, rpts, teamSessions, evts] = await Promise.all([
+    const [msgs, vids, mems, rpts, teamSessions, evts, pStats] = await Promise.all([
       fetchMessages(setup.code),
       fetchVideos(setup.code),
       fetchMembers(setup.code),
       fetchBodyReports(setup.code),
       fetchTeamSessions(setup.code),
       fetchTeamEvents(setup.code),
+      fetchPlayerStats(setup.code),
     ])
     setMessages(msgs)
     setVideos(vids)
     setMembers(mems)
     setBodyReports(rpts)
     setTeamEvents(evts)
+    setCoachPlayerStats(pStats)
     setLoading(false)
     // セッションをプレイヤー名でマップ化
     const map: Record<string, TrainingSession[]> = {}
@@ -706,6 +710,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'team_body_reports', filter: `team_code=eq.${setup.code}` }, () => load())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'team_videos',       filter: `team_code=eq.${setup.code}` }, () => load())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'team_sessions',     filter: `team_code=eq.${setup.code}` }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_player_stats', filter: `team_code=eq.${setup.code}` }, () => load())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'team_events',       filter: `team_code=eq.${setup.code}` }, () => load())
       .subscribe()
     return () => { supabase.removeChannel(ch) }
@@ -810,9 +815,26 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
 
   // メンバーごとの計算済みデータ
   const memberData = displayMembers.map(m => {
-    const risk       = calcInjuryRisk(m.sessions, [], m.sessions[0]?.condition_level ?? 6)
+    const pStat      = coachPlayerStats.find(s => s.player_name === m.name)
+    const hasPainReport = (m.painParts?.length ?? 0) > 0
+    // セッションがない場合はplayer_statsに保存された最終体調を使ってスコアを計算
+    const condLevel  = m.sessions[0]?.condition_level ?? pStat?.last_condition ?? 7
+    const fatigueLevel = m.sessions[0]?.fatigue_level ?? pStat?.last_fatigue ?? 5
+    // sessions が空でも最終セッション日から擬似セッションを生成してスコアに寄与させる
+    let sessionsForRisk = m.sessions
+    if (m.sessions.length === 0 && pStat?.last_session_date) {
+      sessionsForRisk = [{
+        id: 'proxy', user_id: m.name,
+        session_date: pStat.last_session_date,
+        session_type: 'easy' as const,
+        fatigue_level: fatigueLevel,
+        condition_level: condLevel,
+        created_at: pStat.updated_at,
+      }]
+    }
+    const risk       = calcInjuryRisk(sessionsForRisk, [], condLevel, hasPainReport)
     const weeklyLoad = calcWeeklyLoad(m.sessions)
-    const condToday  = m.sessions[0]?.condition_level ?? null
+    const condToday  = m.sessions[0]?.condition_level ?? (pStat?.last_condition ?? null)
     return { ...m, risk, weeklyLoad, condToday }
   })
 
@@ -864,6 +886,9 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
               <Text style={{color:'#555',fontSize:9,fontWeight:'700'}}>参加コード</Text>
               <Text style={{color:BRAND,fontSize:15,fontWeight:'900',letterSpacing:3}}>{formatCode(setup.code)}</Text>
             </View>
+            <TouchableOpacity onPress={load} style={co.switchBtn} activeOpacity={0.7}>
+              <Ionicons name="refresh-outline" size={15} color={TEXT.secondary}/>
+            </TouchableOpacity>
             <TouchableOpacity onPress={() => setShowMenu(true)} style={co.switchBtn} activeOpacity={0.7}>
               <Ionicons name="ellipsis-horizontal" size={15} color={TEXT.secondary}/>
             </TouchableOpacity>
@@ -899,6 +924,16 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
           {!loading && tab === 'members' && (
             <AnimatedSection key="members" delay={0} type="fade-up">
             <View style={{gap:14}}>
+              {/* セッション未同期バナー（実メンバーのスコアが全員0の場合） */}
+              {members.length > 0 && memberData.every(m => m.sessions.length === 0) && (
+                <View style={{backgroundColor:'rgba(59,130,246,0.07)',borderLeftWidth:4,borderLeftColor:'#3b82f6',borderRadius:12,borderWidth:1,borderColor:'rgba(59,130,246,0.2)',padding:12,flexDirection:'row',alignItems:'flex-start',gap:10}}>
+                  <Text style={{fontSize:16,marginTop:1}}>ℹ️</Text>
+                  <View style={{flex:1}}>
+                    <Text style={{color:'#3b82f6',fontSize:12,fontWeight:'800',marginBottom:3}}>スコアを反映するには選手の操作が必要です</Text>
+                    <Text style={{color:'#555',fontSize:11,lineHeight:17}}>各選手がアプリを開いてチームタブを表示すると、練習データが自動で同期されスコアが表示されます。右上の ↻ ボタンで再取得できます。</Text>
+                  </View>
+                </View>
+              )}
               {/* 要注意バナー：未確認の痛み報告 */}
               {unackedPainCount > 0 && (
                 <TouchableOpacity
@@ -1026,8 +1061,9 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
                           <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
                             {/* リスクスコア */}
                             {m.sessions.length === 0 ? (
-                              <View style={{backgroundColor:'#f0f2f5',borderRadius:8,paddingHorizontal:8,paddingVertical:4}}>
-                                <Text style={{color:'#9ca3af',fontSize:10,fontWeight:'700'}}>データ未同期</Text>
+                              <View style={{backgroundColor:'#f0f2f5',borderRadius:8,paddingHorizontal:8,paddingVertical:4,flexDirection:'row',alignItems:'center',gap:3}}>
+                                <Ionicons name="cloud-offline-outline" size={10} color="#9ca3af"/>
+                                <Text style={{color:'#9ca3af',fontSize:10,fontWeight:'700'}}>未同期</Text>
                               </View>
                             ) : (
                               <View style={{backgroundColor:rCfg.bg,borderRadius:8,paddingHorizontal:8,paddingVertical:4,flexDirection:'row',alignItems:'center',gap:4}}>
@@ -1264,18 +1300,20 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
       {/* 予定追加モーダル */}
       <Modal visible={showEventModal} transparent animationType="slide" onRequestClose={() => setShowEventModal(false)}>
         <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.7)',justifyContent:'flex-end'}}>
-          <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':undefined} style={{maxHeight:'90%'}}>
-            <View style={{backgroundColor:'#fff',borderTopLeftRadius:24,borderTopRightRadius:24}}>
-              <View style={{padding:22,paddingBottom:0,gap:0}}>
+          <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':undefined}>
+            <View style={{backgroundColor:'#fff',borderTopLeftRadius:24,borderTopRightRadius:24,maxHeight:SCREEN_H*0.88}}>
+              {/* 固定ヘッダー */}
+              <View style={{paddingHorizontal:22,paddingTop:18,paddingBottom:4}}>
                 <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:14}}/>
-                <View style={{flexDirection:'row',alignItems:'center',marginBottom:16}}>
+                <View style={{flexDirection:'row',alignItems:'center',marginBottom:4}}>
                   <Text style={{color:'#111827',fontSize:18,fontWeight:'800',flex:1}}>📅 予定を追加</Text>
                   <TouchableOpacity onPress={() => setShowEventModal(false)} hitSlop={{top:10,bottom:10,left:10,right:10}}>
                     <Ionicons name="close" size={22} color={TEXT.secondary}/>
                   </TouchableOpacity>
                 </View>
               </View>
-              <ScrollView contentContainerStyle={{paddingHorizontal:22,paddingBottom:44,gap:14}} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              {/* スクロール可能なフォーム */}
+              <ScrollView style={{flex:1}} contentContainerStyle={{paddingHorizontal:22,paddingBottom:48,gap:14}} showsVerticalScrollIndicator={true} keyboardShouldPersistTaps="handled">
 
               {/* タイトル */}
               <View style={{gap:6}}>
@@ -1631,9 +1669,16 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
     if (myStat) { setEditEvent(myStat.event); setEditPb(myStat.pb_display) }
     // 自分のセッションをチームに同期（コーチ・チームメイトが見れるように）
     await syncTeamSessions(joined.code, joined.playerName, loadedSessions)
-    // レベルを自動同期（PB入力なしでもランクがチームメイトに見える）
+    // レベル + 最新コンディションを自動同期
     const lvInfo = calcLevelInfo(loadedSessions.length)
-    await upsertPlayerStats(joined.code, joined.playerName, myStat?.event ?? '', myStat?.pb_display ?? '', lvInfo.level)
+    const cutoff30 = new Date(Date.now() - 30*24*60*60*1000).toISOString().slice(0,10)
+    const recent30 = loadedSessions.filter(s => s.session_date >= cutoff30)
+    const lastSess = loadedSessions[0]
+    await upsertPlayerStats(
+      joined.code, joined.playerName, myStat?.event ?? '', myStat?.pb_display ?? '', lvInfo.level,
+      lastSess?.condition_level ?? 7, lastSess?.fatigue_level ?? 5,
+      lastSess?.session_date ?? '', recent30.length,
+    )
   }, [joined.code, joined.playerName])
 
   useEffect(() => { load() }, [load])

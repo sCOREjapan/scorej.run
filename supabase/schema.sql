@@ -302,3 +302,9 @@ create table if not exists team_events (
 create index if not exists idx_team_events_code on team_events(team_code, event_date asc);
 alter table team_events enable row level security;
 create policy "team_events_public" on team_events for all using (true) with check (true);
+
+-- 選手スタッツ追加カラム（コーチが最新体調を参照できるように）
+alter table team_player_stats add column if not exists last_condition integer not null default 7;
+alter table team_player_stats add column if not exists last_fatigue integer not null default 5;
+alter table team_player_stats add column if not exists last_session_date text not null default '';
+alter table team_player_stats add column if not exists sessions_30d integer not null default 0;
