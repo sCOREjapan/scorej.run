@@ -388,7 +388,7 @@ export default function ShareCardScreen() {
 
         {/* ヘッダー */}
         <View style={s.header}>
-          <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
+          <TouchableOpacity style={s.backBtn} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')}>
             <Ionicons name="chevron-back" size={26} color="rgba(255,255,255,0.75)" />
           </TouchableOpacity>
           <Text style={s.headerTitle}>シェアカード</Text>
@@ -404,7 +404,7 @@ export default function ShareCardScreen() {
             <Ionicons name="timer-outline" size={60} color="rgba(255,255,255,0.18)" />
             <Text style={s.emptyTitle}>記録がありません</Text>
             <Text style={s.emptySub}>「記録管理」タブで記録を追加してください</Text>
-            <TouchableOpacity style={s.goBack} onPress={() => router.back()}>
+            <TouchableOpacity style={s.goBack} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')}>
               <Text style={s.goBackTxt}>戻る</Text>
             </TouchableOpacity>
           </View>
