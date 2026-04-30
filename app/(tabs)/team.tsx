@@ -722,6 +722,11 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
   useEffect(() => { load() }, [load])
   // タブに戻るたびに再ロード（Realtimeの補完）
   useFocusEffect(useCallback(() => { load() }, [load]))
+  // 20秒ごとに自動ポーリング（Realtime遅延の補完）
+  useEffect(() => {
+    const t = setInterval(() => { load() }, 20000)
+    return () => clearInterval(t)
+  }, [load])
 
   // Supabase Realtime — チームデータをリアルタイム同期
   useEffect(() => {
@@ -797,7 +802,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
 
   async function addEvent() {
     if (!evTitle.trim() || !evDate.trim()) return
-    // 状態リセット前に値をキャプチャ
+    // 状態リセット前に値をキャプチャ（resetしてから非同期処理すると値が消える）
     const title    = evTitle.trim()
     const date     = evDate.trim()
     const time     = evTime.trim()
@@ -806,16 +811,24 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
     const type     = evType
     try {
       const result = await addTeamEvent(setup.code, title, date, time, location, desc, type, setup.coachName)
+      if (!result) throw new Error('イベントデータが取得できませんでした')
+      // モーダルを先に閉じてからフォームをリセット
       setShowEventModal(false)
       setEvTitle(''); setEvDate(''); setEvTime(''); setEvLocation(''); setEvDesc(''); setEvType('practice')
-      // 表示を即時更新してからリロード
+      // 表示を即時更新
       setTeamEvents(prev => [...prev, result].sort((a, b) => a.event_date.localeCompare(b.event_date)))
-      await load()
+      Toast.show({ type: 'success', text1: '予定を追加しました ✓', visibilityTime: 1800 })
+      // バックグラウンドでリロード & 通知（失敗してもUIに影響しない）
+      load().catch(console.error)
       sendPush(`📅 ${setup.teamName}`, `新しい予定：${title}（${date}）`, 'players', setup.code)
-      Toast.show({ type: 'success', text1: '予定を追加しました', visibilityTime: 1400 })
-    } catch (e) {
+    } catch (e: any) {
       console.error('[addEvent]', e)
-      Toast.show({ type: 'error', text1: '追加できませんでした', text2: String(e), visibilityTime: 2500 })
+      const msg = e?.message ?? String(e)
+      // テーブル未作成の場合はわかりやすいメッセージを出す
+      const hint = msg.includes('does not exist')
+        ? 'Supabaseでteam_eventsテーブルを作成してください'
+        : msg
+      Toast.show({ type: 'error', text1: '予定を追加できませんでした', text2: hint, visibilityTime: 4000 })
     }
   }
 
@@ -869,7 +882,9 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
     const risk       = calcInjuryRisk(sessionsForRisk, [], condLevel, hasPainReport)
     const weeklyLoad = calcWeeklyLoad(m.sessions)
     const condToday  = m.sessions[0]?.condition_level ?? (pStat?.last_condition ?? null)
-    return { ...m, risk, weeklyLoad, condToday }
+    // セッションがなくてもpStatがあればスコアは表示できる
+    const hasRiskData = m.sessions.length > 0 || !!pStat?.last_session_date || !!pStat
+    return { ...m, risk, weeklyLoad, condToday, hasRiskData }
   })
 
   // ソート: 未確認の痛み報告 → リスクスコア降順 → 体調未提出 → 名前
@@ -1091,49 +1106,40 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
                             {m.event ? <Text style={{color:TEXT.secondary,fontSize:11}}>{m.event}</Text> : null}
                           </View>
 
-                          {/* リスク + 負荷 + 疲労 */}
-                          <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
-                            {/* リスクスコア */}
-                            {m.sessions.length === 0 ? (
-                              <View style={{backgroundColor:'#f0f2f5',borderRadius:8,paddingHorizontal:8,paddingVertical:4,flexDirection:'row',alignItems:'center',gap:3}}>
-                                <Ionicons name="cloud-offline-outline" size={10} color="#9ca3af"/>
-                                <Text style={{color:'#9ca3af',fontSize:10,fontWeight:'700'}}>未同期</Text>
+                          {/* 怪我リスクスコア（メイン表示）*/}
+                          <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
+                            {!(m as any).hasRiskData ? (
+                              <View style={{backgroundColor:'#f0f2f5',borderRadius:10,paddingHorizontal:10,paddingVertical:6,flexDirection:'row',alignItems:'center',gap:4}}>
+                                <Ionicons name="cloud-offline-outline" size={12} color="#9ca3af"/>
+                                <Text style={{color:'#9ca3af',fontSize:11,fontWeight:'700'}}>未同期</Text>
                               </View>
                             ) : (
-                              <View style={{backgroundColor:rCfg.bg,borderRadius:8,paddingHorizontal:8,paddingVertical:4,flexDirection:'row',alignItems:'center',gap:4}}>
-                                <Text style={{color:rCfg.color,fontSize:13,fontWeight:'900'}}>{m.risk.riskScore}</Text>
-                                <Text style={{color:rCfg.color,fontSize:10,fontWeight:'700'}}>{rCfg.label}</Text>
-                              </View>
-                            )}
-                            {/* 週間負荷 */}
-                            <View style={{backgroundColor:'rgba(0,0,0,0.04)',borderRadius:8,paddingHorizontal:8,paddingVertical:4,flexDirection:'row',alignItems:'center',gap:3}}>
-                              <View style={{width:6,height:6,borderRadius:3,backgroundColor:lCfg.color}}/>
-                              <Text style={{color:'#555',fontSize:10,fontWeight:'700'}}>{lCfg.label}</Text>
-                            </View>
-                            {/* 体調 */}
-                            {m.condToday ? (
-                              <Text style={{fontSize:18}}>{'😫😕😐😊💪'.charAt(Math.round((m.condToday - 2) / 2))}</Text>
-                            ) : (
-                              <View style={{backgroundColor:'#f0f2f5',borderRadius:6,paddingHorizontal:6,paddingVertical:3}}>
-                                <Text style={{color:'#888',fontSize:9,fontWeight:'700'}}>未提出</Text>
+                              <View style={{backgroundColor:rCfg.bg,borderRadius:10,paddingHorizontal:12,paddingVertical:6,flexDirection:'row',alignItems:'center',gap:5}}>
+                                <Text style={{color:rCfg.color,fontSize:20,fontWeight:'900',letterSpacing:-0.5}}>{m.risk.riskScore}</Text>
+                                <View style={{gap:1}}>
+                                  <Text style={{color:rCfg.color,fontSize:10,fontWeight:'800'}}>リスク</Text>
+                                  <Text style={{color:rCfg.color,fontSize:9,opacity:0.85}}>{rCfg.label}</Text>
+                                </View>
                               </View>
                             )}
                             {/* 確認済み痛み */}
                             {ackedPain && (
-                              <View style={{backgroundColor:'rgba(52,199,89,0.1)',borderRadius:6,paddingHorizontal:6,paddingVertical:3,flexDirection:'row',alignItems:'center',gap:3}}>
-                                <Ionicons name="checkmark-circle" size={10} color="#34C759"/>
-                                <Text style={{color:'#34C759',fontSize:9,fontWeight:'700'}}>確認済</Text>
+                              <View style={{backgroundColor:'rgba(52,199,89,0.1)',borderRadius:8,paddingHorizontal:8,paddingVertical:5,flexDirection:'row',alignItems:'center',gap:3}}>
+                                <Ionicons name="checkmark-circle" size={11} color="#34C759"/>
+                                <Text style={{color:'#34C759',fontSize:10,fontWeight:'700'}}>痛み確認済</Text>
                               </View>
                             )}
                           </View>
 
-                          {/* リスクバー（細め） */}
-                          <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
-                            <View style={{flex:1,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.07)',overflow:'hidden'}}>
-                              <View style={{width:`${m.risk.riskScore}%`,height:'100%',borderRadius:2,backgroundColor:rCfg.color}}/>
+                          {/* リスクバー */}
+                          {(m as any).hasRiskData && (
+                            <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
+                              <View style={{flex:1,height:5,borderRadius:3,backgroundColor:'rgba(0,0,0,0.07)',overflow:'hidden'}}>
+                                <View style={{width:`${m.risk.riskScore}%`,height:'100%',borderRadius:3,backgroundColor:rCfg.color}}/>
+                              </View>
+                              <Text style={{color:'#bbb',fontSize:9}}>{m.sessions.length}回</Text>
                             </View>
-                            <Text style={{color:'#aaa',fontSize:9}}>{m.sessions.length}回</Text>
-                          </View>
+                          )}
                         </View>
 
                         {/* 削除ボタン */}
@@ -1758,8 +1764,12 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
   }, [joined.code, joined.playerName])
 
   useEffect(() => { load() }, [load])
-  // タブに戻るたびに再ロード（Realtimeの補完）
   useFocusEffect(useCallback(() => { load() }, [load]))
+  // 20秒ごとに自動ポーリング（Realtime遅延の補完）
+  useEffect(() => {
+    const t = setInterval(() => { load() }, 20000)
+    return () => clearInterval(t)
+  }, [load])
 
   // Supabase Realtime — コーチのアナウンス・チームメイト情報をリアルタイムで受信
   useEffect(() => {
