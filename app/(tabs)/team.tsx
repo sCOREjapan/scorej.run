@@ -549,13 +549,16 @@ function PlayerJoinScreen({ onJoined, onBack }: { onJoined:(j:JoinedTeam)=>void;
             <View style={{gap:6}}>
               <Text style={su.label}>参加コード（6文字）</Text>
               <TextInput
-                style={[su.input,{fontSize:24,fontWeight:'900',textAlign:'center',letterSpacing:6,paddingVertical:18}]}
-                value={formatCode(code)}
-                onChangeText={v => setCode(v.replace(/[^A-Za-z0-9]/g,'').slice(0,6))}
-                placeholder="ABC-123"
+                style={[su.input,{fontSize:24,fontWeight:'900',textAlign:'center',letterSpacing:8,paddingVertical:18}]}
+                value={code.toUpperCase()}
+                onChangeText={v => setCode(v.replace(/[^A-Za-z0-9]/g,'').slice(0,6).toUpperCase())}
+                placeholder="ABCDEF"
                 placeholderTextColor="#9ca3af"
-                autoCapitalize="characters"
-                maxLength={7}
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="off"
+                keyboardType="ascii-capable"
+                maxLength={6}
               />
             </View>
             <View style={{gap:6}}>
@@ -563,9 +566,9 @@ function PlayerJoinScreen({ onJoined, onBack }: { onJoined:(j:JoinedTeam)=>void;
               <TextInput style={su.input} value={playerName} onChangeText={setPlayerName} placeholder="例: 田中 翼" placeholderTextColor="#9ca3af" maxLength={20}/>
             </View>
             <TouchableOpacity
-              style={[{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:'#34C759',borderRadius:14,paddingVertical:15},(code.replace(/[^A-Za-z0-9]/g,'').length<6||busy)&&{opacity:0.4}]}
+              style={[{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:'#34C759',borderRadius:14,paddingVertical:15},(code.length<6||busy)&&{opacity:0.4}]}
               onPress={join}
-              disabled={code.replace(/[^A-Za-z0-9]/g,'').length<6||busy}
+              disabled={code.length<6||busy}
               activeOpacity={0.85}
             >
               <Ionicons name="enter-outline" size={20} color="#fff"/>
@@ -654,8 +657,8 @@ function MiniCalendar({ value, onChange }: { value: string; onChange: (d: string
 // ─────────────────────────────────────────────────────────
 // CoachDashboard — シンプル3セクション
 // ─────────────────────────────────────────────────────────
-function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
-  setup: TeamSetup; onSwitchRole: () => void; onDeleteTeam: () => void
+function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
+  setup: TeamSetup; onSwitchRole: () => void; onDeleteTeam: () => void; canSwitchRole?: boolean
 }) {
   const router = useRouter()
   const [loading,     setLoading]     = useState(true)
@@ -1428,6 +1431,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam }: {
       <TeamMenuSheet
         visible={showMenu}
         role="coach"
+        canSwitch={canSwitchRole ?? false}
         onSwitchRole={onSwitchRole}
         onDangerAction={onDeleteTeam}
         onClose={() => setShowMenu(false)}
@@ -1667,8 +1671,8 @@ function TeammateProfileSheet({ member, stats, sessions, onClose }: {
 // ─────────────────────────────────────────────────────────
 // PlayerDashboard
 // ─────────────────────────────────────────────────────────
-function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
-  joined: JoinedTeam; onSwitchRole: () => void; onLeaveTeam: () => void
+function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
+  joined: JoinedTeam; onSwitchRole: () => void; onLeaveTeam: () => void; canSwitchRole?: boolean
 }) {
   const [sessions,          setSessions]          = useState<TrainingSession[]>([])
   const [messages,          setMessages]          = useState<TeamMessage[]>([])
@@ -1742,9 +1746,8 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
     setTeamSessionsMap(map)
     const myReport = rpts.find(r => r.player_name === joined.playerName)
     if (myReport) { setBodyParts(myReport.parts); setBodyDetail(myReport.detail ?? '') }
-    // 自分のstatsをedit初期値にセット
+    // myStat は後続の upsertPlayerStats で参照するためだけに宣言（editは変更しない）
     const myStat = stats.find(s => s.player_name === joined.playerName)
-    if (myStat) { setEditEvent(myStat.event); setEditPb(myStat.pb_display); setEditGoal(myStat.goal ?? '') }
     // 自分のセッションをチームに同期（コーチ・チームメイトが見れるように）
     try {
       await syncTeamSessions(joined.code, joined.playerName, loadedSessions)
@@ -1755,10 +1758,11 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
     const recent30 = loadedSessions.filter(s => s.session_date >= cutoff30)
     const lastSess = loadedSessions[0]
     try {
+      const streakVal = calcStreak(loadedSessions)
       await upsertPlayerStats(
         joined.code, joined.playerName, myStat?.event ?? '', myStat?.pb_display ?? '', lvInfo.level,
         lastSess?.condition_level ?? 7, lastSess?.fatigue_level ?? 5,
-        lastSess?.session_date ?? '', recent30.length, myStat?.goal ?? '',
+        lastSess?.session_date ?? '', recent30.length, myStat?.goal ?? '', streakVal,
       )
     } catch { /* DB列未追加時もサイレントに無視 */ }
   }, [joined.code, joined.playerName])
@@ -1798,14 +1802,18 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
     const lastSess = sessions[0]
     const cutoff30 = new Date(Date.now() - 30*24*60*60*1000).toISOString().slice(0,10)
     const recent30 = sessions.filter(s => s.session_date >= cutoff30)
-    await upsertPlayerStats(
-      joined.code, joined.playerName, editEvent.trim(), editPb.trim(), lvInfo.level,
-      lastSess?.condition_level ?? 7, lastSess?.fatigue_level ?? 5,
-      lastSess?.session_date ?? '', recent30.length, editGoal.trim(),
-    )
-    setShowStatsEdit(false)
-    await load()
-    Toast.show({ type: 'success', text1: 'プロフィールを更新しました', visibilityTime: 1600 })
+    try {
+      await upsertPlayerStats(
+        joined.code, joined.playerName, editEvent.trim(), editPb.trim(), lvInfo.level,
+        lastSess?.condition_level ?? 7, lastSess?.fatigue_level ?? 5,
+        lastSess?.session_date ?? '', recent30.length, editGoal.trim(), calcStreak(sessions),
+      )
+      setShowStatsEdit(false)
+      load().catch(console.error)
+      Toast.show({ type: 'success', text1: 'プロフィールを更新しました ✓', visibilityTime: 1600 })
+    } catch (e) {
+      Toast.show({ type: 'error', text1: '保存できませんでした', text2: String(e), visibilityTime: 2500 })
+    }
   }
 
   async function saveBodyReport() {
@@ -1877,7 +1885,18 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
                   <Ionicons name="videocam-outline" size={18} color={BRAND}/>
                   <Text style={{color:TEXT.primary,fontSize:12,fontWeight:'700'}}>動画を送る</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={pl.actionBtn} onPress={() => setShowStatsEdit(true)} activeOpacity={0.85}>
+                <TouchableOpacity
+                  style={pl.actionBtn}
+                  onPress={() => {
+                    // モーダルを開く時点でのstatsを初期値にセット（ポーリングによる上書きを防ぐ）
+                    const ms = playerStats.find(s => s.player_name === joined.playerName)
+                    setEditEvent(ms?.event ?? '')
+                    setEditPb(ms?.pb_display ?? '')
+                    setEditGoal(ms?.goal ?? '')
+                    setShowStatsEdit(true)
+                  }}
+                  activeOpacity={0.85}
+                >
                   <Ionicons name="person-circle-outline" size={18} color="#AF52DE"/>
                   <Text style={{color:TEXT.primary,fontSize:12,fontWeight:'700'}}>プロフィール</Text>
                 </TouchableOpacity>
@@ -1947,7 +1966,10 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
                 {/* チームカレンダー */}
                 <AnimatedSection delay={80} type="fade-up">
                 <View style={{gap:8}}>
-                  <Text style={pl.sectionTitle}>📅 チーム予定</Text>
+                  <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
+                    <Text style={pl.sectionTitle}>📅 チーム予定</Text>
+                    {teamEvents.length > 0 && <Text style={{color:'#9ca3af',fontSize:11}}>{teamEvents.length}件</Text>}
+                  </View>
                   {teamEvents.length === 0 ? (
                     <View style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',padding:20,alignItems:'center',gap:6}}>
                       <Text style={{fontSize:28}}>📅</Text>
@@ -1955,32 +1977,46 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
                     </View>
                   ) : (
                     <View style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',overflow:'hidden'}}>
-                      {teamEvents.map((ev, i) => {
-                        const cfg = EVENT_CFG[ev.event_type] ?? EVENT_CFG.other
-                        const past = isPast(ev.event_date)
-                        return (
-                          <View key={ev.id} style={{
-                            flexDirection:'row', alignItems:'center', gap:12,
-                            paddingHorizontal:14, paddingVertical:13,
-                            borderBottomWidth: i < teamEvents.length-1 ? StyleSheet.hairlineWidth : 0,
-                            borderBottomColor:'rgba(0,0,0,0.07)',
-                            opacity: past ? 0.5 : 1,
-                          }}>
-                            <View style={{width:38,height:38,borderRadius:10,backgroundColor:cfg.color+'18',alignItems:'center',justifyContent:'center'}}>
-                              <Text style={{fontSize:18}}>{cfg.emoji}</Text>
-                            </View>
-                            <View style={{flex:1,gap:2}}>
-                              <Text style={{color:TEXT.primary,fontSize:14,fontWeight:'700'}}>{ev.title}</Text>
-                              <View style={{flexDirection:'row',alignItems:'center',gap:8,flexWrap:'wrap'}}>
-                                <Text style={{color:cfg.color,fontSize:11,fontWeight:'700'}}>{fmtEventDate(ev.event_date)}</Text>
-                                {!!ev.event_time && <Text style={{color:'#888',fontSize:11}}>{ev.event_time}</Text>}
-                                {!!ev.location && <Text style={{color:'#888',fontSize:11}}>📍{ev.location}</Text>}
+                      {/* 最大3件分の高さで内部スクロール — コーチからのメッセージと同じレイアウト */}
+                      <ScrollView
+                        style={{maxHeight: 210}}
+                        showsVerticalScrollIndicator={false}
+                        nestedScrollEnabled
+                        bounces={false}
+                      >
+                        {teamEvents.map((ev, i) => {
+                          const cfg = EVENT_CFG[ev.event_type] ?? EVENT_CFG.other
+                          const past = isPast(ev.event_date)
+                          return (
+                            <View key={ev.id} style={{
+                              flexDirection:'row', alignItems:'center', gap:12,
+                              paddingHorizontal:14, paddingVertical:13,
+                              borderBottomWidth: i < teamEvents.length-1 ? StyleSheet.hairlineWidth : 0,
+                              borderBottomColor:'rgba(0,0,0,0.07)',
+                              opacity: past ? 0.5 : 1,
+                            }}>
+                              <View style={{width:38,height:38,borderRadius:10,backgroundColor:cfg.color+'18',alignItems:'center',justifyContent:'center'}}>
+                                <Text style={{fontSize:18}}>{cfg.emoji}</Text>
                               </View>
-                              {!!ev.description && <Text style={{color:'#6b7280',fontSize:12,lineHeight:18}}>{ev.description}</Text>}
+                              <View style={{flex:1,gap:2}}>
+                                <Text style={{color:TEXT.primary,fontSize:14,fontWeight:'700'}}>{ev.title}</Text>
+                                <View style={{flexDirection:'row',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+                                  <Text style={{color:cfg.color,fontSize:11,fontWeight:'700'}}>{fmtEventDate(ev.event_date)}</Text>
+                                  {!!ev.event_time && <Text style={{color:'#888',fontSize:11}}>{ev.event_time}</Text>}
+                                  {!!ev.location && <Text style={{color:'#888',fontSize:11}}>📍{ev.location}</Text>}
+                                </View>
+                                {!!ev.description && <Text style={{color:'#6b7280',fontSize:12,lineHeight:18}}>{ev.description}</Text>}
+                              </View>
                             </View>
-                          </View>
-                        )
-                      })}
+                          )
+                        })}
+                      </ScrollView>
+                      {/* 3件超のときに下にスクロールできることを示すグラデーション */}
+                      {teamEvents.length > 3 && (
+                        <View style={{height:24,backgroundColor:'#ffffff',borderTopWidth:StyleSheet.hairlineWidth,borderTopColor:'rgba(0,0,0,0.06)',alignItems:'center',justifyContent:'center'}}>
+                          <Ionicons name="chevron-down" size={14} color="#bbb"/>
+                        </View>
+                      )}
                     </View>
                   )}
                 </View>
@@ -2032,7 +2068,8 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
                       const lvInfo    = calcLevelInfo(stat?.level ?? 1)
                       const lvTier    = RANK_TIERS.find(t => lvInfo.level >= t.min && lvInfo.level < t.max) ?? RANK_TIERS[0]
                       const tmSessions = teamSessionsMap[m.player_name] ?? []
-                      const streak    = calcStreak(tmSessions)
+                      // stat.streak が保存済みであればそちらを優先（より正確・リアルタイム）
+                      const streak    = stat?.streak ?? calcStreak(tmSessions)
                       const hasPain   = (allBodyReports.find(r => r.player_name === m.player_name)?.parts?.length ?? 0) > 0
                       const event     = stat?.event || m.event || ''
                       const pb        = stat?.pb_display || ''
@@ -2213,6 +2250,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
       <TeamMenuSheet
         visible={showMenu}
         role="player"
+        canSwitch={canSwitchRole ?? false}
         onSwitchRole={onSwitchRole}
         onDangerAction={onLeaveTeam}
         onClose={() => setShowMenu(false)}
@@ -2257,9 +2295,10 @@ const pl = StyleSheet.create({
 // ─────────────────────────────────────────────────────────
 // TeamMenuSheet — スワップボタンから開くアクションシート
 // ─────────────────────────────────────────────────────────
-function TeamMenuSheet({ visible, role, onSwitchRole, onDangerAction, onClose }: {
+function TeamMenuSheet({ visible, role, canSwitch, onSwitchRole, onDangerAction, onClose }: {
   visible: boolean
   role: 'coach' | 'player'
+  canSwitch: boolean
   onSwitchRole: () => void
   onDangerAction: () => void
   onClose: () => void
@@ -2280,23 +2319,25 @@ function TeamMenuSheet({ visible, role, onSwitchRole, onDangerAction, onClose }:
             <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:4}}/>
             <Text style={{color:'#111827',fontSize:17,fontWeight:'800'}}>チームメニュー</Text>
 
-            {/* ロール切り替え */}
-            <TouchableOpacity
-              style={{flexDirection:'row',alignItems:'center',gap:14,backgroundColor:'#f0f2f5',borderRadius:16,padding:16}}
-              onPress={() => { onClose(); setTimeout(onSwitchRole, 200) }}
-              activeOpacity={0.8}
-            >
-              <View style={{width:44,height:44,borderRadius:13,backgroundColor:BRAND+'18',alignItems:'center',justifyContent:'center'}}>
-                <Ionicons name="swap-horizontal-outline" size={22} color={BRAND}/>
-              </View>
-              <View style={{flex:1}}>
-                <Text style={{color:'#111827',fontSize:15,fontWeight:'700'}}>ロールを切り替え</Text>
-                <Text style={{color:'#6b7280',fontSize:12,marginTop:2}}>
-                  {role === 'coach' ? '選手として参加しているチームへ' : 'コーチとして作成したチームへ'}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color="#9ca3af"/>
-            </TouchableOpacity>
+            {/* ロール切り替え — このデバイスで別ロールのチームデータがある場合のみ表示 */}
+            {canSwitch && (
+              <TouchableOpacity
+                style={{flexDirection:'row',alignItems:'center',gap:14,backgroundColor:'#f0f2f5',borderRadius:16,padding:16}}
+                onPress={() => { onClose(); setTimeout(onSwitchRole, 200) }}
+                activeOpacity={0.8}
+              >
+                <View style={{width:44,height:44,borderRadius:13,backgroundColor:BRAND+'18',alignItems:'center',justifyContent:'center'}}>
+                  <Ionicons name="swap-horizontal-outline" size={22} color={BRAND}/>
+                </View>
+                <View style={{flex:1}}>
+                  <Text style={{color:'#111827',fontSize:15,fontWeight:'700'}}>ロールを切り替え</Text>
+                  <Text style={{color:'#6b7280',fontSize:12,marginTop:2}}>
+                    {role === 'coach' ? '選手として参加しているチームへ' : 'コーチとして作成したチームへ'}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color="#9ca3af"/>
+              </TouchableOpacity>
+            )}
 
             {/* 危険操作 */}
             <TouchableOpacity
@@ -2404,8 +2445,8 @@ export default function TeamScreen() {
   if (state==='loading')          return <View style={{flex:1,backgroundColor:'#f6f6f8'}}/>
   if (state==='select-role')      return <RoleSelectionScreen onSelect={handleSelectRole}/>
   if (state==='coach-setup')      return <CoachSetupScreen onCreated={handleCoachCreated} onBack={() => setState('select-role')}/>
-  if (state==='coach' && setup)   return <CoachDashboard  setup={setup}   onSwitchRole={handleSwitchRole} onDeleteTeam={handleDeleteTeam}/>
+  if (state==='coach' && setup)   return <CoachDashboard  setup={setup}   onSwitchRole={handleSwitchRole} onDeleteTeam={handleDeleteTeam}  canSwitchRole={joined !== null}/>
   if (state==='player-join')      return <PlayerJoinScreen onJoined={handlePlayerJoined} onBack={() => setState('select-role')}/>
-  if (state==='player' && joined) return <PlayerDashboard joined={joined} onSwitchRole={handleSwitchRole} onLeaveTeam={handleLeaveTeam}/>
+  if (state==='player' && joined) return <PlayerDashboard joined={joined} onSwitchRole={handleSwitchRole} onLeaveTeam={handleLeaveTeam}  canSwitchRole={setup !== null}/>
   return <View style={{flex:1,backgroundColor:'#f6f6f8'}}/>
 }

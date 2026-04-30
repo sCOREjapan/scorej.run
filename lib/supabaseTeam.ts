@@ -246,6 +246,7 @@ export interface PlayerStatsRow {
   last_session_date: string
   sessions_30d:      number
   goal:              string
+  streak:            number   // 連続記録日数（セッション保存時に更新）
   updated_at:        string
 }
 
@@ -268,26 +269,34 @@ export async function upsertPlayerStats(
   lastSessionDate = '',
   sessions30d = 0,
   goal = '',
+  streak = 0,
 ): Promise<void> {
   if (!isConfigured) return
-  // goal列が未作成の場合に備えてフォールバック付きで upsert
+  // 段階的フォールバック: streak → goal → base の順で試みる
   const baseRow = {
     team_code: teamCode, player_name: playerName, event, pb_display: pbDisplay, level,
     last_condition: lastCondition, last_fatigue: lastFatigue,
     last_session_date: lastSessionDate, sessions_30d: sessions30d,
     updated_at: new Date().toISOString(),
   }
+  const fullRow = { ...baseRow, goal, streak }
   const { error } = await supabase.from('team_player_stats').upsert(
-    goal !== undefined ? { ...baseRow, goal } : baseRow,
-    { onConflict: 'team_code,player_name' },
+    fullRow, { onConflict: 'team_code,player_name' },
   )
-  if (error) {
-    console.error('[upsertPlayerStats] full upsert failed:', error.message)
-    // goal列未作成の場合はgoalなしでリトライ
-    const { error: e2 } = await supabase.from('team_player_stats').upsert(
-      baseRow, { onConflict: 'team_code,player_name' },
-    )
-    if (e2) console.error('[upsertPlayerStats] retry failed:', e2.message)
+  if (!error) return
+  console.error('[upsertPlayerStats] full upsert failed:', error.message)
+  // streak列が未作成の場合はgoalのみでリトライ
+  const { error: e2 } = await supabase.from('team_player_stats').upsert(
+    { ...baseRow, goal }, { onConflict: 'team_code,player_name' },
+  )
+  if (!e2) return
+  // goal列も未作成の場合はbaseのみでリトライ
+  const { error: e3 } = await supabase.from('team_player_stats').upsert(
+    baseRow, { onConflict: 'team_code,player_name' },
+  )
+  if (e3) {
+    console.error('[upsertPlayerStats] base retry failed:', e3.message)
+    throw new Error(e3.message)   // 全リトライ失敗 → 呼び出し元に伝搬
   }
 }
 
