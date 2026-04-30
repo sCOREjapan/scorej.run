@@ -1,5 +1,5 @@
 // app/share-card.tsx — シェアカード v3（透過PNG + ふわふわ動画）
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ScrollView, Platform, ActivityIndicator,
@@ -155,23 +155,37 @@ function exportOverlayPNG(record: RaceRecord, themeId: ThemeId) {
   a.href = cv.toDataURL('image/png'); a.click()
 }
 
-// ── ふわふわ動画 Export — 透過WebM (VP9) ────────────────────────────────────
-function exportSpinVideo(record: RaceRecord, themeId: ThemeId): Promise<void> {
+// ── ふわふわ動画 Export — コーデック自動選択（透過優先） ────────────────────
+// VP9透過(PC Chrome) → VP8 → 汎用WebM → MP4 の順でフォールバック
+function exportSpinVideo(record: RaceRecord, themeId: ThemeId): Promise<{ transparent: boolean }> {
   return new Promise((resolve, reject) => {
-    if (typeof document === 'undefined') { reject(new Error('no_document')); return }
-
-    const MIME = 'video/webm;codecs=vp9'
-    if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported(MIME)) {
-      reject(new Error('VP9_UNSUPPORTED')); return
+    if (typeof document === 'undefined' || typeof MediaRecorder === 'undefined') {
+      reject(new Error('NO_SUPPORT')); return
     }
+
+    // 対応コーデックを優先順に探す
+    const CODEC_LIST = [
+      { mime: 'video/webm;codecs=vp9', ext: 'webm', transparent: true  },
+      { mime: 'video/webm;codecs=vp8', ext: 'webm', transparent: false },
+      { mime: 'video/webm',            ext: 'webm', transparent: false },
+      { mime: 'video/mp4',             ext: 'mp4',  transparent: false },
+    ]
+    const codec = CODEC_LIST.find(c => MediaRecorder.isTypeSupported(c.mime))
+    if (!codec) { reject(new Error('NO_SUPPORT')); return }
 
     const W = 1080, H = 1920
     const theme = CARD_THEMES.find(t => t.id === themeId) ?? CARD_THEMES[0]
 
-    // カードを offscreen に一度描画（動画用: より不透明なガラス）
+    // offscreen にカードを描画
+    // 透過非対応の場合は暗背景を敷いてからカードを乗せる
     const offscreen = document.createElement('canvas')
     offscreen.width = W; offscreen.height = H
-    drawCard(offscreen.getContext('2d', { alpha: true })!, record, theme, W, H, 0.72, 0.90)
+    const oc = offscreen.getContext('2d', { alpha: true })!
+    if (!codec.transparent) {
+      oc.fillStyle = '#06080e'
+      oc.fillRect(0, 0, W, H)
+    }
+    drawCard(oc, record, theme, W, H, codec.transparent ? 0.72 : 0.88, codec.transparent ? 0.90 : 0.96)
 
     // 録画用 canvas
     const cv = document.createElement('canvas')
@@ -189,20 +203,20 @@ function exportSpinVideo(record: RaceRecord, themeId: ThemeId): Promise<void> {
     let recorder: MediaRecorder
 
     try {
-      recorder = new MediaRecorder(stream, { mimeType: MIME, videoBitsPerSecond: 6_000_000 })
+      recorder = new MediaRecorder(stream, { mimeType: codec.mime, videoBitsPerSecond: 6_000_000 })
     } catch {
-      reject(new Error('VP9_UNSUPPORTED')); return
+      reject(new Error('NO_SUPPORT')); return
     }
 
     recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data) }
     recorder.onstop = () => {
-      const blob = new Blob(chunks, { type: MIME })
+      const blob = new Blob(chunks, { type: codec.mime })
       const url  = URL.createObjectURL(blob)
       const a    = document.createElement('a')
-      a.download = `score-${record.event.replace(/[^a-z0-9]/gi, '')}-float.webm`
+      a.download = `score-${record.event.replace(/[^a-z0-9]/gi, '')}-float.${codec.ext}`
       a.href = url; a.click()
       URL.revokeObjectURL(url)
-      resolve()
+      resolve({ transparent: codec.transparent })
     }
     recorder.onerror = () => reject(new Error('recorder_error'))
     recorder.start(200)
@@ -300,6 +314,13 @@ export default function ShareCardScreen() {
   const [themeId,    setThemeId]    = useState<ThemeId>('ocean')
   const [exportMode, setExportMode] = useState<'png' | 'video'>('png')
 
+  // 動画録画の対応確認（VP9透過 → VP8 → WebM → MP4 いずれか使えればOK）
+  const supportsFloatVideo = useMemo(() => {
+    if (typeof MediaRecorder === 'undefined') return false
+    return ['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm','video/mp4']
+      .some(m => MediaRecorder.isTypeSupported(m))
+  }, [])
+
   useEffect(() => {
     ;(async () => {
       try {
@@ -340,24 +361,22 @@ export default function ShareCardScreen() {
     if (!selected) return
     setExporting(true)
     try {
-      await exportSpinVideo(selected, themeId)
+      const { transparent } = await exportSpinVideo(selected, themeId)
       Toast.show({
         type: 'success',
-        text1: 'ふわふわ動画をダウンロードしました',
-        text2: 'CapCutなどで手のひら動画に重ねてください',
-        visibilityTime: 3200,
+        text1: '動画をダウンロードしました',
+        text2: transparent
+          ? 'CapCutなどで手のひら動画に重ねてください（背景透過）'
+          : 'CapCutなどで手のひら動画に重ねてください（暗背景）',
+        visibilityTime: 3500,
       })
     } catch (e: any) {
-      if (e?.message === 'VP9_UNSUPPORTED') {
-        Toast.show({
-          type: 'error',
-          text1: '透過動画に対応していないブラウザです',
-          text2: 'Chromeでお試しください',
-          visibilityTime: 3500,
-        })
-      } else {
-        Toast.show({ type: 'error', text1: '動画の作成に失敗しました' })
-      }
+      Toast.show({
+        type: 'error',
+        text1: '動画の作成に失敗しました',
+        text2: 'お使いのブラウザが動画録画に対応していません',
+        visibilityTime: 3500,
+      })
     } finally {
       setExporting(false)
     }
@@ -416,23 +435,32 @@ export default function ShareCardScreen() {
 
             {/* PNG / 動画 モード切替 */}
             <View style={s.modeToggle}>
-              {(['png', 'video'] as const).map(m => (
-                <TouchableOpacity
-                  key={m}
-                  style={[s.modeBtn, exportMode === m && s.modeBtnActive]}
-                  onPress={() => setExportMode(m)}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons
-                    name={m === 'png' ? 'image-outline' : 'videocam-outline'}
-                    size={15}
-                    color={exportMode === m ? '#fff' : 'rgba(255,255,255,0.45)'}
-                  />
-                  <Text style={[s.modeTxt, exportMode === m && { color: '#fff' }]}>
-                    {m === 'png' ? '透過PNG' : 'ふわふわ動画'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              {(['png', 'video'] as const).map(m => {
+                const active   = exportMode === m
+                const disabled = m === 'video' && !supportsFloatVideo
+                return (
+                  <TouchableOpacity
+                    key={m}
+                    style={[s.modeBtn, active && s.modeBtnActive, disabled && { opacity: 0.55 }]}
+                    onPress={() => setExportMode(m)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name={m === 'png' ? 'image-outline' : 'videocam-outline'}
+                      size={15}
+                      color={active ? '#fff' : 'rgba(255,255,255,0.45)'}
+                    />
+                    <View style={{ alignItems: 'center', gap: 1 }}>
+                      <Text style={[s.modeTxt, active && { color: '#fff' }]}>
+                        {m === 'png' ? '透過PNG' : 'ふわふわ動画'}
+                      </Text>
+                      {disabled && (
+                        <Text style={s.modePcOnly}>非対応ブラウザ</Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                )
+              })}
             </View>
 
             {/* ヒント */}
@@ -440,7 +468,9 @@ export default function ShareCardScreen() {
               <Ionicons name={isVideo ? 'sync-outline' : 'layers-outline'} size={14} color={BRAND} />
               <Text style={s.hintTxt}>
                 {isVideo
-                  ? 'カードがふわふわ浮く透過WebM動画を書き出します — CapCutなどで手のひら動画の上に重ねてください（Chrome推奨）'
+                  ? supportsFloatVideo
+                      ? 'カードがふわふわ浮く動画を書き出します — CapCutなどで手のひら動画の上に重ねてください（PC Chromeは背景透過）'
+                      : '⚠️ このブラウザは動画録画に対応していません'
                   : '背景透過のPNGを書き出します — インスタのストーリーで動画の上に重ねて投稿できます'
                 }
               </Text>
@@ -633,6 +663,7 @@ const s = StyleSheet.create({
   modeBtn:       { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 10 },
   modeBtnActive: { backgroundColor: BRAND },
   modeTxt:       { color: 'rgba(255,255,255,0.45)', fontSize: 13, fontWeight: '700' },
+  modePcOnly:    { color: 'rgba(255,100,100,0.75)', fontSize: 9, fontWeight: '700' },
 
   hintRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 7, backgroundColor: BRAND + '15', borderRadius: 10, padding: 12, borderWidth: 1, borderColor: BRAND + '30' },
   hintTxt: { color: 'rgba(255,255,255,0.65)', fontSize: 12, flex: 1, lineHeight: 18 },
