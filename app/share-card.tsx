@@ -33,6 +33,7 @@ const CARD_THEMES = [
   { id: 'galaxy',   label: 'ギャラクシー', colors: ['#0d0019', '#1a0033', '#4a0080'] as const, dot: '#c39bd3' },
   { id: 'gold',     label: 'ゴールド',     colors: ['#1a1000', '#3d2800', '#7d5a00'] as const, dot: '#f1c40f' },
   { id: 'midnight', label: 'ミッドナイト', colors: ['#0a0a0a', '#1a1a2e', '#16213e'] as const, dot: '#a0a8c0' },
+  { id: 'clear',    label: '透明',         colors: ['#1a1a1a', '#1a1a1a', '#1a1a1a'] as const, dot: '#ffffff' },
 ] as const
 type ThemeId = typeof CARD_THEMES[number]['id']
 
@@ -177,8 +178,10 @@ function exportSpinVideo(record: RaceRecord, themeId: ThemeId): Promise<void> {
     cv.width = W; cv.height = H
     const c = cv.getContext('2d', { alpha: true })!
 
-    const OMEGA = 2 * Math.PI  // 1回転/秒
-    const TOTAL = 3.6          // 3.6秒 = 3.6回転
+    const OMEGA       = (2 * Math.PI) / 2.5  // 1回転 2.5秒（ゆっくり）
+    const FLOAT_AMP   = 45                   // 上下 ±45px
+    const FLOAT_OMEGA = Math.PI * 0.85       // 上下周期 ~2.35秒（スピンと微妙にズレて有機的）
+    const TOTAL       = 5.5                  // 5.5秒 = 約2.2回転
 
     const stream = cv.captureStream(30)
     const chunks: Blob[] = []
@@ -216,10 +219,11 @@ function exportSpinVideo(record: RaceRecord, themeId: ThemeId): Promise<void> {
       }
 
       const scaleX = Math.cos(elapsed * OMEGA)
+      const floatY = Math.sin(elapsed * FLOAT_OMEGA) * FLOAT_AMP
       c.clearRect(0, 0, W, H)
       if (Math.abs(scaleX) > 0.01) {
         c.save()
-        c.translate(W / 2, H / 2)
+        c.translate(W / 2, H / 2 + floatY)
         c.scale(scaleX, 1)
         c.translate(-W / 2, -H / 2)
         c.drawImage(offscreen, 0, 0)
