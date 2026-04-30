@@ -39,6 +39,7 @@ const SETUP_KEY         = 'trackmate_team_setup'
 const JOINED_KEY        = 'trackmate_team_joined'
 const SLEEP_KEY         = 'trackmate_sleep'
 const CONDITION_MAP_KEY = 'trackmate_condition_map'
+const RECOVERY_KEY      = 'trackmate_recovery_records'
 
 type Role = 'coach' | 'player'
 
@@ -1685,13 +1686,15 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
   const [plLoading,         setPlLoading]         = useState(true)
   const [conditionMap,      setConditionMap]      = useState<Record<string,number>>({})
   const [sleepRecs,         setSleepRecs]         = useState<SleepRecord[]>([])
+  const [hasSymptom,        setHasSymptom]        = useState(false)
   const [plTab,             setPlTab]             = useState<'home'|'members'>('home')
 
   const load = useCallback(async () => {
-    const [sr, sleepRaw, condRaw, msgs, mems, rpts, stats, teamSessions, evts] = await Promise.all([
+    const [sr, sleepRaw, condRaw, recovRaw, msgs, mems, rpts, stats, teamSessions, evts] = await Promise.all([
       AsyncStorage.getItem(SESSIONS_KEY),
       AsyncStorage.getItem(SLEEP_KEY),
       AsyncStorage.getItem(CONDITION_MAP_KEY),
+      AsyncStorage.getItem(RECOVERY_KEY),
       fetchMessages(joined.code),
       fetchMembers(joined.code),
       fetchBodyReports(joined.code),
@@ -1703,6 +1706,13 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
     setSessions(loadedSessions)
     setSleepRecs(sleepRaw ? JSON.parse(sleepRaw) : [])
     setConditionMap(condRaw ? JSON.parse(condRaw) : {})
+    // ホームと同じ hasSymptom 計算：直近7日の回復記録 OR チーム痛み報告
+    try {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)
+      const recovRecs = recovRaw ? (JSON.parse(recovRaw) as Array<{ date: string }>) : []
+      const myReport  = (rpts ?? []).find(r => r.player_name === joined.playerName)
+      setHasSymptom(recovRecs.some(r => r.date >= sevenDaysAgo) || (myReport?.parts?.length ?? 0) > 0)
+    } catch { setHasSymptom(false) }
     setMessages(msgs)
     setTeammates(mems.filter(m => m.player_name !== joined.playerName))
     setPlayerStats(stats)
@@ -1811,7 +1821,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam }: {
     }).filter((v): v is number => v !== undefined)
     return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : (last?.condition_level ?? 7)
   }, [conditionMap, last])
-  const risk    = calcInjuryRisk(sessions, sleepRecs, avgCondLv, bodyParts.length > 0)
+  const risk    = calcInjuryRisk(sessions, sleepRecs, avgCondLv, hasSymptom)
   const pinned  = messages.filter(m => m.is_pinned)
   const regular = messages.filter(m => !m.is_pinned)
 
