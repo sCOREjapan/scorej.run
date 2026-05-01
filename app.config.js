@@ -22,8 +22,8 @@ module.exports = {
         ['react-native-google-mobile-ads', {
           // AdMob コンソールで取得したアプリIDを設定する
           // https://apps.admob.com → アプリ設定 → アプリID
-          androidAppId: 'ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX',
-          iosAppId:     'ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX',
+          androidAppId: 'ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX', // ← Android アプリIDに差し替え
+          iosAppId:     'ca-app-pub-6225795381877305~3874907264', // ✅ 本番 iOS アプリID
           // ユーザーのプライバシー設定（日本はGDPR対象外のためfalseでOK）
           userTrackingUsageDescription: null,
           skAdNetworkItems: [],

@@ -17,18 +17,18 @@ const AD_UNIT_IDS = {
   rewarded: {
     ios:     __DEV__
       ? 'ca-app-pub-3940256099942544/1712485313'   // Googleテスト用ID (iOS)
-      : 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX',   // ← 本番IDに差し替え
+      : 'ca-app-pub-6225795381877305/7530247097',   // ✅ 本番 iOS リワード
     android: __DEV__
       ? 'ca-app-pub-3940256099942544/5224354917'   // Googleテスト用ID (Android)
-      : 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX',   // ← 本番IDに差し替え
+      : 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX',   // ← Android 本番IDに差し替え（AdMobでAndroidアプリを別途登録）
   },
   banner: {
     ios:     __DEV__
       ? 'ca-app-pub-3940256099942544/2934735716'   // Googleテスト用ID (iOS)
-      : 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX',   // ← 本番IDに差し替え
+      : 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX',   // ← iOS バナー広告ユニットIDに差し替え
     android: __DEV__
       ? 'ca-app-pub-3940256099942544/6300978111'   // Googleテスト用ID (Android)
-      : 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX',   // ← 本番IDに差し替え
+      : 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX',   // ← Android バナー広告ユニットIDに差し替え
   },
 }
 
