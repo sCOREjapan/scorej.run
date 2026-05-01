@@ -20,7 +20,7 @@ const AD_UNIT_IDS = {
       : 'ca-app-pub-6225795381877305/7530247097',   // ✅ 本番 iOS リワード
     android: __DEV__
       ? 'ca-app-pub-3940256099942544/5224354917'   // Googleテスト用ID (Android)
-      : 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX',   // ← Android 本番IDに差し替え（AdMobでAndroidアプリを別途登録）
+      : 'ca-app-pub-6225795381877305/5184344841',   // ✅ 本番 Android リワード
   },
   banner: {
     ios:     __DEV__
