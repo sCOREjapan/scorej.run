@@ -28,16 +28,46 @@ import { getCurrentLocationWeather } from '../../lib/weather'
 import { calcWeatherRiskBonus, getWeatherRiskText } from '../../lib/weatherRisk'
 import { autoSyncTeam } from '../../lib/teamAutoSync'
 import { sendRiskAlertIfNeeded, sendStretchReminderIfNeeded, scheduleCompetitionReminder } from '../../lib/notifications'
+import { fetchTeamEvents, type TeamEventRow } from '../../lib/supabaseTeam'
 import type { SleepRecord } from '../../types'
 
 // ── AsyncStorage keys ───────────────────────────────────
-const CONDITION_KEY     = 'trackmate_condition'      // 旧フォーマット（マイグレーション用）
-const CONDITION_MAP_KEY = 'trackmate_condition_map'  // 新フォーマット: { "2026-04-15": 6, ... }
+const CONDITION_KEY      = 'trackmate_condition'
+const CONDITION_MAP_KEY  = 'trackmate_condition_map'
 const STRETCH_RESULT_KEY = 'trackmate_stretch_result'
-const SLEEP_KEY         = 'trackmate_sleep'
-const RECOVERY_KEY  = 'trackmate_recovery_records'
-const TASKS_KEY     = 'trackmate_tasks'
-const GOALS_KEY     = 'trackmate_goals'
+const SLEEP_KEY          = 'trackmate_sleep'
+const RECOVERY_KEY       = 'trackmate_recovery_records'
+const TASKS_KEY          = 'trackmate_tasks'
+const GOALS_KEY          = 'trackmate_goals'
+const JOINED_KEY         = 'trackmate_team_joined'
+const EVENT_CONFIRMED_KEY = 'event_confirmed_ids'
+
+// ── チーム予定ヘルパー ────────────────────────────────────
+const EVENT_CFG_HOME: Record<string, { emoji: string; color: string }> = {
+  practice: { emoji: '🏃', color: '#34C759' },
+  race:     { emoji: '🏁', color: BRAND     },
+  rest:     { emoji: '😴', color: '#5856D6' },
+  meeting:  { emoji: '💬', color: '#FF9500' },
+  other:    { emoji: '📌', color: '#8E8E93' },
+}
+function isPastEvent(d: string) {
+  const dt = new Date(d + 'T00:00:00')
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  return dt.getTime() < today.getTime()
+}
+function isNewTeamEvent(createdAt: string) {
+  return Date.now() - new Date(createdAt).getTime() < 3 * 24 * 60 * 60 * 1000
+}
+function fmtEventDateHome(d: string) {
+  const dt = new Date(d + 'T00:00:00')
+  const today = new Date(); today.setHours(0,0,0,0)
+  const diff = Math.round((dt.getTime() - today.getTime()) / 86400000)
+  const JP = ['日','月','火','水','木','金','土']
+  if (diff === 0) return '今日'
+  if (diff === 1) return '明日'
+  if (diff === 2) return '明後日'
+  return `${dt.getMonth()+1}/${dt.getDate()}（${JP[dt.getDay()]}）`
+}
 
 export interface Goal {
   id: string
@@ -846,6 +876,8 @@ export default function DashboardScreen() {
   const [weatherText,     setWeatherText]     = useState<string | null>(null)
   const [stretchReduction,setStretchReduction]= useState(0)
   const [recoveryBanner,  setRecoveryBanner]  = useState<{ reduction: number } | null>(null)
+  const [teamNotifs,      setTeamNotifs]      = useState<TeamEventRow[]>([])
+  const [confirmedIds,    setConfirmedIds]    = useState<Set<string>>(new Set())
 
   // ── 永続データ読み込み ──
   useEffect(() => {
@@ -922,6 +954,20 @@ export default function DashboardScreen() {
     // ホーム画面が表示されるたびにチームへセッションを同期
     AsyncStorage.getItem('trackmate_sessions').then(raw => {
       if (raw) autoSyncTeam(JSON.parse(raw)).catch(() => {})
+    }).catch(() => {})
+    // チーム予定 + 確認済みIDを取得
+    Promise.all([
+      AsyncStorage.getItem(JOINED_KEY),
+      AsyncStorage.getItem(EVENT_CONFIRMED_KEY),
+    ]).then(([joinedRaw, confirmedRaw]) => {
+      setConfirmedIds(new Set(confirmedRaw ? JSON.parse(confirmedRaw) : []))
+      if (!joinedRaw) return
+      const joined = JSON.parse(joinedRaw)
+      if (!joined?.code) return
+      fetchTeamEvents(joined.code).then(evts => {
+        // 未来 or 今日の予定のみ（過去は除外）
+        setTeamNotifs(evts.filter(e => !isPastEvent(e.event_date)))
+      }).catch(() => {})
     }).catch(() => {})
   }, [reloadAll]))
 
@@ -1096,7 +1142,17 @@ ${sessionsText}
                   onPress={() => { unlockAudio(); Sounds.tap(); router.push('/settings') }}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="notifications-outline" size={18} color={colors.textSec} />
+                  <View>
+                    <Ionicons name="notifications-outline" size={18} color={colors.textSec} />
+                    {teamNotifs.filter(e => isNewTeamEvent(e.created_at) && !confirmedIds.has(e.id)).length > 0 && (
+                      <View style={{
+                        position: 'absolute', top: -3, right: -3,
+                        width: 8, height: 8, borderRadius: 4,
+                        backgroundColor: '#FF3B30',
+                        borderWidth: 1.5, borderColor: colors.surface,
+                      }} />
+                    )}
+                  </View>
                 </TouchableOpacity>
                 {/* プロフィール → マイページへ */}
                 <TouchableOpacity
@@ -1114,6 +1170,67 @@ ${sessionsText}
           <AnimatedEntry delay={30}>
             <WeekDateBar selected={selectedDate} onChange={setSelectedDate} conditionMap={conditionMap} />
           </AnimatedEntry>
+
+          {/* ── チーム通知バナー ── */}
+          {teamNotifs.length > 0 && (() => {
+            const newUnconfirmed = teamNotifs.filter(e => isNewTeamEvent(e.created_at) && !confirmedIds.has(e.id))
+            const upcoming = [...teamNotifs].sort((a, b) => a.event_date.localeCompare(b.event_date))
+            const featured = newUnconfirmed[0] ?? upcoming[0]
+            if (!featured) return null
+            const cfg = EVENT_CFG_HOME[featured.event_type] ?? EVENT_CFG_HOME.other
+            const isNew = isNewTeamEvent(featured.created_at) && !confirmedIds.has(featured.id)
+            const extraCount = teamNotifs.length - 1
+            return (
+              <AnimatedEntry delay={45}>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => router.push('/(tabs)/team')}
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderRadius: 14,
+                    borderWidth: 1,
+                    borderColor: isNew ? BRAND + '60' : colors.border,
+                    overflow: 'hidden',
+                  }}
+                >
+                  {/* NEW帯（新着があるときのみ） */}
+                  {isNew && (
+                    <View style={{ backgroundColor: BRAND, paddingHorizontal: 14, paddingVertical: 5, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' }} />
+                      <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 0.5 }}>新しい予定が追加されました</Text>
+                      {newUnconfirmed.length > 1 && (
+                        <View style={{ marginLeft: 'auto', backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1 }}>
+                          <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>+{newUnconfirmed.length - 1}件</Text>
+                        </View>
+                      )}
+                    </View>
+                  )}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 12 }}>
+                    {/* イベントアイコン */}
+                    <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: cfg.color + '18', alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ fontSize: 20 }}>{cfg.emoji}</Text>
+                    </View>
+                    {/* 内容 */}
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={{ color: colors.text, fontSize: 14, fontWeight: '700' }} numberOfLines={1}>{featured.title}</Text>
+                      </View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <Text style={{ color: cfg.color, fontSize: 12, fontWeight: '700' }}>{fmtEventDateHome(featured.event_date)}</Text>
+                        {!!featured.event_time && <Text style={{ color: colors.textSec, fontSize: 11 }}>{featured.event_time}</Text>}
+                        {!!featured.location && <Text style={{ color: colors.textSec, fontSize: 11 }}>📍{featured.location}</Text>}
+                      </View>
+                      {extraCount > 0 && (
+                        <Text style={{ color: colors.textHint, fontSize: 11 }}>他{extraCount}件の予定 →</Text>
+                      )}
+                    </View>
+                    {/* 矢印 */}
+                    <Ionicons name="chevron-forward" size={16} color={colors.textHint} />
+                  </View>
+                </TouchableOpacity>
+              </AnimatedEntry>
+            )
+          })()}
 
           {/* ── 体調入力 ── */}
           <AnimatedEntry delay={60}>
