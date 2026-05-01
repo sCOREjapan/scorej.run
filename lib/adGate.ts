@@ -5,18 +5,18 @@ const KEY = 'trackmate_daily_usage'
 
 export type Feature = 'video' | 'meal' | 'recovery'
 
-// 広告なしで使える回数（無料枠）
+// 広告なしで使える回数（1日の無料枠）
 export const FREE_LIMITS: Record<Feature, number> = {
-  video:    999,
-  meal:     999,
-  recovery: 999,
+  video:    2,   // 動画フォーム分析: 1日2回無料
+  meal:     3,   // AI食事分析: 1日3回無料
+  recovery: 2,   // AIリカバリー相談: 1日2回無料
 }
 
 // 広告を見ても超えられない1日の絶対上限
 export const HARD_LIMITS: Record<Feature, number> = {
-  video:    999,
-  meal:     999,
-  recovery: 999,
+  video:    5,   // 広告視聴で最大+3回（合計5回/日）
+  meal:     6,   // 広告視聴で最大+3回（合計6回/日）
+  recovery: 5,   // 広告視聴で最大+3回（合計5回/日）
 }
 
 interface DailyUsage {

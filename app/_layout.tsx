@@ -11,6 +11,7 @@ import { ThemeProvider } from '../context/ThemeContext'
 import { PurchaseProvider } from '../context/PurchaseContext'
 import SplashAnimation from '../components/SplashAnimation'
 import { initOneSignal, requestPushPermission } from '../lib/notify'
+import { initAdmob } from '../lib/admob'
 
 if (Platform.OS !== 'web') {
   SplashScreen.preventAutoHideAsync().catch(() => {})
@@ -98,6 +99,9 @@ function RootLayoutNav() {
       })
     }
   }, [])
+
+  // AdMob 初期化（ネイティブのみ）
+  useEffect(() => { initAdmob() }, [])
 
   const [fontsLoaded] = Font.useFonts({
     'Ionicons': require('../node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf'),

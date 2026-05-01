@@ -16,8 +16,19 @@ module.exports = {
     android: { adaptiveIcon: { backgroundColor: '#0a0a0a' }, package: 'com.scorejapan.score' },
     plugins: [
       'expo-router',
-      // react-native-purchases は web export では plugin 解決エラーになるため EAS 時のみ
-      ...(IS_EAS ? ['react-native-purchases'] : []),
+      // ネイティブSDKは web export では plugin 解決エラーになるため EAS 時のみ
+      ...(IS_EAS ? [
+        'react-native-purchases',
+        ['react-native-google-mobile-ads', {
+          // AdMob コンソールで取得したアプリIDを設定する
+          // https://apps.admob.com → アプリ設定 → アプリID
+          androidAppId: 'ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX',
+          iosAppId:     'ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX',
+          // ユーザーのプライバシー設定（日本はGDPR対象外のためfalseでOK）
+          userTrackingUsageDescription: null,
+          skAdNetworkItems: [],
+        }],
+      ] : []),
       ['expo-camera', { cameraPermission: 'フォーム分析のためカメラを使用します' }],
       ['expo-image-picker', { photosPermission: '食事・動画を記録するために写真ライブラリを使用します' }],
     ],
