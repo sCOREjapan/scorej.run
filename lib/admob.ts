@@ -25,7 +25,7 @@ const AD_UNIT_IDS = {
   banner: {
     ios:     __DEV__
       ? 'ca-app-pub-3940256099942544/2934735716'   // Googleテスト用ID (iOS)
-      : 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX',   // ← iOS バナー広告ユニットIDに差し替え
+      : 'ca-app-pub-6225795381877305/9296737831',   // ✅ 本番 iOS バナー
     android: __DEV__
       ? 'ca-app-pub-3940256099942544/6300978111'   // Googleテスト用ID (Android)
       : 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX',   // ← Android バナー広告ユニットIDに差し替え
