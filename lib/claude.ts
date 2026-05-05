@@ -1,6 +1,6 @@
 // lib/claude.ts — Claude API 全呼び出しをここに集約
+// SDK の代わりに fetch を直接使用（React Native 互換性のため）
 
-import Anthropic from '@anthropic-ai/sdk'
 import type {
   VideoAnalysisResult,
   MealAnalysisResult,
@@ -14,7 +14,8 @@ import type {
 import { getVideoAnalysisPrompt } from '../prompts/video'
 import { getMealAnalysisPrompt, getCompetitionPlanPrompt, getSleepAdvicePrompt } from '../prompts/index'
 
-const MODEL = 'claude-sonnet-4-6'
+const MODEL = 'claude-opus-4-5'
+const API_URL = 'https://api.anthropic.com/v1/messages'
 
 // ─────────────────────────────────────────
 // 型定義
@@ -31,40 +32,45 @@ interface MessagesRequest {
 }
 
 // ─────────────────────────────────────────
-// Anthropic SDK ラッパー
+// fetch を使った直接 API 呼び出し（React Native 対応）
 // ─────────────────────────────────────────
 async function callClaude(req: MessagesRequest): Promise<string> {
   const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY
-  console.log('[Claude] apiKey先頭:', apiKey ? apiKey.slice(0, 20) + '...' : 'undefined')
-  console.log('[Claude] model:', req.model, '/ max_tokens:', req.max_tokens)
-
   if (!apiKey || apiKey === 'placeholder') {
-    throw new Error('EXPO_PUBLIC_ANTHROPIC_API_KEY が未設定です。.env.local を確認してください。')
+    throw new Error('EXPO_PUBLIC_ANTHROPIC_API_KEY が未設定です。')
   }
 
-  const client = new Anthropic({
-    apiKey: process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? '',
-    dangerouslyAllowBrowser: true,
+  const body = JSON.stringify({
+    model: req.model,
+    max_tokens: req.max_tokens,
+    ...(req.system ? { system: req.system } : {}),
+    messages: req.messages,
   })
 
-  let response: Anthropic.Message
+  let res: Response
   try {
-    response = await client.messages.create({
-      model: req.model,
-      max_tokens: req.max_tokens,
-      system: req.system,
-      messages: req.messages as any,
+    res = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body,
     })
   } catch (err) {
-    console.error('[Claude] SDK エラー:', err)
     const msg = err instanceof Error ? err.message : String(err)
-    throw new Error(`Anthropic API エラー: ${msg}`)
+    throw new Error(`ネットワークエラー: ${msg}`)
   }
 
-  console.log('[Claude] content blocks:', response.content?.length)
-  const block = response.content?.[0]
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '')
+    throw new Error(`Anthropic API エラー (${res.status}): ${errText}`)
+  }
+
+  const json = await res.json()
+  const block = json?.content?.[0]
   const text = block?.type === 'text' && block.text ? block.text : ''
-  console.log('[Claude] 返答先頭100文字:', text.slice(0, 100))
   return text
 }
 

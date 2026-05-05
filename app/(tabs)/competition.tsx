@@ -13,6 +13,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { BRAND, NEON, TEXT, GLASS } from '../../lib/theme'
+import DateTimePicker from '@react-native-community/datetimepicker'
 import { Ionicons } from '@expo/vector-icons'
 import Toast from 'react-native-toast-message'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -224,9 +225,10 @@ export default function CompetitionScreen() {
   const [activeFilter, setActiveFilter] = useState<FilterOption>('全て')
 
   // フォーム
-  const [compName,     setCompName]     = useState('')
-  const [compDate,     setCompDate]     = useState('')
-  const [compEvent,    setCompEvent]    = useState<AthleticsEvent>('400m')
+  const [compName,       setCompName]       = useState('')
+  const [compDate,       setCompDate]       = useState('')
+  const [showDatePicker, setShowDatePicker] = useState(false)
+  const [compEvent,      setCompEvent]      = useState<AthleticsEvent>('400m')
   const [targetMin,    setTargetMin]    = useState('')
   const [targetSec,    setTargetSec]    = useState('')
   const [targetDistM,  setTargetDistM]  = useState('')  // 投擲・跳躍用（m）
@@ -521,21 +523,35 @@ export default function CompetitionScreen() {
               />
 
               <Text style={styles.label}>試合日</Text>
-              <TextInput
-                style={styles.input}
-                value={compDate}
-                onChangeText={text => {
-                  const digits = text.replace(/\D/g, '').slice(0, 8)
-                  let formatted = digits
-                  if (digits.length > 4) formatted = digits.slice(0, 4) + '-' + digits.slice(4)
-                  if (digits.length > 6) formatted = digits.slice(0, 4) + '-' + digits.slice(4, 6) + '-' + digits.slice(6)
-                  setCompDate(formatted)
-                }}
-                placeholder="2026-05-01"
-                placeholderTextColor="#9ca3af"
-                keyboardType="number-pad"
-                maxLength={10}
-              />
+              <TouchableOpacity
+                style={[styles.input, { justifyContent: 'center' }]}
+                onPress={() => setShowDatePicker(true)}
+                activeOpacity={0.7}
+              >
+                <Text style={{ color: compDate ? '#fff' : '#9ca3af', fontSize: 15 }}>
+                  {compDate || '日付を選択'}
+                </Text>
+              </TouchableOpacity>
+              {showDatePicker && (
+                <DateTimePicker
+                  value={compDate ? new Date(compDate) : new Date()}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                  minimumDate={new Date()}
+                  onChange={(_, date) => {
+                    setShowDatePicker(Platform.OS === 'ios')
+                    if (date) {
+                      const y = date.getFullYear()
+                      const m = String(date.getMonth() + 1).padStart(2, '0')
+                      const d = String(date.getDate()).padStart(2, '0')
+                      setCompDate(`${y}-${m}-${d}`)
+                      if (Platform.OS === 'android') setShowDatePicker(false)
+                    }
+                  }}
+                  style={{ backgroundColor: 'transparent' }}
+                  themeVariant="dark"
+                />
+              )}
 
               <Text style={styles.label}>種目</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>

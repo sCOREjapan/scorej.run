@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react'
 import {
   View, Text, TouchableOpacity, ScrollView, TextInput,
-  StyleSheet, Platform, Alert, ActivityIndicator,
+  StyleSheet, Platform, Alert, ActivityIndicator, Image,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -9,6 +9,10 @@ import { BRAND, TEXT } from '../lib/theme'
 import { checkAdGate, recordUsage, grantRewardUse } from '../lib/adGate'
 import { isPremium } from '../lib/subscription'
 import AdGateModal from '../components/AdGateModal'
+import * as ImagePicker from 'expo-image-picker'
+import * as VideoThumbnails from 'expo-video-thumbnails'
+import * as ImageManipulator from 'expo-image-manipulator'
+import * as FileSystem from 'expo-file-system'
 
 /* ─── 型定義 ─────────────────────────────────── */
 type FrameAdvice = {
@@ -33,6 +37,219 @@ const STORAGE_KEY = 'trackmate_video_annotations'
 const MAX_FRAMES  = 8
 const THUMB_W     = 320
 
+/* ─── ネイティブ動画分析（iOS/Android）──────────────── */
+function NativeVideoAnalysis() {
+  const [phase, setPhase]         = useState<'select'|'analyzing'|'result'>('select')
+  const [videoUri, setVideoUri]   = useState<string | null>(null)
+  const [frames, setFrames]       = useState<string[]>([])
+  const [event, setEvent]         = useState('')
+  const [result, setResult]       = useState<string>('')
+  const [error, setError]         = useState<string>('')
+
+  async function pickVideo() {
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (!perm.granted) { Alert.alert('権限が必要です', '写真ライブラリへのアクセスを許可してください'); return }
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+        allowsEditing: false,
+        quality: 1,
+      })
+      if (!res.canceled && res.assets[0]) {
+        setVideoUri(res.assets[0].uri)
+        setPhase('select')
+        setResult('')
+        setError('')
+      }
+    } catch (e: any) {
+      Alert.alert('エラー', e?.message ?? '動画の選択に失敗しました')
+    }
+  }
+
+  async function analyze() {
+    if (!videoUri) { Alert.alert('動画を選択してください'); return }
+    setPhase('analyzing')
+    setError('')
+    try {
+      // フレームを複数タイミングで取得
+      const timestamps = [0, 1000, 2000, 3500, 5000, 7000, 9000, 12000]
+      const base64Frames: string[] = []
+      const thumbUris: string[] = []
+
+      for (const t of timestamps) {
+        try {
+          const { uri } = await VideoThumbnails.getThumbnailAsync(videoUri, { time: t })
+          // リサイズして軽量化
+          const resized = await ImageManipulator.manipulateAsync(
+            uri, [{ resize: { width: 480 } }],
+            { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+          )
+          const b64 = await FileSystem.readAsStringAsync(resized.uri, { encoding: FileSystem.EncodingType.Base64 })
+          base64Frames.push(b64)
+          thumbUris.push(resized.uri)
+        } catch { /* タイムスタンプが動画の長さを超えた場合はスキップ */ }
+      }
+
+      if (base64Frames.length === 0) throw new Error('フレームの取得に失敗しました')
+      setFrames(thumbUris)
+
+      // Claude API に送信
+      const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY
+      if (!apiKey) throw new Error('APIキーが未設定です')
+
+      const imageBlocks = base64Frames.slice(0, 5).map(b64 => ({
+        type: 'image' as const,
+        source: { type: 'base64' as const, media_type: 'image/jpeg' as const, data: b64 }
+      }))
+
+      const prompt = `あなたは陸上競技の専門コーチです。${event ? `種目：${event}` : ''}の選手のフォームを分析してください。
+
+複数のフレーム画像を提供します。以下の観点で詳細に分析し、日本語で回答してください：
+
+1. **全体評価**（100点満点でスコアと総評）
+2. **良い点**（3つ以上）
+3. **改善点**（3つ以上、具体的に）
+4. **練習メニュー提案**（2〜3種目、各30文字以内）
+
+必ずJSON形式で返答してください：
+{"score":85,"overall":"総評","positives":["良い点1","良い点2","良い点3"],"improvements":["改善点1","改善点2","改善点3"],"menu":[{"name":"練習名","detail":"詳細"}]}`
+
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-opus-4-5',
+          max_tokens: 1500,
+          messages: [{ role: 'user', content: [...imageBlocks, { type: 'text', text: prompt }] }],
+        }),
+      })
+
+      if (!res.ok) throw new Error(`API エラー: ${res.status}`)
+      const json = await res.json()
+      const text = json?.content?.[0]?.text ?? ''
+      setResult(text)
+      setPhase('result')
+    } catch (e: any) {
+      setError(e?.message ?? '分析に失敗しました')
+      setPhase('select')
+    }
+  }
+
+  // JSONパース試行
+  let parsed: any = null
+  try { const m = result.match(/\{[\s\S]*\}/); if (m) parsed = JSON.parse(m[0]) } catch {}
+
+  return (
+    <ScrollView style={{ flex: 1, backgroundColor: '#0a0a0a' }} contentContainerStyle={{ padding: 20 }}>
+      <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800', marginBottom: 4 }}>フォーム動画分析</Text>
+      <Text style={{ color: '#888', fontSize: 13, marginBottom: 24 }}>AIがあなたのフォームを詳細に分析します</Text>
+
+      {/* 種目入力 */}
+      <TextInput
+        style={{ backgroundColor: 'rgba(255,255,255,0.08)', color: '#fff', borderRadius: 12, padding: 14, marginBottom: 16, fontSize: 15 }}
+        placeholder="種目を入力（例：100m、走り幅跳び）"
+        placeholderTextColor="#666"
+        value={event}
+        onChangeText={setEvent}
+      />
+
+      {/* 動画選択ボタン */}
+      <TouchableOpacity
+        onPress={pickVideo}
+        style={{ backgroundColor: videoUri ? 'rgba(229,57,53,0.15)' : 'rgba(255,255,255,0.08)', borderRadius: 14, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: videoUri ? '#E53935' : 'rgba(255,255,255,0.1)', marginBottom: 16 }}
+      >
+        <Ionicons name={videoUri ? 'checkmark-circle' : 'cloud-upload-outline'} size={36} color={videoUri ? '#E53935' : '#888'} />
+        <Text style={{ color: videoUri ? '#E53935' : '#888', fontSize: 14, marginTop: 8, fontWeight: '600' }}>
+          {videoUri ? '動画選択済み ✓（タップして変更）' : '動画を選択'}
+        </Text>
+      </TouchableOpacity>
+
+      {/* サムネイル一覧 */}
+      {frames.length > 0 && (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
+          {frames.map((uri, i) => (
+            <Image key={i} source={{ uri }} style={{ width: 70, height: 50, borderRadius: 8, backgroundColor: '#222' }} />
+          ))}
+        </View>
+      )}
+
+      {error ? <Text style={{ color: '#f87171', marginBottom: 12, fontSize: 13 }}>{error}</Text> : null}
+
+      {/* 分析ボタン */}
+      {phase === 'analyzing' ? (
+        <View style={{ alignItems: 'center', padding: 24 }}>
+          <ActivityIndicator color="#E53935" size="large" />
+          <Text style={{ color: '#888', marginTop: 12, fontSize: 14 }}>AIがフォームを分析中...</Text>
+        </View>
+      ) : (
+        <TouchableOpacity
+          onPress={analyze}
+          disabled={!videoUri}
+          style={{ backgroundColor: videoUri ? '#E53935' : '#333', borderRadius: 14, padding: 18, alignItems: 'center', marginBottom: 24 }}
+        >
+          <Text style={{ color: videoUri ? '#fff' : '#666', fontSize: 16, fontWeight: '800' }}>
+            {phase === 'result' ? '再分析する' : 'AIで分析する'}
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      {/* 結果表示 */}
+      {parsed && (
+        <View style={{ gap: 14 }}>
+          {/* スコア */}
+          <View style={{ backgroundColor: 'rgba(229,57,53,0.12)', borderRadius: 16, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(229,57,53,0.3)' }}>
+            <Text style={{ color: '#E53935', fontSize: 48, fontWeight: '900' }}>{parsed.score}</Text>
+            <Text style={{ color: '#E53935', fontSize: 13 }}>/ 100点</Text>
+            <Text style={{ color: '#ccc', fontSize: 14, marginTop: 8, textAlign: 'center', lineHeight: 22 }}>{parsed.overall}</Text>
+          </View>
+
+          {/* 良い点 */}
+          <View style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 16 }}>
+            <Text style={{ color: '#4ade80', fontSize: 14, fontWeight: '700', marginBottom: 10 }}>✅ 良い点</Text>
+            {(parsed.positives ?? []).map((p: string, i: number) => (
+              <Text key={i} style={{ color: '#ccc', fontSize: 13, lineHeight: 22, paddingLeft: 8 }}>・{p}</Text>
+            ))}
+          </View>
+
+          {/* 改善点 */}
+          <View style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 16 }}>
+            <Text style={{ color: '#fbbf24', fontSize: 14, fontWeight: '700', marginBottom: 10 }}>⚠️ 改善点</Text>
+            {(parsed.improvements ?? []).map((p: string, i: number) => (
+              <Text key={i} style={{ color: '#ccc', fontSize: 13, lineHeight: 22, paddingLeft: 8 }}>・{p}</Text>
+            ))}
+          </View>
+
+          {/* 練習メニュー */}
+          {parsed.menu && parsed.menu.length > 0 && (
+            <View style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 16 }}>
+              <Text style={{ color: '#60a5fa', fontSize: 14, fontWeight: '700', marginBottom: 10 }}>🏃 練習メニュー提案</Text>
+              {parsed.menu.map((m: any, i: number) => (
+                <View key={i} style={{ marginBottom: 8 }}>
+                  <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>{m.name}</Text>
+                  <Text style={{ color: '#999', fontSize: 12, lineHeight: 18 }}>{m.detail}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* JSON未パースの場合はテキスト表示 */}
+      {result && !parsed && (
+        <View style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 16 }}>
+          <Text style={{ color: '#ccc', fontSize: 13, lineHeight: 22 }}>{result}</Text>
+        </View>
+      )}
+
+      <View style={{ height: 40 }} />
+    </ScrollView>
+  )
+}
+
 /* ─── メイン ──────────────────────────────────── */
 export default function VideoAnalysis() {
   const [premiumChecked, setPremiumChecked] = useState(false)
@@ -47,12 +264,7 @@ export default function VideoAnalysis() {
   )
 
   if (Platform.OS !== 'web') {
-    return (
-      <View style={s.center}>
-        <Ionicons name="phone-portrait-outline" size={48} color="#555" />
-        <Text style={s.gray16}>モバイル版は近日公開予定</Text>
-      </View>
-    )
+    return <NativeVideoAnalysis />
   }
 
   return <WebPlayer isPremiumUser={true} />
