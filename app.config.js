@@ -19,7 +19,7 @@ module.exports = {
     plugins: [
       'expo-router',
       // ネイティブSDKは web export では plugin 解決エラーになるため EAS 時のみ
-      ...(IS_EAS ? ['react-native-purchases'] : []),
+      ...(IS_EAS ? [['react-native-purchases/build/plugin/src', {}]] : []),
       ['expo-camera', { cameraPermission: 'フォーム分析のためカメラを使用します' }],
       ['expo-image-picker', { photosPermission: '食事・動画を記録するために写真ライブラリを使用します' }],
     ],
