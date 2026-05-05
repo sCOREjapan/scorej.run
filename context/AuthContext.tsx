@@ -122,18 +122,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithGoogle = useCallback(async () => {
     try {
       if (Platform.OS !== 'web') {
-        // ネイティブ（iOS/Android）: expo-web-browser でブラウザを開いてリダイレクト
-        const redirectTo = Linking.createURL('/')
+        // アプリのURLスキームへのリダイレクト URL（Supabase に登録が必要）
+        const redirectTo = 'score:///auth-callback'
         const { data, error } = await (supabase.auth as any).signInWithOAuth({
           provider: 'google',
           options: { redirectTo, skipBrowserRedirect: true },
         })
         if (error) { Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: error.message }); return }
         if (data?.url) {
+          // openAuthSessionAsync: ブラウザを開き、redirectTo スキームを検知したら自動で閉じる
           const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo)
           if (result.type === 'success' && result.url) {
+            // URLからセッションを取得してログイン完了
             const { error: sessionError } = await (supabase.auth as any).exchangeCodeForSession(result.url)
-            if (sessionError) Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: sessionError.message })
+            if (sessionError) {
+              // PKCE失敗時は setSession を試みる（implicit flow フォールバック）
+              const urlObj = new URL(result.url)
+              const accessToken  = urlObj.searchParams.get('access_token')
+                ?? result.url.split('access_token=')[1]?.split('&')[0]
+              const refreshToken = urlObj.searchParams.get('refresh_token')
+                ?? result.url.split('refresh_token=')[1]?.split('&')[0]
+              if (accessToken && refreshToken) {
+                await (supabase.auth as any).setSession({ access_token: accessToken, refresh_token: refreshToken })
+              } else {
+                Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: sessionError.message })
+              }
+            }
+          } else if (result.type === 'cancel') {
+            // ユーザーがキャンセル — 何もしない
           }
         }
       } else {
