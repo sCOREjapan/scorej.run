@@ -10,8 +10,8 @@ export type { PlanTier }
 
 // ── RevenueCat API キー ─────────────────────────────────────────────
 // RevenueCat ダッシュボード → Projects → API Keys で取得して差し替え
-const RC_IOS_KEY     = 'appl_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'  // ← 要置換
-const RC_ANDROID_KEY = 'goog_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'  // ← 要置換
+const RC_IOS_KEY     = 'test_uQtWuxYRINhdwZhgcJTtPNyutii'  // ✅ RevenueCat iOS key
+const RC_ANDROID_KEY = 'goog_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'  // ← Android用（後で設定）
 
 const ENT_PRO   = 'pro'
 const ENT_ELITE = 'elite'
