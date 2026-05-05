@@ -1,8 +1,9 @@
 // app/(tabs)/mypage.tsx — プロフィール画面
-import React, { useEffect, useState } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native'
+import React, { useEffect, useState, useRef, useCallback } from 'react'
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, Easing } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
+import { useFocusEffect } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTrainingSessions } from '../../hooks/useTrainingSessions'
@@ -25,6 +26,16 @@ export default function MyPageScreen() {
   const { colors } = useTheme()
   const { sessions, fetchSessions } = useTrainingSessions()
   const [profile, setProfile] = useState<MyProfile>({ name: '', primary_event: '400m' })
+  const fadeY = useRef(new Animated.Value(0)).current
+
+  useFocusEffect(useCallback(() => {
+    fadeY.setValue(0)
+    const anim = Animated.timing(fadeY, {
+      toValue: 1, duration: 420, easing: Easing.out(Easing.cubic), useNativeDriver: true,
+    })
+    anim.start()
+    return () => anim.stop()
+  }, []))
 
   useEffect(() => {
     AsyncStorage.getItem(PROFILE_KEY).then(v => { if (v) setProfile(JSON.parse(v)) }).catch(() => {})
@@ -36,7 +47,7 @@ export default function MyPageScreen() {
   const levelInfo   = calcLevelInfo(sessions.length)
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <Animated.View style={{ flex: 1, backgroundColor: colors.bg, opacity: fadeY, transform: [{ translateY: fadeY.interpolate({ inputRange: [0,1], outputRange: [14,0] }) }] }}>
       <SafeAreaView style={{ flex: 1 }}>
 
         {/* ── ヘッダー ── */}
@@ -111,7 +122,7 @@ export default function MyPageScreen() {
           <Text style={[s.version, { color: colors.textHint }]}>sCORE v1.0.0</Text>
         </ScrollView>
       </SafeAreaView>
-    </View>
+    </Animated.View>
   )
 }
 

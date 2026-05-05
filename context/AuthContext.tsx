@@ -2,10 +2,16 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { Platform } from 'react-native'
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import { syncAll } from '../lib/cloudSync'
 import Toast from 'react-native-toast-message'
+import * as WebBrowser from 'expo-web-browser'
+import * as Linking from 'expo-linking'
+
+// expo-web-browser の結果を Supabase が処理できるよう登録
+WebBrowser.maybeCompleteAuthSession()
 
 const ONBOARDING_KEY = 'tm_onboarded'
 
@@ -115,11 +121,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ── Google OAuth ──────────────────────────────────────────
   const signInWithGoogle = useCallback(async () => {
     try {
-      const { error } = await (supabase.auth as any).signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: SITE_URL },
-      })
-      if (error) Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: error.message })
+      if (Platform.OS !== 'web') {
+        // ネイティブ（iOS/Android）: expo-web-browser でブラウザを開いてリダイレクト
+        const redirectTo = Linking.createURL('/')
+        const { data, error } = await (supabase.auth as any).signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo, skipBrowserRedirect: true },
+        })
+        if (error) { Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: error.message }); return }
+        if (data?.url) {
+          const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo)
+          if (result.type === 'success' && result.url) {
+            const { error: sessionError } = await (supabase.auth as any).exchangeCodeForSession(result.url)
+            if (sessionError) Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: sessionError.message })
+          }
+        }
+      } else {
+        // Web: 通常リダイレクト
+        const { error } = await (supabase.auth as any).signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo: SITE_URL },
+        })
+        if (error) Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: error.message })
+      }
     } catch (e: any) {
       Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: e?.message ?? 'エラーが発生しました' })
     }

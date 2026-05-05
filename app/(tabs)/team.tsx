@@ -1,8 +1,9 @@
 // app/(tabs)/team.tsx — チーム機能 v3（Supabase同期 + OneSignal通知）
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   TextInput, KeyboardAvoidingView, Platform, Modal, Linking, Dimensions,
+  Animated, Easing,
 } from 'react-native'
 const SCREEN_H = Dimensions.get('window').height
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -2509,6 +2510,16 @@ export default function TeamScreen() {
   const [state,  setState]  = useState<State>('loading')
   const [setup,  setSetup]  = useState<TeamSetup|null>(null)
   const [joined, setJoined] = useState<JoinedTeam|null>(null)
+  const fadeY = useRef(new Animated.Value(0)).current
+
+  useFocusEffect(useCallback(() => {
+    fadeY.setValue(0)
+    const anim = Animated.timing(fadeY, {
+      toValue: 1, duration: 420, easing: Easing.out(Easing.cubic), useNativeDriver: true,
+    })
+    anim.start()
+    return () => anim.stop()
+  }, []))
 
   useEffect(() => {
     async function init() {
@@ -2563,11 +2574,13 @@ export default function TeamScreen() {
     setState('select-role')
   }
 
-  if (state==='loading')          return <View style={{flex:1,backgroundColor:'#f6f6f8'}}/>
-  if (state==='select-role')      return <RoleSelectionScreen onSelect={handleSelectRole}/>
-  if (state==='coach-setup')      return <CoachSetupScreen onCreated={handleCoachCreated} onBack={() => setState('select-role')}/>
-  if (state==='coach' && setup)   return <CoachDashboard  setup={setup}   onSwitchRole={handleSwitchRole} onDeleteTeam={handleDeleteTeam}  canSwitchRole={joined !== null}/>
-  if (state==='player-join')      return <PlayerJoinScreen onJoined={handlePlayerJoined} onBack={() => setState('select-role')}/>
-  if (state==='player' && joined) return <PlayerDashboard joined={joined} onSwitchRole={handleSwitchRole} onLeaveTeam={handleLeaveTeam}  canSwitchRole={setup !== null}/>
-  return <View style={{flex:1,backgroundColor:'#f6f6f8'}}/>
+  const fadeStyle = { flex: 1, opacity: fadeY, transform: [{ translateY: fadeY.interpolate({ inputRange: [0,1], outputRange: [14,0] }) }] }
+
+  if (state==='loading')          return <View style={{flex:1,backgroundColor:'#0a0a0a'}}/>
+  if (state==='select-role')      return <Animated.View style={fadeStyle}><RoleSelectionScreen onSelect={handleSelectRole}/></Animated.View>
+  if (state==='coach-setup')      return <Animated.View style={fadeStyle}><CoachSetupScreen onCreated={handleCoachCreated} onBack={() => setState('select-role')}/></Animated.View>
+  if (state==='coach' && setup)   return <Animated.View style={fadeStyle}><CoachDashboard  setup={setup}   onSwitchRole={handleSwitchRole} onDeleteTeam={handleDeleteTeam}  canSwitchRole={joined !== null}/></Animated.View>
+  if (state==='player-join')      return <Animated.View style={fadeStyle}><PlayerJoinScreen onJoined={handlePlayerJoined} onBack={() => setState('select-role')}/></Animated.View>
+  if (state==='player' && joined) return <Animated.View style={fadeStyle}><PlayerDashboard joined={joined} onSwitchRole={handleSwitchRole} onLeaveTeam={handleLeaveTeam}  canSwitchRole={setup !== null}/></Animated.View>
+  return <View style={{flex:1,backgroundColor:'#0a0a0a'}}/>
 }
