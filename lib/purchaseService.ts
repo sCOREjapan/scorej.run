@@ -3,16 +3,19 @@
 
 export const ENTITLEMENT_PRO   = 'pro'
 export const ENTITLEMENT_ELITE = 'elite'
+export const ENTITLEMENT_COACH = 'coach'
 
 // App Store Connect で作成するプロダクト ID
 export const PRODUCT_IDS = {
-  pro_monthly:    'score_pro_monthly',      // ¥780/月
-  pro_annual:     'score_pro_annual',       // ¥6,800/年
-  elite_monthly:  'score_elite_monthly',    // ¥1,480/月
-  elite_annual:   'score_elite_annual',     // ¥12,800/年
+  pro_monthly:    'score_pro_monthly',    // ¥480/月
+  pro_annual:     'score_pro_annual',     // ¥4,800/年
+  elite_monthly:  'score_elite_monthly',  // ¥1,480/月
+  elite_annual:   'score_elite_annual',   // ¥14,800/年
+  coach_monthly:  'score_coach_monthly',  // ¥2,980/月
+  coach_annual:   'score_coach_annual',   // ¥29,800/年
 }
 
-export type PlanTier = 'free' | 'pro' | 'elite'
+export type PlanTier = 'free' | 'pro' | 'elite' | 'coach'
 
 export async function initPurchases(_userId?: string): Promise<void> {}
 
