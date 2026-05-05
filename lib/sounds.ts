@@ -6,8 +6,10 @@ let unlocked = false
 
 function getCtx(): AudioContext | null {
   if (typeof window === 'undefined') return null
+  const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext
+  if (!Ctx) return null  // React Native (iOS/Android) には AudioContext がない
   if (!audioCtx) {
-    audioCtx = new ((window as any).AudioContext || (window as any).webkitAudioContext)()
+    audioCtx = new Ctx()
   }
   return audioCtx
 }
