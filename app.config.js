@@ -8,6 +8,8 @@ module.exports = {
     name: 'sCORE',
     slug: 'score',
     version: '1.0.0',
+    extra: { eas: { projectId: '17151d64-68e8-4831-b3a2-0bead72fa41e' } },
+    owner: 'score.japan',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'dark',
