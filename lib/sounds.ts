@@ -1,5 +1,7 @@
 // lib/sounds.ts — Web Audio API サウンドエンジン（爽快系リデザイン）
-// ブラウザのみ動作。ネイティブはハプティクス代替。
+// ブラウザは Web Audio API、ネイティブは expo-haptics で代替
+import { Platform } from 'react-native'
+import * as Haptics from 'expo-haptics'
 
 let audioCtx: AudioContext | null = null
 let unlocked = false
@@ -103,29 +105,44 @@ function swoosh(dur: number, vol = 0.18, delay = 0, cutoff = 800) {
   src.start(t); src.stop(t + dur + 0.01)
 }
 
+// ── ハプティクスショートカット（ネイティブ用） ───────────────────
+const H = {
+  light:   () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}),
+  medium:  () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}),
+  heavy:   () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {}),
+  select:  () => Haptics.selectionAsync().catch(() => {}),
+  success: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}),
+  warning: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {}),
+  error:   () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {}),
+}
+
 // ── サウンドライブラリ ─────────────────────────────────────────
 export const Sounds = {
 
   /** 汎用タップ — ガラスを軽くはじく「ティン」 */
   tap: () => {
+    if (Platform.OS !== 'web') { H.select(); return }
     click(0.32, 0, 4000)
     ping(720, 0.13, 0.38)
   },
 
   /** セレクト / ポップ — 「ポン」と弾む */
   pop: () => {
+    if (Platform.OS !== 'web') { H.light(); return }
     click(0.28, 0, 3200)
     ping(600, 0.18, 0.42, 0, 260)
   },
 
   /** ナビ / モーダル開く — 「シュッ」と軽快 */
   whoosh: () => {
+    if (Platform.OS !== 'web') { H.medium(); return }
     swoosh(0.22, 0.22, 0, 600)
     ping(520, 0.20, 0.35, 0.04, 780)
   },
 
   /** 保存完了 — ド・ミ・ソ チャイム（明るい達成感） */
   save: () => {
+    if (Platform.OS !== 'web') { H.success(); return }
     // C5 = 523Hz, E5 = 659Hz, G5 = 784Hz
     click(0.20, 0.00, 4500)
     ping(523, 0.30, 0.48, 0.00)
@@ -135,20 +152,23 @@ export const Sounds = {
 
   /** 削除 — 「ポン↓」と落ちる */
   delete: () => {
+    if (Platform.OS !== 'web') { H.warning(); return }
     click(0.25, 0, 2800)
     ping(500, 0.25, 0.40, 0, 200)
   },
 
   /** エラー / 警告 — 「ブッ」と不協和 */
   error: () => {
+    if (Platform.OS !== 'web') { H.error(); return }
     ping(320, 0.10, 0.38, 0.00)
-    ping(300, 0.12, 0.35, 0.05)   // わずかにずれた不協和音
+    ping(300, 0.12, 0.35, 0.05)
     ping(280, 0.14, 0.30, 0.12)
   },
 
   /** PB 達成 — 明るい5音ファンファーレ */
   pb: () => {
-    const notes = [523, 659, 784, 1047, 1319] // C E G C E (オクターブ上)
+    if (Platform.OS !== 'web') { H.success(); return }
+    const notes = [523, 659, 784, 1047, 1319]
     notes.forEach((f, i) => {
       click(0.18, i * 0.10, 4000 + i * 200)
       ping(f, 0.40, 0.44 + i * 0.02, i * 0.10)
@@ -157,24 +177,28 @@ export const Sounds = {
 
   /** タブ切り替え — 「ティック」 */
   tabSwitch: () => {
+    if (Platform.OS !== 'web') { H.select(); return }
     click(0.22, 0, 5000)
     ping(900, 0.09, 0.28)
   },
 
   /** トグル ON — 「ポン↑」明るく上がる */
   toggleOn: () => {
+    if (Platform.OS !== 'web') { H.light(); return }
     click(0.24, 0, 3800)
     ping(440, 0.16, 0.40, 0, 660)
   },
 
   /** トグル OFF — 「ポン↓」落ち着く */
   toggleOff: () => {
+    if (Platform.OS !== 'web') { H.light(); return }
     click(0.20, 0, 3200)
     ping(660, 0.16, 0.38, 0, 380)
   },
 
   /** カメラシャッター — 「カシャ」 */
   shutter: () => {
+    if (Platform.OS !== 'web') { H.medium(); return }
     click(0.40, 0, 6000)
     swoosh(0.06, 0.30, 0.001, 1200)
     ping(400, 0.15, 0.28, 0.01, 180)
@@ -182,9 +206,10 @@ export const Sounds = {
 
   /** カウント完了 — 「チーン」ベル */
   ding: () => {
+    if (Platform.OS !== 'web') { H.success(); return }
     click(0.20, 0, 5500)
     ping(880, 0.50, 0.52)
-    ping(1760, 0.35, 0.22, 0.01)  // オクターブ上で輝き
+    ping(1760, 0.35, 0.22, 0.01)
   },
 
   /**
@@ -192,6 +217,7 @@ export const Sounds = {
    * unlocked チェックなし、resume() を試みる
    */
   splashBoom: () => {
+    if (Platform.OS !== 'web') { H.heavy(); return }
     const c = getCtx()
     if (!c) return
     const play = () => {

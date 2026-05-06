@@ -249,7 +249,7 @@ function Heatmap({ sessions }: { sessions: TrainingSession[] }) {
   const cellColor = (d: string | null) => {
     if (!d) return 'transparent'
     const n = countByDay[d] ?? 0
-    if (n === 0) return 'rgba(255,255,255,0.07)'
+    if (n === 0) return '#e5e7eb'
     const type = typeByDay[d]
     const base =
       type === 'interval' || type === 'sprint' ? '#E53935' :
@@ -363,7 +363,7 @@ function SessionDetailSheet({ session, onClose, onDelete }: {
 
   const stats: { icon: string; label: string; value: string; color?: string }[] = [
     ...(session.event     ? [{ icon:'🏟️', label:'種目',   value: session.event }] : []),
-    ...(session.time_ms   ? [{ icon:'⏱',  label:'タイム', value: fmtMs(session.time_ms), color:'#fff' }] : []),
+    ...(session.time_ms   ? [{ icon:'⏱',  label:'タイム', value: fmtMs(session.time_ms) }] : []),
     ...(session.distance_m? [{ icon:'📏', label:'距離',   value: fmtDist(session.distance_m) }] : []),
     ...(session.reps      ? [{ icon:'🔁', label:'本数',   value: `${session.reps}本` }] : []),
     { icon: FATIGUE_EMOJI(fat),  label:'疲労度',   value: `${fat}/10` },
@@ -398,18 +398,18 @@ function SessionDetailSheet({ session, onClose, onDelete }: {
         {/* スタッツグリッド */}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
           {stats.map((s, i) => (
-            <View key={i} style={{ backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12,
+            <View key={i} style={{ backgroundColor: '#f0f2f5', borderRadius: 12,
               paddingVertical: 12, paddingHorizontal: 14, gap: 4, minWidth: '44%', flex: 1 }}>
               <Text style={{ color: TEXT.hint, fontSize: 11 }}>{s.icon} {s.label}</Text>
-              <Text style={{ color: s.color ?? '#fff', fontSize: 15, fontWeight: '800' }}>{s.value}</Text>
+              <Text style={{ color: s.color ?? TEXT.primary, fontSize: 15, fontWeight: '800' }}>{s.value}</Text>
             </View>
           ))}
         </View>
 
         {/* ノート（元の入力テキスト） */}
         {session.notes ? (
-          <View style={{ backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: 14,
-            borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', marginBottom: 12 }}>
+          <View style={{ backgroundColor: '#f8f8fa', borderRadius: 12, padding: 14,
+            borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', marginBottom: 12 }}>
             <Text style={{ color: TEXT.hint, fontSize: 11, fontWeight: '700', marginBottom: 8 }}>📝 メモ</Text>
             <Text style={{ color: TEXT.secondary, fontSize: 13, lineHeight: 22 }}>{session.notes}</Text>
           </View>
@@ -449,7 +449,7 @@ function SessionTimelineCard({ session, onTap }: { session: TrainingSession; onT
           borderWidth: 2, borderColor: color, alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ fontSize: 13 }}>{emoji}</Text>
         </View>
-        <View style={{ width: 2, flex: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginTop: 4 }} />
+        <View style={{ width: 2, flex: 1, backgroundColor: 'rgba(0,0,0,0.08)', marginTop: 4 }} />
       </View>
       {/* 右: 内容 */}
       <View style={{ flex: 1, gap: 4, paddingBottom: 12 }}>
@@ -463,20 +463,20 @@ function SessionTimelineCard({ session, onTap }: { session: TrainingSession; onT
         {/* メトリクス */}
         <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
           {session.time_ms ? (
-            <View style={{ backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
-              <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>⏱ {fmtMs(session.time_ms)}</Text>
+            <View style={{ backgroundColor: '#f0f2f5', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
+              <Text style={{ color: TEXT.primary, fontSize: 12, fontWeight: '700' }}>⏱ {fmtMs(session.time_ms)}</Text>
             </View>
           ) : null}
           {session.distance_m ? (
-            <View style={{ backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
-              <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>
+            <View style={{ backgroundColor: '#f0f2f5', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
+              <Text style={{ color: TEXT.primary, fontSize: 12, fontWeight: '700' }}>
                 📏 {session.distance_m >= 1000 ? `${(session.distance_m/1000).toFixed(1)}km` : `${session.distance_m}m`}
               </Text>
             </View>
           ) : null}
           {session.reps ? (
-            <View style={{ backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
-              <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>🔁 {session.reps}本</Text>
+            <View style={{ backgroundColor: '#f0f2f5', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
+              <Text style={{ color: TEXT.primary, fontSize: 12, fontWeight: '700' }}>🔁 {session.reps}本</Text>
             </View>
           ) : null}
         </View>
@@ -594,22 +594,22 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
           </View>
           <View style={{ gap: 10 }}>
             <View style={{ alignItems: 'flex-end', gap: 2 }}>
-              <Text style={{ color: '#fff', fontSize: 18, fontWeight: '900' }}>{sessions.length}</Text>
+              <Text style={{ color: TEXT.primary, fontSize: 18, fontWeight: '900' }}>{sessions.length}</Text>
               <Text style={{ color: TEXT.hint, fontSize: 10 }}>総練習数</Text>
             </View>
             <View style={{ alignItems: 'flex-end', gap: 2 }}>
-              <Text style={{ color: '#fff', fontSize: 18, fontWeight: '900' }}>{totalKm.toFixed(0)}km</Text>
+              <Text style={{ color: TEXT.primary, fontSize: 18, fontWeight: '900' }}>{totalKm.toFixed(0)}km</Text>
               <Text style={{ color: TEXT.hint, fontSize: 10 }}>累計距離</Text>
             </View>
           </View>
         </View>
         {/* 今週サマリー */}
-        <View style={{ marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)',
+        <View style={{ marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.08)',
           flexDirection: 'row', gap: 12 }}>
           <Text style={{ color: TEXT.hint, fontSize: 11 }}>今週</Text>
-          <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{thisWeekSessions.length}回</Text>
+          <Text style={{ color: TEXT.primary, fontSize: 11, fontWeight: '700' }}>{thisWeekSessions.length}回</Text>
           <Text style={{ color: TEXT.hint, fontSize: 11, marginLeft: 8 }}>今月</Text>
-          <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>
+          <Text style={{ color: TEXT.primary, fontSize: 11, fontWeight: '700' }}>
             {sessions.filter(s => new Date(s.session_date).getMonth() === new Date().getMonth()).length}回
           </Text>
           <View style={{ flex: 1 }} />
@@ -643,13 +643,13 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
               return (
                 <View key={m.key} style={{
                   alignItems: 'center', gap: 5, padding: 12, borderRadius: 12,
-                  backgroundColor: unlocked ? 'rgba(229,57,53,0.1)' : 'rgba(255,255,255,0.04)',
-                  borderWidth: 1, borderColor: unlocked ? BRAND + '40' : 'rgba(255,255,255,0.06)',
+                  backgroundColor: unlocked ? 'rgba(229,57,53,0.1)' : '#f0f2f5',
+                  borderWidth: 1, borderColor: unlocked ? BRAND + '40' : 'rgba(0,0,0,0.06)',
                   minWidth: 68,
                   opacity: unlocked ? 1 : 0.45,
                 }}>
                   <Text style={{ fontSize: 22 }}>{m.emoji}</Text>
-                  <Text style={{ color: unlocked ? '#fff' : '#555', fontSize: 11, fontWeight: '800' }}>{m.label}</Text>
+                  <Text style={{ color: unlocked ? BRAND : TEXT.secondary, fontSize: 11, fontWeight: '800' }}>{m.label}</Text>
                 </View>
               )
             })}
@@ -755,7 +755,7 @@ function WeightLineChart({ records }: { records: WeightRecord[] }) {
           return (
             <View key={i} style={{
               position: 'absolute', left: 0, right: 0, top: y, height: 1,
-              backgroundColor: 'rgba(255,255,255,0.07)',
+              backgroundColor: 'rgba(0,0,0,0.07)',
             }} />
           )
         })}
@@ -793,7 +793,7 @@ function WeightLineChart({ records }: { records: WeightRecord[] }) {
               width: 8, height: 8, borderRadius: 4,
               backgroundColor: isLatest ? BRAND : '#3b82f6',
               borderWidth: isLatest ? 2 : 1,
-              borderColor: isLatest ? '#fff' : 'rgba(255,255,255,0.9)',
+              borderColor: isLatest ? '#fff' : 'rgba(0,0,0,0.25)',
             }} />
           )
         })}
@@ -978,7 +978,7 @@ function TrendLine({ data, color, label, format }: {
       </View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
         <Text style={{ color: TEXT.hint, fontSize: 11 }}>
-          平均: <Text style={{ color: '#fff', fontWeight: '700' }}>
+          平均: <Text style={{ color: TEXT.primary, fontWeight: '700' }}>
             {format(data.reduce((a,d)=>a+d.value,0)/data.length)}
           </Text>
         </Text>
@@ -1043,7 +1043,7 @@ function HealthTab({ conditionMap, sleepRecords, weightRecords, onAddWeight, onD
                 </Text>
                 <View>
                   <Text style={{ color: TEXT.secondary, fontSize: 11 }}>直近の体調</Text>
-                  <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>
+                  <Text style={{ color: TEXT.primary, fontSize: 16, fontWeight: '800' }}>
                     {condData[condData.length-1].value}/10
                   </Text>
                 </View>

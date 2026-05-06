@@ -82,11 +82,11 @@ function CalendarPicker({ value, onChange }: { value: string; onChange: (d: stri
       {/* ヘッダー（月移動） */}
       <View style={cal.header}>
         <TouchableOpacity onPress={prevMonth} style={cal.arrow}>
-          <Ionicons name="chevron-back" size={18} color="#fff" />
+          <Ionicons name="chevron-back" size={18} color="#6b7280" />
         </TouchableOpacity>
         <Text style={cal.monthLabel}>{viewYear}年 {viewMonth + 1}月</Text>
         <TouchableOpacity onPress={nextMonth} style={cal.arrow}>
-          <Ionicons name="chevron-forward" size={18} color="#fff" />
+          <Ionicons name="chevron-forward" size={18} color="#6b7280" />
         </TouchableOpacity>
       </View>
 
@@ -135,15 +135,15 @@ function CalendarPicker({ value, onChange }: { value: string; onChange: (d: stri
 }
 
 const cal = StyleSheet.create({
-  wrap:       { borderRadius: 14, overflow: 'hidden', backgroundColor: '#1a1a1a' },
+  wrap:       { borderRadius: 14, overflow: 'hidden', backgroundColor: '#f8f8fa', borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)' },
   header:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 10 },
   arrow:      { padding: 6 },
-  monthLabel: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  monthLabel: { color: '#111827', fontSize: 15, fontWeight: '800' },
   dowRow:     { flexDirection: 'row', paddingHorizontal: 4, paddingBottom: 4 },
-  dow:        { flex: 1, textAlign: 'center', color: '#888', fontSize: 11, fontWeight: '700' },
+  dow:        { flex: 1, textAlign: 'center', color: '#9ca3af', fontSize: 11, fontWeight: '700' },
   row:        { flexDirection: 'row', paddingHorizontal: 4, paddingBottom: 2 },
   cell:       { flex: 1, height: 36, alignItems: 'center', justifyContent: 'center' },
-  dayText:    { color: '#ddd', fontSize: 13, fontWeight: '600' },
+  dayText:    { color: '#111827', fontSize: 13, fontWeight: '600' },
 })
 
 // ── タイム変換: mm:ss:cs → ms ────────────────────────────
@@ -246,8 +246,8 @@ export default function ManualLogScreen() {
 
             {/* ── 日付選択（カレンダー） ── */}
             <Section title="日付">
-              <Text style={{ color: '#888', fontSize: 12, marginBottom: 6 }}>
-                選択中: <Text style={{ color: '#fff', fontWeight: '700' }}>{date === today ? `今日 (${date})` : date}</Text>
+              <Text style={{ color: '#6b7280', fontSize: 12, marginBottom: 6 }}>
+                選択中: <Text style={{ color: '#111827', fontWeight: '700' }}>{date === today ? `今日 (${date})` : date}</Text>
               </Text>
               <CalendarPicker value={date} onChange={setDate} />
             </Section>
@@ -441,7 +441,7 @@ const s = StyleSheet.create({
 
   eventChip: {
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.12)',
   },
   eventChipText: { fontSize: 12, fontWeight: '700' },
 
@@ -465,7 +465,7 @@ const s = StyleSheet.create({
   fatigueBtn: {
     flex: 1, alignItems: 'center', gap: 4,
     paddingVertical: 10, borderRadius: 12,
-    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.1)',
   },
   fatigueBtnLabel: { fontSize: 9, fontWeight: '700', textAlign: 'center' },
 

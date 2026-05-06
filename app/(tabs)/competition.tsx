@@ -476,23 +476,27 @@ export default function CompetitionScreen() {
             {/* 選択中の試合の週別計画 */}
             {selectedComp && selectedComp.phases.length > 0 && (
               <AnimatedSection delay={0} type="scale">
-              <View style={styles.card}>
-                <View style={styles.sectionHeader}>
-                  <Ionicons name="calendar" size={18} color={BRAND} />
-                  <Text style={styles.sectionTitle}>
-                    {selectedComp.phases.length}週間トレーニング計画
-                    {'  '}
-                    <Text style={{ color: TEXT.hint, fontSize: 12, fontWeight: '400' }}>
-                      （試合{Math.ceil((new Date(selectedComp.competition_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))}日前）
+                {/* 今日・明日のメニューカード */}
+                <TodayWorkoutCard competition={selectedComp} />
+
+                {/* 週別スケジュール */}
+                <View style={[styles.card, { marginTop: 10 }]}>
+                  <View style={styles.sectionHeader}>
+                    <Ionicons name="calendar" size={18} color={BRAND} />
+                    <Text style={styles.sectionTitle}>
+                      {selectedComp.phases.length}週間スケジュール
+                      {'  '}
+                      <Text style={{ color: TEXT.hint, fontSize: 12, fontWeight: '400' }}>
+                        （試合{Math.max(0, Math.ceil((new Date(selectedComp.competition_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))}日前）
+                      </Text>
                     </Text>
-                  </Text>
+                  </View>
+                  <View style={{ gap: 8 }}>
+                    {selectedComp.phases.map(week => (
+                      <WeekCard key={week.week_number} week={week} />
+                    ))}
+                  </View>
                 </View>
-                <View style={{ gap: 8 }}>
-                  {selectedComp.phases.map(week => (
-                    <WeekCard key={week.week_number} week={week} />
-                  ))}
-                </View>
-              </View>
               </AnimatedSection>
             )}
           </>
@@ -528,29 +532,38 @@ export default function CompetitionScreen() {
                 onPress={() => setShowDatePicker(true)}
                 activeOpacity={0.7}
               >
-                <Text style={{ color: compDate ? '#fff' : '#9ca3af', fontSize: 15 }}>
+                <Text style={{ color: compDate ? TEXT.primary : '#9ca3af', fontSize: 15 }}>
                   {compDate || '日付を選択'}
                 </Text>
               </TouchableOpacity>
               {showDatePicker && (
-                <DateTimePicker
-                  value={compDate ? new Date(compDate) : new Date()}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                  minimumDate={new Date()}
-                  onChange={(_, date) => {
-                    setShowDatePicker(Platform.OS === 'ios')
-                    if (date) {
-                      const y = date.getFullYear()
-                      const m = String(date.getMonth() + 1).padStart(2, '0')
-                      const d = String(date.getDate()).padStart(2, '0')
-                      setCompDate(`${y}-${m}-${d}`)
-                      if (Platform.OS === 'android') setShowDatePicker(false)
-                    }
-                  }}
-                  style={{ backgroundColor: 'transparent' }}
-                  themeVariant="dark"
-                />
+                <>
+                  <DateTimePicker
+                    value={compDate ? new Date(compDate) : new Date()}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    minimumDate={new Date()}
+                    onChange={(_, date) => {
+                      if (Platform.OS !== 'ios') setShowDatePicker(false)
+                      if (date) {
+                        const y = date.getFullYear()
+                        const m = String(date.getMonth() + 1).padStart(2, '0')
+                        const d = String(date.getDate()).padStart(2, '0')
+                        setCompDate(`${y}-${m}-${d}`)
+                      }
+                    }}
+                    style={{ backgroundColor: 'transparent' }}
+                    themeVariant="light"
+                  />
+                  {Platform.OS === 'ios' && (
+                    <TouchableOpacity
+                      style={{ alignSelf: 'flex-end', paddingHorizontal: 18, paddingVertical: 8, backgroundColor: BRAND, borderRadius: 10, marginBottom: 8 }}
+                      onPress={() => setShowDatePicker(false)}
+                    >
+                      <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>完了</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
               )}
 
               <Text style={styles.label}>種目</Text>
@@ -680,6 +693,118 @@ export default function CompetitionScreen() {
     </View>
   )
 }
+
+// ── 今日のメニューカード ──────────────────────────────────────────
+const DOW_FULL = ['日曜', '月曜', '火曜', '水曜', '木曜', '金曜', '土曜']
+
+function TodayWorkoutCard({ competition }: { competition: CompetitionPlan }) {
+  const today = new Date()
+  const compDate = new Date(competition.competition_date)
+  const daysUntil = Math.max(0, Math.ceil((compDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)))
+  const weeksLeft = Math.max(1, Math.ceil(daysUntil / 7))
+
+  const currentWeek = competition.phases.find(p => p.week_number === weeksLeft)
+  if (!currentWeek) return null
+
+  const todayDow    = DOW_FULL[today.getDay()]
+  const tomorrowDow = DOW_FULL[(today.getDay() + 1) % 7]
+
+  const todaySession    = currentWeek.sessions.find(s => s.day === todayDow)
+  const tomorrowSession = currentWeek.sessions.find(s => s.day === tomorrowDow)
+
+  const dietAdvice = daysUntil === 0
+    ? '試合当日: 3時間前までに消化の良い炭水化物（おにぎり・バナナ）を。試合直前は水分補給のみ。'
+    : daysUntil <= 2
+    ? '試合直前: 消化の良いもの（うどん・ご飯・鶏肉）を中心に。揚げ物・乳製品・高脂質は控えよう。'
+    : daysUntil <= 7
+    ? '試合1週間前: 炭水化物の割合を増やしグリコーゲンを蓄えよう。脂質・食物繊維は控えめに。'
+    : null
+
+  return (
+    <View style={tw.card}>
+      {/* 今日 */}
+      <View style={tw.sectionRow}>
+        <Ionicons name="today" size={16} color={BRAND} />
+        <Text style={tw.sectionTitle}>今日のメニュー（{todayDow}）</Text>
+      </View>
+      {todaySession ? (
+        <View style={tw.sessionBox}>
+          <View style={[tw.intensityBar, { backgroundColor: INTENSITY_COLORS[todaySession.intensity] ?? '#888' }]} />
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+              <Text style={tw.sessionType}>{todaySession.type}</Text>
+              <Text style={tw.sessionDur}>{todaySession.duration_min}分</Text>
+            </View>
+            <Text style={tw.sessionDetail}>{todaySession.detail}</Text>
+          </View>
+        </View>
+      ) : (
+        <View style={tw.restBox}>
+          <Text style={{ fontSize: 18 }}>💤</Text>
+          <Text style={tw.restText}>今日は休養日</Text>
+        </View>
+      )}
+
+      {/* 明日 */}
+      <View style={[tw.sectionRow, { marginTop: 10 }]}>
+        <Ionicons name="calendar-outline" size={14} color={TEXT.secondary} />
+        <Text style={[tw.sectionTitle, { color: TEXT.secondary, fontSize: 12, fontWeight: '600' }]}>
+          明日（{tomorrowDow}）
+        </Text>
+      </View>
+      {tomorrowSession ? (
+        <View style={[tw.sessionBox, { opacity: 0.72 }]}>
+          <View style={[tw.intensityBar, { backgroundColor: INTENSITY_COLORS[tomorrowSession.intensity] ?? '#888' }]} />
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 }}>
+              <Text style={[tw.sessionType, { fontSize: 12 }]}>{tomorrowSession.type}</Text>
+              <Text style={tw.sessionDur}>{tomorrowSession.duration_min}分</Text>
+            </View>
+            <Text style={tw.sessionDetail} numberOfLines={1}>{tomorrowSession.detail}</Text>
+          </View>
+        </View>
+      ) : (
+        <Text style={{ color: TEXT.hint, fontSize: 13, paddingLeft: 4 }}>明日は休養日</Text>
+      )}
+
+      {/* 今週テーマ */}
+      <View style={tw.themeBox}>
+        <Text style={tw.themeLabel}>今週のテーマ</Text>
+        <Text style={tw.themeText}>{currentWeek.theme}</Text>
+        {currentWeek.key_workout ? (
+          <Text style={tw.keyText}>🎯 {currentWeek.key_workout}</Text>
+        ) : null}
+      </View>
+
+      {/* 食事アドバイス（試合7日前以内） */}
+      {dietAdvice ? (
+        <View style={tw.dietBox}>
+          <Ionicons name="restaurant-outline" size={14} color={NEON.amber} />
+          <Text style={tw.dietText}>{dietAdvice}</Text>
+        </View>
+      ) : null}
+    </View>
+  )
+}
+
+const tw = StyleSheet.create({
+  card:       { backgroundColor: '#ffffff', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 16, gap: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
+  sectionRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  sectionTitle: { color: TEXT.primary, fontSize: 14, fontWeight: '800' },
+  sessionBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: '#f8f8fa', borderRadius: 10, padding: 12 },
+  intensityBar: { width: 4, alignSelf: 'stretch', borderRadius: 2, minHeight: 36 },
+  sessionType:  { color: TEXT.primary, fontSize: 13, fontWeight: '700' },
+  sessionDur:   { color: TEXT.hint, fontSize: 12 },
+  sessionDetail:{ color: TEXT.secondary, fontSize: 13, lineHeight: 19 },
+  restBox:    { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#f0f2f5', borderRadius: 10, padding: 10 },
+  restText:   { color: TEXT.secondary, fontSize: 13, fontWeight: '600' },
+  themeBox:   { backgroundColor: BRAND + '08', borderRadius: 10, borderWidth: 1, borderColor: BRAND + '20', padding: 10, gap: 3 },
+  themeLabel: { color: BRAND, fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
+  themeText:  { color: TEXT.primary, fontSize: 13, fontWeight: '700' },
+  keyText:    { color: TEXT.secondary, fontSize: 12 },
+  dietBox:    { flexDirection: 'row', alignItems: 'flex-start', gap: 6, backgroundColor: 'rgba(245,158,11,0.08)', borderWidth: 1, borderColor: 'rgba(245,158,11,0.25)', borderRadius: 10, padding: 10 },
+  dietText:   { color: TEXT.secondary, fontSize: 12, lineHeight: 18, flex: 1 },
+})
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: 'transparent' },

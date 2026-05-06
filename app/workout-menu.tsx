@@ -77,10 +77,10 @@ function FolderCard({
   )
 }
 const fc = StyleSheet.create({
-  card:     { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', padding: 14 },
+  card:     { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#ffffff', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
   iconWrap: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  name:     { color: '#fff', fontSize: 15, fontWeight: '700' },
-  count:    { color: '#666', fontSize: 12, marginTop: 2 },
+  name:     { color: TEXT.primary, fontSize: 15, fontWeight: '700' },
+  count:    { color: TEXT.secondary, fontSize: 12, marginTop: 2 },
 })
 
 // ── ItemRow ──────────────────────────────────────────────
@@ -129,11 +129,11 @@ function ItemRow({
   )
 }
 const ir = StyleSheet.create({
-  row:      { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.06)' },
+  row:      { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.08)' },
   sortBtns: { flexDirection: 'column', alignItems: 'center', gap: 0 },
   sortBtn:  { padding: 2 },
   dot:      { width: 6, height: 6, borderRadius: 3, backgroundColor: BRAND },
-  text:     { flex: 1, color: '#ddd', fontSize: 14 },
+  text:     { flex: 1, color: '#fff', fontSize: 14 },  // kept white — ItemRow renders inside dark modal
 })
 
 // ── メイン ───────────────────────────────────────────────
@@ -1058,27 +1058,27 @@ ${libraryText || '（ライブラリ未登録）'}
 const s = StyleSheet.create({
   safe:       { flex: 1, backgroundColor: 'transparent' },
   tabBar:     { flexDirection: 'row', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 6, gap: 8 },
-  tabBtn:     { flex: 1, paddingVertical: 9, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.04)', alignItems: 'center' },
+  tabBtn:     { flex: 1, paddingVertical: 9, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', backgroundColor: '#f0f2f5', alignItems: 'center' },
   tabBtnActive:{ backgroundColor: BRAND, borderColor: BRAND },
-  tabText:    { color: '#666', fontSize: 13, fontWeight: '700' },
+  tabText:    { color: TEXT.secondary, fontSize: 13, fontWeight: '700' },
   tabTextActive:{ color: '#fff' },
   content:    { padding: 16, gap: 12, paddingBottom: 60 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
   sectionTitle:  { color: TEXT.primary, fontSize: 14, fontWeight: '800', letterSpacing: 0.5 },
   addFolderBtn:  { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: BRAND, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 },
-  emptyCard:  { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 16, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', borderStyle: 'dashed' },
+  emptyCard:  { backgroundColor: '#f0f2f5', borderRadius: 16, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', borderStyle: 'dashed' },
   manualBtn:      { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(52,199,89,0.08)', borderRadius: 16, borderWidth: 1.5, borderColor: 'rgba(52,199,89,0.3)', padding: 16 },
   manualBtnIcon:  { width: 48, height: 48, borderRadius: 14, backgroundColor: 'rgba(52,199,89,0.12)', alignItems: 'center', justifyContent: 'center' },
-  manualBtnTitle: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  manualBtnTitle: { color: TEXT.primary, fontSize: 15, fontWeight: '800' },
   manualBtnSub:   { color: '#34C759', fontSize: 12, marginTop: 2 },
   aiBtn:      { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(90,200,250,0.08)', borderRadius: 16, borderWidth: 1.5, borderColor: 'rgba(90,200,250,0.3)', padding: 16 },
   aiBtnIcon:  { width: 48, height: 48, borderRadius: 14, backgroundColor: 'rgba(90,200,250,0.12)', alignItems: 'center', justifyContent: 'center' },
-  aiBtnTitle: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  aiBtnTitle: { color: TEXT.primary, fontSize: 15, fontWeight: '800' },
   aiBtnSub:   { color: '#5AC8FA', fontSize: 12, marginTop: 2 },
-  histCard:   { backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', padding: 14, gap: 6 },
-  histDate:   { color: '#666', fontSize: 11 },
-  histIntent: { color: '#aaa', fontSize: 13, fontStyle: 'italic' },
-  histPreview:{ color: '#666', fontSize: 12 },
+  histCard:   { backgroundColor: '#ffffff', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 14, gap: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
+  histDate:   { color: TEXT.hint, fontSize: 11 },
+  histIntent: { color: TEXT.secondary, fontSize: 13, fontStyle: 'italic' },
+  histPreview:{ color: TEXT.hint, fontSize: 12 },
 })
 
 const m = StyleSheet.create({

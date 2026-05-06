@@ -303,28 +303,30 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
 }
 
 const st = StyleSheet.create({
-  overlay:    { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)' },
+  overlay:    { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
   kvWrapper:  { flex: 1, justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: '#111',
+    backgroundColor: '#ffffff',
     borderTopLeftRadius: 20, borderTopRightRadius: 20,
     paddingHorizontal: 16, paddingBottom: 40,
-    borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    borderTopWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
+    shadowColor: '#000', shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08, shadowRadius: 16, elevation: 8,
   },
   handle: {
     width: 36, height: 4, borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(0,0,0,0.15)',
     alignSelf: 'center', marginTop: 10, marginBottom: 6,
   },
   header:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12 },
-  title:      { color: '#fff', fontSize: 17, fontWeight: '800' },
+  title:      { color: TEXT.primary, fontSize: 17, fontWeight: '800' },
   hint:       { color: TEXT.hint, fontSize: 13, marginBottom: 12, lineHeight: 18 },
   input: {
-    backgroundColor: 'rgba(255,255,255,0.07)',
+    backgroundColor: '#f8f8fa',
     borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 12,
-    color: '#fff', fontSize: 15, lineHeight: 24,
-    borderWidth: 1, borderColor: 'rgba(74,159,255,0.3)',
+    color: TEXT.primary, fontSize: 15, lineHeight: 24,
+    borderWidth: 1, borderColor: 'rgba(59,130,246,0.25)',
     height: 160,
     marginBottom: 16,
   },

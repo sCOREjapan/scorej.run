@@ -318,11 +318,11 @@ function StretchScreen({
   useEffect(() => {
     if (!isStarted || isPaused) return
     if (secondsLeft <= 0) {
-      // 完了音（高め×2回）
+      // タイマー自然終了 → 全時間経過
       playBeep(1046, 0.15)
       setTimeout(() => playBeep(1318, 0.2), 180)
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {})
-      setTimeout(() => advanceNext(false), 600)
+      setTimeout(() => advanceNext(false, secondsPerStretch), 600)
       return
     }
     // 残り5秒カウントダウン音
@@ -336,15 +336,17 @@ function StretchScreen({
     return () => clearInterval(timer)
   }, [secondsLeft, isPaused, isStarted])
 
-  function advanceNext(wasSkipped: boolean) {
+  // wasSkipped: スキップの場合 / earlyDone: 早期完了（実際の経過秒を渡す）
+  function advanceNext(wasSkipped: boolean, overrideElapsed?: number) {
+    const elapsed = wasSkipped ? 0 : (overrideElapsed ?? (secondsPerStretch - secondsLeft))
     if (!wasSkipped) {
-      setTotalSpent(t => t + secondsPerStretch)
+      setTotalSpent(t => t + elapsed)
     } else {
       setSkipped(prev => new Set([...prev, part.id]))
       onSkip(part.id)
     }
     if (isLast) {
-      const total = wasSkipped ? totalSpent : totalSpent + secondsPerStretch
+      const total = wasSkipped ? totalSpent : totalSpent + elapsed
       const skippedCount = wasSkipped ? skipped.size + 1 : skipped.size
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
       onComplete(total, skippedCount)
@@ -423,11 +425,7 @@ function StretchScreen({
         {!isStarted ? (
           // ── スタート前 ──
           <View style={ss.btnRow}>
-            <TouchableOpacity
-              style={ss.subBtn}
-              onPress={handleBack}
-              activeOpacity={0.7}
-            >
+            <TouchableOpacity style={ss.subBtn} onPress={handleBack} activeOpacity={0.7}>
               <Ionicons name="arrow-back" size={18} color="#9ca3af" />
               <Text style={ss.subBtnText}>戻る</Text>
             </TouchableOpacity>
@@ -439,43 +437,47 @@ function StretchScreen({
               <Ionicons name="play" size={18} color="#fff" />
               <Text style={ss.mainBtnText}>スタート</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={ss.subBtn}
-              onPress={() => advanceNext(true)}
-              activeOpacity={0.7}
-            >
+            <TouchableOpacity style={ss.subBtn} onPress={() => advanceNext(true)} activeOpacity={0.7}>
               <Text style={ss.subBtnText}>スキップ</Text>
               <Ionicons name="arrow-forward" size={18} color="#9ca3af" />
             </TouchableOpacity>
           </View>
         ) : (
           // ── 実施中 ──
-          <View style={ss.btnRow}>
+          <>
+            {/* メインボタン行: 一時停止 | 完了 */}
+            <View style={ss.btnRow}>
+              <TouchableOpacity style={ss.subBtn} onPress={handleBack} activeOpacity={0.7}>
+                <Ionicons name="arrow-back" size={18} color="#9ca3af" />
+                <Text style={ss.subBtnText}>戻る</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[ss.mainBtn, isPaused ? { backgroundColor: '#34C759' } : { backgroundColor: '#555' }]}
+                onPress={() => setIsPaused(v => !v)}
+                activeOpacity={0.85}
+              >
+                <Ionicons name={isPaused ? 'play' : 'pause'} size={16} color="#fff" />
+                <Text style={ss.mainBtnText}>{isPaused ? '再開' : '一時停止'}</Text>
+              </TouchableOpacity>
+              {/* 早期完了ボタン（実際の経過秒を記録） */}
+              <TouchableOpacity
+                style={[ss.mainBtn, { backgroundColor: '#C8102E' }]}
+                onPress={() => advanceNext(false)}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="checkmark" size={18} color="#fff" />
+                <Text style={ss.mainBtnText}>完了</Text>
+              </TouchableOpacity>
+            </View>
             <TouchableOpacity
-              style={ss.subBtn}
-              onPress={handleBack}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="arrow-back" size={18} color="#9ca3af" />
-              <Text style={ss.subBtnText}>戻る</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[ss.mainBtn, isPaused && { backgroundColor: '#34C759' }]}
-              onPress={() => setIsPaused(v => !v)}
-              activeOpacity={0.85}
-            >
-              <Ionicons name={isPaused ? 'play' : 'pause'} size={18} color="#fff" />
-              <Text style={ss.mainBtnText}>{isPaused ? '再開' : '一時停止'}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={ss.subBtn}
+              style={[ss.subBtn, { alignSelf: 'flex-end', marginTop: 6, paddingHorizontal: 16 }]}
               onPress={() => advanceNext(true)}
               activeOpacity={0.7}
             >
               <Text style={ss.subBtnText}>スキップ</Text>
-              <Ionicons name="arrow-forward" size={18} color="#9ca3af" />
+              <Ionicons name="arrow-forward" size={16} color="#9ca3af" />
             </TouchableOpacity>
-          </View>
+          </>
         )}
       </ScrollView>
     </View>

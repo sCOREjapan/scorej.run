@@ -21,6 +21,16 @@ module.exports = {
       // ネイティブSDKは web export では plugin 解決エラーになるため EAS 時のみ
       ['expo-camera', { cameraPermission: 'フォーム分析のためカメラを使用します' }],
       ['expo-image-picker', { photosPermission: '食事・動画を記録するために写真ライブラリを使用します' }],
+      ['expo-notifications', {
+        icon: './assets/icon.png',
+        color: '#166534',
+        sounds: [],
+      }],
+      ['expo-media-library', {
+        photosPermission: 'シェアカードをカメラロールに保存するために写真ライブラリへのアクセスが必要です',
+        savePhotosPermission: 'シェアカードをカメラロールに保存するために写真ライブラリへのアクセスが必要です',
+        isAccessMediaLocationEnabled: false,
+      }],
     ],
     scheme: 'score',
     web: { bundler: 'metro', output: 'static', favicon: './assets/icon.png' },

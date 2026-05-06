@@ -1,5 +1,5 @@
-// app/share-card.tsx — シェアカード v3（透過PNG + ふわふわ動画）
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+// app/share-card.tsx — シェアカード v3（透過PNG + ふわふわ動画 + ネイティブ保存）
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ScrollView, Platform, ActivityIndicator,
@@ -12,6 +12,9 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { BRAND } from '../lib/theme'
 import Toast from 'react-native-toast-message'
 import type { RaceRecord } from '../types'
+// ネイティブ用
+import { captureRef } from 'react-native-view-shot'
+import * as MediaLibrary from 'expo-media-library'
 
 const RECORDS_KEY = 'trackmate_race_records'
 
@@ -313,6 +316,7 @@ export default function ShareCardScreen() {
   const [exporting,  setExporting]  = useState(false)
   const [themeId,    setThemeId]    = useState<ThemeId>('ocean')
   const [exportMode, setExportMode] = useState<'png' | 'video'>('png')
+  const previewRef = useRef<View>(null)
 
   // 動画録画の対応確認（VP9透過 → VP8 → WebM → MP4 いずれか使えればOK）
   const supportsFloatVideo = useMemo(() => {
@@ -402,6 +406,26 @@ export default function ShareCardScreen() {
     }
   }, [selected])
 
+  // ── ネイティブ: カメラロールに保存 ─────────────────────────────
+  const handleNativeSave = useCallback(async () => {
+    if (!previewRef.current) return
+    setExporting(true)
+    try {
+      const { status } = await MediaLibrary.requestPermissionsAsync()
+      if (status !== 'granted') {
+        Toast.show({ type: 'error', text1: '写真ライブラリへのアクセスを許可してください' })
+        return
+      }
+      const uri = await captureRef(previewRef, { format: 'png', quality: 1 })
+      await MediaLibrary.saveToLibraryAsync(uri)
+      Toast.show({ type: 'success', text1: 'カメラロールに保存しました 📸', visibilityTime: 2000 })
+    } catch {
+      Toast.show({ type: 'error', text1: '保存に失敗しました' })
+    } finally {
+      setExporting(false)
+    }
+  }, [])
+
   const isVideo = exportMode === 'video'
 
   return (
@@ -478,7 +502,7 @@ export default function ShareCardScreen() {
 
             {/* カードプレビュー */}
             {selected != null && (
-              <View style={s.previewWrap}>
+              <View style={s.previewWrap} ref={previewRef} collapsable={false}>
                 <OverlayPreview record={selected} themeId={themeId} />
               </View>
             )}
@@ -519,7 +543,7 @@ export default function ShareCardScreen() {
 
             {/* アクションボタン */}
             <View style={s.actions}>
-              {Platform.OS === 'web' && (
+              {Platform.OS === 'web' ? (
                 <TouchableOpacity
                   style={[s.dlBtn, exporting && { opacity: 0.6 }]}
                   onPress={isVideo ? handleVideoExport : handleDownload}
@@ -536,6 +560,19 @@ export default function ShareCardScreen() {
                       : (isVideo ? 'ふわふわ動画をダウンロード' : '透過PNGをダウンロード')
                     }
                   </Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={[s.dlBtn, exporting && { opacity: 0.6 }]}
+                  onPress={handleNativeSave}
+                  disabled={exporting || !selected}
+                  activeOpacity={0.85}
+                >
+                  {exporting
+                    ? <ActivityIndicator color="#fff" size="small" />
+                    : <Ionicons name="download-outline" size={20} color="#fff" />
+                  }
+                  <Text style={s.dlTxt}>{exporting ? '保存中...' : 'カメラロールに保存'}</Text>
                 </TouchableOpacity>
               )}
               <TouchableOpacity

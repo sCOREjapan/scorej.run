@@ -29,6 +29,7 @@
     "expo-linear-gradient": "^55.0.9",
     "expo-linking": "~8.0.11",
     "expo-location": "~19.0.8",
+    "expo-media-library": "~18.2.1",
     "expo-notifications": "~0.32.16",
     "expo-router": "~6.0.23",
     "expo-sharing": "~14.0.8",
@@ -46,6 +47,7 @@
     "react-native-screens": "~4.16.0",
     "react-native-svg": "15.12.1",
     "react-native-toast-message": "^2.2.1",
+    "react-native-view-shot": "4.0.3",
     "react-native-web": "^0.21.0",
     "react-native-worklets-core": "^1.6.3"
   },

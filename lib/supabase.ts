@@ -1,10 +1,26 @@
 // lib/supabase.ts
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { Platform } from 'react-native'
 
 const supabaseUrl     = process.env.EXPO_PUBLIC_SUPABASE_URL     ?? ''
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? ''
 
 const IS_PLACEHOLDER = !supabaseUrl || supabaseUrl === 'placeholder'
+
+// React Native 用 AsyncStorage アダプター
+// window.localStorage は React Native では undefined になるため必ず AsyncStorage を使う
+const asyncStorageAdapter = {
+  getItem: async (key: string): Promise<string | null> => {
+    try { return await AsyncStorage.getItem(key) } catch { return null }
+  },
+  setItem: async (key: string, value: string): Promise<void> => {
+    try { await AsyncStorage.setItem(key, value) } catch {}
+  },
+  removeItem: async (key: string): Promise<void> => {
+    try { await AsyncStorage.removeItem(key) } catch {}
+  },
+}
 
 // placeholder のときはダミーオブジェクトを返す（クラッシュ防止）
 function makeDummyClient(): SupabaseClient {
@@ -35,11 +51,14 @@ export const supabase: SupabaseClient = IS_PLACEHOLDER
   ? makeDummyClient()
   : createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
-        detectSessionInUrl: true,
+        // ネイティブでは URL ベースの検出不要
+        detectSessionInUrl: Platform.OS === 'web',
         autoRefreshToken: true,
         persistSession: true,
-        // web storage
-        storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+        // ネイティブは AsyncStorage、Web は localStorage
+        storage: Platform.OS !== 'web'
+          ? asyncStorageAdapter
+          : (typeof window !== 'undefined' ? window.localStorage : undefined),
       },
     })
 

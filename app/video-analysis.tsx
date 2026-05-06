@@ -71,23 +71,43 @@ function NativeVideoAnalysis() {
     setPhase('analyzing')
     setError('')
     try {
-      // フレームを複数タイミングで取得
-      const timestamps = [0, 1000, 2000, 3500, 5000, 7000, 9000, 12000]
+      // iOS の ph:// URI はローカルにコピーしてから処理
+      let localUri = videoUri
+      if (videoUri.startsWith('ph://') || !videoUri.startsWith('file://')) {
+        const ext = 'mp4'
+        const dest = FileSystem.cacheDirectory + `score_video_${Date.now()}.${ext}`
+        await FileSystem.copyAsync({ from: videoUri, to: dest })
+        localUri = dest
+      }
+
+      // フレームを複数タイミングで取得（100msから開始、0msは失敗しやすい）
+      const timestamps = [100, 1000, 2500, 4000, 6000, 8000, 10000, 13000]
       const base64Frames: string[] = []
       const thumbUris: string[] = []
 
       for (const t of timestamps) {
         try {
-          const { uri } = await VideoThumbnails.getThumbnailAsync(videoUri, { time: t })
-          // リサイズして軽量化
+          const { uri } = await VideoThumbnails.getThumbnailAsync(localUri, { time: t, quality: 0.8 })
           const resized = await ImageManipulator.manipulateAsync(
             uri, [{ resize: { width: 480 } }],
-            { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+            { compress: 0.75, format: ImageManipulator.SaveFormat.JPEG }
           )
           const b64 = await FileSystem.readAsStringAsync(resized.uri, { encoding: FileSystem.EncodingType.Base64 })
           base64Frames.push(b64)
           thumbUris.push(resized.uri)
-        } catch { /* タイムスタンプが動画の長さを超えた場合はスキップ */ }
+        } catch { /* そのタイムスタンプをスキップ */ }
+      }
+
+      // 1フレームも取れなかった場合、最初の1フレームだけ確実に取得を試みる
+      if (base64Frames.length === 0) {
+        const { uri } = await VideoThumbnails.getThumbnailAsync(localUri, { time: 0 })
+        const resized = await ImageManipulator.manipulateAsync(
+          uri, [{ resize: { width: 480 } }],
+          { compress: 0.75, format: ImageManipulator.SaveFormat.JPEG }
+        )
+        const b64 = await FileSystem.readAsStringAsync(resized.uri, { encoding: FileSystem.EncodingType.Base64 })
+        base64Frames.push(b64)
+        thumbUris.push(resized.uri)
       }
 
       if (base64Frames.length === 0) throw new Error('フレームの取得に失敗しました')
