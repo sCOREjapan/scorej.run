@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  TextInput, Modal, FlatList, KeyboardAvoidingView, Platform,
+  TextInput, Modal, KeyboardAvoidingView, Platform,
   ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -13,8 +13,7 @@ import { useTheme } from '../../context/ThemeContext'
 import { Sounds, unlockAudio } from '../../lib/sounds'
 import { useRouter } from 'expo-router'
 import { useFocusEffect } from '@react-navigation/native'
-import TrainingChart from '../../components/TrainingChart'
-import type { TrainingSession, ChartDataPoint } from '../../types'
+import type { TrainingSession } from '../../types'
 
 const SESSIONS_KEY    = 'trackmate_sessions'
 const TASKS_KEY       = 'trackmate_tasks'
@@ -114,6 +113,124 @@ function conditionEmoji(v: number) {
   return CONDITION_EMOJIS[closest] ?? '😐'
 }
 
+// ── ミニカレンダー ──────────────────────────────────────────────
+const CAL_TYPE_COLORS: Record<string,string> = {
+  interval:'#E53935', tempo:'#FF9500', easy:'#34C759', long:'#5AC8FA',
+  sprint:'#FF3B30', drill:'#AF52DE', strength:'#FF6B35', race:'#FFD700', rest:'#94a3b8',
+}
+
+function MiniCalendar({ sessions, onDayPress }: {
+  sessions: TrainingSession[]
+  onDayPress?: (date: string) => void
+}) {
+  const { colors } = useTheme()
+  const now = new Date()
+  const [viewYear,  setViewYear]  = useState(now.getFullYear())
+  const [viewMonth, setViewMonth] = useState(now.getMonth())
+
+  const DOW = ['日','月','火','水','木','金','土']
+
+  // date → first session color
+  const dayMap: Record<string, string> = {}
+  sessions.forEach(s => {
+    if (!dayMap[s.session_date]) {
+      dayMap[s.session_date] = CAL_TYPE_COLORS[s.session_type] ?? '#34C759'
+    }
+  })
+
+  function prevMonth() {
+    if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11) }
+    else setViewMonth(m => m - 1)
+  }
+  function nextMonth() {
+    if (viewYear > now.getFullYear() || (viewYear === now.getFullYear() && viewMonth >= now.getMonth())) return
+    if (viewMonth === 11) { setViewYear(y => y + 1); setViewMonth(0) }
+    else setViewMonth(m => m + 1)
+  }
+
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
+  const firstDow    = new Date(viewYear, viewMonth, 1).getDay()
+  const today       = now.toISOString().slice(0, 10)
+  const canNext     = viewYear < now.getFullYear() || (viewYear === now.getFullYear() && viewMonth < now.getMonth())
+
+  return (
+    <View style={[st.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      {/* ヘッダー */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <TouchableOpacity onPress={prevMonth} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Ionicons name="chevron-back" size={18} color={colors.textSec} />
+        </TouchableOpacity>
+        <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800' }}>
+          {viewYear}年 {viewMonth + 1}月
+        </Text>
+        <TouchableOpacity onPress={nextMonth} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ opacity: canNext ? 1 : 0.3 }}>
+          <Ionicons name="chevron-forward" size={18} color={colors.textSec} />
+        </TouchableOpacity>
+      </View>
+
+      {/* 曜日 */}
+      <View style={{ flexDirection: 'row', marginBottom: 4 }}>
+        {DOW.map((d, i) => (
+          <Text key={d} style={{
+            flex: 1, textAlign: 'center', fontSize: 10, fontWeight: '700',
+            color: i === 0 ? '#EF4444' : i === 6 ? '#5AC8FA' : colors.textHint,
+          }}>{d}</Text>
+        ))}
+      </View>
+
+      {/* グリッド */}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+        {Array.from({ length: firstDow }).map((_, i) => (
+          <View key={`e${i}`} style={{ width: `${100/7}%` as any, aspectRatio: 1 }} />
+        ))}
+        {Array.from({ length: daysInMonth }).map((_, i) => {
+          const day     = i + 1
+          const mm      = String(viewMonth + 1).padStart(2, '0')
+          const dd      = String(day).padStart(2, '0')
+          const dateStr = `${viewYear}-${mm}-${dd}`
+          const isToday = dateStr === today
+          const color   = dayMap[dateStr]
+          const dow     = (firstDow + i) % 7
+
+          return (
+            <TouchableOpacity
+              key={day}
+              style={{ width: `${100/7}%` as any, aspectRatio: 1, alignItems: 'center', justifyContent: 'center' }}
+              onPress={() => color && onDayPress?.(dateStr)}
+              activeOpacity={color ? 0.7 : 1}
+            >
+              {color && (
+                <View style={{
+                  position: 'absolute',
+                  width: 28, height: 28, borderRadius: 14,
+                  backgroundColor: color,
+                  opacity: 0.35,
+                  shadowColor: color,
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: 0.9,
+                  shadowRadius: 6,
+                  elevation: 3,
+                }} />
+              )}
+              <Text style={{
+                fontSize: 12,
+                fontWeight: isToday ? '900' : color ? '700' : '400',
+                color: isToday ? BRAND
+                  : color ? colors.text
+                  : dow === 0 ? '#EF4444' : dow === 6 ? '#5AC8FA' : colors.text,
+                zIndex: 1,
+              }}>{day}</Text>
+              {isToday && !color && (
+                <View style={{ position: 'absolute', bottom: 2, width: 3, height: 3, borderRadius: 1.5, backgroundColor: BRAND }} />
+              )}
+            </TouchableOpacity>
+          )
+        })}
+      </View>
+    </View>
+  )
+}
+
 function SessionCard({ session, conditionMap }: { session: TrainingSession; conditionMap: Record<string,number> }) {
   const { colors } = useTheme()
   const [expanded, setExpanded] = useState(false)
@@ -181,6 +298,7 @@ export default function NotebookScreen() {
   const [modal, setModal]             = useState(false)
   const [freeText, setFreeText]       = useState('')
   const [parsing, setParsing]         = useState(false)
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -204,10 +322,6 @@ export default function NotebookScreen() {
     ? (thisWeek.reduce((a, s) => a + (s.fatigue_level ?? 5), 0) / thisWeek.length).toFixed(1)
     : '—'
   const totalKm = thisMonth.reduce((a, s) => a + (s.distance_m ?? 0), 0) / 1000
-
-  const chartData: ChartDataPoint[] = sessions
-    .filter(s => s.time_ms).slice(0, 7).reverse()
-    .map(s => ({ date: s.session_date, value: s.time_ms! / 1000 }))
 
   async function handleSave() {
     if (!freeText.trim()) return
@@ -323,39 +437,59 @@ export default function NotebookScreen() {
             <Text style={st.recordBtnText}>今日の練習を記録する</Text>
           </TouchableOpacity>
 
-          {/* ── チャート ── */}
-          {!loading && chartData.length > 0 && (
-            <View style={[st.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <TrainingChart data={chartData} title="タイム推移（秒）" color={BRAND} unit="秒" isLoading={false} />
-            </View>
-          )}
-
-          {/* ── 練習記録 ── */}
+          {/* ── 練習記録（枠組み・スクロール） ── */}
           <View style={[st.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={st.sectionHeader}>
-              <Text style={[st.sectionTitle, { color: colors.text }]}>練習記録</Text>
-              <Text style={[st.sectionCount, { color: colors.textHint }]}>{sessions.length}件</Text>
+              <Text style={[st.sectionTitle, { color: colors.text }]}>練習ノート</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                {selectedDate && (
+                  <TouchableOpacity onPress={() => setSelectedDate(null)} style={{ backgroundColor: BRAND + '18', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 }}>
+                    <Text style={{ color: BRAND, fontSize: 11, fontWeight: '700' }}>✕ {selectedDate.slice(5).replace('-', '/')}</Text>
+                  </TouchableOpacity>
+                )}
+                <Text style={[st.sectionCount, { color: colors.textHint }]}>{sessions.length}件</Text>
+              </View>
             </View>
             {loading ? (
               <View style={{ gap: 10 }}>
-                {[1,2,3].map(i => <View key={i} style={{ height: 64, backgroundColor: colors.surface2, borderRadius: 10 }} />)}
+                {[1,2,3,4].map(i => <View key={i} style={{ height: 64, backgroundColor: colors.surface2, borderRadius: 10 }} />)}
               </View>
             ) : sessions.length === 0 ? (
               <View style={st.empty}>
                 <Ionicons name="book-outline" size={40} color={colors.textHint} />
-                <Text style={[st.emptyText,    { color: colors.textHint }]}>まだ記録がありません</Text>
+                <Text style={[st.emptyText, { color: colors.textHint }]}>まだ記録がありません</Text>
                 <Text style={[st.emptySubText, { color: colors.textHint }]}>上のボタンから今日の練習を記録しよう</Text>
               </View>
             ) : (
-              <FlatList
-                data={sessions}
-                keyExtractor={item => item.id}
-                renderItem={({ item }) => <SessionCard session={item} conditionMap={conditionMap} />}
-                scrollEnabled={false}
-                ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-              />
+              <>
+                {(selectedDate
+                  ? sessions.filter(s => s.session_date === selectedDate)
+                  : sessions
+                ).slice(0, 4).map((item, idx) => (
+                  <SessionCard key={item.id} session={item} conditionMap={conditionMap} />
+                ))}
+                {/* 4件を超える場合はスクロール可能な追加リスト */}
+                {(selectedDate ? sessions.filter(s => s.session_date === selectedDate) : sessions).length > 4 && (
+                  <ScrollView
+                    style={{ maxHeight: 280 }}
+                    nestedScrollEnabled
+                    showsVerticalScrollIndicator
+                    contentContainerStyle={{ gap: 8 }}
+                  >
+                    {(selectedDate
+                      ? sessions.filter(s => s.session_date === selectedDate)
+                      : sessions
+                    ).slice(4).map(item => (
+                      <SessionCard key={item.id} session={item} conditionMap={conditionMap} />
+                    ))}
+                  </ScrollView>
+                )}
+              </>
             )}
           </View>
+
+          {/* ── ミニカレンダー ── */}
+          <MiniCalendar sessions={sessions} onDayPress={setSelectedDate} />
         </ScrollView>
 
         {/* ── 入力モーダル ── */}

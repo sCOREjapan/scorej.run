@@ -1,6 +1,8 @@
 // Open-Meteo API（無料・APIキー不要）を使った天気取得
 // https://api.open-meteo.com/v1/forecast?latitude=35.68&longitude=139.69&current=temperature_2m,relative_humidity_2m,windspeed_10m,weathercode&timezone=Asia/Tokyo
 
+import { Platform } from 'react-native'
+
 export type WeatherData = {
   temp: number       // 気温°C
   humidity: number   // 湿度%
@@ -41,23 +43,33 @@ export async function getWeather(lat: number, lon: number): Promise<WeatherData>
 }
 
 export async function getCurrentLocationWeather(): Promise<WeatherData | null> {
+  try {
+    if (Platform.OS !== 'web') {
+      // Native: use expo-location (already installed: expo-location@19.0.8)
+      const Location = await import('expo-location')
+      const { status } = await Location.requestForegroundPermissionsAsync()
+      if (status !== 'granted') return null
+      const pos = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Low,
+      })
+      return await getWeather(pos.coords.latitude, pos.coords.longitude)
+    }
+  } catch {
+    return null
+  }
+
+  // Web: navigator.geolocation
   return new Promise((resolve) => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      resolve(null)
-      return
+      resolve(null); return
     }
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         try {
-          const weather = await getWeather(pos.coords.latitude, pos.coords.longitude)
-          resolve(weather)
-        } catch {
-          resolve(null)
-        }
+          resolve(await getWeather(pos.coords.latitude, pos.coords.longitude))
+        } catch { resolve(null) }
       },
-      () => {
-        resolve(null)
-      },
+      () => resolve(null),
       { timeout: 10000 }
     )
   })

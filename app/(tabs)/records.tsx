@@ -430,6 +430,145 @@ function SessionDetailSheet({ session, onClose, onDelete }: {
   )
 }
 
+// ── グローカレンダー ──────────────────────────────────────────────
+const TYPE_GLOW_COLORS: Record<string,string> = {
+  interval: '#E53935', tempo: '#FF9500', easy: '#34C759',
+  long: '#5AC8FA', sprint: '#FF3B30', drill: '#AF52DE',
+  strength: '#FF6B35', race: '#FFD700', rest: '#94a3b8',
+}
+
+function GlowCalendar({ sessions }: { sessions: TrainingSession[] }) {
+  const now = new Date()
+  const [viewYear, setViewYear]   = useState(now.getFullYear())
+  const [viewMonth, setViewMonth] = useState(now.getMonth())
+
+  const DOW_LABELS = ['日', '月', '火', '水', '木', '金', '土']
+
+  // date → sessions map
+  const sessionMap: Record<string, TrainingSession[]> = {}
+  sessions.forEach(s => {
+    sessionMap[s.session_date] = sessionMap[s.session_date] ?? []
+    sessionMap[s.session_date].push(s)
+  })
+
+  function prevMonth() {
+    if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11) }
+    else setViewMonth(m => m - 1)
+  }
+  function nextMonth() {
+    const curY = now.getFullYear(), curM = now.getMonth()
+    if (viewYear > curY || (viewYear === curY && viewMonth >= curM)) return
+    if (viewMonth === 11) { setViewYear(y => y + 1); setViewMonth(0) }
+    else setViewMonth(m => m + 1)
+  }
+
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
+  const firstDow    = new Date(viewYear, viewMonth, 1).getDay()
+  const today       = now.toISOString().slice(0, 10)
+  const canNext     = viewYear < now.getFullYear() || (viewYear === now.getFullYear() && viewMonth < now.getMonth())
+
+  return (
+    <View>
+      {/* 月ナビ */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <TouchableOpacity onPress={prevMonth} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Ionicons name="chevron-back" size={18} color={TEXT.secondary} />
+        </TouchableOpacity>
+        <Text style={{ color: TEXT.primary, fontSize: 14, fontWeight: '800' }}>
+          {viewYear}年 {viewMonth + 1}月
+        </Text>
+        <TouchableOpacity onPress={nextMonth} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ opacity: canNext ? 1 : 0.3 }}>
+          <Ionicons name="chevron-forward" size={18} color={TEXT.secondary} />
+        </TouchableOpacity>
+      </View>
+
+      {/* 曜日ヘッダー */}
+      <View style={{ flexDirection: 'row', marginBottom: 2 }}>
+        {DOW_LABELS.map((d, i) => (
+          <Text key={d} style={{
+            flex: 1, textAlign: 'center', fontSize: 10, fontWeight: '700',
+            color: i === 0 ? '#EF4444' : i === 6 ? '#5AC8FA' : TEXT.hint,
+          }}>{d}</Text>
+        ))}
+      </View>
+
+      {/* 日付グリッド */}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+        {Array.from({ length: firstDow }).map((_, i) => (
+          <View key={`e${i}`} style={{ width: `${100 / 7}%` as any, aspectRatio: 1 }} />
+        ))}
+        {Array.from({ length: daysInMonth }).map((_, i) => {
+          const day     = i + 1
+          const mm      = String(viewMonth + 1).padStart(2, '0')
+          const dd      = String(day).padStart(2, '0')
+          const dateStr = `${viewYear}-${mm}-${dd}`
+          const isToday = dateStr === today
+          const dow     = (firstDow + i) % 7
+          const daySess = sessionMap[dateStr]
+          const hasSession = daySess && daySess.length > 0
+
+          // glow params
+          let glowColor = '#34C759'
+          let glowOpacity = 0
+          let glowSize = 30
+          if (hasSession) {
+            const primary = daySess[0]
+            glowColor = TYPE_GLOW_COLORS[primary.session_type] ?? '#34C759'
+            const fatigue = primary.fatigue_level ?? 5
+            glowOpacity = 0.22 + (fatigue / 10) * 0.5   // 0.22 ~ 0.72
+            glowSize = daySess.length >= 2 ? 36 : 30
+          }
+
+          return (
+            <View key={day} style={{ width: `${100 / 7}%` as any, aspectRatio: 1, alignItems: 'center', justifyContent: 'center' }}>
+              {hasSession && (
+                <View style={{
+                  position: 'absolute',
+                  width: glowSize, height: glowSize, borderRadius: glowSize / 2,
+                  backgroundColor: glowColor,
+                  opacity: glowOpacity,
+                  shadowColor: glowColor,
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: 1,
+                  shadowRadius: 8,
+                  elevation: 4,
+                }} />
+              )}
+              <Text style={{
+                fontSize: 12, fontWeight: isToday ? '900' : hasSession ? '800' : '400',
+                color: isToday ? BRAND
+                  : hasSession ? (glowOpacity > 0.5 ? '#fff' : TEXT.primary)
+                  : dow === 0 ? '#EF4444' : dow === 6 ? '#5AC8FA' : TEXT.primary,
+                zIndex: 1,
+              }}>{day}</Text>
+              {isToday && !hasSession && (
+                <View style={{ position: 'absolute', bottom: 1, width: 3, height: 3, borderRadius: 1.5, backgroundColor: BRAND }} />
+              )}
+            </View>
+          )
+        })}
+      </View>
+
+      {/* 凡例 */}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.06)' }}>
+        {[
+          { label: 'ジョグ', color: '#34C759' },
+          { label: 'インターバル', color: '#E53935' },
+          { label: 'テンポ走', color: '#FF9500' },
+          { label: 'スプリント', color: '#FF3B30' },
+          { label: 'ロング走', color: '#5AC8FA' },
+          { label: '試合', color: '#FFD700' },
+        ].map(item => (
+          <View key={item.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.color }} />
+            <Text style={{ color: TEXT.hint, fontSize: 9 }}>{item.label}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  )
+}
+
 // セッション1件のタイムラインカード（タップで詳細表示）
 function SessionTimelineCard({ session, onTap }: { session: TrainingSession; onTap: () => void }) {
   const color = TYPE_COLORS[session.session_type] ?? '#888'
@@ -555,7 +694,7 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
     <>
     <View style={{ gap: 14 }}>
 
-      {/* ── 入力ボタン（手動 / AI） ── */}
+      {/* ── 入力ボタン（手動 / AI）── */}
       <AnimatedSection delay={0} type="fade-up">
       <View style={{ flexDirection: 'row', gap: 10 }}>
         <TouchableOpacity
@@ -577,14 +716,14 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
       </View>
       </AnimatedSection>
 
-      {/* ── ① ヒーローカード（ストリーク + 統計） ── */}
+      {/* ── ストリーク＋統計 ── */}
       <AnimatedSection delay={0} type="fade-up">
       <View style={[styles.card, { padding: 16 }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <View style={{ flex: 1 }}>
             <Text style={{ color: TEXT.hint, fontSize: 11, fontWeight: '700', letterSpacing: 1 }}>TRAINING STREAK</Text>
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6, marginTop: 4 }}>
-              <Text style={{ color: streak > 0 ? BRAND : '#555', fontSize: 40, fontWeight: '900', lineHeight: 44 }}>
+              <Text style={{ color: streak > 0 ? BRAND : '#aaa', fontSize: 40, fontWeight: '900', lineHeight: 44 }}>
                 {streak}
               </Text>
               <Text style={{ color: TEXT.secondary, fontSize: 14, marginBottom: 6 }}>日連続</Text>
@@ -603,9 +742,7 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
             </View>
           </View>
         </View>
-        {/* 今週サマリー */}
-        <View style={{ marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.08)',
-          flexDirection: 'row', gap: 12 }}>
+        <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.08)', flexDirection: 'row', gap: 12 }}>
           <Text style={{ color: TEXT.hint, fontSize: 11 }}>今週</Text>
           <Text style={{ color: TEXT.primary, fontSize: 11, fontWeight: '700' }}>{thisWeekSessions.length}回</Text>
           <Text style={{ color: TEXT.hint, fontSize: 11, marginLeft: 8 }}>今月</Text>
@@ -618,64 +755,35 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
       </View>
       </AnimatedSection>
 
-      {/* ── ② 4週ヒートマップ ── */}
+      {/* ── グローカレンダー ── */}
       <AnimatedSection delay={60} type="fade-up">
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <Text style={{ fontSize: 14 }}>📅</Text>
-          <Text style={styles.cardTitle}>4週間の練習カレンダー</Text>
+          <Text style={styles.cardTitle}>練習カレンダー</Text>
         </View>
-        <Heatmap sessions={sessions} />
+        <GlowCalendar sessions={sessions} />
       </View>
       </AnimatedSection>
 
-      {/* ── ③ マイルストーン ── */}
+      {/* ── 練習ノート ── */}
       <AnimatedSection delay={120} type="fade-up">
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Text style={{ fontSize: 14 }}>🎯</Text>
-          <Text style={styles.cardTitle}>マイルストーン</Text>
-        </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            {MILESTONES.map(m => {
-              const unlocked = m.check(sessions)
-              return (
-                <View key={m.key} style={{
-                  alignItems: 'center', gap: 5, padding: 12, borderRadius: 12,
-                  backgroundColor: unlocked ? 'rgba(229,57,53,0.1)' : '#f0f2f5',
-                  borderWidth: 1, borderColor: unlocked ? BRAND + '40' : 'rgba(0,0,0,0.06)',
-                  minWidth: 68,
-                  opacity: unlocked ? 1 : 0.45,
-                }}>
-                  <Text style={{ fontSize: 22 }}>{m.emoji}</Text>
-                  <Text style={{ color: unlocked ? BRAND : TEXT.secondary, fontSize: 11, fontWeight: '800' }}>{m.label}</Text>
-                </View>
-              )
-            })}
-          </View>
-        </ScrollView>
-      </View>
-      </AnimatedSection>
-
-      {/* ── ④ タイムライン（陸上ノート統合） ── */}
-      <AnimatedSection delay={180} type="fade-up">
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <Text style={{ fontSize: 14 }}>📒</Text>
           <Text style={styles.cardTitle}>練習ノート</Text>
           <Text style={{ color: TEXT.hint, fontSize: 12 }}>{sessions.length}件</Text>
         </View>
-        {sessions.length === 0 ? (
+        {loading ? (
+          <View style={{ gap: 10 }}>{[1,2,3].map(i => <SkeletonRect key={i} h={80} />)}</View>
+        ) : sessions.length === 0 ? (
           <View style={styles.empty}>
             <Text style={{ fontSize: 36 }}>📝</Text>
             <Text style={styles.emptyText}>まだ練習記録がありません</Text>
-            <Text style={[styles.emptyText, { fontSize: 12, marginTop: 4 }]}>
-              ＋ボタンから今日の練習を記録しよう
-            </Text>
+            <Text style={[styles.emptyText, { fontSize: 12, marginTop: 4 }]}>＋ボタンから今日の練習を記録しよう</Text>
           </View>
         ) : (
-          <View>
+          <View style={{ gap: 8 }}>
             {sortedDates.map(date => (
               <View key={date}>
                 <DateHeader dateStr={date} />
@@ -694,16 +802,44 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
       </View>
       </AnimatedSection>
 
+      {/* ── マイルストーン ── */}
+      <AnimatedSection delay={180} type="fade-up">
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Text style={{ fontSize: 14 }}>🎯</Text>
+          <Text style={styles.cardTitle}>マイルストーン</Text>
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {MILESTONES.map(m => {
+              const unlocked = m.check(sessions)
+              return (
+                <View key={m.key} style={{
+                  alignItems: 'center', gap: 5, padding: 12, borderRadius: 12,
+                  backgroundColor: unlocked ? 'rgba(229,57,53,0.1)' : '#f0f2f5',
+                  borderWidth: 1, borderColor: unlocked ? BRAND + '40' : 'rgba(0,0,0,0.06)',
+                  minWidth: 68, opacity: unlocked ? 1 : 0.45,
+                }}>
+                  <Text style={{ fontSize: 22 }}>{m.emoji}</Text>
+                  <Text style={{ color: unlocked ? BRAND : TEXT.secondary, fontSize: 11, fontWeight: '800' }}>{m.label}</Text>
+                </View>
+              )
+            })}
+          </View>
+        </ScrollView>
+      </View>
+      </AnimatedSection>
+
     </View>
 
-      {/* ── 体重セクション（最下部） ── */}
-      <WeightSection records={weightRecords} onAdd={onAddWeight} onDelete={onDeleteWeight} />
+  {/* 体重 */}
+  <WeightSection records={weightRecords} onAdd={onAddWeight} onDelete={onDeleteWeight} />
 
-    {selectedSession && (
-      <SessionDetailSheet session={selectedSession} onClose={() => setSelectedSession(null)} onDelete={onDeleteSession} />
-    )}
-    </>
-  )
+  {selectedSession && (
+    <SessionDetailSheet session={selectedSession} onClose={() => setSelectedSession(null)} onDelete={onDeleteSession} />
+  )}
+  </>
+)
 }
 
 // ── 体重折れ線グラフ ──────────────────────────────────────────────

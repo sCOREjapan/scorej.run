@@ -87,7 +87,7 @@ export default function DateSelector({ date, onChange, maxDate }: Props) {
           onPress={() => onChange(addDays(date, -1))}
           activeOpacity={0.7}
         >
-          <Ionicons name="chevron-back" size={18} color="#FFFFFF" />
+          <Ionicons name="chevron-back" size={18} color="#6b7280" />
         </TouchableOpacity>
 
         {/* 中央：タップでカレンダー */}
@@ -102,7 +102,7 @@ export default function DateSelector({ date, onChange, maxDate }: Props) {
           onPress={() => canNext && onChange(addDays(date, 1))}
           activeOpacity={0.7}
         >
-          <Ionicons name="chevron-forward" size={18} color={canNext ? '#FFFFFF' : 'rgba(255,255,255,0.2)'} />
+          <Ionicons name="chevron-forward" size={18} color={canNext ? '#6b7280' : '#d1d5db'} />
         </TouchableOpacity>
       </View>
 
@@ -115,7 +115,7 @@ export default function DateSelector({ date, onChange, maxDate }: Props) {
               {/* 月ナビ */}
               <View style={cal.monthRow}>
                 <TouchableOpacity onPress={prevMonth} style={cal.monthArrow} activeOpacity={0.7}>
-                  <Ionicons name="chevron-back" size={20} color="#fff" />
+                  <Ionicons name="chevron-back" size={20} color="#6b7280" />
                 </TouchableOpacity>
                 <Text style={cal.monthLabel}>{calYear}年 {calMonth + 1}月</Text>
                 <TouchableOpacity
@@ -124,7 +124,7 @@ export default function DateSelector({ date, onChange, maxDate }: Props) {
                   disabled={!canNextMonth}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="chevron-forward" size={20} color="#fff" />
+                  <Ionicons name="chevron-forward" size={20} color="#6b7280" />
                 </TouchableOpacity>
               </View>
 
@@ -169,7 +169,7 @@ export default function DateSelector({ date, onChange, maxDate }: Props) {
                         isSelected && { color: '#fff', fontWeight: '800' },
                         !isSelected && dow === 0 && { color: '#FF3B30' },
                         !isSelected && dow === 6 && { color: '#5AC8FA' },
-                        isFuture && { color: '#555' },
+                        isFuture && { color: '#d1d5db' },
                       ]}>
                         {day}
                       </Text>
@@ -199,10 +199,10 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: '#f0f2f5',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(74,159,255,0.25)',
+    borderColor: 'rgba(0,0,0,0.10)',
     overflow: 'hidden',
     marginBottom: 14,
   },
@@ -220,13 +220,13 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   label: {
-    color: '#FFFFFF',
+    color: '#111827',
     fontSize: 15,
     fontWeight: '600',
     letterSpacing: 0.3,
   },
   calHint: {
-    color: 'rgba(90,200,250,0.7)',
+    color: '#9ca3af',
     fontSize: 10,
   },
 })
@@ -240,12 +240,12 @@ const cal = StyleSheet.create({
     padding: 24,
   },
   sheet: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#ffffff',
     borderRadius: 20,
     padding: 16,
     width: 320,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(0,0,0,0.08)',
   },
   monthRow: {
     flexDirection: 'row',
@@ -257,7 +257,7 @@ const cal = StyleSheet.create({
     padding: 8,
   },
   monthLabel: {
-    color: '#fff',
+    color: '#111827',
     fontSize: 16,
     fontWeight: '800',
   },
@@ -268,7 +268,7 @@ const cal = StyleSheet.create({
   weekDay: {
     flex: 1,
     textAlign: 'center',
-    color: '#888',
+    color: '#9ca3af',
     fontSize: 12,
     fontWeight: '700',
   },
@@ -284,20 +284,20 @@ const cal = StyleSheet.create({
     justifyContent: 'center',
   },
   dayText: {
-    color: '#ccc',
+    color: '#374151',
     fontSize: 14,
     fontWeight: '500',
   },
   todayBtn: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: '#f0f2f5',
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: 'rgba(0,0,0,0.08)',
   },
   todayText: {
-    color: '#fff',
+    color: '#374151',
     fontSize: 14,
     fontWeight: '700',
   },

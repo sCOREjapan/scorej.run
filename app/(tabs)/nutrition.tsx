@@ -300,8 +300,8 @@ export default function NutritionScreen() {
                 <Text style={styles.pickBtnText}>撮影する</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.pickBtn, styles.pickBtnSub]} onPress={() => pickImage('library')} activeOpacity={0.8}>
-                <Ionicons name="images" size={22} color="#fff" />
-                <Text style={styles.pickBtnText}>ライブラリ</Text>
+                <Ionicons name="images" size={22} color="#374151" />
+                <Text style={[styles.pickBtnText, {color:'#374151'}]}>ライブラリ</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
   imageClose: { position: 'absolute', top: 8, right: 8 },
   pickRow: { flexDirection: 'row', gap: 10 },
   pickBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: BRAND, borderRadius: 12, paddingVertical: 16 },
-  pickBtnSub: { backgroundColor: '#f0f2f5', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
+  pickBtnSub: { backgroundColor: '#f0f2f5', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', color: '#374151' },
   pickBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
   analyzeBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: BRAND, borderRadius: 12, paddingVertical: 16 },
   analyzeBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },

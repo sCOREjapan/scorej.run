@@ -687,7 +687,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
   const [pendingDelete, setPendingDelete] = useState<{id:string;name:string;isDemo:boolean}|null>(null)
   const [showEventModal, setShowEventModal] = useState(false)
   const [evTitle,       setEvTitle]       = useState('')
-  const [evDate,        setEvDate]        = useState('')
+  const [evDate,        setEvDate]        = useState(new Date().toISOString().slice(0,10))
   const [evTime,        setEvTime]        = useState('')
   const [evLocation,    setEvLocation]    = useState('')
   const [evDesc,        setEvDesc]        = useState('')
@@ -813,7 +813,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
   }
 
   async function addEvent() {
-    if (!evTitle.trim() || !evDate.trim()) return
+    if (!evTitle.trim()) return
     // 状態リセット前に値をキャプチャ（resetしてから非同期処理すると値が消える）
     const title    = evTitle.trim()
     const date     = evDate.trim()
@@ -826,7 +826,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
       if (!result) throw new Error('イベントデータが取得できませんでした')
       // モーダルを先に閉じてからフォームをリセット
       setShowEventModal(false)
-      setEvTitle(''); setEvDate(''); setEvTime(''); setEvLocation(''); setEvDesc(''); setEvType('practice')
+      setEvTitle(''); setEvDate(new Date().toISOString().slice(0,10)); setEvTime(''); setEvLocation(''); setEvDesc(''); setEvType('practice')
       // 表示を即時更新
       setTeamEvents(prev => [...prev, result].sort((a, b) => a.event_date.localeCompare(b.event_date)))
       Toast.show({ type: 'success', text1: '予定を追加しました ✓', visibilityTime: 1800 })
@@ -1418,8 +1418,8 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
               </View>
 
               <TouchableOpacity
-                style={[{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:BRAND,borderRadius:14,paddingVertical:15},(!evTitle.trim()||!evDate.trim())&&{opacity:0.4}]}
-                onPress={addEvent} disabled={!evTitle.trim()||!evDate.trim()} activeOpacity={0.85}
+                style={[{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:BRAND,borderRadius:14,paddingVertical:15},(!evTitle.trim())&&{opacity:0.4}]}
+                onPress={addEvent} disabled={!evTitle.trim()} activeOpacity={0.85}
               >
                 <Ionicons name="checkmark-circle" size={20} color="#fff"/>
                 <Text style={{color:'#fff',fontSize:16,fontWeight:'800'}}>追加する</Text>
@@ -1860,15 +1860,20 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
   }
 
   async function saveBodyReport() {
-    await upsertBodyReport(joined.code, joined.playerName, editBody, editBodyDetail.trim())
-    setBodyParts(editBody); setBodyDetail(editBodyDetail.trim()); setShowBody(false)
-    // 痛みがある場合はコーチに通知
-    if (editBody.length > 0) {
-      const labels = editBody.map(id => BODY_PARTS.find(p=>p.id===id)?.label??id).join('、')
-      const msg = editBodyDetail.trim() ? `${labels}：${editBodyDetail.trim()}` : `痛み報告: ${labels}`
-      await sendPush(`🤕 ${joined.playerName}`, msg, 'coaches', joined.code)
+    try {
+      await upsertBodyReport(joined.code, joined.playerName, editBody, editBodyDetail.trim())
+      setBodyParts(editBody)
+      setBodyDetail(editBodyDetail.trim())
+      setShowBody(false)
+      if (editBody.length > 0) {
+        const labels = editBody.map(id => BODY_PARTS.find(p => p.id === id)?.label ?? id).join('、')
+        const msg = editBodyDetail.trim() ? `${labels}：${editBodyDetail.trim()}` : `痛み報告: ${labels}`
+        await sendPush(`🤕 ${joined.playerName}`, msg, 'coaches', joined.code)
+      }
+      Toast.show({ type: 'success', text1: '痛みの報告を送りました', visibilityTime: 1600 })
+    } catch (e) {
+      Toast.show({ type: 'error', text1: '送信に失敗しました', text2: String(e), visibilityTime: 3000 })
     }
-    Toast.show({type:'success',text1:'痛みの報告を送りました',visibilityTime:1600})
   }
 
   const last    = sessions[0]
