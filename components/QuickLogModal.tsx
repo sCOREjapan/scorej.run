@@ -5,6 +5,7 @@ import {
   StyleSheet, Animated, KeyboardAvoidingView, Platform,
   ActivityIndicator,
 } from 'react-native'
+import HapticTouch from '../components/HapticTouch'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Ionicons } from '@expo/vector-icons'
 import { BRAND, TEXT } from '../lib/theme'
@@ -281,7 +282,8 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
             textAlignVertical="top"
           />
 
-          <TouchableOpacity
+          <HapticTouch
+            haptic="save"
             style={[st.saveBtn, (!freeText.trim() || parsing) && { opacity: 0.4 }]}
             activeOpacity={0.85}
             onPress={handleSave}
@@ -295,7 +297,7 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
                 <Text style={st.saveBtnText}>AIで記録する</Text>
               </>
             )}
-          </TouchableOpacity>
+          </HapticTouch>
         </Animated.View>
       </KeyboardAvoidingView>
     </Modal>

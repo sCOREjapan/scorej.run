@@ -31,6 +31,7 @@ import {
   type TeamMessageRow, type TeamVideoRow, type BodyReportRow, type TeamMemberRow, type PlayerStatsRow, type TeamSessionRow, type TeamEventRow, type TeamEventType,
 } from '../../lib/supabaseTeam'
 import { useTheme } from '../../context/ThemeContext'
+import HapticTouch from '../../components/HapticTouch'
 import {
   initOneSignal, requestPushPermission, registerUserTags, sendPush,
 } from '../../lib/notify'
@@ -360,10 +361,10 @@ function VideoSubmitModal({ visible, teamCode, playerName, onClose, onSent }: {
             </Text>
           </View>
 
-          <TouchableOpacity style={[vs.btn,busy&&{opacity:0.5}]} onPress={submit} disabled={busy} activeOpacity={0.85}>
+          <HapticTouch haptic="save" style={[vs.btn,busy&&{opacity:0.5}]} onPress={submit} disabled={busy} activeOpacity={0.85}>
             <Ionicons name="send" size={18} color="#fff"/>
             <Text style={{color:'#fff',fontSize:16,fontWeight:'800'}}>{busy?'送信中...':'送る'}</Text>
-          </TouchableOpacity>
+          </HapticTouch>
         </KeyboardAvoidingView>
       </View>
     </Modal>
@@ -964,10 +965,10 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
             { key:'videos',   label:'動画',      badge: newVideos },
             { key:'calendar', label:'予定',      badge: 0 },
           ] as const).map(t => (
-            <TouchableOpacity key={t.key} style={[co.tab, tab===t.key && co.tabActive]} onPress={() => setTab(t.key)} activeOpacity={0.7}>
+            <HapticTouch haptic="tabSwitch" key={t.key} style={[co.tab, tab===t.key && co.tabActive]} onPress={() => setTab(t.key)} activeOpacity={0.7}>
               <Text style={[co.tabLabel, { color: tab===t.key ? BRAND : '#555' }]}>{t.label}</Text>
               {t.badge > 0 && <View style={co.badge}><Text style={{color:'#fff',fontSize:9,fontWeight:'800'}}>{t.badge}</Text></View>}
-            </TouchableOpacity>
+            </HapticTouch>
           ))}
         </View>
 
@@ -1072,7 +1073,8 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
                   const ackedPain   = (m.painParts?.length ?? 0) > 0 && m.ackedByCoach
 
                   return (
-                    <TouchableOpacity
+                    <HapticTouch
+                      haptic="tap"
                       key={m.id}
                       style={[
                         co.memberCard,
@@ -1163,7 +1165,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
                           <Ionicons name="trash-outline" size={15} color="#d1d5db"/>
                         </TouchableOpacity>
                       </View>
-                    </TouchableOpacity>
+                    </HapticTouch>
                   )
                 })}
                 {filteredMembers.length === 0 && (
@@ -1191,9 +1193,9 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
                   multiline
                   maxLength={300}
                 />
-                <TouchableOpacity style={[co.sendBtn,!msgText.trim()&&{opacity:0.3}]} onPress={sendMessage} disabled={!msgText.trim()} activeOpacity={0.8}>
+                <HapticTouch haptic="save" style={[co.sendBtn,!msgText.trim()&&{opacity:0.3}]} onPress={sendMessage} disabled={!msgText.trim()} activeOpacity={0.8}>
                   <Ionicons name="send" size={18} color="#fff"/>
-                </TouchableOpacity>
+                </HapticTouch>
               </View>
 
               {messages.length === 0 ? (
@@ -1277,14 +1279,15 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
             <AnimatedSection key="calendar" delay={0} type="fade-up">
             <View style={{gap:14}}>
               {/* 追加ボタン */}
-              <TouchableOpacity
+              <HapticTouch
+                haptic="whoosh"
                 style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:BRAND,borderRadius:14,paddingVertical:14}}
                 onPress={() => setShowEventModal(true)}
                 activeOpacity={0.85}
               >
                 <Ionicons name="add-circle-outline" size={20} color="#fff"/>
                 <Text style={{color:'#fff',fontSize:15,fontWeight:'800'}}>予定を追加する</Text>
-              </TouchableOpacity>
+              </HapticTouch>
 
               {teamEvents.length === 0 ? (
                 <View style={{alignItems:'center',padding:40,gap:8}}>
@@ -1417,13 +1420,14 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
                   value={evDesc} onChangeText={setEvDesc} placeholder="備考など..." placeholderTextColor="#9ca3af" multiline maxLength={120}/>
               </View>
 
-              <TouchableOpacity
+              <HapticTouch
+                haptic="save"
                 style={[{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:BRAND,borderRadius:14,paddingVertical:15},(!evTitle.trim())&&{opacity:0.4}]}
                 onPress={addEvent} disabled={!evTitle.trim()} activeOpacity={0.85}
               >
                 <Ionicons name="checkmark-circle" size={20} color="#fff"/>
                 <Text style={{color:'#fff',fontSize:16,fontWeight:'800'}}>追加する</Text>
-              </TouchableOpacity>
+              </HapticTouch>
               </ScrollView>
             </View>
           </KeyboardAvoidingView>
@@ -1931,16 +1935,17 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
               </View>
               {/* アクションボタン3つ */}
               <View style={{flexDirection:'row',gap:8}}>
-                <TouchableOpacity style={pl.actionBtn} onPress={() => { setEditBody([...bodyParts]); setEditBodyDetail(bodyDetail); setShowBody(true) }} activeOpacity={0.85}>
+                <HapticTouch haptic="whoosh" style={pl.actionBtn} onPress={() => { setEditBody([...bodyParts]); setEditBodyDetail(bodyDetail); setShowBody(true) }} activeOpacity={0.85}>
                   <Ionicons name="body-outline" size={18} color="#FF9500"/>
                   <Text style={{color:TEXT.primary,fontSize:12,fontWeight:'700'}}>痛みを報告</Text>
                   {bodyParts.length > 0 && <View style={{backgroundColor:'#FF9500',borderRadius:8,paddingHorizontal:5,paddingVertical:1}}><Text style={{color:'#fff',fontSize:9,fontWeight:'800'}}>{bodyParts.length}</Text></View>}
-                </TouchableOpacity>
-                <TouchableOpacity style={pl.actionBtn} onPress={() => setShowVideoModal(true)} activeOpacity={0.85}>
+                </HapticTouch>
+                <HapticTouch haptic="whoosh" style={pl.actionBtn} onPress={() => setShowVideoModal(true)} activeOpacity={0.85}>
                   <Ionicons name="videocam-outline" size={18} color={BRAND}/>
                   <Text style={{color:TEXT.primary,fontSize:12,fontWeight:'700'}}>動画を送る</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
+                </HapticTouch>
+                <HapticTouch
+                  haptic="whoosh"
                   style={pl.actionBtn}
                   onPress={() => {
                     // モーダルを開く時点でのstatsを初期値にセット（ポーリングによる上書きを防ぐ）
@@ -1954,7 +1959,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                 >
                   <Ionicons name="person-circle-outline" size={18} color="#AF52DE"/>
                   <Text style={{color:TEXT.primary,fontSize:12,fontWeight:'700'}}>プロフィール</Text>
-                </TouchableOpacity>
+                </HapticTouch>
               </View>
             </View>
 
@@ -1964,9 +1969,9 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                 { key:'home'    as const, label:'ホーム',        badge: (pinned.length + regular.length) > 0 ? 0 : 0 },
                 { key:'members' as const, label:'チームメイト',  badge: 0 },
               ]).map(t => (
-                <TouchableOpacity key={t.key} style={[co.tab, plTab===t.key && co.tabActive]} onPress={() => setPlTab(t.key)} activeOpacity={0.7}>
+                <HapticTouch haptic="tabSwitch" key={t.key} style={[co.tab, plTab===t.key && co.tabActive]} onPress={() => setPlTab(t.key)} activeOpacity={0.7}>
                   <Text style={[co.tabLabel, { color: plTab===t.key ? BRAND : '#555' }]}>{t.label}</Text>
-                </TouchableOpacity>
+                </HapticTouch>
               ))}
             </View>
 
@@ -2202,7 +2207,8 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                       const pb        = stat?.pb_display || ''
                       const goal      = stat?.goal || ''
                       return (
-                        <TouchableOpacity
+                        <HapticTouch
+                          haptic="tap"
                           key={m.id}
                           activeOpacity={0.75}
                           onPress={() => setSelectedTeammate(m)}
@@ -2256,7 +2262,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                             )}
                             {goal ? <Text style={{color:'#6b7280',fontSize:12,flex:1}} numberOfLines={1}>🎯 {goal}</Text> : null}
                           </View>
-                        </TouchableOpacity>
+                        </HapticTouch>
                       )
                     })}
                   </View>
@@ -2294,14 +2300,14 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
               maxLength={120}
             />
             {editBody.length > 0 ? (
-              <TouchableOpacity style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:BRAND,borderRadius:14,paddingVertical:14,marginTop:14}} onPress={saveBodyReport} activeOpacity={0.85}>
+              <HapticTouch haptic="save" style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:BRAND,borderRadius:14,paddingVertical:14,marginTop:14}} onPress={saveBodyReport} activeOpacity={0.85}>
                 <Ionicons name="send" size={18} color="#fff"/>
                 <Text style={{color:'#fff',fontSize:15,fontWeight:'800'}}>コーチに報告する</Text>
-              </TouchableOpacity>
+              </HapticTouch>
             ) : (
-              <TouchableOpacity style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:'#f0f2f5',borderRadius:14,paddingVertical:14,marginTop:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)'}} onPress={saveBodyReport} activeOpacity={0.85}>
+              <HapticTouch haptic="save" style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:'#f0f2f5',borderRadius:14,paddingVertical:14,marginTop:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)'}} onPress={saveBodyReport} activeOpacity={0.85}>
                 <Text style={{color:'#888',fontSize:15,fontWeight:'700'}}>痛みなし（クリア）</Text>
-              </TouchableOpacity>
+              </HapticTouch>
             )}
           </View>
         </View>
@@ -2352,13 +2358,14 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                     placeholder="例: 都大会入賞、自己ベスト更新" placeholderTextColor="#9ca3af" maxLength={40}
                   />
                 </View>
-                <TouchableOpacity
+                <HapticTouch
+                  haptic="save"
                   style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:BRAND,borderRadius:14,paddingVertical:15}}
                   onPress={saveStats} activeOpacity={0.85}
                 >
                   <Ionicons name="checkmark-circle" size={18} color="#fff"/>
                   <Text style={{color:'#fff',fontSize:16,fontWeight:'800'}}>チームに公開する</Text>
-                </TouchableOpacity>
+                </HapticTouch>
               </ScrollView>
             </View>
           </KeyboardAvoidingView>

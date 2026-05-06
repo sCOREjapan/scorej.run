@@ -4,6 +4,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity,
   TextInput, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native'
+import HapticTouch from '../components/HapticTouch'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
@@ -81,13 +82,13 @@ function CalendarPicker({ value, onChange }: { value: string; onChange: (d: stri
     <View style={cal.wrap}>
       {/* ヘッダー（月移動） */}
       <View style={cal.header}>
-        <TouchableOpacity onPress={prevMonth} style={cal.arrow}>
+        <HapticTouch haptic="tap" onPress={prevMonth} style={cal.arrow}>
           <Ionicons name="chevron-back" size={18} color="#6b7280" />
-        </TouchableOpacity>
+        </HapticTouch>
         <Text style={cal.monthLabel}>{viewYear}年 {viewMonth + 1}月</Text>
-        <TouchableOpacity onPress={nextMonth} style={cal.arrow}>
+        <HapticTouch haptic="tap" onPress={nextMonth} style={cal.arrow}>
           <Ionicons name="chevron-forward" size={18} color="#6b7280" />
-        </TouchableOpacity>
+        </HapticTouch>
       </View>
 
       {/* 曜日ヘッダー */}

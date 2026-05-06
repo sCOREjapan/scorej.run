@@ -11,6 +11,7 @@ import { calcLevelInfo } from '../../lib/gamification'
 import { BRAND, TEXT, SURFACE2 } from '../../lib/theme'
 import { useTheme } from '../../context/ThemeContext'
 import { Sounds, unlockAudio } from '../../lib/sounds'
+import HapticTouch from '../../components/HapticTouch'
 
 const PROFILE_KEY = 'trackmate_my_profile'
 const MOCK_USER_ID = 'mock-user-1'
@@ -109,15 +110,16 @@ export default function MyPageScreen() {
           </View>
 
           {/* ── 設定ボタン ── */}
-          <TouchableOpacity
+          <HapticTouch
+            haptic="whoosh"
             style={[s.settingsBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-            onPress={() => { unlockAudio(); Sounds.tap(); router.push('/settings') }}
+            onPress={() => { unlockAudio(); router.push('/settings') }}
             activeOpacity={0.8}
           >
             <Ionicons name="settings-outline" size={20} color={colors.textSec} />
             <Text style={[s.settingsBtnText, { color: colors.text }]}>設定</Text>
             <Ionicons name="chevron-forward" size={16} color={colors.textHint} style={{ marginLeft: 'auto' as any }} />
-          </TouchableOpacity>
+          </HapticTouch>
 
           <Text style={[s.version, { color: colors.textHint }]}>sCORE v1.0.0</Text>
         </ScrollView>

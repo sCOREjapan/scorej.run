@@ -18,6 +18,7 @@ import GlassCard from '../../components/GlassCard'
 import PressableScale from '../../components/PressableScale'
 import { BRAND, ALERT, TEXT, NEON, SURFACE, SURFACE2, DIVIDER } from '../../lib/theme'
 import { Sounds, unlockAudio } from '../../lib/sounds'
+import HapticTouch from '../../components/HapticTouch'
 import Logo from '../../components/Logo'
 import PWAInstallPrompt from '../../components/PWAInstallPrompt'
 import QuickLogModal from '../../components/QuickLogModal'
@@ -329,7 +330,8 @@ function ScoreOverviewCard({
 
       {/* ── ストレッチバナー（リスク40以上） ── */}
       {riskScore >= 40 && onStretchStart && (
-        <TouchableOpacity
+        <HapticTouch
+          haptic="whoosh"
           onPress={onStretchStart}
           activeOpacity={0.85}
           style={[so.stretchBanner, { backgroundColor: colors.surface }]}
@@ -338,7 +340,7 @@ function ScoreOverviewCard({
           <View style={[so.stretchBtn, { backgroundColor: BRAND }]}>
             <Text style={so.stretchBtnText}>開始 →</Text>
           </View>
-        </TouchableOpacity>
+        </HapticTouch>
       )}
     </>
   )
@@ -684,13 +686,14 @@ function GoalCard({
               </View>
             )}
           </View>
-          <TouchableOpacity
+          <HapticTouch
+            haptic="whoosh"
             onPress={openAdd}
             style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center' }}
             activeOpacity={0.8}
           >
             <Ionicons name="add" size={18} color="#fff" />
-          </TouchableOpacity>
+          </HapticTouch>
         </View>
 
         {/* 目標リスト */}
@@ -792,14 +795,15 @@ function GoalCard({
               </View>
 
               {/* ボタン群 */}
-              <TouchableOpacity
+              <HapticTouch
+                haptic="save"
                 style={[gc.saveBtn, !inputText.trim() && { opacity: 0.4 }]}
                 onPress={handleSave}
                 disabled={!inputText.trim()}
                 activeOpacity={0.85}
               >
                 <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>{editGoal ? '保存' : '追加'}</Text>
-              </TouchableOpacity>
+              </HapticTouch>
 
               {editGoal && !editGoal.achieved && (
                 <TouchableOpacity style={gc.achieveBtn} onPress={handleAchieve} activeOpacity={0.85}>
@@ -1126,20 +1130,22 @@ ${sessionsText}
           <AnimatedEntry delay={0}>
             <View style={s.header}>
               {/* ssCORE ブラックピルバッジ */}
-              <TouchableOpacity
-                onPress={() => { unlockAudio(); Sounds.tap(); router.push('/level-roadmap') }}
+              <HapticTouch
+                haptic="whoosh"
+                onPress={() => { unlockAudio(); router.push('/level-roadmap') }}
                 activeOpacity={0.8}
               >
                 <View style={s.scorePill}>
                   <Text style={s.scorePillText}>sCORE</Text>
                 </View>
-              </TouchableOpacity>
+              </HapticTouch>
               {/* 右アイコン群 */}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 {/* 通知ベル → 設定画面の通知セクションへ */}
-                <TouchableOpacity
+                <HapticTouch
                   style={[s.iconBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                  onPress={() => { unlockAudio(); Sounds.tap(); router.push('/settings') }}
+                  haptic="whoosh"
+                  onPress={() => { unlockAudio(); router.push('/settings') }}
                   activeOpacity={0.8}
                 >
                   <View>
@@ -1153,15 +1159,16 @@ ${sessionsText}
                       }} />
                     )}
                   </View>
-                </TouchableOpacity>
+                </HapticTouch>
                 {/* プロフィール → マイページへ */}
-                <TouchableOpacity
+                <HapticTouch
                   style={[s.iconBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                  onPress={() => { unlockAudio(); Sounds.tap(); router.push('/(tabs)/mypage') }}
+                  haptic="whoosh"
+                  onPress={() => { unlockAudio(); router.push('/(tabs)/mypage') }}
                   activeOpacity={0.8}
                 >
                   <Ionicons name="person-circle-outline" size={18} color={colors.textSec} />
-                </TouchableOpacity>
+                </HapticTouch>
               </View>
             </View>
           </AnimatedEntry>
@@ -1182,7 +1189,8 @@ ${sessionsText}
             const extraCount = teamNotifs.length - 1
             return (
               <AnimatedEntry delay={45}>
-                <TouchableOpacity
+                <HapticTouch
+                  haptic="whoosh"
                   activeOpacity={0.85}
                   onPress={() => router.push('/(tabs)/team')}
                   style={{
@@ -1227,7 +1235,7 @@ ${sessionsText}
                     {/* 矢印 */}
                     <Ionicons name="chevron-forward" size={16} color={colors.textHint} />
                   </View>
-                </TouchableOpacity>
+                </HapticTouch>
               </AnimatedEntry>
             )
           })()}
@@ -1293,10 +1301,11 @@ ${sessionsText}
 
           {/* ── AIコーチカード（W3スタイル） ── */}
           <AnimatedEntry delay={300}>
-            <TouchableOpacity
+            <HapticTouch
               style={[s.aiCoachCard, { backgroundColor: colors.surface }]}
+              haptic="whoosh"
               activeOpacity={0.85}
-              onPress={() => { unlockAudio(); Sounds.tap(); handleGetAIAdvice() }}
+              onPress={() => { unlockAudio(); handleGetAIAdvice() }}
             >
               <View style={s.aiCoachDarkIcon}>
                 <Text style={{ fontSize: 20 }}>🤖</Text>
@@ -1309,7 +1318,7 @@ ${sessionsText}
                     : '体調・練習・睡眠データから総合分析。タップで取得。'}
                 </Text>
               </View>
-            </TouchableOpacity>
+            </HapticTouch>
           </AnimatedEntry>
 
           {/* ── 練習一覧（全件・スクロール形式） ── */}
@@ -1395,10 +1404,11 @@ ${sessionsText}
 
           {/* ── リカバリー ── */}
           <AnimatedEntry delay={420}>
-            <TouchableOpacity
+            <HapticTouch
               style={[s.recoveryBtn, { backgroundColor: colors.surface, borderColor: 'rgba(34,197,94,0.3)' }]}
+              haptic="whoosh"
               activeOpacity={0.85}
-              onPress={() => { unlockAudio(); Sounds.tap(); router.push('/recovery' as any) }}
+              onPress={() => { unlockAudio(); router.push('/recovery' as any) }}
             >
               <View style={s.recoveryInner}>
                 <View style={[s.recoveryIcon, { backgroundColor: 'rgba(34,197,94,0.10)' }]}>
@@ -1410,7 +1420,7 @@ ${sessionsText}
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors.textHint} />
               </View>
-            </TouchableOpacity>
+            </HapticTouch>
           </AnimatedEntry>
 
         </ScrollView>

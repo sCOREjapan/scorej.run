@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons'
 import Toast from 'react-native-toast-message'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Sounds, unlockAudio } from '../../lib/sounds'
+import HapticTouch from '../../components/HapticTouch'
 import AnimatedSection from '../../components/AnimatedSection'
 import {
   requestPermission,
@@ -373,9 +374,9 @@ export default function CompetitionScreen() {
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>試合モード</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={() => { unlockAudio(); Sounds.whoosh(); setModalVisible(true) }} activeOpacity={0.8}>
+        <HapticTouch haptic="whoosh" style={styles.addBtn} onPress={() => { unlockAudio(); setModalVisible(true) }} activeOpacity={0.8}>
           <Ionicons name="add" size={22} color="#fff" />
-        </TouchableOpacity>
+        </HapticTouch>
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -401,20 +402,21 @@ export default function CompetitionScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.filterRow}>
               {FILTER_OPTIONS.map(f => (
-                <TouchableOpacity
+                <HapticTouch
                   key={f}
+                  haptic="toggleOn"
                   style={[
                     styles.filterChip,
                     activeFilter === f && { backgroundColor: BRAND, borderColor: BRAND },
                   ]}
-                  onPress={() => { Sounds.tap(); setActiveFilter(f) }}
+                  onPress={() => setActiveFilter(f)}
                   activeOpacity={0.8}
                 >
                   <Text style={[
                     styles.filterChipText,
                     activeFilter === f && { color: '#fff' },
                   ]}>{f}</Text>
-                </TouchableOpacity>
+                </HapticTouch>
               ))}
             </View>
           </ScrollView>
@@ -447,9 +449,9 @@ export default function CompetitionScreen() {
               <Ionicons name="trophy-outline" size={56} color={TEXT.hint} />
               <Text style={styles.emptyTitle}>試合を登録しよう</Text>
               <Text style={styles.emptyText}>試合日を入力すれば、AIが残り日数に合わせた最適なトレーニング計画を作成します</Text>
-              <TouchableOpacity style={styles.emptyBtn} onPress={() => setModalVisible(true)}>
+              <HapticTouch haptic="whoosh" style={styles.emptyBtn} onPress={() => setModalVisible(true)}>
                 <Text style={styles.emptyBtnText}>試合を登録する</Text>
-              </TouchableOpacity>
+              </HapticTouch>
             </View>
           ) : (
             <View style={styles.empty}>
@@ -460,8 +462,9 @@ export default function CompetitionScreen() {
         ) : (
           <>
             {filteredCompetitions.map(c => (
-              <TouchableOpacity
+              <HapticTouch
                 key={c.id}
+                haptic="tap"
                 onPress={() => setSelectedComp(prev => prev?.id === c.id ? null : c)}
                 activeOpacity={0.85}
               >
@@ -470,7 +473,7 @@ export default function CompetitionScreen() {
                   entryStatus={entryStatusMap[c.id] ?? '未確認'}
                   onEntryPress={() => { Sounds.pop(); setEntryModalComp(c) }}
                 />
-              </TouchableOpacity>
+              </HapticTouch>
             ))}
 
             {/* 選択中の試合の週別計画 */}
@@ -570,13 +573,14 @@ export default function CompetitionScreen() {
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
                 <View style={styles.chipRow}>
                   {EVENTS.map(e => (
-                    <TouchableOpacity
+                    <HapticTouch
                       key={e}
+                      haptic="toggleOn"
                       style={[styles.chip, compEvent === e && { backgroundColor: BRAND, borderColor: BRAND }]}
                       onPress={() => setCompEvent(e)}
                     >
                       <Text style={[styles.chipText, compEvent === e && { color: '#FFFFFF' }]}>{e}</Text>
-                    </TouchableOpacity>
+                    </HapticTouch>
                   ))}
                 </View>
               </ScrollView>
@@ -631,10 +635,10 @@ export default function CompetitionScreen() {
                 </>
               )}
 
-              <TouchableOpacity style={styles.generateBtn} onPress={handleGenerate} activeOpacity={0.85}>
+              <HapticTouch haptic="save" style={styles.generateBtn} onPress={handleGenerate} activeOpacity={0.85}>
                 <Ionicons name="sparkles" size={20} color="#fff" />
                 <Text style={styles.generateBtnText}>AIで計画を作成する</Text>
-              </TouchableOpacity>
+              </HapticTouch>
             </ScrollView>
           </KeyboardAvoidingView>
         </SafeAreaView>

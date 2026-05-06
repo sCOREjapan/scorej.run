@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons'
 import Toast from 'react-native-toast-message'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Sounds } from '../../lib/sounds'
+import HapticTouch from '../../components/HapticTouch'
 import AnimatedSection from '../../components/AnimatedSection'
 import type { SleepRecord } from '../../types'
 
@@ -366,14 +367,15 @@ export default function SleepScreen() {
         <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
           {/* 睡眠を記録ボタン（大きく横長） */}
-          <TouchableOpacity
+          <HapticTouch
+            haptic="whoosh"
             style={[styles.recordBtn, formOpen && styles.recordBtnOpen]}
             onPress={() => setFormOpen(v => !v)}
             activeOpacity={0.85}
           >
             <Ionicons name={formOpen ? 'chevron-up' : 'moon'} size={22} color="#fff" />
             <Text style={styles.recordBtnText}>{formOpen ? '閉じる' : '睡眠を記録する'}</Text>
-          </TouchableOpacity>
+          </HapticTouch>
 
           {/* サマリー */}
           {!loading && records.length > 0 && (
@@ -465,8 +467,9 @@ export default function SleepScreen() {
                   {Array.from({ length: 10 }, (_, i) => i + 1).map(n => {
                     const col = qualityColor(n)
                     return (
-                      <TouchableOpacity
+                      <HapticTouch
                         key={n}
+                        haptic="toggleOn"
                         onPress={() => setQuality(n)}
                         style={{
                           width: 34, height: 34, borderRadius: 17,
@@ -476,7 +479,7 @@ export default function SleepScreen() {
                         }}
                       >
                         <Text style={{ color: quality === n ? '#000' : col, fontSize: 13, fontWeight: '700' }}>{n}</Text>
-                      </TouchableOpacity>
+                      </HapticTouch>
                     )
                   })}
                 </View>
@@ -493,7 +496,8 @@ export default function SleepScreen() {
                 placeholderTextColor="#9ca3af"
               />
 
-              <TouchableOpacity
+              <HapticTouch
+                haptic="save"
                 style={[styles.saveBtn, saving && { opacity: 0.5 }]}
                 onPress={handleSave}
                 disabled={saving}
@@ -501,7 +505,7 @@ export default function SleepScreen() {
               >
                 <Ionicons name="moon" size={18} color="#fff" />
                 <Text style={styles.saveBtnText}>{saving ? '保存中...' : '記録する'}</Text>
-              </TouchableOpacity>
+              </HapticTouch>
             </View>
             </AnimatedSection>
           )}
@@ -530,9 +534,9 @@ export default function SleepScreen() {
               <View style={styles.empty}>
                 <Ionicons name="moon-outline" size={40} color={TEXT.hint} />
                 <Text style={styles.emptyText}>睡眠を記録しましょう</Text>
-                <TouchableOpacity style={styles.emptyBtn} onPress={() => setFormOpen(true)}>
+                <HapticTouch haptic="whoosh" style={styles.emptyBtn} onPress={() => setFormOpen(true)}>
                   <Text style={styles.emptyBtnText}>今夜の睡眠を記録</Text>
-                </TouchableOpacity>
+                </HapticTouch>
               </View>
             ) : (
               <View style={{ gap: 8 }}>

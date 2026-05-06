@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   TextInput, Modal, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native'
+import HapticTouch from '../components/HapticTouch'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { BG_GRADIENT, TEXT, BRAND, NEON } from '../lib/theme'
@@ -62,7 +63,7 @@ function FolderCard({
   onEdit: () => void
 }) {
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={fc.card}>
+    <HapticTouch haptic="tap" onPress={onPress} activeOpacity={0.8} style={fc.card}>
       <View style={[fc.iconWrap, { backgroundColor: folder.color + '22' }]}>
         <Ionicons name={folder.icon as any} size={22} color={folder.color} />
       </View>
@@ -73,7 +74,7 @@ function FolderCard({
       <TouchableOpacity onPress={onEdit} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
         <Ionicons name="ellipsis-horizontal" size={18} color="#555" />
       </TouchableOpacity>
-    </TouchableOpacity>
+    </HapticTouch>
   )
 }
 const fc = StyleSheet.create({
@@ -511,14 +512,15 @@ ${libraryText || '（ライブラリ未登録）'}
         {/* ── タブ ── */}
         <View style={s.tabBar}>
           {([['library', '📁 ライブラリ'], ['history', '🤖 AI生成履歴']] as const).map(([key, label]) => (
-            <TouchableOpacity
+            <HapticTouch
+              haptic="tabSwitch"
               key={key}
               onPress={() => setTab(key)}
               style={[s.tabBtn, tab === key && s.tabBtnActive]}
               activeOpacity={0.8}
             >
               <Text style={[s.tabText, tab === key && s.tabTextActive]}>{label}</Text>
-            </TouchableOpacity>
+            </HapticTouch>
           ))}
         </View>
 
@@ -526,7 +528,7 @@ ${libraryText || '（ライブラリ未登録）'}
           <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
 
             {/* 手動ピッカーボタン */}
-            <TouchableOpacity style={s.manualBtn} onPress={openPicker} activeOpacity={0.85}>
+            <HapticTouch haptic="whoosh" style={s.manualBtn} onPress={openPicker} activeOpacity={0.85}>
               <View style={s.manualBtnIcon}>
                 <Text style={{ fontSize: 24 }}>📋</Text>
               </View>
@@ -535,10 +537,10 @@ ${libraryText || '（ライブラリ未登録）'}
                 <Text style={s.manualBtnSub}>使いたい種目を選んでAIにメニューを作ってもらう</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={NEON.green} />
-            </TouchableOpacity>
+            </HapticTouch>
 
             {/* AI生成ボタン */}
-            <TouchableOpacity style={s.aiBtn} onPress={openAI} activeOpacity={0.85}>
+            <HapticTouch haptic="whoosh" style={s.aiBtn} onPress={openAI} activeOpacity={0.85}>
               <View style={s.aiBtnIcon}>
                 <Text style={{ fontSize: 24 }}>🤖</Text>
               </View>
@@ -547,23 +549,23 @@ ${libraryText || '（ライブラリ未登録）'}
                 <Text style={s.aiBtnSub}>練習のイメージを伝えるだけ</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={NEON.blue} />
-            </TouchableOpacity>
+            </HapticTouch>
 
             {/* フォルダ一覧 */}
             <View style={s.sectionHeader}>
               <Text style={s.sectionTitle}>練習ライブラリ</Text>
-              <TouchableOpacity onPress={openAddFolder} style={s.addFolderBtn} activeOpacity={0.8}>
+              <HapticTouch haptic="whoosh" onPress={openAddFolder} style={s.addFolderBtn} activeOpacity={0.8}>
                 <Ionicons name="add" size={16} color="#fff" />
                 <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>フォルダ追加</Text>
-              </TouchableOpacity>
+              </HapticTouch>
             </View>
 
             {folders.length === 0 ? (
-              <TouchableOpacity onPress={openAddFolder} style={s.emptyCard} activeOpacity={0.8}>
+              <HapticTouch haptic="whoosh" onPress={openAddFolder} style={s.emptyCard} activeOpacity={0.8}>
                 <Text style={{ fontSize: 32, marginBottom: 8 }}>📁</Text>
                 <Text style={{ color: '#888', fontSize: 14 }}>フォルダを作って種目を登録しよう</Text>
                 <Text style={{ color: '#555', fontSize: 12, marginTop: 4 }}>例：ドリルメニュー、ランメニュー</Text>
-              </TouchableOpacity>
+              </HapticTouch>
             ) : (
               <View style={{ gap: 10 }}>
                 {folders.map(f => (
@@ -586,7 +588,8 @@ ${libraryText || '（ライブラリ未登録）'}
               </View>
             ) : (
               history.map(h => (
-                <TouchableOpacity
+                <HapticTouch
+                  haptic="tap"
                   key={h.id}
                   style={s.histCard}
                   onPress={() => { setHistItem(h); setHistModal(true) }}
@@ -603,7 +606,7 @@ ${libraryText || '（ライブラリ未登録）'}
                   </View>
                   <Text style={s.histIntent} numberOfLines={2}>「{h.intent.replace('[ピック] ', '')}」</Text>
                   <Text style={s.histPreview} numberOfLines={2}>{h.result}</Text>
-                </TouchableOpacity>
+                </HapticTouch>
               ))
             )}
           </ScrollView>
@@ -655,14 +658,15 @@ ${libraryText || '（ライブラリ未登録）'}
                 ))}
               </View>
 
-              <TouchableOpacity
+              <HapticTouch
+                haptic="save"
                 style={[m.saveBtn, !folderName.trim() && { opacity: 0.4 }]}
                 onPress={handleSaveFolder}
                 disabled={!folderName.trim()}
                 activeOpacity={0.85}
               >
                 <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>保存</Text>
-              </TouchableOpacity>
+              </HapticTouch>
 
               {editFolder && (
                 <TouchableOpacity
@@ -804,7 +808,8 @@ ${libraryText || '（ライブラリ未登録）'}
                   multiline
                 />
 
-                <TouchableOpacity
+                <HapticTouch
+                  haptic="whoosh"
                   style={[ai.genBtn, (!aiIntent.trim() || aiLoading) && { opacity: 0.4 }]}
                   onPress={handleGenerate}
                   disabled={!aiIntent.trim() || aiLoading}
@@ -816,7 +821,7 @@ ${libraryText || '（ライブラリ未登録）'}
                     <Text style={{ fontSize: 18 }}>🤖</Text>
                   )}
                   <Text style={ai.genBtnText}>{aiLoading ? 'メニュー生成中...' : 'メニューを生成する'}</Text>
-                </TouchableOpacity>
+                </HapticTouch>
 
                 {/* 結果表示 */}
                 {aiResult !== '' && (
@@ -932,7 +937,8 @@ ${libraryText || '（ライブラリ未登録）'}
                     <Text style={{ color: '#888', fontSize: 12 }}>選択中</Text>
                     <Text style={{ color: '#fff', fontSize: 14, fontWeight: '800' }}>{pickedItems.length}種目</Text>
                   </View>
-                  <TouchableOpacity
+                  <HapticTouch
+                    haptic="whoosh"
                     style={[pk.nextBtn, pickedItems.length === 0 && { opacity: 0.4 }]}
                     onPress={() => { setPickResult(''); setPickStep('generate') }}
                     disabled={pickedItems.length === 0}
@@ -940,7 +946,7 @@ ${libraryText || '（ライブラリ未登録）'}
                   >
                     <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>次へ</Text>
                     <Ionicons name="chevron-forward" size={16} color="#fff" />
-                  </TouchableOpacity>
+                  </HapticTouch>
                 </View>
               </>
             ) : (
@@ -975,7 +981,8 @@ ${libraryText || '（ライブラリ未登録）'}
                   />
 
                   {/* 生成ボタン */}
-                  <TouchableOpacity
+                  <HapticTouch
+                    haptic="whoosh"
                     style={[ai.genBtn, (pickedItems.length === 0 || pickLoading) && { opacity: 0.4 }]}
                     onPress={handleGenerateFromPicked}
                     disabled={pickedItems.length === 0 || pickLoading}
@@ -986,7 +993,7 @@ ${libraryText || '（ライブラリ未登録）'}
                       : <Text style={{ fontSize: 18 }}>🤖</Text>
                     }
                     <Text style={ai.genBtnText}>{pickLoading ? 'メニュー生成中...' : 'このピック内容でAI生成'}</Text>
-                  </TouchableOpacity>
+                  </HapticTouch>
 
                   {/* 結果 */}
                   {pickResult !== '' && (

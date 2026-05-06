@@ -19,6 +19,7 @@ import GlassCard from '../../components/GlassCard'
 import PressableScale from '../../components/PressableScale'
 import { BRAND, NEON, TEXT, GLASS } from '../../lib/theme'
 import { Sounds, unlockAudio } from '../../lib/sounds'
+import HapticTouch from '../../components/HapticTouch'
 import AnimatedSection from '../../components/AnimatedSection'
 import type { MealType, MealRecord, MealAnalysisResult, UserProfile } from '../../types'
 
@@ -266,17 +267,17 @@ export default function NutritionScreen() {
           <DateSelector date={recordDate} onChange={d => { setRecordDate(d); setResult(null); setImageUri(null) }} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
             {MEAL_TYPES.map(t => (
-              <TouchableOpacity key={t.value} style={[styles.chip, mealType === t.value && styles.chipActive]} onPress={() => setMealType(t.value)} activeOpacity={0.7}>
+              <HapticTouch key={t.value} haptic="toggleOn" style={[styles.chip, mealType === t.value && styles.chipActive]} onPress={() => setMealType(t.value)} activeOpacity={0.7}>
                 <Text style={styles.chipIcon}>{t.icon}</Text>
                 <Text style={[styles.chipText, mealType === t.value && styles.chipTextActive]}>{t.label}</Text>
-              </TouchableOpacity>
+              </HapticTouch>
             ))}
           </ScrollView>
           <View style={styles.timingRow}>
             {TIMINGS.map(t => (
-              <TouchableOpacity key={t.value} style={[styles.timingBtn, timing === t.value && styles.timingBtnActive]} onPress={() => setTiming(t.value)} activeOpacity={0.7}>
+              <HapticTouch key={t.value} haptic="toggleOn" style={[styles.timingBtn, timing === t.value && styles.timingBtnActive]} onPress={() => setTiming(t.value)} activeOpacity={0.7}>
                 <Text style={[styles.timingText, timing === t.value && styles.timingTextActive]}>{t.label}</Text>
-              </TouchableOpacity>
+              </HapticTouch>
             ))}
           </View>
         </View>
@@ -295,21 +296,21 @@ export default function NutritionScreen() {
             </View>
           ) : (
             <View style={styles.pickRow}>
-              <TouchableOpacity style={styles.pickBtn} onPress={() => pickImage('camera')} activeOpacity={0.8}>
+              <HapticTouch haptic="tap" style={styles.pickBtn} onPress={() => pickImage('camera')} activeOpacity={0.8}>
                 <Ionicons name="camera" size={22} color="#fff" />
                 <Text style={styles.pickBtnText}>撮影する</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.pickBtn, styles.pickBtnSub]} onPress={() => pickImage('library')} activeOpacity={0.8}>
+              </HapticTouch>
+              <HapticTouch haptic="tap" style={[styles.pickBtn, styles.pickBtnSub]} onPress={() => pickImage('library')} activeOpacity={0.8}>
                 <Ionicons name="images" size={22} color="#374151" />
                 <Text style={[styles.pickBtnText, {color:'#374151'}]}>ライブラリ</Text>
-              </TouchableOpacity>
+              </HapticTouch>
             </View>
           )}
           {imageUri && !result && (
-            <TouchableOpacity style={[styles.analyzeBtn, analyzing && { opacity: 0.6 }]} onPress={handleAnalyze} disabled={analyzing} activeOpacity={0.85}>
+            <HapticTouch haptic="whoosh" style={[styles.analyzeBtn, analyzing && { opacity: 0.6 }]} onPress={handleAnalyze} disabled={analyzing} activeOpacity={0.85}>
               <Ionicons name="sparkles" size={20} color="#fff" />
               <Text style={styles.analyzeBtnText}>{analyzing ? '分析中...' : '分析する'}</Text>
-            </TouchableOpacity>
+            </HapticTouch>
           )}
         </View>
         </AnimatedSection>
@@ -348,10 +349,10 @@ export default function NutritionScreen() {
                 <Text style={styles.hydrationText}>💧 {result.hydration_reminder}</Text>
               </View>
             )}
-            <TouchableOpacity style={[styles.saveBtn, saving && { opacity: 0.5 }]} onPress={handleSave} disabled={saving} activeOpacity={0.85}>
+            <HapticTouch haptic="save" style={[styles.saveBtn, saving && { opacity: 0.5 }]} onPress={handleSave} disabled={saving} activeOpacity={0.85}>
               <Ionicons name="save" size={18} color="#fff" />
               <Text style={styles.saveBtnText}>{saving ? '保存中...' : '保存する'}</Text>
-            </TouchableOpacity>
+            </HapticTouch>
             <TouchableOpacity onPress={() => { setResult(null); setImageUri(null) }} style={{ alignSelf: 'center', padding: 8 }}>
               <Text style={{ color: TEXT.secondary, fontSize: 13 }}>クリア</Text>
             </TouchableOpacity>

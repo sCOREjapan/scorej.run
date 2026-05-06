@@ -12,6 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import Toast from 'react-native-toast-message'
 import { BG_GRADIENT, BRAND, TEXT, NEON } from '../../lib/theme'
 import { Sounds, unlockAudio } from '../../lib/sounds'
+import HapticTouch from '../../components/HapticTouch'
 import AnimatedSection from '../../components/AnimatedSection'
 import DateSelector from '../../components/DateSelector'
 import TrainingChart from '../../components/TrainingChart'
@@ -1419,13 +1420,14 @@ export default function RecordsScreen() {
             { key: 'records',  label: 'タイム記録' },
             { key: 'health',   label: '体調・睡眠' },
           ] as const).map(t => (
-            <TouchableOpacity
+            <HapticTouch
               key={t.key}
+              haptic="tabSwitch"
               style={[styles.tabItem, activeTab === t.key && styles.tabItemActive]}
-              onPress={() => { Sounds.tap(); setActiveTab(t.key) }}
+              onPress={() => setActiveTab(t.key)}
             >
               <Text style={[styles.tabLabel, activeTab === t.key && styles.tabLabelActive]}>{t.label}</Text>
-            </TouchableOpacity>
+            </HapticTouch>
           ))}
         </View>
 
@@ -1469,13 +1471,14 @@ export default function RecordsScreen() {
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
                 <View style={{ flexDirection: 'row', gap: 6 }}>
                   {usedEvents.filter(e => !isField(e)).map(e => (
-                    <TouchableOpacity
+                    <HapticTouch
                       key={e}
+                      haptic="toggleOn"
                       style={[styles.filterChip, (targetEvent === e) && styles.filterChipActive]}
                       onPress={() => setChartEvent(e)}
                     >
                       <Text style={[styles.filterChipText, (targetEvent === e) && styles.filterChipTextActive]}>{e}</Text>
-                    </TouchableOpacity>
+                    </HapticTouch>
                   ))}
                 </View>
               </ScrollView>
@@ -1496,13 +1499,14 @@ export default function RecordsScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={{ flexDirection: 'row', gap: 6, paddingBottom: 4 }}>
                 {(['全種目', ...usedEvents] as const).map(e => (
-                  <TouchableOpacity
+                  <HapticTouch
                     key={e}
+                    haptic="toggleOn"
                     style={[styles.filterChip, filterEvent === e && styles.filterChipActive]}
                     onPress={() => setFilterEvent(e as any)}
                   >
                     <Text style={[styles.filterChipText, filterEvent === e && styles.filterChipTextActive]}>{e}</Text>
-                  </TouchableOpacity>
+                  </HapticTouch>
                 ))}
               </View>
             </ScrollView>
@@ -1526,9 +1530,9 @@ export default function RecordsScreen() {
               <View style={styles.empty}>
                 <Ionicons name="timer-outline" size={40} color={TEXT.hint} />
                 <Text style={styles.emptyText}>まだ記録がありません</Text>
-                <TouchableOpacity style={styles.emptyBtn} onPress={() => setModalVisible(true)}>
+                <HapticTouch haptic="whoosh" style={styles.emptyBtn} onPress={() => setModalVisible(true)}>
                   <Text style={styles.emptyBtnText}>最初の記録を追加</Text>
-                </TouchableOpacity>
+                </HapticTouch>
               </View>
             ) : (
               <View style={{ gap: 8 }}>
@@ -1576,9 +1580,9 @@ export default function RecordsScreen() {
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
                   <View style={styles.chipRow}>
                     {TRACK_EVENTS.map(e => (
-                      <TouchableOpacity key={e} style={[styles.chip, fEvent === e && styles.chipActive]} onPress={() => setFEvent(e)}>
+                      <HapticTouch key={e} haptic="toggleOn" style={[styles.chip, fEvent === e && styles.chipActive]} onPress={() => setFEvent(e)}>
                         <Text style={[styles.chipText, fEvent === e && styles.chipTextActive]}>{e}</Text>
-                      </TouchableOpacity>
+                      </HapticTouch>
                     ))}
                   </View>
                 </ScrollView>
@@ -1586,9 +1590,9 @@ export default function RecordsScreen() {
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
                   <View style={styles.chipRow}>
                     {FIELD_EVENTS.map(e => (
-                      <TouchableOpacity key={e} style={[styles.chip, fEvent === e && styles.chipActive]} onPress={() => setFEvent(e)}>
+                      <HapticTouch key={e} haptic="toggleOn" style={[styles.chip, fEvent === e && styles.chipActive]} onPress={() => setFEvent(e)}>
                         <Text style={[styles.chipText, fEvent === e && styles.chipTextActive]}>{e}</Text>
-                      </TouchableOpacity>
+                      </HapticTouch>
                     ))}
                   </View>
                 </ScrollView>

@@ -11,6 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import Toast from 'react-native-toast-message'
 import { useTheme } from '../../context/ThemeContext'
 import { Sounds, unlockAudio } from '../../lib/sounds'
+import HapticTouch from '../../components/HapticTouch'
 import { useRouter } from 'expo-router'
 import { useFocusEffect } from '@react-navigation/native'
 import type { TrainingSession } from '../../types'
@@ -405,12 +406,12 @@ export default function NotebookScreen() {
         <View style={[st.header, { borderBottomColor: colors.border }]}>
           <Text style={[st.headerTitle, { color: colors.text }]}>陸上ノート</Text>
           <View style={st.headerActions}>
-            <TouchableOpacity style={[st.iconBtn, { backgroundColor: colors.surface2, borderColor: colors.border }]} onPress={() => router.push('/gps-run')} activeOpacity={0.8}>
+            <HapticTouch haptic="whoosh" style={[st.iconBtn, { backgroundColor: colors.surface2, borderColor: colors.border }]} onPress={() => router.push('/gps-run')} activeOpacity={0.8}>
               <Ionicons name="navigate-outline" size={18} color={iconColor} />
-            </TouchableOpacity>
-            <TouchableOpacity style={[st.iconBtn, { backgroundColor: colors.surface2, borderColor: colors.border }]} onPress={() => router.push('/calendar')} activeOpacity={0.8}>
+            </HapticTouch>
+            <HapticTouch haptic="whoosh" style={[st.iconBtn, { backgroundColor: colors.surface2, borderColor: colors.border }]} onPress={() => router.push('/calendar')} activeOpacity={0.8}>
               <Ionicons name="calendar-outline" size={18} color={iconColor} />
-            </TouchableOpacity>
+            </HapticTouch>
           </View>
         </View>
 
@@ -432,10 +433,10 @@ export default function NotebookScreen() {
           </View>
 
           {/* ── 記録ボタン ── */}
-          <TouchableOpacity style={st.recordBtn} onPress={() => { unlockAudio(); Sounds.whoosh(); setModal(true) }} activeOpacity={0.85}>
+          <HapticTouch haptic="whoosh" style={st.recordBtn} onPress={() => { unlockAudio(); Sounds.whoosh(); setModal(true) }} activeOpacity={0.85}>
             <Ionicons name="add-circle" size={20} color="#fff" />
             <Text style={st.recordBtnText}>今日の練習を記録する</Text>
-          </TouchableOpacity>
+          </HapticTouch>
 
           {/* ── 練習記録（枠組み・スクロール） ── */}
           <View style={[st.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -516,7 +517,8 @@ export default function NotebookScreen() {
                   placeholderTextColor={colors.textHint}
                   textAlignVertical="top"
                 />
-                <TouchableOpacity
+                <HapticTouch
+                  haptic="save"
                   style={[st.saveBtn, (!freeText.trim() || parsing) && { opacity: 0.4 }]}
                   onPress={handleSave} disabled={!freeText.trim() || parsing} activeOpacity={0.8}
                 >
@@ -524,7 +526,7 @@ export default function NotebookScreen() {
                     ? <ActivityIndicator color="#fff" size="small" />
                     : <><Ionicons name="sparkles" size={18} color="#fff" /><Text style={st.saveBtnText}>AIで記録する</Text></>
                   }
-                </TouchableOpacity>
+                </HapticTouch>
               </View>
             </KeyboardAvoidingView>
           </SafeAreaView>

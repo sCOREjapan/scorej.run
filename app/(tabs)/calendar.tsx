@@ -10,6 +10,7 @@ import { useTheme } from '../../context/ThemeContext'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Sounds, unlockAudio } from '../../lib/sounds'
+import HapticTouch from '../../components/HapticTouch'
 import Toast from 'react-native-toast-message'
 
 // ── ストレージキー ──────────────────────────────────────────
@@ -181,15 +182,16 @@ function AddEventModal({
               {EVENT_CATEGORIES.map(cat => {
                 const active = category === cat.value
                 return (
-                  <TouchableOpacity
+                  <HapticTouch
                     key={cat.value}
+                    haptic="toggleOn"
                     activeOpacity={0.7}
-                    onPress={() => { unlockAudio(); Sounds.pop(); setCategory(cat.value) }}
+                    onPress={() => { unlockAudio(); setCategory(cat.value) }}
                     style={[m.catBtn, active && { backgroundColor: cat.color + '22', borderColor: cat.color }]}
                   >
                     <Text style={m.catEmoji}>{cat.emoji}</Text>
                     <Text style={[m.catLabel, { color: active ? cat.color : TEXT.secondary }]}>{cat.label}</Text>
-                  </TouchableOpacity>
+                  </HapticTouch>
                 )
               })}
             </View>
@@ -220,7 +222,8 @@ function AddEventModal({
             />
 
             {/* 保存 */}
-            <TouchableOpacity
+            <HapticTouch
+              haptic="save"
               style={[m.saveBtn, saving && { opacity: 0.6 }]}
               activeOpacity={0.85}
               onPress={handleSave}
@@ -228,7 +231,7 @@ function AddEventModal({
             >
               <Ionicons name="checkmark-circle" size={20} color="#fff" />
               <Text style={m.saveTxt}>{saving ? '保存中...' : editEvent ? '更新する' : '追加する'}</Text>
-            </TouchableOpacity>
+            </HapticTouch>
           </ScrollView>
         </Animated.View>
       </KeyboardAvoidingView>
@@ -370,13 +373,13 @@ export default function CalendarScreen() {
 
           {/* ── 月ナビ ── */}
           <View style={st.monthNav}>
-            <TouchableOpacity onPress={() => changeMonth(-1)} style={[st.navBtn, { backgroundColor: colors.surface2, borderColor: colors.border }]} activeOpacity={0.7}>
+            <HapticTouch haptic="tabSwitch" onPress={() => changeMonth(-1)} style={[st.navBtn, { backgroundColor: colors.surface2, borderColor: colors.border }]} activeOpacity={0.7}>
               <Ionicons name="chevron-back" size={22} color={colors.text} />
-            </TouchableOpacity>
+            </HapticTouch>
             <Text style={[st.monthTitle, { color: colors.text }]}>{year}年{month + 1}月</Text>
-            <TouchableOpacity onPress={() => changeMonth(1)} style={[st.navBtn, { backgroundColor: colors.surface2, borderColor: colors.border }]} activeOpacity={0.7}>
+            <HapticTouch haptic="tabSwitch" onPress={() => changeMonth(1)} style={[st.navBtn, { backgroundColor: colors.surface2, borderColor: colors.border }]} activeOpacity={0.7}>
               <Ionicons name="chevron-forward" size={22} color={colors.text} />
-            </TouchableOpacity>
+            </HapticTouch>
           </View>
 
           {/* ── 凡例 ── */}
@@ -424,14 +427,15 @@ export default function CalendarScreen() {
             <View style={st.detailHeader}>
               <Ionicons name="calendar-outline" size={16} color={colors.textHint} />
               <Text style={[st.detailTitle, { color: colors.text }]}>{selectedDate.replace(/-/g, '/')} の予定・記録</Text>
-              <TouchableOpacity
+              <HapticTouch
+                haptic="whoosh"
                 style={st.addBtn}
                 activeOpacity={0.8}
-                onPress={() => { unlockAudio(); Sounds.whoosh(); setEditEvent(null); setModalVisible(true) }}
+                onPress={() => { unlockAudio(); setEditEvent(null); setModalVisible(true) }}
               >
                 <Ionicons name="add" size={16} color="#fff" />
                 <Text style={st.addBtnTxt}>予定を追加</Text>
-              </TouchableOpacity>
+              </HapticTouch>
             </View>
 
             {selectedRecords.length === 0 ? (
