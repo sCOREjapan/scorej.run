@@ -5,10 +5,10 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { BG_GRADIENT, TEXT } from '../lib/theme'
 
-const LAST_UPDATED = '2026年4月29日'
+const LAST_UPDATED = '2026年5月8日'
 const APP_NAME     = 'sCORE'
-const CONTACT      = 'fojpl.office@gmail.com'
-const OPERATOR     = '合同会社sCORE（以下「当社」）'
+const CONTACT      = 'focusports.shop'
+const OPERATOR     = '個人事業主（屋号：trackmate）（以下「当社」）'
 
 function Section({ num, title, children }: { num: string; title: string; children: React.ReactNode }) {
   return (
@@ -265,7 +265,7 @@ export default function PrivacyScreen() {
             <Li>人の生命、身体または財産の保護のために必要がある場合であって、本人の同意を得ることが困難なとき</Li>
             <Li>公衆衛生の向上または児童の健全な育成の推進のために特に必要がある場合であって、本人の同意を得ることが困難なとき</Li>
             <Li>国の機関若しくは地方公共団体またはその委託を受けた者が法令の定める事務を遂行することに対して協力する必要がある場合であって、本人の同意を得ることにより当該事務の遂行に支障を及ぼすおそれがあるとき</Li>
-            <Li>当社の合併・会社分割・事業譲渡等の組織再編に伴い、事業継続目的で個人情報が承継される場合（この場合、ユーザーに事前に告知します）</Li>
+            <Li>運営者の事業承継・事業譲渡等に伴い、事業継続目的で個人情報が承継される場合（この場合、ユーザーに事前に告知します）</Li>
             <P style={{ marginTop: 12, marginBottom: 8 }}>
               本サービスは以下の外部サービスを利用します。各サービスへのデータ送信は本サービスの機能提供に必要な範囲に限定されます。
             </P>
@@ -592,7 +592,7 @@ export default function PrivacyScreen() {
           <Text style={[s.body, { textAlign: 'center', fontSize: 11 }]}>
             {APP_NAME}　プライバシーポリシー　{LAST_UPDATED} 施行{'\n'}
             本ポリシーは日本語を正文とします。{'\n'}
-            © 2026 {OPERATOR}. All rights reserved.
+            © 2026 trackmate. All rights reserved.
           </Text>
 
         </ScrollView>

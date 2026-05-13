@@ -25,6 +25,7 @@ import {
   getPermission,
   scheduleCompetitionReminder,
   scheduleTrainingReminder,
+  sendCompetitionPlanCreatedNotification,
 } from '../../lib/notifications'
 
 const COMP_KEY = 'trackmate_competitions'
@@ -349,9 +350,10 @@ export default function CompetitionScreen() {
       })
       setSelectedComp(newPlan)
 
-      // 通知がONなら大会リマインダーをスケジュール
+      // 通知がONなら大会リマインダー + 計画作成通知
       if (notifGranted) {
         scheduleCompetitionReminder([newPlan])
+        sendCompetitionPlanCreatedNotification(compName, daysUntil)
       }
 
       Sounds.save()

@@ -33,7 +33,7 @@ const SkeletonLine: React.FC<{ width: string | number }> = ({ width }) => {
     <Animated.View
       style={[
         styles.skeletonLine,
-        { width, opacity },
+        { width: width as any, opacity },
       ]}
     />
   )

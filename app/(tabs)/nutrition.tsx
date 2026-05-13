@@ -3,8 +3,11 @@ import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   Animated, Image, Platform,
 } from 'react-native'
-import { checkAdGate, recordUsage, grantRewardUse } from '../../lib/adGate'
+import { checkAdGate, recordUsage, consumeRewardUse } from '../../lib/adGate'
 import AdGateModal from '../../components/AdGateModal'
+import { useAuth } from '../../context/AuthContext'
+import { useRouter } from 'expo-router'
+import { trackFeatureUse } from '../../lib/analytics'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import * as ImagePicker from 'expo-image-picker'
 import { Ionicons } from '@expo/vector-icons'
@@ -111,19 +114,27 @@ export default function NutritionScreen() {
   const [analyzing, setAnalyzing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [adGateVisible,     setAdGateVisible]     = useState(false)
+  const [adGateRemaining,   setAdGateRemaining]   = useState(0)
   const [adGateHardLimited, setAdGateHardLimited] = useState(false)
+  const [adGateRewardUses,  setAdGateRewardUses]  = useState(0)
+  const [remaining,         setRemaining]         = useState<number | null>(null)
   const [result, setResult] = useState<MealAnalysisResult | null>(null)
   const [history, setHistory] = useState<MealRecord[]>([])
   const [recordDate, setRecordDate] = useState(new Date().toISOString().slice(0, 10))
   const today = new Date().toISOString().slice(0, 10)
+  const { isGuest } = useAuth()
+  const router = useRouter()
 
-  // ローカルストレージから履歴を読み込む
+  // ローカルストレージから履歴を読み込む + 残り回数取得
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then(raw => {
       if (raw) {
         try { setHistory(JSON.parse(raw)) } catch { /* ignore */ }
       }
     })
+    checkAdGate('meal').then(g => {
+      if (g.remaining < 999) setRemaining(g.remaining)
+    }).catch(() => {})
   }, [])
 
   const todayTotals = history.filter(m => m.meal_date === today).reduce(
@@ -200,15 +211,23 @@ export default function NutritionScreen() {
 
   const handleAnalyze = useCallback(async () => {
     if (!imageUri) return
+    // ゲストはログイン必須
+    if (isGuest) { setAdGateRemaining(0); setAdGateHardLimited(false); setAdGateVisible(true); return }
     const gate = await checkAdGate('meal')
-    if (gate.hardLimited || gate.needsAd) {
-      setAdGateHardLimited(gate.hardLimited)
-      setAdGateVisible(true)
-      return
+    if (!gate.allowed) {
+      setAdGateRemaining(0); setAdGateRewardUses(gate.rewardUses); setAdGateHardLimited(gate.hardLimited); setAdGateVisible(true); return
     }
-    await recordUsage('meal')
+    if (gate.remaining === 0 && gate.rewardUses > 0) {
+      await consumeRewardUse('meal')
+    } else if (gate.remaining === 1) {
+      setAdGateRemaining(1); setAdGateVisible(true); return
+    } else {
+      await recordUsage('meal')
+    }
+    trackFeatureUse('meal')
+    checkAdGate('meal').then(g => { if (g.remaining < 999) setRemaining(g.remaining) }).catch(() => {})
     await handleAnalyzeCore()
-  }, [imageUri, handleAnalyzeCore])
+  }, [imageUri, handleAnalyzeCore, isGuest])
 
   const handleSave = useCallback(async () => {
     if (!result) return
@@ -307,10 +326,25 @@ export default function NutritionScreen() {
             </View>
           )}
           {imageUri && !result && (
-            <HapticTouch haptic="whoosh" style={[styles.analyzeBtn, analyzing && { opacity: 0.6 }]} onPress={handleAnalyze} disabled={analyzing} activeOpacity={0.85}>
-              <Ionicons name="sparkles" size={20} color="#fff" />
-              <Text style={styles.analyzeBtnText}>{analyzing ? '分析中...' : '分析する'}</Text>
-            </HapticTouch>
+            <>
+              {remaining !== null && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8,
+                  backgroundColor: remaining <= 1 ? 'rgba(239,68,68,0.10)' : 'rgba(22,101,52,0.10)',
+                  borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, alignSelf: 'flex-start',
+                  borderWidth: 1, borderColor: remaining <= 1 ? 'rgba(239,68,68,0.3)' : 'rgba(22,101,52,0.3)',
+                }}>
+                  <Ionicons name={remaining <= 1 ? 'warning-outline' : 'flash-outline'} size={11}
+                    color={remaining <= 1 ? '#ef4444' : BRAND}/>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: remaining <= 1 ? '#ef4444' : BRAND }}>
+                    {remaining === 0 ? '無料枠を使い切りました' : `残り${remaining}回（無料枠）`}
+                  </Text>
+                </View>
+              )}
+              <HapticTouch haptic="whoosh" style={[styles.analyzeBtn, analyzing && { opacity: 0.6 }]} onPress={handleAnalyze} disabled={analyzing} activeOpacity={0.85}>
+                <Ionicons name="sparkles" size={20} color="#fff" />
+                <Text style={styles.analyzeBtnText}>{analyzing ? '分析中...' : '分析する'}</Text>
+              </HapticTouch>
+            </>
           )}
         </View>
         </AnimatedSection>
@@ -381,18 +415,24 @@ export default function NutritionScreen() {
     <AdGateModal
       visible={adGateVisible}
       feature="meal"
+      remaining={adGateRemaining}
+      rewardUses={adGateRewardUses}
       hardLimited={adGateHardLimited}
+      isGuest={isGuest}
       onClose={() => setAdGateVisible(false)}
       onAdWatched={async () => {
         setAdGateVisible(false)
-        await grantRewardUse('meal')
-        await recordUsage('meal')
+        const g = await checkAdGate('meal')
+        if (g.rewardUses > 0) {
+          await consumeRewardUse('meal')
+        } else {
+          await recordUsage('meal')
+        }
+        trackFeatureUse('meal')
+        checkAdGate('meal').then(g2 => { if (g2.remaining < 999) setRemaining(g2.remaining) }).catch(() => {})
         await handleAnalyzeCore()
       }}
-      onUpgrade={() => {
-        setAdGateVisible(false)
-        // TODO: プレミアム画面へのナビゲーションを追加
-      }}
+      onUpgrade={() => { setAdGateVisible(false); router.push('/paywall') }}
     />
     </View>
   )

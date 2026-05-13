@@ -291,7 +291,8 @@ export default function WorkoutMenuScreen() {
     setPickLoading(true)
     setPickResult('')
     try {
-      const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY
+      const _apiBase1 = (process.env.EXPO_PUBLIC_API_BASE_URL ?? '').replace(/\/$/, '')
+      const _endpoint1 = _apiBase1 ? `${_apiBase1}/api/analyze` : '/api/analyze'
 
       const libraryText = pickedItems.map(p => `・${p.text}（${p.folderName}）`).join('\n')
 
@@ -323,15 +324,10 @@ ${pickIntent.trim() || '特に指定なし'}
 
 ピックアップされた種目は必ずメインに組み込み、種目は具体的に記載（セット数・距離・インターバルなど）。`
 
-      if (apiKey) {
-        const res = await fetch('https://api.anthropic.com/v1/messages', {
+      {
+        const res = await fetch(_endpoint1, {
           method: 'POST',
-          headers: {
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01',
-            'content-type': 'application/json',
-            'anthropic-dangerous-direct-browser-access': 'true',
-          },
+          headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
             model: 'claude-haiku-4-5-20251001',
             max_tokens: 800,
@@ -354,33 +350,6 @@ ${pickIntent.trim() || '特に指定なし'}
         } else {
           setPickResult('APIエラーが発生しました。しばらくしてから再試行してください。')
         }
-      } else {
-        const demo = `📋 今日のメニュー
-
-【ウォームアップ】
-・ランジウォーク × 20m × 2
-・2ステップ × 20m × 2
-・骨盤ウォーク × 20m
-
-【メイン練習】
-${pickedItems.map(p => `・${p.text}`).join('\n')}
-
-【クールダウン】
-・軽ジョグ 5分
-・静的ストレッチ 10分
-
-💬 コーチコメント
-ピックした種目を中心に、質の高い練習を積み上げましょう！🔥`
-        setPickResult(demo)
-        const entry: AIGeneratedMenu = {
-          id: uid(),
-          intent: `[ピック] ${pickedItems.map(p => p.text).join('・')}`,
-          result: demo,
-          created_at: new Date().toISOString(),
-        }
-        const next = [entry, ...history].slice(0, 30)
-        setHistory(next)
-        await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(next)).catch(() => {})
       }
     } catch {
       setPickResult('生成に失敗しました。もう一度お試しください。')
@@ -402,7 +371,8 @@ ${pickedItems.map(p => `・${p.text}`).join('\n')}
     setAiLoading(true)
     setAiResult('')
     try {
-      const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY
+      const _apiBase2 = (process.env.EXPO_PUBLIC_API_BASE_URL ?? '').replace(/\/$/, '')
+      const _endpoint2 = _apiBase2 ? `${_apiBase2}/api/analyze` : '/api/analyze'
       const useFolders = folders.filter(f => selectedFolderIds.includes(f.id) && f.items.length > 0)
 
       const libraryText = useFolders.map(f =>
@@ -437,15 +407,10 @@ ${libraryText || '（ライブラリ未登録）'}
 
 ライブラリにある種目を優先して使い、必要なら補完してください。種目は具体的に記載（セット数・距離・インターバルなど）。`
 
-      if (apiKey) {
-        const res = await fetch('https://api.anthropic.com/v1/messages', {
+      {
+        const res = await fetch(_endpoint2, {
           method: 'POST',
-          headers: {
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01',
-            'content-type': 'application/json',
-            'anthropic-dangerous-direct-browser-access': 'true',
-          },
+          headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
             model: 'claude-haiku-4-5-20251001',
             max_tokens: 800,
@@ -467,33 +432,6 @@ ${libraryText || '（ライブラリ未登録）'}
         } else {
           setAiResult('APIエラーが発生しました。しばらくしてから再試行してください。')
         }
-      } else {
-        // デモ
-        const demo = `📋 今日のメニュー
-
-【ウォームアップ】
-・ランジウォーク × 20m × 2
-・2ステップ × 20m × 2
-・骨盤ウォーク × 20m
-
-【メイン練習】
-・120m × 2 × 2set（MAX、r=5分）
-・スピードスキップ流し × 2
-
-【クールダウン】
-・軽ジョグ 5分
-・静的ストレッチ 10分
-
-💬 コーチコメント
-トレ期終盤のスピード移行期らしく、短い距離でしっかり動きの質を確認しながら走りましょう！明日は完全休養とのことで、今日は思い切ってスピードを出し切ってOK🔥`
-        setAiResult(demo)
-        const entry: AIGeneratedMenu = {
-          id: uid(), intent: aiIntent.trim(), result: demo,
-          created_at: new Date().toISOString(),
-        }
-        const next = [entry, ...history].slice(0, 30)
-        setHistory(next)
-        await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(next)).catch(() => {})
       }
     } catch {
       setAiResult('生成に失敗しました。もう一度お試しください。')

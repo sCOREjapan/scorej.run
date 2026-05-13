@@ -17,11 +17,27 @@ import {
 
 const SUB_KEY = 'trackmate_subscription'
 
+// ── アクセスコード一覧（ハードコード秘密コード）───────────────────
+// これらのコードを入力するとコーチプランが有効になります
+const ACCESS_CODE_MAP: Record<string, PlanTier> = {
+  'SCOREJAPAN2026': 'coach',   // 管理者コード
+  'COACHDEMO2026':  'coach',   // デモコード
+  'FOCUSLANE2026':  'coach',   // 代替管理者コード
+  'COLLAB001': 'coach', 'COLLAB002': 'coach', 'COLLAB003': 'coach',
+  'COLLAB004': 'coach', 'COLLAB005': 'coach', 'COLLAB006': 'coach',
+  'COLLAB007': 'coach', 'COLLAB008': 'coach', 'COLLAB009': 'coach',
+  'COLLAB010': 'coach', 'COLLAB011': 'coach', 'COLLAB012': 'coach',
+  'COLLAB013': 'coach', 'COLLAB014': 'coach', 'COLLAB015': 'coach',
+  'COLLAB016': 'coach', 'COLLAB017': 'coach', 'COLLAB018': 'coach',
+  'COLLAB019': 'coach', 'COLLAB020': 'coach',
+}
+
 // ── 型定義 ─────────────────────────────────────────────────────────
 interface PurchaseContextType {
-  tier:            PlanTier          // 'free' | 'pro' | 'elite'
+  tier:            PlanTier          // 'free' | 'pro' | 'elite' | 'coach'
   isPro:           boolean           // pro または elite
   isElite:         boolean
+  isCoach:         boolean           // coach プラン
   expiresAt:       string | undefined
   packages:        any[]
   loading:         boolean
@@ -30,16 +46,18 @@ interface PurchaseContextType {
   refreshStatus:   () => Promise<void>
   onUserChanged:   (userId?: string) => Promise<void>
   onUserSignedOut: () => Promise<void>
+  applyAccessCode: (code: string) => Promise<boolean>
 }
 
 const PurchaseContext = createContext<PurchaseContextType>({
-  tier: 'free', isPro: false, isElite: false,
+  tier: 'free', isPro: false, isElite: false, isCoach: false,
   expiresAt: undefined, packages: [], loading: true,
   purchase:        async () => false,
   restore:         async () => {},
   refreshStatus:   async () => {},
   onUserChanged:   async () => {},
   onUserSignedOut: async () => {},
+  applyAccessCode: async () => false,
 })
 
 // ── AsyncStorage にキャッシュ（adGate.ts との互換性維持） ──────────
@@ -59,6 +77,7 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
 
   const isPro   = tier === 'pro'   || tier === 'elite'
   const isElite = tier === 'elite'
+  const isCoach = tier === 'coach'
 
   // ── 起動時: キャッシュから即読み + RevenueCat で更新 ──────────
   useEffect(() => {
@@ -87,6 +106,20 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
   // ── ステータス更新 ─────────────────────────────────────────────
   const refreshStatus = useCallback(async () => {
     try {
+      // アクセスコードが保存されている場合はcoachティアを優先（RevenueCatで上書きさせない）
+      const savedCode = await AsyncStorage.getItem('score_access_code').catch(() => null)
+      if (savedCode) {
+        const clean = savedCode.trim().toUpperCase().replace(/[-\s]/g, '')
+        if (ACCESS_CODE_MAP[clean] === 'coach') {
+          setTier('coach')
+          setExpiresAt('2099-12-31T00:00:00.000Z')
+          await cacheStatus('coach', '2099-12-31T00:00:00.000Z')
+          const pkgs = await getPackages()
+          setPackages(pkgs)
+          return
+        }
+      }
+
       const { tier: t, expiresAt: exp } = await getPremiumStatus()
       setTier(t)
       setExpiresAt(exp)
@@ -136,6 +169,24 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
     }
   }, [refreshStatus])
 
+  // ── アクセスコード適用 ─────────────────────────────────────────
+  const applyAccessCode = useCallback(async (code: string): Promise<boolean> => {
+    const clean = code.trim().toUpperCase().replace(/[-\s]/g, '')
+    const grantTier = ACCESS_CODE_MAP[clean]
+    if (!grantTier) return false
+    const expiresAt = '2099-12-31T00:00:00.000Z'
+    await cacheStatus(grantTier, expiresAt)
+    setTier(grantTier)
+    setExpiresAt(expiresAt)
+    await AsyncStorage.setItem('score_access_code', code.trim().toUpperCase()).catch(() => {})
+    Toast.show({
+      type: 'success',
+      text1: '🎉 アクセスコード認証完了！',
+      text2: 'コーチ機能がすべて有効になりました',
+    })
+    return true
+  }, [])
+
   // ── 復元 ───────────────────────────────────────────────────────
   const restore = useCallback(async () => {
     try {
@@ -153,8 +204,8 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <PurchaseContext.Provider value={{
-      tier, isPro, isElite, expiresAt, packages, loading,
-      purchase, restore, refreshStatus, onUserChanged, onUserSignedOut,
+      tier, isPro, isElite, isCoach, expiresAt, packages, loading,
+      purchase, restore, refreshStatus, onUserChanged, onUserSignedOut, applyAccessCode,
     }}>
       {children}
     </PurchaseContext.Provider>

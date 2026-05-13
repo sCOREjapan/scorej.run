@@ -322,7 +322,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // ── ログアウト ────────────────────────────────────────────
   const signOut = useCallback(async () => {
+    // Supabaseセッション終了（エラーは無視）
     try { await (supabase.auth as any).signOut() } catch (_) {}
+    // ローカル状態をリセット → AuthGate が /auth へリダイレクト
     setUser(null)
     setSession(null)
     setIsGuest(false)

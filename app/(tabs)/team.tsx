@@ -3,8 +3,9 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   TextInput, KeyboardAvoidingView, Platform, Modal, Linking, Dimensions,
-  Animated, Easing,
+  Animated, Easing, ActivityIndicator, Alert,
 } from 'react-native'
+import * as Clipboard from 'expo-clipboard'
 const SCREEN_H = Dimensions.get('window').height
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useFocusEffect } from 'expo-router'
@@ -31,16 +32,60 @@ import {
   type TeamMessageRow, type TeamVideoRow, type BodyReportRow, type TeamMemberRow, type PlayerStatsRow, type TeamSessionRow, type TeamEventRow, type TeamEventType,
 } from '../../lib/supabaseTeam'
 import { useTheme } from '../../context/ThemeContext'
+import { usePurchase } from '../../context/PurchaseContext'
 import HapticTouch from '../../components/HapticTouch'
 import {
   initOneSignal, requestPushPermission, registerUserTags, sendPush,
 } from '../../lib/notify'
+import PulseView from '../../components/PulseView'
+import { streakMilestone } from '../../lib/haptics'
+
+// ── 練習メニュービルダー 型定義 ──────────────────────────
+type MenuCategory = 'warm_up' | 'sprint' | 'interval' | 'tempo' | 'drill' | 'strength' | 'cool_down' | 'other'
+type MenuIntensity = 'low' | 'medium' | 'high'
+
+interface MenuTemplate {
+  id: string
+  title: string
+  category: MenuCategory
+  detail: string
+  duration: number        // 分
+  intensity: MenuIntensity
+  createdAt: string
+}
+
+interface TodayPlan {
+  id: string
+  date: string
+  title: string
+  items: MenuTemplate[]
+  note: string
+  sharedAt?: string
+}
+
+const MENU_CATEGORY_CFG: Record<MenuCategory, { label: string; emoji: string; color: string }> = {
+  warm_up:   { label: 'ウォームアップ', emoji: '🔥', color: '#FF9500' },
+  sprint:    { label: 'スプリント',     emoji: '⚡',  color: '#FF3B30' },
+  interval:  { label: 'インターバル',   emoji: '🏃',  color: '#E53935' },
+  tempo:     { label: 'テンポ走',       emoji: '💨',  color: '#FF6B35' },
+  drill:     { label: 'ドリル',         emoji: '🎯',  color: '#AF52DE' },
+  strength:  { label: '補強',           emoji: '💪',  color: '#007AFF' },
+  cool_down: { label: 'クールダウン',   emoji: '❄️',  color: '#5AC8FA' },
+  other:     { label: 'その他',          emoji: '📋',  color: '#8E8E93' },
+}
+const MENU_INTENSITY_CFG: Record<MenuIntensity, { label: string; color: string }> = {
+  low:    { label: '低強度', color: '#34C759' },
+  medium: { label: '中強度', color: '#FF9500' },
+  high:   { label: '高強度', color: '#FF3B30' },
+}
 
 // ── ストレージキー（ローカル設定のみ） ────────────────────
 const ROLE_KEY            = 'trackmate_team_role'
 const SESSIONS_KEY        = 'trackmate_sessions'
 const SETUP_KEY           = 'trackmate_team_setup'
 const JOINED_KEY          = 'trackmate_team_joined'
+const MENU_LIBRARY_KEY    = 'trackmate_coach_menu_library'
+const TODAY_PLAN_KEY      = 'trackmate_coach_today_plan'
 const SLEEP_KEY           = 'trackmate_sleep'
 const CONDITION_MAP_KEY   = 'trackmate_condition_map'
 const RECOVERY_KEY        = 'trackmate_recovery_records'
@@ -315,14 +360,45 @@ function ConfirmSheet({ visible, title, message, confirmLabel, dangerous, onConf
 }
 
 // ─────────────────────────────────────────────────────────
-// VideoSubmitModal — 動画URL送信（選手用）
+// VideoSubmitModal — 動画URL送信（選手用・Google Drive対応）
 // ─────────────────────────────────────────────────────────
+const GDRIVE_URL = 'https://drive.google.com'
+const GDRIVE_APP = 'googledrive://'
+
 function VideoSubmitModal({ visible, teamCode, playerName, onClose, onSent }: {
   visible: boolean; teamCode: string; playerName: string; onClose: () => void; onSent: () => void
 }) {
-  const [url,  setUrl]  = useState('')
-  const [desc, setDesc] = useState('')
-  const [busy, setBusy] = useState(false)
+  const [url,      setUrl]      = useState('')
+  const [desc,     setDesc]     = useState('')
+  const [busy,     setBusy]     = useState(false)
+  const [step,     setStep]     = useState<'guide'|'input'>('guide')
+
+  // モーダルを開くたびにガイド画面に戻す
+  useEffect(() => { if (visible) setStep('guide') }, [visible])
+
+  async function pasteFromClipboard() {
+    try {
+      const text = await Clipboard.getStringAsync()
+      if (text && (text.startsWith('http://') || text.startsWith('https://'))) {
+        setUrl(text)
+        setStep('input')
+        Toast.show({ type: 'success', text1: 'URLを貼り付けました', visibilityTime: 1200 })
+      } else {
+        Toast.show({ type: 'error', text1: 'URLが見つかりません', text2: 'まずGoogleドライブでリンクをコピーしてください', visibilityTime: 2500 })
+      }
+    } catch {
+      Toast.show({ type: 'error', text1: 'クリップボードの読み取りに失敗しました' })
+    }
+  }
+
+  async function openGoogleDrive() {
+    const canOpenApp = await Linking.canOpenURL(GDRIVE_APP).catch(() => false)
+    if (canOpenApp) {
+      await Linking.openURL(GDRIVE_APP)
+    } else {
+      await Linking.openURL(GDRIVE_URL)
+    }
+  }
 
   async function submit() {
     if (!url.trim()) { Toast.show({type:'error',text1:'URLを入力してください'}); return }
@@ -337,46 +413,324 @@ function VideoSubmitModal({ visible, teamCode, playerName, onClose, onSent }: {
     } finally { setBusy(false) }
   }
 
+  const STEPS = [
+    { icon: '📂', title: 'Googleドライブを開く', desc: '下の「ドライブを開く」ボタンをタップ' },
+    { icon: '⬆️', title: '動画をアップロード', desc: '＋ボタン → アップロード → 動画を選択' },
+    { icon: '🔗', title: '共有リンクをコピー', desc: 'ファイルを長押し → 共有 →「リンクをコピー」' },
+    { icon: '📋', title: 'ここに貼り付けて送信', desc: '下の「貼り付けて送る」ボタンをタップ' },
+  ]
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={vs.overlay}>
-        <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':undefined} style={vs.sheet}>
-          <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:16}}/>
-          <View style={{flexDirection:'row',alignItems:'center',marginBottom:20}}>
-            <Text style={{color:'#fff',fontSize:18,fontWeight:'800',flex:1}}>動画をコーチに送る</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={{top:10,bottom:10,left:10,right:10}}>
-              <Ionicons name="close" size={22} color={TEXT.secondary}/>
-            </TouchableOpacity>
+      <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined}>
+        <View style={vs.overlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose} activeOpacity={1}/>
+          <View style={vs.sheet}>
+            <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:16}}/>
+
+            {/* ヘッダー */}
+            <View style={{flexDirection:'row',alignItems:'center',marginBottom:18}}>
+              <Text style={{color:TEXT.primary,fontSize:18,fontWeight:'800',flex:1}}>
+                {step === 'guide' ? '🎥 動画をコーチに送る' : '🔗 URLを貼り付けて送る'}
+              </Text>
+              <TouchableOpacity onPress={onClose} hitSlop={{top:10,bottom:10,left:10,right:10}}>
+                <Ionicons name="close" size={22} color={TEXT.secondary}/>
+              </TouchableOpacity>
+            </View>
+
+            {step === 'guide' ? (
+              /* ── ガイドビュー ── */
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                {/* ステップ */}
+                <View style={{gap:10,marginBottom:18}}>
+                  {STEPS.map((s, i) => (
+                    <View key={i} style={{flexDirection:'row',alignItems:'flex-start',gap:12,backgroundColor:'#f8faff',borderRadius:12,padding:12,borderWidth:1,borderColor:'rgba(37,99,235,0.10)'}}>
+                      <View style={{width:32,height:32,borderRadius:10,backgroundColor:BRAND+'18',alignItems:'center',justifyContent:'center'}}>
+                        <Text style={{fontSize:16}}>{s.icon}</Text>
+                      </View>
+                      <View style={{flex:1}}>
+                        <View style={{flexDirection:'row',alignItems:'center',gap:6,marginBottom:2}}>
+                          <View style={{width:18,height:18,borderRadius:9,backgroundColor:BRAND,alignItems:'center',justifyContent:'center'}}>
+                            <Text style={{color:'#fff',fontSize:10,fontWeight:'800'}}>{i+1}</Text>
+                          </View>
+                          <Text style={{color:TEXT.primary,fontSize:13,fontWeight:'800'}}>{s.title}</Text>
+                        </View>
+                        <Text style={{color:TEXT.secondary,fontSize:12,lineHeight:18}}>{s.desc}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+
+                {/* Googleドライブを開くボタン */}
+                <HapticTouch haptic="whoosh"
+                  style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:10,backgroundColor:'#1a73e8',borderRadius:14,paddingVertical:14,marginBottom:10}}
+                  onPress={openGoogleDrive} activeOpacity={0.85}>
+                  <Text style={{fontSize:20}}>📂</Text>
+                  <Text style={{color:'#fff',fontSize:15,fontWeight:'800'}}>Googleドライブを開く</Text>
+                  <Ionicons name="open-outline" size={16} color="#fff"/>
+                </HapticTouch>
+
+                {/* リンクコピー後：貼り付けて送るボタン */}
+                <HapticTouch haptic="save"
+                  style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:10,backgroundColor:BRAND,borderRadius:14,paddingVertical:14,marginBottom:6}}
+                  onPress={pasteFromClipboard} activeOpacity={0.85}>
+                  <Ionicons name="clipboard-outline" size={18} color="#fff"/>
+                  <Text style={{color:'#fff',fontSize:15,fontWeight:'800'}}>コピーしたURLを貼り付けて送る</Text>
+                </HapticTouch>
+
+                {/* 手動入力へ */}
+                <TouchableOpacity onPress={() => setStep('input')} style={{alignItems:'center',paddingVertical:12}} activeOpacity={0.7}>
+                  <Text style={{color:TEXT.hint,fontSize:12}}>URLを手動で入力する場合はこちら</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            ) : (
+              /* ── URL入力ビュー ── */
+              <>
+                <TouchableOpacity onPress={() => setStep('guide')} style={{flexDirection:'row',alignItems:'center',gap:4,marginBottom:14}} activeOpacity={0.7}>
+                  <Ionicons name="chevron-back" size={16} color={BRAND}/>
+                  <Text style={{color:BRAND,fontSize:13,fontWeight:'700'}}>手順を見る</Text>
+                </TouchableOpacity>
+
+                <Text style={vs.label}>動画URL（Google Drive / YouTube）</Text>
+                <View style={{flexDirection:'row',gap:8,marginBottom:14}}>
+                  <TextInput
+                    style={[vs.input,{flex:1}]}
+                    value={url} onChangeText={setUrl}
+                    placeholder="https://drive.google.com/..."
+                    placeholderTextColor="#9ca3af"
+                    autoCapitalize="none" keyboardType="url"
+                  />
+                  <TouchableOpacity
+                    style={{width:44,height:44,borderRadius:10,backgroundColor:'#f0f2f5',alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:'rgba(0,0,0,0.08)'}}
+                    onPress={pasteFromClipboard} activeOpacity={0.8}>
+                    <Ionicons name="clipboard-outline" size={20} color={BRAND}/>
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={vs.label}>コーチへのメモ（任意）</Text>
+                <TextInput
+                  style={[vs.input,{height:72,textAlignVertical:'top',paddingTop:10,marginBottom:16}]}
+                  value={desc} onChangeText={setDesc}
+                  placeholder="スタートの動作を見てほしいです..."
+                  placeholderTextColor="#9ca3af" multiline maxLength={100}
+                />
+
+                <HapticTouch haptic="save" style={[vs.btn, busy&&{opacity:0.5}]} onPress={submit} disabled={busy} activeOpacity={0.85}>
+                  {busy ? <ActivityIndicator size="small" color="#fff"/> : <Ionicons name="send" size={18} color="#fff"/>}
+                  <Text style={{color:'#fff',fontSize:16,fontWeight:'800'}}>{busy?'送信中...':'送る'}</Text>
+                </HapticTouch>
+              </>
+            )}
           </View>
-
-          <Text style={vs.label}>動画のURL（YouTube / Google Drive など）</Text>
-          <TextInput style={vs.input} value={url} onChangeText={setUrl} placeholder="https://..." placeholderTextColor="#9ca3af" autoCapitalize="none" keyboardType="url"/>
-
-          <Text style={[vs.label,{marginTop:14}]}>説明（任意）</Text>
-          <TextInput style={[vs.input,{height:72,textAlignVertical:'top',paddingTop:10}]} value={desc} onChangeText={setDesc} placeholder="フォームの確認をお願いします..." placeholderTextColor="#9ca3af" multiline maxLength={100}/>
-
-          <View style={{backgroundColor:'#f0f2f5',borderRadius:10,padding:12,marginTop:12}}>
-            <Text style={{color:'#6b7280',fontSize:11,lineHeight:18}}>
-              💡 YouTubeで「限定公開」にして貼り付けるのがおすすめ。動画は7日後に自動で削除されます。
-            </Text>
-          </View>
-
-          <HapticTouch haptic="save" style={[vs.btn,busy&&{opacity:0.5}]} onPress={submit} disabled={busy} activeOpacity={0.85}>
-            <Ionicons name="send" size={18} color="#fff"/>
-            <Text style={{color:'#fff',fontSize:16,fontWeight:'800'}}>{busy?'送信中...':'送る'}</Text>
-          </HapticTouch>
-        </KeyboardAvoidingView>
-      </View>
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   )
 }
 const vs = StyleSheet.create({ // vs = video submit
-  overlay:{ flex:1, backgroundColor:'rgba(0,0,0,0.8)', justifyContent:'flex-end' },
-  sheet:  { backgroundColor:'#ffffff', borderTopLeftRadius:24, borderTopRightRadius:24, padding:20, paddingBottom:44, borderTopWidth:1, borderColor:'rgba(0,0,0,0.08)' },
+  overlay:{ flex:1, backgroundColor:'rgba(0,0,0,0.7)', justifyContent:'flex-end' },
+  sheet:  { backgroundColor:'#ffffff', borderTopLeftRadius:24, borderTopRightRadius:24, padding:20, paddingBottom:44, maxHeight: SCREEN_H * 0.88 },
   label:  { color:TEXT.hint, fontSize:11, fontWeight:'700', letterSpacing:0.8, marginBottom:8 },
-  input:  { backgroundColor:'#f8f8fa', borderRadius:10, borderWidth:1, borderColor:'rgba(0,0,0,0.10)', color:TEXT.primary, fontSize:14, paddingHorizontal:14, paddingVertical:12 },
+  input:  { backgroundColor:'#f8f8fa', borderRadius:10, borderWidth:1, borderColor:'rgba(0,0,0,0.10)', color:TEXT.primary, fontSize:14, paddingHorizontal:14, paddingVertical:12, height:44 },
   btn:    { flexDirection:'row', alignItems:'center', justifyContent:'center', gap:8, backgroundColor:BRAND, borderRadius:14, paddingVertical:15, marginTop:16 },
 })
+
+// ─────────────────────────────────────────────────────────
+// CoachPaywallScreen — コーチプラン購入ゲート
+// ─────────────────────────────────────────────────────────
+const COACH_GREEN = '#166534'
+const COACH_FEATURES = [
+  '全選手のコンディションを一覧管理',
+  '怪我リスクスコアのリアルタイム確認',
+  'アナウンス・メッセージ送信',
+  '動画レビュー（選手から受信）',
+  'チーム予定・カレンダー管理',
+  'チームコード発行・メンバー招待',
+]
+
+function CoachPaywallScreen({ onBack, onPurchased }: { onBack: () => void; onPurchased: () => void }) {
+  const { packages, purchase, restore, tier, applyAccessCode } = usePurchase()
+  const [busy,        setBusy]        = useState(false)
+  const [showCode,    setShowCode]    = useState(false)
+  const [codeInput,   setCodeInput]   = useState('')
+  const [codeError,   setCodeError]   = useState('')
+  const [codeLoading, setCodeLoading] = useState(false)
+
+  // プラン購入後にtierがcoachになったら自動遷移
+  React.useEffect(() => {
+    if (tier === 'coach') onPurchased()
+  }, [tier, onPurchased])
+
+  async function handleApplyCode() {
+    if (!codeInput.trim()) return
+    setCodeLoading(true)
+    setCodeError('')
+    const ok = await applyAccessCode(codeInput.trim())
+    setCodeLoading(false)
+    if (ok) {
+      // tier更新でuseEffectが自動遷移
+    } else {
+      setCodeError('コードが無効です。もう一度確認してください。')
+    }
+  }
+
+  async function handlePurchase() {
+    // coachパッケージを探す（月額優先）
+    const coachPkg = packages.find((p: any) =>
+      p?.product?.identifier === 'score_coach_monthly' ||
+      p?.identifier === 'score_coach_monthly' ||
+      p?.offeringIdentifier === 'coach'
+    )
+    if (!coachPkg) {
+      // パッケージが見つからない場合はデモ購入（開発中フォールバック）
+      Toast.show({ type: 'error', text1: 'パッケージが見つかりません', text2: 'App Storeの接続を確認してください', visibilityTime: 3000 })
+      return
+    }
+    setBusy(true)
+    const ok = await purchase(coachPkg)
+    setBusy(false)
+    if (ok) onPurchased()
+  }
+
+  async function handleRestore() {
+    setBusy(true)
+    await restore()
+    setBusy(false)
+  }
+
+  return (
+    <View style={{ flex: 1, backgroundColor: '#0D1F13' }}>
+      <SafeAreaView style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={{ padding: 24, paddingTop: 32, gap: 20 }} showsVerticalScrollIndicator={false}>
+          {/* 戻るボタン */}
+          <TouchableOpacity onPress={onBack} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start' }} activeOpacity={0.7}>
+            <Ionicons name="chevron-back" size={20} color="rgba(255,255,255,0.6)" />
+            <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14 }}>戻る</Text>
+          </TouchableOpacity>
+
+          {/* ヘッダー */}
+          <View style={{ alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <View style={{ width: 64, height: 64, borderRadius: 18, backgroundColor: COACH_GREEN + '44', borderWidth: 1.5, borderColor: COACH_GREEN + '88', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="clipboard" size={32} color="#4ADE80" />
+            </View>
+            <View style={{ backgroundColor: COACH_GREEN, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 3 }}>
+              <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>COACH PLAN</Text>
+            </View>
+            <Text style={{ color: '#fff', fontSize: 24, fontWeight: '900', textAlign: 'center' }}>
+              チームを指導する{'\n'}全機能が使えます
+            </Text>
+            <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, textAlign: 'center', lineHeight: 20 }}>
+              コーチ・監督・顧問の先生向け{'\n'}チーム管理の完全版プランです
+            </Text>
+          </View>
+
+          {/* 価格 */}
+          <View style={{ backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', padding: 20, alignItems: 'center', gap: 4 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 4 }}>
+              <Text style={{ color: '#4ADE80', fontSize: 40, fontWeight: '900', lineHeight: 44 }}>¥2,980</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginBottom: 6 }}>/月</Text>
+            </View>
+            <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>年払い ¥29,800/年（¥2,483/月）</Text>
+          </View>
+
+          {/* 機能一覧 */}
+          <View style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(74,222,128,0.2)', padding: 16, gap: 10 }}>
+            <Text style={{ color: '#4ADE80', fontSize: 12, fontWeight: '800', letterSpacing: 0.8, marginBottom: 2 }}>含まれる機能</Text>
+            {COACH_FEATURES.map((f, i) => (
+              <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: COACH_GREEN + '66', alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="checkmark" size={13} color="#4ADE80" />
+                </View>
+                <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, flex: 1 }}>{f}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* 購入ボタン */}
+          <TouchableOpacity
+            style={[{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#16A34A', borderRadius: 16, paddingVertical: 17, marginTop: 4 }, busy && { opacity: 0.5 }]}
+            onPress={handlePurchase}
+            disabled={busy}
+            activeOpacity={0.85}
+          >
+            {busy
+              ? <ActivityIndicator size="small" color="#fff" />
+              : <Ionicons name="shield-checkmark" size={20} color="#fff" />
+            }
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '900' }}>
+              {busy ? '処理中...' : 'コーチプランを開始する'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* 復元 */}
+          <TouchableOpacity onPress={handleRestore} disabled={busy} style={{ alignItems: 'center', paddingVertical: 8 }} activeOpacity={0.7}>
+            <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12 }}>以前の購入を復元する</Text>
+          </TouchableOpacity>
+
+          {/* アクセスコード入力 */}
+          {!showCode ? (
+            <TouchableOpacity
+              onPress={() => setShowCode(true)}
+              style={{ alignItems: 'center', paddingVertical: 8 }}
+              activeOpacity={0.7}
+            >
+              <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12 }}>
+                🔑 アクセスコードをお持ちの方
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', padding: 16, gap: 12 }}>
+              <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '700' }}>🔑 アクセスコードで認証</Text>
+              <TextInput
+                style={{
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: codeError ? '#EF4444' : 'rgba(255,255,255,0.2)',
+                  color: '#fff',
+                  fontSize: 16,
+                  fontWeight: '700',
+                  letterSpacing: 2,
+                  paddingHorizontal: 16,
+                  paddingVertical: 14,
+                  textAlign: 'center',
+                  textTransform: 'uppercase',
+                  ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}),
+                }}
+                value={codeInput}
+                onChangeText={t => { setCodeInput(t); setCodeError('') }}
+                placeholder="XXXX-XXXX-XXXX"
+                placeholderTextColor="rgba(255,255,255,0.3)"
+                autoCapitalize="characters"
+                autoCorrect={false}
+                autoComplete="off"
+              />
+              {codeError ? (
+                <Text style={{ color: '#EF4444', fontSize: 12, textAlign: 'center' }}>{codeError}</Text>
+              ) : null}
+              <TouchableOpacity
+                style={[{ backgroundColor: '#166534', borderRadius: 12, paddingVertical: 14, alignItems: 'center' }, (codeLoading || !codeInput.trim()) && { opacity: 0.5 }]}
+                onPress={handleApplyCode}
+                disabled={codeLoading || !codeInput.trim()}
+                activeOpacity={0.85}
+              >
+                {codeLoading
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <Text style={{ color: '#fff', fontSize: 15, fontWeight: '800' }}>コードを適用する</Text>
+                }
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* 注意書き */}
+          <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10, textAlign: 'center', lineHeight: 16 }}>
+            ※ App Storeアカウントに課金されます。サブスクリプションは設定→Apple ID→サブスクリプションからいつでも解約できます。
+          </Text>
+        </ScrollView>
+      </SafeAreaView>
+    </View>
+  )
+}
 
 // ─────────────────────────────────────────────────────────
 // RoleSelectionScreen
@@ -680,7 +1034,8 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
   const [teamSessionsMap, setTeamSessionsMap] = useState<Record<string, TrainingSession[]>>({})
   const [teamEvents,    setTeamEvents]    = useState<TeamEventRow[]>([])
   const [msgText,       setMsgText]       = useState('')
-  const [tab,           setTab]           = useState<'members'|'messages'|'videos'|'calendar'>('members')
+  const [msgSending,    setMsgSending]    = useState(false)
+  const [tab,           setTab]           = useState<'members'|'messages'|'videos'|'calendar'|'menu'>('members')
   const [detailMember,  setDetailMember]  = useState<Member|null>(null)
   const [memberFilter,  setMemberFilter]  = useState<'all'|'danger'|'unsubmitted'|'pain'>('all')
   const [hiddenDemoIds, setHiddenDemoIds] = useState<string[]>([])
@@ -694,42 +1049,63 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
   const [evDesc,        setEvDesc]        = useState('')
   const [evType,        setEvType]        = useState<TeamEventType>('practice')
 
+  // ── メニュービルダー state ─────────────────────────────
+  const [menuLibrary,    setMenuLibrary]    = useState<MenuTemplate[]>([])
+  const [todayPlan,      setTodayPlan]      = useState<TodayPlan|null>(null)
+  const [planTitle,      setPlanTitle]      = useState('今日の練習メニュー')
+  const [planNote,       setPlanNote]       = useState('')
+  const [planItems,      setPlanItems]      = useState<MenuTemplate[]>([])
+  const [showMenuForm,   setShowMenuForm]   = useState(false)
+  const [editMenuItem,   setEditMenuItem]   = useState<MenuTemplate|null>(null)
+  const [menuFormTitle,  setMenuFormTitle]  = useState('')
+  const [menuFormCat,    setMenuFormCat]    = useState<MenuCategory>('interval')
+  const [menuFormDetail, setMenuFormDetail] = useState('')
+  const [menuFormDuration, setMenuFormDuration] = useState('30')
+  const [menuFormIntens, setMenuFormIntens] = useState<MenuIntensity>('medium')
+  const [aiSuggestion,   setAiSuggestion]   = useState<string>('')
+  const [aiSuggItems,    setAiSuggItems]    = useState<Partial<MenuTemplate>[]>([])
+
   const load = useCallback(async () => {
-    const [msgs, vids, mems, rpts, teamSessions, evts, pStats] = await Promise.all([
-      fetchMessages(setup.code),
-      fetchVideos(setup.code),
-      fetchMembers(setup.code),
-      fetchBodyReports(setup.code),
-      fetchTeamSessions(setup.code),
-      fetchTeamEvents(setup.code),
-      fetchPlayerStats(setup.code),
-    ])
-    setMessages(msgs)
-    setVideos(vids)
-    setMembers(mems)
-    setBodyReports(rpts)
-    setTeamEvents(evts)
-    setCoachPlayerStats(pStats)
-    setLoading(false)
-    // セッションをプレイヤー名でマップ化
-    const map: Record<string, TrainingSession[]> = {}
-    for (const ts of teamSessions) {
-      const s: TrainingSession = {
-        id: ts.id,
-        user_id: ts.player_name,
-        session_date: ts.session_date,
-        session_type: ts.session_type as any,
-        fatigue_level: ts.fatigue_level,
-        condition_level: ts.condition_level,
-        distance_m: ts.distance_m ?? undefined,
-        reps: ts.reps ?? undefined,
-        sets: ts.sets ?? undefined,
-        created_at: ts.synced_at,
+    try {
+      const [msgs, vids, mems, rpts, teamSessions, evts, pStats] = await Promise.all([
+        fetchMessages(setup.code),
+        fetchVideos(setup.code),
+        fetchMembers(setup.code),
+        fetchBodyReports(setup.code),
+        fetchTeamSessions(setup.code),
+        fetchTeamEvents(setup.code),
+        fetchPlayerStats(setup.code),
+      ])
+      setMessages(msgs)
+      setVideos(vids)
+      setMembers(mems)
+      setBodyReports(rpts)
+      setTeamEvents(evts)
+      setCoachPlayerStats(pStats)
+      // セッションをプレイヤー名でマップ化
+      const map: Record<string, TrainingSession[]> = {}
+      for (const ts of teamSessions) {
+        const s: TrainingSession = {
+          id: ts.id,
+          user_id: ts.player_name,
+          session_date: ts.session_date,
+          session_type: ts.session_type as any,
+          fatigue_level: ts.fatigue_level,
+          condition_level: ts.condition_level,
+          distance_m: ts.distance_m ?? undefined,
+          reps: ts.reps ?? undefined,
+          sets: ts.sets ?? undefined,
+          created_at: ts.synced_at,
+        }
+        if (!map[ts.player_name]) map[ts.player_name] = []
+        map[ts.player_name].push(s)
       }
-      if (!map[ts.player_name]) map[ts.player_name] = []
-      map[ts.player_name].push(s)
+      setTeamSessionsMap(map)
+    } catch (e) {
+      console.error('[CoachDashboard] load error:', e)
+    } finally {
+      setLoading(false)
     }
-    setTeamSessionsMap(map)
   }, [setup.code])
 
   useEffect(() => { load() }, [load])
@@ -765,12 +1141,21 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
   }, [setup.code])
 
   async function sendMessage() {
-    if (!msgText.trim()) return
-    await postMessage(setup.code, msgText.trim(), setup.coachName)
-    await sendPush(`📣 ${setup.teamName}`, msgText.trim(), 'players', setup.code)
-    setMsgText('')
-    await load()
-    Toast.show({type:'success',text1:'送信しました',visibilityTime:1400})
+    if (!msgText.trim() || msgSending) return
+    setMsgSending(true)
+    const content = msgText.trim()
+    setMsgText('')   // 先にクリアして2重送信を視覚的にも防ぐ
+    try {
+      await postMessage(setup.code, content, setup.coachName)
+      await sendPush(`📣 ${setup.teamName}`, content, 'players', setup.code)
+      await load()
+      Toast.show({type:'success',text1:'送信しました',visibilityTime:1400})
+    } catch {
+      setMsgText(content)  // 失敗したら元に戻す
+      Toast.show({type:'error',text1:'送信できませんでした',visibilityTime:2000})
+    } finally {
+      setMsgSending(false)
+    }
   }
 
   async function togglePin(id: string, current: boolean) {
@@ -855,6 +1240,188 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
     setVideos(prev => prev.map(v => v.id===id ? {...v, watched:true} : v))
   }
 
+  // ── メニュービルダー: ライブラリ読み込み ────────────────
+  const loadMenuLibrary = useCallback(async () => {
+    const raw = await AsyncStorage.getItem(MENU_LIBRARY_KEY).catch(() => null)
+    if (raw) setMenuLibrary(JSON.parse(raw))
+    const planRaw = await AsyncStorage.getItem(TODAY_PLAN_KEY).catch(() => null)
+    if (planRaw) {
+      const p: TodayPlan = JSON.parse(planRaw)
+      setTodayPlan(p)
+      // 今日の日付と一致する場合のみ復元
+      if (p.date === new Date().toISOString().slice(0,10)) {
+        setPlanTitle(p.title)
+        setPlanNote(p.note)
+        setPlanItems(p.items)
+      }
+    }
+  }, [])
+
+  useEffect(() => { if (tab === 'menu') loadMenuLibrary() }, [tab, loadMenuLibrary])
+
+  // ライブラリにメニューを保存
+  async function saveMenuToLibrary(item: Omit<MenuTemplate, 'id' | 'createdAt'>) {
+    const newItem: MenuTemplate = {
+      ...item,
+      id: Date.now().toString(),
+      createdAt: new Date().toISOString(),
+    }
+    const next = editMenuItem
+      ? menuLibrary.map(m => m.id === editMenuItem.id ? { ...newItem, id: editMenuItem.id, createdAt: editMenuItem.createdAt } : m)
+      : [...menuLibrary, newItem]
+    setMenuLibrary(next)
+    await AsyncStorage.setItem(MENU_LIBRARY_KEY, JSON.stringify(next)).catch(() => {})
+    setShowMenuForm(false)
+    setEditMenuItem(null)
+    resetMenuForm()
+    Toast.show({ type: 'success', text1: editMenuItem ? '更新しました ✓' : 'ライブラリに追加しました ✓', visibilityTime: 1400 })
+  }
+
+  function resetMenuForm() {
+    setMenuFormTitle(''); setMenuFormCat('interval'); setMenuFormDetail('')
+    setMenuFormDuration('30'); setMenuFormIntens('medium')
+  }
+
+  function openMenuForm(item?: MenuTemplate) {
+    if (item) {
+      setEditMenuItem(item)
+      setMenuFormTitle(item.title); setMenuFormCat(item.category)
+      setMenuFormDetail(item.detail); setMenuFormDuration(String(item.duration))
+      setMenuFormIntens(item.intensity)
+    } else {
+      setEditMenuItem(null); resetMenuForm()
+    }
+    setShowMenuForm(true)
+  }
+
+  async function deleteMenuFromLibrary(id: string) {
+    const next = menuLibrary.filter(m => m.id !== id)
+    setMenuLibrary(next)
+    setPlanItems(prev => prev.filter(m => m.id !== id))
+    await AsyncStorage.setItem(MENU_LIBRARY_KEY, JSON.stringify(next)).catch(() => {})
+    Toast.show({ type: 'success', text1: '削除しました', visibilityTime: 1200 })
+  }
+
+  function addToPlan(item: MenuTemplate) {
+    if (!planItems.find(m => m.id === item.id)) {
+      setPlanItems(prev => [...prev, item])
+    }
+  }
+  function removeFromPlan(id: string) { setPlanItems(prev => prev.filter(m => m.id !== id)) }
+  function movePlanItem(index: number, dir: -1 | 1) {
+    const next = [...planItems]
+    const target = index + dir
+    if (target < 0 || target >= next.length) return
+    ;[next[index], next[target]] = [next[target], next[index]]
+    setPlanItems(next)
+  }
+
+  // 今日のプランを保存してチームに共有
+  async function shareMenuToTeam() {
+    if (!planTitle.trim() || planItems.length === 0) {
+      Toast.show({ type: 'error', text1: 'タイトルとメニューを入力してください', visibilityTime: 2000 })
+      return
+    }
+    const plan: TodayPlan = {
+      id: Date.now().toString(),
+      date: new Date().toISOString().slice(0, 10),
+      title: planTitle.trim(),
+      items: planItems,
+      note: planNote.trim(),
+      sharedAt: new Date().toISOString(),
+    }
+    await AsyncStorage.setItem(TODAY_PLAN_KEY, JSON.stringify(plan)).catch(() => {})
+    setTodayPlan(plan)
+
+    // アナウンスとして送信
+    const jp = new Date().toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' })
+    const itemLines = planItems.map((item, i) => {
+      const cat = MENU_CATEGORY_CFG[item.category]
+      return `${i+1}. ${cat.emoji} ${item.title}（${item.duration}分）`
+    }).join('\n')
+    const noteText = plan.note ? `\n\n📝 ${plan.note}` : ''
+    const message = `📋 ${jp} ${plan.title}\n\n${itemLines}${noteText}\n\n#sCORE`
+    try {
+      await postMessage(setup.code, message, setup.coachName)
+      await sendPush(`📋 ${setup.teamName}`, `${jp} ${plan.title}`, 'players', setup.code)
+      Toast.show({ type: 'success', text1: '✅ メニューをチームに共有しました', visibilityTime: 2000 })
+      setTab('messages')
+    } catch {
+      Toast.show({ type: 'error', text1: '共有に失敗しました', visibilityTime: 2000 })
+    }
+  }
+
+  // ── AI メニュー提案（ルールベース）─────────────────────
+  function generateAISuggestion() {
+    const avgCond = memberData.length > 0
+      ? memberData.reduce((s, m) => s + (m.condToday ?? 6), 0) / memberData.length
+      : 6
+    const avgFatigue = memberData.length > 0
+      ? memberData.reduce((s, m) => s + (m.sessions[0]?.fatigue_level ?? 5), 0) / memberData.length
+      : 5
+    const highRiskCount = memberData.filter(m => m.risk.riskScore >= 70).length
+    const painCount = displayMembers.filter(m => (m.painParts?.length ?? 0) > 0).length
+
+    // 直近の大会までの日数
+    const today = new Date().toISOString().slice(0, 10)
+    const upcomingRace = teamEvents
+      .filter(e => e.event_type === 'race' && e.event_date >= today)
+      .sort((a, b) => a.event_date.localeCompare(b.event_date))[0]
+    const daysToRace = upcomingRace
+      ? Math.round((new Date(upcomingRace.event_date).getTime() - Date.now()) / 86400000)
+      : 999
+
+    let suggestion = ''
+    let items: Partial<MenuTemplate>[] = []
+
+    if (daysToRace <= 1) {
+      suggestion = `🏁 明日は試合「${upcomingRace?.title}」です。今日は調整で軽め。`
+      items = [
+        { category: 'warm_up', title: '軽めのウォームアップ', detail: 'ジョグ10分 + ドリル', duration: 20, intensity: 'low' },
+        { category: 'sprint', title: 'スタート練習', detail: '30m加速走 × 3〜4本', duration: 15, intensity: 'low' },
+        { category: 'cool_down', title: 'ストレッチ', detail: '静的ストレッチ15分', duration: 15, intensity: 'low' },
+      ]
+    } else if (daysToRace <= 4) {
+      suggestion = `🏁 試合「${upcomingRace?.title}」まで${daysToRace}日。テーパリング期間。`
+      items = [
+        { category: 'warm_up', title: 'ウォームアップ', detail: 'ジョグ + ドリルセット', duration: 25, intensity: 'low' },
+        { category: 'interval', title: '短めインターバル', detail: '100m × 4本（レースペース）', duration: 20, intensity: 'medium' },
+        { category: 'drill', title: 'コーディネーションドリル', detail: 'マーク走・バウンディング', duration: 20, intensity: 'medium' },
+        { category: 'cool_down', title: 'クールダウン', detail: 'ジョグ + ストレッチ', duration: 15, intensity: 'low' },
+      ]
+    } else if (avgCond < 5 || avgFatigue > 7 || highRiskCount >= 2) {
+      suggestion = `⚠️ チームの疲労が高め（コンディション${avgCond.toFixed(1)}/10）。回復デーを推奨。`
+      items = [
+        { category: 'warm_up', title: 'ウォームアップ', detail: 'ウォーキング + 軽いジョグ10分', duration: 15, intensity: 'low' },
+        { category: 'drill', title: 'テクニックドリル', detail: 'A・Bスキップ、各3セット', duration: 25, intensity: 'low' },
+        { category: 'strength', title: '体幹トレーニング', detail: 'コア安定化種目 × 3セット', duration: 20, intensity: 'low' },
+        { category: 'cool_down', title: 'クールダウン + ストレッチ', detail: '静的ストレッチ15分', duration: 15, intensity: 'low' },
+      ]
+    } else if (avgCond >= 8 && avgFatigue <= 4 && daysToRace > 14) {
+      suggestion = `💪 チームのコンディション良好（${avgCond.toFixed(1)}/10）。本日は高強度メニューを推奨。`
+      items = [
+        { category: 'warm_up', title: 'ウォームアップ', detail: 'ジョグ + 動的ストレッチ + ドリル', duration: 30, intensity: 'medium' },
+        { category: 'interval', title: '高強度インターバル', detail: '400m × 5本（85〜90%強度）', duration: 40, intensity: 'high' },
+        { category: 'sprint', title: '加速走', detail: '60m加速走 × 4本', duration: 15, intensity: 'high' },
+        { category: 'cool_down', title: 'クールダウン', detail: 'ジョグ + ストレッチ', duration: 20, intensity: 'low' },
+      ]
+    } else {
+      suggestion = `📊 チームの平均コンディション${avgCond.toFixed(1)}/10。通常トレーニングを推奨。`
+      items = [
+        { category: 'warm_up', title: 'ウォームアップ', detail: 'ジョグ + ドリルセット', duration: 25, intensity: 'medium' },
+        { category: 'interval', title: 'テンポインターバル', detail: '200m × 6本（78〜82%強度）', duration: 35, intensity: 'medium' },
+        { category: 'drill', title: 'ドリル', detail: 'A・Bスキップ + バウンディング', duration: 20, intensity: 'medium' },
+        { category: 'cool_down', title: 'クールダウン', detail: 'ジョグ + ストレッチ', duration: 15, intensity: 'low' },
+      ]
+    }
+
+    if (painCount > 0) {
+      suggestion += ` ${painCount}名が痛みを報告中 — 個別対応を検討してください。`
+    }
+    setAiSuggestion(suggestion)
+    setAiSuggItems(items)
+  }
+
   // 実メンバーをDEMO_MEMBERSと同じ型に変換（痛み・セッション・ack状態をマージ）
   // loading中はデモを表示しない（チラつき防止）
   const displayMembers: Member[] = !loading && members.length === 0
@@ -877,8 +1444,16 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
   const memberData = displayMembers.map(m => {
     const pStat      = coachPlayerStats.find(s => s.player_name === m.name)
     const hasPainReport = (m.painParts?.length ?? 0) > 0
-    // セッションがない場合はplayer_statsに保存された最終体調を使ってスコアを計算
-    const condLevel  = m.sessions[0]?.condition_level ?? pStat?.last_condition ?? 7
+    // ホーム画面と同じ: 7日間の平均コンディションを使用
+    const todayForCalc = new Date()
+    const recentCondLevels = Array.from({length: 7}, (_, i) => {
+      const d = new Date(todayForCalc); d.setDate(d.getDate() - i)
+      const key = d.toISOString().slice(0, 10)
+      return m.sessions.find(s => s.session_date === key)?.condition_level
+    }).filter((v): v is number => v !== undefined)
+    const condLevel  = recentCondLevels.length > 0
+      ? recentCondLevels.reduce((a, b) => a + b, 0) / recentCondLevels.length
+      : (pStat?.last_condition ?? 7)
     const fatigueLevel = m.sessions[0]?.fatigue_level ?? pStat?.last_fatigue ?? 5
     // sessions が空でも最終セッション日から擬似セッションを生成してスコアに寄与させる
     let sessionsForRisk = m.sessions
@@ -958,9 +1533,11 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
         </View>
 
         {/* ─ タブ ─ */}
-        <View style={co.tabs}>
+        <View style={co.tabsWrapper}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={co.tabs}>
           {([
             { key:'members',  label:'メンバー',  badge: unackedPainCount + highRiskMembers.length },
+            { key:'menu',     label:'📋 メニュー', badge: 0 },
             { key:'messages', label:'アナウンス', badge: 0 },
             { key:'videos',   label:'動画',      badge: newVideos },
             { key:'calendar', label:'予定',      badge: 0 },
@@ -970,22 +1547,24 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
               {t.badge > 0 && <View style={co.badge}><Text style={{color:'#fff',fontSize:9,fontWeight:'800'}}>{t.badge}</Text></View>}
             </HapticTouch>
           ))}
+        </ScrollView>
         </View>
 
-        <ScrollView contentContainerStyle={{padding:16,paddingBottom:60,gap:18}} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        {/* ─ コンテンツエリア（flex:1 で常に残りスペースを確保） ─ */}
+        <View style={{flex:1}}>
 
-          {/* ローディング中 */}
-          {loading && (
-            <View style={{alignItems:'center',paddingVertical:60,gap:12}}>
-              <Text style={{fontSize:32}}>⏳</Text>
-              <Text style={{color:'#9ca3af',fontSize:14}}>データを読み込み中...</Text>
-            </View>
-          )}
+        {/* ローディング中 */}
+        {loading && (
+          <View style={{alignItems:'center',paddingVertical:60,gap:12}}>
+            <Text style={{fontSize:32}}>⏳</Text>
+            <Text style={{color:'#9ca3af',fontSize:14}}>データを読み込み中...</Text>
+          </View>
+        )}
 
-          {/* ═══ メンバータブ ═══ */}
-          {!loading && tab === 'members' && (
-            <AnimatedSection key="members" delay={0} type="fade-up">
-            <View style={{gap:14}}>
+        {/* ─ メンバータブ ─ */}
+        {!loading && tab === 'members' && (
+        <ScrollView style={{flex:1}} contentContainerStyle={{padding:16,paddingBottom:60,gap:18}} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <View style={{gap:14}}>
               {/* セッション未同期バナー（実メンバーのスコアが全員0の場合） */}
               {members.length > 0 && memberData.every(m => m.sessions.length === 0) && (
                 <View style={{backgroundColor:'rgba(59,130,246,0.07)',borderLeftWidth:4,borderLeftColor:'#3b82f6',borderRadius:12,borderWidth:1,borderColor:'rgba(59,130,246,0.2)',padding:12,flexDirection:'row',alignItems:'flex-start',gap:10}}>
@@ -999,13 +1578,13 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
               {/* 要注意バナー：未確認の痛み報告 */}
               {unackedPainCount > 0 && (
                 <TouchableOpacity
-                  style={{backgroundColor:'rgba(255,149,0,0.08)',borderLeftWidth:4,borderLeftColor:'#FF9500',borderRadius:12,borderWidth:1,borderColor:'rgba(255,149,0,0.3)',padding:12,flexDirection:'row',alignItems:'flex-start',gap:10}}
+                  style={{backgroundColor:'rgba(239,68,68,0.08)',borderLeftWidth:4,borderLeftColor:'#EF4444',borderRadius:12,borderWidth:1,borderColor:'rgba(239,68,68,0.25)',padding:12,flexDirection:'row',alignItems:'flex-start',gap:10}}
                   onPress={() => setMemberFilter(memberFilter==='pain'?'all':'pain')}
                   activeOpacity={0.8}
                 >
                   <Text style={{fontSize:16,marginTop:1}}>🤕</Text>
                   <View style={{flex:1}}>
-                    <Text style={{color:'#FF9500',fontSize:13,fontWeight:'800',marginBottom:2}}>
+                    <Text style={{color:'#EF4444',fontSize:13,fontWeight:'800',marginBottom:2}}>
                       {sortedMembers.filter(m=>(m.painParts?.length??0)>0&&!m.ackedByCoach).slice(0,3).map(m=>m.name.split(' ')[0]).join('・')}
                       {unackedPainCount > 3 ? ` ほか${unackedPainCount-3}名` : ''}が痛みを報告
                     </Text>
@@ -1033,23 +1612,36 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
                 </TouchableOpacity>
               )}
 
-              {/* サマリー4カラム */}
-              <View style={{flexDirection:'row',gap:6}}>
-                {[
-                  { label:'痛み報告', value:`🤕 ${unackedPainCount}件`, color: unackedPainCount>0?'#FF9500':'#34C759', filter:'pain' as const },
-                  { label:'高リスク', value:`⚠️ ${highRiskMembers.length}人`, color: highRiskMembers.length>0?'#E53935':'#34C759', filter:'danger' as const },
-                  { label:'未提出',   value:`${memberData.length-submittedCount}人`, color: (memberData.length-submittedCount)>0?'#6b7280':'#34C759', filter:'unsubmitted' as const },
-                  { label:'チーム負荷', value: LOAD_CFG[loadCfgKey(avgLoad)].label, color: LOAD_CFG[loadCfgKey(avgLoad)].color, filter:'all' as const },
-                ].map((item) => (
-                  <TouchableOpacity key={item.label} onPress={() => setMemberFilter(memberFilter===item.filter&&item.filter!=='all'?'all':item.filter)} style={{
-                    flex:1, backgroundColor: memberFilter===item.filter&&item.filter!=='all'?item.color+'15':'#f0f2f5',
-                    borderWidth:1, borderColor: memberFilter===item.filter&&item.filter!=='all'?item.color+'60':'rgba(0,0,0,0.08)',
-                    borderRadius:12, paddingVertical:10, paddingHorizontal:6, alignItems:'center', gap:2,
-                  }} activeOpacity={0.8}>
-                    <Text style={{color:item.color,fontSize:13,fontWeight:'800'}}>{item.value}</Text>
-                    <Text style={{color:'#555',fontSize:9,fontWeight:'600'}}>{item.label}</Text>
-                  </TouchableOpacity>
-                ))}
+              {/* サマリー横長カード */}
+              <View style={{gap:6}}>
+                {([
+                  { emoji:'🤕', label:'痛み報告', value:`${unackedPainCount}件`,                        color: unackedPainCount>0?'#EF4444':'#34C759',                              filter:'pain' as const },
+                  { emoji:'⚠️', label:'高リスク', value:`${highRiskMembers.length}人`,                 color: highRiskMembers.length>0?'#E53935':'#34C759',                         filter:'danger' as const },
+                  { emoji:'📋', label:'未提出',   value:`${memberData.length-submittedCount}人`,       color: (memberData.length-submittedCount)>0?'#6b7280':'#34C759',             filter:'unsubmitted' as const },
+                  { emoji:'💪', label:'チーム負荷', value: LOAD_CFG[loadCfgKey(avgLoad)].label,        color: LOAD_CFG[loadCfgKey(avgLoad)].color,                                  filter:'all' as const },
+                ] as const).map((item) => {
+                  const isActive = memberFilter === item.filter && item.filter !== 'all'
+                  return (
+                    <TouchableOpacity
+                      key={item.label}
+                      onPress={() => setMemberFilter(memberFilter===item.filter&&item.filter!=='all'?'all':item.filter)}
+                      style={{
+                        flexDirection:'row', alignItems:'center', gap:10,
+                        backgroundColor: isActive ? item.color+'10' : '#f7f8fa',
+                        borderWidth:1,
+                        borderColor: isActive ? item.color+'55' : 'rgba(0,0,0,0.07)',
+                        borderLeftWidth: isActive ? 3 : 1,
+                        borderLeftColor: isActive ? item.color : 'rgba(0,0,0,0.07)',
+                        borderRadius:12, paddingVertical:11, paddingHorizontal:14,
+                      }}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={{fontSize:17}}>{item.emoji}</Text>
+                      <Text style={{flex:1, color:'#555', fontSize:13, fontWeight:'600'}}>{item.label}</Text>
+                      <Text style={{color:item.color, fontSize:17, fontWeight:'800'}}>{item.value}</Text>
+                    </TouchableOpacity>
+                  )
+                })}
               </View>
 
               {/* フィルター解除 */}
@@ -1087,7 +1679,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
                       {/* 負荷カラーバー（上端） */}
                       <View style={{
                         height: unackedPain ? 5 : 4,
-                        backgroundColor: unackedPain ? '#FF9500' : lCfg.color,
+                        backgroundColor: unackedPain ? '#EF4444' : lCfg.color,
                         marginHorizontal:-16, marginTop:-16, marginBottom:12,
                         borderTopLeftRadius:14, borderTopRightRadius:14,
                         opacity: unackedPain ? 1 : 0.7,
@@ -1095,19 +1687,19 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
 
                       {/* 未確認の痛み報告バナー */}
                       {unackedPain && (
-                        <View style={{flexDirection:'row',alignItems:'center',gap:6,backgroundColor:'rgba(255,149,0,0.1)',borderRadius:8,paddingHorizontal:10,paddingVertical:6,marginBottom:10,borderWidth:1,borderColor:'rgba(255,149,0,0.3)'}}>
+                        <View style={{flexDirection:'row',alignItems:'center',gap:6,backgroundColor:'rgba(255,149,0,0.1)',borderRadius:8,paddingHorizontal:10,paddingVertical:6,marginBottom:10,borderWidth:1,borderColor:'rgba(239,68,68,0.25)'}}>
                           <Text style={{fontSize:14}}>🤕</Text>
-                          <Text style={{color:'#FF9500',fontSize:12,fontWeight:'800',flex:1}}>
+                          <Text style={{color:'#EF4444',fontSize:12,fontWeight:'800',flex:1}}>
                             痛み報告あり — タップして確認
                           </Text>
-                          <View style={{backgroundColor:'#FF9500',borderRadius:4,paddingHorizontal:5,paddingVertical:1}}>
+                          <View style={{backgroundColor:'#EF4444',borderRadius:4,paddingHorizontal:5,paddingVertical:1}}>
                             <Text style={{color:'#fff',fontSize:9,fontWeight:'800'}}>未確認</Text>
                           </View>
                         </View>
                       )}
 
                       <View style={{flexDirection:'row',alignItems:'center',gap:10}}>
-                        <Avatar name={m.name} size={44} color={unackedPain ? '#FF9500' : avatarColor(m.name)}/>
+                        <Avatar name={m.name} size={44} color={avatarColor(m.name)}/>
 
                         <View style={{flex:1,gap:6}}>
                           {/* 名前 + ランク + 種目 */}
@@ -1176,13 +1768,13 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
                 )}
               </View>
             </View>
-            </AnimatedSection>
-          )}
+        </ScrollView>
+        )}
 
-          {/* ═══ アナウンスタブ ═══ */}
-          {!loading && tab === 'messages' && (
-            <AnimatedSection key="messages" delay={0} type="fade-up">
-            <>
+        {/* ─ アナウンスタブ ─ */}
+        {!loading && tab === 'messages' && (
+        <ScrollView style={{flex:1}} contentContainerStyle={{padding:16,paddingBottom:60,gap:18}} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <>
               <View style={co.composeBox}>
                 <TextInput
                   style={co.composeInput}
@@ -1193,8 +1785,11 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
                   multiline
                   maxLength={300}
                 />
-                <HapticTouch haptic="save" style={[co.sendBtn,!msgText.trim()&&{opacity:0.3}]} onPress={sendMessage} disabled={!msgText.trim()} activeOpacity={0.8}>
-                  <Ionicons name="send" size={18} color="#fff"/>
+                <HapticTouch haptic="save" style={[co.sendBtn,(!msgText.trim()||msgSending)&&{opacity:0.4}]} onPress={sendMessage} disabled={!msgText.trim()||msgSending} activeOpacity={0.8}>
+                  {msgSending
+                    ? <ActivityIndicator size="small" color="#fff"/>
+                    : <Ionicons name="send" size={18} color="#fff"/>
+                  }
                 </HapticTouch>
               </View>
 
@@ -1223,14 +1818,14 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
                   ))}
                 </View>
               )}
-            </>
-            </AnimatedSection>
-          )}
+          </>
+        </ScrollView>
+        )}
 
-          {/* ═══ 動画タブ ═══ */}
-          {!loading && tab === 'videos' && (
-            <AnimatedSection key="videos" delay={0} type="fade-up">
-            <>
+        {/* ─ 動画タブ ─ */}
+        {!loading && tab === 'videos' && (
+        <ScrollView style={{flex:1}} contentContainerStyle={{padding:16,paddingBottom:60,gap:18}} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <>
               {videos.length === 0 ? (
                 <View style={{alignItems:'center',padding:32,gap:8}}>
                   <Ionicons name="videocam-outline" size={36} color="#333"/>
@@ -1270,38 +1865,27 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
                 </View>
               )}
               <Text style={{color:'#333',fontSize:11,textAlign:'center'}}>動画は投稿から7日後に自動で削除されます</Text>
-            </>
-            </AnimatedSection>
-          )}
+          </>
+        </ScrollView>
+        )}
 
-          {/* ═══ カレンダータブ ═══ */}
-          {!loading && tab === 'calendar' && (
-            <AnimatedSection key="calendar" delay={0} type="fade-up">
-            <View style={{gap:14}}>
-              {/* 追加ボタン */}
-              <HapticTouch
-                haptic="whoosh"
-                style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:BRAND,borderRadius:14,paddingVertical:14}}
-                onPress={() => setShowEventModal(true)}
-                activeOpacity={0.85}
-              >
-                <Ionicons name="add-circle-outline" size={20} color="#fff"/>
-                <Text style={{color:'#fff',fontSize:15,fontWeight:'800'}}>予定を追加する</Text>
-              </HapticTouch>
-
+        {/* ─ カレンダータブ ─ */}
+        {!loading && tab === 'calendar' && (
+        <ScrollView style={{flex:1}} contentContainerStyle={{padding:16,paddingBottom:60,gap:18}} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <View style={{gap:10}}>
               {teamEvents.length === 0 ? (
-                <View style={{alignItems:'center',padding:40,gap:8}}>
-                  <Text style={{fontSize:36}}>📅</Text>
+                <View style={{alignItems:'center',padding:20,gap:8}}>
+                  <Text style={{fontSize:32}}>📅</Text>
                   <Text style={{color:'#9ca3af',fontSize:14}}>予定はまだありません</Text>
-                  <Text style={{color:'#c4c4c4',fontSize:12}}>上のボタンから追加してください</Text>
+                  <Text style={{color:'#c4c4c4',fontSize:12}}>下のボタンから追加してください</Text>
                 </View>
               ) : (
-                <View style={{gap:10}}>
+                <ScrollView style={{maxHeight:380}} nestedScrollEnabled showsVerticalScrollIndicator={teamEvents.length>4} contentContainerStyle={{gap:8}}>
                   {teamEvents.map(ev => {
                     const cfg = EVENT_CFG[ev.event_type] ?? EVENT_CFG.other
                     const past = isPast(ev.event_date)
                     return (
-                      <View key={ev.id} style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor: past ? 'rgba(0,0,0,0.06)' : cfg.color+'30',padding:14,opacity: past ? 0.55 : 1,shadowColor:'#000',shadowOffset:{width:0,height:1},shadowOpacity:0.05,shadowRadius:4,elevation:1}}>
+                      <View key={ev.id} style={{backgroundColor:'#ffffff',borderRadius:12,borderWidth:1,borderColor: past ? 'rgba(0,0,0,0.06)' : cfg.color+'30',padding:12,opacity: past ? 0.55 : 1,shadowColor:'#000',shadowOffset:{width:0,height:1},shadowOpacity:0.05,shadowRadius:4,elevation:1}}>
                         <View style={{flexDirection:'row',alignItems:'flex-start',gap:10}}>
                           <View style={{width:46,height:46,borderRadius:12,backgroundColor:cfg.color+'18',alignItems:'center',justifyContent:'center'}}>
                             <Text style={{fontSize:22}}>{cfg.emoji}</Text>
@@ -1343,20 +1927,275 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
                       </View>
                     )
                   })}
-                </View>
+                </ScrollView>
               )}
-            </View>
-            </AnimatedSection>
-          )}
-
+          </View>
         </ScrollView>
+        )}
+
+        {/* ─ メニュービルダータブ ─ */}
+        {tab === 'menu' && (
+        <ScrollView style={{flex:1}} contentContainerStyle={{padding:16,paddingBottom:60,gap:18}} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <View style={{gap:16}}>
+
+              {/* ── AI提案カード ── */}
+              <View style={{backgroundColor:'#fff',borderRadius:16,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',overflow:'hidden',shadowColor:'#000',shadowOffset:{width:0,height:4},shadowOpacity:0.07,shadowRadius:12,elevation:4}}>
+                <View style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:16,paddingTop:14,paddingBottom:10,borderBottomWidth:1,borderBottomColor:'rgba(0,0,0,0.07)'}}>
+                  <Text style={{fontSize:18}}>🤖</Text>
+                  <Text style={{color:'#111827',fontSize:15,fontWeight:'800',flex:1}}>AIメニュー提案</Text>
+                  <TouchableOpacity
+                    style={{backgroundColor:BRAND,borderRadius:10,paddingHorizontal:14,paddingVertical:7}}
+                    onPress={generateAISuggestion}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={{color:'#fff',fontSize:12,fontWeight:'800'}}>提案を生成</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={{padding:16,gap:12}}>
+                  {aiSuggestion ? (
+                    <>
+                      <View style={{backgroundColor:'#f0fdf4',borderRadius:12,padding:12,borderWidth:1,borderColor:'rgba(22,101,52,0.15)'}}>
+                        <Text style={{color:'#166534',fontSize:13,lineHeight:20,fontWeight:'600'}}>{aiSuggestion}</Text>
+                      </View>
+                      <View style={{gap:8}}>
+                        {aiSuggItems.map((item, i) => {
+                          const cat = MENU_CATEGORY_CFG[item.category ?? 'other']
+                          const int = MENU_INTENSITY_CFG[item.intensity ?? 'medium']
+                          return (
+                            <View key={i} style={{flexDirection:'row',alignItems:'center',gap:10,backgroundColor:'#f8f8fa',borderRadius:12,padding:12}}>
+                              <Text style={{fontSize:20}}>{cat.emoji}</Text>
+                              <View style={{flex:1}}>
+                                <Text style={{color:'#111827',fontSize:13,fontWeight:'700'}}>{item.title}</Text>
+                                <Text style={{color:'#6b7280',fontSize:11,marginTop:2}}>{item.detail} · {item.duration}分</Text>
+                              </View>
+                              <View style={{backgroundColor:int.color+'18',borderRadius:8,paddingHorizontal:8,paddingVertical:3}}>
+                                <Text style={{color:int.color,fontSize:10,fontWeight:'700'}}>{int.label}</Text>
+                              </View>
+                              <TouchableOpacity
+                                style={{backgroundColor:BRAND+'15',borderRadius:8,paddingHorizontal:10,paddingVertical:6}}
+                                onPress={() => {
+                                  const full: MenuTemplate = { ...(item as any), id: Date.now().toString() + i, createdAt: new Date().toISOString() }
+                                  addToPlan(full)
+                                  Toast.show({type:'success',text1:'今日のプランに追加 ✓',visibilityTime:1200})
+                                }}
+                                activeOpacity={0.8}
+                              >
+                                <Text style={{color:BRAND,fontSize:11,fontWeight:'800'}}>採用</Text>
+                              </TouchableOpacity>
+                            </View>
+                          )
+                        })}
+                      </View>
+                      <TouchableOpacity
+                        style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6,backgroundColor:BRAND+'10',borderRadius:12,paddingVertical:10,borderWidth:1,borderColor:BRAND+'30'}}
+                        onPress={() => {
+                          const items = aiSuggItems.map((item, i): MenuTemplate => ({
+                            ...(item as any), id: Date.now().toString() + i, createdAt: new Date().toISOString()
+                          }))
+                          setPlanItems(items)
+                          Toast.show({type:'success',text1:'全提案を今日のプランに採用しました',visibilityTime:1800})
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="checkmark-done-outline" size={16} color={BRAND}/>
+                        <Text style={{color:BRAND,fontSize:13,fontWeight:'800'}}>すべて今日のプランに採用</Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <View style={{alignItems:'center',paddingVertical:20,gap:8}}>
+                      <Text style={{fontSize:32}}>📊</Text>
+                      <Text style={{color:'#6b7280',fontSize:13,textAlign:'center',lineHeight:20}}>
+                        チームのコンディション・疲労度・大会までの日数を元に{'\n'}今日の練習メニューを自動提案します
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+
+              {/* ── 今日のプランビルダー ── */}
+              <View style={{backgroundColor:'#fff',borderRadius:16,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',overflow:'hidden',shadowColor:'#000',shadowOffset:{width:0,height:4},shadowOpacity:0.07,shadowRadius:12,elevation:4}}>
+                <View style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:16,paddingTop:14,paddingBottom:10,borderBottomWidth:1,borderBottomColor:'rgba(0,0,0,0.07)'}}>
+                  <Text style={{fontSize:18}}>📋</Text>
+                  <Text style={{color:'#111827',fontSize:15,fontWeight:'800',flex:1}}>今日のプランを作る</Text>
+                </View>
+                <View style={{padding:16,gap:14}}>
+                  {/* タイトル */}
+                  <View style={{gap:6}}>
+                    <Text style={{color:'#9ca3af',fontSize:11,fontWeight:'700',letterSpacing:0.8}}>プランタイトル</Text>
+                    <TextInput
+                      style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:'#111827',fontSize:15,paddingHorizontal:14,paddingVertical:12,...(Platform.OS==='web'?{outlineStyle:'none'}as any:{})}}
+                      value={planTitle}
+                      onChangeText={setPlanTitle}
+                      placeholder="例: 午後練 — インターバル中心"
+                      placeholderTextColor="#9ca3af"
+                      maxLength={40}
+                    />
+                  </View>
+
+                  {/* 選択済みメニュー */}
+                  {planItems.length === 0 ? (
+                    <View style={{backgroundColor:'#f8f8fa',borderRadius:12,padding:20,alignItems:'center',borderWidth:1,borderColor:'rgba(0,0,0,0.07)',borderStyle:'dashed'}}>
+                      <Text style={{color:'#9ca3af',fontSize:13,textAlign:'center'}}>
+                        ライブラリからメニューを選んで追加{'\n'}またはAI提案を採用してください
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={{gap:8}}>
+                      {planItems.map((item, i) => {
+                        const cat = MENU_CATEGORY_CFG[item.category]
+                        return (
+                          <View key={item.id + i} style={{flexDirection:'row',alignItems:'center',backgroundColor:'#f8f8fa',borderRadius:12,padding:12,gap:8,borderWidth:1,borderColor:'rgba(0,0,0,0.07)'}}>
+                            <View style={{gap:2}}>
+                              <TouchableOpacity onPress={() => movePlanItem(i, -1)} disabled={i===0} hitSlop={{top:6,bottom:3,left:10,right:10}}>
+                                <Ionicons name="chevron-up" size={16} color={i===0?'#d1d5db':'#6b7280'}/>
+                              </TouchableOpacity>
+                              <TouchableOpacity onPress={() => movePlanItem(i, 1)} disabled={i===planItems.length-1} hitSlop={{top:3,bottom:6,left:10,right:10}}>
+                                <Ionicons name="chevron-down" size={16} color={i===planItems.length-1?'#d1d5db':'#6b7280'}/>
+                              </TouchableOpacity>
+                            </View>
+                            <Text style={{fontSize:18,width:28,textAlign:'center'}}>{cat.emoji}</Text>
+                            <View style={{flex:1}}>
+                              <Text style={{color:'#111827',fontSize:13,fontWeight:'700'}}>{item.title}</Text>
+                              <Text style={{color:'#6b7280',fontSize:11,marginTop:1}}>{item.duration}分 · {item.detail}</Text>
+                            </View>
+                            <TouchableOpacity onPress={() => removeFromPlan(item.id)} hitSlop={{top:8,bottom:8,left:8,right:8}}>
+                              <Ionicons name="close-circle" size={20} color="#ef4444"/>
+                            </TouchableOpacity>
+                          </View>
+                        )
+                      })}
+                    </View>
+                  )}
+
+                  {/* メモ */}
+                  <View style={{gap:6}}>
+                    <Text style={{color:'#9ca3af',fontSize:11,fontWeight:'700',letterSpacing:0.8}}>メモ（任意）</Text>
+                    <TextInput
+                      style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:'#111827',fontSize:14,paddingHorizontal:14,paddingVertical:12,minHeight:70,...(Platform.OS==='web'?{outlineStyle:'none'}as any:{})}}
+                      value={planNote}
+                      onChangeText={setPlanNote}
+                      placeholder="選手へのコメント、注意点など"
+                      placeholderTextColor="#9ca3af"
+                      multiline
+                      maxLength={200}
+                    />
+                  </View>
+
+                  {/* 共有ボタン */}
+                  <TouchableOpacity
+                    style={[{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:BRAND,borderRadius:14,paddingVertical:15},planItems.length===0&&{opacity:0.45}]}
+                    onPress={shareMenuToTeam}
+                    disabled={planItems.length===0}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="share-outline" size={18} color="#fff"/>
+                    <Text style={{color:'#fff',fontSize:15,fontWeight:'900'}}>チームに共有する</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* ── メニューライブラリ ── */}
+              <View style={{backgroundColor:'#fff',borderRadius:16,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',overflow:'hidden',shadowColor:'#000',shadowOffset:{width:0,height:4},shadowOpacity:0.07,shadowRadius:12,elevation:4}}>
+                <View style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:16,paddingTop:14,paddingBottom:10,borderBottomWidth:1,borderBottomColor:'rgba(0,0,0,0.07)'}}>
+                  <Text style={{fontSize:18}}>📁</Text>
+                  <Text style={{color:'#111827',fontSize:15,fontWeight:'800',flex:1}}>メニューライブラリ</Text>
+                  <TouchableOpacity
+                    style={{backgroundColor:BRAND,borderRadius:10,paddingHorizontal:14,paddingVertical:7,flexDirection:'row',alignItems:'center',gap:4}}
+                    onPress={() => openMenuForm()}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="add" size={14} color="#fff"/>
+                    <Text style={{color:'#fff',fontSize:12,fontWeight:'800'}}>追加</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={{padding:16,gap:10}}>
+                  {menuLibrary.length === 0 ? (
+                    <View style={{alignItems:'center',paddingVertical:24,gap:8}}>
+                      <Text style={{fontSize:32}}>📂</Text>
+                      <Text style={{color:'#6b7280',fontSize:13,textAlign:'center',lineHeight:20}}>
+                        よく使う練習メニューを登録して{'\n'}プラン作成に素早く使えます
+                      </Text>
+                      <TouchableOpacity
+                        style={{backgroundColor:BRAND,borderRadius:12,paddingHorizontal:20,paddingVertical:10,marginTop:4}}
+                        onPress={() => openMenuForm()}
+                        activeOpacity={0.85}
+                      >
+                        <Text style={{color:'#fff',fontSize:13,fontWeight:'800'}}>最初のメニューを追加する</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    menuLibrary.map(item => {
+                      const cat = MENU_CATEGORY_CFG[item.category]
+                      const int = MENU_INTENSITY_CFG[item.intensity]
+                      const inPlan = !!planItems.find(m => m.id === item.id)
+                      return (
+                        <View key={item.id} style={{flexDirection:'row',alignItems:'center',gap:10,backgroundColor:'#f8f8fa',borderRadius:12,padding:12,borderWidth:1,borderColor:'rgba(0,0,0,0.07)'}}>
+                          <Text style={{fontSize:22,width:30,textAlign:'center'}}>{cat.emoji}</Text>
+                          <View style={{flex:1,gap:3}}>
+                            <Text style={{color:'#111827',fontSize:13,fontWeight:'700'}}>{item.title}</Text>
+                            <View style={{flexDirection:'row',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+                              <View style={{backgroundColor:cat.color+'18',borderRadius:6,paddingHorizontal:7,paddingVertical:2}}>
+                                <Text style={{color:cat.color,fontSize:10,fontWeight:'700'}}>{cat.label}</Text>
+                              </View>
+                              <View style={{backgroundColor:int.color+'18',borderRadius:6,paddingHorizontal:7,paddingVertical:2}}>
+                                <Text style={{color:int.color,fontSize:10,fontWeight:'700'}}>{int.label}</Text>
+                              </View>
+                              <Text style={{color:'#9ca3af',fontSize:10}}>{item.duration}分</Text>
+                            </View>
+                            {item.detail ? <Text style={{color:'#9ca3af',fontSize:11,marginTop:1}} numberOfLines={1}>{item.detail}</Text> : null}
+                          </View>
+                          <View style={{gap:6}}>
+                            <TouchableOpacity
+                              style={{backgroundColor:inPlan?'rgba(52,199,89,0.15)':BRAND+'12',borderRadius:8,paddingHorizontal:10,paddingVertical:7,alignItems:'center'}}
+                              onPress={() => { if(inPlan) removeFromPlan(item.id); else addToPlan(item) }}
+                              activeOpacity={0.8}
+                            >
+                              <Text style={{color:inPlan?'#34C759':BRAND,fontSize:11,fontWeight:'800'}}>{inPlan?'追加済':'採用'}</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={{backgroundColor:'rgba(0,0,0,0.05)',borderRadius:8,paddingHorizontal:10,paddingVertical:7,alignItems:'center'}}
+                              onPress={() => openMenuForm(item)}
+                              activeOpacity={0.8}
+                            >
+                              <Text style={{color:'#6b7280',fontSize:11,fontWeight:'700'}}>編集</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      )
+                    })
+                  )}
+                </View>
+              </View>
+
+          </View>
+        </ScrollView>
+        )}
+
+        </View>{/* flex:1 コンテンツエリア終了 */}
+
+        {/* 予定追加ボタン（カレンダータブ時のみ下固定表示） */}
+        {!loading && tab === 'calendar' && (
+          <View style={{paddingHorizontal:16,paddingBottom:Math.max(8,12),paddingTop:8,backgroundColor:'#f6f6f8',borderTopWidth:StyleSheet.hairlineWidth,borderTopColor:'rgba(0,0,0,0.08)'}}>
+            <HapticTouch
+              haptic="whoosh"
+              style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:BRAND,borderRadius:14,paddingVertical:14}}
+              onPress={() => setShowEventModal(true)}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="add-circle-outline" size={20} color="#fff"/>
+              <Text style={{color:'#fff',fontSize:15,fontWeight:'800'}}>＋ 予定を追加する</Text>
+            </HapticTouch>
+          </View>
+        )}
+
       </SafeAreaView>
 
       {/* 予定追加モーダル */}
       <Modal visible={showEventModal} transparent animationType="slide" onRequestClose={() => setShowEventModal(false)}>
-        <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.7)',justifyContent:'flex-end'}}>
-          <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':undefined}>
-            <View style={{backgroundColor:'#fff',borderTopLeftRadius:24,borderTopRightRadius:24,maxHeight:SCREEN_H*0.88}}>
+        <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined}>
+          <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.7)',justifyContent:'flex-end'}}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setShowEventModal(false)} activeOpacity={1}/>
+            <View style={{backgroundColor:'#fff',borderTopLeftRadius:24,borderTopRightRadius:24,minHeight:SCREEN_H*0.55,maxHeight:SCREEN_H*0.88}}>
               {/* 固定ヘッダー */}
               <View style={{paddingHorizontal:22,paddingTop:18,paddingBottom:4}}>
                 <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:14}}/>
@@ -1368,7 +2207,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
                 </View>
               </View>
               {/* スクロール可能なフォーム */}
-              <ScrollView style={{flex:1}} contentContainerStyle={{paddingHorizontal:22,paddingBottom:48,gap:14}} showsVerticalScrollIndicator={true} keyboardShouldPersistTaps="handled">
+              <ScrollView contentContainerStyle={{paddingHorizontal:22,paddingBottom:48,gap:14}} showsVerticalScrollIndicator={true} keyboardShouldPersistTaps="handled">
 
               {/* タイトル */}
               <View style={{gap:6}}>
@@ -1430,8 +2269,8 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
               </HapticTouch>
               </ScrollView>
             </View>
-          </KeyboardAvoidingView>
-        </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {detailMember && (
@@ -1458,6 +2297,126 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
         onConfirm={execDelete}
         onCancel={() => setPendingDelete(null)}
       />
+
+      {/* ── メニュー追加・編集モーダル ── */}
+      <Modal visible={showMenuForm} transparent animationType="slide" onRequestClose={() => setShowMenuForm(false)}>
+        <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined}>
+          <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.7)',justifyContent:'flex-end'}}>
+            <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setShowMenuForm(false)} activeOpacity={1}/>
+            <View style={{backgroundColor:'#fff',borderTopLeftRadius:24,borderTopRightRadius:24,minHeight:SCREEN_H*0.55,maxHeight:SCREEN_H*0.88}}>
+              <View style={{paddingHorizontal:22,paddingTop:18,paddingBottom:4}}>
+                <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:14}}/>
+                <View style={{flexDirection:'row',alignItems:'center',marginBottom:4}}>
+                  <Text style={{color:'#111827',fontSize:18,fontWeight:'800',flex:1}}>
+                    {editMenuItem ? '📝 メニューを編集' : '➕ メニューを追加'}
+                  </Text>
+                  <TouchableOpacity onPress={() => setShowMenuForm(false)} hitSlop={{top:10,bottom:10,left:10,right:10}}>
+                    <Ionicons name="close" size={22} color="#6b7280"/>
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <ScrollView contentContainerStyle={{paddingHorizontal:22,paddingBottom:48,gap:16}} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                {/* タイトル */}
+                <View style={{gap:6}}>
+                  <Text style={{color:'#9ca3af',fontSize:11,fontWeight:'700',letterSpacing:0.8}}>メニュー名（必須）</Text>
+                  <TextInput
+                    style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:'#111827',fontSize:15,paddingHorizontal:14,paddingVertical:12,...(Platform.OS==='web'?{outlineStyle:'none'}as any:{})}}
+                    value={menuFormTitle} onChangeText={setMenuFormTitle}
+                    placeholder="例: 400mインターバル × 5本" placeholderTextColor="#9ca3af" maxLength={50}
+                  />
+                </View>
+                {/* カテゴリー */}
+                <View style={{gap:8}}>
+                  <Text style={{color:'#9ca3af',fontSize:11,fontWeight:'700',letterSpacing:0.8}}>カテゴリー</Text>
+                  <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
+                    {(Object.keys(MENU_CATEGORY_CFG) as MenuCategory[]).map(cat => {
+                      const cfg = MENU_CATEGORY_CFG[cat]
+                      const active = menuFormCat === cat
+                      return (
+                        <TouchableOpacity key={cat}
+                          style={{flexDirection:'row',alignItems:'center',gap:4,paddingHorizontal:12,paddingVertical:7,borderRadius:20,borderWidth:1.5,borderColor:active?cfg.color:'rgba(0,0,0,0.12)',backgroundColor:active?cfg.color+'15':'transparent'}}
+                          onPress={() => setMenuFormCat(cat)} activeOpacity={0.75}
+                        >
+                          <Text style={{fontSize:13}}>{cfg.emoji}</Text>
+                          <Text style={{color:active?cfg.color:'#6b7280',fontSize:12,fontWeight:'700'}}>{cfg.label}</Text>
+                        </TouchableOpacity>
+                      )
+                    })}
+                  </View>
+                </View>
+                {/* 詳細 */}
+                <View style={{gap:6}}>
+                  <Text style={{color:'#9ca3af',fontSize:11,fontWeight:'700',letterSpacing:0.8}}>詳細・説明</Text>
+                  <TextInput
+                    style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:'#111827',fontSize:14,paddingHorizontal:14,paddingVertical:12,minHeight:80,...(Platform.OS==='web'?{outlineStyle:'none'}as any:{})}}
+                    value={menuFormDetail} onChangeText={setMenuFormDetail}
+                    placeholder="本数・距離・休息時間・注意点など" placeholderTextColor="#9ca3af"
+                    multiline maxLength={200}
+                  />
+                </View>
+                {/* 時間 */}
+                <View style={{gap:6}}>
+                  <Text style={{color:'#9ca3af',fontSize:11,fontWeight:'700',letterSpacing:0.8}}>想定時間（分）</Text>
+                  <TextInput
+                    style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:'#111827',fontSize:15,paddingHorizontal:14,paddingVertical:12,...(Platform.OS==='web'?{outlineStyle:'none'}as any:{})}}
+                    value={menuFormDuration} onChangeText={v => setMenuFormDuration(v.replace(/[^0-9]/g,''))}
+                    keyboardType="numeric" placeholder="30" placeholderTextColor="#9ca3af"
+                  />
+                </View>
+                {/* 強度 */}
+                <View style={{gap:8}}>
+                  <Text style={{color:'#9ca3af',fontSize:11,fontWeight:'700',letterSpacing:0.8}}>強度</Text>
+                  <View style={{flexDirection:'row',gap:10}}>
+                    {(['low','medium','high'] as MenuIntensity[]).map(int => {
+                      const cfg = MENU_INTENSITY_CFG[int]
+                      const active = menuFormIntens === int
+                      return (
+                        <TouchableOpacity key={int}
+                          style={{flex:1,paddingVertical:10,borderRadius:12,borderWidth:1.5,alignItems:'center',borderColor:active?cfg.color:'rgba(0,0,0,0.12)',backgroundColor:active?cfg.color+'15':'transparent'}}
+                          onPress={() => setMenuFormIntens(int)} activeOpacity={0.75}
+                        >
+                          <Text style={{color:active?cfg.color:'#6b7280',fontSize:13,fontWeight:'800'}}>{cfg.label}</Text>
+                        </TouchableOpacity>
+                      )
+                    })}
+                  </View>
+                </View>
+                {/* 保存ボタン */}
+                <TouchableOpacity
+                  style={[{backgroundColor:BRAND,borderRadius:14,paddingVertical:15,alignItems:'center',marginTop:4},!menuFormTitle.trim()&&{opacity:0.45}]}
+                  onPress={() => {
+                    if (!menuFormTitle.trim()) return
+                    saveMenuToLibrary({
+                      title: menuFormTitle.trim(),
+                      category: menuFormCat,
+                      detail: menuFormDetail.trim(),
+                      duration: parseInt(menuFormDuration) || 30,
+                      intensity: menuFormIntens,
+                    })
+                  }}
+                  disabled={!menuFormTitle.trim()}
+                  activeOpacity={0.85}
+                >
+                  <Text style={{color:'#fff',fontSize:15,fontWeight:'900'}}>
+                    {editMenuItem ? '更新する' : 'ライブラリに追加する'}
+                  </Text>
+                </TouchableOpacity>
+                {/* 削除ボタン（編集時のみ） */}
+                {editMenuItem && (
+                  <TouchableOpacity
+                    style={{alignItems:'center',paddingVertical:10}}
+                    onPress={() => { deleteMenuFromLibrary(editMenuItem.id); setShowMenuForm(false) }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={{color:'#ef4444',fontSize:13,fontWeight:'700'}}>このメニューを削除する</Text>
+                  </TouchableOpacity>
+                )}
+              </ScrollView>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
     </View>
   )
 }
@@ -1485,14 +2444,14 @@ function MemberDetailSheet({ member, onClose, onAck }: {
       <View style={{backgroundColor:'#ffffff',borderTopLeftRadius:24,borderTopRightRadius:24,paddingBottom:44,borderTopWidth:1,borderColor:'rgba(0,0,0,0.08)',overflow:'hidden'}}>
 
         {/* 上端カラーバー */}
-        <View style={{height:5,backgroundColor:hasUnacked?'#FF9500':rCfg.color}}/>
+        <View style={{height:5,backgroundColor:hasUnacked?'#EF4444':rCfg.color}}/>
 
         <View style={{padding:20}}>
           <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:16}}/>
 
           {/* ヘッダー */}
           <View style={{flexDirection:'row',alignItems:'center',gap:12,marginBottom:16}}>
-            <Avatar name={member.name} size={50} color={hasUnacked?'#FF9500':avatarColor(member.name)}/>
+            <Avatar name={member.name} size={50} color={avatarColor(member.name)}/>
             <View style={{flex:1,gap:4}}>
               <Text style={{color:'#111827',fontSize:19,fontWeight:'800'}}>{member.name}</Text>
               <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
@@ -1542,7 +2501,7 @@ function MemberDetailSheet({ member, onClose, onAck }: {
               </View>
 
               {risk.reasons.length > 0 && (
-                <View style={{backgroundColor:'rgba(255,149,0,0.08)',borderRadius:12,borderWidth:1,borderColor:'rgba(255,149,0,0.3)',padding:12,marginBottom:10}}>
+                <View style={{backgroundColor:'rgba(255,149,0,0.08)',borderRadius:12,borderWidth:1,borderColor:'rgba(239,68,68,0.25)',padding:12,marginBottom:10}}>
                   <Text style={{color:'#92400e',fontSize:12,fontWeight:'700',marginBottom:6}}>⚠️ 注意ポイント</Text>
                   {risk.reasons.map((r,i) => <Text key={i} style={{color:TEXT.secondary,fontSize:12,lineHeight:19}}>• {r}</Text>)}
                 </View>
@@ -1639,7 +2598,7 @@ function TeammateProfileSheet({ member, stats, sessions, onClose }: {
             <Text style={{color:'#888',fontSize:10}}>レベル</Text>
           </View>
           {/* 自己ベスト */}
-          <View style={{flex:1,alignItems:'center',backgroundColor:'rgba(255,149,0,0.08)',borderRadius:16,borderWidth:1.5,borderColor:'rgba(255,149,0,0.3)',paddingVertical:20,gap:6}}>
+          <View style={{flex:1,alignItems:'center',backgroundColor:'rgba(255,149,0,0.08)',borderRadius:16,borderWidth:1.5,borderColor:'rgba(239,68,68,0.25)',paddingVertical:20,gap:6}}>
             <Ionicons name="trophy" size={28} color="#FF9500"/>
             {pb ? (
               <>
@@ -1657,13 +2616,13 @@ function TeammateProfileSheet({ member, stats, sessions, onClose }: {
 
         {/* ストリーク */}
         {streak > 0 && (
-          <View style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:'rgba(255,107,53,0.08)',borderRadius:14,borderWidth:1.5,borderColor:'rgba(255,107,53,0.25)',paddingVertical:14,marginBottom:16}}>
+          <PulseView active={streak >= 7} color="#FF6B35" style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:'rgba(255,107,53,0.08)',borderRadius:14,borderWidth:1.5,borderColor:'rgba(255,107,53,0.25)',paddingVertical:14,marginBottom:16}}>
             <Text style={{fontSize:28}}>🔥</Text>
             <View style={{gap:2}}>
               <Text style={{color:'#FF6B35',fontSize:26,fontWeight:'900'}}>{streak}日連続中！</Text>
               <Text style={{color:'#888',fontSize:11,textAlign:'center'}}>継続は力なり</Text>
             </View>
-          </View>
+          </PulseView>
         )}
         {/* 目標 */}
         {goal ? (
@@ -1716,6 +2675,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
   const [plTab,             setPlTab]             = useState<'home'|'members'>('home')
 
   const load = useCallback(async () => {
+    try {
     const [sr, sleepRaw, condRaw, recovRaw, stretchRaw, msgs, mems, rpts, stats, teamSessions, evts, confirmedRaw] = await Promise.all([
       AsyncStorage.getItem(SESSIONS_KEY),
       AsyncStorage.getItem(SLEEP_KEY),
@@ -1756,7 +2716,6 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
     setPlayerStats(stats)
     setAllBodyReports(rpts)
     setTeamEvents(evts)
-    setPlLoading(false)
     // チームメイトのセッションマップ構築
     const map: Record<string, TrainingSession[]> = {}
     for (const ts of teamSessions) {
@@ -1793,6 +2752,11 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
         lastSess?.session_date ?? '', recent30.length, myStat?.goal ?? '', streakVal,
       )
     } catch { /* DB列未追加時もサイレントに無視 */ }
+    } catch (e) {
+      console.error('[PlayerDashboard] load error:', e)
+    } finally {
+      setPlLoading(false)
+    }
   }, [joined.code, joined.playerName])
 
   useEffect(() => { load() }, [load])
@@ -1964,20 +2928,21 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
             </View>
 
             {/* ─ タブバー ─ */}
-            <View style={co.tabs}>
+            <View style={{flexDirection:'row', backgroundColor:'#fff', borderBottomWidth:1, borderBottomColor:'rgba(0,0,0,0.08)'}}>
               {([
-                { key:'home'    as const, label:'ホーム',        badge: (pinned.length + regular.length) > 0 ? 0 : 0 },
-                { key:'members' as const, label:'チームメイト',  badge: 0 },
+                { key:'home'    as const, label:'ホーム' },
+                { key:'members' as const, label:'チームメイト' },
               ]).map(t => (
-                <HapticTouch haptic="tabSwitch" key={t.key} style={[co.tab, plTab===t.key && co.tabActive]} onPress={() => setPlTab(t.key)} activeOpacity={0.7}>
-                  <Text style={[co.tabLabel, { color: plTab===t.key ? BRAND : '#555' }]}>{t.label}</Text>
+                <HapticTouch haptic="tabSwitch" key={t.key}
+                  style={{flex:1, alignItems:'center', justifyContent:'center', paddingVertical:10, borderBottomWidth:2, borderBottomColor: plTab===t.key ? BRAND : 'transparent'}}
+                  onPress={() => setPlTab(t.key)} activeOpacity={0.7}>
+                  <Text style={{fontSize:13, fontWeight:'700', color: plTab===t.key ? BRAND : '#888'}}>{t.label}</Text>
                 </HapticTouch>
               ))}
             </View>
 
-            {/* ─ ホームタブ ─ */}
-            {plTab === 'home' && (
-              <ScrollView contentContainerStyle={{padding:16,paddingBottom:80,gap:18}} showsVerticalScrollIndicator={false}>
+            {/* ─ ホームタブ ─ display:'none' で常時マウント（アニメーション再実行防止） */}
+            <ScrollView style={{display: plTab==='home' ? 'flex' : 'none'}} contentContainerStyle={{padding:16,paddingBottom:80,gap:18}} showsVerticalScrollIndicator={false}>
 
                 {/* ピン留めメッセージ */}
                 {pinned.length > 0 && (
@@ -2158,7 +3123,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                 <AnimatedSection delay={120} type="fade-up">
                 <Text style={pl.sectionTitle}>マイ コンディション</Text>
                 <View style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',padding:14}}>
-                  <View style={{flexDirection:'row',gap:10,marginBottom:bodyParts.length>0?12:0}}>
+                  <View style={{flexDirection:'row',gap:10,marginBottom:bodyParts.length>0?12:4}}>
                     <View style={{flex:1,alignItems:'center',backgroundColor:'#f0f2f5',borderRadius:10,paddingVertical:12,gap:3}}>
                       <Text style={{fontSize:26}}>{fat?.emoji??'—'}</Text>
                       <Text style={{color:fat?.color??'#888',fontSize:12,fontWeight:'700'}}>{fat?.label??'データなし'}</Text>
@@ -2168,6 +3133,11 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                       <Text style={{color:risk.signalColor,fontSize:24,fontWeight:'800'}}>{risk.riskScore}</Text>
                       <Text style={{color:risk.signalColor,fontSize:11,fontWeight:'700'}}>{risk.label}</Text>
                       <Text style={{color:'#555',fontSize:10}}>怪我リスク</Text>
+                    </View>
+                    <View style={{flex:1,alignItems:'center',backgroundColor: calcStreak(sessions) > 0 ? 'rgba(255,107,53,0.08)' : '#f0f2f5',borderRadius:10,paddingVertical:12,gap:3,borderWidth:1,borderColor: calcStreak(sessions) > 0 ? 'rgba(255,107,53,0.25)' : 'transparent'}}>
+                      <Text style={{fontSize:24}}>{calcStreak(sessions) > 0 ? '🔥' : '—'}</Text>
+                      <Text style={{color: calcStreak(sessions) > 0 ? '#FF6B35' : '#888',fontSize:12,fontWeight:'800'}}>{calcStreak(sessions) > 0 ? `${calcStreak(sessions)}日` : '0日'}</Text>
+                      <Text style={{color:'#555',fontSize:10}}>連続記録</Text>
                     </View>
                   </View>
                   {bodyParts.length > 0 && (
@@ -2181,11 +3151,9 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                 </AnimatedSection>
 
               </ScrollView>
-            )}
 
-            {/* ─ チームメイトタブ ─ */}
-            {plTab === 'members' && (
-              <ScrollView contentContainerStyle={{padding:16,paddingBottom:80,gap:14}} showsVerticalScrollIndicator={false}>
+            {/* ─ チームメイトタブ ─ display:'none' で常時マウント */}
+            <ScrollView style={{display: plTab==='members' ? 'flex' : 'none'}} contentContainerStyle={{padding:16,paddingBottom:80,gap:14}} showsVerticalScrollIndicator={false}>
                 {teammates.length === 0 ? (
                   <View style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',padding:32,alignItems:'center',gap:8,marginTop:8}}>
                     <Text style={{fontSize:32}}>👥</Text>
@@ -2269,7 +3237,6 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                   </AnimatedSection>
                 )}
               </ScrollView>
-            )}
           </>
         )}
       </SafeAreaView>
@@ -2315,9 +3282,10 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
 
       {/* PB・プロフィール編集モーダル */}
       <Modal visible={showStatsEdit} transparent animationType="slide" onRequestClose={() => setShowStatsEdit(false)}>
-        <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.8)',justifyContent:'flex-end'}}>
-          <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':undefined}>
-            <View style={{backgroundColor:'#fff',borderTopLeftRadius:24,borderTopRightRadius:24,maxHeight:SCREEN_H*0.85}}>
+        <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined}>
+          <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.8)',justifyContent:'flex-end'}}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setShowStatsEdit(false)} activeOpacity={1}/>
+            <View style={{backgroundColor:'#fff',borderTopLeftRadius:24,borderTopRightRadius:24,minHeight:SCREEN_H*0.55,maxHeight:SCREEN_H*0.85}}>
               <View style={{paddingHorizontal:22,paddingTop:18,paddingBottom:4}}>
                 <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center'}}/>
                 <View style={{flexDirection:'row',alignItems:'center',marginTop:14}}>
@@ -2330,7 +3298,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                   入力するとチームメイトに表示されます。レベルはアプリの練習記録数から自動計算されます。
                 </Text>
               </View>
-              <ScrollView style={{flex:1}} contentContainerStyle={{paddingHorizontal:22,paddingBottom:48,gap:14}} keyboardShouldPersistTaps="handled">
+              <ScrollView contentContainerStyle={{paddingHorizontal:22,paddingBottom:48,gap:14}} keyboardShouldPersistTaps="handled">
                 {/* 種目 */}
                 <View style={{gap:6}}>
                   <Text style={{color:TEXT.hint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>種目</Text>
@@ -2368,8 +3336,8 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                 </HapticTouch>
               </ScrollView>
             </View>
-          </KeyboardAvoidingView>
-        </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* 動画送信モーダル */}
@@ -2408,8 +3376,9 @@ const co = StyleSheet.create({
   title:      { color:TEXT.primary, fontSize:20, fontWeight:'800' },
   codeBox:    { backgroundColor:'rgba(229,57,53,0.08)', borderRadius:10, borderWidth:1, borderColor:BRAND+'30', paddingHorizontal:10, paddingVertical:6, alignItems:'center' },
   switchBtn:  { width:34, height:34, borderRadius:10, backgroundColor:'#f0f2f5', borderWidth:1, borderColor:'rgba(0,0,0,0.08)', alignItems:'center', justifyContent:'center' },
-  tabs:       { flexDirection:'row', borderBottomWidth:1, borderColor:'rgba(0,0,0,0.08)', paddingHorizontal:16, backgroundColor:'#ffffff' },
-  tab:        { flex:1, flexDirection:'row', alignItems:'center', justifyContent:'center', gap:5, paddingVertical:12 },
+  tabsWrapper:    { height:48, overflow:'hidden', backgroundColor:'#ffffff', borderBottomWidth:1, borderBottomColor:'rgba(0,0,0,0.08)' },
+  tabs:       { flexDirection:'row', paddingHorizontal:16 },
+  tab:        { flexDirection:'row', alignItems:'center', justifyContent:'center', gap:4, paddingVertical:12, paddingHorizontal:12 },
   tabActive:  { borderBottomWidth:2, borderColor:BRAND },
   tabLabel:   { fontSize:13, fontWeight:'700' },
   badge:      { width:16, height:16, borderRadius:8, backgroundColor:'#ef4444', alignItems:'center', justifyContent:'center' },
@@ -2453,25 +3422,7 @@ function TeamMenuSheet({ visible, role, canSwitch, onSwitchRole, onDangerAction,
             <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:4}}/>
             <Text style={{color:'#111827',fontSize:17,fontWeight:'800'}}>チームメニュー</Text>
 
-            {/* ロール切り替え — このデバイスで別ロールのチームデータがある場合のみ表示 */}
-            {canSwitch && (
-              <TouchableOpacity
-                style={{flexDirection:'row',alignItems:'center',gap:14,backgroundColor:'#f0f2f5',borderRadius:16,padding:16}}
-                onPress={() => { onClose(); setTimeout(onSwitchRole, 200) }}
-                activeOpacity={0.8}
-              >
-                <View style={{width:44,height:44,borderRadius:13,backgroundColor:BRAND+'18',alignItems:'center',justifyContent:'center'}}>
-                  <Ionicons name="swap-horizontal-outline" size={22} color={BRAND}/>
-                </View>
-                <View style={{flex:1}}>
-                  <Text style={{color:'#111827',fontSize:15,fontWeight:'700'}}>ロールを切り替え</Text>
-                  <Text style={{color:'#6b7280',fontSize:12,marginTop:2}}>
-                    {role === 'coach' ? '選手として参加しているチームへ' : 'コーチとして作成したチームへ'}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color="#9ca3af"/>
-              </TouchableOpacity>
-            )}
+            {/* ロール切り替えボタンは非表示 */}
 
             {/* 危険操作 */}
             <TouchableOpacity
@@ -2518,10 +3469,11 @@ function TeamMenuSheet({ visible, role, canSwitch, onSwitchRole, onDangerAction,
 // TeamScreen（エントリーポイント）
 // ─────────────────────────────────────────────────────────
 export default function TeamScreen() {
-  type State = 'loading'|'select-role'|'coach-setup'|'coach'|'player-join'|'player'
+  type State = 'loading'|'select-role'|'coach-paywall'|'coach-setup'|'coach'|'player-join'|'player'
   const [state,  setState]  = useState<State>('loading')
   const [setup,  setSetup]  = useState<TeamSetup|null>(null)
   const [joined, setJoined] = useState<JoinedTeam|null>(null)
+  const { tier, isCoach } = usePurchase()
   const fadeY = useRef(new Animated.Value(0)).current
 
   useFocusEffect(useCallback(() => {
@@ -2548,6 +3500,14 @@ export default function TeamScreen() {
 
       if (!role) { setState('select-role'); return }
       if (role === 'coach') {
+        // サブスクリプションキャッシュでコーチプランを確認
+        const subRaw = await AsyncStorage.getItem('trackmate_subscription').catch(() => null)
+        const subTier = subRaw ? (JSON.parse(subRaw)?.plan ?? 'free') : 'free'
+        if (subTier !== 'coach') {
+          // プラン未購入または期限切れ → ペイウォールへ
+          setState('coach-paywall')
+          return
+        }
         setState(setupRaw ? 'coach' : 'coach-setup')
       } else {
         setState(joinedRaw ? 'player' : 'player-join')
@@ -2556,8 +3516,15 @@ export default function TeamScreen() {
     init()
   }, [])
 
-  // ロール選択 — 既存データがあれば直接ダッシュボードへ
+  // ロール選択 — コーチはplan検証あり
   async function handleSelectRole(role: Role) {
+    if (role === 'coach') {
+      // コーチプランを持っていなければペイウォールへ
+      if (tier !== 'coach') {
+        setState('coach-paywall')
+        return
+      }
+    }
     await AsyncStorage.setItem(ROLE_KEY, role)
     if (role === 'coach')  { setState(setup  ? 'coach'  : 'coach-setup')  }
     else                   { setState(joined ? 'player' : 'player-join') }
@@ -2590,9 +3557,10 @@ export default function TeamScreen() {
 
   if (state==='loading')          return <View style={{flex:1,backgroundColor:'#0a0a0a'}}/>
   if (state==='select-role')      return <Animated.View style={fadeStyle}><RoleSelectionScreen onSelect={handleSelectRole}/></Animated.View>
+  if (state==='coach-paywall')    return <Animated.View style={fadeStyle}><CoachPaywallScreen onBack={() => setState('select-role')} onPurchased={async () => { await AsyncStorage.setItem(ROLE_KEY, 'coach'); setState(setup ? 'coach' : 'coach-setup') }}/></Animated.View>
   if (state==='coach-setup')      return <Animated.View style={fadeStyle}><CoachSetupScreen onCreated={handleCoachCreated} onBack={() => setState('select-role')}/></Animated.View>
-  if (state==='coach' && setup)   return <Animated.View style={fadeStyle}><CoachDashboard  setup={setup}   onSwitchRole={handleSwitchRole} onDeleteTeam={handleDeleteTeam}  canSwitchRole={joined !== null}/></Animated.View>
+  if (state==='coach' && setup)   return <Animated.View style={fadeStyle}><CoachDashboard  setup={setup}   onSwitchRole={handleSwitchRole} onDeleteTeam={handleDeleteTeam}  canSwitchRole={true}/></Animated.View>
   if (state==='player-join')      return <Animated.View style={fadeStyle}><PlayerJoinScreen onJoined={handlePlayerJoined} onBack={() => setState('select-role')}/></Animated.View>
-  if (state==='player' && joined) return <Animated.View style={fadeStyle}><PlayerDashboard joined={joined} onSwitchRole={handleSwitchRole} onLeaveTeam={handleLeaveTeam}  canSwitchRole={setup !== null}/></Animated.View>
+  if (state==='player' && joined) return <Animated.View style={fadeStyle}><PlayerDashboard joined={joined} onSwitchRole={handleSwitchRole} onLeaveTeam={handleLeaveTeam}  canSwitchRole={true}/></Animated.View>
   return <View style={{flex:1,backgroundColor:'#0a0a0a'}}/>
 }

@@ -1,5 +1,6 @@
 // lib/notifications.ts — 通知管理（ネイティブ: expo-notifications / Web: Notification API）
 import { Platform } from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import type { CompetitionPlan } from '../types'
 
 // ── ネイティブ用（expo-notifications） ────────────────────────────
@@ -14,8 +15,10 @@ async function getExpoNotif() {
 }
 
 // ── Web 用 ────────────────────────────────────────────────────────
-const NOTIF_ASKED_KEY = 'score_notif_asked'
-const NOTIF_SENT_KEY  = 'score_notif_sent'
+const NOTIF_ASKED_KEY    = 'score_notif_asked'
+const NOTIF_SENT_KEY     = 'score_notif_sent'
+// ── ネイティブ用レート制限（AsyncStorage） ─────────────────────────
+const NATIVE_SENT_KEY    = 'score_native_notif_sent'
 
 function isWebNotifSupported(): boolean {
   return typeof window !== 'undefined' && 'Notification' in window
@@ -40,6 +43,24 @@ function markSent(key: string) {
 
 function notSentToday(key: string): boolean {
   return getSentMap()[key] !== todayStr()
+}
+
+// ── ネイティブ用1日1回チェック ─────────────────────────────────────
+async function nativeNotSentToday(key: string): Promise<boolean> {
+  try {
+    const raw = await AsyncStorage.getItem(NATIVE_SENT_KEY)
+    const map: Record<string, string> = raw ? JSON.parse(raw) : {}
+    return map[key] !== todayStr()
+  } catch { return true }
+}
+
+async function nativeMarkSent(key: string): Promise<void> {
+  try {
+    const raw = await AsyncStorage.getItem(NATIVE_SENT_KEY)
+    const map: Record<string, string> = raw ? JSON.parse(raw) : {}
+    map[key] = todayStr()
+    await AsyncStorage.setItem(NATIVE_SENT_KEY, JSON.stringify(map))
+  } catch {}
 }
 
 // ── パーミッション取得 ─────────────────────────────────────────────
@@ -134,7 +155,7 @@ export async function schedulePracticeReminder(): Promise<void> {
 // 後方互換エイリアス
 export const scheduleTrainingReminder = schedulePracticeReminder
 
-// ── 睡眠リマインダー（毎晩 20:00） ────────────────────────────────
+// ── 睡眠リマインダー（毎晩 22:00） ────────────────────────────────
 let _sleepTimer: ReturnType<typeof setTimeout> | null = null
 
 export async function scheduleSleepReminder(): Promise<void> {
@@ -142,30 +163,59 @@ export async function scheduleSleepReminder(): Promise<void> {
     await scheduleDailyNative(
       'sleep-reminder',
       'sCORE 💤 そろそろ寝ましょう',
-      '23時までに就寝すると明日の怪我リスクが下がります。今夜は7〜8時間の睡眠を目指そう。',
-      20, 0,
+      '22時です。今夜は早めに就寝して明日の練習に備えましょう。7〜8時間の睡眠が怪我予防に効果的です。',
+      22, 0,
     )
     return
   }
   if (!isWebNotifSupported()) return
   if (_sleepTimer) { clearTimeout(_sleepTimer); _sleepTimer = null }
   const now = new Date(), target = new Date()
-  target.setHours(20, 0, 0, 0)
+  target.setHours(22, 0, 0, 0)
   if (now >= target) target.setDate(target.getDate() + 1)
   _sleepTimer = setTimeout(async () => {
     if (Notification.permission === 'granted' && notSentToday('sleep')) {
       showNow('sCORE 💤 そろそろ寝ましょう',
-        '23時までに就寝すると明日の怪我リスクが下がります。今夜は7〜8時間の睡眠を目指そう。', 'sleep')
+        '22時です。今夜は早めに就寝して明日の練習に備えましょう。7〜8時間の睡眠が怪我予防に効果的です。', 'sleep')
       markSent('sleep')
     }
     scheduleSleepReminder()
   }, target.getTime() - now.getTime())
 }
 
+// ── 朝の天気・リスクチェック通知（毎朝 7:00） ─────────────────────
+let _morningTimer: ReturnType<typeof setTimeout> | null = null
+
+export async function scheduleMorningRiskReminder(): Promise<void> {
+  if (Platform.OS !== 'web') {
+    await scheduleDailyNative(
+      'morning-risk-reminder',
+      'sCORE ☀️ 今日のコンディションをチェック',
+      'おはようございます！今日の天気・体調を確認して練習の強度を決めましょう。',
+      7, 0,
+    )
+    return
+  }
+  if (!isWebNotifSupported()) return
+  if (_morningTimer) { clearTimeout(_morningTimer); _morningTimer = null }
+  const now = new Date(), target = new Date()
+  target.setHours(7, 0, 0, 0)
+  if (now >= target) target.setDate(target.getDate() + 1)
+  _morningTimer = setTimeout(async () => {
+    if (Notification.permission === 'granted' && notSentToday('morning')) {
+      showNow('sCORE ☀️ 今日のコンディションをチェック',
+        'おはようございます！今日の天気・体調を確認して練習の強度を決めましょう。', 'morning')
+      markSent('morning')
+    }
+    scheduleMorningRiskReminder()
+  }, target.getTime() - now.getTime())
+}
+
 // ── 全スケジューラ一括起動 ────────────────────────────────────────
 export function startAllSchedulers(): void {
-  scheduleSleepReminder()
-  schedulePracticeReminder()
+  scheduleMorningRiskReminder()   // 毎朝 7:00
+  schedulePracticeReminder()      // 毎日 17:00
+  scheduleSleepReminder()         // 毎晩 22:00
 }
 
 // ── 初回起動通知セットアップ ──────────────────────────────────────
@@ -202,31 +252,48 @@ export async function initNotificationsOnFirstLaunch(): Promise<void> {
   }
 }
 
-// ── 怪我リスクアラート ────────────────────────────────────────────
+// ── 怪我リスクアラート（高リスク 80+ のみ・1日1回） ─────────────
 export async function sendRiskAlertIfNeeded(riskScore: number): Promise<void> {
-  if (riskScore < 60) return
-  if (Platform.OS === 'web' && (!isWebNotifSupported() || !notSentToday('risk'))) return
-  const isHigh = riskScore >= 75
-  await showNow(
-    `sCORE ${isHigh ? '🔴 高リスク' : '🟠 要注意'} 怪我に注意`,
-    isHigh
-      ? `怪我リスクスコアが${riskScore}です。今日は強度を大幅に落とすか休養しましょう。`
-      : `怪我リスクスコアが${riskScore}です。練習強度を落として体を休めましょう。`,
-    'risk',
-  )
-  markSent('risk')
+  if (riskScore < 80) return
+  if (Platform.OS === 'web') {
+    if (!isWebNotifSupported() || !notSentToday('risk')) return
+    await showNow(
+      'sCORE 🔴 怪我リスクが高い状態です',
+      `怪我リスクスコアが${riskScore}です。今日は強度を大幅に落とすか休養しましょう。`,
+      'risk',
+    )
+    markSent('risk')
+  } else {
+    if (!(await nativeNotSentToday('risk'))) return   // 今日もう送った
+    await showNow(
+      'sCORE 🔴 怪我リスクが高い状態です',
+      `怪我リスクスコアが${riskScore}です。今日は強度を大幅に落とすか休養しましょう。`,
+      'risk',
+    )
+    await nativeMarkSent('risk')
+  }
 }
 
-// ── ストレッチ推奨通知 ────────────────────────────────────────────
+// ── ストレッチ推奨通知（高リスク 75+ かつ今日未実施・1日1回） ──────
 export async function sendStretchReminderIfNeeded(riskScore: number, stretchDoneToday: boolean): Promise<void> {
-  if (stretchDoneToday || riskScore < 50) return
-  if (Platform.OS === 'web' && (!isWebNotifSupported() || !notSentToday('stretch'))) return
-  await showNow(
-    'sCORE 🏃 ストレッチでリスクを下げよう',
-    `現在の怪我リスク: ${riskScore}。今日のストレッチで最大20ポイント下げられます！`,
-    'stretch',
-  )
-  markSent('stretch')
+  if (stretchDoneToday || riskScore < 75) return
+  if (Platform.OS === 'web') {
+    if (!isWebNotifSupported() || !notSentToday('stretch')) return
+    await showNow(
+      'sCORE 🧘 ストレッチでリスクを下げよう',
+      `怪我リスク${riskScore}。今日のストレッチで最大20ポイント改善できます！`,
+      'stretch',
+    )
+    markSent('stretch')
+  } else {
+    if (!(await nativeNotSentToday('stretch'))) return  // 今日もう送った
+    await showNow(
+      'sCORE 🧘 ストレッチでリスクを下げよう',
+      `怪我リスク${riskScore}。今日のストレッチで最大20ポイント改善できます！`,
+      'stretch',
+    )
+    await nativeMarkSent('stretch')
+  }
 }
 
 // ── 大会リマインダー ──────────────────────────────────────────────
@@ -272,8 +339,20 @@ export async function scheduleCompetitionReminder(competitions: CompetitionPlan[
   })
 }
 
+// ── 試合計画作成通知 ──────────────────────────────────────────────
+export async function sendCompetitionPlanCreatedNotification(
+  planName: string,
+  daysUntil: number,
+): Promise<void> {
+  const body = daysUntil > 0
+    ? `「${planName}」まであと${daysUntil}日。今日から計画的なトレーニングを開始しよう！`
+    : `「${planName}」は今日！全力を出し切ろう🏆`
+  await showNow('sCORE 🏆 試合計画を作成しました', body, 'plan-created')
+}
+
 // ── タイマーキャンセル ────────────────────────────────────────────
 export function cancelAllSchedulers(): void {
+  if (_morningTimer)  { clearTimeout(_morningTimer);  _morningTimer  = null }
   if (_sleepTimer)    { clearTimeout(_sleepTimer);    _sleepTimer    = null }
   if (_practiceTimer) { clearTimeout(_practiceTimer); _practiceTimer = null }
 }

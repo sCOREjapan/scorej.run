@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, ActivityIndicator, Animated,
 } from 'react-native'
-import { checkAdGate, recordUsage, grantRewardUse } from '../lib/adGate'
+import { checkAdGate, recordUsage, consumeRewardUse } from '../lib/adGate'
 import AdGateModal from '../components/AdGateModal'
 import Svg, {
   Circle, Ellipse, Path, G, Line, Rect,
@@ -102,6 +102,7 @@ export default function RecoveryScreen() {
   const [apiError,  setApiError]  = useState('')
   const [adGateVisible,     setAdGateVisible]     = useState(false)
   const [adGateHardLimited, setAdGateHardLimited] = useState(false)
+  const [adGateRewardUses,  setAdGateRewardUses]  = useState(0)
   const fadeAnim = useRef(new Animated.Value(1)).current
 
   const fadeIn = () => {
@@ -122,23 +123,19 @@ export default function RecoveryScreen() {
     setApiError('')
     setLoading(true)
 
-    const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? ''
     const partLabels   = bodyParts.map(id => ZONES.find(z=>z.id===id)?.label ?? id).join('、')
     const typeLabel    = PAIN_TYPES.find(p=>p.id===painType)?.label ?? ''
     const timingLabel  = TIMING_OPTIONS.find(p=>p.id===timing)?.label ?? ''
     const durLabel     = DURATION_OPTIONS.find(p=>p.id===duration)?.label ?? '不明'
+    const _apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? '').replace(/\/$/, '')
+    const _endpoint = _apiBase ? `${_apiBase}/api/analyze` : '/api/analyze'
 
     try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
+      const res = await fetch(_endpoint, {
         method:'POST',
-        headers:{
-          'x-api-key': apiKey,
-          'anthropic-version':'2023-06-01',
-          'content-type':'application/json',
-          'anthropic-dangerous-direct-browser-access':'true',
-        },
+        headers:{ 'content-type':'application/json' },
         body: JSON.stringify({
-          model:'claude-opus-4-5', max_tokens:2048,
+          model:'claude-haiku-4-5-20251001', max_tokens:2048,
           messages:[{ role:'user', content:
 `あなたは陸上競技に詳しいスポーツトレーナーです。選手の症状をもとに、ケアと回復のアドバイスをしてください。医療診断ではなく、参考情報として提供してください。
 
@@ -178,12 +175,17 @@ export default function RecoveryScreen() {
     if (!painType) { setApiError('痛みの種類を選択してください'); return }
     if (!timing)   { setApiError('発生タイミングを選択してください'); return }
     const gate = await checkAdGate('recovery')
-    if (gate.hardLimited || gate.needsAd) {
+    if (!gate.allowed) {
+      setAdGateRewardUses(gate.rewardUses)
       setAdGateHardLimited(gate.hardLimited)
       setAdGateVisible(true)
       return
     }
-    await recordUsage('recovery')
+    if (gate.remaining === 0 && gate.rewardUses > 0) {
+      await consumeRewardUse('recovery')
+    } else {
+      await recordUsage('recovery')
+    }
     await askAICore()
   }
 
@@ -355,12 +357,17 @@ export default function RecoveryScreen() {
       <AdGateModal
         visible={adGateVisible}
         feature="recovery"
+        rewardUses={adGateRewardUses}
         hardLimited={adGateHardLimited}
         onClose={() => setAdGateVisible(false)}
         onAdWatched={async () => {
           setAdGateVisible(false)
-          await grantRewardUse('recovery')
-          await recordUsage('recovery')
+          const g = await checkAdGate('recovery')
+          if (g.rewardUses > 0) {
+            await consumeRewardUse('recovery')
+          } else {
+            await recordUsage('recovery')
+          }
           await askAICore()
         }}
         onUpgrade={() => {

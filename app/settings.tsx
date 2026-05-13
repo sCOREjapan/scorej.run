@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  Switch, Alert, TextInput, Platform,
+  Switch, Alert, TextInput, Platform, Linking,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -15,6 +15,9 @@ import { useTheme } from '../context/ThemeContext'
 import { usePurchase } from '../context/PurchaseContext'
 import AnimatedSection from '../components/AnimatedSection'
 import { requestPermission, getPermission, startAllSchedulers } from '../lib/notifications'
+import { checkAdGate, recordUsage } from '../lib/adGate'
+import AdGateModal from '../components/AdGateModal'
+import { trackFeatureUse } from '../lib/analytics'
 
 const PROFILE_KEY   = 'trackmate_my_profile'
 const NOTIF_KEY     = 'trackmate_notif_settings'
@@ -117,7 +120,7 @@ function LabeledInput({
     <View style={styles.fieldRow}>
       <Text style={styles.fieldLabel}>{label}</Text>
       <TextInput
-        style={styles.fieldInput}
+        style={[styles.fieldInput, { outlineStyle: 'none' } as any]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder ?? ''}
@@ -139,6 +142,11 @@ export default function SettingsScreen() {
 
   // プロフィール
   const [profile, setProfile] = useState<Profile>({ name: '', event: '', age: '', club: '' })
+
+  // CSV AdGate
+  const [csvGateVisible,     setCsvGateVisible]     = useState(false)
+  const [csvGateRemaining,   setCsvGateRemaining]   = useState(0)
+  const [csvGateHardLimited, setCsvGateHardLimited] = useState(false)
 
   // チームロール
   const [teamRole, setTeamRole] = useState<string | null>(null)
@@ -187,10 +195,18 @@ export default function SettingsScreen() {
 
   // ログアウト
   const handleSignOut = () => {
+    const doSignOut = async () => {
+      try {
+        // signOut() が user=null をセット → AuthGate が /auth へ自動リダイレクト
+        await signOut()
+      } catch (_) {
+        // エラーが起きても強制的にサインアウト状態にする
+        try { router.replace('/auth') } catch {}
+      }
+    }
     if (typeof window !== 'undefined') {
-      // Web: window.confirm を使用
       if (window.confirm('ログアウトしますか？')) {
-        signOut()
+        doSignOut()
       }
     } else {
       Alert.alert(
@@ -198,7 +214,7 @@ export default function SettingsScreen() {
         'ログアウトしますか？',
         [
           { text: 'キャンセル', style: 'cancel' },
-          { text: 'ログアウト', style: 'destructive', onPress: () => signOut() },
+          { text: 'ログアウト', style: 'destructive', onPress: doSignOut },
         ]
       )
     }
@@ -218,7 +234,18 @@ export default function SettingsScreen() {
     }
 
     // 位置情報許可状態
-    if (typeof navigator !== 'undefined' && navigator.permissions) {
+    if (Platform.OS !== 'web') {
+      // ネイティブ: expo-location で確認
+      ;(async () => {
+        try {
+          const Location = await import('expo-location')
+          const { status } = await Location.getForegroundPermissionsAsync()
+          setLocPerm(status === 'granted' ? 'granted' : status === 'denied' ? 'denied' : 'prompt')
+        } catch {
+          setLocPerm('prompt')
+        }
+      })()
+    } else if (typeof navigator !== 'undefined' && navigator.permissions) {
       navigator.permissions.query({ name: 'geolocation' as PermissionName }).then(r => {
         setLocPerm(r.state)                    // 'granted' | 'denied' | 'prompt'
         r.onchange = () => setLocPerm(r.state)
@@ -252,12 +279,41 @@ export default function SettingsScreen() {
     }
   }, [])
 
-  const handleRequestLocationPerm = useCallback(() => {
+  const handleRequestLocationPerm = useCallback(async () => {
+    if (Platform.OS !== 'web') {
+      // ネイティブ: expo-location で許可リクエスト
+      try {
+        const Location = await import('expo-location')
+        if (locPerm === 'denied') {
+          // 拒否済み → システム設定を開く
+          Alert.alert(
+            '位置情報が拒否されています',
+            'iPhoneの「設定」→「sCORE」→「位置情報」→「このAppの使用中」を選択してください。',
+            [
+              { text: 'キャンセル', style: 'cancel' },
+              { text: '設定を開く', onPress: () => Linking.openSettings() },
+            ]
+          )
+          return
+        }
+        const { status } = await Location.requestForegroundPermissionsAsync()
+        if (status === 'granted') {
+          setLocPerm('granted')
+          Alert.alert('位置情報をONにしました ✅', '天気情報を自動取得してリスクスコアに反映します。')
+        } else {
+          setLocPerm('denied')
+        }
+      } catch {
+        Alert.alert('エラー', '位置情報の許可に失敗しました。')
+      }
+      return
+    }
+
+    // Web
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
       Alert.alert('非対応', 'このブラウザは位置情報に対応していません。')
       return
     }
-    // getCurrentPositionを呼ぶことでiOSのネイティブ許可ダイアログが表示される
     navigator.geolocation.getCurrentPosition(
       () => {
         setLocPerm('granted')
@@ -266,14 +322,14 @@ export default function SettingsScreen() {
       (err) => {
         if (err.code === 1) {
           setLocPerm('denied')
-          Alert.alert('位置情報が拒否されています', 'iPhoneの「設定」→「Safari」→「位置情報」から許可してください。')
+          Alert.alert('位置情報が拒否されています', 'ブラウザの「設定」→「サイトの設定」→「位置情報」から許可してください。')
         } else {
           Alert.alert('位置情報の取得に失敗しました', err.message)
         }
       },
       { enableHighAccuracy: false, timeout: 10000 }
     )
-  }, [])
+  }, [locPerm])
 
   // キャッシュクリア
   const handleClearCache = async () => {
@@ -304,6 +360,31 @@ export default function SettingsScreen() {
         ]
       )
     }
+  }
+
+  // CSV エクスポート（AdGate付き）
+  const handleExportCSV = async () => {
+    if (isGuest) {
+      setCsvGateRemaining(0)
+      setCsvGateHardLimited(false)
+      setCsvGateVisible(true)
+      return
+    }
+    const gate = await checkAdGate('csv')
+    if (gate.remaining === 0) {
+      setCsvGateRemaining(0)
+      setCsvGateHardLimited(gate.hardLimited)
+      setCsvGateVisible(true)
+      return
+    }
+    if (gate.remaining === 1) {
+      setCsvGateRemaining(1)
+      setCsvGateVisible(true)
+      return
+    }
+    await recordUsage('csv')
+    trackFeatureUse('csv')
+    await exportCSV()
   }
 
   return (
@@ -609,7 +690,7 @@ export default function SettingsScreen() {
             <SectionCard title="データ">
               <TouchableOpacity
                 style={styles.actionRow}
-                onPress={exportCSV}
+                onPress={handleExportCSV}
                 activeOpacity={0.75}
               >
                 <Ionicons name="download-outline" size={18} color="#6b7280" />
@@ -667,6 +748,25 @@ export default function SettingsScreen() {
 
         </ScrollView>
       </SafeAreaView>
+
+      <AdGateModal
+        visible={csvGateVisible}
+        feature="csv"
+        remaining={csvGateRemaining}
+        hardLimited={csvGateHardLimited}
+        isGuest={isGuest}
+        onClose={() => setCsvGateVisible(false)}
+        onAdWatched={async () => {
+          setCsvGateVisible(false)
+          await recordUsage('csv')
+          trackFeatureUse('csv')
+          await exportCSV()
+        }}
+        onUpgrade={() => {
+          setCsvGateVisible(false)
+          router.push('/paywall')
+        }}
+      />
     </View>
   )
 }
@@ -713,9 +813,7 @@ const styles = StyleSheet.create({
   fieldValue: { color: '#111827', fontSize: 16, flex: 1, textAlign: 'right' },
   fieldInput: {
     flex: 1, color: '#111827', fontSize: 16,
-    textAlign: 'right',
-    // @ts-ignore
-    outlineStyle: 'none',
+    textAlign: 'right' as const,
   },
 
   // 種目タグ

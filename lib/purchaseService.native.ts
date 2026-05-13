@@ -3,10 +3,19 @@
 
 import Purchases, { LOG_LEVEL, type PurchasesPackage } from 'react-native-purchases'
 import { Platform } from 'react-native'
-import type { PlanTier } from './purchaseService'
-
-export { ENTITLEMENT_PRO, ENTITLEMENT_ELITE, PRODUCT_IDS } from './purchaseService'
-export type { PlanTier }
+// 定数を直接定義（./purchaseService への再エクスポートは循環インポートになるため）
+export const ENTITLEMENT_PRO   = 'pro'
+export const ENTITLEMENT_ELITE = 'elite'
+export const ENTITLEMENT_COACH = 'coach'
+export const PRODUCT_IDS = {
+  pro_monthly:    'score_pro_monthly',
+  pro_annual:     'score_pro_annual',
+  elite_monthly:  'score_elite_monthly',
+  elite_annual:   'score_elite_annual',
+  coach_monthly:  'score_coach_monthly',
+  coach_annual:   'score_coach_annual',
+}
+export type PlanTier = 'free' | 'pro' | 'elite' | 'coach'
 
 // ── RevenueCat API キー ─────────────────────────────────────────────
 // RevenueCat ダッシュボード → Projects → API Keys で取得して差し替え

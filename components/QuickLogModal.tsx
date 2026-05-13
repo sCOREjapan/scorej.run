@@ -12,6 +12,9 @@ import { BRAND, TEXT } from '../lib/theme'
 import { Sounds, unlockAudio } from '../lib/sounds'
 import Toast from 'react-native-toast-message'
 import { autoSyncTeam } from '../lib/teamAutoSync'
+import { trackSessionRecord } from '../lib/analytics'
+import { successNotify } from '../lib/haptics'
+import PracticeShareCard, { PracticeShareData } from './PracticeShareCard'
 
 const SESSIONS_KEY = 'trackmate_sessions'
 const TASKS_KEY    = 'trackmate_tasks'
@@ -125,15 +128,38 @@ interface Props {
   onSaved?: () => void
 }
 
+// セッションタイプを日本語に変換
+function sessionTypeLabel(t: string): string {
+  const m: Record<string, string> = {
+    interval: 'インターバル', tempo: 'テンポ走', sprint: 'スプリント',
+    long: 'ロング走', drill: 'ドリル', strength: '筋トレ',
+    race: 'レース', rest: '休養', easy: 'ジョグ',
+  }
+  return m[t] || t
+}
+
+// ms → 表示タイム
+function formatTimeMs(ms: number): string {
+  const totalSec = ms / 1000
+  if (totalSec >= 60) {
+    const min = Math.floor(totalSec / 60)
+    const sec = (totalSec % 60).toFixed(2).padStart(5, '0')
+    return `${min}'${sec}"`
+  }
+  return `${totalSec.toFixed(2)}"`
+}
+
 export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
-  const [freeText, setFreeText] = useState('')
-  const [parsing, setParsing]   = useState(false)
+  const [freeText, setFreeText]         = useState('')
+  const [parsing, setParsing]           = useState(false)
+  const [showShare, setShowShare]       = useState(false)
+  const [shareData, setShareData]       = useState<PracticeShareData | null>(null)
 
   const slideAnim = useRef(new Animated.Value(300)).current
 
   React.useEffect(() => {
     if (visible) {
-      Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 10, useNativeDriver: true }).start()
+      Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 10, useNativeDriver: Platform.OS !== 'web' }).start()
     } else {
       slideAnim.setValue(300)
     }
@@ -229,6 +255,7 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
 
       await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions))
       autoSyncTeam(sessions).catch(() => {})
+      trackSessionRecord(parsed.session_type || 'easy')
 
       // 改善タスクを自動生成してホーム画面に表示
       const taskTexts = generateTasks(
@@ -239,10 +266,32 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
       await saveTasks(taskTexts)
 
       Sounds.save()
+      successNotify()
       Toast.show({ type: 'success', text1: '練習を記録しました ✓', visibilityTime: 1800 })
+
+      // シェアカード用データを組み立て
+      const d = new Date()
+      const weekdays = ['日', '月', '火', '水', '木', '金', '土']
+      const dateLabel = `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${weekdays[d.getDay()]}）`
+      const drills: string[] = []
+      const drillRegex = /([A-Za-zぁ-んァ-ン一-龥]+ドリル|Aスキップ|Bスキップ|バウンディング|ハイニー|もも上げ|ランジ|サーキット)/g
+      let m: RegExpExecArray | null
+      while ((m = drillRegex.exec(freeText)) !== null) drills.push(m[1])
+
+      setShareData({
+        date:      dateLabel,
+        title:     sessionTypeLabel(parsed.session_type || 'easy'),
+        menu:      freeText.trim(),
+        drills,
+        distance:  parsed.distance_m ? parsed.distance_m / 1000 : undefined,
+        sets:      parsed.reps       ? Number(parsed.reps)       : undefined,
+        time:      parsed.time_ms    ? formatTimeMs(Number(parsed.time_ms)) : undefined,
+        fatigue:   parsed.fatigue_level   ? Number(parsed.fatigue_level)   : undefined,
+        condition: parsed.condition_level ? Number(parsed.condition_level) : undefined,
+      })
+      setShowShare(true)
       setFreeText('')
       onSaved?.()
-      onClose()
     } catch {
       Toast.show({ type: 'error', text1: '保存に失敗しました', text2: 'もう一度試してください' })
     } finally {
@@ -251,10 +300,10 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
   }
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={handleClose}>
+    <Modal visible={visible || showShare} transparent={!showShare} animationType={showShare ? 'slide' : 'none'} onRequestClose={() => { if (showShare) { setShowShare(false); onClose() } else { handleClose() } }}>
       <TouchableOpacity style={st.overlay} activeOpacity={1} onPress={handleClose} />
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={st.kvWrapper}
         pointerEvents="box-none"
       >
@@ -300,6 +349,15 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
           </HapticTouch>
         </Animated.View>
       </KeyboardAvoidingView>
+
+      {/* シェアカード（同じModal内で表示） */}
+      {showShare && shareData && (
+        <PracticeShareCard
+          data={shareData}
+          visible={showShare}
+          onClose={() => { setShowShare(false); onClose() }}
+        />
+      )}
     </Modal>
   )
 }

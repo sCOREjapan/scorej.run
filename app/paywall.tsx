@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import { usePurchase } from '../context/PurchaseContext'
+import { trackPaywallView, trackUpgrade } from '../lib/analytics'
 
 const { width } = Dimensions.get('window')
 const BRAND = '#166534'
@@ -21,15 +22,14 @@ const PLANS = [
     color:    '#6b7280',
     tagline:  '今すぐ無料で始める',
     features: [
-      '手動練習ログ（月10件）',
-      'タイム記録（月5回）',
-      'カレンダー表示',
-      'ウォームアップ・ストレッチ',
-      '記録一覧（直近30日）',
-      'レベル・XP表示',
-      '食事記録（テキストのみ）',
-      '怪我リスクAI診断（1日1回）',
-      'AIリカバリー相談（無制限）',
+      '練習ログ・タイム記録 無制限',
+      '記録履歴 全期間',
+      'カレンダー・タイマー・シェアカード',
+      '怪我リスク診断・AIリカバリー相談',
+      'AI練習分析コーチ（累計3回）',
+      '動画フォーム分析（累計2回）',
+      'AI食事分析（累計3回）',
+      'CSVエクスポート（累計1回）',
     ],
   },
   {
@@ -37,41 +37,34 @@ const PLANS = [
     label:    'PRO',
     color:    BRAND,
     tagline:  '本格的に強くなりたい選手へ',
-    monthlyPrice: '¥780',
-    annualPrice:  '¥6,800',
-    annualMonthly: '¥567',
+    monthlyPrice: '¥480',
+    annualPrice:  '¥4,800',
+    annualMonthly: '¥400',
     productMonthly: 'score_pro_monthly',
     productAnnual:  'score_pro_annual',
     features: [
-      '手動練習ログ 無制限',
-      'タイム記録 無制限・全期間表示',
-      'AI練習分析・怪我リスク診断 無制限',
-      'AI食事・栄養分析 無制限',
-      '動画フォーム分析（月5回）',
-      'AIリカバリー相談 無制限',
-      'CSVエクスポート',
-      'シェアカード生成',
-      '全国ランキング参加',
-      'GPSランニング記録',
+      'FREEの全機能',
+      'AI練習分析コーチ 無制限',
+      '動画フォーム分析 1日1回',
+      'AI食事分析 1日3回',
+      'CSVエクスポート 月1回',
     ],
   },
   {
     id:       'elite',
     label:    'ELITE',
     color:    '#f59e0b',
-    tagline:  '競技で勝ちにいく選手・コーチへ',
+    tagline:  '本気で結果を出したい選手へ',
     monthlyPrice: '¥1,480',
-    annualPrice:  '¥12,800',
-    annualMonthly: '¥1,067',
+    annualPrice:  '¥14,800',
+    annualMonthly: '¥1,233',
     productMonthly: 'score_elite_monthly',
     productAnnual:  'score_elite_annual',
     features: [
       'PROの全機能',
       '動画フォーム分析 無制限',
-      'AIコーチチャット（練習フィードバック）',
-      'チーム機能（部員10名まで管理）',
-      'コーチビュー（選手管理ダッシュボード）',
-      '優先サポート',
+      'AI食事分析 無制限',
+      'CSVエクスポート 無制限',
     ],
   },
 ]
@@ -86,6 +79,9 @@ export default function PaywallScreen() {
   const [period,         setPeriod]         = useState<PeriodType>('annual')
   const [purchasing,     setPurchasing]     = useState(false)
   const [restoring,      setRestoring]      = useState(false)
+
+  // ペイウォール表示をトラッキング（マウント時1回）
+  useEffect(() => { trackPaywallView('paywall_screen') }, [])
 
   // ── 購入処理 ──────────────────────────────────────────────────
   const handlePurchase = async () => {
@@ -107,8 +103,10 @@ export default function PaywallScreen() {
     if (!target) return
 
     setPurchasing(true)
-    try { await purchase(target) }
-    finally { setPurchasing(false) }
+    try {
+      const ok = await purchase(target)
+      if (ok) trackUpgrade(`${selectedPlan}_${period}`)
+    } finally { setPurchasing(false) }
   }
 
   const handleRestore = async () => {
@@ -326,16 +324,21 @@ const st = StyleSheet.create({
 
   periodWrap:   { paddingHorizontal: 20, marginBottom: 16 },
   periodToggle: {
-    flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.07)',
-    borderRadius: 12, padding: 3,
+    flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 14, padding: 4,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
   },
   periodBtn: {
-    flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 10,
+    flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10,
     flexDirection: 'row', justifyContent: 'center', gap: 6,
   },
-  periodBtnActive:    { backgroundColor: 'rgba(255,255,255,0.12)' },
+  periodBtnActive: {
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    shadowColor: '#fff', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08, shadowRadius: 4,
+  },
   periodBtnText:      { fontSize: 14, fontWeight: '600', color: '#6b7280' },
-  periodBtnTextActive: { color: '#fff' },
+  periodBtnTextActive: { color: '#fff', fontWeight: '700' },
   savePill: {
     backgroundColor: BRAND, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2,
   },
@@ -390,7 +393,7 @@ const st = StyleSheet.create({
   },
   purchaseBtn: {
     paddingVertical: 17, borderRadius: 16, alignItems: 'center',
-    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 14,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 14,
   },
   purchaseBtnText: { color: '#fff', fontSize: 16, fontWeight: '800', letterSpacing: -0.3 },
   restoreBtn: { alignItems: 'center', paddingVertical: 8 },

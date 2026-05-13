@@ -14,8 +14,11 @@ import type {
 import { getVideoAnalysisPrompt } from '../prompts/video'
 import { getMealAnalysisPrompt, getCompetitionPlanPrompt, getSleepAdvicePrompt } from '../prompts/index'
 
-const MODEL = 'claude-opus-4-5'
+const MODEL = 'claude-haiku-4-5-20251001'
 const API_URL = 'https://api.anthropic.com/v1/messages'
+// Vercel proxy URL（APIキーをクライアントに持たせない）
+const API_BASE = (process.env.EXPO_PUBLIC_API_BASE_URL ?? '').replace(/\/$/, '')
+const PROXY_URL = API_BASE ? `${API_BASE}/api/analyze` : '/api/analyze'
 
 // ─────────────────────────────────────────
 // 型定義
@@ -35,11 +38,6 @@ interface MessagesRequest {
 // fetch を使った直接 API 呼び出し（React Native 対応）
 // ─────────────────────────────────────────
 async function callClaude(req: MessagesRequest): Promise<string> {
-  const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY
-  if (!apiKey || apiKey === 'placeholder') {
-    throw new Error('EXPO_PUBLIC_ANTHROPIC_API_KEY が未設定です。')
-  }
-
   const body = JSON.stringify({
     model: req.model,
     max_tokens: req.max_tokens,
@@ -49,13 +47,9 @@ async function callClaude(req: MessagesRequest): Promise<string> {
 
   let res: Response
   try {
-    res = await fetch(API_URL, {
+    res = await fetch(PROXY_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body,
     })
   } catch (err) {

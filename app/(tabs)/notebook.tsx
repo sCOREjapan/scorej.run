@@ -335,29 +335,23 @@ export default function NotebookScreen() {
 
     // ── Step 2: AIでより正確に解析（成功すればフォールバックを上書き） ─
     try {
-      const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY
-      if (apiKey) {
-        const res = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: {
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01',
-            'content-type': 'application/json',
-            'anthropic-dangerous-direct-browser-access': 'true',
-          },
-          body: JSON.stringify({
-            model: 'claude-haiku-4-5-20251001', max_tokens: 500,
-            messages: [{ role: 'user', content: `陸上競技の練習記録テキストを正確にJSONに変換してください。今日の日付は${today}です。\n\n入力テキスト:\n"${freeText}"\n\nルール:\n- session_type: interval(本数+レスト), tempo(ペース走), easy(ジョグ/LSD), long(長距離), sprint(全力短距離), drill(ドリル), strength(ウェイト/筋トレ), race(試合/大会), rest(休養)\n- time_ms: タイムをミリ秒整数に変換。「46秒80」→46800, 「1:28.50」→88500。なければnull\n- distance_m: 距離をメートル整数に変換。「10km」→10000。なければnull\n- reps: 本数の整数。なければnull\n- fatigue_level: 疲労度1〜10の整数（明記なければ雰囲気から推定）\n- condition_level: 体調1〜10の整数（明記なければ6）\n- event: 100m/200m/400m/800m/1500m/3000m/5000m/10000m/110mH/100mH/400mH/3000mSC/競歩/走幅跳/三段跳/走高跳/棒高跳/砲丸投/やり投/円盤投/ハンマー投 のいずれか、なければnull\n\nJSONのみ返答:\n{"session_date":"${today}","session_type":"...","event":"...orNull","time_ms":数値orNull,"distance_m":数値orNull,"reps":数値orNull,"fatigue_level":整数,"condition_level":整数}` }],
-          }),
-        })
-        if (res.ok) {
-          const data = await res.json()
-          const rawText = data.content?.[0]?.text ?? ''
-          const jsonMatch = rawText.match(/\{[\s\S]*\}/)
-          if (jsonMatch) {
-            const aiParsed = JSON.parse(jsonMatch[0])
-            parsed = { ...parsed, ...aiParsed }
-          }
+      const _nb_apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? '').replace(/\/$/, '')
+      const _nb_endpoint = _nb_apiBase ? `${_nb_apiBase}/api/analyze` : '/api/analyze'
+      const res = await fetch(_nb_endpoint, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001', max_tokens: 500,
+          messages: [{ role: 'user', content: `陸上競技の練習記録テキストを正確にJSONに変換してください。今日の日付は${today}です。\n\n入力テキスト:\n"${freeText}"\n\nルール:\n- session_type: interval(本数+レスト), tempo(ペース走), easy(ジョグ/LSD), long(長距離), sprint(全力短距離), drill(ドリル), strength(ウェイト/筋トレ), race(試合/大会), rest(休養)\n- time_ms: タイムをミリ秒整数に変換。「46秒80」→46800, 「1:28.50」→88500。なければnull\n- distance_m: 距離をメートル整数に変換。「10km」→10000。なければnull\n- reps: 本数の整数。なければnull\n- fatigue_level: 疲労度1〜10の整数（明記なければ雰囲気から推定）\n- condition_level: 体調1〜10の整数（明記なければ6）\n- event: 100m/200m/400m/800m/1500m/3000m/5000m/10000m/110mH/100mH/400mH/3000mSC/競歩/走幅跳/三段跳/走高跳/棒高跳/砲丸投/やり投/円盤投/ハンマー投 のいずれか、なければnull\n\nJSONのみ返答:\n{"session_date":"${today}","session_type":"...","event":"...orNull","time_ms":数値orNull,"distance_m":数値orNull,"reps":数値orNull,"fatigue_level":整数,"condition_level":整数}` }],
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        const rawText = data.content?.[0]?.text ?? ''
+        const jsonMatch = rawText.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          const aiParsed = JSON.parse(jsonMatch[0])
+          parsed = { ...parsed, ...aiParsed }
         }
       }
     } catch {
@@ -453,7 +447,7 @@ export default function NotebookScreen() {
             </View>
             {loading ? (
               <View style={{ gap: 10 }}>
-                {[1,2,3,4].map(i => <View key={i} style={{ height: 64, backgroundColor: colors.surface2, borderRadius: 10 }} />)}
+                {[1,2,3,4,5].map(i => <View key={i} style={{ height: 64, backgroundColor: colors.surface2, borderRadius: 10 }} />)}
               </View>
             ) : sessions.length === 0 ? (
               <View style={st.empty}>
@@ -461,32 +455,26 @@ export default function NotebookScreen() {
                 <Text style={[st.emptyText, { color: colors.textHint }]}>まだ記録がありません</Text>
                 <Text style={[st.emptySubText, { color: colors.textHint }]}>上のボタンから今日の練習を記録しよう</Text>
               </View>
-            ) : (
-              <>
-                {(selectedDate
-                  ? sessions.filter(s => s.session_date === selectedDate)
-                  : sessions
-                ).slice(0, 4).map((item, idx) => (
-                  <SessionCard key={item.id} session={item} conditionMap={conditionMap} />
-                ))}
-                {/* 4件を超える場合はスクロール可能な追加リスト */}
-                {(selectedDate ? sessions.filter(s => s.session_date === selectedDate) : sessions).length > 4 && (
-                  <ScrollView
-                    style={{ maxHeight: 280 }}
-                    nestedScrollEnabled
-                    showsVerticalScrollIndicator
-                    contentContainerStyle={{ gap: 8 }}
-                  >
-                    {(selectedDate
-                      ? sessions.filter(s => s.session_date === selectedDate)
-                      : sessions
-                    ).slice(4).map(item => (
-                      <SessionCard key={item.id} session={item} conditionMap={conditionMap} />
-                    ))}
-                  </ScrollView>
-                )}
-              </>
-            )}
+            ) : (() => {
+              const filtered = selectedDate
+                ? sessions.filter(s => s.session_date === selectedDate)
+                : sessions
+              return (
+                <ScrollView
+                  style={{ maxHeight: 340 }}
+                  nestedScrollEnabled
+                  showsVerticalScrollIndicator={filtered.length > 5}
+                  contentContainerStyle={{ gap: 8 }}
+                >
+                  {filtered.slice(0, 5).map(item => (
+                    <SessionCard key={item.id} session={item} conditionMap={conditionMap} />
+                  ))}
+                  {filtered.length > 5 && filtered.slice(5).map(item => (
+                    <SessionCard key={item.id} session={item} conditionMap={conditionMap} />
+                  ))}
+                </ScrollView>
+              )
+            })()}
           </View>
 
           {/* ── ミニカレンダー ── */}

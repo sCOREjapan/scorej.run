@@ -3,7 +3,7 @@ import { Animated, TouchableOpacity, Platform, View, Text, StyleSheet, Pressable
 import { Tabs, useRouter, usePathname } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Sounds, unlockAudio } from '../../lib/sounds'
+import { Sounds, unlockAudio, preloadNativeSounds } from '../../lib/sounds'
 import { triggerHomeScroll } from '../../lib/homeScroll'
 import { BRAND } from '../../lib/theme'
 import { triggerQuickLog } from '../../lib/quickLogEvent'
@@ -250,7 +250,10 @@ const fab = StyleSheet.create({
     shadowOpacity: 0.12, shadowRadius: 8, elevation: 8,
   },
   itemLabel: {
-    color: '#111827', fontSize: 9, fontWeight: '700',
+    color: '#ffffff', fontSize: 9, fontWeight: '700',
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
 })
 
@@ -264,6 +267,9 @@ export default function TabLayout() {
   // 初回起動時に通知 → 位置情報の順で許可ダイアログを表示
   useEffect(() => {
     const run = async () => {
+      // 0) ネイティブ効果音を事前生成・キャッシュ（バックグラウンドで実行）
+      preloadNativeSounds().catch(() => {})
+
       // 1) 通知許可（2秒後に表示）
       await initNotificationsOnFirstLaunch().catch(() => {})
 

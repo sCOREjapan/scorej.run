@@ -5,10 +5,10 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { BG_GRADIENT, TEXT } from '../lib/theme'
 
-const LAST_UPDATED = '2026年4月29日'
+const LAST_UPDATED = '2026年5月8日'
 const APP_NAME     = 'sCORE'
-const CONTACT      = 'amuletbaby.shop@gmail.com'
-const OPERATOR     = '合同会社sCORE（以下「当社」）'
+const CONTACT      = 'focusports.shop'
+const OPERATOR     = '個人事業主（屋号：trackmate）（以下「当社」）'
 
 function Section({ num, title, children }: { num: string; title: string; children: React.ReactNode }) {
   return (
@@ -67,8 +67,8 @@ export default function TermsScreen() {
             <Li n={4}>「コンテンツ」とは、本サービスを通じて提供される文章、画像、動画、AIによるアドバイス・診断、リスクスコア、グラフ、その他一切のデータ・情報をいいます。</Li>
             <Li n={5}>「AIサービス」とは、本サービスが利用するAnthropic社の「Claude」APIおよびその他の外部AI APIを通じて提供される機能（練習分析、怪我リスク診断、リカバリー相談、栄養分析、動画フォーム分析等）をいいます。</Li>
             <Li n={6}>「FREEプラン」とは、月額料金を支払わずに利用できる基本プランをいいます。一部機能に利用回数の制限が設けられます。</Li>
-            <Li n={7}>「PROプラン」とは、月額780円（税込）または年額6,800円（税込）を支払うことで利用できる有料プランをいいます。</Li>
-            <Li n={8}>「ELITEプラン」とは、月額1,480円（税込）または年額12,800円（税込）を支払うことで利用できる最上位有料プランをいいます。</Li>
+            <Li n={7}>「PROプラン」とは、月額480円（税込）または年額4,800円（税込）を支払うことで利用できる有料プランをいいます。</Li>
+            <Li n={8}>「ELITEプラン」とは、月額1,480円（税込）または年額14,800円（税込）を支払うことで利用できる最上位有料プランをいいます。</Li>
             <Li n={9}>「チーム機能」とは、コーチまたは指導者がチームを作成し、複数の選手を招待・管理することができる機能をいいます。主にELITEプランで利用可能です。</Li>
             <Li n={10}>「RevenueCat」とは、当社がサブスクリプション管理に使用するサードパーティサービス（RevenueCat, Inc.、米国）をいいます。</Li>
             <Li n={11}>「Supabase」とは、当社がクラウドデータ保存・認証に使用するサードパーティサービス（Supabase, Inc.、米国）をいいます。</Li>
@@ -89,14 +89,14 @@ export default function TermsScreen() {
               <SubLi n={9}>タイマー・ストップウォッチ</SubLi>
               <SubLi n={10}>レベル・XP表示（ゲーミフィケーション）</SubLi>
             </Sub>
-            <Sub title="2-2. PROプラン機能（月額780円または年額6,800円）">
+            <Sub title="2-2. PROプラン機能（月額480円または年額4,800円）">
               <SubLi n={1}>AI練習分析 無制限（FREEプランは初回3回まで）</SubLi>
               <SubLi n={2}>動画フォーム分析（月5回、FREEプランは初回2回まで）</SubLi>
               <SubLi n={3}>CSVエクスポート（FREEプランは初回1回まで）</SubLi>
               <SubLi n={4}>全国ランキング参加（種目別・世代別）</SubLi>
               <SubLi n={5}>GPSランニング記録</SubLi>
             </Sub>
-            <Sub title="2-3. ELITEプラン機能（月額1,480円または年額12,800円）">
+            <Sub title="2-3. ELITEプラン機能（月額1,480円または年額14,800円）">
               <SubLi n={1}>PROプランの全機能</SubLi>
               <SubLi n={2}>動画フォーム分析 無制限（PROプランは月5回）</SubLi>
               <SubLi n={3}>AIコーチチャット（練習内容に対する個別フィードバック）</SubLi>
@@ -129,8 +129,8 @@ export default function TermsScreen() {
           <Section num="第5条" title="利用料金・課金・サブスクリプション">
             <Sub title="5-1. プランと料金">
               <SubLi n={1}>FREEプラン：無料。一部機能に利用回数制限あり（第2条参照）。</SubLi>
-              <SubLi n={2}>PROプラン：月払い780円（税込）/ 年払い6,800円（税込・月あたり約567円）。</SubLi>
-              <SubLi n={3}>ELITEプラン：月払い1,480円（税込）/ 年払い12,800円（税込・月あたり約1,067円）。</SubLi>
+              <SubLi n={2}>PROプラン：月払い480円（税込）/ 年払い4,800円（税込・月あたり約400円）。</SubLi>
+              <SubLi n={3}>ELITEプラン：月払い1,480円（税込）/ 年払い14,800円（税込・月あたり約1,233円）。</SubLi>
               <SubLi n={4}>料金は予告なく変更される場合があります。変更は次回の課金更新時から適用されます。</SubLi>
             </Sub>
             <Sub title="5-2. 課金の仕組み">
@@ -274,7 +274,7 @@ export default function TermsScreen() {
 
           <Section num="第19条" title="準拠法および管轄裁判所">
             <Li n={1}>本規約の成立、効力、解釈および履行については、日本法に準拠するものとします。</Li>
-            <Li n={2}>本サービスまたは本規約に起因・関連する一切の紛争については、当社所在地を管轄する地方裁判所または簡易裁判所を第一審の専属的合意管轄裁判所とします。</Li>
+            <Li n={2}>本サービスまたは本規約に起因・関連する一切の紛争については、東京地方裁判所または東京簡易裁判所を第一審の専属的合意管轄裁判所とします。</Li>
             <Li n={3}>紛争解決にあたっては、まず当事者間の誠実な協議による解決を試みるものとします。</Li>
           </Section>
 

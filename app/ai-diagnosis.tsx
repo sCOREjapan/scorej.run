@@ -10,6 +10,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import Toast from 'react-native-toast-message'
 import { BG_GRADIENT, BRAND, TEXT, NEON } from '../lib/theme'
 import { Sounds } from '../lib/sounds'
+import { checkAdGate, recordUsage, consumeRewardUse } from '../lib/adGate'
+import AdGateModal from '../components/AdGateModal'
+import { useAuth } from '../context/AuthContext'
+import { useRouter } from 'expo-router'
+import { trackFeatureUse } from '../lib/analytics'
 
 const AI_DIAGNOSES_KEY = 'trackmate_ai_diagnoses'
 
@@ -113,9 +118,16 @@ function parseDiagnosisFromText(text: string, timestamp: string): DiagnosisResul
 }
 
 export default function AIDiagnosisScreen() {
-  const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<DiagnosisResult | null>(null)
-  const [history, setHistory] = useState<DiagnosisResult[]>([])
+  const [loading,          setLoading]          = useState(false)
+  const [result,           setResult]           = useState<DiagnosisResult | null>(null)
+  const [history,          setHistory]          = useState<DiagnosisResult[]>([])
+  const [adGateVisible,    setAdGateVisible]    = useState(false)
+  const [adGateRemaining,  setAdGateRemaining]  = useState(0)
+  const [adGateHardLimited,setAdGateHardLimited]= useState(false)
+  const [adGateRewardUses, setAdGateRewardUses] = useState(0)
+  const [remaining,        setRemaining]        = useState<number | null>(null)
+  const { isGuest } = useAuth()
+  const router = useRouter()
 
   useEffect(() => {
     AsyncStorage.getItem(AI_DIAGNOSES_KEY).then(raw => {
@@ -123,12 +135,55 @@ export default function AIDiagnosisScreen() {
         try { setHistory(JSON.parse(raw)) } catch {}
       }
     })
+    // 残り回数を取得して表示
+    checkAdGate('ai_analysis').then(g => {
+      if (g.remaining < 999) setRemaining(g.remaining)
+    }).catch(() => {})
   }, [])
 
   const handleDiagnose = useCallback(async () => {
+    // ゲストはログイン必須
+    if (isGuest) {
+      setAdGateRemaining(0)
+      setAdGateHardLimited(false)
+      setAdGateVisible(true)
+      return
+    }
+    // AdGateチェック
+    const gate = await checkAdGate('ai_analysis')
+    if (!gate.allowed) {
+      setAdGateRemaining(0)
+      setAdGateRewardUses(gate.rewardUses)
+      setAdGateHardLimited(gate.hardLimited)
+      setAdGateVisible(true)
+      return
+    }
+    // リワード使用（無料枠ゼロだが広告視聴済み）
+    if (gate.remaining === 0 && gate.rewardUses > 0) {
+      await consumeRewardUse('ai_analysis')
+      await runDiagnose()
+      return
+    }
+    // 残り1回の警告（使用は続行）
+    if (gate.remaining === 1) {
+      setAdGateRemaining(1)
+      setAdGateVisible(true)
+      return
+    }
+    await runDiagnose()
+  }, [isGuest])
+
+  const runDiagnose = useCallback(async () => {
+    setAdGateVisible(false)
     Sounds.whoosh()
     setLoading(true)
     setResult(null)
+    await recordUsage('ai_analysis')
+    trackFeatureUse('ai_analysis')
+    // 残り回数を更新
+    checkAdGate('ai_analysis').then(g => {
+      if (g.remaining < 999) setRemaining(g.remaining)
+    }).catch(() => {})
 
     try {
       // データ収集
@@ -176,19 +231,14 @@ export default function AIDiagnosisScreen() {
         })),
       }
 
-      const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY
-      if (!apiKey) throw new Error('API key not configured')
+      const _apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? '').replace(/\/$/, '')
+      const _endpoint = _apiBase ? `${_apiBase}/api/analyze` : '/api/analyze'
 
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const response = await fetch(_endpoint, {
         method: 'POST',
-        headers: {
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-          'content-type': 'application/json',
-          ...(Platform.OS === 'web' ? {} : {}),
-        },
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          model: 'claude-opus-4-5',
+          model: 'claude-haiku-4-5-20251001',
           max_tokens: 1024,
           messages: [
             {
@@ -266,6 +316,20 @@ ${JSON.stringify(trainingData, null, 2)}
             <Text style={styles.cardDesc}>
               直近7日間の練習記録・体調・睡眠データをもとに、AIが疲労状態を分析して改善提案を行います。
             </Text>
+            {/* 残り回数バッジ */}
+            {remaining !== null && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
+                backgroundColor: remaining <= 1 ? 'rgba(239,68,68,0.12)' : 'rgba(22,101,52,0.12)',
+                borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1,
+                borderColor: remaining <= 1 ? 'rgba(239,68,68,0.3)' : 'rgba(22,101,52,0.3)',
+              }}>
+                <Ionicons name={remaining <= 1 ? 'warning-outline' : 'flash-outline'} size={12}
+                  color={remaining <= 1 ? '#ef4444' : BRAND}/>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: remaining <= 1 ? '#ef4444' : BRAND }}>
+                  {remaining === 0 ? '無料枠を使い切りました' : `残り${remaining}回（無料枠）`}
+                </Text>
+              </View>
+            )}
             <TouchableOpacity
               style={[styles.analyzeBtn, loading && { opacity: 0.6 }]}
               onPress={handleDiagnose}
@@ -338,6 +402,23 @@ ${JSON.stringify(trainingData, null, 2)}
 
         </ScrollView>
       </SafeAreaView>
+
+      <AdGateModal
+        visible={adGateVisible}
+        feature="ai_analysis"
+        remaining={adGateRemaining}
+        rewardUses={adGateRewardUses}
+        hardLimited={adGateHardLimited}
+        isGuest={isGuest}
+        onClose={() => setAdGateVisible(false)}
+        onAdWatched={async () => {
+          // 広告視聴でリワードが付与された場合はそれを消費
+          const g = await checkAdGate('ai_analysis')
+          if (g.rewardUses > 0) await consumeRewardUse('ai_analysis')
+          runDiagnose()
+        }}
+        onUpgrade={() => { setAdGateVisible(false); router.push('/paywall') }}
+      />
     </View>
   )
 }

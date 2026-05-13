@@ -19,6 +19,14 @@ import TrainingChart from '../../components/TrainingChart'
 import type { RaceRecord, AthleticsEvent, ChartDataPoint, TrainingSession } from '../../types'
 import type { SleepRecord } from '../../types'
 import { exportAllDataCSV, exportAllDataJSON } from '../../lib/export'
+import { checkAdGate, recordUsage, consumeRewardUse } from '../../lib/adGate'
+import AdGateModal from '../../components/AdGateModal'
+import { useAuth } from '../../context/AuthContext'
+import { trackFeatureUse } from '../../lib/analytics'
+import ConfettiEffect from '../../components/ConfettiEffect'
+import { pbCelebration } from '../../lib/haptics'
+import PracticeShareCard, { PracticeShareData } from '../../components/PracticeShareCard'
+import { calcLevelInfo } from '../../lib/gamification'
 
 const RECORDS_KEY       = 'trackmate_race_records'
 const SESSIONS_KEY      = 'trackmate_sessions'
@@ -571,7 +579,7 @@ function GlowCalendar({ sessions }: { sessions: TrainingSession[] }) {
 }
 
 // セッション1件のタイムラインカード（タップで詳細表示）
-function SessionTimelineCard({ session, onTap }: { session: TrainingSession; onTap: () => void }) {
+function SessionTimelineCard({ session, onTap, onShare }: { session: TrainingSession; onTap: () => void; onShare: () => void }) {
   const color = TYPE_COLORS[session.session_type] ?? '#888'
   const label = TYPE_LABELS[session.session_type] ?? session.session_type
   const emoji = TYPE_EMOJIS[session.session_type] ?? '📝'
@@ -626,9 +634,19 @@ function SessionTimelineCard({ session, onTap }: { session: TrainingSession; onT
             {session.notes}
           </Text>
         ) : null}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
-          <Text style={{ color: TEXT.hint, fontSize: 10 }}>詳細を見る</Text>
-          <Ionicons name="chevron-forward" size={10} color={TEXT.hint} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={{ color: TEXT.hint, fontSize: 10 }}>詳細を見る</Text>
+            <Ionicons name="chevron-forward" size={10} color={TEXT.hint} />
+          </View>
+          <TouchableOpacity
+            onPress={e => { e.stopPropagation?.(); onShare() }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(229,57,53,0.08)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}
+          >
+            <Ionicons name="share-outline" size={11} color={BRAND} />
+            <Text style={{ color: BRAND, fontSize: 10, fontWeight: '700' }}>シェア</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </TouchableOpacity>
@@ -662,6 +680,7 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
 }) {
   const router = useRouter()
   const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null)
+  const [shareSession,    setShareSession]    = useState<PracticeShareData | null>(null)
   if (loading) return <View style={{ gap: 10 }}>{[1,2,3].map(i => <SkeletonRect key={i} h={80} />)}</View>
 
   const totalKm     = sessions.reduce((a,s) => a+(s.distance_m??0), 0) / 1000
@@ -679,6 +698,35 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
     const dStr = d.toISOString().slice(0, 10)
     if (dateSet.has(dStr)) streak++
     else if (i > 0) break  // streak ends (today OK to be 0)
+  }
+
+  // セッション→シェアデータ変換
+  const TYPE_LABEL_MAP: Record<string, string> = {
+    interval:'インターバル', tempo:'テンポ走', easy:'ジョグ', long:'ロング走',
+    sprint:'スプリント', drill:'ドリル', strength:'ウェイト', race:'試合', rest:'休養',
+  }
+  const fmtMsShare = (ms: number) => {
+    const s = ms / 1000
+    if (s < 60) return `${s.toFixed(2)}"`
+    return `${Math.floor(s/60)}'${(s%60).toFixed(2).padStart(5,'0')}"`
+  }
+  const buildShare = (sess: TrainingSession): PracticeShareData => {
+    const dt = new Date(sess.session_date + 'T00:00:00')
+    const weekdays = ['日','月','火','水','木','金','土']
+    const levelInfo = calcLevelInfo(sessions.length)
+    return {
+      date:      `${dt.getFullYear()}年${dt.getMonth()+1}月${dt.getDate()}日（${weekdays[dt.getDay()]}）`,
+      title:     TYPE_LABEL_MAP[sess.session_type] ?? sess.session_type,
+      menu:      sess.notes ?? undefined,
+      distance:  sess.distance_m ? sess.distance_m / 1000 : undefined,
+      sets:      sess.reps ?? undefined,
+      time:      sess.time_ms ? fmtMsShare(sess.time_ms) : undefined,
+      fatigue:   sess.fatigue_level,
+      condition: sess.condition_level,
+      weather:   sess.weather ?? undefined,
+      streak,
+      rank:      `${levelInfo.emoji} ${levelInfo.title}`,
+    }
   }
 
   // タイムライン：日付ごとにグループ化
@@ -784,12 +832,17 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
             <Text style={[styles.emptyText, { fontSize: 12, marginTop: 4 }]}>＋ボタンから今日の練習を記録しよう</Text>
           </View>
         ) : (
-          <View style={{ gap: 8 }}>
+          <ScrollView
+            style={{ maxHeight: 340 }}
+            nestedScrollEnabled
+            showsVerticalScrollIndicator={sessions.length > 4}
+            contentContainerStyle={{ gap: 4 }}
+          >
             {sortedDates.map(date => (
               <View key={date}>
                 <DateHeader dateStr={date} />
                 {byDate[date].map(s => (
-                  <SessionTimelineCard key={s.id} session={s} onTap={() => setSelectedSession(s)} />
+                  <SessionTimelineCard key={s.id} session={s} onTap={() => setSelectedSession(s)} onShare={() => setShareSession(buildShare(s))} />
                 ))}
               </View>
             ))}
@@ -798,7 +851,7 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
                 直近60件を表示中（全{sessions.length}件）
               </Text>
             )}
-          </View>
+          </ScrollView>
         )}
       </View>
       </AnimatedSection>
@@ -839,6 +892,11 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
   {selectedSession && (
     <SessionDetailSheet session={selectedSession} onClose={() => setSelectedSession(null)} onDelete={onDeleteSession} />
   )}
+  <Modal visible={!!shareSession} transparent animationType="fade" onRequestClose={() => setShareSession(null)}>
+    {shareSession ? (
+      <PracticeShareCard data={shareSession} visible={true} onClose={() => setShareSession(null)} />
+    ) : <View />}
+  </Modal>
   </>
 )
 }
@@ -1082,45 +1140,107 @@ function WeightSection({
 }
 
 // ── 体調・睡眠タブ ────────────────────────────────────────────────
-function TrendLine({ data, color, label, format }: {
+function TrendLineChart({ data, color, format }: {
   data: { date: string; value: number }[]
-  color: string; label: string; format: (v: number) => string
+  color: string
+  format: (v: number) => string
 }) {
-  if (data.length === 0) return (
-    <View style={{ alignItems: 'center', paddingVertical: 16 }}>
-      <Text style={{ color: TEXT.hint, fontSize: 12 }}>データがありません</Text>
-    </View>
-  )
-  const maxV = Math.max(...data.map(d => d.value))
-  const minV = Math.min(...data.map(d => d.value))
-  const range = maxV - minV || 1
+  const displayed = data.slice(-30)
+  if (displayed.length === 0) return null
+
+  const TL_YW  = 38
+  const TL_H   = 110
+  const TL_XH  = 18
+  const TL_W   = SCREEN_W - 80 - TL_YW
+
+  const vals   = displayed.map(d => d.value)
+  const rawMax = Math.max(...vals)
+  const rawMin = Math.min(...vals)
+  const pad    = (rawMax - rawMin) * 0.18 || 1
+  const yMax   = rawMax + pad
+  const yMin   = rawMin - pad
+  const yRange = yMax - yMin
+
+  const yTicks = [yMax, (yMax + yMin) / 2, yMin].map(v => Math.round(v * 10) / 10)
+
+  const xFor = (i: number) =>
+    displayed.length === 1 ? TL_W / 2 : (i / (displayed.length - 1)) * TL_W
+  const yFor = (v: number) => TL_H - ((v - yMin) / yRange) * TL_H
+
+  const step = Math.max(1, Math.floor(displayed.length / 6))
 
   return (
     <View style={{ gap: 8 }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 80 }}>
-        {data.slice(-14).map((d, i) => {
-          const pct = (d.value - minV) / range
-          const h = Math.max(6, Math.round(pct * 68) + 6)
-          return (
-            <View key={d.date} style={{ alignItems: 'center', flex: 1, gap: 2 }}>
-              <View style={{ height: 68, justifyContent: 'flex-end' }}>
-                <View style={{ height: h, width: 10, backgroundColor: color + 'aa', borderRadius: 3 }} />
-              </View>
-              {i % 3 === 0 ? (
-                <Text style={{ color: TEXT.hint, fontSize: 7 }}>{d.date.slice(8)}</Text>
-              ) : <View style={{ height: 10 }} />}
-            </View>
-          )
-        })}
+      <View style={{ flexDirection: 'row', marginTop: 4 }}>
+        {/* Y軸ラベル */}
+        <View style={{ width: TL_YW, height: TL_H, justifyContent: 'space-between', alignItems: 'flex-end', paddingRight: 5 }}>
+          {yTicks.map((v, i) => (
+            <Text key={i} style={{ color: TEXT.hint, fontSize: 9 }}>{format(v)}</Text>
+          ))}
+        </View>
+        {/* プロット領域 */}
+        <View style={{ width: TL_W, height: TL_H + TL_XH }}>
+          {/* グリッド横線 */}
+          {yTicks.map((_, i) => {
+            const y = i === 0 ? 0 : i === 1 ? TL_H / 2 : TL_H - 1
+            return <View key={i} style={{ position: 'absolute', left: 0, right: 0, top: y, height: 1, backgroundColor: 'rgba(0,0,0,0.07)' }} />
+          })}
+          {/* 折れ線 */}
+          {displayed.slice(0, -1).map((d, i) => {
+            const x1 = xFor(i),     y1 = yFor(d.value)
+            const x2 = xFor(i + 1), y2 = yFor(displayed[i + 1].value)
+            const dx = x2 - x1, dy = y2 - y1
+            const len   = Math.sqrt(dx * dx + dy * dy)
+            const angle = Math.atan2(dy, dx) * 180 / Math.PI
+            return (
+              <View key={`l${i}`} style={{
+                position: 'absolute',
+                left: (x1 + x2) / 2 - len / 2,
+                top:  (y1 + y2) / 2 - 1,
+                width: len, height: 2,
+                backgroundColor: color, borderRadius: 1,
+                transform: [{ rotate: `${angle}deg` }],
+              }} />
+            )
+          })}
+          {/* ドット */}
+          {displayed.map((d, i) => {
+            const x = xFor(i), y = yFor(d.value)
+            const isLatest = i === displayed.length - 1
+            return (
+              <View key={`d${i}`} style={{
+                position: 'absolute', left: x - 4, top: y - 4,
+                width: 8, height: 8, borderRadius: 4,
+                backgroundColor: isLatest ? color : color + 'cc',
+                borderWidth: isLatest ? 2 : 1,
+                borderColor: isLatest ? '#fff' : 'rgba(0,0,0,0.2)',
+              }} />
+            )
+          })}
+          {/* X軸日付ラベル */}
+          {displayed.map((d, i) => {
+            if (i % step !== 0 && i !== displayed.length - 1) return null
+            const x  = xFor(i)
+            const dt = new Date(d.date)
+            return (
+              <Text key={`x${i}`} style={{
+                position: 'absolute', left: x - 12, top: TL_H + 2,
+                width: 24, textAlign: 'center',
+                color: TEXT.hint, fontSize: 8,
+              }}>{`${dt.getMonth() + 1}/${dt.getDate()}`}</Text>
+            )
+          })}
+        </View>
       </View>
+      {/* 統計 */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
         <Text style={{ color: TEXT.hint, fontSize: 11 }}>
           平均: <Text style={{ color: TEXT.primary, fontWeight: '700' }}>
-            {format(data.reduce((a,d)=>a+d.value,0)/data.length)}
+            {format(vals.reduce((a, v) => a + v, 0) / vals.length)}
           </Text>
         </Text>
         <Text style={{ color: TEXT.hint, fontSize: 11 }}>
-          最高: <Text style={{ color, fontWeight: '700' }}>{format(maxV)}</Text>
+          最高: <Text style={{ color, fontWeight: '700' }}>{format(rawMax)}</Text>
         </Text>
       </View>
     </View>
@@ -1166,11 +1286,10 @@ function HealthTab({ conditionMap, sleepRecords, weightRecords, onAddWeight, onD
           </View>
         ) : (
           <>
-            <TrendLine
+            <TrendLineChart
               data={condData}
               color={NEON.green}
-              label="体調"
-              format={v => `${v.toFixed(1)}/10`}
+              format={v => `${v.toFixed(1)}`}
             />
             {/* 今日の体調 */}
             {condData.length > 0 && (
@@ -1203,10 +1322,9 @@ function HealthTab({ conditionMap, sleepRecords, weightRecords, onAddWeight, onD
             <Text style={styles.emptyText}>睡眠データがありません{'\n'}睡眠タブで記録しましょう</Text>
           </View>
         ) : (
-          <TrendLine
+          <TrendLineChart
             data={sleepData}
             color={NEON.purple}
-            label="睡眠"
             format={v => `${v.toFixed(1)}h`}
           />
         )}
@@ -1223,7 +1341,12 @@ function HealthTab({ conditionMap, sleepRecords, weightRecords, onAddWeight, onD
 // ── メイン ────────────────────────────────────────────────────────
 export default function RecordsScreen() {
   const router = useRouter()
+  const { isGuest } = useAuth()
   const [activeTab, setActiveTab] = useState<'practice'|'records'|'health'>('practice')
+  const [csvGateVisible,     setCsvGateVisible]     = useState(false)
+  const [csvGateRemaining,   setCsvGateRemaining]   = useState(0)
+  const [csvGateHardLimited, setCsvGateHardLimited] = useState(false)
+  const [csvGateRewardUses,  setCsvGateRewardUses]  = useState(0)
   const [records, setRecords] = useState<RaceRecord[]>([])
   const [sessions, setSessions] = useState<TrainingSession[]>([])
   const [conditionMap, setConditionMap] = useState<Record<string,number>>({})
@@ -1246,6 +1369,7 @@ export default function RecordsScreen() {
   const [fVenue, setFVenue]   = useState('')
   const [fComp, setFComp]     = useState('')
   const [fIsPB, setFIsPB]     = useState(false)
+  const [showConfetti, setShowConfetti] = useState(false)
   const [fIsSB, setFIsSB]     = useState(false)
   const [fNotes, setFNotes]   = useState('')
   const [saving, setSaving]   = useState(false)
@@ -1336,7 +1460,7 @@ export default function RecordsScreen() {
       const updated = [newRec, ...records].sort((a, b) => b.race_date.localeCompare(a.race_date))
       await AsyncStorage.setItem(RECORDS_KEY, JSON.stringify(updated))
       setRecords(updated)
-      if (fIsPB) { Sounds.pb() } else { Sounds.save() }
+      if (fIsPB) { Sounds.pb(); pbCelebration(); setShowConfetti(true); setTimeout(() => setShowConfetti(false), 3000) } else { Sounds.save() }
       Toast.show({ type: 'success', text1: `✅ ${fEvent}  ${display}${fIsPB ? '  🏆 PB！' : ''}` })
       resetForm(); setModalVisible(false)
     } catch {
@@ -1379,21 +1503,22 @@ export default function RecordsScreen() {
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <TouchableOpacity
               style={styles.iconBtn}
-              onPress={() => {
+              onPress={async () => {
                 Sounds.whoosh()
+                if (isGuest) { setCsvGateRemaining(0); setCsvGateHardLimited(false); setCsvGateVisible(true); return }
+                const gate = await checkAdGate('csv')
+                if (!gate.allowed) { setCsvGateRemaining(0); setCsvGateRewardUses(gate.rewardUses); setCsvGateHardLimited(gate.hardLimited); setCsvGateVisible(true); return }
+                if (gate.remaining === 0 && gate.rewardUses > 0) {
+                  await consumeRewardUse('csv')
+                } else if (gate.remaining === 1) {
+                  setCsvGateRemaining(1); setCsvGateVisible(true); return
+                } else {
+                  await recordUsage('csv')
+                }
+                trackFeatureUse('csv')
                 Alert.alert('エクスポート', '形式を選択してください', [
-                  {
-                    text: 'CSV',
-                    onPress: () => {
-                      exportAllDataCSV().catch(() => Toast.show({ type: 'error', text1: 'エクスポートに失敗しました' }))
-                    },
-                  },
-                  {
-                    text: 'JSON',
-                    onPress: () => {
-                      exportAllDataJSON().catch(() => Toast.show({ type: 'error', text1: 'エクスポートに失敗しました' }))
-                    },
-                  },
+                  { text: 'CSV',  onPress: () => exportAllDataCSV().catch(() => Toast.show({ type: 'error', text1: 'エクスポートに失敗しました' })) },
+                  { text: 'JSON', onPress: () => exportAllDataJSON().catch(() => Toast.show({ type: 'error', text1: 'エクスポートに失敗しました' })) },
                   { text: 'キャンセル', style: 'cancel' },
                 ])
               }}
@@ -1694,6 +1819,30 @@ export default function RecordsScreen() {
         </Modal>
 
       </SafeAreaView>
+
+      {/* CSV AdGate モーダル */}
+      <AdGateModal
+        visible={csvGateVisible}
+        feature="csv"
+        remaining={csvGateRemaining}
+        rewardUses={csvGateRewardUses}
+        hardLimited={csvGateHardLimited}
+        isGuest={isGuest}
+        onClose={() => setCsvGateVisible(false)}
+        onAdWatched={async () => {
+          setCsvGateVisible(false)
+          const g = await checkAdGate('csv')
+          if (g.rewardUses > 0) {
+            await consumeRewardUse('csv')
+          } else {
+            await recordUsage('csv')
+          }
+          trackFeatureUse('csv')
+          exportAllDataCSV().catch(() => Toast.show({ type: 'error', text1: 'エクスポートに失敗しました' }))
+        }}
+        onUpgrade={() => { setCsvGateVisible(false); router.push('/paywall') }}
+      />
+    <ConfettiEffect visible={showConfetti} onDone={() => setShowConfetti(false)} />
     </View>
   )
 }

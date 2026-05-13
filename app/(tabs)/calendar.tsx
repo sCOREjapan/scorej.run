@@ -338,7 +338,15 @@ export default function CalendarScreen() {
     setModalVisible(true)
   }
 
+  // 過去制限なし・未来は5ヶ月先まで
+  const maxYear  = today.getFullYear() + Math.floor((today.getMonth() + 5) / 12)
+  const maxMonth = (today.getMonth() + 5) % 12
+  const isAtMax  = year > maxYear || (year === maxYear && month >= maxMonth)
+  const isAtMin  = year < 2020   // 極端な過去はブロック
+
   function changeMonth(delta: number) {
+    if (delta > 0 && isAtMax) return   // 5ヶ月先以上は進めない
+    if (delta < 0 && isAtMin) return
     Animated.timing(fadeAnim, { toValue: 0, duration: 110, useNativeDriver: true }).start(() => {
       setMonth(prev => {
         let nm = prev + delta, ny = year
@@ -363,7 +371,11 @@ export default function CalendarScreen() {
   const monthEntries = Object.entries(dayMap).filter(([d]) => d.startsWith(monthPrefix))
 
   const { colors } = useTheme()
-  const selectedRecords = recordMap[selectedDate] ?? []
+  // 予定（event/competition）を先頭に、練習記録は後ろに並べる
+  const selectedRecords = [...(recordMap[selectedDate] ?? [])].sort((a, b) => {
+    const priority = (t: DotType) => t === 'event' ? 0 : t === 'competition' ? 1 : t === 'race' ? 2 : t === 'workout' ? 3 : 4
+    return priority(a.type) - priority(b.type)
+  })
   const selectedIsEvent = (r: DayRecord) => r.type === 'event'
 
   return (
@@ -373,11 +385,11 @@ export default function CalendarScreen() {
 
           {/* ── 月ナビ ── */}
           <View style={st.monthNav}>
-            <HapticTouch haptic="tabSwitch" onPress={() => changeMonth(-1)} style={[st.navBtn, { backgroundColor: colors.surface2, borderColor: colors.border }]} activeOpacity={0.7}>
+            <HapticTouch haptic="tabSwitch" onPress={() => changeMonth(-1)} style={[st.navBtn, { backgroundColor: colors.surface2, borderColor: colors.border, opacity: isAtMin ? 0.3 : 1 }]} activeOpacity={0.7}>
               <Ionicons name="chevron-back" size={22} color={colors.text} />
             </HapticTouch>
             <Text style={[st.monthTitle, { color: colors.text }]}>{year}年{month + 1}月</Text>
-            <HapticTouch haptic="tabSwitch" onPress={() => changeMonth(1)} style={[st.navBtn, { backgroundColor: colors.surface2, borderColor: colors.border }]} activeOpacity={0.7}>
+            <HapticTouch haptic="tabSwitch" onPress={() => changeMonth(1)} style={[st.navBtn, { backgroundColor: colors.surface2, borderColor: colors.border, opacity: isAtMax ? 0.3 : 1 }]} activeOpacity={0.7}>
               <Ionicons name="chevron-forward" size={22} color={colors.text} />
             </HapticTouch>
           </View>
@@ -445,7 +457,12 @@ export default function CalendarScreen() {
                 <Text style={[st.emptySub, { color: colors.textHint }]}>「予定を追加」で自由に入力できます</Text>
               </View>
             ) : (
-              <View style={{ gap: 8 }}>
+              <ScrollView
+                style={{ maxHeight: 300 }}
+                nestedScrollEnabled
+                showsVerticalScrollIndicator={selectedRecords.length > 5}
+                contentContainerStyle={{ gap: 8 }}
+              >
                 {selectedRecords.map((rec, idx) => {
                   const isEv  = selectedIsEvent(rec)
                   const color = isEv ? getCatInfo(rec.label.split(' ')[1] as any)?.color ?? '#9B6BFF' : DOT_COLORS[rec.type]
@@ -483,7 +500,7 @@ export default function CalendarScreen() {
                     </View>
                   )
                 })}
-              </View>
+              </ScrollView>
             )}
           </View>
 

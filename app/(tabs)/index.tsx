@@ -22,12 +22,14 @@ import HapticTouch from '../../components/HapticTouch'
 import Logo from '../../components/Logo'
 import PWAInstallPrompt from '../../components/PWAInstallPrompt'
 import QuickLogModal from '../../components/QuickLogModal'
+import PracticeShareCard, { PracticeShareData } from '../../components/PracticeShareCard'
 import StretchHoldButton from '../../components/StretchHoldButton'
 import { registerHomeScroll, unregisterHomeScroll } from '../../lib/homeScroll'
 import { setQuickLogListener, clearQuickLogListener } from '../../lib/quickLogEvent'
 import { getCurrentLocationWeather } from '../../lib/weather'
 import { calcWeatherRiskBonus, getWeatherRiskText } from '../../lib/weatherRisk'
 import { autoSyncTeam } from '../../lib/teamAutoSync'
+import { trackAppOpen, trackPaywallView } from '../../lib/analytics'
 import { sendRiskAlertIfNeeded, sendStretchReminderIfNeeded, scheduleCompetitionReminder } from '../../lib/notifications'
 import { fetchTeamEvents, type TeamEventRow } from '../../lib/supabaseTeam'
 import type { SleepRecord } from '../../types'
@@ -70,6 +72,12 @@ function fmtEventDateHome(d: string) {
   return `${dt.getMonth()+1}/${dt.getDate()}（${JP[dt.getDay()]}）`
 }
 
+export interface GoalTask {
+  id: string
+  text: string
+  done: boolean
+}
+
 export interface Goal {
   id: string
   text: string
@@ -77,6 +85,7 @@ export interface Goal {
   progress: number    // 0-100
   achieved: boolean
   created_at: string
+  tasks?: GoalTask[]  // サブタスク
 }
 
 export interface ImprovementTask {
@@ -243,6 +252,7 @@ const RISK_CFG = [
 function ScoreOverviewCard({
   sessions, sleepRecords, conditionLevel, riskResult,
   effectiveRiskScore, weatherBonus, onStretchStart,
+  onRefreshWeather, weatherLoading,
 }: {
   sessions: import('../../types').TrainingSession[]
   sleepRecords: import('../../types').SleepRecord[]
@@ -251,6 +261,8 @@ function ScoreOverviewCard({
   effectiveRiskScore?: number
   weatherBonus?: number
   onStretchStart?: () => void
+  onRefreshWeather?: () => void
+  weatherLoading?: boolean
 }) {
   const { colors } = useTheme()
   const status = calcRecoveryStatus(sessions, sleepRecords, conditionLevel)
@@ -293,7 +305,7 @@ function ScoreOverviewCard({
       <View style={[so.card, { backgroundColor: colors.surface }]}>
         {/* ヘッダー行 */}
         <View style={so.cardHeader}>
-          <Text style={so.riskLabel}>INJURY RISK SCORE</Text>
+          <Text style={so.riskLabel}>今日の怪我リスク</Text>
           <View style={[so.riskBadge, { backgroundColor: cfg.color + '18', borderColor: cfg.color + '40' }]}>
             <View style={[so.riskDot, { backgroundColor: cfg.color }]} />
             <Text style={[so.riskBadgeText, { color: cfg.color }]}>{cfg.label}</Text>
@@ -320,11 +332,24 @@ function ScoreOverviewCard({
       {/* ── 4ステータスカード行 ── */}
       <View style={so.statRow}>
         {statCards.map(sc => (
-          <View key={sc.label} style={[so.statCard, { backgroundColor: colors.surface }]}>
-            <Text style={{ fontSize: 18 }}>{sc.emoji}</Text>
-            <Text style={[so.statVal, { color: sc.color }]}>{sc.value}</Text>
-            <Text style={[so.statLabel, { color: colors.textHint }]}>{sc.label}</Text>
-          </View>
+          sc.label === '天気' && onRefreshWeather ? (
+            <TouchableOpacity
+              key={sc.label}
+              style={[so.statCard, { backgroundColor: colors.surface }]}
+              onPress={onRefreshWeather}
+              activeOpacity={0.75}
+            >
+              <Text style={{ fontSize: 18 }}>{weatherLoading ? '🔄' : sc.emoji}</Text>
+              <Text style={[so.statVal, { color: sc.color }]}>{sc.value}</Text>
+              <Text style={[so.statLabel, { color: colors.textHint }]}>{sc.label}</Text>
+            </TouchableOpacity>
+          ) : (
+            <View key={sc.label} style={[so.statCard, { backgroundColor: colors.surface }]}>
+              <Text style={{ fontSize: 18 }}>{sc.emoji}</Text>
+              <Text style={[so.statVal, { color: sc.color }]}>{sc.value}</Text>
+              <Text style={[so.statLabel, { color: colors.textHint }]}>{sc.label}</Text>
+            </View>
+          )
         ))}
       </View>
 
@@ -354,7 +379,7 @@ const so = StyleSheet.create({
     shadowOpacity: 0.10, shadowRadius: 20, elevation: 6,
   },
   cardHeader:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  riskLabel:     { fontSize: 11, fontWeight: '700', letterSpacing: 1.5, color: '#9ca3af' },
+  riskLabel:     { fontSize: 11, fontWeight: '700', letterSpacing: 0.3, color: '#9ca3af' },
   riskBadge:     { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
   riskDot:       { width: 7, height: 7, borderRadius: 4 },
   riskBadgeText: { fontSize: 11, fontWeight: '700' },
@@ -585,7 +610,7 @@ const dp = StyleSheet.create({
 })
 
 // ────────────────────────────────────────────────────────
-// GoalCard — 目標の可視化
+// GoalCard — 目標 + タスク管理
 // ────────────────────────────────────────────────────────
 function GoalCard({
   goals,
@@ -595,21 +620,30 @@ function GoalCard({
   onUpdate: (goals: Goal[]) => void
 }) {
   const { colors } = useTheme()
-  const [showModal, setShowModal] = useState(false)
-  const [editGoal, setEditGoal] = useState<Goal | null>(null)
-  const [inputText, setInputText] = useState('')
+  const [showModal,     setShowModal]     = useState(false)
+  const [editGoal,      setEditGoal]      = useState<Goal | null>(null)
+  const [inputText,     setInputText]     = useState('')
   const [inputDeadline, setInputDeadline] = useState('')
-  const [inputProgress, setInputProgress] = useState(0)
-  const [showAchieved, setShowAchieved] = useState(false)
+  const [editTasks,     setEditTasks]     = useState<GoalTask[]>([])
+  const [newTaskText,   setNewTaskText]   = useState('')
+  const [showAchieved,  setShowAchieved]  = useState(false)
+  const [expandedId,    setExpandedId]    = useState<string | null>(null)
 
   const active   = goals.filter(g => !g.achieved)
   const achieved = goals.filter(g => g.achieved)
+
+  // タスク完了数からprogress自動計算
+  function calcProgress(tasks: GoalTask[]): number {
+    if (tasks.length === 0) return 0
+    return Math.round((tasks.filter(t => t.done).length / tasks.length) * 100)
+  }
 
   function openAdd() {
     setEditGoal(null)
     setInputText('')
     setInputDeadline('')
-    setInputProgress(0)
+    setEditTasks([])
+    setNewTaskText('')
     setShowModal(true)
   }
 
@@ -617,17 +651,42 @@ function GoalCard({
     setEditGoal(g)
     setInputText(g.text)
     setInputDeadline(g.deadline ?? '')
-    setInputProgress(g.progress)
+    setEditTasks(g.tasks ? [...g.tasks] : [])
+    setNewTaskText('')
     setShowModal(true)
+  }
+
+  function addTask() {
+    if (!newTaskText.trim()) return
+    setEditTasks(prev => [...prev, { id: `task-${Date.now()}`, text: newTaskText.trim(), done: false }])
+    setNewTaskText('')
+  }
+
+  function toggleEditTask(id: string) {
+    setEditTasks(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t))
+  }
+
+  function removeTask(id: string) {
+    setEditTasks(prev => prev.filter(t => t.id !== id))
+  }
+
+  // カード上でタスクを直接チェック（モーダルを開かず）
+  function toggleTaskInline(goalId: string, taskId: string) {
+    const next = goals.map(g => {
+      if (g.id !== goalId) return g
+      const tasks = (g.tasks ?? []).map(t => t.id === taskId ? { ...t, done: !t.done } : t)
+      return { ...g, tasks, progress: calcProgress(tasks) }
+    })
+    onUpdate(next)
   }
 
   function handleSave() {
     if (!inputText.trim()) return
-    let next: Goal[]
+    const progress = editTasks.length > 0 ? calcProgress(editTasks) : 0
     if (editGoal) {
-      next = goals.map(g => g.id === editGoal.id
-        ? { ...g, text: inputText.trim(), deadline: inputDeadline || undefined, progress: inputProgress }
-        : g)
+      onUpdate(goals.map(g => g.id === editGoal.id
+        ? { ...g, text: inputText.trim(), deadline: inputDeadline || undefined, tasks: editTasks, progress }
+        : g))
     } else {
       const newGoal: Goal = {
         id: `goal-${Date.now()}`,
@@ -636,10 +695,10 @@ function GoalCard({
         progress: 0,
         achieved: false,
         created_at: new Date().toISOString(),
+        tasks: editTasks,
       }
-      next = [newGoal, ...goals]
+      onUpdate([newGoal, ...goals])
     }
-    onUpdate(next)
     setShowModal(false)
   }
 
@@ -686,12 +745,9 @@ function GoalCard({
               </View>
             )}
           </View>
-          <HapticTouch
-            haptic="whoosh"
-            onPress={openAdd}
+          <HapticTouch haptic="whoosh" onPress={openAdd}
             style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center' }}
-            activeOpacity={0.8}
-          >
+            activeOpacity={0.8}>
             <Ionicons name="add" size={18} color="#fff" />
           </HapticTouch>
         </View>
@@ -699,35 +755,89 @@ function GoalCard({
         {/* 目標リスト */}
         {active.length === 0 ? (
           <TouchableOpacity onPress={openAdd} activeOpacity={0.7} style={gc.emptyRow}>
-            <Text style={{ color: colors.textHint, fontSize: 13 }}>タップして目標を設定しよう</Text>
+            <Text style={{ color: colors.textHint, fontSize: 13 }}>タップして目標を追加しよう</Text>
           </TouchableOpacity>
         ) : (
-          <View style={{ gap: 10 }}>
+          <View style={{ gap: 12 }}>
             {active.map((g, idx) => {
-              const dl  = daysLeft(g.deadline)
-              const col = progressColor(g.progress)
+              const dl       = daysLeft(g.deadline)
+              const tasks    = g.tasks ?? []
+              const done     = tasks.filter(t => t.done).length
+              const total    = tasks.length
+              const progress = total > 0 ? calcProgress(tasks) : g.progress
+              const col      = progressColor(progress)
+              const expanded = expandedId === g.id
+
               return (
-                <TouchableOpacity
-                  key={g.id}
-                  onPress={() => openEdit(g)}
-                  activeOpacity={0.75}
-                  style={[gc.goalRow, idx > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}
-                >
-                  <View style={{ flex: 1, gap: 6 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={[gc.goalText, { color: colors.text }]} numberOfLines={2}>{g.text}</Text>
-                      {dl && <Text style={{ color: dl.color, fontSize: 10, fontWeight: '700', flexShrink: 0 }}>{dl.text}</Text>}
-                    </View>
-                    {/* 進捗バー */}
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <View style={[gc.barBg, { backgroundColor: colors.surface2, flex: 1 }]}>
-                        <View style={[gc.barFill, { width: `${g.progress}%` as any, backgroundColor: col }]} />
+                <View key={g.id} style={[gc.goalBlock, idx > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}>
+                  {/* 目標ヘッダー行 */}
+                  <TouchableOpacity
+                    onPress={() => setExpandedId(expanded ? null : g.id)}
+                    activeOpacity={0.75}
+                    style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}
+                  >
+                    <View style={{ flex: 1, gap: 5 }}>
+                      {/* タイトル + 期日 */}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <Text style={[gc.goalText, { color: colors.text }]} numberOfLines={expanded ? 10 : 2}>{g.text}</Text>
+                        {dl && <Text style={{ color: dl.color, fontSize: 10, fontWeight: '700', flexShrink: 0 }}>{dl.text}</Text>}
                       </View>
-                      <Text style={{ color: col, fontSize: 11, fontWeight: '800', width: 32, textAlign: 'right' }}>{g.progress}%</Text>
+
+                      {/* タスクカウンター + プログレスバー */}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        {total > 0 && (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: col + '18', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3 }}>
+                            <Ionicons name="checkmark-circle" size={11} color={col} />
+                            <Text style={{ color: col, fontSize: 11, fontWeight: '800' }}>{done}/{total} タスク</Text>
+                          </View>
+                        )}
+                        <View style={[gc.barBg, { flex: 1, backgroundColor: colors.surface2 }]}>
+                          <View style={[gc.barFill, { width: `${progress}%` as any, backgroundColor: col }]} />
+                        </View>
+                        <Text style={{ color: col, fontSize: 11, fontWeight: '800', width: 32, textAlign: 'right' }}>{progress}%</Text>
+                      </View>
                     </View>
-                  </View>
-                  <Ionicons name="chevron-forward" size={14} color={colors.textHint} style={{ marginLeft: 4 }} />
-                </TouchableOpacity>
+
+                    {/* 編集ボタン */}
+                    <TouchableOpacity
+                      onPress={() => openEdit(g)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      style={{ padding: 4 }}
+                    >
+                      <Ionicons name="create-outline" size={15} color={colors.textHint} />
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+
+                  {/* タスクリスト（展開時） */}
+                  {expanded && total > 0 && (
+                    <View style={{ marginTop: 8, gap: 4, paddingLeft: 4 }}>
+                      {tasks.map(t => (
+                        <TouchableOpacity
+                          key={t.id}
+                          onPress={() => toggleTaskInline(g.id, t.id)}
+                          activeOpacity={0.7}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 5 }}
+                        >
+                          <View style={[gc.checkbox, t.done && { backgroundColor: '#34C759', borderColor: '#34C759' }]}>
+                            {t.done && <Ionicons name="checkmark" size={11} color="#fff" />}
+                          </View>
+                          <Text style={{ color: t.done ? colors.textHint : colors.text, fontSize: 13, flex: 1, textDecorationLine: t.done ? 'line-through' : 'none' }}>
+                            {t.text}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* タスクなし＋展開済み → タスク追加を促す */}
+                  {expanded && total === 0 && (
+                    <TouchableOpacity onPress={() => openEdit(g)} activeOpacity={0.7}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingLeft: 4 }}>
+                      <Ionicons name="add-circle-outline" size={14} color={BRAND} />
+                      <Text style={{ color: BRAND, fontSize: 12, fontWeight: '700' }}>タスクを追加</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               )
             })}
           </View>
@@ -747,6 +857,9 @@ function GoalCard({
             style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, borderTopWidth: 1, borderTopColor: colors.border }}>
             <Text style={{ fontSize: 14 }}>🏆</Text>
             <Text style={{ color: '#34C759', fontSize: 12, fontWeight: '700', flex: 1 }} numberOfLines={1}>{g.text}</Text>
+            {(g.tasks?.length ?? 0) > 0 && (
+              <Text style={{ color: '#888', fontSize: 10 }}>{g.tasks!.filter(t=>t.done).length}/{g.tasks!.length}</Text>
+            )}
           </TouchableOpacity>
         ))}
       </View>
@@ -778,30 +891,69 @@ function GoalCard({
               <Text style={[gc.label, { color: colors.textSec }]}>期日（任意）</Text>
               <DeadlinePicker value={inputDeadline} onChange={setInputDeadline} />
 
-              {/* 達成率スライダー（+/-ボタン） */}
-              <Text style={[gc.label, { color: colors.textSec }]}>
-                達成率: <Text style={{ color: progressColor(inputProgress), fontWeight: '800' }}>{inputProgress}%</Text>
-              </Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                <TouchableOpacity onPress={() => setInputProgress(Math.max(0, inputProgress - 10))} style={gc.stepBtn} activeOpacity={0.7}>
-                  <Ionicons name="remove" size={18} color="#6b7280" />
-                </TouchableOpacity>
-                <View style={[gc.barBg, { flex: 1, backgroundColor: colors.surface2, height: 8 }]}>
-                  <View style={[gc.barFill, { width: `${inputProgress}%` as any, backgroundColor: progressColor(inputProgress), height: 8 }]} />
-                </View>
-                <TouchableOpacity onPress={() => setInputProgress(Math.min(100, inputProgress + 10))} style={gc.stepBtn} activeOpacity={0.7}>
-                  <Ionicons name="add" size={18} color="#6b7280" />
+              {/* ─ タスクセクション ─ */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6, marginBottom: 8 }}>
+                <Text style={[gc.label, { color: colors.textSec, marginBottom: 0 }]}>
+                  タスク {editTasks.length > 0 && (
+                    <Text style={{ color: BRAND }}>
+                      {editTasks.filter(t => t.done).length}/{editTasks.length} 完了
+                    </Text>
+                  )}
+                </Text>
+              </View>
+
+              {/* タスク入力行 */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <TextInput
+                  value={newTaskText}
+                  onChangeText={setNewTaskText}
+                  placeholder="新しいタスクを入力..."
+                  placeholderTextColor={colors.textHint}
+                  style={[gc.input, { flex: 1, marginBottom: 0, minHeight: 40 }, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface2 }]}
+                  returnKeyType="done"
+                  onSubmitEditing={addTask}
+                />
+                <TouchableOpacity onPress={addTask} style={[gc.stepBtn, { backgroundColor: BRAND, borderColor: BRAND }]} activeOpacity={0.8}>
+                  <Ionicons name="add" size={18} color="#fff" />
                 </TouchableOpacity>
               </View>
 
+              {/* タスクリスト */}
+              {editTasks.length > 0 && (
+                <View style={{ gap: 4, marginBottom: 14, backgroundColor: colors.surface2, borderRadius: 12, padding: 10 }}>
+                  {/* 全体進捗バー */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <View style={[gc.barBg, { flex: 1, backgroundColor: colors.border }]}>
+                      <View style={[gc.barFill, {
+                        width: `${calcProgress(editTasks)}%` as any,
+                        backgroundColor: progressColor(calcProgress(editTasks)),
+                      }]} />
+                    </View>
+                    <Text style={{ color: progressColor(calcProgress(editTasks)), fontSize: 12, fontWeight: '800', width: 36, textAlign: 'right' }}>
+                      {calcProgress(editTasks)}%
+                    </Text>
+                  </View>
+
+                  {editTasks.map((t, i) => (
+                    <View key={t.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8,
+                      paddingVertical: 6, borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.border }}>
+                      <TouchableOpacity onPress={() => toggleEditTask(t.id)} style={[gc.checkbox, t.done && { backgroundColor: '#34C759', borderColor: '#34C759' }]}>
+                        {t.done && <Ionicons name="checkmark" size={11} color="#fff" />}
+                      </TouchableOpacity>
+                      <Text style={{ flex: 1, fontSize: 13, color: t.done ? colors.textHint : colors.text, textDecorationLine: t.done ? 'line-through' : 'none' }}>
+                        {t.text}
+                      </Text>
+                      <TouchableOpacity onPress={() => removeTask(t.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <Ionicons name="close-circle" size={16} color="#d1d5db" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+
               {/* ボタン群 */}
-              <HapticTouch
-                haptic="save"
-                style={[gc.saveBtn, !inputText.trim() && { opacity: 0.4 }]}
-                onPress={handleSave}
-                disabled={!inputText.trim()}
-                activeOpacity={0.85}
-              >
+              <HapticTouch haptic="save" style={[gc.saveBtn, !inputText.trim() && { opacity: 0.4 }]}
+                onPress={handleSave} disabled={!inputText.trim()} activeOpacity={0.85}>
                 <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>{editGoal ? '保存' : '追加'}</Text>
               </HapticTouch>
 
@@ -827,18 +979,19 @@ function GoalCard({
 }
 
 const gc = StyleSheet.create({
-  card:         { borderRadius: 18, borderWidth: 1, padding: 14, gap: 10 },
-  header:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title:        { fontSize: 13, fontWeight: '800', letterSpacing: 0.5 },
-  emptyRow:     { paddingVertical: 14, alignItems: 'center' },
-  goalRow:      { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
-  goalText:     { fontSize: 13, fontWeight: '700', flex: 1, lineHeight: 18 },
-  barBg:        { height: 6, borderRadius: 3, overflow: 'hidden' },
-  barFill:      { height: 6, borderRadius: 3 },
+  card:          { borderRadius: 18, borderWidth: 1, padding: 14, gap: 10 },
+  header:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  title:         { fontSize: 13, fontWeight: '800', letterSpacing: 0.5 },
+  emptyRow:      { paddingVertical: 14, alignItems: 'center' },
+  goalBlock:     { paddingVertical: 10, gap: 0 },
+  goalText:      { fontSize: 15, fontWeight: '700', flex: 1, lineHeight: 22 },
+  barBg:         { height: 6, borderRadius: 3, overflow: 'hidden' },
+  barFill:       { height: 6, borderRadius: 3 },
+  checkbox:      { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: '#d1d5db', alignItems: 'center', justifyContent: 'center' },
   achievedToggle:{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingTop: 6, borderTopWidth: 1, borderTopColor: 'rgba(52,199,89,0.2)' },
 
   overlay:      { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  sheet:        { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 36, maxHeight: '80%' },
+  sheet:        { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 36, maxHeight: '88%' },
   sheetHeader:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 },
   sheetTitle:   { fontSize: 17, fontWeight: '800' },
   label:        { fontSize: 12, fontWeight: '700', marginBottom: 6 },
@@ -878,10 +1031,23 @@ export default function DashboardScreen() {
   const [loadingAI,       setLoadingAI]       = useState(false)
   const [weatherBonus,    setWeatherBonus]    = useState(0)
   const [weatherText,     setWeatherText]     = useState<string | null>(null)
+  const [weatherLoading,  setWeatherLoading]  = useState(false)
   const [stretchReduction,setStretchReduction]= useState(0)
   const [recoveryBanner,  setRecoveryBanner]  = useState<{ reduction: number } | null>(null)
   const [teamNotifs,      setTeamNotifs]      = useState<TeamEventRow[]>([])
   const [confirmedIds,    setConfirmedIds]    = useState<Set<string>>(new Set())
+  const [shareSession,    setShareSession]    = useState<PracticeShareData | null>(null)
+
+  // ── アプリ起動トラッキング（1日1回） ──
+  useEffect(() => {
+    const TODAY = new Date().toISOString().slice(0, 10)
+    AsyncStorage.getItem('score_last_open_tracked').then(last => {
+      if (last !== TODAY) {
+        trackAppOpen()
+        AsyncStorage.setItem('score_last_open_tracked', TODAY).catch(() => {})
+      }
+    }).catch(() => {})
+  }, [])
 
   // ── 永続データ読み込み ──
   useEffect(() => {
@@ -909,14 +1075,19 @@ export default function DashboardScreen() {
   }, [])
 
   // ── 天気取得 ──
-  useEffect(() => {
-    getCurrentLocationWeather().then(w => {
+  const fetchWeather = useCallback(async () => {
+    setWeatherLoading(true)
+    try {
+      const w = await getCurrentLocationWeather()
       if (!w) return
       const bonus = calcWeatherRiskBonus(w)
       setWeatherBonus(bonus)
       setWeatherText(getWeatherRiskText(w, bonus))
-    }).catch(() => {})
+    } catch {}
+    finally { setWeatherLoading(false) }
   }, [])
+
+  useEffect(() => { fetchWeather() }, [fetchWeather])
 
   function handleGoalsUpdate(next: Goal[]) {
     setGoals(next)
@@ -995,7 +1166,6 @@ export default function DashboardScreen() {
     setShowAIAdvice(true)
     setAiAdvice('')
     try {
-      const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY
       const today  = new Date().toISOString().slice(0, 10)
 
       // 直近7日の練習データ
@@ -1044,15 +1214,12 @@ ${sessionsText}
 
 回答は各項目を絵文字＋見出し付きで、読みやすくまとめてください。`
 
-      if (apiKey) {
-        const res = await fetch('https://api.anthropic.com/v1/messages', {
+      {
+        const apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? '').replace(/\/$/, '')
+        const endpoint = apiBase ? `${apiBase}/api/analyze` : '/api/analyze'
+        const res = await fetch(endpoint, {
           method: 'POST',
-          headers: {
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01',
-            'content-type': 'application/json',
-            'anthropic-dangerous-direct-browser-access': 'true',
-          },
+          headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
             model: 'claude-haiku-4-5-20251001',
             max_tokens: 800,
@@ -1061,18 +1228,15 @@ ${sessionsText}
         })
         if (res.ok) {
           const data = await res.json()
-          setAiAdvice(data.content?.[0]?.text ?? 'アドバイスを取得できませんでした')
+          const txt = data.content?.[0]?.text
+          setAiAdvice(txt && txt.trim().length > 0 ? txt : 'アドバイスを取得できませんでした。練習・体調データを記録してから再試行してください。')
         } else {
-          setAiAdvice('APIエラーが発生しました。しばらくしてから再試行してください。')
+          const errBody = await res.text().catch(() => '')
+          setAiAdvice(`⚠️ APIエラー (${res.status})。しばらくしてから再試行してください。\n${errBody.slice(0,80)}`)
         }
-      } else {
-        // APIキー未設定時のデモアドバイス
-        setAiAdvice(
-          `🏃 **今週の練習評価**\n記録データをもとに分析しました。\n\n💪 **リカバリーについて**\n疲労度が高い日が続いているため、明日は軽いジョグかオフにしましょう。\n\n📅 **来週の練習方針**\n強度の高い練習（インターバルなど）は週2回以内に抑え、ジョグ・ドリルを中心に体を整えましょう。\n\n🍽️ **食事・睡眠**\n練習後30分以内にたんぱく質（鶏肉・牛乳など）を補給すると回復が早まります。睡眠は7〜8時間を目標に。\n\n⚠️ **注意点**\n体に違和感がある場合は無理せず休養を優先してください。AIコーチ機能はAPIキー設定後にフル活用できます。`
-        )
       }
-    } catch {
-      setAiAdvice('データの取得に失敗しました。もう一度お試しください。')
+    } catch (err: any) {
+      setAiAdvice(`⚠️ 接続エラー: ${err?.message ?? 'もう一度お試しください。'}`)
     } finally {
       setLoadingAI(false)
     }
@@ -1098,11 +1262,17 @@ ${sessionsText}
     return Math.min(100, Math.max(0, riskResult.riskScore + weatherBonus - stretchReduction))
   }, [riskResult, weatherBonus, stretchReduction])
 
-  // 怪我リスクが高い場合に通知を送る
+  // 怪我リスクが高い場合に通知を送る（初回マウント + スコアが閾値を超えた時のみ）
+  const prevRiskRef = useRef<number | null>(null)
   useEffect(() => {
     if (effectiveRiskScore == null) return
-    sendRiskAlertIfNeeded(effectiveRiskScore)
-    sendStretchReminderIfNeeded(effectiveRiskScore, stretchReduction > 0)
+    const prev = prevRiskRef.current
+    prevRiskRef.current = effectiveRiskScore
+    // 前回から閾値をまたいで上昇した場合のみ通知（再マウントやリフレッシュでは発火しない）
+    const crossedRisk    = prev !== null && prev < 80 && effectiveRiskScore >= 80
+    const crossedStretch = prev !== null && prev < 75 && effectiveRiskScore >= 75
+    if (crossedRisk)    sendRiskAlertIfNeeded(effectiveRiskScore)
+    if (crossedStretch) sendStretchReminderIfNeeded(effectiveRiskScore, stretchReduction > 0)
   }, [effectiveRiskScore, stretchReduction])
 
   const handleStretchStart = useCallback(() => {
@@ -1261,6 +1431,8 @@ ${sessionsText}
               effectiveRiskScore={effectiveRiskScore ?? undefined}
               weatherBonus={weatherBonus}
               onStretchStart={handleStretchStart}
+              onRefreshWeather={fetchWeather}
+              weatherLoading={weatherLoading}
             />
           </AnimatedEntry>
 
@@ -1351,54 +1523,82 @@ ${sessionsText}
                   <Text style={{ color: colors.textHint, fontSize: 14 }}>まだ記録なし</Text>
                   <Text style={{ color: colors.textHint, fontSize: 12 }}>下の＋ボタンから記録しよう！</Text>
                 </View>
-              ) : (
-                <>
-                  {sessions.map((sess, idx) => {
-                    const typeInfo = {
-                      interval: { color: '#F5A623', label: 'インターバル' },
-                      tempo:    { color: '#FF9500', label: 'テンポ走' },
-                      easy:     { color: '#4ECDC4', label: 'ジョグ' },
-                      long:     { color: '#5AC8FA', label: 'ロング走' },
-                      sprint:   { color: '#FF6B6B', label: 'スプリント' },
-                      drill:    { color: '#AF52DE', label: 'ドリル' },
-                      strength: { color: '#FF6B35', label: 'ウェイト' },
-                      race:     { color: '#FFD700', label: '試合' },
-                      rest:     { color: '#888',    label: '休養' },
-                    }[sess.session_type] ?? { color: '#888', label: sess.session_type }
-                    const fat = sess.fatigue_level ?? 5
-                    const fatColor = fat >= 8 ? '#FF6B6B' : fat >= 6 ? '#FF9500' : '#4ECDC4'
-                    const fmtTime = (ms: number) => {
-                      const sec = ms / 1000
-                      if (sec < 60) return `${sec.toFixed(2)}"`
-                      return `${Math.floor(sec/60)}'${(sec%60).toFixed(2).padStart(5,'0')}"`
-                    }
-                    return (
-                      <View
-                        key={sess.id}
-                        style={[s.sessRow, idx > 0 && { borderTopWidth: 1, borderTopColor: DIVIDER }]}
-                      >
-                        <View style={[s.typeBar, { backgroundColor: typeInfo.color }]} />
-                        <View style={{ flex: 1 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Text style={[s.sessType, { color: colors.text }]}>{typeInfo.label}</Text>
-                            {sess.event ? <Text style={{ color: colors.textHint, fontSize: 11 }}>{sess.event}</Text> : null}
-                          </View>
-                          <Text style={[s.sessDate, { color: colors.textHint }]}>
-                            {sess.session_date}
-                            {sess.distance_m ? ` · ${sess.distance_m >= 1000 ? `${(sess.distance_m/1000).toFixed(1)}km` : `${sess.distance_m}m`}` : ''}
-                          </Text>
+              ) : (() => {
+                const SESSION_TYPE_MAP: Record<string, { color: string; label: string }> = {
+                  interval: { color: '#F5A623', label: 'インターバル' },
+                  tempo:    { color: '#FF9500', label: 'テンポ走' },
+                  easy:     { color: '#4ECDC4', label: 'ジョグ' },
+                  long:     { color: '#5AC8FA', label: 'ロング走' },
+                  sprint:   { color: '#FF6B6B', label: 'スプリント' },
+                  drill:    { color: '#AF52DE', label: 'ドリル' },
+                  strength: { color: '#FF6B35', label: 'ウェイト' },
+                  race:     { color: '#FFD700', label: '試合' },
+                  rest:     { color: '#888',    label: '休養' },
+                }
+                const fmtTime = (ms: number) => {
+                  const sec = ms / 1000
+                  if (sec < 60) return `${sec.toFixed(2)}"`
+                  return `${Math.floor(sec/60)}'${(sec%60).toFixed(2).padStart(5,'0')}"`
+                }
+                const renderRow = (sess: typeof sessions[0], idx: number) => {
+                  const typeInfo = SESSION_TYPE_MAP[sess.session_type] ?? { color: '#888', label: sess.session_type }
+                  const fat = sess.fatigue_level ?? 5
+                  const fatColor = fat >= 8 ? '#FF6B6B' : fat >= 6 ? '#FF9500' : '#4ECDC4'
+                  const openShare = () => {
+                    const dt = new Date(sess.session_date + 'T00:00:00')
+                    const weekdays = ['日','月','火','水','木','金','土']
+                    setShareSession({
+                      date:      `${dt.getFullYear()}年${dt.getMonth()+1}月${dt.getDate()}日（${weekdays[dt.getDay()]}）`,
+                      title:     typeInfo.label,
+                      menu:      sess.notes ?? undefined,
+                      distance:  sess.distance_m ? sess.distance_m / 1000 : undefined,
+                      sets:      sess.reps ?? undefined,
+                      time:      sess.time_ms ? fmtTime(sess.time_ms) : undefined,
+                      fatigue:   sess.fatigue_level,
+                      condition: sess.condition_level,
+                      weather:   sess.weather ?? undefined,
+                      streak:    (() => { let sk=0; const ds=new Set(sessions.map(s=>s.session_date)); for(let i=0;i<365;i++){const d=new Date();d.setDate(d.getDate()-i);if(ds.has(d.toISOString().slice(0,10)))sk++;else if(i>0)break}; return sk })(),
+                      rank:      `${calcLevelInfo(sessions.length).emoji} ${calcLevelInfo(sessions.length).title}`,
+                    })
+                  }
+                  return (
+                    <View
+                      key={sess.id}
+                      style={[s.sessRow, idx > 0 && { borderTopWidth: 1, borderTopColor: DIVIDER }]}
+                    >
+                      <View style={[s.typeBar, { backgroundColor: typeInfo.color }]} />
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={[s.sessType, { color: colors.text }]}>{typeInfo.label}</Text>
+                          {sess.event ? <Text style={{ color: colors.textHint, fontSize: 11 }}>{sess.event}</Text> : null}
                         </View>
-                        {sess.time_ms ? (
-                          <Text style={[s.sessStat, { color: colors.textSec }]}>{fmtTime(sess.time_ms)}</Text>
-                        ) : null}
-                        <View style={[s.fatiguePill, { backgroundColor: fatColor + '22' }]}>
-                          <Text style={{ fontSize: 10, fontWeight: '800', color: fatColor }}>疲労{fat}</Text>
-                        </View>
+                        <Text style={[s.sessDate, { color: colors.textHint }]}>
+                          {sess.session_date}
+                          {sess.distance_m ? ` · ${sess.distance_m >= 1000 ? `${(sess.distance_m/1000).toFixed(1)}km` : `${sess.distance_m}m`}` : ''}
+                        </Text>
                       </View>
-                    )
-                  })}
-                </>
-              )}
+                      {sess.time_ms ? (
+                        <Text style={[s.sessStat, { color: colors.textSec }]}>{fmtTime(sess.time_ms)}</Text>
+                      ) : null}
+                      <View style={[s.fatiguePill, { backgroundColor: fatColor + '22' }]}>
+                        <Text style={{ fontSize: 10, fontWeight: '800', color: fatColor }}>疲労{fat}</Text>
+                      </View>
+                      <TouchableOpacity onPress={openShare} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginLeft: 6 }}>
+                        <Ionicons name="share-outline" size={16} color={BRAND} />
+                      </TouchableOpacity>
+                    </View>
+                  )
+                }
+                return (
+                  <ScrollView
+                    style={{ maxHeight: 275 }}
+                    nestedScrollEnabled
+                    showsVerticalScrollIndicator={sessions.length > 5}
+                  >
+                    {sessions.map((sess, idx) => renderRow(sess, idx))}
+                  </ScrollView>
+                )
+              })()}
             </GlassCard>
           </AnimatedEntry>
 
@@ -1502,6 +1702,17 @@ ${sessionsText}
             )}
           </View>
         </View>
+      </Modal>
+
+      {/* ── 練習記録シェアカード ── */}
+      <Modal visible={!!shareSession} transparent animationType="fade" onRequestClose={() => setShareSession(null)}>
+        {shareSession ? (
+          <PracticeShareCard
+            data={shareSession}
+            visible={true}
+            onClose={() => setShareSession(null)}
+          />
+        ) : <View />}
       </Modal>
 
       <PWAInstallPrompt />
