@@ -38,8 +38,11 @@ module.exports = {
       // TODO: 下記の ADMOB_APP_ID_IOS / ANDROID を実際のApp IDに差し替える
       // 形式: ca-app-pub-XXXXXXXX~YYYYYYYYYY  (スラッシュではなくチルダ~)
       ['react-native-google-mobile-ads', {
-        androidAppId: 'ca-app-pub-6225795381877305~6309498919',
-        iosAppId:     'ca-app-pub-6225795381877305~3874907264',
+        // AdMobアカウントが承認されたら本番IDに差し替える:
+        // iosAppId: 'ca-app-pub-6225795381877305~3874907264',
+        // androidAppId: 'ca-app-pub-6225795381877305~6309498919',
+        androidAppId: 'ca-app-pub-3940256099942544~3347511713',  // Google テストApp ID
+        iosAppId:     'ca-app-pub-3940256099942544~1458002511',  // Google テストApp ID
       }],
       ['expo-location', {
         locationAlwaysAndWhenInUsePermission: '天気情報と怪我リスク計算のために現在地を使用します',

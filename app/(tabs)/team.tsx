@@ -1194,8 +1194,9 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
     setBodyReports(prev => prev.map(r =>
       r.player_name === playerName ? { ...r, acked_by_coach: true } : r,
     ))
+    // シートを閉じず、detailMemberの状態を即時「確認済み」に更新して表示
+    setDetailMember(prev => prev ? { ...prev, ackedByCoach: true } : null)
     Toast.show({ type: 'success', text1: '確認済みにしました ✓', visibilityTime: 1400 })
-    setDetailMember(null)
   }
 
   async function addEvent() {
@@ -1676,14 +1677,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
                       onPress={() => setDetailMember(m)}
                       activeOpacity={0.88}
                     >
-                      {/* 負荷カラーバー（上端） */}
-                      <View style={{
-                        height: unackedPain ? 5 : 4,
-                        backgroundColor: unackedPain ? '#EF4444' : lCfg.color,
-                        marginHorizontal:-16, marginTop:-16, marginBottom:12,
-                        borderTopLeftRadius:14, borderTopRightRadius:14,
-                        opacity: unackedPain ? 1 : 0.7,
-                      }}/>
+
 
                       {/* 未確認の痛み報告バナー */}
                       {unackedPain && (
@@ -2443,8 +2437,6 @@ function MemberDetailSheet({ member, onClose, onAck }: {
       <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose}/>
       <View style={{backgroundColor:'#ffffff',borderTopLeftRadius:24,borderTopRightRadius:24,paddingBottom:44,borderTopWidth:1,borderColor:'rgba(0,0,0,0.08)',overflow:'hidden'}}>
 
-        {/* 上端カラーバー */}
-        <View style={{height:5,backgroundColor:hasUnacked?'#EF4444':rCfg.color}}/>
 
         <View style={{padding:20}}>
           <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:16}}/>
@@ -2466,6 +2458,39 @@ function MemberDetailSheet({ member, onClose, onAck }: {
               <Ionicons name="close" size={22} color={TEXT.secondary}/>
             </TouchableOpacity>
           </View>
+
+          {/* ─ 痛み報告（最優先表示） ─ */}
+          {(member.painParts?.length ?? 0) > 0 && (
+            <View style={{
+              backgroundColor: hasUnacked ? 'rgba(239,68,68,0.06)' : 'rgba(52,199,89,0.06)',
+              borderRadius:14, borderWidth:1.5,
+              borderColor: hasUnacked ? 'rgba(239,68,68,0.35)' : 'rgba(52,199,89,0.35)',
+              padding:14, marginBottom:14,
+            }}>
+              <View style={{flexDirection:'row',alignItems:'center',gap:8,marginBottom:hasUnacked?10:6}}>
+                <Text style={{fontSize:18}}>{hasUnacked ? '🤕' : '✅'}</Text>
+                <Text style={{color: hasUnacked ? '#EF4444' : '#34C759', fontSize:14, fontWeight:'800', flex:1}}>
+                  {hasUnacked ? '痛み・違和感の報告あり（未確認）' : '痛み報告（確認済み）'}
+                </Text>
+              </View>
+              <PainBadges parts={member.painParts!}/>
+              {!!member.painDetail && (
+                <View style={{marginTop:10, backgroundColor:'rgba(0,0,0,0.04)', borderRadius:8, padding:10}}>
+                  <Text style={{color:'#444', fontSize:12, lineHeight:18}}>📝 {member.painDetail}</Text>
+                </View>
+              )}
+              {hasUnacked && onAck && (
+                <TouchableOpacity
+                  style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:BRAND,borderRadius:12,paddingVertical:12,marginTop:12}}
+                  onPress={onAck}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="checkmark-circle" size={18} color="#fff"/>
+                  <Text style={{color:'#fff',fontSize:14,fontWeight:'800'}}>確認済みにする</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
 
           {/* ─ ステータス3カラム ─ */}
           {member.sessions.length > 0 ? (
@@ -2515,44 +2540,9 @@ function MemberDetailSheet({ member, onClose, onAck }: {
             </View>
           )}
 
-          {/* ─ 痛み報告 ─ */}
-          {(member.painParts?.length ?? 0) > 0 && (
-            <View style={{
-              backgroundColor: hasUnacked ? 'rgba(255,149,0,0.08)' : 'rgba(52,199,89,0.06)',
-              borderRadius:12, borderWidth:1,
-              borderColor: hasUnacked ? 'rgba(255,149,0,0.4)' : 'rgba(52,199,89,0.3)',
-              padding:12, marginBottom:12,
-            }}>
-              <View style={{flexDirection:'row',alignItems:'center',gap:6,marginBottom:8}}>
-                <Text style={{fontSize:14}}>{hasUnacked ? '🤕' : '✅'}</Text>
-                <Text style={{color: hasUnacked?'#FF9500':'#34C759', fontSize:13,fontWeight:'700',flex:1}}>
-                  {hasUnacked ? '痛み・違和感の報告（未確認）' : '痛み報告（確認済み）'}
-                </Text>
-              </View>
-              <PainBadges parts={member.painParts!}/>
-              {!!member.painDetail && (
-                <View style={{marginTop:8,backgroundColor:'rgba(0,0,0,0.04)',borderRadius:8,padding:8}}>
-                  <Text style={{color:'#444',fontSize:12,lineHeight:18}}>📝 {member.painDetail}</Text>
-                </View>
-              )}
-            </View>
-          )}
-
-          <Text style={{color:'#aaa',fontSize:11,textAlign:'center',marginBottom:hasUnacked?12:0}}>
+          <Text style={{color:'#aaa',fontSize:11,textAlign:'center',marginTop:4}}>
             参加日: {daysSince(member.lastActive)}
           </Text>
-
-          {/* ─ 確認済みボタン ─ */}
-          {hasUnacked && onAck && (
-            <TouchableOpacity
-              style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:BRAND,borderRadius:14,paddingVertical:14}}
-              onPress={onAck}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="checkmark-circle" size={20} color="#fff"/>
-              <Text style={{color:'#fff',fontSize:15,fontWeight:'800'}}>確認済みにする</Text>
-            </TouchableOpacity>
-          )}
         </View>
       </View>
     </View>
@@ -3379,7 +3369,7 @@ const co = StyleSheet.create({
   tabsWrapper:    { height:48, overflow:'hidden', backgroundColor:'#ffffff', borderBottomWidth:1, borderBottomColor:'rgba(0,0,0,0.08)' },
   tabs:       { flexDirection:'row', paddingHorizontal:16 },
   tab:        { flexDirection:'row', alignItems:'center', justifyContent:'center', gap:4, paddingVertical:12, paddingHorizontal:12 },
-  tabActive:  { borderBottomWidth:2, borderColor:BRAND },
+  tabActive:  { backgroundColor: BRAND + '14', borderRadius:8 },
   tabLabel:   { fontSize:13, fontWeight:'700' },
   badge:      { width:16, height:16, borderRadius:8, backgroundColor:'#ef4444', alignItems:'center', justifyContent:'center' },
   alertChip:  { flexDirection:'row', alignItems:'center', gap:5, backgroundColor:'rgba(239,68,68,0.08)', borderRadius:8, borderWidth:1, borderColor:'#ef4444'+'40', paddingHorizontal:10, paddingVertical:6 },
