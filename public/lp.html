@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#000000" />
-  <title>sCORE — 陸上競技のパートナー</title>
-  <meta name="description" content="タイム記録・怪我予防・AI練習分析。陸上競技者のために設計されたパートナーアプリ。無料で今すぐ使える。" />
-  <meta property="og:title" content="sCORE — 陸上競技のパートナー" />
-  <meta property="og:description" content="タイム記録・怪我予防・AI練習分析。陸上競技者のために設計されたパートナーアプリ。" />
+  <meta name="theme-color" content="#ffffff" />
+  <title>sCORE — チーム管理の新常識</title>
+  <meta name="description" content="部員の体調・練習・記録をリアルタイム把握。顧問・コーチの負担を劇的に減らす陸上競技チーム管理アプリ。" />
+  <meta property="og:title" content="sCORE — チーム管理の新常識" />
+  <meta property="og:description" content="部員の体調・練習・記録をリアルタイム把握。顧問・コーチの負担を劇的に減らす陸上競技チーム管理アプリ。" />
   <meta property="og:url" content="https://scorej-run.vercel.app/lp.html" />
   <meta property="og:type" content="website" />
   <style>
@@ -15,15 +15,19 @@
     :root {
       --brand:  #166534;
       --brand2: #16a34a;
-      --green:  #4ade80;
-      --amber:  #f59e0b;
-      --bg:     #000;
-      --surf:   #0f0f0f;
-      --surf2:  #181818;
-      --border: rgba(255,255,255,0.08);
-      --text:   #ffffff;
-      --sub:    #9ca3af;
-      --hint:   #4b5563;
+      --green:  #15803d;
+      --amber:  #d97706;
+      --red:    #dc2626;
+      --blue:   #2563eb;
+      --bg:     #ffffff;
+      --surf:   #f8f9fa;
+      --surf2:  #f1f3f5;
+      --surf3:  #e9ecef;
+      --border: rgba(0,0,0,0.07);
+      --border2:rgba(0,0,0,0.1);
+      --text:   #111827;
+      --sub:    #6b7280;
+      --hint:   #9ca3af;
     }
     html { scroll-behavior: smooth; }
     body {
@@ -37,290 +41,511 @@
       position: relative; min-height: 100dvh;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
-      padding: 60px 28px 48px; text-align: center; overflow: hidden;
+      padding: 72px 28px 60px; text-align: center; overflow: hidden;
     }
     .hero::before {
-      content: ''; position: absolute; top: -20%; left: 50%;
-      transform: translateX(-50%); width: 600px; height: 600px;
+      content: ''; position: absolute; top: -10%; left: 50%;
+      transform: translateX(-50%); width: 700px; height: 700px;
       border-radius: 50%;
-      background: radial-gradient(circle, rgba(22,101,52,0.35) 0%, rgba(22,101,52,0.08) 50%, transparent 70%);
-      pointer-events: none; animation: pulse 6s ease-in-out infinite;
+      background: radial-gradient(circle, rgba(22,101,52,0.12) 0%, rgba(22,101,52,0.03) 50%, transparent 70%);
+      pointer-events: none; animation: pulse 7s ease-in-out infinite;
     }
     @keyframes pulse {
       0%,100% { transform: translateX(-50%) scale(1); opacity: 1; }
-      50%      { transform: translateX(-50%) scale(1.12); opacity: 0.7; }
+      50%      { transform: translateX(-50%) scale(1.15); opacity: 0.65; }
     }
     .grid-bg { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-    .grid-line { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,0.025); }
-    .grid-h    { position: absolute; left: 0; right: 0; height: 1px; background: rgba(255,255,255,0.025); }
+    .grid-line { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(0,0,0,0.05); }
+    .grid-h    { position: absolute; left: 0; right: 0; height: 1px; background: rgba(0,0,0,0.05); }
+    .hero-inner { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 520px; }
 
-    .hero-inner { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 480px; }
-
-    .logo-wrap  { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; }
+    .logo-wrap  { display: flex; align-items: center; gap: 12px; margin-bottom: 36px; }
     .logo-mark  {
-      width: 56px; height: 56px; border-radius: 16px; background: var(--brand);
+      width: 54px; height: 54px; border-radius: 15px; background: var(--brand);
       display: flex; align-items: center; justify-content: center;
-      font-size: 30px; font-weight: 900; color: #fff;
-      box-shadow: 0 0 32px rgba(22,101,52,0.55), 0 0 80px rgba(22,101,52,0.2);
+      font-size: 28px; font-weight: 900; color: #fff;
+      box-shadow: 0 0 36px rgba(22,101,52,0.6), 0 0 100px rgba(22,101,52,0.2);
     }
-    .logo-text       { font-size: 32px; font-weight: 900; letter-spacing: -1.5px; color: #fff; }
-    .logo-text span  { color: var(--brand2); }
+    .logo-text      { font-size: 30px; font-weight: 900; letter-spacing: -1.5px; color: #111827; }
+    .logo-text span { color: var(--brand2); }
 
     .badge {
       display: inline-flex; align-items: center; gap: 6px;
-      background: rgba(22,101,52,0.15); border: 1px solid rgba(22,101,52,0.35);
-      color: var(--green); font-size: 11px; font-weight: 700;
-      padding: 5px 14px; border-radius: 100px; letter-spacing: 1.5px;
-      margin-bottom: 20px; text-transform: uppercase;
+      background: rgba(22,101,52,0.08); border: 1px solid rgba(22,101,52,0.25);
+      color: var(--brand); font-size: 11px; font-weight: 700;
+      padding: 5px 16px; border-radius: 100px; letter-spacing: 1.5px;
+      margin-bottom: 22px; text-transform: uppercase;
     }
-    .headline { font-size: clamp(36px,10vw,58px); font-weight: 900; letter-spacing: -2.5px; line-height: 1.08; margin-bottom: 18px; }
+    .headline {
+      font-size: clamp(40px,11vw,66px); font-weight: 900;
+      letter-spacing: -3px; line-height: 1.05; margin-bottom: 20px;
+    }
     .headline em { font-style: normal; color: var(--brand2); }
-    .sub-text  { font-size: 16px; color: var(--sub); line-height: 1.75; margin-bottom: 36px; max-width: 340px; }
+    .sub-text  { font-size: 16px; color: var(--sub); line-height: 1.8; margin-bottom: 38px; max-width: 360px; }
 
-    .cta-wrap     { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 320px; }
-    .btn-primary  {
+    .cta-wrap    { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 320px; }
+    .btn-primary {
       display: flex; align-items: center; justify-content: center; gap: 10px;
       width: 100%; padding: 18px 24px; border-radius: 16px;
       background: var(--brand); color: #fff; font-size: 17px; font-weight: 800;
       text-decoration: none; letter-spacing: -0.3px;
-      box-shadow: 0 8px 32px rgba(22,101,52,0.45);
-      transition: transform 0.15s, box-shadow 0.15s; -webkit-tap-highlight-color: transparent;
+      box-shadow: 0 8px 32px rgba(22,101,52,0.5), 0 0 0 1px rgba(22,101,52,0.3);
+      transition: transform 0.15s, box-shadow 0.15s;
     }
-    .btn-primary:hover  { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(22,101,52,0.55); }
+    .btn-primary:hover  { transform: translateY(-2px); box-shadow: 0 14px 48px rgba(22,101,52,0.6); }
     .btn-primary:active { transform: scale(0.97); }
     .btn-ghost {
       display: flex; align-items: center; justify-content: center; gap: 8px;
       width: 100%; padding: 16px 24px; border-radius: 16px;
-      background: transparent; border: 1px solid var(--border);
+      background: transparent; border: 1px solid var(--border2);
       color: var(--sub); font-size: 15px; font-weight: 600; text-decoration: none;
       transition: border-color 0.15s, color 0.15s;
     }
-    .btn-ghost:hover { border-color: rgba(255,255,255,0.2); color: #fff; }
-    .free-note       { margin-top: 14px; font-size: 12px; color: var(--hint); }
+    .btn-ghost:hover { border-color: rgba(0,0,0,0.25); color: #111827; }
+    .free-note       { margin-top: 16px; font-size: 12px; color: var(--hint); }
     .free-note strong { color: var(--green); }
 
     .scroll-hint {
       position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
       display: flex; flex-direction: column; align-items: center; gap: 4px;
       color: var(--hint); animation: bounce 2s ease-in-out infinite; z-index: 1;
+      font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
     }
     @keyframes bounce {
       0%,100% { transform: translateX(-50%) translateY(0); }
       50%      { transform: translateX(-50%) translateY(6px); }
     }
 
-    /* ── STATS ── */
-    .stats { display: flex; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); background: var(--surf); }
-    .stat-item { flex: 1; padding: 22px 8px; text-align: center; border-right: 1px solid var(--border); }
-    .stat-item:last-child { border-right: none; }
-    .stat-num   { font-size: 22px; font-weight: 900; letter-spacing: -1px; color: #fff; margin-bottom: 2px; }
-    .stat-label { font-size: 10px; color: var(--sub); letter-spacing: 0.5px; }
+    /* ── FEATURE BAR ── */
+    .feat-bar {
+      display: flex; overflow-x: auto; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+      background: var(--surf); -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .feat-bar::-webkit-scrollbar { display: none; }
+    .feat-bar-item {
+      flex: 0 0 auto; padding: 18px 24px; border-right: 1px solid var(--border);
+      text-align: center; min-width: 110px;
+    }
+    .feat-bar-icon  { font-size: 22px; margin-bottom: 4px; }
+    .feat-bar-label { font-size: 11px; color: var(--sub); font-weight: 600; white-space: nowrap; }
 
     /* ── SECTIONS ── */
-    .section     { padding: 60px 24px; max-width: 540px; margin: 0 auto; }
+    .section     { padding: 72px 24px; max-width: 600px; margin: 0 auto; }
     .section-tag { font-size: 11px; font-weight: 700; letter-spacing: 2px; color: var(--green); text-transform: uppercase; margin-bottom: 10px; }
-    .section-title { font-size: 26px; font-weight: 900; letter-spacing: -1px; line-height: 1.2; margin-bottom: 8px; }
-    .section-sub   { font-size: 14px; color: var(--sub); line-height: 1.7; margin-bottom: 28px; }
+    .section-title { font-size: clamp(24px,6vw,32px); font-weight: 900; letter-spacing: -1.2px; line-height: 1.2; margin-bottom: 10px; }
+    .section-sub   { font-size: 14px; color: var(--sub); line-height: 1.8; margin-bottom: 36px; }
 
-    /* ── FEATURE GRID ── */
-    .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .feat-card {
-      background: var(--surf); border: 1px solid var(--border);
-      border-radius: 18px; padding: 20px 16px;
-      display: flex; flex-direction: column; gap: 8px; transition: border-color 0.2s;
+    /* ── PHONE MOCKUP ── */
+    .phone {
+      width: 220px; flex-shrink: 0;
+      border-radius: 38px;
+      background: #1c1c1e;
+      border: 2px solid rgba(0,0,0,0.15);
+      box-shadow: 0 32px 80px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.08);
+      overflow: hidden; position: relative;
     }
-    .feat-card:hover   { border-color: rgba(22,101,52,0.4); }
-    .feat-card.hl      { border-color: rgba(22,101,52,0.4); background: rgba(22,101,52,0.08); }
-    .feat-card.hl-red  { border-color: rgba(239,68,68,0.35); background: rgba(239,68,68,0.06); }
-    .feat-card.wide    { grid-column: span 2; flex-direction: row; align-items: center; gap: 16px; padding: 22px 20px; }
-    .feat-card.wide .feat-icon { font-size: 32px; flex-shrink: 0; }
-    .feat-card.wide .feat-body { flex: 1; }
-    .feat-icon  { font-size: 26px; line-height: 1; }
-    .feat-title { font-size: 13px; font-weight: 800; letter-spacing: -0.3px; }
-    .feat-desc  { font-size: 11px; color: var(--sub); line-height: 1.6; }
-    .feat-badge {
-      display: inline-block; font-size: 9px; font-weight: 800;
-      padding: 2px 7px; border-radius: 6px; letter-spacing: 0.5px; margin-top: 2px;
+    .phone-notch {
+      width: 90px; height: 26px; background: #000;
+      border-radius: 0 0 20px 20px; margin: 0 auto;
+      position: relative; z-index: 2;
     }
-    .feat-badge.free   { background: rgba(74,222,128,0.15); color: var(--green); }
-    .feat-badge.pro    { background: rgba(22,101,52,0.2);   color: #86efac; }
+    .phone-screen { padding: 0 14px 20px; }
+    .phone-status { display: flex; justify-content: space-between; align-items: center; padding: 6px 6px 8px; font-size: 11px; color: rgba(255,255,255,0.4); }
 
-    /* ── INJURY SECTION ── */
-    .injury-section {
-      padding: 60px 24px;
-      background: linear-gradient(180deg, rgba(239,68,68,0.06) 0%, rgba(239,68,68,0.02) 100%);
-      border-top: 1px solid rgba(239,68,68,0.15);
-      border-bottom: 1px solid rgba(239,68,68,0.15);
+    /* ── TEAM SECTION ── */
+    .team-section {
+      padding: 80px 24px;
+      background: linear-gradient(180deg, var(--bg) 0%, #f0fdf4 50%, var(--bg) 100%);
+      border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
     }
-    .injury-inner { max-width: 540px; margin: 0 auto; }
-    .injury-tag   { font-size: 11px; font-weight: 700; letter-spacing: 2px; color: #f87171; text-transform: uppercase; margin-bottom: 10px; }
-    .injury-title { font-size: 26px; font-weight: 900; letter-spacing: -1px; line-height: 1.2; margin-bottom: 10px; }
-    .injury-lead  { font-size: 14px; color: var(--sub); line-height: 1.8; margin-bottom: 28px; }
-    .injury-lead strong { color: #fca5a5; font-weight: 700; }
+    .team-inner { max-width: 600px; margin: 0 auto; }
+    .team-hero  { display: flex; flex-direction: column; gap: 32px; align-items: center; }
 
-    .injury-cards { display: flex; flex-direction: column; gap: 14px; }
-    .inj-card {
-      background: var(--surf2); border: 1px solid rgba(239,68,68,0.2);
-      border-radius: 18px; padding: 20px;
-      display: flex; gap: 16px; align-items: flex-start;
+    @media (min-width: 540px) {
+      .team-hero { flex-direction: row; align-items: flex-start; gap: 40px; }
+      .team-hero .phone { width: 240px; }
     }
-    .inj-icon-wrap {
-      width: 48px; height: 48px; border-radius: 14px;
-      background: rgba(239,68,68,0.12);
+
+    .team-copy { flex: 1; }
+    .team-tag  { font-size: 11px; font-weight: 700; letter-spacing: 2px; color: var(--green); text-transform: uppercase; margin-bottom: 12px; }
+    .team-title { font-size: clamp(26px,7vw,38px); font-weight: 900; letter-spacing: -1.5px; line-height: 1.15; margin-bottom: 14px; }
+    .team-title em { font-style: normal; color: var(--green); }
+    .team-lead { font-size: 14px; color: var(--sub); line-height: 1.9; margin-bottom: 28px; }
+    .team-lead strong { color: #111827; }
+
+    .team-feats { display: flex; flex-direction: column; gap: 14px; }
+    .team-feat  {
+      display: flex; gap: 14px; align-items: flex-start;
+      background: #fff; border: 1px solid var(--border2);
+      border-radius: 16px; padding: 16px 18px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.07), 0 1px 0 rgba(0,0,0,0.04);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .team-feat:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+    }
+    .team-feat-icon {
+      width: 42px; height: 42px; border-radius: 12px;
       display: flex; align-items: center; justify-content: center;
-      font-size: 24px; flex-shrink: 0;
+      font-size: 20px; flex-shrink: 0;
     }
-    .inj-body {}
-    .inj-title { font-size: 15px; font-weight: 800; margin-bottom: 5px; }
-    .inj-desc  { font-size: 12px; color: var(--sub); line-height: 1.7; }
-    .inj-badge {
-      display: inline-block; margin-top: 8px;
-      font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 100px;
-      background: rgba(74,222,128,0.12); color: var(--green); border: 1px solid rgba(74,222,128,0.25);
-    }
+    .team-feat-title { font-size: 14px; font-weight: 800; margin-bottom: 3px; }
+    .team-feat-desc  { font-size: 12px; color: var(--sub); line-height: 1.6; }
 
-    /* ── SHARE SECTION ── */
-    .share-section { padding: 60px 24px; background: var(--surf); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
-    .share-inner   { max-width: 540px; margin: 0 auto; }
-    .share-mockup  {
-      width: 100%; max-width: 240px; margin: 0 auto 28px;
-      aspect-ratio: 9/16; border-radius: 24px;
-      background: linear-gradient(160deg, #1a1a2e 0%, #0d0d0d 50%, #0a1a0f 100%);
-      border: 1px solid rgba(255,255,255,0.1);
-      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
-      position: relative; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+    /* ── COACH DASHBOARD MOCKUP ── */
+    .coach-dash {
+      background: #fff; border-radius: 18px;
+      padding: 16px; border: 1px solid rgba(0,0,0,0.1);
+      box-shadow: 0 8px 40px rgba(0,0,0,0.1);
+      font-size: 11px; width: 100%;
     }
-    .share-mockup::before {
-      content: ''; position: absolute; inset: 0;
-      background: radial-gradient(ellipse 80% 50% at 50% 30%, rgba(22,101,52,0.2) 0%, transparent 70%);
+    .dash-header { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+    .dash-avatar { width: 28px; height: 28px; border-radius: 8px; background: var(--brand); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 900; color:#fff; }
+    .dash-title  { font-size: 13px; font-weight: 800; color: #111827; }
+    .dash-sub    { font-size: 10px; color: var(--sub); }
+    .dash-grid   { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+    .dash-card   { background: #f8f9fa; border-radius: 12px; padding: 10px 12px; border: 1px solid rgba(0,0,0,0.07); }
+    .dash-num    { font-size: 20px; font-weight: 900; color: #111827; letter-spacing: -1px; }
+    .dash-label  { font-size: 10px; color: var(--sub); margin-top: 2px; }
+    .dash-members { display: flex; flex-direction: column; gap: 6px; }
+    .dash-member  { display: flex; align-items: center; gap: 8px; background: #f8f9fa; border-radius: 10px; padding: 8px 10px; border: 1px solid rgba(0,0,0,0.06); }
+    .member-name  { flex: 1; font-size: 11px; font-weight: 700; color: #111827; }
+    .member-dot   { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .member-risk  { font-size: 10px; font-weight: 700; }
+    .risk-low  { color: #16a34a; }
+    .risk-mid  { color: #b45309; }
+    .risk-high { color: #dc2626; }
+    .dot-low  { background: #4ade80; }
+    .dot-mid  { background: #fbbf24; }
+    .dot-high { background: #f87171; }
+    .dash-section-label { font-size: 10px; font-weight: 700; color: var(--sub); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+
+    /* ── RISK SCORE SECTION ── */
+    .risk-section {
+      padding: 80px 24px;
+      background: linear-gradient(180deg, rgba(239,68,68,0.05) 0%, rgba(239,68,68,0.01) 100%);
+      border-top: 1px solid rgba(239,68,68,0.12);
+      border-bottom: 1px solid rgba(239,68,68,0.12);
     }
-    .mock-logo  { display: flex; align-items: center; gap: 8px; z-index: 1; }
-    .mock-s     { width: 32px; height: 32px; background: var(--brand); border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 900; color: #fff; }
-    .mock-brand { font-size: 20px; font-weight: 900; letter-spacing: -1px; color: #fff; }
-    .mock-result { z-index: 1; text-align: center; }
-    .mock-event  { font-size: 10px; color: rgba(255,255,255,0.5); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 2px; }
-    .mock-time   { font-size: 36px; font-weight: 900; letter-spacing: -2px; color: #fff; text-shadow: 0 0 30px rgba(255,255,255,0.3); }
-    .mock-pb     { display: inline-block; background: rgba(22,101,52,0.3); border: 1px solid rgba(22,101,52,0.6); color: var(--green); font-size: 10px; font-weight: 800; padding: 3px 10px; border-radius: 100px; letter-spacing: 1px; }
-    .mock-glass  { z-index: 1; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; padding: 8px 16px; display: flex; gap: 16px; }
-    .mock-data   { text-align: center; }
-    .mock-val    { font-size: 13px; font-weight: 900; color: #fff; }
-    .mock-lbl    { font-size: 9px; color: rgba(255,255,255,0.5); margin-top: 1px; }
+    .risk-inner { max-width: 600px; margin: 0 auto; }
+    .risk-tag   { font-size: 11px; font-weight: 700; letter-spacing: 2px; color: #dc2626; text-transform: uppercase; margin-bottom: 12px; }
+    .risk-title { font-size: clamp(24px,6vw,32px); font-weight: 900; letter-spacing: -1px; line-height: 1.2; margin-bottom: 14px; }
+    .risk-lead  { font-size: 14px; color: var(--sub); line-height: 1.9; margin-bottom: 32px; }
+    .risk-lead strong { color: #111827; font-weight: 700; }
+
+    /* Score display mockup */
+    .score-mockup {
+      background: #fff; border-radius: 24px; padding: 24px;
+      border: 1px solid rgba(239,68,68,0.15);
+      box-shadow: 0 8px 40px rgba(0,0,0,0.08), 0 4px 0 rgba(239,68,68,0.06);
+      margin-bottom: 32px;
+    }
+    .score-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .score-label { font-size: 11px; font-weight: 700; color: var(--sub); letter-spacing: 1px; text-transform: uppercase; }
+    .score-date  { font-size: 10px; color: var(--hint); }
+    .score-ring-wrap { display: flex; align-items: center; gap: 24px; margin-bottom: 20px; }
+    .score-ring {
+      width: 90px; height: 90px; border-radius: 50%;
+      background: conic-gradient(#dc2626 0% 58%, rgba(0,0,0,0.07) 58% 100%);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; position: relative;
+    }
+    .score-ring::after {
+      content: ''; position: absolute; inset: 8px; border-radius: 50%; background: #fff;
+    }
+    .score-ring-num { position: relative; z-index: 1; font-size: 24px; font-weight: 900; color: #dc2626; letter-spacing: -1px; }
+    .score-desc { flex: 1; }
+    .score-level { font-size: 16px; font-weight: 900; color: #dc2626; margin-bottom: 4px; }
+    .score-advice { font-size: 12px; color: var(--sub); line-height: 1.6; }
+    .score-factors { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .factor-item { background: #f8f9fa; border-radius: 10px; padding: 10px 12px; border: 1px solid rgba(0,0,0,0.07); }
+    .factor-label { font-size: 10px; color: var(--sub); margin-bottom: 4px; }
+    .factor-bar   { height: 4px; border-radius: 2px; background: rgba(0,0,0,0.08); margin-bottom: 4px; overflow: hidden; }
+    .factor-fill  { height: 100%; border-radius: 2px; }
+    .factor-val   { font-size: 11px; font-weight: 700; }
+
+    /* Science explanation */
+    .science-box {
+      background: rgba(59,130,246,0.06); border: 1px solid rgba(59,130,246,0.2);
+      border-radius: 20px; padding: 24px; margin-bottom: 24px;
+      box-shadow: 0 4px 24px rgba(59,130,246,0.08);
+    }
+    .science-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .science-icon   { font-size: 20px; }
+    .science-title  { font-size: 14px; font-weight: 800; color: #1d4ed8; }
+    .science-text   { font-size: 13px; color: #374151; line-height: 1.8; margin-bottom: 12px; }
+    .science-refs   { display: flex; flex-direction: column; gap: 6px; }
+    .science-ref    {
+      display: flex; gap: 8px; align-items: flex-start;
+      font-size: 11px; color: var(--sub); line-height: 1.5;
+    }
+    .ref-num { color: #2563eb; font-weight: 800; flex-shrink: 0; font-size: 10px; margin-top: 1px; }
+
+    .factor-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .fcard {
+      background: #fff; border: 1px solid var(--border2);
+      border-radius: 14px; padding: 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+    }
+    .fcard-icon  { font-size: 20px; margin-bottom: 6px; }
+    .fcard-title { font-size: 12px; font-weight: 800; margin-bottom: 4px; }
+    .fcard-desc  { font-size: 11px; color: var(--sub); line-height: 1.6; }
+    .fcard-weight { display: inline-block; margin-top: 6px; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 100px; }
+
+    /* ── ALL FEATURES ── */
+    .all-feat-section { padding: 80px 24px; max-width: 600px; margin: 0 auto; }
+    .feat-category { margin-bottom: 32px; }
+    .feat-cat-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+      color: var(--sub); text-transform: uppercase; margin-bottom: 12px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .feat-cat-label::before { content: ''; flex: none; width: 20px; height: 1px; background: var(--border2); }
+    .feat-cat-label::after  { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .feat-list { display: flex; flex-direction: column; gap: 8px; }
+    .feat-row {
+      display: flex; align-items: center; gap: 14px;
+      background: #fff; border: 1px solid var(--border);
+      border-radius: 14px; padding: 14px 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .feat-row:hover {
+      border-color: var(--border2);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    .feat-row-icon { font-size: 22px; width: 38px; text-align: center; flex-shrink: 0; }
+    .feat-row-body { flex: 1; }
+    .feat-row-title { font-size: 13px; font-weight: 800; margin-bottom: 2px; }
+    .feat-row-desc  { font-size: 11px; color: var(--sub); line-height: 1.5; }
+    .feat-plan-tag {
+      font-size: 9px; font-weight: 800; padding: 3px 8px; border-radius: 6px;
+      flex-shrink: 0; letter-spacing: 0.5px;
+    }
+    .tag-free  { background: rgba(22,101,52,0.08);  color: #166534; border: 1px solid rgba(22,101,52,0.2); }
+    .tag-pro   { background: rgba(22,101,52,0.1);   color: #15803d; border: 1px solid rgba(22,101,52,0.25); }
+    .tag-elite { background: rgba(180,83,9,0.1);    color: #b45309; border: 1px solid rgba(180,83,9,0.2); }
+    .tag-team  { background: rgba(37,99,235,0.08);  color: #1d4ed8; border: 1px solid rgba(37,99,235,0.2); }
 
     /* ── PRICING ── */
-    .pricing-section { padding: 60px 24px; max-width: 540px; margin: 0 auto; }
-    .plan-cards { display: flex; flex-direction: column; gap: 14px; margin-top: 0; }
+    .pricing-section { padding: 80px 24px; }
+    .pricing-inner   { max-width: 600px; margin: 0 auto; }
+    .pricing-tabs    { display: flex; gap: 8px; margin-bottom: 32px; }
+    .pricing-tab     {
+      flex: 1; padding: 12px; border-radius: 12px; border: 1px solid var(--border2);
+      text-align: center; cursor: pointer; font-size: 13px; font-weight: 700;
+      background: #fff; color: var(--sub);
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    .pricing-tab.active         { background: var(--brand); color: #fff; border-color: var(--brand); }
+    .pricing-tab.active.team-tab{ background: #1d4ed8; border-color: #2563eb; color: #fff; }
+
+    .plan-grid { display: grid; gap: 14px; }
+    @media(min-width:480px) { .plan-grid { grid-template-columns: 1fr 1fr; } }
+    @media(min-width:480px) { .plan-grid.three { grid-template-columns: 1fr 1fr 1fr; } }
 
     .plan-card {
-      background: var(--surf2); border: 1px solid var(--border);
-      border-radius: 20px; padding: 24px; position: relative; overflow: hidden;
+      background: #fff; border: 1.5px solid var(--border2);
+      border-radius: 20px; padding: 22px; position: relative; overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      display: flex; flex-direction: column;
     }
-    .plan-card.pro   { border-color: rgba(22,101,52,0.5); }
-    .plan-card.elite { border-color: rgba(245,158,11,0.4); }
+    .plan-card.featured { border-color: rgba(22,101,52,0.4); box-shadow: 0 8px 40px rgba(22,101,52,0.12); }
+    .plan-card.team-card { border-color: rgba(59,130,246,0.3); box-shadow: 0 8px 40px rgba(59,130,246,0.08); }
 
-    .plan-top-badge {
-      position: absolute; top: 0; right: 20px;
-      padding: 5px 14px; border-radius: 0 0 12px 12px;
+    .plan-ribbon {
+      position: absolute; top: 0; right: 18px;
+      padding: 6px 14px; border-radius: 0 0 12px 12px;
       font-size: 10px; font-weight: 800; letter-spacing: 0.5px;
     }
-    .plan-top-badge.pro   { background: var(--brand);  color: #fff; }
-    .plan-top-badge.elite { background: var(--amber);  color: #fff; }
+    .ribbon-pro   { background: var(--brand);  color: #fff; }
+    .ribbon-elite { background: var(--amber);  color: #000; }
+    .ribbon-team  { background: #1d4ed8;       color: #fff; }
 
-    .plan-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
-    .plan-name   { font-size: 20px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 3px; }
-    .plan-name.pro   { color: var(--brand2); }
+    .plan-name    { font-size: 18px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 2px; }
     .plan-name.free  { color: var(--sub); }
+    .plan-name.pro   { color: var(--brand); }
     .plan-name.elite { color: var(--amber); }
-    .plan-tagline { font-size: 11px; color: var(--sub); }
-    .plan-price   { text-align: right; }
-    .plan-price-main { font-size: 26px; font-weight: 900; letter-spacing: -1px; color: #fff; }
-    .plan-price-main.free { font-size: 20px; color: var(--sub); }
-    .plan-price-sub  { font-size: 11px; color: var(--sub); margin-top: 1px; }
-    .plan-price-ann  { font-size: 11px; color: var(--green); margin-top: 3px; font-weight: 700; }
+    .plan-name.team  { color: #1d4ed8; }
+    .plan-who    { font-size: 11px; color: var(--sub); margin-bottom: 18px; line-height: 1.5; }
+    .plan-price  { margin-bottom: 18px; }
+    .plan-price-num  { font-size: 30px; font-weight: 900; letter-spacing: -1.5px; color: #111827; }
+    .plan-price-unit { font-size: 14px; font-weight: 500; color: var(--sub); }
+    .plan-price-note { font-size: 11px; color: var(--green); margin-top: 4px; }
 
     .plan-divider { height: 1px; background: var(--border); margin: 16px 0; }
 
-    .plan-feats { display: flex; flex-direction: column; gap: 9px; }
-    .plan-feat  { display: flex; align-items: flex-start; gap: 9px; }
-    .plan-feat-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
-    .plan-feat-text { font-size: 12px; color: #d1d5db; line-height: 1.5; }
-    .plan-feat-text em { font-style: normal; color: var(--sub); font-size: 11px; }
-    .plan-feat.dimmed .plan-feat-text { color: var(--hint); }
+    .plan-feats  { display: flex; flex-direction: column; gap: 9px; flex: 1; }
+    .pf          { display: flex; gap: 9px; font-size: 12px; color: #374151; align-items: flex-start; }
+    .pf-icon     { flex-shrink: 0; margin-top: 1px; }
+    .pf em       { font-style: normal; color: var(--sub); font-size: 11px; }
+    .pf.dim      { color: var(--hint); }
 
-    .plan-cta {
+    .plan-cta    {
       display: block; text-align: center; margin-top: 20px;
       padding: 14px; border-radius: 12px;
-      font-size: 15px; font-weight: 800; text-decoration: none;
-      transition: opacity 0.2s;
+      font-size: 14px; font-weight: 800; text-decoration: none;
+      transition: opacity 0.2s, transform 0.15s;
     }
-    .plan-cta:hover { opacity: 0.85; }
-    .plan-cta.free  { background: rgba(255,255,255,0.06); color: var(--sub); border: 1px solid var(--border); }
-    .plan-cta.pro   { background: var(--brand);  color: #fff; box-shadow: 0 4px 20px rgba(22,101,52,0.4); }
-    .plan-cta.elite { background: var(--amber);  color: #fff; box-shadow: 0 4px 20px rgba(245,158,11,0.35); }
+    .plan-cta:hover  { opacity: 0.9; transform: translateY(-1px); }
+    .plan-cta:active { transform: scale(0.98); }
+    .cta-free  { background: #f1f3f5; color: var(--sub); border: 1px solid var(--border2); }
+    .cta-pro   { background: var(--brand);  color: #fff; box-shadow: 0 4px 20px rgba(22,101,52,0.45); }
+    .cta-elite { background: var(--amber);  color: #000; box-shadow: 0 4px 20px rgba(245,158,11,0.4); }
+    .cta-team  { background: #1d4ed8;       color: #fff; box-shadow: 0 4px 20px rgba(29,78,216,0.4); }
 
-    /* ── STEPS ── */
-    .steps { display: flex; flex-direction: column; gap: 0; }
-    .step  { display: flex; gap: 16px; align-items: flex-start; }
-    .step-left { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
-    .step-num  { width: 36px; height: 36px; border-radius: 50%; background: var(--brand); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 900; color: #fff; box-shadow: 0 0 16px rgba(22,101,52,0.4); }
-    .step-line { width: 2px; flex: 1; min-height: 28px; background: var(--border); margin: 4px 0; }
-    .step-body { padding-bottom: 28px; padding-top: 6px; }
-    .step-title { font-size: 15px; font-weight: 800; margin-bottom: 4px; }
-    .step-desc  { font-size: 13px; color: var(--sub); line-height: 1.6; }
+    .plan-toggle-note { text-align: center; font-size: 12px; color: var(--sub); margin-top: 20px; }
 
-    /* ── STORY ── */
-    .story-section {
-      padding: 72px 24px;
-      background: linear-gradient(180deg, #000 0%, #0a0f08 50%, #000 100%);
+    /* who guide */
+    .who-guide { display: flex; flex-direction: column; gap: 12px; margin-top: 32px; }
+    .who-item  {
+      display: flex; gap: 14px; align-items: flex-start;
+      background: #fff; border-radius: 14px; padding: 14px 16px;
+      border: 1px solid var(--border);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .who-emoji { font-size: 24px; flex-shrink: 0; }
+    .who-body  {}
+    .who-title { font-size: 13px; font-weight: 800; margin-bottom: 3px; }
+    .who-desc  { font-size: 12px; color: var(--sub); line-height: 1.6; }
+    .who-desc strong { color: #111827; }
+
+    /* ── DEVELOPER ── */
+    .dev-section {
+      padding: 80px 24px;
+      background: linear-gradient(180deg, var(--bg) 0%, #f0fdf4 50%, var(--bg) 100%);
       border-top: 1px solid var(--border);
-      border-bottom: 1px solid var(--border);
     }
-    .story-inner { max-width: 540px; margin: 0 auto; }
-    .story-tag   { font-size: 11px; font-weight: 700; letter-spacing: 2px; color: var(--green); text-transform: uppercase; margin-bottom: 20px; }
-    .story-headline {
-      font-size: clamp(26px, 7vw, 38px); font-weight: 900;
-      letter-spacing: -1.5px; line-height: 1.15; margin-bottom: 24px; color: #fff;
+    .dev-inner { max-width: 560px; margin: 0 auto; }
+    .dev-tag   { font-size: 11px; font-weight: 700; letter-spacing: 2px; color: var(--green); text-transform: uppercase; margin-bottom: 20px; }
+    .dev-content { display: flex; flex-direction: column; gap: 28px; align-items: center; }
+    @media(min-width:480px) { .dev-content { flex-direction: row; align-items: flex-start; gap: 32px; } }
+
+    .dev-photo-wrap { flex-shrink: 0; }
+    .dev-photo {
+      width: 120px; height: 120px; border-radius: 28px;
+      background: #e9ecef; border: 1px solid var(--border2);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 6px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+      color: var(--hint); font-size: 11px; text-align: center; line-height: 1.4;
     }
-    .story-headline em { font-style: normal; color: var(--green); }
-    .story-body  { font-size: 15px; color: var(--sub); line-height: 1.9; margin-bottom: 28px; }
-    .story-body strong { color: rgba(255,255,255,0.85); font-weight: 600; }
-    .story-quote-wrap {
-      border-left: 3px solid rgba(22,101,52,0.7);
-      padding: 14px 20px;
-      margin-bottom: 12px;
-      background: rgba(22,101,52,0.06);
-      border-radius: 0 10px 10px 0;
+    .dev-photo-icon { font-size: 36px; }
+
+    .dev-text {}
+    .dev-headline { font-size: clamp(22px,5vw,30px); font-weight: 900; letter-spacing: -1px; line-height: 1.2; margin-bottom: 14px; }
+    .dev-headline em { font-style: normal; color: var(--green); }
+    .dev-body { font-size: 14px; color: var(--sub); line-height: 1.9; margin-bottom: 20px; }
+    .dev-body strong { color: #111827; font-weight: 600; }
+    .dev-quote {
+      border-left: 3px solid rgba(22,101,52,0.5);
+      padding: 12px 18px;
+      background: rgba(22,101,52,0.05);
+      border-radius: 0 12px 12px 0;
     }
-    .story-quote { font-size: 17px; font-weight: 700; color: #fff; line-height: 1.6; font-style: italic; margin-bottom: 8px; }
-    .story-sig   { font-size: 12px; color: var(--sub); letter-spacing: 0.5px; }
+    .dev-quote-text { font-size: 15px; font-weight: 700; color: #111827; line-height: 1.6; font-style: italic; margin-bottom: 6px; }
+    .dev-sig        { font-size: 11px; color: var(--sub); }
+
+    /* ── SHARE ── */
+    .share-section { padding: 72px 24px; background: var(--surf); border-top: 1px solid var(--border); }
+    .share-inner   { max-width: 560px; margin: 0 auto; text-align: center; }
+    .share-phones  { display: flex; gap: 16px; justify-content: center; align-items: center; margin: 32px 0; }
+    .share-phone   { position: relative; }
+    .share-phone.main { z-index: 2; }
+    .share-phone.side {
+      transform: scale(0.85) rotate(8deg); opacity: 0.6;
+      transform-origin: bottom center;
+    }
+    .share-phone.side.left { transform: scale(0.85) rotate(-8deg); }
+    .share-card-mock {
+      width: 160px; height: 284px; border-radius: 24px;
+      background: linear-gradient(145deg, #1a1a2e 0%, #0d0d0d 40%, #0a1a0f 100%);
+      border: 1px solid rgba(255,255,255,0.12);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+      position: relative; overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+    }
+    .share-card-mock::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(ellipse 70% 40% at 50% 30%, rgba(22,101,52,0.25) 0%, transparent 70%);
+    }
+    .sc-logo    { display: flex; align-items: center; gap: 6px; z-index: 1; }
+    .sc-s       { width: 26px; height: 26px; background: var(--brand); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 900; color: #fff; }
+    .sc-brand   { font-size: 16px; font-weight: 900; letter-spacing: -0.5px; color: #fff; }
+    .sc-result  { z-index: 1; text-align: center; }
+    .sc-event   { font-size: 9px; color: rgba(255,255,255,0.45); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 2px; }
+    .sc-time    { font-size: 32px; font-weight: 900; letter-spacing: -2px; color: #fff; text-shadow: 0 0 24px rgba(255,255,255,0.2); }
+    .sc-pb      { display: inline-block; background: rgba(22,101,52,0.25); border: 1px solid rgba(22,101,52,0.5); color: var(--green); font-size: 9px; font-weight: 800; padding: 2px 8px; border-radius: 100px; letter-spacing: 1px; }
+    .sc-stats   { z-index: 1; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 7px 14px; display: flex; gap: 14px; }
+    .sc-stat    { text-align: center; }
+    .sc-val     { font-size: 12px; font-weight: 900; color: #fff; }
+    .sc-lbl     { font-size: 8px; color: rgba(255,255,255,0.45); margin-top: 1px; }
 
     /* ── CTA BOTTOM ── */
-    .cta-bottom { padding: 60px 24px; text-align: center; position: relative; overflow: hidden; }
+    .cta-bottom { padding: 80px 24px; text-align: center; position: relative; overflow: hidden; }
     .cta-bottom::before {
-      content: ''; position: absolute; bottom: -30%; left: 50%; transform: translateX(-50%);
-      width: 400px; height: 400px; border-radius: 50%;
-      background: radial-gradient(circle, rgba(22,101,52,0.25) 0%, transparent 70%);
+      content: ''; position: absolute; bottom: -20%; left: 50%; transform: translateX(-50%);
+      width: 500px; height: 500px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(22,101,52,0.2) 0%, transparent 70%);
       pointer-events: none;
     }
     .cta-bottom-inner { position: relative; z-index: 1; max-width: 400px; margin: 0 auto; }
-    .cta-bottom-title { font-size: 28px; font-weight: 900; letter-spacing: -1px; line-height: 1.2; margin-bottom: 14px; }
-    .cta-bottom-sub   { font-size: 14px; color: var(--sub); line-height: 1.7; margin-bottom: 32px; }
+    .cta-bottom-title { font-size: clamp(28px,7vw,42px); font-weight: 900; letter-spacing: -1.5px; line-height: 1.15; margin-bottom: 14px; }
+    .cta-bottom-sub   { font-size: 14px; color: var(--sub); line-height: 1.8; margin-bottom: 36px; }
 
     /* ── FOOTER ── */
-    footer { border-top: 1px solid var(--border); padding: 28px 24px; text-align: center; color: var(--hint); font-size: 12px; }
+    footer { border-top: 1px solid var(--border); padding: 32px 24px; text-align: center; color: var(--hint); font-size: 12px; }
     footer a { color: var(--hint); text-decoration: none; }
     footer a:hover { color: var(--sub); }
+    .footer-links { display: flex; flex-wrap: wrap; gap: 4px 16px; justify-content: center; margin-top: 10px; }
 
-    @media (min-width: 480px) {
-      .feature-grid { grid-template-columns: 1fr 1fr 1fr; }
-      .feat-card.wide { grid-column: span 3; }
-      .plan-cards { flex-direction: row; align-items: stretch; }
-      .plan-card  { flex: 1; }
+    /* plan section toggle */
+    .plan-section { display: none; }
+    .plan-section.active { display: block; }
+
+    /* ── 保護者の方へ ── */
+    .parent-section {
+      padding: 80px 24px;
+      background: linear-gradient(180deg, var(--bg) 0%, #f0fdf4 60%, var(--bg) 100%);
+      border-top: 1px solid var(--border);
     }
+    .parent-inner { max-width: 600px; margin: 0 auto; }
+    .parent-tag   { font-size: 11px; font-weight: 700; letter-spacing: 2px; color: var(--green); text-transform: uppercase; margin-bottom: 10px; }
+    .parent-title { font-size: clamp(24px,6vw,32px); font-weight: 900; letter-spacing: -1.2px; line-height: 1.2; margin-bottom: 10px; }
+    .parent-sub   { font-size: 14px; color: var(--sub); line-height: 1.8; margin-bottom: 36px; }
+
+    .parent-cards { display: flex; flex-direction: column; gap: 14px; }
+    .parent-card  {
+      display: flex; gap: 16px; align-items: flex-start;
+      background: #fff; border: 1px solid var(--border2);
+      border-radius: 18px; padding: 20px 22px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.06);
+    }
+    .parent-card-icon {
+      width: 46px; height: 46px; border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; flex-shrink: 0;
+    }
+    .parent-card-title { font-size: 14px; font-weight: 800; margin-bottom: 5px; }
+    .parent-card-desc  { font-size: 13px; color: var(--sub); line-height: 1.7; }
+    .parent-card-desc strong { color: #111827; font-weight: 600; }
+
+    .parent-contact {
+      margin-top: 32px; text-align: center;
+      background: rgba(22,101,52,0.06); border: 1px solid rgba(22,101,52,0.18);
+      border-radius: 16px; padding: 22px 24px;
+    }
+    .parent-contact-title { font-size: 14px; font-weight: 800; color: var(--brand); margin-bottom: 6px; }
+    .parent-contact-text  { font-size: 13px; color: var(--sub); line-height: 1.7; }
+    .parent-contact-link  { color: var(--brand); font-weight: 700; text-decoration: none; }
+    .parent-contact-link:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
 
-<!-- HERO -->
+<!-- ── HERO ── -->
 <section class="hero">
   <div class="grid-bg">
     <div class="grid-line" style="left:14.3%"></div>
@@ -339,172 +564,455 @@
       <div class="logo-mark">S</div>
       <div class="logo-text">s<span>CORE</span></div>
     </div>
-    <div class="badge">FROM INSTINCT TO SCORE.</div>
-    <h1 class="headline">本能を、<br/><em>数値へ。</em></h1>
-    <p class="sub-text">怪我ゼロで、もっと速く。<br/>陸上競技者のために創られた、記録・怪我予防・AI分析アプリ。</p>
+    <div class="badge">陸上競技チーム管理アプリ</div>
+    <h1 class="headline">チーム管理の、<br/><em>新常識。</em></h1>
+    <p class="sub-text">部員全員の体調・練習・怪我リスクを<br/>スマホ一台でリアルタイム把握。<br/>顧問・コーチの負担を根本から変える。</p>
     <div class="cta-wrap">
       <a href="https://scorej-run.vercel.app" class="btn-primary">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/></svg>
-        無料で今すぐ使う
+        チームで使ってみる — 無料
       </a>
-      <a href="#story" class="btn-ghost">開発者について ↓</a>
+      <a href="#pricing" class="btn-ghost">プランを見る ↓</a>
     </div>
-    <p class="free-note"><strong>完全無料</strong>・登録不要・即スタート</p>
+    <p class="free-note">まず選手が無料で使い始め、<strong>コーチがチームに招待するだけ</strong></p>
   </div>
 
   <div class="scroll-hint">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    scroll
   </div>
 </section>
 
-<!-- STATS -->
-<div class="stats">
-  <div class="stat-item"><div class="stat-num">20+</div><div class="stat-label">種目対応</div></div>
-  <div class="stat-item"><div class="stat-num">0円</div><div class="stat-label">基本無料</div></div>
-  <div class="stat-item"><div class="stat-num">毎日</div><div class="stat-label">怪我チェック</div></div>
-  <div class="stat-item"><div class="stat-num">AI</div><div class="stat-label">練習分析</div></div>
+<!-- ── FEATURE BAR ── -->
+<div class="feat-bar">
+  <div class="feat-bar-item"><div class="feat-bar-icon">📊</div><div class="feat-bar-label">部員一覧管理</div></div>
+  <div class="feat-bar-item"><div class="feat-bar-icon">🩹</div><div class="feat-bar-label">怪我リスク把握</div></div>
+  <div class="feat-bar-item"><div class="feat-bar-icon">📅</div><div class="feat-bar-label">練習日程共有</div></div>
+  <div class="feat-bar-item"><div class="feat-bar-icon">🎥</div><div class="feat-bar-label">動画フォーム分析</div></div>
+  <div class="feat-bar-item"><div class="feat-bar-icon">💬</div><div class="feat-bar-label">チームメッセージ</div></div>
+  <div class="feat-bar-item"><div class="feat-bar-icon">🤖</div><div class="feat-bar-label">AI練習コーチ</div></div>
+  <div class="feat-bar-item"><div class="feat-bar-icon">⏱</div><div class="feat-bar-label">タイム記録</div></div>
+  <div class="feat-bar-item"><div class="feat-bar-icon">📤</div><div class="feat-bar-label">CSVエクスポート</div></div>
 </div>
 
-<!-- STORY -->
-<section class="story-section" id="story">
-  <div class="story-inner">
-    <div class="story-tag">✦ Story</div>
-    <div class="story-headline">怪我で、<br/><em>3年間を棒に振った。</em><br/>だから、創った。</div>
-    <div class="story-body">
-      高校3年間、まともに走れなかった元スプリンターがいます。<br/>
-      オーバートレーニング、疲労骨折、繰り返す肉離れ。<br/>
-      <strong>「あのとき、自分の体の状態が数値で見えていたら。」</strong><br/><br/>
-      その後悔が、sCORE の原点です。<br/><br/>
-      今は鍼灸師を目指しながら、選手時代に欲しかったツールを創り続けています。<br/>
-      このアプリを使う誰かが、同じ後悔をしないために。
+<!-- ── TEAM SECTION ── -->
+<section class="team-section" id="team">
+  <div class="team-inner">
+    <div class="team-tag">Coach & Teacher</div>
+    <div class="team-title">顧問・コーチが、<br/>もっと<em>楽になる。</em></div>
+    <p style="font-size:14px; color:var(--sub); line-height:1.9; margin-bottom:40px; max-width:500px;">
+      紙の出欠表、LINEでの個別連絡、部員の体調確認。<br/>
+      sCORE ならこれらをすべてアプリ一つに集約できます。<br/>
+      <strong style="color:#111827;">陸上未経験の顧問でも、専門コーチでも使える。</strong>
+    </p>
+
+    <!-- コーチダッシュボードモックアップ -->
+    <div style="margin-bottom:40px;">
+      <div style="font-size:11px; color:var(--sub); font-weight:700; letter-spacing:1px; text-transform:uppercase; margin-bottom:12px; text-align:center;">Coach Dashboard</div>
+      <div class="coach-dash">
+        <div class="dash-header">
+          <div class="dash-avatar">S</div>
+          <div>
+            <div class="dash-title">○○高校 陸上部</div>
+            <div class="dash-sub">本日 5月16日（金）· 部員 18名</div>
+          </div>
+        </div>
+        <div class="dash-grid">
+          <div class="dash-card">
+            <div class="dash-num" style="color:#4ade80">12</div>
+            <div class="dash-label">コンディション良好</div>
+          </div>
+          <div class="dash-card">
+            <div class="dash-num" style="color:#f87171">3</div>
+            <div class="dash-label">要注意（高リスク）</div>
+          </div>
+          <div class="dash-card">
+            <div class="dash-num" style="color:#fbbf24">2</div>
+            <div class="dash-label">痛み報告あり</div>
+          </div>
+          <div class="dash-card">
+            <div class="dash-num">📅</div>
+            <div class="dash-label">明日: 400mインターバル</div>
+          </div>
+        </div>
+        <div class="dash-section-label">部員コンディション</div>
+        <div class="dash-members">
+          <div class="dash-member">
+            <div class="member-dot dot-high"></div>
+            <div class="member-name">田中 太郎</div>
+            <div class="member-risk risk-high">リスク 82 ⚠️</div>
+          </div>
+          <div class="dash-member">
+            <div class="member-dot dot-mid"></div>
+            <div class="member-name">鈴木 花子</div>
+            <div class="member-risk risk-mid">リスク 55</div>
+          </div>
+          <div class="dash-member">
+            <div class="member-dot dot-low"></div>
+            <div class="member-name">山田 健一</div>
+            <div class="member-risk risk-low">リスク 28</div>
+          </div>
+          <div class="dash-member">
+            <div class="member-dot dot-low"></div>
+            <div class="member-name">佐藤 あかり</div>
+            <div class="member-risk risk-low">リスク 19</div>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="story-quote-wrap">
-      <div class="story-quote">"選手時代に、これが欲しかった。"</div>
-      <div class="story-sig">— sCORE 開発者 / 元スプリンター・鍼灸学生</div>
+
+    <!-- チーム機能 4つ -->
+    <div class="team-feats">
+      <div class="team-feat">
+        <div class="team-feat-icon" style="background:rgba(22,101,52,0.15)">📊</div>
+        <div>
+          <div class="team-feat-title">部員コンディション一覧</div>
+          <div class="team-feat-desc">全部員の疲労度・体調・怪我リスクスコアをコーチ画面で一目で確認。毎朝の体調確認が30秒で完了。</div>
+        </div>
+      </div>
+      <div class="team-feat">
+        <div class="team-feat-icon" style="background:rgba(239,68,68,0.12)">🩹</div>
+        <div>
+          <div class="team-feat-title">痛み・怪我レポートの即時通知</div>
+          <div class="team-feat-desc">選手が体の痛みを報告すると、コーチのアプリにすぐ通知。「気づかなかった」を無くし、怪我を未然に防ぐ。</div>
+        </div>
+      </div>
+      <div class="team-feat">
+        <div class="team-feat-icon" style="background:rgba(59,130,246,0.12)">📅</div>
+        <div>
+          <div class="team-feat-title">練習日程・大会情報の共有</div>
+          <div class="team-feat-desc">コーチが入力した予定が全部員のアプリに即時反映。「知らなかった」がなくなる。場所・メモも記載可能。</div>
+        </div>
+      </div>
+      <div class="team-feat">
+        <div class="team-feat-icon" style="background:rgba(245,158,11,0.12)">🎥</div>
+        <div>
+          <div class="team-feat-title">選手の動画フォームをコーチが確認</div>
+          <div class="team-feat-desc">選手が投稿した練習動画をコーチ側で閲覧・コメント。遠征中・個別練習中もフォームチェックが可能。</div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- FEATURES -->
-<section class="section" id="features">
+<!-- ── RISK SCORE SECTION ── -->
+<div class="risk-section" id="risk">
+  <div class="risk-inner">
+    <div class="risk-tag">🧠 AI Injury Risk</div>
+    <div class="risk-title">体の状態を、<br/>数値で科学的に把握する。</div>
+    <div class="risk-lead">
+      感覚や経験だけに頼らない怪我予防を。<br/>
+      sCORE は<strong>5つのバイオマーカー</strong>をリアルタイムで複合分析し、<br/>
+      今日の練習強度がどれほど怪我リスクを高めているかを<strong>0〜100のスコア</strong>で数値化します。
+    </div>
+
+    <!-- スコアモックアップ -->
+    <div class="score-mockup">
+      <div class="score-top">
+        <div class="score-label">怪我リスクスコア</div>
+        <div class="score-date">本日 5/16</div>
+      </div>
+      <div class="score-ring-wrap">
+        <div class="score-ring">
+          <div class="score-ring-num">58</div>
+        </div>
+        <div class="score-desc">
+          <div class="score-level">⚠️ やや高め</div>
+          <div class="score-advice">睡眠不足と連続練習が重なっています。今日は強度を70%程度に抑え、十分なウォームアップを行ってください。</div>
+        </div>
+      </div>
+      <div class="score-factors">
+        <div class="factor-item">
+          <div class="factor-label">疲労度</div>
+          <div class="factor-bar"><div class="factor-fill" style="width:70%; background:#f87171;"></div></div>
+          <div class="factor-val" style="color:#dc2626">7/10 高め</div>
+        </div>
+        <div class="factor-item">
+          <div class="factor-label">睡眠時間</div>
+          <div class="factor-bar"><div class="factor-fill" style="width:45%; background:#d97706;"></div></div>
+          <div class="factor-val" style="color:#b45309">5.5h 不足</div>
+        </div>
+        <div class="factor-item">
+          <div class="factor-label">連続練習日数</div>
+          <div class="factor-bar"><div class="factor-fill" style="width:80%; background:#dc2626;"></div></div>
+          <div class="factor-val" style="color:#dc2626">6日連続</div>
+        </div>
+        <div class="factor-item">
+          <div class="factor-label">天気・気温</div>
+          <div class="factor-bar"><div class="factor-fill" style="width:30%; background:#16a34a;"></div></div>
+          <div class="factor-val" style="color:#16a34a">22°C 晴れ</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 科学的根拠 -->
+    <div class="science-box">
+      <div class="science-header">
+        <div class="science-icon">🔬</div>
+        <div class="science-title">スコアの科学的根拠</div>
+      </div>
+      <div class="science-text">
+        sCORE の怪我リスクスコアは、スポーツ科学・スポーツ医学の研究知見をもとに設計されています。
+        単一指標ではなく、<strong style="color:#111827">5つの要因を掛け合わせた複合スコア</strong>であることが特徴です。
+        同じ疲労度でも、睡眠が十分なら回復が早く、睡眠不足と組み合わさると障害リスクは急増します。
+      </div>
+      <div class="science-refs">
+        <div class="science-ref"><div class="ref-num">①</div><div><strong style="color:#374151">睡眠不足とスポーツ障害：</strong>睡眠時間が8時間未満の選手は怪我リスクが1.7倍高くなることが報告されています（Milewski et al., 2014, Clinical Journal of Sport Medicine）</div></div>
+        <div class="science-ref"><div class="ref-num">②</div><div><strong style="color:#374151">累積疲労と障害：</strong>スポーツ障害の70〜80%は使いすぎ（オーバーユース）が原因とされており、休養なしの連続練習が最大のリスク要因（ACSM, 2011）</div></div>
+        <div class="science-ref"><div class="ref-num">③</div><div><strong style="color:#374151">気温・湿度の影響：</strong>低温環境では筋粘性が増し、ウォームアップ不足と組み合わさると肉離れリスクが有意に上昇（Woods et al., British Journal of Sports Medicine）</div></div>
+        <div class="science-ref"><div class="ref-num">④</div><div><strong style="color:#374151">主観的疲労度（RPE）の有効性：</strong>Borg スケールをもとにした自覚的疲労度は、血液マーカーと有意な相関を示し、低コストな疲労モニタリング指標として推奨（Foster et al.）</div></div>
+      </div>
+    </div>
+
+    <!-- 5つの指標 -->
+    <div class="factor-cards">
+      <div class="fcard">
+        <div class="fcard-icon">😴</div>
+        <div class="fcard-title">睡眠時間</div>
+        <div class="fcard-desc">毎日記録した睡眠時間から回復状態を算出。8時間未満で段階的にリスクが上昇。</div>
+        <span class="fcard-weight" style="background:rgba(239,68,68,0.12); color:#f87171; border:1px solid rgba(239,68,68,0.2);">重み 大</span>
+      </div>
+      <div class="fcard">
+        <div class="fcard-icon">💪</div>
+        <div class="fcard-title">自覚疲労度</div>
+        <div class="fcard-desc">練習後の主観的疲労度（1〜10）を記録。Borgスケールをもとにした信頼性の高い指標。</div>
+        <span class="fcard-weight" style="background:rgba(239,68,68,0.12); color:#f87171; border:1px solid rgba(239,68,68,0.2);">重み 大</span>
+      </div>
+      <div class="fcard">
+        <div class="fcard-icon">📅</div>
+        <div class="fcard-title">連続練習日数</div>
+        <div class="fcard-desc">休養なしで練習が続くほど累積疲労が蓄積。5日を超えると急激にリスクが増加。</div>
+        <span class="fcard-weight" style="background:rgba(245,158,11,0.12); color:#fbbf24; border:1px solid rgba(245,158,11,0.2);">重み 中</span>
+      </div>
+      <div class="fcard">
+        <div class="fcard-icon">🌤</div>
+        <div class="fcard-title">天気・気温</div>
+        <div class="fcard-desc">気温・湿度・天候から筋肉のコンディションを補正。低温・多湿時は自動でリスクを加算。</div>
+        <span class="fcard-weight" style="background:rgba(22,163,74,0.1); color:#16a34a; border:1px solid rgba(22,163,74,0.25);">重み 小</span>
+      </div>
+      <div class="fcard" style="grid-column: span 2;">
+        <div class="fcard-icon">🩹</div>
+        <div class="fcard-title">体の痛み・違和感の報告</div>
+        <div class="fcard-desc">筋肉・関節の痛みを部位別に記録。違和感を記録した当日はリスクスコアが即座に加算され、コーチにも通知される。ストレッチ・ウォームアップを実施した場合はスコアを補正（減算）。</div>
+        <span class="fcard-weight" style="background:rgba(239,68,68,0.12); color:#f87171; border:1px solid rgba(239,68,68,0.2);">重み 大（即時加算）</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── ALL FEATURES ── -->
+<section class="all-feat-section" id="features">
   <div class="section-tag">Features</div>
-  <div class="section-title">強くなるための<br/>すべての機能</div>
-  <div class="section-sub">記録・分析・怪我予防まで。<br/>陸上競技に必要なツールが全部入り。</div>
+  <div class="section-title">全機能ガイド</div>
+  <div class="section-sub">個人選手からチームまで。sCORE のすべての機能。</div>
 
-  <div class="feature-grid">
-    <div class="feat-card hl">
-      <div class="feat-icon">⏱</div>
-      <div class="feat-title">タイム記録</div>
-      <div class="feat-desc">PB・SBを自動判定。全期間の履歴を保存。</div>
-      <span class="feat-badge free">無料</span>
+  <!-- 記録・管理 -->
+  <div class="feat-category">
+    <div class="feat-cat-label">記録・管理</div>
+    <div class="feat-list">
+      <div class="feat-row">
+        <div class="feat-row-icon">⏱</div>
+        <div class="feat-row-body">
+          <div class="feat-row-title">タイム記録・PB管理</div>
+          <div class="feat-row-desc">大会・練習のタイムを記録。PB・SBを自動判定してバッジ表示。全期間の履歴を保存。</div>
+        </div>
+        <span class="feat-plan-tag tag-free">FREE</span>
+      </div>
+      <div class="feat-row">
+        <div class="feat-row-icon">📋</div>
+        <div class="feat-row-body">
+          <div class="feat-row-title">練習ログ（無制限）</div>
+          <div class="feat-row-desc">距離・本数・セット・インターバルタイムを記録。種目別・強度別に整理。</div>
+        </div>
+        <span class="feat-plan-tag tag-free">FREE</span>
+      </div>
+      <div class="feat-row">
+        <div class="feat-row-icon">📅</div>
+        <div class="feat-row-body">
+          <div class="feat-row-title">カレンダー・スケジュール管理</div>
+          <div class="feat-row-desc">試合・練習・大会をカレンダーで管理。チーム連動で全員の予定を共有。</div>
+        </div>
+        <span class="feat-plan-tag tag-free">FREE</span>
+      </div>
+      <div class="feat-row">
+        <div class="feat-row-icon">😴</div>
+        <div class="feat-row-body">
+          <div class="feat-row-title">体調・睡眠・疲労ログ</div>
+          <div class="feat-row-desc">毎日の睡眠時間・疲労度・コンディションを記録。怪我リスクスコアに自動反映。</div>
+        </div>
+        <span class="feat-plan-tag tag-free">FREE</span>
+      </div>
+      <div class="feat-row">
+        <div class="feat-row-icon">📤</div>
+        <div class="feat-row-body">
+          <div class="feat-row-title">CSVエクスポート</div>
+          <div class="feat-row-desc">練習ログ・タイム記録をCSVで書き出し。コーチへの報告や分析に活用できる。</div>
+        </div>
+        <span class="feat-plan-tag tag-pro">PRO</span>
+      </div>
     </div>
-    <div class="feat-card">
-      <div class="feat-icon">📋</div>
-      <div class="feat-title">練習ログ</div>
-      <div class="feat-desc">距離・本数・インターバルを記録。無制限。</div>
-      <span class="feat-badge free">無料</span>
+  </div>
+
+  <!-- AI機能 -->
+  <div class="feat-category">
+    <div class="feat-cat-label">AI機能</div>
+    <div class="feat-list">
+      <div class="feat-row">
+        <div class="feat-row-icon">🧠</div>
+        <div class="feat-row-body">
+          <div class="feat-row-title">怪我リスクAI診断（毎日）</div>
+          <div class="feat-row-desc">5因子の複合スコアで今日の怪我リスクを0〜100で数値化。コーチも確認可能。</div>
+        </div>
+        <span class="feat-plan-tag tag-free">FREE</span>
+      </div>
+      <div class="feat-row">
+        <div class="feat-row-icon">💊</div>
+        <div class="feat-row-body">
+          <div class="feat-row-title">AIリカバリー相談（無制限）</div>
+          <div class="feat-row-desc">痛みや疲労の悩みをAIに相談。体の状態に合わせた回復アドバイスを提供。</div>
+        </div>
+        <span class="feat-plan-tag tag-free">FREE</span>
+      </div>
+      <div class="feat-row">
+        <div class="feat-row-icon">🤖</div>
+        <div class="feat-row-body">
+          <div class="feat-row-title">AI練習分析コーチ</div>
+          <div class="feat-row-desc">直近の練習データをAIが解析。「今週の評価」「来週の方針」「食事・睡眠アドバイス」を提供。</div>
+        </div>
+        <span class="feat-plan-tag tag-pro">PRO</span>
+      </div>
+      <div class="feat-row">
+        <div class="feat-row-icon">🎥</div>
+        <div class="feat-row-body">
+          <div class="feat-row-title">動画フォーム分析</div>
+          <div class="feat-row-desc">走り・跳躍・投擲の動画をアップロードするとAIが解析し、改善点を具体的にフィードバック。</div>
+        </div>
+        <span class="feat-plan-tag tag-pro">PRO</span>
+      </div>
+      <div class="feat-row">
+        <div class="feat-row-icon">🍱</div>
+        <div class="feat-row-body">
+          <div class="feat-row-title">AI食事・栄養分析</div>
+          <div class="feat-row-desc">食事の写真を撮るだけで栄養バランスをAIが解析。競技に必要な栄養摂取をサポート。</div>
+        </div>
+        <span class="feat-plan-tag tag-pro">PRO</span>
+      </div>
     </div>
-    <div class="feat-card">
-      <div class="feat-icon">📅</div>
-      <div class="feat-title">カレンダー</div>
-      <div class="feat-desc">試合・練習をひと目で管理。</div>
-      <span class="feat-badge free">無料</span>
+  </div>
+
+  <!-- 怪我予防 -->
+  <div class="feat-category">
+    <div class="feat-cat-label">怪我予防</div>
+    <div class="feat-list">
+      <div class="feat-row">
+        <div class="feat-row-icon">🩹</div>
+        <div class="feat-row-body">
+          <div class="feat-row-title">体の痛み・違和感の記録と報告</div>
+          <div class="feat-row-desc">部位別に痛みを記録。記録と同時にコーチへ通知。見逃しゼロ。</div>
+        </div>
+        <span class="feat-plan-tag tag-free">FREE</span>
+      </div>
+      <div class="feat-row">
+        <div class="feat-row-icon">🧘</div>
+        <div class="feat-row-body">
+          <div class="feat-row-title">ウォームアップ・ストレッチガイド</div>
+          <div class="feat-row-desc">種目別・部位別のウォームアップを動画ガイド付きで提供。ストレッチ実施でリスクスコアを補正。</div>
+        </div>
+        <span class="feat-plan-tag tag-free">FREE</span>
+      </div>
     </div>
-    <div class="feat-card hl">
-      <div class="feat-icon">🤖</div>
-      <div class="feat-title">AI練習分析</div>
-      <div class="feat-desc">練習データをAIが解析。改善ポイントを提案。</div>
-      <span class="feat-badge pro">PRO</span>
+  </div>
+
+  <!-- チーム機能 -->
+  <div class="feat-category">
+    <div class="feat-cat-label">チーム機能（コーチ・顧問向け）</div>
+    <div class="feat-list">
+      <div class="feat-row">
+        <div class="feat-row-icon">📊</div>
+        <div class="feat-row-body">
+          <div class="feat-row-title">コーチダッシュボード</div>
+          <div class="feat-row-desc">全部員のコンディション・怪我リスク・出席状況を一画面で把握。毎朝30秒で完了。</div>
+        </div>
+        <span class="feat-plan-tag tag-team">TEAM</span>
+      </div>
+      <div class="feat-row">
+        <div class="feat-row-icon">📅</div>
+        <div class="feat-row-body">
+          <div class="feat-row-title">チームスケジュール共有</div>
+          <div class="feat-row-desc">コーチが入力した練習・大会・ミーティングの日程が全部員に即時通知。</div>
+        </div>
+        <span class="feat-plan-tag tag-team">TEAM</span>
+      </div>
+      <div class="feat-row">
+        <div class="feat-row-icon">💬</div>
+        <div class="feat-row-body">
+          <div class="feat-row-title">チームメッセージ・アナウンス</div>
+          <div class="feat-row-desc">コーチから全部員への一斉連絡。重要な連絡はピン留め可能。</div>
+        </div>
+        <span class="feat-plan-tag tag-team">TEAM</span>
+      </div>
+      <div class="feat-row">
+        <div class="feat-row-icon">🎥</div>
+        <div class="feat-row-body">
+          <div class="feat-row-title">選手動画の管理・コメント</div>
+          <div class="feat-row-desc">選手が投稿したフォーム動画をコーチが確認・フィードバック。7日間保存。</div>
+        </div>
+        <span class="feat-plan-tag tag-team">TEAM</span>
+      </div>
+      <div class="feat-row">
+        <div class="feat-row-icon">📈</div>
+        <div class="feat-row-body">
+          <div class="feat-row-title">チーム練習記録の可視化</div>
+          <div class="feat-row-desc">全部員の練習量・タイム推移・コンディション推移をコーチが一覧で確認。</div>
+        </div>
+        <span class="feat-plan-tag tag-team">TEAM</span>
+      </div>
     </div>
-    <div class="feat-card">
-      <div class="feat-icon">🎥</div>
-      <div class="feat-title">動画フォーム分析</div>
-      <div class="feat-desc">フォームをAIが分析してアドバイス。</div>
-      <span class="feat-badge pro">PRO</span>
-    </div>
-    <div class="feat-card">
-      <div class="feat-icon">🍱</div>
-      <div class="feat-title">AI食事・栄養分析</div>
-      <div class="feat-desc">食事写真を撮るだけで栄養バランスをAIが分析。</div>
-      <span class="feat-badge pro">PRO</span>
-    </div>
-    <div class="feat-card">
-      <div class="feat-icon">📸</div>
-      <div class="feat-title">シェアカード</div>
-      <div class="feat-desc">PB更新をインスタストーリーにシェア。</div>
-      <span class="feat-badge free">無料</span>
+  </div>
+
+  <!-- シェア -->
+  <div class="feat-category">
+    <div class="feat-cat-label">シェア・コミュニティ</div>
+    <div class="feat-list">
+      <div class="feat-row">
+        <div class="feat-row-icon">📸</div>
+        <div class="feat-row-body">
+          <div class="feat-row-title">PBシェアカード生成</div>
+          <div class="feat-row-desc">自己ベスト更新時にインスタストーリー用のシェアカードを自動生成。ワンタップで投稿。</div>
+        </div>
+        <span class="feat-plan-tag tag-free">FREE</span>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- INJURY PREVENTION -->
-<div class="injury-section">
-  <div class="injury-inner">
-    <div class="injury-tag">🩹 Injury Prevention</div>
-    <div class="injury-title">怪我を防ぐことが、<br/>最強のトレーニング。</div>
-    <div class="injury-lead">
-      sCORE は「記録する」だけのアプリではありません。<br/>
-      <strong>怪我で練習を休むこと</strong>が、選手にとって最大のロスだと考えています。<br/>
-      だから怪我予防に関わる機能は、<strong>すべて無料</strong>で全ユーザーに届けます。
-    </div>
-
-    <div class="injury-cards">
-      <div class="inj-card">
-        <div class="inj-icon-wrap">🧠</div>
-        <div class="inj-body">
-          <div class="inj-title">怪我リスクAI診断</div>
-          <div class="inj-desc">疲労・睡眠・練習量・体調をもとにAIが怪我リスクをスコアリング。「今日は強度を落とすべき」を毎日教えてくれる。</div>
-          <span class="inj-badge">毎日1回 無料</span>
-        </div>
-      </div>
-      <div class="inj-card">
-        <div class="inj-icon-wrap">💊</div>
-        <div class="inj-body">
-          <div class="inj-title">AIリカバリー相談</div>
-          <div class="inj-desc">痛みや疲労の悩みをAIに相談。「この痛みはどうすれば？」「明日の練習は大丈夫？」に的確にアドバイス。怪我したときこそ使ってほしい機能。</div>
-          <span class="inj-badge">完全無料</span>
-        </div>
-      </div>
-      <div class="inj-card">
-        <div class="inj-icon-wrap">🧘</div>
-        <div class="inj-body">
-          <div class="inj-title">ウォームアップ・ストレッチガイド</div>
-          <div class="inj-desc">種目別・部位別のウォームアップメニューをガイド。練習前に正しく体を準備することで怪我を未然に防ぐ。</div>
-          <span class="inj-badge">完全無料</span>
-        </div>
-      </div>
-      <div class="inj-card">
-        <div class="inj-icon-wrap">😴</div>
-        <div class="inj-body">
-          <div class="inj-title">体調・疲労ログ</div>
-          <div class="inj-desc">毎日の睡眠・疲労度・体重を記録。蓄積されたデータが怪我リスク診断の精度を高める。記録するほど、守られる。</div>
-          <span class="inj-badge">完全無料</span>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- SHARE CARD -->
+<!-- ── SHARE CARD ── -->
 <div class="share-section">
   <div class="share-inner">
     <div class="section-tag" style="text-align:center">Share Card</div>
-    <div class="section-title" style="text-align:center; margin-bottom:8px">自己ベストを<br/>みんなにシェア</div>
-    <div class="section-sub" style="text-align:center; margin-bottom:24px">記録したタイムをワンタップで<br/>インスタストーリー用カードに変換。完全無料。</div>
-    <div class="share-mockup">
-      <div class="mock-logo">
-        <div class="mock-s">S</div>
-        <div class="mock-brand">sCORE</div>
+    <div class="section-title" style="text-align:center; margin-bottom:8px">PB更新を、<br/>すぐシェア</div>
+    <div class="section-sub" style="text-align:center; margin-bottom:0">自己ベスト更新の瞬間をワンタップで<br/>インスタストーリー用カードに変換。完全無料。</div>
+    <div class="share-phones">
+      <div class="share-phone side left">
+        <div class="share-card-mock" style="width:130px; height:230px;">
+          <div class="sc-logo"><div class="sc-s">S</div><div class="sc-brand" style="font-size:13px">sCORE</div></div>
+          <div class="sc-result"><div class="sc-event">200m</div><div class="sc-time" style="font-size:26px">21"84</div><div class="sc-pb">🏆 自己ベスト</div></div>
+          <div class="sc-stats" style="padding:6px 10px; gap:10px;"><div class="sc-stat"><div class="sc-val" style="font-size:11px">+1.2</div><div class="sc-lbl">m/s</div></div><div class="sc-stat"><div class="sc-val" style="font-size:11px">県選</div><div class="sc-lbl">大会</div></div></div>
+        </div>
       </div>
-      <div class="mock-result">
-        <div class="mock-event">100m</div>
-        <div class="mock-time">10"84</div>
-        <div class="mock-pb">🏆 自己ベスト</div>
+      <div class="share-phone main">
+        <div class="share-card-mock">
+          <div class="sc-logo"><div class="sc-s">S</div><div class="sc-brand">sCORE</div></div>
+          <div class="sc-result"><div class="sc-event">100m</div><div class="sc-time">10"84</div><div class="sc-pb">🏆 自己ベスト</div></div>
+          <div class="sc-stats"><div class="sc-stat"><div class="sc-val">+1.8</div><div class="sc-lbl">m/s 風</div></div><div class="sc-stat"><div class="sc-val">県選</div><div class="sc-lbl">大会</div></div><div class="sc-stat"><div class="sc-val">5/16</div><div class="sc-lbl">日付</div></div></div>
+        </div>
       </div>
-      <div class="mock-glass">
-        <div class="mock-data"><div class="mock-val">+1.8</div><div class="mock-lbl">m/s 風</div></div>
-        <div class="mock-data"><div class="mock-val">県選</div><div class="mock-lbl">大会</div></div>
-        <div class="mock-data"><div class="mock-val">5/1</div><div class="mock-lbl">日付</div></div>
+      <div class="share-phone side">
+        <div class="share-card-mock" style="width:130px; height:230px; background:linear-gradient(145deg,#1a0a2e,#0d0d0d,#0a100f);">
+          <div class="sc-logo"><div class="sc-s">S</div><div class="sc-brand" style="font-size:13px">sCORE</div></div>
+          <div class="sc-result"><div class="sc-event">走幅跳</div><div class="sc-time" style="font-size:22px">7m04</div><div class="sc-pb" style="background:rgba(245,158,11,0.2); border-color:rgba(245,158,11,0.5); color:#fbbf24;">🥇 PB</div></div>
+          <div class="sc-stats" style="padding:6px 10px; gap:10px;"><div class="sc-stat"><div class="sc-val" style="font-size:11px">+0.8</div><div class="sc-lbl">m/s</div></div><div class="sc-stat"><div class="sc-val" style="font-size:11px">5/16</div><div class="sc-lbl">日付</div></div></div>
+        </div>
       </div>
     </div>
     <a href="https://scorej-run.vercel.app" class="btn-primary" style="max-width:300px; margin:0 auto; display:flex;">
@@ -513,152 +1021,324 @@
   </div>
 </div>
 
-<!-- PRICING -->
+<!-- ── PRICING ── -->
 <section class="pricing-section" id="pricing">
-  <div class="section-tag">Pricing</div>
-  <div class="section-title">シンプルな<br/>3つのプラン</div>
-  <div class="section-sub">怪我予防・記録・シェアは永続無料。<br/>AIをもっと使いたくなったらPROへ。</div>
+  <div class="pricing-inner">
+    <div class="section-tag" style="text-align:center">Pricing</div>
+    <div class="section-title" style="text-align:center; margin-bottom:8px">あなたに合った<br/>プランを選ぼう</div>
+    <div class="section-sub" style="text-align:center; margin-bottom:32px">個人選手向けとチーム向けで<br/>プランが分かれています。</div>
 
-  <div class="plan-cards">
+    <!-- タブ -->
+    <div class="pricing-tabs">
+      <div class="pricing-tab active" id="tab-personal" onclick="switchPlan('personal')">👤 個人選手向け</div>
+      <div class="pricing-tab team-tab" id="tab-team" onclick="switchPlan('team')">👥 チーム・学校向け</div>
+    </div>
 
-    <!-- FREE -->
-    <div class="plan-card">
-      <div class="plan-header">
-        <div>
+    <!-- 個人プラン -->
+    <div class="plan-section active" id="plan-personal">
+      <div class="plan-grid three">
+
+        <!-- FREE -->
+        <div class="plan-card">
           <div class="plan-name free">FREE</div>
-          <div class="plan-tagline">ずっと無料</div>
+          <div class="plan-who">練習を記録したい<br/>すべての選手へ</div>
+          <div class="plan-price">
+            <div><span class="plan-price-num">¥0</span><span class="plan-price-unit"> 永久無料</span></div>
+          </div>
+          <div class="plan-divider"></div>
+          <div class="plan-feats">
+            <div class="pf"><div class="pf-icon">✓</div><div>タイム記録・練習ログ <em>無制限</em></div></div>
+            <div class="pf"><div class="pf-icon">✓</div><div>怪我リスクAI診断 <em>毎日</em></div></div>
+            <div class="pf"><div class="pf-icon">✓</div><div>AIリカバリー相談 <em>無制限</em></div></div>
+            <div class="pf"><div class="pf-icon">✓</div><div>ウォームアップガイド</div></div>
+            <div class="pf"><div class="pf-icon">✓</div><div>PBシェアカード生成</div></div>
+            <div class="pf"><div class="pf-icon">✓</div><div>カレンダー・体調ログ</div></div>
+            <div class="pf dim"><div class="pf-icon">—</div><div>AI練習分析 <em>広告視聴で1回/日</em></div></div>
+            <div class="pf dim"><div class="pf-icon">—</div><div>動画フォーム分析 <em>広告視聴で1回/日</em></div></div>
+          </div>
+          <a href="https://scorej-run.vercel.app" class="plan-cta cta-free">無料で始める</a>
         </div>
-        <div class="plan-price">
-          <div class="plan-price-main free">¥0</div>
-          <div class="plan-price-sub">永久無料</div>
-        </div>
-      </div>
-      <div class="plan-divider"></div>
-      <div class="plan-feats">
-        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">タイム記録・練習ログ <em>無制限</em></div></div>
-        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">記録履歴 全期間</div></div>
-        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">怪我リスクAI診断 <em>毎日1回</em></div></div>
-        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">AIリカバリー相談 <em>無制限</em></div></div>
-        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">ウォームアップ・ストレッチ</div></div>
-        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">シェアカード生成</div></div>
-        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">カレンダー・体調ログ</div></div>
-        <div class="plan-feat dimmed"><div class="plan-feat-icon">—</div><div class="plan-feat-text">AI練習分析 <em>初回3回のみ</em></div></div>
-        <div class="plan-feat dimmed"><div class="plan-feat-icon">—</div><div class="plan-feat-text">動画フォーム分析 <em>初回2回のみ</em></div></div>
-        <div class="plan-feat dimmed"><div class="plan-feat-icon">—</div><div class="plan-feat-text">AI食事・栄養分析 <em>PRO以上</em></div></div>
-      </div>
-      <a href="https://scorej-run.vercel.app" class="plan-cta free">無料で始める</a>
-    </div>
 
-    <!-- PRO -->
-    <div class="plan-card pro">
-      <div class="plan-top-badge pro">🔥 人気No.1</div>
-      <div class="plan-header">
-        <div>
+        <!-- PRO -->
+        <div class="plan-card featured">
+          <div class="plan-ribbon ribbon-pro">🔥 人気No.1</div>
           <div class="plan-name pro">PRO</div>
-          <div class="plan-tagline">本格的に強くなりたい選手へ</div>
+          <div class="plan-who">本格的に強くなりたい<br/>選手・個人アスリートへ</div>
+          <div class="plan-price">
+            <div><span class="plan-price-num">¥480</span><span class="plan-price-unit">/月</span></div>
+            <div class="plan-price-note">年払い ¥4,320（約25%お得）</div>
+          </div>
+          <div class="plan-divider"></div>
+          <div class="plan-feats">
+            <div class="pf"><div class="pf-icon">✓</div><div>FREEの全機能</div></div>
+            <div class="pf"><div class="pf-icon">✓</div><div>AI練習分析コーチ <em>月30回</em></div></div>
+            <div class="pf"><div class="pf-icon">✓</div><div>動画フォーム分析 <em>月30回</em></div></div>
+            <div class="pf"><div class="pf-icon">✓</div><div>AI食事・栄養分析 <em>月30回</em></div></div>
+            <div class="pf"><div class="pf-icon">✓</div><div>AIリカバリー相談 <em>月30回</em></div></div>
+            <div class="pf"><div class="pf-icon">✓</div><div>CSVエクスポート <em>月1回</em></div></div>
+            <div class="pf"><div class="pf-icon">✓</div><div>広告なし</div></div>
+          </div>
+          <a href="https://scorej-run.vercel.app" class="plan-cta cta-pro">PROを始める</a>
         </div>
-        <div class="plan-price">
-          <div class="plan-price-main">¥780<span style="font-size:13px; font-weight:500; color:var(--sub)">/月</span></div>
-          <div class="plan-price-ann">年払い ¥6,800 〈約27%お得〉</div>
-        </div>
-      </div>
-      <div class="plan-divider"></div>
-      <div class="plan-feats">
-        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">FREEの全機能</div></div>
-        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">AI練習分析 <em>無制限</em></div></div>
-        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">AI食事・栄養分析 <em>無制限</em></div></div>
-        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">動画フォーム分析 <em>月5回</em></div></div>
-        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">怪我リスクAI診断 <em>無制限</em></div></div>
-        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">GPSランニング記録</div></div>
-        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">全国ランキング参加</div></div>
-        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">CSVエクスポート</div></div>
-      </div>
-      <a href="https://scorej-run.vercel.app" class="plan-cta pro">PROを始める</a>
-    </div>
 
-    <!-- ELITE -->
-    <div class="plan-card elite">
-      <div class="plan-top-badge elite">👑 最上位</div>
-      <div class="plan-header">
-        <div>
+        <!-- ELITE -->
+        <div class="plan-card" style="border-color:rgba(245,158,11,0.35);">
+          <div class="plan-ribbon ribbon-elite">👑 無制限</div>
           <div class="plan-name elite">ELITE</div>
-          <div class="plan-tagline">競技で勝ちにいく選手・コーチへ</div>
-        </div>
-        <div class="plan-price">
-          <div class="plan-price-main">¥1,480<span style="font-size:13px; font-weight:500; color:var(--sub)">/月</span></div>
-          <div class="plan-price-ann" style="color:var(--amber)">年払い ¥12,800 〈約28%お得〉</div>
+          <div class="plan-who">記録を追い求める<br/>本気の競技者へ</div>
+          <div class="plan-price">
+            <div><span class="plan-price-num">¥980</span><span class="plan-price-unit">/月</span></div>
+            <div class="plan-price-note" style="color:var(--amber)">年払い ¥8,820（約25%お得）</div>
+          </div>
+          <div class="plan-divider"></div>
+          <div class="plan-feats">
+            <div class="pf"><div class="pf-icon">✓</div><div>PROの全機能（広告なし）</div></div>
+            <div class="pf"><div class="pf-icon">✓</div><div>AI機能すべて <em>完全無制限</em></div></div>
+            <div class="pf"><div class="pf-icon">✓</div><div>CSVエクスポート <em>無制限</em></div></div>
+          </div>
+          <a href="https://scorej-run.vercel.app" class="plan-cta cta-elite">ELITEを始める</a>
         </div>
       </div>
-      <div class="plan-divider"></div>
-      <div class="plan-feats">
-        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">PROの全機能</div></div>
-        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">動画フォーム分析 <em>無制限</em></div></div>
-        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">AIコーチチャット <em>練習フィードバック</em></div></div>
-        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">チーム機能 <em>部員10名まで管理</em></div></div>
-        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">コーチビュー <em>選手管理ダッシュボード</em></div></div>
-        <div class="plan-feat"><div class="plan-feat-icon">✓</div><div class="plan-feat-text">優先サポート</div></div>
+
+      <!-- who guide -->
+      <div class="who-guide" style="margin-top:32px;">
+        <div style="font-size:12px; color:var(--sub); text-align:center; margin-bottom:8px; letter-spacing:0.5px;">どのプランを選べばいい？</div>
+        <div class="who-item">
+          <div class="who-emoji">🏃</div>
+          <div class="who-body">
+            <div class="who-title">とりあえず記録・怪我予防だけしたい → <span style="color:#16a34a">FREE</span></div>
+            <div class="who-desc">タイム記録・練習ログ・怪我リスク診断はすべて無料。AIは広告を見れば1日1回使える。</div>
+          </div>
+        </div>
+        <div class="who-item">
+          <div class="who-emoji">🔥</div>
+          <div class="who-body">
+            <div class="who-title">AIを毎日フル活用したい → <span style="color:#16a34a">PRO ¥480/月</span></div>
+            <div class="who-desc"><strong>月480円（コーヒー1杯以下）</strong>でAI練習分析・フォーム分析・食事分析が月30回。真剣に強くなりたい選手に。</div>
+          </div>
+        </div>
+        <div class="who-item">
+          <div class="who-emoji">👑</div>
+          <div class="who-body">
+            <div class="who-title">回数制限なく使い倒したい → <span style="color:#d97706">ELITE ¥980/月</span></div>
+            <div class="who-desc">AI機能すべて完全無制限。記録を追い続けるシリアスアスリート向け。</div>
+          </div>
+        </div>
       </div>
-      <a href="https://scorej-run.vercel.app" class="plan-cta elite">ELITEを始める</a>
     </div>
 
+    <!-- チームプラン -->
+    <div class="plan-section" id="plan-team">
+      <div class="plan-grid">
+
+        <!-- Team Standard -->
+        <div class="plan-card team-card">
+          <div class="plan-ribbon ribbon-team">チーム</div>
+          <div class="plan-name team">Team</div>
+          <div class="plan-who">部員〜20名程度の<br/>学校・クラブチームへ</div>
+          <div class="plan-price">
+            <div><span class="plan-price-num">¥2,980</span><span class="plan-price-unit">/月</span></div>
+            <div class="plan-price-note" style="color:#1d4ed8">部員は全員無料で参加</div>
+          </div>
+          <div class="plan-divider"></div>
+          <div class="plan-feats">
+            <div class="pf"><div class="pf-icon">✓</div><div>部員全員の体調を一括管理</div></div>
+            <div class="pf"><div class="pf-icon">✓</div><div>怪我リスク・痛み報告の通知</div></div>
+            <div class="pf"><div class="pf-icon">✓</div><div>チームスケジュール共有</div></div>
+            <div class="pf"><div class="pf-icon">✓</div><div>チームメッセージ・アナウンス</div></div>
+            <div class="pf"><div class="pf-icon">✓</div><div>選手動画の管理・確認</div></div>
+            <div class="pf"><div class="pf-icon">✓</div><div>部員 <em>20名まで</em></div></div>
+            <div class="pf dim"><div class="pf-icon">—</div><div>AI動画フォーム分析 <em>Team Pro以上</em></div></div>
+          </div>
+          <a href="mailto:amuletbaby.shop@gmail.com?subject=Teamプラン相談" class="plan-cta cta-team">導入を相談する</a>
+        </div>
+
+        <!-- Team Pro -->
+        <div class="plan-card team-card" style="border-color:rgba(99,102,241,0.5); box-shadow:0 8px 40px rgba(99,102,241,0.15);">
+          <div class="plan-ribbon" style="background:linear-gradient(90deg,#4f46e5,#2563eb); color:#fff;">Team Pro</div>
+          <div class="plan-name" style="color:#4f46e5">Team Pro</div>
+          <div class="plan-who">大規模校・強豪チーム<br/>・複数部活担当の顧問へ</div>
+          <div class="plan-price">
+            <div><span class="plan-price-num">¥4,980</span><span class="plan-price-unit">/月</span></div>
+            <div class="plan-price-note" style="color:#4f46e5">部員は全員無料で参加</div>
+          </div>
+          <div class="plan-divider"></div>
+          <div class="plan-feats">
+            <div class="pf"><div class="pf-icon">✓</div><div>Teamの全機能</div></div>
+            <div class="pf"><div class="pf-icon">✓</div><div>AI動画フォーム分析 <em>コーチが全部員分管理</em></div></div>
+            <div class="pf"><div class="pf-icon">✓</div><div>練習データのCSV一括エクスポート</div></div>
+            <div class="pf"><div class="pf-icon">✓</div><div>部員 <em>人数無制限</em></div></div>
+            <div class="pf"><div class="pf-icon">✓</div><div>優先サポート・導入サポート</div></div>
+          </div>
+          <a href="mailto:amuletbaby.shop@gmail.com?subject=Team Proプラン相談" class="plan-cta" style="background:linear-gradient(90deg,#4f46e5,#2563eb); color:#fff; box-shadow:0 4px 20px rgba(79,70,229,0.4);">導入を相談する</a>
+        </div>
+      </div>
+
+      <!-- who guide team -->
+      <div class="who-guide" style="margin-top:32px;">
+        <div style="font-size:12px; color:var(--sub); text-align:center; margin-bottom:8px; letter-spacing:0.5px;">どのチームプランを選べばいい？</div>
+        <div class="who-item">
+          <div class="who-emoji">🏫</div>
+          <div class="who-body">
+            <div class="who-title">中高の顧問・クラブコーチ → <span style="color:#1d4ed8">Team ¥2,980/月</span></div>
+            <div class="who-desc">部員20名程度の学校・クラブに最適。体調管理・スケジュール共有・痛み通知がすべて揃う。<strong>部員の費用は¥0。</strong></div>
+          </div>
+        </div>
+        <div class="who-item">
+          <div class="who-emoji">🏆</div>
+          <div class="who-body">
+            <div class="who-title">強豪校・大規模チーム → <span style="color:#4f46e5">Team Pro ¥4,980/月</span></div>
+            <div class="who-desc">部員人数無制限・AI動画フォーム分析・CSV一括出力。本格的な強化体制を組むチームへ。</div>
+          </div>
+        </div>
+      </div>
+      <div class="plan-toggle-note">
+        ※ チームプランの申込・導入サポートはメールにてご対応します。<br/>
+        部員の方は個人プランに登録後、コードを入力してチームに参加します。
+      </div>
+    </div>
   </div>
 </section>
 
-<!-- HOW TO START -->
-<section class="section" style="border-top: 1px solid var(--border);">
-  <div class="section-tag">How to Start</div>
-  <div class="section-title">3ステップで<br/>すぐ使える</div>
-  <div class="section-sub" style="margin-bottom:28px">インストール不要。ブラウザで今すぐ。</div>
-  <div class="steps">
-    <div class="step">
-      <div class="step-left"><div class="step-num">1</div><div class="step-line"></div></div>
-      <div class="step-body">
-        <div class="step-title">リンクをタップ</div>
-        <div class="step-desc">このページのボタンから scorej-run.vercel.app を開く。インストール不要。</div>
+<!-- ── DEVELOPER ── -->
+<section class="dev-section" id="story">
+  <div class="dev-inner">
+    <div class="dev-tag">✦ Developer</div>
+    <div class="dev-content">
+      <div class="dev-photo-wrap">
+        <div class="dev-photo">
+          <div class="dev-photo-icon">👤</div>
+          <div>開発者写真<br/>近日公開</div>
+        </div>
       </div>
-    </div>
-    <div class="step">
-      <div class="step-left"><div class="step-num">2</div><div class="step-line"></div></div>
-      <div class="step-body">
-        <div class="step-title">ゲストで即スタート</div>
-        <div class="step-desc">「ゲストで続ける」をタップするだけ。アカウント不要で全無料機能が使える。</div>
-      </div>
-    </div>
-    <div class="step">
-      <div class="step-left"><div class="step-num">3</div></div>
-      <div class="step-body">
-        <div class="step-title">記録・分析・シェア</div>
-        <div class="step-desc">タイムを入力、毎日の体調をログ、PBを更新したらシェアカードでインスタに投稿。</div>
+      <div class="dev-text">
+        <div class="dev-headline">怪我で、<br/><em>3年間を棒に振った。</em><br/>だから、創った。</div>
+        <div class="dev-body">
+          高校3年間、まともに走れなかった元スプリンターがいます。<br/>
+          オーバートレーニング、疲労骨折、繰り返す肉離れ。<br/>
+          <strong>「あのとき、自分の体の状態が数値で見えていたら。」</strong><br/><br/>
+          その後悔が sCORE の原点です。現在は鍼灸師を目指しながら、
+          選手時代に欲しかったツールを創り続けています。<br/><br/>
+          このアプリを使う誰かが、同じ後悔をしないために。
+        </div>
+        <div class="dev-quote">
+          <div class="dev-quote-text">"選手時代に、これが欲しかった。"</div>
+          <div class="dev-sig">— sCORE 開発者 / 元スプリンター・鍼灸学生</div>
+        </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- CTA BOTTOM -->
+<!-- ── CTA BOTTOM ── -->
 <div class="cta-bottom">
   <div class="cta-bottom-inner">
-    <div class="cta-bottom-title">怪我ゼロで、<br/>もっと速く。</div>
-    <div class="cta-bottom-sub">FROM INSTINCT TO SCORE.<br/>完全無料・登録不要。あなたの本能を、数値に変えよう。</div>
+    <div class="cta-bottom-title">チーム管理を、<br/>もっとシンプルに。</div>
+    <div class="cta-bottom-sub">まず選手が無料で使い始める。<br/>コーチは招待コードを送るだけ。今すぐ始められる。</div>
     <div class="cta-wrap" style="margin:0 auto">
       <a href="https://scorej-run.vercel.app" class="btn-primary">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/></svg>
-        sCORE を開く — 無料
+        sCORE を無料で使う
       </a>
+      <a href="mailto:amuletbaby.shop@gmail.com?subject=チーム導入相談" class="btn-ghost">チーム導入を相談する →</a>
     </div>
   </div>
 </div>
 
-<!-- FOOTER -->
+<!-- ── 保護者の方へ ── -->
+<section class="parent-section" id="parents">
+  <div class="parent-inner">
+    <div class="parent-tag">✦ For Parents</div>
+    <div class="parent-title">保護者の方へ</div>
+    <p class="parent-sub">
+      お子さんがsCOREを使い始める前に、安心してご確認いただけるよう、<br/>
+      データの取り扱いとプライバシー保護についてご説明します。
+    </p>
+
+    <div class="parent-cards">
+
+      <div class="parent-card">
+        <div class="parent-card-icon" style="background:rgba(22,101,52,0.1)">🔒</div>
+        <div>
+          <div class="parent-card-title">データは安全に保管されています</div>
+          <div class="parent-card-desc">
+            練習記録・体調データ・怪我リスクスコアはすべて<strong>暗号化されたクラウドサーバー（Supabase）</strong>に保存されます。
+            第三者への販売・提供は一切行いません。プライバシーポリシーに基づき適切に管理しています。
+          </div>
+        </div>
+      </div>
+
+      <div class="parent-card">
+        <div class="parent-card-icon" style="background:rgba(59,130,246,0.1)">💬</div>
+        <div>
+          <div class="parent-card-title">コーチと選手の個人的なやりとりはできません</div>
+          <div class="parent-card-desc">
+            sCORE のメッセージ機能は<strong>チーム全員への一斉送信（アナウンス）のみ</strong>です。
+            コーチと特定の選手が1対1でやりとりする「個人メッセージ」機能はありません。
+            すべての連絡はチーム全体に公開された形で送信されます。
+          </div>
+        </div>
+      </div>
+
+      <div class="parent-card">
+        <div class="parent-card-icon" style="background:rgba(245,158,11,0.1)">👁</div>
+        <div>
+          <div class="parent-card-title">選手のデータはチーム内でのみ共有</div>
+          <div class="parent-card-desc">
+            体調・怪我リスクスコア・練習記録などの個人データは、<strong>所属するチームのコーチのみ</strong>が確認できます。
+            外部の第三者や他チームの関係者には公開されません。
+            チームに参加する際は選手本人が招待コードを入力する仕組みのため、意図しない共有は起こりません。
+          </div>
+        </div>
+      </div>
+
+      <div class="parent-card">
+        <div class="parent-card-icon" style="background:rgba(239,68,68,0.1)">🧒</div>
+        <div>
+          <div class="parent-card-title">未成年の利用について</div>
+          <div class="parent-card-desc">
+            中学生・高校生のご利用は<strong>保護者の方の同意のもとでお願いします</strong>。
+            アプリの利用にあたって個人を特定できる情報（フルネーム・住所・電話番号など）の入力は不要です。
+            ニックネームやイニシャルでのご利用を推奨しています。
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="parent-contact">
+      <div class="parent-contact-title">ご不明な点はお気軽にお問い合わせください</div>
+      <div class="parent-contact-text">
+        データの取り扱い・プライバシーに関するご質問は下記までお気軽にどうぞ。<br/>
+        <a href="mailto:amuletbaby.shop@gmail.com" class="parent-contact-link">amuletbaby.shop@gmail.com</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── FOOTER ── -->
 <footer>
-  <p>© 2026 sCORE. All rights reserved.</p>
-  <p style="margin-top:8px">
+  <p style="font-size:14px; font-weight:700; color:var(--sub); margin-bottom:12px;">sCORE — 陸上競技チーム管理の新常識</p>
+  <div class="footer-links">
     <a href="https://scorej-run.vercel.app">アプリを開く</a>
-    &nbsp;·&nbsp;
+    <a href="#features">機能一覧</a>
     <a href="#pricing">料金プラン</a>
-    &nbsp;·&nbsp;
+    <a href="#story">開発者について</a>
+    <a href="#parents">保護者の方へ</a>
+    <a href="https://scorej-run.vercel.app/terms">利用規約</a>
+    <a href="https://scorej-run.vercel.app/privacy">プライバシー</a>
     <a href="mailto:amuletbaby.shop@gmail.com">お問い合わせ</a>
-  </p>
+  </div>
+  <p style="margin-top:16px">© 2026 sCORE. All rights reserved.</p>
 </footer>
 
+<script>
+  function switchPlan(type) {
+    document.getElementById('plan-personal').classList.toggle('active', type === 'personal')
+    document.getElementById('plan-team').classList.toggle('active', type === 'team')
+    document.getElementById('tab-personal').classList.toggle('active', type === 'personal')
+    document.getElementById('tab-team').classList.toggle('active', type === 'team')
+  }
+</script>
 </body>
 </html>
