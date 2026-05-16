@@ -505,6 +505,23 @@
     .plan-section { display: none; }
     .plan-section.active { display: block; }
 
+    /* ── FADE-IN SCROLL ANIMATION ── */
+    .fade-in {
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity 0.65s cubic-bezier(0.16,1,0.3,1),
+                  transform 0.65s cubic-bezier(0.16,1,0.3,1);
+    }
+    .fade-in.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .fade-in-delay-1 { transition-delay: 0.08s; }
+    .fade-in-delay-2 { transition-delay: 0.16s; }
+    .fade-in-delay-3 { transition-delay: 0.24s; }
+    .fade-in-delay-4 { transition-delay: 0.32s; }
+    .fade-in-delay-5 { transition-delay: 0.40s; }
+
     /* ── 保護者の方へ ── */
     .parent-section {
       padding: 80px 24px;
@@ -584,7 +601,7 @@
 </section>
 
 <!-- ── FEATURE BAR ── -->
-<div class="feat-bar">
+<div class="feat-bar fade-in">
   <div class="feat-bar-item"><div class="feat-bar-icon">📊</div><div class="feat-bar-label">部員一覧管理</div></div>
   <div class="feat-bar-item"><div class="feat-bar-icon">🩹</div><div class="feat-bar-label">怪我リスク把握</div></div>
   <div class="feat-bar-item"><div class="feat-bar-icon">📅</div><div class="feat-bar-label">練習日程共有</div></div>
@@ -596,7 +613,7 @@
 </div>
 
 <!-- ── TEAM SECTION ── -->
-<section class="team-section" id="team">
+<section class="team-section fade-in" id="team">
   <div class="team-inner">
     <div class="team-tag">Coach & Teacher</div>
     <div class="team-title">顧問・コーチが、<br/>もっと<em>楽になる。</em></div>
@@ -663,28 +680,28 @@
 
     <!-- チーム機能 4つ -->
     <div class="team-feats">
-      <div class="team-feat">
+      <div class="team-feat fade-in fade-in-delay-1">
         <div class="team-feat-icon" style="background:rgba(22,101,52,0.15)">📊</div>
         <div>
           <div class="team-feat-title">部員コンディション一覧</div>
           <div class="team-feat-desc">全部員の疲労度・体調・怪我リスクスコアをコーチ画面で一目で確認。毎朝の体調確認が30秒で完了。</div>
         </div>
       </div>
-      <div class="team-feat">
+      <div class="team-feat fade-in fade-in-delay-2">
         <div class="team-feat-icon" style="background:rgba(239,68,68,0.12)">🩹</div>
         <div>
           <div class="team-feat-title">痛み・怪我レポートの即時通知</div>
           <div class="team-feat-desc">選手が体の痛みを報告すると、コーチのアプリにすぐ通知。「気づかなかった」を無くし、怪我を未然に防ぐ。</div>
         </div>
       </div>
-      <div class="team-feat">
+      <div class="team-feat fade-in fade-in-delay-3">
         <div class="team-feat-icon" style="background:rgba(59,130,246,0.12)">📅</div>
         <div>
           <div class="team-feat-title">練習日程・大会情報の共有</div>
           <div class="team-feat-desc">コーチが入力した予定が全部員のアプリに即時反映。「知らなかった」がなくなる。場所・メモも記載可能。</div>
         </div>
       </div>
-      <div class="team-feat">
+      <div class="team-feat fade-in fade-in-delay-4">
         <div class="team-feat-icon" style="background:rgba(245,158,11,0.12)">🎥</div>
         <div>
           <div class="team-feat-title">選手の動画フォームをコーチが確認</div>
@@ -696,7 +713,7 @@
 </section>
 
 <!-- ── RISK SCORE SECTION ── -->
-<div class="risk-section" id="risk">
+<div class="risk-section fade-in" id="risk">
   <div class="risk-inner">
     <div class="risk-tag">🧠 AI Injury Risk</div>
     <div class="risk-title">体の状態を、<br/>数値で科学的に把握する。</div>
@@ -801,7 +818,7 @@
 </div>
 
 <!-- ── ALL FEATURES ── -->
-<section class="all-feat-section" id="features">
+<section class="all-feat-section fade-in" id="features">
   <div class="section-tag">Features</div>
   <div class="section-title">全機能ガイド</div>
   <div class="section-sub">個人選手からチームまで。sCORE のすべての機能。</div>
@@ -987,7 +1004,7 @@
 </section>
 
 <!-- ── SHARE CARD ── -->
-<div class="share-section">
+<div class="share-section fade-in">
   <div class="share-inner">
     <div class="section-tag" style="text-align:center">Share Card</div>
     <div class="section-title" style="text-align:center; margin-bottom:8px">PB更新を、<br/>すぐシェア</div>
@@ -1022,7 +1039,7 @@
 </div>
 
 <!-- ── PRICING ── -->
-<section class="pricing-section" id="pricing">
+<section class="pricing-section fade-in" id="pricing">
   <div class="pricing-inner">
     <div class="section-tag" style="text-align:center">Pricing</div>
     <div class="section-title" style="text-align:center; margin-bottom:8px">あなたに合った<br/>プランを選ぼう</div>
@@ -1150,7 +1167,7 @@
             <div class="pf"><div class="pf-icon">✓</div><div>部員 <em>20名まで</em></div></div>
             <div class="pf dim"><div class="pf-icon">—</div><div>AI動画フォーム分析 <em>Team Pro以上</em></div></div>
           </div>
-          <a href="mailto:amuletbaby.shop@gmail.com?subject=Teamプラン相談" class="plan-cta cta-team">導入を相談する</a>
+          <a href="mailto:focusports.com@gmail.com?subject=Teamプラン相談" class="plan-cta cta-team">導入を相談する</a>
         </div>
 
         <!-- Team Pro -->
@@ -1170,7 +1187,7 @@
             <div class="pf"><div class="pf-icon">✓</div><div>部員 <em>人数無制限</em></div></div>
             <div class="pf"><div class="pf-icon">✓</div><div>優先サポート・導入サポート</div></div>
           </div>
-          <a href="mailto:amuletbaby.shop@gmail.com?subject=Team Proプラン相談" class="plan-cta" style="background:linear-gradient(90deg,#4f46e5,#2563eb); color:#fff; box-shadow:0 4px 20px rgba(79,70,229,0.4);">導入を相談する</a>
+          <a href="mailto:focusports.com@gmail.com?subject=Team Proプラン相談" class="plan-cta" style="background:linear-gradient(90deg,#4f46e5,#2563eb); color:#fff; box-shadow:0 4px 20px rgba(79,70,229,0.4);">導入を相談する</a>
         </div>
       </div>
 
@@ -1201,7 +1218,7 @@
 </section>
 
 <!-- ── DEVELOPER ── -->
-<section class="dev-section" id="story">
+<section class="dev-section fade-in" id="story">
   <div class="dev-inner">
     <div class="dev-tag">✦ Developer</div>
     <div class="dev-content">
@@ -1231,7 +1248,7 @@
 </section>
 
 <!-- ── CTA BOTTOM ── -->
-<div class="cta-bottom">
+<div class="cta-bottom fade-in">
   <div class="cta-bottom-inner">
     <div class="cta-bottom-title">チーム管理を、<br/>もっとシンプルに。</div>
     <div class="cta-bottom-sub">まず選手が無料で使い始める。<br/>コーチは招待コードを送るだけ。今すぐ始められる。</div>
@@ -1240,13 +1257,13 @@
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/></svg>
         sCORE を無料で使う
       </a>
-      <a href="mailto:amuletbaby.shop@gmail.com?subject=チーム導入相談" class="btn-ghost">チーム導入を相談する →</a>
+      <a href="mailto:focusports.com@gmail.com?subject=チーム導入相談" class="btn-ghost">チーム導入を相談する →</a>
     </div>
   </div>
 </div>
 
 <!-- ── 保護者の方へ ── -->
-<section class="parent-section" id="parents">
+<section class="parent-section fade-in" id="parents">
   <div class="parent-inner">
     <div class="parent-tag">✦ For Parents</div>
     <div class="parent-title">保護者の方へ</div>
@@ -1257,7 +1274,7 @@
 
     <div class="parent-cards">
 
-      <div class="parent-card">
+      <div class="parent-card fade-in fade-in-delay-1">
         <div class="parent-card-icon" style="background:rgba(22,101,52,0.1)">🔒</div>
         <div>
           <div class="parent-card-title">データは安全に保管されています</div>
@@ -1268,7 +1285,7 @@
         </div>
       </div>
 
-      <div class="parent-card">
+      <div class="parent-card fade-in fade-in-delay-2">
         <div class="parent-card-icon" style="background:rgba(59,130,246,0.1)">💬</div>
         <div>
           <div class="parent-card-title">コーチと選手の個人的なやりとりはできません</div>
@@ -1280,7 +1297,7 @@
         </div>
       </div>
 
-      <div class="parent-card">
+      <div class="parent-card fade-in fade-in-delay-3">
         <div class="parent-card-icon" style="background:rgba(245,158,11,0.1)">👁</div>
         <div>
           <div class="parent-card-title">選手のデータはチーム内でのみ共有</div>
@@ -1292,7 +1309,7 @@
         </div>
       </div>
 
-      <div class="parent-card">
+      <div class="parent-card fade-in fade-in-delay-4">
         <div class="parent-card-icon" style="background:rgba(239,68,68,0.1)">🧒</div>
         <div>
           <div class="parent-card-title">未成年の利用について</div>
@@ -1310,7 +1327,7 @@
       <div class="parent-contact-title">ご不明な点はお気軽にお問い合わせください</div>
       <div class="parent-contact-text">
         データの取り扱い・プライバシーに関するご質問は下記までお気軽にどうぞ。<br/>
-        <a href="mailto:amuletbaby.shop@gmail.com" class="parent-contact-link">amuletbaby.shop@gmail.com</a>
+        <a href="mailto:focusports.com@gmail.com" class="parent-contact-link">focusports.com@gmail.com</a>
       </div>
     </div>
   </div>
@@ -1327,7 +1344,7 @@
     <a href="#parents">保護者の方へ</a>
     <a href="https://scorej-run.vercel.app/terms">利用規約</a>
     <a href="https://scorej-run.vercel.app/privacy">プライバシー</a>
-    <a href="mailto:amuletbaby.shop@gmail.com">お問い合わせ</a>
+    <a href="mailto:focusports.com@gmail.com">お問い合わせ</a>
   </div>
   <p style="margin-top:16px">© 2026 sCORE. All rights reserved.</p>
 </footer>
@@ -1339,6 +1356,22 @@
     document.getElementById('tab-personal').classList.toggle('active', type === 'personal')
     document.getElementById('tab-team').classList.toggle('active', type === 'team')
   }
+
+  // ── FADE-IN SCROLL OBSERVER ──
+  (function () {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible')
+            observer.unobserve(entry.target)
+          }
+        })
+      },
+      { threshold: 0.08, rootMargin: '0px 0px -40px 0px' }
+    )
+    document.querySelectorAll('.fade-in').forEach((el) => observer.observe(el))
+  })()
 </script>
 </body>
 </html>
