@@ -14,6 +14,8 @@ import { useTheme } from '../context/ThemeContext'
 import { Sounds, unlockAudio } from '../lib/sounds'
 import type { TrainingSession, AthleticsEvent } from '../types'
 import { autoSyncTeam } from '../lib/teamAutoSync'
+import { getTier } from '../lib/adGate'
+import { shouldShowInterstitial, showInterstitialAd } from '../lib/admob'
 
 const SESSIONS_KEY      = 'trackmate_sessions'
 const CONDITION_MAP_KEY = 'trackmate_condition_map'
@@ -214,8 +216,16 @@ export default function ManualLogScreen() {
       const sessions: TrainingSession[] = raw ? JSON.parse(raw) : []
       sessions.unshift(newSession)
       await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions))
-      autoSyncTeam(sessions).catch(() => {})
+      autoSyncTeam(sessions, { force: true }).catch(() => {})
       Toast.show({ type: 'success', text1: '練習を記録しました ✓', visibilityTime: 1500 })
+
+      // フリープランのみ：2回に1回インタースティシャル広告を表示
+      const tier = await getTier()
+      if (tier === 'free') {
+        const showAd = await shouldShowInterstitial()
+        if (showAd) await showInterstitialAd()
+      }
+
       setTimeout(() => router.back(), 400)
     } catch {
       Toast.show({ type: 'error', text1: '保存に失敗しました', visibilityTime: 2000 })
@@ -237,7 +247,7 @@ export default function ManualLogScreen() {
             <TouchableOpacity
               onPress={handleSave}
               disabled={saving}
-              style={[s.saveBtn, { backgroundColor: BRAND, opacity: saving ? 0.6 : 1 }]}
+              style={[s.saveBtn, { backgroundColor: '#1c1c1e', opacity: saving ? 0.6 : 1 }]}
             >
               <Text style={s.saveBtnText}>{saving ? '保存中...' : '保存'}</Text>
             </TouchableOpacity>
@@ -417,8 +427,8 @@ const s = StyleSheet.create({
   },
   backBtn:      { padding: 4 },
   headerTitle:  { fontSize: 17, fontWeight: '800' },
-  saveBtn:      { paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20 },
-  saveBtnText:  { color: '#fff', fontSize: 14, fontWeight: '800' },
+  saveBtn:      { paddingHorizontal: 24, paddingVertical: 12, borderRadius: 50 },
+  saveBtnText:  { color: '#fff', fontSize: 15, fontWeight: '800', letterSpacing: -0.3 },
 
   content:  { padding: 16, gap: 8 },
   section:  { gap: 10, marginBottom: 4 },

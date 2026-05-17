@@ -19,6 +19,8 @@ import { Ionicons } from '@expo/vector-icons'
 import { BRAND, TEXT, SURFACE, SURFACE2, DIVIDER } from '../lib/theme'
 import type { TrainingSession } from '../types'
 import { autoSyncTeam } from '../lib/teamAutoSync'
+import { getTier } from '../lib/adGate'
+import { shouldShowInterstitial, showInterstitialAd } from '../lib/admob'
 
 // ─── 定数 ──────────────────────────────────────────────────────────────
 const SESSIONS_KEY = 'trackmate_sessions'
@@ -230,8 +232,16 @@ export default function GpsRunScreen() {
       }
       const saved = [newSession, ...existing]
       await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(saved))
-      autoSyncTeam(saved).catch(() => {})
+      autoSyncTeam(saved, { force: true }).catch(() => {})
       Toast.show({ type: 'success', text1: '練習を保存しました', text2: `${(distM / 1000).toFixed(2)} km / ${formatElapsed(ms)}` })
+
+      // フリープランのみ：2回に1回インタースティシャル広告を表示
+      const tier = await getTier()
+      if (tier === 'free') {
+        const showAd = await shouldShowInterstitial()
+        if (showAd) await showInterstitialAd()
+      }
+
       resetAll()
       router.back()
     } catch {
@@ -338,7 +348,7 @@ export default function GpsRunScreen() {
       <View style={styles.buttonContainer}>
         {runState === 'idle' && (
           <TouchableOpacity
-            style={[styles.primaryButton, { backgroundColor: BRAND }]}
+            style={styles.primaryButton}
             onPress={handleStart}
             activeOpacity={0.85}
           >
@@ -371,7 +381,7 @@ export default function GpsRunScreen() {
         {runState === 'paused' && (
           <View style={styles.runningButtons}>
             <TouchableOpacity
-              style={[styles.primaryButton, { backgroundColor: BRAND }]}
+              style={styles.primaryButton}
               onPress={handleResume}
               activeOpacity={0.85}
             >
@@ -513,18 +523,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
     paddingVertical: 18,
-    borderRadius: 16,
-    backgroundColor: BRAND,
+    borderRadius: 50,
+    backgroundColor: '#1c1c1e',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 5,
   },
   stopButton: {
-    backgroundColor: SURFACE2,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: '#3a3a3c',
   },
   primaryButtonText: {
     color: '#FFFFFF',
     fontSize: 17,
-    fontWeight: '700',
+    fontWeight: '800',
+    letterSpacing: -0.3,
   },
   secondaryButton: {
     flex: 1,
@@ -533,15 +547,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
     paddingVertical: 18,
-    borderRadius: 16,
-    backgroundColor: SURFACE,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 50,
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: '#1c1c1e',
   },
   secondaryButtonText: {
     color: TEXT.primary,
     fontSize: 17,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   hint: {
     color: TEXT.hint,

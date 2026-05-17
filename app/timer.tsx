@@ -19,6 +19,8 @@ import { Ionicons } from '@expo/vector-icons'
 import { BRAND, TEXT, SURFACE, SURFACE2, DIVIDER } from '../lib/theme'
 import type { AthleticsEvent, TrainingSession } from '../types'
 import { autoSyncTeam } from '../lib/teamAutoSync'
+import { getTier } from '../lib/adGate'
+import { shouldShowInterstitial, showInterstitialAd } from '../lib/admob'
 
 // ─── 定数 ───────────────────────────────────────────────────────────────
 const SESSIONS_KEY = 'trackmate_sessions'
@@ -171,7 +173,7 @@ export default function TimerScreen() {
 
       const saved = [newSession, ...existing]
       await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(saved))
-      autoSyncTeam(saved).catch(() => {})
+      autoSyncTeam(saved, { force: true }).catch(() => {})
 
       const totalSec = resultMs / 1000
       const display = totalSec < 60
@@ -184,6 +186,13 @@ export default function TimerScreen() {
       })
       setSaveModalVisible(false)
       handleReset()
+
+      // フリープランのみ：2回に1回インタースティシャル広告を表示
+      const tier = await getTier()
+      if (tier === 'free') {
+        const showAd = await shouldShowInterstitial()
+        if (showAd) await showInterstitialAd()
+      }
     } catch {
       Toast.show({ type: 'error', text1: '保存に失敗しました' })
     } finally {
@@ -447,7 +456,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   mainButtonStart: {
-    backgroundColor: BRAND,
+    backgroundColor: '#1c1c1e',
   },
   mainButtonPause: {
     backgroundColor: SURFACE2,

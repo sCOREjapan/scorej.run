@@ -123,6 +123,9 @@ export async function showRewardedAd(): Promise<boolean> {
       }
 
       const unsubLoaded  = rewarded.addAdEventListener(RewardedAdEventType.LOADED, async () => {
+        // ロード完了 → リワード動画は最大90秒（視聴時間 + バッファ）
+        clearTimeout(timer)
+        timer = setTimeout(() => settle(false), 90000)
         try { await rewarded.show() } catch (e) { settle(false) }
       })
       const unsubEarned  = rewarded.addAdEventListener(RewardedAdEventType.EARNED_REWARD, () => { earned = true })
@@ -132,6 +135,7 @@ export async function showRewardedAd(): Promise<boolean> {
         settle(false)
       })
 
+      // ロード開始から15秒でフォールバック（ロード失敗時）
       timer = setTimeout(() => settle(false), 15000)
       rewarded.load()
     })
@@ -176,6 +180,9 @@ export async function showInterstitialAd(): Promise<boolean> {
       }
 
       const unsubLoaded = interstitial.addAdEventListener(AdEventType.LOADED, async () => {
+        // ロード完了 → タイマーをshow+閉じる時間に延長（30秒）
+        clearTimeout(timer)
+        timer = setTimeout(() => settle(false), 30000)
         try { await interstitial.show() } catch (e) { settle(false) }
       })
       const unsubClosed = interstitial.addAdEventListener(AdEventType.CLOSED, () => settle(true))
@@ -184,6 +191,7 @@ export async function showInterstitialAd(): Promise<boolean> {
         settle(false)
       })
 
+      // ロード開始から10秒でフォールバック（ロード失敗時）
       timer = setTimeout(() => settle(false), 10000)
       interstitial.load()
     })
@@ -220,6 +228,8 @@ export async function showAppOpenAd(): Promise<void> {
 
     await new Promise<void>((resolve) => {
       let settled = false
+      // タイムアウトは「show() 後にユーザーが閉じる時間」を考慮して長めに設定（60秒）
+      // ロード失敗は ERROR イベントで即時 resolve するため実害なし
       let timer: ReturnType<typeof setTimeout>
       const settle = () => {
         if (settled) return
@@ -230,12 +240,15 @@ export async function showAppOpenAd(): Promise<void> {
       }
 
       const unsubLoaded = appOpen.addAdEventListener(AdEventType.LOADED, async () => {
+        // show() 成功後はユーザーが閉じるまで待つ（タイマーを延長）
+        clearTimeout(timer)
+        timer = setTimeout(() => settle(), 60000)
         try { await appOpen.show() } catch (showErr) {
           console.warn('[admob] appOpen.show() error:', showErr)
           settle()
         }
       })
-      // CLOSED は実際に表示された後にのみ発火する
+      // CLOSED は実際に表示・ユーザーが閉じた後にのみ発火する
       const unsubClosed = appOpen.addAdEventListener(AdEventType.CLOSED, () => {
         actuallyShown = true
         settle()
@@ -245,6 +258,7 @@ export async function showAppOpenAd(): Promise<void> {
         settle()
       })
 
+      // ロード開始から12秒でタイムアウト（ロード失敗時のフォールバック）
       timer = setTimeout(() => settle(), 12000)
       appOpen.load()
     })
