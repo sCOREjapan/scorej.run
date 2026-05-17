@@ -1,32 +1,28 @@
 // lib/adGate.ts — 機能利用制限管理
-// FREE / PRO / ELITE 制限仕様（確定版）
+// FREE / PRO / ELITE / COACH 制限仕様
 //
-// 機能             FREE           PRO              ELITE
-// AI練習分析       累計3回        無制限           無制限
-// 動画フォーム分析  累計2回        1日1回           無制限
-// AI食事分析       累計3回        1日3回           無制限
-// CSVエクスポート   累計1回        1ヶ月1回         無制限
+// 機能             FREE                    PRO            ELITE/COACH
+// AI機能全般       1日1回・広告視聴で解放  月30回         無制限
+// CSVエクスポート   累計1回（無料）         月1回          無制限
 
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
 export type Feature = 'ai_analysis' | 'video' | 'meal' | 'csv' | 'recovery'
 
-// ── FREE：累計上限 ────────────────────────────────────────────
-const FREE_TOTAL_LIMITS: Record<Feature, number> = {
-  ai_analysis: 3,
-  video:       2,
-  meal:        2,
-  csv:         1,
-  recovery:    999,
-}
+// ── FREE：AI機能は1日3回まで・毎回広告視聴が必要 ───────────────
+// 1回目も2回目も3回目も、使用するたびに広告を視聴（needsAd: true）
+// 3回使用後は hardLimited（当日は利用不可）
+const FREE_DAILY_AI_FEATURES: Feature[] = ['ai_analysis', 'video', 'meal', 'recovery']
+const FREE_DAILY_AI_LIMIT    = 3
+const FREE_CSV_TOTAL_LIMIT   = 1
 
-// ── PRO：日次上限（video/meal）・月次上限（csv） ─────────────
-const PRO_DAILY_LIMITS: Partial<Record<Feature, number>> = {
-  video: 1,   // 1日1回
-  meal:  3,   // 1日3回
-}
+// ── PRO：月30回（AI全機能）・csv月1回 ──────────────────────
 const PRO_MONTHLY_LIMITS: Partial<Record<Feature, number>> = {
-  csv: 1,     // 1ヶ月1回
+  ai_analysis: 30,
+  video:       30,
+  meal:        30,
+  csv:         1,
+  recovery:    30,
 }
 
 // ── ストレージキー ────────────────────────────────────────────
@@ -128,7 +124,7 @@ export async function checkAdGate(feature: Feature): Promise<{
   needsAd:        boolean
   hardLimited:    boolean
   limitType:      'none' | 'daily' | 'monthly' | 'total'
-  rewardUses:     number   // 広告視聴で獲得済みの残りリワード回数
+  rewardUses:     number   // 互換用（常に0）
 }> {
   const tier = await getTier()
 
@@ -137,18 +133,8 @@ export async function checkAdGate(feature: Feature): Promise<{
     return { allowed: true, remaining: 999, needsAd: false, hardLimited: false, limitType: 'none', rewardUses: 0 }
   }
 
-  // PRO
+  // PRO：月次制限
   if (tier === 'pro') {
-    // 日次制限（video/meal）
-    const dailyLimit = PRO_DAILY_LIMITS[feature]
-    if (dailyLimit !== undefined) {
-      const daily = await getDailyUsage()
-      const used = daily.counts[feature] ?? 0
-      const remaining = Math.max(0, dailyLimit - used)
-      if (remaining > 0) return { allowed: true, remaining, needsAd: false, hardLimited: false, limitType: 'daily', rewardUses: 0 }
-      return { allowed: false, remaining: 0, needsAd: false, hardLimited: true, limitType: 'daily', rewardUses: 0 }
-    }
-    // 月次制限（csv）
     const monthlyLimit = PRO_MONTHLY_LIMITS[feature]
     if (monthlyLimit !== undefined) {
       const monthly = await getMonthlyUsage()
@@ -157,22 +143,35 @@ export async function checkAdGate(feature: Feature): Promise<{
       if (remaining > 0) return { allowed: true, remaining, needsAd: false, hardLimited: false, limitType: 'monthly', rewardUses: 0 }
       return { allowed: false, remaining: 0, needsAd: false, hardLimited: true, limitType: 'monthly', rewardUses: 0 }
     }
-    // それ以外は無制限
     return { allowed: true, remaining: 999, needsAd: false, hardLimited: false, limitType: 'none', rewardUses: 0 }
   }
 
-  // FREE：累計上限
-  const totalUsage = await getTotalUsage()
-  const used = totalUsage[feature] ?? 0
-  const limit = FREE_TOTAL_LIMITS[feature]
-  const freeRemaining = Math.max(0, limit - used)
-  const rewardUses = (await getRewardUses())[feature] ?? 0
+  // FREE
+  // csv は累計1回無料（広告不要）
+  if (feature === 'csv') {
+    const total = await getTotalUsage()
+    const used = total[feature] ?? 0
+    if (used < FREE_CSV_TOTAL_LIMIT) return { allowed: true, remaining: FREE_CSV_TOTAL_LIMIT - used, needsAd: false, hardLimited: false, limitType: 'total', rewardUses: 0 }
+    return { allowed: false, remaining: 0, needsAd: false, hardLimited: true, limitType: 'total', rewardUses: 0 }
+  }
 
-  if (freeRemaining > 0) return { allowed: true, remaining: freeRemaining, needsAd: false, hardLimited: false, limitType: 'total', rewardUses }
-  // 無料枠ゼロ：リワードがあれば使用可
-  if (rewardUses > 0)    return { allowed: true,  remaining: 0, needsAd: false, hardLimited: false, limitType: 'total', rewardUses }
-  // 完全ブロック（広告を見て解除が必要）
-  return { allowed: false, remaining: 0, needsAd: false, hardLimited: false, limitType: 'total', rewardUses: 0 }
+  // FREE AI機能：1回目は無料、2回目以降は広告視聴が必要（1日最大3回）
+  if (FREE_DAILY_AI_FEATURES.includes(feature)) {
+    const daily = await getDailyUsage()
+    const usedToday = daily.counts[feature] ?? 0
+    if (usedToday >= FREE_DAILY_AI_LIMIT) {
+      // 今日の上限
+      return { allowed: false, remaining: 0, needsAd: false, hardLimited: true, limitType: 'daily', rewardUses: 0 }
+    }
+    if (usedToday === 0) {
+      // 1回目は無料（広告不要）
+      return { allowed: true, remaining: FREE_DAILY_AI_LIMIT - usedToday, needsAd: false, hardLimited: false, limitType: 'daily', rewardUses: 0 }
+    }
+    // 2回目以降は広告視聴が必要
+    return { allowed: false, remaining: FREE_DAILY_AI_LIMIT - usedToday, needsAd: true, hardLimited: false, limitType: 'daily', rewardUses: 0 }
+  }
+
+  return { allowed: true, remaining: 999, needsAd: false, hardLimited: false, limitType: 'none', rewardUses: 0 }
 }
 
 // ── 利用を記録 ─────────────────────────────────────────────────
@@ -181,37 +180,38 @@ export async function recordUsage(feature: Feature): Promise<void> {
   if (tier === 'elite' || tier === 'coach') return
 
   if (tier === 'pro') {
-    if (PRO_DAILY_LIMITS[feature] !== undefined) {
-      const daily = await getDailyUsage()
-      daily.counts[feature] = (daily.counts[feature] ?? 0) + 1
-      await saveDailyUsage(daily)
-      return
-    }
     if (PRO_MONTHLY_LIMITS[feature] !== undefined) {
       const monthly = await getMonthlyUsage()
       monthly.counts[feature] = (monthly.counts[feature] ?? 0) + 1
       await saveMonthlyUsage(monthly)
-      return
     }
     return
   }
 
-  // FREE：累計
-  const total = await getTotalUsage()
-  total[feature] = (total[feature] ?? 0) + 1
-  await saveTotalUsage(total)
+  // FREE：csv は累計、AI機能は日次
+  if (feature === 'csv') {
+    const total = await getTotalUsage()
+    total[feature] = (total[feature] ?? 0) + 1
+    await saveTotalUsage(total)
+    return
+  }
+  if (FREE_DAILY_AI_FEATURES.includes(feature)) {
+    const daily = await getDailyUsage()
+    daily.counts[feature] = (daily.counts[feature] ?? 0) + 1
+    await saveDailyUsage(daily)
+  }
 }
 
 // ── 残り回数ラベル ────────────────────────────────────────────
 export function remainingLabel(feature: Feature, remaining: number, tier: string): string {
   if (tier === 'elite' || tier === 'coach') return '無制限'
   if (tier === 'pro') {
-    if (PRO_DAILY_LIMITS[feature])   return remaining >= 999 ? '無制限' : `今日残り${remaining}回`
     if (PRO_MONTHLY_LIMITS[feature]) return remaining >= 999 ? '無制限' : `今月残り${remaining}回`
     return '無制限'
   }
   if (remaining >= 999) return '無制限'
-  return `残り${remaining}回（無料枠）`
+  if (remaining === FREE_DAILY_AI_LIMIT) return `今日残り${remaining}回（1回目無料）`
+  return `今日残り${remaining}回（広告視聴で使用）`
 }
 
 // ── 残り1回の警告が必要か ────────────────────────────────────
