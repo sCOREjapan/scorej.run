@@ -9,6 +9,8 @@ import { syncAll } from '../lib/cloudSync'
 import Toast from 'react-native-toast-message'
 import * as WebBrowser from 'expo-web-browser'
 import * as Linking from 'expo-linking'
+import * as AuthSession from 'expo-auth-session'
+import * as AppleAuthentication from 'expo-apple-authentication'
 
 // expo-web-browser の結果を Supabase が処理できるよう登録
 WebBrowser.maybeCompleteAuthSession()
@@ -66,25 +68,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let mounted = true
 
     const init = async () => {
-      // 1) オンボーディング済みフラグ
-      const ob = await AsyncStorage.getItem(ONBOARDING_KEY).catch(() => null)
-      if (mounted) setIsOnboarded(ob === 'true')
-
-      // 2) 既存セッション確認（URL ハッシュも含む）
-      try {
-        const { data } = await (supabase.auth as any).getSession()
-        const s = data?.session ?? null
-        if (mounted) {
-          setSession(s)
-          setUser(s?.user ?? null)
-          // 起動時: 既存セッションがあればクラウド同期
-          if (s?.user?.id) {
-            syncAll(s.user.id).catch(() => {})
-          }
-        }
-      } catch (_) {}
-
-      if (mounted) setLoading(false)
+      // 1+2 を並列実行（直列だと 2 倍かかる）
+      const [ob, sessionResult] = await Promise.all([
+        AsyncStorage.getItem(ONBOARDING_KEY).catch(() => null),
+        (supabase.auth as any).getSession().catch(() => ({ data: null })),
+      ])
+      if (!mounted) return
+      setIsOnboarded(ob === 'true')
+      const s = sessionResult?.data?.session ?? null
+      setSession(s)
+      setUser(s?.user ?? null)
+      // 起動時: 既存セッションがあればクラウド同期（バックグラウンド）
+      if (s?.user?.id) syncAll(s.user.id).catch(() => {})
+      setLoading(false)
     }
 
     init()
@@ -121,60 +117,111 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ── Google OAuth ──────────────────────────────────────────
   const signInWithGoogle = useCallback(async () => {
     try {
-      if (Platform.OS !== 'web') {
-        // アプリのURLスキームへのリダイレクト URL（Supabase に登録が必要）
-        const redirectTo = 'score:///auth-callback'
+      if (Platform.OS === 'web') {
+        // Web: Supabase が URL を返す → 明示的にリダイレクト
         const { data, error } = await (supabase.auth as any).signInWithOAuth({
           provider: 'google',
-          options: { redirectTo, skipBrowserRedirect: true },
+          options: {
+            redirectTo: SITE_URL,
+            skipBrowserRedirect: false,
+          },
         })
-        if (error) { Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: error.message }); return }
-        if (data?.url) {
-          // openAuthSessionAsync: ブラウザを開き、redirectTo スキームを検知したら自動で閉じる
-          const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo)
-          if (result.type === 'success' && result.url) {
-            // URLからセッションを取得してログイン完了
-            const { error: sessionError } = await (supabase.auth as any).exchangeCodeForSession(result.url)
-            if (sessionError) {
-              // PKCE失敗時は setSession を試みる（implicit flow フォールバック）
-              const urlObj = new URL(result.url)
-              const accessToken  = urlObj.searchParams.get('access_token')
-                ?? result.url.split('access_token=')[1]?.split('&')[0]
-              const refreshToken = urlObj.searchParams.get('refresh_token')
-                ?? result.url.split('refresh_token=')[1]?.split('&')[0]
-              if (accessToken && refreshToken) {
-                await (supabase.auth as any).setSession({ access_token: accessToken, refresh_token: refreshToken })
-              } else {
-                Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: sessionError.message })
-              }
-            }
-          } else if (result.type === 'cancel') {
-            // ユーザーがキャンセル — 何もしない
-          }
+        if (error) {
+          Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: error.message })
+          return
         }
-      } else {
-        // Web: 通常リダイレクト
-        const { error } = await (supabase.auth as any).signInWithOAuth({
-          provider: 'google',
-          options: { redirectTo: SITE_URL },
-        })
+        // SDK が自動リダイレクトしない場合の保険
+        if (data?.url && typeof window !== 'undefined') {
+          window.location.href = data.url
+        }
+        return
+      }
+
+      // Native: PKCE + in-app browser
+      const redirectTo = AuthSession.makeRedirectUri({ scheme: 'score', path: 'auth-callback' })
+
+      const { data, error } = await (supabase.auth as any).signInWithOAuth({
+        provider: 'google',
+        options:  { redirectTo, skipBrowserRedirect: true },
+      })
+      if (error || !data?.url) {
         if (error) Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: error.message })
+        return
+      }
+
+      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo)
+      if (result.type !== 'success' || !result.url) return
+
+      const { error: exchError } = await (supabase.auth as any).exchangeCodeForSession(result.url)
+      if (exchError) {
+        try {
+          const hash = result.url.split('#')[1] ?? ''
+          const get  = (k: string) =>
+            new URL(result.url).searchParams.get(k) ?? new URLSearchParams(hash).get(k) ?? undefined
+          const accessToken = get('access_token'); const refreshToken = get('refresh_token')
+          if (accessToken && refreshToken) {
+            await (supabase.auth as any).setSession({ access_token: accessToken, refresh_token: refreshToken })
+          } else {
+            Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: exchError.message })
+          }
+        } catch {
+          Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: exchError.message })
+        }
       }
     } catch (e: any) {
       Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: e?.message ?? 'エラーが発生しました' })
     }
   }, [])
 
-  // ── Apple OAuth ───────────────────────────────────────────
+  // ── Apple Sign In ─────────────────────────────────────────
   const signInWithApple = useCallback(async () => {
     try {
-      const { error } = await (supabase.auth as any).signInWithOAuth({
-        provider: 'apple',
-        options: { redirectTo: SITE_URL },
-      })
-      if (error) Toast.show({ type: 'error', text1: 'Appleログイン失敗', text2: error.message })
+      if (Platform.OS === 'ios') {
+        // iOS: ネイティブ機能が利用可能か確認（Expo Go では使えない）
+        let nativeAvailable = false
+        try { nativeAvailable = await AppleAuthentication.isAvailableAsync() } catch {}
+
+        if (nativeAvailable) {
+          const credential = await AppleAuthentication.signInAsync({
+            requestedScopes: [
+              AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+              AppleAuthentication.AppleAuthenticationScope.EMAIL,
+            ],
+          })
+          if (!credential.identityToken) {
+            Toast.show({ type: 'error', text1: 'Appleログイン失敗', text2: 'トークンを取得できませんでした' })
+            return
+          }
+          const { error } = await (supabase.auth as any).signInWithIdToken({
+            provider: 'apple',
+            token:    credential.identityToken,
+          })
+          if (error) Toast.show({ type: 'error', text1: 'Appleログイン失敗', text2: error.message })
+        } else {
+          // Expo Go などネイティブ機能なし → ブラウザ経由で Web の auth ページへ
+          await WebBrowser.openBrowserAsync(SITE_URL + '?auth=apple')
+        }
+
+      } else if (Platform.OS === 'web') {
+        // Web: Supabase OAuth リダイレクト
+        const { data, error } = await (supabase.auth as any).signInWithOAuth({
+          provider: 'apple',
+          options:  { redirectTo: SITE_URL, skipBrowserRedirect: false },
+        })
+        if (error) {
+          Toast.show({ type: 'error', text1: 'Appleログイン失敗', text2: error.message })
+          return
+        }
+        if (data?.url && typeof window !== 'undefined') {
+          window.location.href = data.url
+        }
+      } else {
+        Toast.show({ type: 'info', text1: 'Appleログインは iOS のみ対応しています' })
+      }
     } catch (e: any) {
-      Toast.show({ type: 'error', text1: 'Appleログイン失敗', text2: e?.message ?? 'エラーが発生しました' })
+      if (e?.code !== 'ERR_CANCELED') {
+        Toast.show({ type: 'error', text1: 'Appleログイン失敗', text2: e?.message ?? 'エラーが発生しました' })
+      }
     }
   }, [])
 

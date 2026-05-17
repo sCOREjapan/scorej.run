@@ -1,6 +1,7 @@
 // app/auth.tsx — スライド式ログイン画面（縦スクロール対応・アニメーション付き）
 
 import React, { useRef, useState, useCallback } from 'react'
+import * as AppleAuthentication from 'expo-apple-authentication'
 import {
   View, Text, TouchableOpacity, StyleSheet,
   ActivityIndicator, TextInput, KeyboardAvoidingView,
@@ -178,7 +179,7 @@ function Slide1({ isActive }: { isActive: boolean }) {
         <Animated.View style={[{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }, hint]}>
           <Text style={sl.hintText}>次のページへ</Text>
           <Animated.View style={{ transform: [{ translateX: arrowTx }] }}>
-            <Ionicons name="arrow-forward" size={14} color="#444" />
+            <Ionicons name="arrow-forward" size={14} color="#9ca3af" />
           </Animated.View>
         </Animated.View>
       </View>
@@ -251,7 +252,7 @@ function Slide3({ isActive }: { isActive: boolean }) {
                   <View style={[ck.box, on && ck.boxActive]}>
                     {on && <Ionicons name="checkmark" size={12} color="#fff" />}
                   </View>
-                  <Text style={[ck.text, on && { color: '#f5f5f5' }]}>{item.text}</Text>
+                  <Text style={[ck.text, on && { color: '#111827' }]}>{item.text}</Text>
                   {on && <Ionicons name="checkmark-circle" size={16} color={RED} />}
                 </TouchableOpacity>
               </Animated.View>
@@ -348,8 +349,9 @@ function Slide5({ isActive }: { isActive: boolean }) {
 }
 
 function Slide6({ isActive }: { isActive: boolean }) {
-  const { signInWithGoogle, signUpWithEmail, continueAsGuest } = useAuth()
+  const { signInWithGoogle, signInWithApple, signUpWithEmail, continueAsGuest } = useAuth()
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [appleLoading,  setAppleLoading]  = useState(false)
   const [showSignup, setShowSignup] = useState(false)
   const [emailSent, setEmailSent]   = useState(false)      // 確認メール送信済み状態
   const [sentEmail, setSentEmail]   = useState('')
@@ -370,6 +372,11 @@ function Slide6({ isActive }: { isActive: boolean }) {
     setGoogleLoading(true)
     signInWithGoogle().finally(() => setGoogleLoading(false))
   }
+  const handleApple = () => {
+    unlockAudio(); Sounds.pop()
+    setAppleLoading(true)
+    signInWithApple().finally(() => setAppleLoading(false))
+  }
   const handleSignup = async () => {
     if (!email.trim() || password.length < 6) return
     unlockAudio(); Sounds.pop()
@@ -386,9 +393,10 @@ function Slide6({ isActive }: { isActive: boolean }) {
 
   const header  = useFadeUp(isActive, 0)
   const google  = useFadeUp(isActive, 180)
-  const divider = useFadeUp(isActive, 300)
-  const emailBtn= useFadeUp(isActive, 390)
-  const guest   = useFadeUp(isActive, 500)
+  const apple   = useFadeUp(isActive, 260)
+  const divider = useFadeUp(isActive, 340)
+  const emailBtn= useFadeUp(isActive, 420)
+  const guest   = useFadeUp(isActive, 520)
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -416,6 +424,20 @@ function Slide6({ isActive }: { isActive: boolean }) {
             </TouchableOpacity>
           </Animated.View>
 
+          {/* Apple（iOS のみ表示） */}
+          {Platform.OS === 'ios' && (
+            <Animated.View style={[{ width: '100%', marginTop: 12 }, apple]}>
+              <TouchableOpacity style={lg.appleBtn} onPress={handleApple} disabled={appleLoading} activeOpacity={0.85}>
+                {appleLoading ? <ActivityIndicator color="#fff" size="small" /> : (
+                  <>
+                    <Ionicons name="logo-apple" size={20} color="#fff" />
+                    <Text style={lg.appleBtnText}>Apple でログイン</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </Animated.View>
+          )}
+
           <Animated.View style={[lg.divRow, divider]}>
             <View style={lg.divLine} /><Text style={lg.divText}>または</Text><View style={lg.divLine} />
           </Animated.View>
@@ -427,7 +449,7 @@ function Slide6({ isActive }: { isActive: boolean }) {
                 <Text style={{ fontSize: 32, marginBottom: 8 }}>✉️</Text>
                 <Text style={lg.confirmTitle}>確認メールを送信しました</Text>
                 <Text style={lg.confirmSub}>
-                  <Text style={{ color: '#fff', fontWeight: '700' }}>{sentEmail}</Text>
+                  <Text style={{ color: '#111827', fontWeight: '700' }}>{sentEmail}</Text>
                   {'\n'}に届いた認証リンクをクリックするとログインできます
                 </Text>
                 <Text style={lg.confirmNote}>迷惑メールフォルダも確認してください</Text>
@@ -512,7 +534,7 @@ export default function AuthScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#050505' }}>
+    <View style={{ flex: 1, backgroundColor: '#f6f6f8' }}>
       {/* スライドコンテナ（overflow:hidden） */}
       <View
         style={{ flex: 1, overflow: 'hidden' }}
@@ -549,7 +571,7 @@ export default function AuthScreen() {
         <View style={nav.btnRow}>
           {page > 0 ? (
             <TouchableOpacity style={nav.backBtn} onPress={() => goTo(page - 1)} activeOpacity={0.7}>
-              <Ionicons name="chevron-back" size={16} color="rgba(255,255,255,0.6)" />
+              <Ionicons name="chevron-back" size={16} color="rgba(0,0,0,0.4)" />
               <Text style={nav.backText}>戻る</Text>
             </TouchableOpacity>
           ) : <View style={{ flex: 1 }} />}
@@ -579,81 +601,81 @@ const sl = StyleSheet.create({
   heroContent:   { flex: 1, padding: 28, paddingTop: 80, paddingBottom: 16, justifyContent: 'flex-end' },
   slideInner:    { padding: 26, paddingTop: 64, paddingBottom: 24 },
 
-  gridLine:   { position: 'absolute', top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(255,255,255,0.03)' },
+  gridLine:   { position: 'absolute', top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(0,0,0,0.03)' },
 
   logoRow:    { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 36 },
   logoMark:   { width: 56, height: 56, borderRadius: 16, backgroundColor: RED, alignItems: 'center', justifyContent: 'center' },
   logoS:      { color: '#fff', fontSize: 30, fontWeight: '900' },
-  logoName:   { color: '#fff', fontSize: 26, fontWeight: '900', letterSpacing: -1 },
-  logoTagline:{ color: '#555', fontSize: 10, fontWeight: '600', letterSpacing: 1.5 },
+  logoName:   { color: '#111827', fontSize: 26, fontWeight: '900', letterSpacing: -1 },
+  logoTagline:{ color: '#888', fontSize: 10, fontWeight: '600', letterSpacing: 1.5 },
 
-  heroTitle:  { color: '#fff', fontSize: 38, fontWeight: '900', letterSpacing: -1.5, lineHeight: 48, marginBottom: 18 },
-  heroSub:    { color: '#666', fontSize: 14, lineHeight: 23, marginBottom: 36 },
+  heroTitle:  { color: '#111827', fontSize: 38, fontWeight: '900', letterSpacing: -1.5, lineHeight: 48, marginBottom: 18 },
+  heroSub:    { color: '#6b7280', fontSize: 14, lineHeight: 23, marginBottom: 36 },
 
   scoreRow:   { flexDirection: 'row', gap: 10, marginBottom: 20 },
-  scoreBadge: { flex: 1, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 16, borderWidth: 1,
-    padding: 14, alignItems: 'center', gap: 4 },
+  scoreBadge: { flex: 1, backgroundColor: '#ffffff', borderRadius: 16, borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.07)', padding: 14, alignItems: 'center', gap: 4 },
   scoreVal:   { fontSize: 24, fontWeight: '900' },
-  scoreLabel: { color: '#555', fontSize: 9, fontWeight: '700', textAlign: 'center', letterSpacing: 0.3 },
+  scoreLabel: { color: '#888', fontSize: 9, fontWeight: '700', textAlign: 'center', letterSpacing: 0.3 },
 
-  hintText:   { color: '#3a3a3a', fontSize: 12 },
+  hintText:   { color: '#9ca3af', fontSize: 12 },
 
-  tag:         { color: '#444', fontSize: 10, fontWeight: '800', letterSpacing: 2.5, marginBottom: 10 },
-  sectionTitle:{ color: '#fff', fontSize: 27, fontWeight: '900', letterSpacing: -0.8, marginBottom: 10 },
-  sectionSub:  { color: '#666', fontSize: 14, lineHeight: 22 },
+  tag:         { color: '#9ca3af', fontSize: 10, fontWeight: '800', letterSpacing: 2.5, marginBottom: 10 },
+  sectionTitle:{ color: '#111827', fontSize: 27, fontWeight: '900', letterSpacing: -0.8, marginBottom: 10 },
+  sectionSub:  { color: '#6b7280', fontSize: 14, lineHeight: 22 },
 })
 
 const ft = StyleSheet.create({
-  card:    { flexDirection: 'row', alignItems: 'flex-start', gap: 14, backgroundColor: 'rgba(255,255,255,0.03)',
+  card:    { flexDirection: 'row', alignItems: 'flex-start', gap: 14, backgroundColor: '#ffffff',
     borderRadius: 16, borderWidth: 1, borderLeftWidth: 3, padding: 16 },
   iconWrap:{ width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   title:   { fontSize: 13, fontWeight: '800', marginBottom: 5 },
-  desc:    { color: '#777', fontSize: 12, lineHeight: 18 },
+  desc:    { color: '#6b7280', fontSize: 12, lineHeight: 18 },
 })
 
 const ck = StyleSheet.create({
   row:       { flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 14, borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)', padding: 16 },
+    backgroundColor: '#ffffff', borderRadius: 14, borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.07)', padding: 16 },
   rowActive: { borderColor: RED + '50', backgroundColor: 'rgba(229,62,62,0.06)' },
-  box:       { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: '#333',
+  box:       { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: '#ccc',
     alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   boxActive: { backgroundColor: RED, borderColor: RED },
-  text:      { flex: 1, color: '#777', fontSize: 14, lineHeight: 20 },
+  text:      { flex: 1, color: '#6b7280', fontSize: 14, lineHeight: 20 },
   resultCard:{ flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 18,
-    backgroundColor: 'rgba(229,62,62,0.1)', borderRadius: 16, borderWidth: 1,
+    backgroundColor: 'rgba(229,62,62,0.08)', borderRadius: 16, borderWidth: 1,
     borderColor: RED + '40', padding: 18 },
   resultNum: { fontSize: 48, fontWeight: '900', color: RED, lineHeight: 52 },
-  resultTitle:{ color: '#fff', fontSize: 16, fontWeight: '800', marginBottom: 4 },
-  resultSub:  { color: '#aaa', fontSize: 12, lineHeight: 18 },
+  resultTitle:{ color: '#111827', fontSize: 16, fontWeight: '800', marginBottom: 4 },
+  resultSub:  { color: '#6b7280', fontSize: 12, lineHeight: 18 },
 })
 
 const cp = StyleSheet.create({
   wrap:     { flexDirection: 'row', gap: 10 },
-  col:      { flex: 1, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 16, borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
+  col:      { flex: 1, backgroundColor: '#ffffff', borderRadius: 16, borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.08)', overflow: 'hidden' },
   colGood:  { borderColor: RED + '40', backgroundColor: 'rgba(229,62,62,0.04)' },
   head:     { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 12,
-    backgroundColor: 'rgba(255,255,255,0.04)', justifyContent: 'center' },
+    backgroundColor: '#f0f2f5', justifyContent: 'center' },
   headGood: { backgroundColor: 'rgba(229,62,62,0.1)' },
-  headLabel:{ color: '#888', fontSize: 12, fontWeight: '800' },
+  headLabel:{ color: '#6b7280', fontSize: 12, fontWeight: '800' },
   row:      { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 10 },
-  rowBorder:{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.04)' },
-  iconBad:  { color: '#444', fontSize: 12, marginTop: 1 },
+  rowBorder:{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(0,0,0,0.06)' },
+  iconBad:  { color: '#bbb', fontSize: 12, marginTop: 1 },
   iconGood: { color: GREEN, fontSize: 12, marginTop: 1 },
-  textOld:  { flex: 1, color: '#4a4a4a', fontSize: 11, lineHeight: 17 },
-  textNew:  { flex: 1, color: '#e0e0e0', fontSize: 11, lineHeight: 17 },
+  textOld:  { flex: 1, color: '#9ca3af', fontSize: 11, lineHeight: 17 },
+  textNew:  { flex: 1, color: '#111827', fontSize: 11, lineHeight: 17 },
 })
 
 const dv = StyleSheet.create({
-  card:     { flexDirection: 'row', gap: 16, backgroundColor: 'rgba(255,255,255,0.03)',
-    borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', padding: 22, marginTop: 20 },
+  card:     { flexDirection: 'row', gap: 16, backgroundColor: '#ffffff',
+    borderRadius: 20, borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)', padding: 22, marginTop: 20 },
   accent:   { width: 3, borderRadius: 2, backgroundColor: RED, flexShrink: 0 },
   openQuote:{ color: RED, fontSize: 52, fontWeight: '900', lineHeight: 44, marginBottom: 8 },
-  msg:      { color: '#999', fontSize: 14, lineHeight: 26 },
+  msg:      { color: '#6b7280', fontSize: 14, lineHeight: 26 },
   sigRow:   { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 20 },
-  sigLine:  { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.08)' },
-  sig:      { color: '#444', fontSize: 12, fontStyle: 'italic' },
+  sigLine:  { flex: 1, height: 1, backgroundColor: 'rgba(0,0,0,0.1)' },
+  sig:      { color: '#9ca3af', fontSize: 12, fontStyle: 'italic' },
 })
 
 const lg = StyleSheet.create({
@@ -668,46 +690,52 @@ const lg = StyleSheet.create({
   gIconText:   { fontSize: 13, fontWeight: '900', color: '#fff' },
   googleText:  { color: '#111', fontSize: 16, fontWeight: '800' },
 
+  appleBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    backgroundColor: '#000', borderRadius: 18, paddingVertical: 18 },
+  appleBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+
   divRow:      { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 16, width: '100%' },
-  divLine:     { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(255,255,255,0.12)' },
-  divText:     { color: '#444', fontSize: 12 },
+  divLine:     { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(0,0,0,0.15)' },
+  divText:     { color: '#9ca3af', fontSize: 12 },
 
   emailBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
     borderWidth: 1, borderColor: BRAND + '80', borderRadius: 18, paddingVertical: 17 },
   emailBtnText:{ color: BRAND, fontSize: 15, fontWeight: '700' },
 
-  signupTitle: { color: '#fff', fontSize: 16, fontWeight: '800', textAlign: 'center', marginBottom: 4 },
-  inputWrap:   { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.07)',
+  signupTitle: { color: '#111827', fontSize: 16, fontWeight: '800', textAlign: 'center', marginBottom: 4 },
+  inputWrap:   { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f0f2f5',
     borderRadius: 14, paddingHorizontal: 14, paddingVertical: 14, borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)', gap: 10 },
-  input:       { flex: 1, color: '#fff', fontSize: 15, outlineStyle: 'none' as any },
+    borderColor: 'rgba(0,0,0,0.1)', gap: 10 },
+  input:       { flex: 1, color: '#111827', fontSize: 15, outlineStyle: 'none' as any },
   primaryBtn:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    backgroundColor: BRAND, borderRadius: 16, paddingVertical: 17 },
-  primaryBtnText:{ color: '#fff', fontSize: 15, fontWeight: '800' },
+    backgroundColor: '#1c1c1e', borderRadius: 50, paddingVertical: 17,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18, shadowRadius: 12, elevation: 5 },
+  primaryBtnText:{ color: '#fff', fontSize: 15, fontWeight: '800', letterSpacing: -0.3 },
 
   guestBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     paddingVertical: 18 },
-  guestText:   { color: '#444', fontSize: 14 },
-  footer:      { color: '#333', fontSize: 10, textAlign: 'center', lineHeight: 16, paddingBottom: 8 },
+  guestText:   { color: '#9ca3af', fontSize: 14 },
+  footer:      { color: '#9ca3af', fontSize: 10, textAlign: 'center', lineHeight: 16, paddingBottom: 8 },
 
-  confirmBox:  { alignItems: 'center', padding: 20, backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
-  confirmTitle:{ color: '#fff', fontSize: 17, fontWeight: '800', marginBottom: 10, textAlign: 'center' },
-  confirmSub:  { color: '#888', fontSize: 13, lineHeight: 22, textAlign: 'center', marginBottom: 8 },
-  confirmNote: { color: '#555', fontSize: 11, textAlign: 'center' },
+  confirmBox:  { alignItems: 'center', padding: 20, backgroundColor: '#f0f2f5',
+    borderRadius: 20, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
+  confirmTitle:{ color: '#111827', fontSize: 17, fontWeight: '800', marginBottom: 10, textAlign: 'center' },
+  confirmSub:  { color: '#6b7280', fontSize: 13, lineHeight: 22, textAlign: 'center', marginBottom: 8 },
+  confirmNote: { color: '#9ca3af', fontSize: 11, textAlign: 'center' },
 })
 
 const nav = StyleSheet.create({
   bar:      { paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 36 : 22, paddingTop: 14,
-    backgroundColor: 'rgba(5,5,5,0.92)', borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.06)' },
+    backgroundColor: 'rgba(246,246,248,0.97)', borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(0,0,0,0.08)' },
   dotsRow:  { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 14 },
-  dot:      { width: 6, height: 6, borderRadius: 3, backgroundColor: '#282828' },
+  dot:      { width: 6, height: 6, borderRadius: 3, backgroundColor: '#d1d5db' },
   dotActive:{ backgroundColor: RED, width: 22 },
   btnRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   backBtn:  { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 10, paddingHorizontal: 12,
-    borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  backText: { color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: '600' },
+    borderRadius: 12, borderWidth: 1, borderColor: 'rgba(0,0,0,0.12)' },
+  backText: { color: 'rgba(0,0,0,0.4)', fontSize: 13, fontWeight: '600' },
   nextBtn:  { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: RED,
     borderRadius: 14, paddingVertical: 14, paddingHorizontal: 24 },
   nextText: { color: '#fff', fontWeight: '900', fontSize: 14 },

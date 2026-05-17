@@ -24,6 +24,7 @@ const RC_ANDROID_KEY = 'goog_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'  // ← Android用�
 
 const ENT_PRO   = 'pro'
 const ENT_ELITE = 'elite'
+const ENT_COACH = 'coach'
 
 // ── 初期化 ──────────────────────────────────────────────────────────
 export async function initPurchases(userId?: string): Promise<void> {
@@ -42,8 +43,11 @@ export async function getPremiumStatus(): Promise<{ tier: PlanTier; expiresAt?: 
     const elite = info.entitlements.active[ENT_ELITE]
     const pro   = info.entitlements.active[ENT_PRO]
 
+    const coach = info.entitlements.active[ENT_COACH]
+
     if (elite) return { tier: 'elite', expiresAt: elite.expirationDate ?? undefined }
     if (pro)   return { tier: 'pro',   expiresAt: pro.expirationDate   ?? undefined }
+    if (coach) return { tier: 'coach', expiresAt: coach.expirationDate ?? undefined }
     return { tier: 'free' }
   } catch {
     return { tier: 'free' }
@@ -66,6 +70,7 @@ export async function purchasePackage(pkg: PurchasesPackage): Promise<PlanTier |
     const { customerInfo } = await Purchases.purchasePackage(pkg)
     if (customerInfo.entitlements.active[ENT_ELITE]) return 'elite'
     if (customerInfo.entitlements.active[ENT_PRO])   return 'pro'
+    if (customerInfo.entitlements.active[ENT_COACH]) return 'coach'
     return false
   } catch (e: any) {
     if (e?.userCancelled) return false
@@ -79,6 +84,7 @@ export async function restoreAndCheck(): Promise<PlanTier | false> {
     const info = await Purchases.restorePurchases()
     if (info.entitlements.active[ENT_ELITE]) return 'elite'
     if (info.entitlements.active[ENT_PRO])   return 'pro'
+    if (info.entitlements.active[ENT_COACH]) return 'coach'
     return false
   } catch {
     return false
