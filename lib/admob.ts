@@ -36,18 +36,18 @@ const AD_UNIT_IDS = {
   interstitial: {
     ios:     __DEV__
       ? 'ca-app-pub-3940256099942544/4411468910'   // Googleテスト用ID (iOS)
-      : 'ca-app-pub-6225795381877305/INTERSTITIAL_IOS',   // ⚠️ AdMobで作成後差し替え
+      : 'ca-app-pub-6225795381877305/7262812886',   // ✅ 本番 iOS インタースティシャル
     android: __DEV__
       ? 'ca-app-pub-3940256099942544/1033173712'   // Googleテスト用ID (Android)
-      : 'ca-app-pub-6225795381877305/INTERSTITIAL_ANDROID', // ⚠️ AdMobで作成後差し替え
+      : 'ca-app-pub-6225795381877305/5702319206',   // ✅ 本番 Android インタースティシャル
   },
   appOpen: {
     ios:     __DEV__
       ? 'ca-app-pub-3940256099942544/5575463023'   // Googleテスト用ID (iOS)
-      : 'ca-app-pub-6225795381877305/APP_OPEN_IOS',   // ⚠️ AdMobで作成後差し替え
+      : 'ca-app-pub-6225795381877305/3136094522',   // ✅ 本番 iOS App Open
     android: __DEV__
       ? 'ca-app-pub-3940256099942544/9257395921'   // Googleテスト用ID (Android)
-      : 'ca-app-pub-6225795381877305/APP_OPEN_ANDROID', // ⚠️ AdMobで作成後差し替え
+      : 'ca-app-pub-6225795381877305/4197665841',   // ✅ 本番 Android App Open
   },
 }
 
