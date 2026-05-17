@@ -1,12 +1,12 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react'
 import {
   View, Text, TouchableOpacity, ScrollView, TextInput,
-  StyleSheet, Platform, Alert, ActivityIndicator, Image,
+  StyleSheet, Platform, Alert, ActivityIndicator, Image, Modal, Pressable,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { BRAND, TEXT } from '../lib/theme'
-import { checkAdGate, recordUsage, consumeRewardUse } from '../lib/adGate'
+import { checkAdGate, recordUsage, consumeRewardUse, getTier } from '../lib/adGate'
 import AdGateModal from '../components/AdGateModal'
 import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'expo-router'
@@ -15,12 +15,16 @@ import * as ImagePicker from 'expo-image-picker'
 import * as VideoThumbnails from 'expo-video-thumbnails'
 import * as ImageManipulator from 'expo-image-manipulator'
 import * as FileSystem from 'expo-file-system/legacy'
+import { sendCoachNotification } from '../lib/supabaseTeam'
+
+const JOINED_KEY_VA = 'trackmate_team_joined'
 
 /* ─── 型定義 ─────────────────────────────────── */
 type FrameAdvice = {
   overall: string
   positives: string[]
   improvements: string[]
+  injuryRisk?: string
 }
 type Annotation = {
   id: string
@@ -31,13 +35,30 @@ type Annotation = {
 type ComprehensiveAnalysis = {
   summary: string
   keyFindings: string[]
+  injuryWarnings?: string[]
   trainingMenu: { name: string; detail: string }[]
   nextSteps: string[]
 }
 
-const STORAGE_KEY = 'trackmate_video_annotations'
-const MAX_FRAMES  = 8
-const THUMB_W     = 320
+const STORAGE_KEY      = 'trackmate_video_annotations'
+const COACH_REQ_KEY    = 'trackmate_coach_video_requests'
+const MAX_FRAMES       = 8
+const THUMB_W          = 320
+
+type CoachVideoRequest = {
+  id:           string
+  videoUri:     string
+  thumbnailUri: string
+  message:      string
+  event:        string
+  sentAt:       string
+  checked?:     boolean
+}
+
+const FOCUS_HINTS = [
+  'スタートの姿勢', '腕の振り', 'ストライド', 'コーナリング',
+  '着地のタイミング', '上体の傾き', 'ゴール前',
+]
 
 /* ─── ネイティブ動画分析（iOS/Android）──────────────── */
 type AnalysisPhase = 'idle' | 'extracting' | 'analyzing' | 'result'
@@ -101,6 +122,370 @@ function ResultSection({ title, color, icon, items }: {
   )
 }
 
+// ─── コーチ送信ウィザード ─────────────────────────────────────────
+function CoachSendMode() {
+  const [step,       setStep]       = useState<1 | 2 | 3>(1)
+  const [videoUri,   setVideoUri]   = useState<string | null>(null)
+  const [thumbUri,   setThumbUri]   = useState<string | null>(null)
+  const [message,    setMessage]    = useState('')
+  const [event,      setEvent]      = useState('')
+  const [sending,    setSending]    = useState(false)
+  const [sent,       setSent]       = useState(false)
+
+  const reset = () => { setSent(false); setStep(1); setVideoUri(null); setThumbUri(null); setMessage(''); setEvent('') }
+
+  const pickFromLibrary = async () => {
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (!perm.granted) { Alert.alert('権限が必要です', '写真ライブラリへのアクセスを許可してください'); return }
+      const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'videos' as any, allowsEditing: false, quality: 1 })
+      if (!res.canceled && res.assets[0]) {
+        const uri = res.assets[0].uri
+        setVideoUri(uri)
+        try { const { uri: t } = await VideoThumbnails.getThumbnailAsync(uri, { time: 500 }); setThumbUri(t) } catch {}
+        setStep(2)
+      }
+    } catch (e: any) { Alert.alert('エラー', e?.message ?? '動画の選択に失敗しました') }
+  }
+
+  const recordNow = async () => {
+    try {
+      const perm = await ImagePicker.requestCameraPermissionsAsync()
+      if (!perm.granted) { Alert.alert('権限が必要です', 'カメラへのアクセスを許可してください'); return }
+      const res = await ImagePicker.launchCameraAsync({ mediaTypes: 'videos' as any, allowsEditing: false, quality: 1, videoMaxDuration: 90 })
+      if (!res.canceled && res.assets[0]) {
+        const uri = res.assets[0].uri
+        setVideoUri(uri)
+        try { const { uri: t } = await VideoThumbnails.getThumbnailAsync(uri, { time: 100 }); setThumbUri(t) } catch {}
+        setStep(2)
+      }
+    } catch (e: any) { Alert.alert('エラー', e?.message ?? '動画の撮影に失敗しました') }
+  }
+
+  const send = async () => {
+    if (!videoUri) return
+    setSending(true)
+    try {
+      const raw = await AsyncStorage.getItem(COACH_REQ_KEY)
+      const list: CoachVideoRequest[] = raw ? JSON.parse(raw) : []
+      list.unshift({ id: Date.now().toString(), videoUri, thumbnailUri: thumbUri ?? '', message, event, sentAt: new Date().toISOString() })
+      await AsyncStorage.setItem(COACH_REQ_KEY, JSON.stringify(list.slice(0, 30)))
+      // コーチに通知を送る
+      try {
+        const joinedRaw = await AsyncStorage.getItem(JOINED_KEY_VA)
+        if (joinedRaw) {
+          const joined = JSON.parse(joinedRaw)
+          if (joined?.code && joined?.playerName) {
+            await sendCoachNotification(
+              joined.code,
+              'video',
+              joined.playerName,
+              `${joined.playerName}がフォーム分析を送信しました${event ? `（${event}）` : ''}`,
+            )
+          }
+        }
+      } catch {}
+      setSent(true)
+    } catch { Alert.alert('エラー', '送信に失敗しました') }
+    finally { setSending(false) }
+  }
+
+  // ── 送信完了 ──
+  if (sent) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, backgroundColor: '#f6f6f8' }}>
+        <View style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: '#dcfce7', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+          <Ionicons name="checkmark-circle" size={56} color="#16a34a" />
+        </View>
+        <Text style={{ fontSize: 22, fontWeight: '900', color: '#111827', marginBottom: 10, textAlign: 'center' }}>
+          コーチに送りました！
+        </Text>
+        <Text style={{ fontSize: 14, color: '#6b7280', textAlign: 'center', lineHeight: 22, marginBottom: 32 }}>
+          コーチがアプリを開いたときに{'\n'}「コーチビュー」から確認できます。
+        </Text>
+        <TouchableOpacity style={cst.primaryBtn} onPress={reset}>
+          <Text style={cst.primaryBtnText}>もう一本送る</Text>
+        </TouchableOpacity>
+      </View>
+    )
+  }
+
+  // ── ステップインジケーター ──
+  const StepDots = () => (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 28 }}>
+      {(['動画', 'メモ', '確認'] as const).map((label, i) => {
+        const n = (i + 1) as 1 | 2 | 3
+        const active  = step === n
+        const done    = step > n
+        return (
+          <React.Fragment key={n}>
+            <View style={{ alignItems: 'center', gap: 4 }}>
+              <View style={[cst.stepDot, active && cst.stepDotActive, done && cst.stepDotDone]}>
+                {done
+                  ? <Ionicons name="checkmark" size={12} color="#fff" />
+                  : <Text style={[cst.stepDotNum, active && { color: '#fff' }]}>{n}</Text>}
+              </View>
+              <Text style={[cst.stepLabel, active && { color: '#111827', fontWeight: '700' }]}>{label}</Text>
+            </View>
+            {i < 2 && <View style={[cst.stepLine, done && { backgroundColor: '#16a34a' }]} />}
+          </React.Fragment>
+        )
+      })}
+    </View>
+  )
+
+  // ── STEP 1: 動画選択 ──
+  if (step === 1) {
+    return (
+      <ScrollView style={{ flex: 1, backgroundColor: '#f6f6f8' }} contentContainerStyle={cst.scroll} keyboardShouldPersistTaps="handled">
+        <Text style={cst.title}>動画を選んでください</Text>
+        <Text style={cst.subtitle}>コーチに見てほしいシーンを送りましょう</Text>
+        <StepDots />
+
+        <TouchableOpacity style={cst.bigCard} onPress={recordNow} activeOpacity={0.85}>
+          <View style={[cst.bigCardIcon, { backgroundColor: '#dcfce7' }]}>
+            <Ionicons name="videocam" size={40} color="#16a34a" />
+          </View>
+          <Text style={cst.bigCardTitle}>今すぐ撮影する</Text>
+          <Text style={cst.bigCardSub}>カメラを起動して録画（最大90秒）</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={[cst.bigCard, { marginTop: 12 }]} onPress={pickFromLibrary} activeOpacity={0.85}>
+          <View style={[cst.bigCardIcon, { backgroundColor: '#f0fdf4' }]}>
+            <Ionicons name="images" size={40} color="#22c55e" />
+          </View>
+          <Text style={cst.bigCardTitle}>ライブラリから選ぶ</Text>
+          <Text style={cst.bigCardSub}>撮り貯めた動画から選択</Text>
+        </TouchableOpacity>
+
+        <View style={cst.tipBox}>
+          <Ionicons name="bulb-outline" size={16} color="#ca8a04" />
+          <Text style={cst.tipText}>
+            横向きで撮ると全身が映りやすいです。{'\n'}
+            正面・側面・後方の3方向があるとベストです。
+          </Text>
+        </View>
+      </ScrollView>
+    )
+  }
+
+  // ── STEP 2: メモ入力 ──
+  if (step === 2) {
+    return (
+      <ScrollView style={{ flex: 1, backgroundColor: '#f6f6f8' }} contentContainerStyle={cst.scroll} keyboardShouldPersistTaps="handled">
+        <Text style={cst.title}>コーチへのメモ</Text>
+        <Text style={cst.subtitle}>どこを見てほしいか教えましょう（任意）</Text>
+        <StepDots />
+
+        {/* サムネイル */}
+        {thumbUri && (
+          <View style={{ alignItems: 'center', marginBottom: 20 }}>
+            <Image source={{ uri: thumbUri }} style={{ width: 200, height: 120, borderRadius: 14, backgroundColor: '#e5e7eb' }} />
+            <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 6 }}>選択済み ✓</Text>
+          </View>
+        )}
+
+        {/* 種目 */}
+        <Text style={cst.fieldLabel}>種目</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8 }}>
+          {['', '100m','200m','400m','800m','1500m','走幅跳','三段跳','走高跳','棒高跳','110mH','400mH','5000m'].map(ev => (
+            <TouchableOpacity
+              key={ev || 'none'}
+              style={[cst.chip, event === ev && cst.chipActive]}
+              onPress={() => setEvent(ev)}
+              activeOpacity={0.8}
+            >
+              <Text style={[cst.chipText, event === ev && { color: '#fff' }]}>{ev || '指定なし'}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* フォーカスヒント */}
+        <Text style={cst.fieldLabel}>見てほしいところ（タップで追加）</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+          {FOCUS_HINTS.map(hint => {
+            const selected = message.includes(hint)
+            return (
+              <TouchableOpacity
+                key={hint}
+                style={[cst.hintChip, selected && cst.hintChipActive]}
+                onPress={() => {
+                  setMessage(prev =>
+                    selected ? prev.replace(hint, '').replace(/[、,]\s*/g, '、').replace(/^[、,]/, '').replace(/[、,]$/, '').trim()
+                             : prev ? `${prev}、${hint}` : hint
+                  )
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={[cst.hintChipText, selected && { color: '#16a34a', fontWeight: '800' }]}>{hint}</Text>
+              </TouchableOpacity>
+            )
+          })}
+        </View>
+
+        {/* テキスト入力 */}
+        <TextInput
+          style={cst.textarea}
+          value={message}
+          onChangeText={setMessage}
+          placeholder="その他に気になることを自由に書いてください..."
+          placeholderTextColor="#9ca3af"
+          multiline
+          numberOfLines={3}
+        />
+
+        <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
+          <TouchableOpacity style={cst.secondaryBtn} onPress={() => setStep(1)}>
+            <Text style={cst.secondaryBtnText}>← 戻る</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[cst.primaryBtn, { flex: 1 }]} onPress={() => setStep(3)}>
+            <Text style={cst.primaryBtnText}>確認する →</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    )
+  }
+
+  // ── STEP 3: 確認して送信 ──
+  return (
+    <ScrollView style={{ flex: 1, backgroundColor: '#f6f6f8' }} contentContainerStyle={cst.scroll}>
+      <Text style={cst.title}>確認して送信</Text>
+      <Text style={cst.subtitle}>内容を確認したら送ってください</Text>
+      <StepDots />
+
+      <View style={cst.confirmCard}>
+        {thumbUri && (
+          <Image source={{ uri: thumbUri }} style={{ width: '100%', height: 180, borderRadius: 10, backgroundColor: '#e5e7eb', marginBottom: 14 }} />
+        )}
+        <View style={cst.confirmRow}>
+          <Text style={cst.confirmLabel}>種目</Text>
+          <Text style={cst.confirmValue}>{event || '指定なし'}</Text>
+        </View>
+        <View style={cst.divider} />
+        <View style={cst.confirmRow}>
+          <Text style={cst.confirmLabel}>コーチへのメモ</Text>
+          <Text style={[cst.confirmValue, { flex: 1, textAlign: 'right' }]} numberOfLines={3}>
+            {message || '（なし）'}
+          </Text>
+        </View>
+      </View>
+
+      <TouchableOpacity
+        style={[cst.sendBtn, sending && { opacity: 0.6 }]}
+        onPress={send}
+        disabled={sending}
+        activeOpacity={0.85}
+      >
+        {sending
+          ? <ActivityIndicator color="#fff" />
+          : <>
+              <Ionicons name="paper-plane" size={20} color="#fff" />
+              <Text style={cst.sendBtnText}>コーチに送る</Text>
+            </>
+        }
+      </TouchableOpacity>
+
+      <TouchableOpacity style={cst.secondaryBtn} onPress={() => setStep(2)}>
+        <Text style={cst.secondaryBtnText}>← 修正する</Text>
+      </TouchableOpacity>
+
+      <Text style={cst.noteText}>
+        送信した動画は、コーチがアプリの「コーチビュー」から確認できます。
+      </Text>
+    </ScrollView>
+  )
+}
+
+// ─── タブ切替ラッパー ─────────────────────────────────────────────
+function NativeVideoAnalysisRoot() {
+  const [activeTab, setActiveTab] = useState<'ai' | 'coach'>('ai')
+  return (
+    <View style={{ flex: 1, backgroundColor: '#f6f6f8' }}>
+      {/* タブ */}
+      <View style={cst.tabBar}>
+        <TouchableOpacity
+          style={[cst.tab, activeTab === 'ai' && cst.tabActive]}
+          onPress={() => setActiveTab('ai')}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="sparkles" size={14} color={activeTab === 'ai' ? '#fff' : '#6b7280'} />
+          <Text style={[cst.tabText, activeTab === 'ai' && { color: '#fff' }]}>AIで自分で分析</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[cst.tab, activeTab === 'coach' && { backgroundColor: '#16a34a' }]}
+          onPress={() => setActiveTab('coach')}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="paper-plane" size={14} color={activeTab === 'coach' ? '#fff' : '#6b7280'} />
+          <Text style={[cst.tabText, activeTab === 'coach' && { color: '#fff' }]}>コーチに送る</Text>
+        </TouchableOpacity>
+      </View>
+      {activeTab === 'ai'
+        ? <NativeVideoAnalysis />
+        : <CoachSendMode />
+      }
+    </View>
+  )
+}
+
+// ─── コーチ送信モード スタイル ────────────────────────────────────
+const cst = StyleSheet.create({
+  scroll:          { padding: 24, paddingBottom: 48 },
+  title:           { fontSize: 22, fontWeight: '900', color: '#111827', marginBottom: 4 },
+  subtitle:        { fontSize: 13, color: '#6b7280', marginBottom: 24, lineHeight: 19 },
+
+  // ステップ
+  stepDot:         { width: 28, height: 28, borderRadius: 14, backgroundColor: '#e5e7eb', alignItems: 'center', justifyContent: 'center' },
+  stepDotActive:   { backgroundColor: '#111827' },
+  stepDotDone:     { backgroundColor: '#16a34a' },
+  stepDotNum:      { fontSize: 12, fontWeight: '800', color: '#9ca3af' },
+  stepLine:        { flex: 1, height: 2, backgroundColor: '#e5e7eb', marginBottom: 18 },
+  stepLabel:       { fontSize: 11, color: '#9ca3af' },
+
+  // 大カード（Step 1）
+  bigCard:         { backgroundColor: '#fff', borderRadius: 18, padding: 24, alignItems: 'center', gap: 10, borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.08)' },
+  bigCardIcon:     { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  bigCardTitle:    { fontSize: 18, fontWeight: '800', color: '#111827' },
+  bigCardSub:      { fontSize: 13, color: '#6b7280', textAlign: 'center' },
+
+  // Tip
+  tipBox:          { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: '#fefce8', borderRadius: 12, padding: 14, marginTop: 20, borderWidth: 1, borderColor: '#fde047' },
+  tipText:         { fontSize: 12, color: '#713f12', lineHeight: 18, flex: 1 },
+
+  // フィールド
+  fieldLabel:      { fontSize: 12, fontWeight: '800', color: '#374151', marginBottom: 8, letterSpacing: 0.3 },
+  chip:            { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
+  chipActive:      { backgroundColor: '#111827', borderColor: '#111827' },
+  chipText:        { fontSize: 13, fontWeight: '700', color: '#6b7280' },
+  hintChip:        { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: '#f0fdf4', borderWidth: 1, borderColor: '#bbf7d0' },
+  hintChipActive:  { backgroundColor: '#dcfce7', borderColor: '#16a34a' },
+  hintChipText:    { fontSize: 12, fontWeight: '600', color: '#374151' },
+  textarea:        { backgroundColor: '#fff', borderRadius: 14, borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.10)', padding: 14, fontSize: 14, color: '#111827', minHeight: 80, textAlignVertical: 'top' },
+
+  // 確認カード
+  confirmCard:     { backgroundColor: '#fff', borderRadius: 18, padding: 18, marginBottom: 20, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
+  confirmRow:      { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingVertical: 8, gap: 12 },
+  confirmLabel:    { fontSize: 12, color: '#9ca3af', fontWeight: '600', paddingTop: 2 },
+  confirmValue:    { fontSize: 14, color: '#111827', fontWeight: '600' },
+  divider:         { height: 1, backgroundColor: 'rgba(0,0,0,0.07)' },
+
+  // ボタン
+  primaryBtn:      { backgroundColor: '#111827', borderRadius: 14, paddingVertical: 16, alignItems: 'center', justifyContent: 'center' },
+  primaryBtnText:  { color: '#fff', fontSize: 16, fontWeight: '800' },
+  secondaryBtn:    { backgroundColor: '#f3f4f6', borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginTop: 10 },
+  secondaryBtnText:{ color: '#374151', fontSize: 15, fontWeight: '700' },
+  sendBtn:         { backgroundColor: '#16a34a', borderRadius: 14, paddingVertical: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 12, shadowColor: '#16a34a', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12 },
+  sendBtnText:     { color: '#fff', fontSize: 18, fontWeight: '900' },
+  noteText:        { fontSize: 12, color: '#9ca3af', textAlign: 'center', lineHeight: 18, marginTop: 8 },
+
+  // タブバー
+  tabBar:          { flexDirection: 'row', backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.08)', padding: 8, gap: 8 },
+  tab:             { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 10, backgroundColor: '#f3f4f6' },
+  tabActive:       { backgroundColor: '#111827' },
+  tabText:         { fontSize: 13, fontWeight: '700', color: '#6b7280' },
+})
+
+/* ─── ネイティブ動画分析（iOS/Android）──────────────── */
 function NativeVideoAnalysis() {
   const [phase, setPhase]             = useState<AnalysisPhase>('idle')
   const [videoUri, setVideoUri]       = useState<string | null>(null)
@@ -117,6 +502,7 @@ function NativeVideoAnalysis() {
   const [adGateHardLimited, setAdGateHardLimited] = useState(false)
   const [adGateRewardUses,  setAdGateRewardUses]  = useState(0)
   const [remaining,         setRemaining]         = useState<number | null>(null)
+  const [upsellVisible,     setUpsellVisible]     = useState(false)
   const { isGuest } = useAuth()
   const router = useRouter()
 
@@ -125,6 +511,19 @@ function NativeVideoAnalysis() {
       if (g.remaining < 999) setRemaining(g.remaining)
     }).catch(() => {})
   }, [])
+
+  // 分析結果が出たら5秒後にフリープランのみアップセルシートを表示
+  React.useEffect(() => {
+    if (phase !== 'result') return
+    let cancelled = false
+    getTier().then(tier => {
+      if (tier === 'free' && !cancelled) {
+        const t = setTimeout(() => setUpsellVisible(true), 5000)
+        return () => clearTimeout(t)
+      }
+    })
+    return () => { cancelled = true }
+  }, [phase])
 
   async function pickVideo() {
     try {
@@ -548,9 +947,56 @@ function NativeVideoAnalysis() {
           trackFeatureUse('video')
           checkAdGate('video').then(g2 => { if (g2.remaining < 999) setRemaining(g2.remaining) }).catch(() => {})
           setError(''); setResult(null); setRawText('')
+          analyze()
         }}
         onUpgrade={() => { setAdGateVisible(false); router.push('/paywall') }}
       />
+
+      {/* ── 分析結果後アップセルシート（フリープラン・5秒後表示） ── */}
+      <Modal visible={upsellVisible} transparent animationType="slide" onRequestClose={() => setUpsellVisible(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={() => setUpsellVisible(false)}>
+          <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}>
+            <Pressable onPress={() => {}}>
+              <View style={{ backgroundColor: '#1a1a2e', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, gap: 16 }}>
+                <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)', alignSelf: 'center', marginBottom: 4 }} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <Ionicons name="star" size={24} color="#d97706" />
+                  <Text style={{ color: '#fff', fontSize: 17, fontWeight: '800' }}>毎回使うなら Pro がお得</Text>
+                </View>
+                <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, lineHeight: 20 }}>
+                  動画フォーム分析は毎日1回（広告1本）で使えます。{'\n'}
+                  Pro プランなら月30回・広告なしで使い放題。
+                </Text>
+                <View style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 14, gap: 8 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>FREE（今のプラン）</Text>
+                    <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>毎日1回・広告あり</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <View style={{ backgroundColor: '#166534', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
+                        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800' }}>PRO</Text>
+                      </View>
+                      <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>¥480/月</Text>
+                    </View>
+                    <Text style={{ color: '#4ade80', fontSize: 12, fontWeight: '700' }}>月30回・広告なし</Text>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  style={{ backgroundColor: '#166534', borderRadius: 14, paddingVertical: 15, alignItems: 'center' }}
+                  onPress={() => { setUpsellVisible(false); router.push('/paywall') }}
+                  activeOpacity={0.85}
+                >
+                  <Text style={{ color: '#fff', fontSize: 15, fontWeight: '800' }}>Pro プランを見る ¥480/月〜</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={{ alignItems: 'center', paddingVertical: 4 }} onPress={() => setUpsellVisible(false)} activeOpacity={0.7}>
+                  <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>今はしない</Text>
+                </TouchableOpacity>
+              </View>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   )
 }
@@ -558,7 +1004,7 @@ function NativeVideoAnalysis() {
 /* ─── メイン ──────────────────────────────────── */
 export default function VideoAnalysis() {
   if (Platform.OS !== 'web') {
-    return <NativeVideoAnalysis />
+    return <NativeVideoAnalysisRoot />
   }
   return <WebPlayer isPremiumUser={true} />
 }
@@ -613,6 +1059,8 @@ function PremiumGate() {
 
 /* ─── Web専用プレーヤー ──────────────────────────── */
 function WebPlayer({ isPremiumUser: isPremiumProp }: { isPremiumUser: boolean }) {
+  const router = useRouter()
+
   /* ── refs ── */
   const videoRef      = useRef<HTMLVideoElement | null>(null)
   const canvasRef     = useRef<HTMLCanvasElement | null>(null)
@@ -764,8 +1212,9 @@ function WebPlayer({ isPremiumUser: isPremiumProp }: { isPremiumUser: boolean })
         messages: [{ role: 'user', content: [
           { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: dataUrl.split(',')[1] } },
           { type: 'text', text: `陸上競技バイオメカニクスコーチとして${formatTime(t)}地点のフォームを分析。${selectedEvent ? `\n種目: ${selectedEvent}` : ''}${athleteColor ? `\n分析対象選手: ${athleteColor}の服装・シューズの選手に集中して分析してください。` : ''}
+怪我リスクについても評価すること（膝・足首・腰・ハムストリングの負担など）。
 JSON形式のみで回答:
-{"overall":"評価(20字以内)","positives":["良い点1","良い点2"],"improvements":["改善点1(部位明記)","改善点2"]}` }
+{"overall":"評価(20字以内)","positives":["良い点1（部位を明記）","良い点2"],"improvements":["改善点1(部位・角度・回数など具体的に)","改善点2"],"injuryRisk":"怪我リスクの箇所と理由(30字以内、リスク低ければ「リスク低」)"}` }
         ]}]
       })
     })
@@ -791,29 +1240,31 @@ JSON形式のみで回答:
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           model: 'claude-haiku-4-5-20251001', max_tokens: 1024,
-          messages: [{ role: 'user', content: `陸上競技コーチとして以下のフレーム分析結果を元に総合評価とトレーニングメニューを作成してください。${selectedEvent ? `\n種目: ${selectedEvent}に特化したアドバイスをしてください。` : ''}
+          messages: [{ role: 'user', content: `陸上競技バイオメカニクスコーチとして、以下のフレーム分析結果を元に総合評価・トレーニングメニュー・怪我予防アドバイスを作成してください。${selectedEvent ? `\n種目: ${selectedEvent}に特化したアドバイスをしてください。` : ''}
+アドバイスは読みやすく簡潔に（1項目30字以内）、かつ部位・角度・回数・距離など具体的な数値を含めること。
 
 【フレーム分析結果】
 ${summary}
 
 以下のJSON形式のみで回答:
 {
-  "summary": "総合評価（3〜4文）",
-  "keyFindings": ["全体を通して見られた特徴1", "特徴2", "特徴3"],
+  "summary": "総合評価（3〜4文。技術面と怪我リスクの両方に触れる）",
+  "keyFindings": ["全体を通して見られた技術的特徴1（部位明記）", "特徴2", "特徴3"],
+  "injuryWarnings": ["怪我リスクのある部位と原因1（例: 膝の内側への倒れ込みでランナー膝リスク）", "リスク2（なければ空配列[]）"],
   "trainingMenu": [
-    {"name": "ドリル名", "detail": "具体的な方法・セット数"},
+    {"name": "ドリル名", "detail": "具体的な方法・セット数・距離（例: 20m×5本）"},
     {"name": "ドリル名2", "detail": "内容"},
     {"name": "ドリル名3", "detail": "内容"},
-    {"name": "ドリル名4", "detail": "内容"}
+    {"name": "ドリル名4（怪我予防ドリル）", "detail": "弱点部位を補強する種目"}
   ],
-  "nextSteps": ["次の練習で意識すること1", "意識すること2", "意識すること3"]
+  "nextSteps": ["次の練習で意識すること1（具体的な動作・角度・タイミング）", "意識すること2", "意識すること3"]
 }` }]
         })
       })
       const data  = await res.json()
       const text  = data.content?.[0]?.text ?? '{}'
       const match = text.match(/\{[\s\S]*\}/)
-      if (match) setComprehensive(JSON.parse(match[0]))
+      if (match) { try { setComprehensive(JSON.parse(match[0])) } catch {} }
     } catch (e) { console.warn('comprehensive fail', e) }
     finally { setLoadingComp(false) }
   }
@@ -1010,7 +1461,7 @@ ${summary}
           }}
           onUpgrade={() => {
             setAdGateVisible(false)
-            // TODO: プレミアム画面へのナビゲーションを追加
+            router.push('/paywall')
           }}
         />
       </View>
@@ -1104,6 +1555,12 @@ ${summary}
               <Text style={s.sectionLabel}>⚠️ 改善点</Text>
               {activeAnn.advice.improvements.map((p, i) => <Text key={i} style={s.adviceItem}>• {p}</Text>)}
             </>}
+            {activeAnn.advice.injuryRisk && activeAnn.advice.injuryRisk !== 'リスク低' && (
+              <View style={{ marginTop: 8, backgroundColor: '#FFF1F2', borderRadius: 8, padding: 8, borderLeftWidth: 3, borderLeftColor: '#F43F5E' }}>
+                <Text style={{ color: '#BE123C', fontSize: 11, fontWeight: '700', marginBottom: 2 }}>🚨 怪我リスク</Text>
+                <Text style={{ color: '#9F1239', fontSize: 12 }}>{activeAnn.advice.injuryRisk}</Text>
+              </View>
+            )}
           </View>
         ) : (
           <View style={s.noAdviceCard}>
@@ -1158,6 +1615,14 @@ ${summary}
                   </View>
                 ))}
               </>}
+              {comprehensive.injuryWarnings && comprehensive.injuryWarnings.length > 0 && (
+                <View style={{ marginTop: 10, backgroundColor: '#FFF1F2', borderRadius: 10, padding: 10, borderLeftWidth: 3, borderLeftColor: '#F43F5E' }}>
+                  <Text style={{ color: '#BE123C', fontSize: 12, fontWeight: '800', marginBottom: 6 }}>🚨 怪我予防アドバイス</Text>
+                  {comprehensive.injuryWarnings.map((w, i) => (
+                    <Text key={i} style={{ color: '#9F1239', fontSize: 12, lineHeight: 20 }}>• {w}</Text>
+                  ))}
+                </View>
+              )}
             </View>
 
             {/* トレーニングメニュー */}
@@ -1245,9 +1710,11 @@ const s = StyleSheet.create({
                     backgroundColor: '#f0f2f5', paddingHorizontal: 28,
                     paddingVertical: 14, borderRadius: 12, marginBottom: 12 },
   uploadBtnText:  { color: '#111827', fontSize: 16, fontWeight: '700' },
-  analyzeBtn:     { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: BRAND,
-                    paddingHorizontal: 36, paddingVertical: 18, borderRadius: 16, marginBottom: 20 },
-  analyzeBtnText: { color: '#ffffff', fontSize: 18, fontWeight: '800' },
+  analyzeBtn:     { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#1c1c1e',
+                    paddingHorizontal: 36, paddingVertical: 18, borderRadius: 50, marginBottom: 20,
+                    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.18, shadowRadius: 12, elevation: 5 },
+  analyzeBtnText: { color: '#ffffff', fontSize: 18, fontWeight: '800', letterSpacing: -0.3 },
   privacyNote:    { color: '#333', fontSize: 11, textAlign: 'center', lineHeight: 18 },
 
   /* setting cards before analysis */

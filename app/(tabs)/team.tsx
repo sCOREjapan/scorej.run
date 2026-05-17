@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   TextInput, KeyboardAvoidingView, Platform, Modal, Linking, Dimensions,
-  Animated, Easing, ActivityIndicator, Alert,
+  Animated, Easing, ActivityIndicator, Alert, RefreshControl,
 } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
 const SCREEN_H = Dimensions.get('window').height
@@ -14,9 +14,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import Toast from 'react-native-toast-message'
 import { BRAND, TEXT } from '../../lib/theme'
 import AnimatedSection from '../../components/AnimatedSection'
-import { calcInjuryRisk } from '../../lib/injuryRisk'
+import { calcInjuryRisk, type InjuryRiskResult } from '../../lib/injuryRisk'
 import { calcLevelInfo, RANK_TIERS } from '../../lib/gamification'
-import { getCurrentLocationWeather } from '../../lib/weather'
+import { getCachedWeather } from '../../lib/weather'
 import { calcWeatherRiskBonus } from '../../lib/weatherRisk'
 import type { TrainingSession, SleepRecord } from '../../types'
 import { supabase } from '../../lib/supabase'
@@ -29,10 +29,12 @@ import {
   syncTeamSessions, fetchTeamSessions,
   fetchTeamEvents, addTeamEvent, deleteTeamEvent,
   createTeam, fetchTeamByCode,
+  sendCoachNotification,
   type TeamMessageRow, type TeamVideoRow, type BodyReportRow, type TeamMemberRow, type PlayerStatsRow, type TeamSessionRow, type TeamEventRow, type TeamEventType,
 } from '../../lib/supabaseTeam'
 import { useTheme } from '../../context/ThemeContext'
 import { usePurchase } from '../../context/PurchaseContext'
+import { useTrainingSessions } from '../../hooks/useTrainingSessions'
 import HapticTouch from '../../components/HapticTouch'
 import {
   initOneSignal, requestPushPermission, registerUserTags, sendPush,
@@ -190,8 +192,8 @@ const EVENT_CFG: Record<string, { emoji: string; color: string; label: string }>
 // ── 負荷・リスク設定 ─────────────────────────────────────
 const RISK_CFG = {
   danger: { color: '#E53935', bg: 'rgba(229,57,53,0.12)', label: '高リスク' },
-  high:   { color: '#FF9500', bg: 'rgba(255,149,0,0.12)', label: '注意' },
-  medium: { color: '#F5A623', bg: 'rgba(245,166,35,0.12)', label: '中程度' },
+  high:   { color: '#FF9500', bg: 'rgba(255,149,0,0.12)', label: '要注意' },
+  medium: { color: '#6366f1', bg: 'rgba(99,102,241,0.10)', label: '経過観察' },
   low:    { color: '#34C759', bg: 'rgba(52,199,89,0.12)', label: '良好' },
 } as const
 type RiskCfgKey = keyof typeof RISK_CFG
@@ -214,7 +216,8 @@ function calcWeeklyLoad(sessions: TrainingSession[]): number {
   return Math.round(week.reduce((sum, s) => {
     const w = SESSION_LOAD_BASE[s.session_type] ?? 0
     if (s.session_type === 'sprint' || s.session_type === 'interval') {
-      return sum + (s.distance_m ? (s.distance_m / 100) * (s.reps ?? 1) * w : w)
+      // distance_m をkmに統一してから計算（repsは本数ではなく距離の補助情報として扱う）
+      return sum + (s.distance_m ? (s.distance_m / 1000) * (s.reps ?? 1) * w : w)
     }
     if (s.session_type === 'tempo' || s.session_type === 'easy' || s.session_type === 'long') {
       return sum + (s.distance_m ? (s.distance_m / 1000) * w : w)
@@ -223,15 +226,15 @@ function calcWeeklyLoad(sessions: TrainingSession[]): number {
   }, 0))
 }
 function loadCfgKey(score: number): LoadCfgKey {
-  if (score >= 1000) return 'danger'
-  if (score >= 700)  return 'high'
-  if (score >= 400)  return 'medium'
+  if (score >= 2000) return 'danger'
+  if (score >= 1200) return 'high'
+  if (score >= 600)  return 'medium'
   return 'low'
 }
 function riskCfgKey(score: number): RiskCfgKey {
   if (score >= 70) return 'danger'
   if (score >= 55) return 'high'
-  if (score >= 40) return 'medium'
+  if (score >= 35) return 'medium'
   return 'low'
 }
 
@@ -871,11 +874,15 @@ function PlayerJoinScreen({ onJoined, onBack }: { onJoined:(j:JoinedTeam)=>void;
         // Supabase 未設定 or オフライン → ローカル照合にフォールバック
         const raw = await AsyncStorage.getItem(SETUP_KEY)
         if (raw) {
-          const s: TeamSetup = JSON.parse(raw)
-          if (s.code === cleaned) { teamName = s.teamName; coachName = s.coachName }
-          else {
-            // コードが一致しない + サーバーにもない = 無効なコード
-            Toast.show({type:'error',text1:'チームが見つかりません。コードを確認してください'}); setBusy(false); return
+          try {
+            const s: TeamSetup = JSON.parse(raw)
+            if (s.code === cleaned) { teamName = s.teamName; coachName = s.coachName }
+            else {
+              // コードが一致しない + サーバーにもない = 無効なコード
+              Toast.show({type:'error',text1:'チームが見つかりません。コードを確認してください'}); setBusy(false); return
+            }
+          } catch {
+            Toast.show({type:'error',text1:'保存データが破損しています。再度お試しください'}); setBusy(false); return
           }
         }
       }
@@ -1037,7 +1044,8 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
   const [msgSending,    setMsgSending]    = useState(false)
   const [tab,           setTab]           = useState<'members'|'messages'|'videos'|'calendar'|'menu'>('members')
   const [detailMember,  setDetailMember]  = useState<Member|null>(null)
-  const [memberFilter,  setMemberFilter]  = useState<'all'|'danger'|'unsubmitted'|'pain'>('all')
+  const [detailRisk,    setDetailRisk]    = useState<InjuryRiskResult|null>(null)
+  const [memberFilter,  setMemberFilter]  = useState<'all'|'danger'|'pain'>('all')
   const [hiddenDemoIds, setHiddenDemoIds] = useState<string[]>([])
   const [showMenu,      setShowMenu]      = useState(false)
   const [pendingDelete, setPendingDelete] = useState<{id:string;name:string;isDemo:boolean}|null>(null)
@@ -1111,9 +1119,9 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
   useEffect(() => { load() }, [load])
   // タブに戻るたびに再ロード（Realtimeの補完）
   useFocusEffect(useCallback(() => { load() }, [load]))
-  // 20秒ごとに自動ポーリング（Realtime遅延の補完）
+  // 3分ごとに自動ポーリング（Realtime遅延の補完 / Disk IO節約）
   useEffect(() => {
-    const t = setInterval(() => { load() }, 20000)
+    const t = setInterval(() => { load() }, 3 * 60 * 1000)
     return () => clearInterval(t)
   }, [load])
 
@@ -1134,9 +1142,11 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
   // 通知許可 + タグ登録
   useEffect(() => {
     (async () => {
-      await initOneSignal()
-      await requestPushPermission()
-      await registerUserTags('coach', setup.code)
+      try {
+        await initOneSignal()
+        await requestPushPermission()
+        await registerUserTags('coach', setup.code)
+      } catch {}
     })()
   }, [setup.code])
 
@@ -1244,17 +1254,19 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
   // ── メニュービルダー: ライブラリ読み込み ────────────────
   const loadMenuLibrary = useCallback(async () => {
     const raw = await AsyncStorage.getItem(MENU_LIBRARY_KEY).catch(() => null)
-    if (raw) setMenuLibrary(JSON.parse(raw))
+    if (raw) { try { setMenuLibrary(JSON.parse(raw)) } catch {} }
     const planRaw = await AsyncStorage.getItem(TODAY_PLAN_KEY).catch(() => null)
     if (planRaw) {
-      const p: TodayPlan = JSON.parse(planRaw)
-      setTodayPlan(p)
-      // 今日の日付と一致する場合のみ復元
-      if (p.date === new Date().toISOString().slice(0,10)) {
-        setPlanTitle(p.title)
-        setPlanNote(p.note)
-        setPlanItems(p.items)
-      }
+      try {
+        const p: TodayPlan = JSON.parse(planRaw)
+        setTodayPlan(p)
+        // 今日の日付と一致する場合のみ復元
+        if (p.date === new Date().toISOString().slice(0,10)) {
+          setPlanTitle(p.title)
+          setPlanNote(p.note)
+          setPlanItems(p.items)
+        }
+      } catch {}
     }
   }, [])
 
@@ -1491,7 +1503,6 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
   // フィルター適用
   const filteredMembers = sortedMembers.filter(m => {
     if (memberFilter === 'danger')      return m.risk.riskScore >= 70
-    if (memberFilter === 'unsubmitted') return !m.condToday
     if (memberFilter === 'pain')        return (m.painParts?.length ?? 0) > 0 && !m.ackedByCoach
     return true
   })
@@ -1618,7 +1629,6 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
                 {([
                   { emoji:'🤕', label:'痛み報告', value:`${unackedPainCount}件`,                        color: unackedPainCount>0?'#EF4444':'#34C759',                              filter:'pain' as const },
                   { emoji:'⚠️', label:'高リスク', value:`${highRiskMembers.length}人`,                 color: highRiskMembers.length>0?'#E53935':'#34C759',                         filter:'danger' as const },
-                  { emoji:'📋', label:'未提出',   value:`${memberData.length-submittedCount}人`,       color: (memberData.length-submittedCount)>0?'#6b7280':'#34C759',             filter:'unsubmitted' as const },
                   { emoji:'💪', label:'チーム負荷', value: LOAD_CFG[loadCfgKey(avgLoad)].label,        color: LOAD_CFG[loadCfgKey(avgLoad)].color,                                  filter:'all' as const },
                 ] as const).map((item) => {
                   const isActive = memberFilter === item.filter && item.filter !== 'all'
@@ -1674,7 +1684,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
                         unackedPain && { borderColor:'rgba(255,149,0,0.5)', backgroundColor:'rgba(255,149,0,0.04)' },
                         !unackedPain && isHigh && { borderColor:'rgba(229,57,53,0.3)', backgroundColor:'rgba(229,57,53,0.03)' },
                       ]}
-                      onPress={() => setDetailMember(m)}
+                      onPress={() => { setDetailMember(m); setDetailRisk(m.risk) }}
                       activeOpacity={0.88}
                     >
 
@@ -2270,7 +2280,8 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
       {detailMember && (
         <MemberDetailSheet
           member={detailMember}
-          onClose={() => setDetailMember(null)}
+          preCalcRisk={detailRisk}
+          onClose={() => { setDetailMember(null); setDetailRisk(null) }}
           onAck={detailMember.ackedByCoach ? undefined : () => ackPain(detailMember.name)}
         />
       )}
@@ -2418,12 +2429,14 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
 // ─────────────────────────────────────────────────────────
 // MemberDetailSheet — コーチ用詳細シート
 // ─────────────────────────────────────────────────────────
-function MemberDetailSheet({ member, onClose, onAck }: {
+function MemberDetailSheet({ member, preCalcRisk, onClose, onAck }: {
   member: Member
+  preCalcRisk?: InjuryRiskResult | null
   onClose: () => void
   onAck?: () => void
 }) {
-  const risk        = calcInjuryRisk(member.sessions, [], member.sessions[0]?.condition_level ?? 6)
+  // リスト画面と同じ計算式で算出済みのリスクを優先使用
+  const risk        = preCalcRisk ?? calcInjuryRisk(member.sessions, [], member.sessions[0]?.condition_level ?? 6)
   const fat         = fatigueInfo(member.sessions[0]?.fatigue_level ?? 6)
   const rCfg        = RISK_CFG[riskCfgKey(risk.riskScore)]
   const lCfg        = LOAD_CFG[loadCfgKey(calcWeeklyLoad(member.sessions))]
@@ -2663,6 +2676,10 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
   const [weatherBonus,      setWeatherBonus]      = useState(0)
   const [stretchReduction,  setStretchReduction]  = useState(0)
   const [plTab,             setPlTab]             = useState<'home'|'members'>('home')
+  // ── 欠席報告 ────────────────────────────────────────────
+  const [absenceNote,       setAbsenceNote]       = useState('')
+  const [absenceSaving,     setAbsenceSaving]     = useState(false)
+  const { addSession: addAbsenceSession } = useTrainingSessions()
 
   const load = useCallback(async () => {
     try {
@@ -2751,9 +2768,9 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
 
   useEffect(() => { load() }, [load])
   useFocusEffect(useCallback(() => { load() }, [load]))
-  // 20秒ごとに自動ポーリング（Realtime遅延の補完）
+  // 3分ごとに自動ポーリング（Realtime遅延の補完 / Disk IO節約）
   useEffect(() => {
-    const t = setInterval(() => { load() }, 20000)
+    const t = setInterval(() => { load() }, 3 * 60 * 1000)
     return () => clearInterval(t)
   }, [load])
 
@@ -2763,7 +2780,11 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
       const next = new Set(prev)
       if (next.has(eventId)) next.delete(eventId)
       else next.add(eventId)
-      AsyncStorage.setItem(EVENT_CONFIRMED_KEY, JSON.stringify([...next]))
+      // setState 内の副作用は NG → 次の tick で保存
+      const toSave = [...next]
+      setTimeout(() => {
+        AsyncStorage.setItem(EVENT_CONFIRMED_KEY, JSON.stringify(toSave)).catch(() => {})
+      }, 0)
       return next
     })
   }, [])
@@ -2781,9 +2802,9 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
     return () => { supabase.removeChannel(ch) }
   }, [joined.code, joined.playerName, load])
 
-  // 天気ボーナス — ホーム画面と同じソースから取得
+  // 天気ボーナス — キャッシュ付き取得（同ウィンドウ内はAPIを叩かない）
   useEffect(() => {
-    getCurrentLocationWeather().then(w => {
+    getCachedWeather().then(w => {
       if (!w) return
       setWeatherBonus(calcWeatherRiskBonus(w))
     }).catch(() => {})
@@ -2932,7 +2953,18 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
             </View>
 
             {/* ─ ホームタブ ─ display:'none' で常時マウント（アニメーション再実行防止） */}
-            <ScrollView style={{display: plTab==='home' ? 'flex' : 'none'}} contentContainerStyle={{padding:16,paddingBottom:80,gap:18}} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={{display: plTab==='home' ? 'flex' : 'none'}}
+              contentContainerStyle={{padding:16,paddingBottom:80,gap:18}}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl
+                  refreshing={plLoading}
+                  onRefresh={() => { setPlLoading(true); load() }}
+                  tintColor="#34C759"
+                />
+              }
+            >
 
                 {/* ピン留めメッセージ */}
                 {pinned.length > 0 && (
@@ -3109,6 +3141,61 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                 </View>
                 </AnimatedSection>
 
+                {/* 今日の欠席報告 */}
+                <AnimatedSection delay={100} type="fade-up">
+                <View style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',padding:16,gap:12}}>
+                  <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
+                    <Text style={{fontSize:18}}>😴</Text>
+                    <Text style={{color:TEXT.primary,fontSize:14,fontWeight:'800',flex:1}}>今日の欠席報告</Text>
+                  </View>
+                  <TextInput
+                    style={{backgroundColor:'#f8f8fa',borderRadius:10,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:TEXT.primary,fontSize:13,paddingHorizontal:14,paddingVertical:10,minHeight:52,textAlignVertical:'top'}}
+                    value={absenceNote}
+                    onChangeText={setAbsenceNote}
+                    placeholder="理由・メモを入力（任意）"
+                    placeholderTextColor="#9ca3af"
+                    multiline
+                    maxLength={100}
+                  />
+                  <HapticTouch
+                    haptic="save"
+                    style={[{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:'#1c1c1e',borderRadius:50,paddingVertical:13},absenceSaving&&{opacity:0.5}]}
+                    onPress={async () => {
+                      if (absenceSaving) return
+                      setAbsenceSaving(true)
+                      try {
+                        await addAbsenceSession({
+                          user_id: 'mock-user-1',
+                          session_date: new Date().toISOString().slice(0, 10),
+                          session_type: 'rest',
+                          fatigue_level: 1,
+                          condition_level: 5,
+                          notes: `【休み報告】${absenceNote.trim() || '欠席'}`,
+                        })
+                        try {
+                          await sendCoachNotification(
+                            joined.code,
+                            'absence',
+                            joined.playerName,
+                            `${joined.playerName}が休みを報告しました${absenceNote.trim() ? `（${absenceNote.trim()}）` : ''}`,
+                          )
+                        } catch { /* ignore */ }
+                        setAbsenceNote('')
+                        Toast.show({ type: 'success', text1: '欠席をコーチに報告しました ✓', visibilityTime: 2000 })
+                      } catch {
+                        Toast.show({ type: 'error', text1: '送信に失敗しました' })
+                      } finally {
+                        setAbsenceSaving(false)
+                      }
+                    }}
+                    disabled={absenceSaving}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={{color:'#fff',fontSize:14,fontWeight:'800'}}>{absenceSaving ? '送信中...' : '送信する'}</Text>
+                  </HapticTouch>
+                </View>
+                </AnimatedSection>
+
                 {/* マイ コンディション */}
                 <AnimatedSection delay={120} type="fade-up">
                 <Text style={pl.sectionTitle}>マイ コンディション</Text>
@@ -3143,7 +3230,18 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
               </ScrollView>
 
             {/* ─ チームメイトタブ ─ display:'none' で常時マウント */}
-            <ScrollView style={{display: plTab==='members' ? 'flex' : 'none'}} contentContainerStyle={{padding:16,paddingBottom:80,gap:14}} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={{display: plTab==='members' ? 'flex' : 'none'}}
+              contentContainerStyle={{padding:16,paddingBottom:80,gap:14}}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl
+                  refreshing={plLoading}
+                  onRefresh={() => { setPlLoading(true); load() }}
+                  tintColor="#34C759"
+                />
+              }
+            >
                 {teammates.length === 0 ? (
                   <View style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',padding:32,alignItems:'center',gap:8,marginTop:8}}>
                     <Text style={{fontSize:32}}>👥</Text>
@@ -3396,12 +3494,21 @@ function TeamMenuSheet({ visible, role, canSwitch, onSwitchRole, onDangerAction,
   onDangerAction: () => void
   onClose: () => void
 }) {
+  // iOSでは2つのModalを同時に表示できないため、
+  // メニューModalを先に閉じてから確認ダイアログを開く
   const [showConfirm, setShowConfirm] = useState(false)
 
   const dangerLabel   = role === 'coach' ? 'チームを削除' : 'チームを脱退'
   const dangerMessage = role === 'coach'
     ? '参加コードが無効になり、全メンバーのデータが失われます。本当に削除しますか？'
     : 'チームを脱退します。再参加するにはコードが必要です。本当に脱退しますか？'
+
+  function handleDangerPress() {
+    // ① まずメニューを閉じる
+    onClose()
+    // ② Modalの閉じアニメーション（300ms）完了後に確認ダイアログを開く
+    setTimeout(() => setShowConfirm(true), 350)
+  }
 
   return (
     <>
@@ -3417,7 +3524,7 @@ function TeamMenuSheet({ visible, role, canSwitch, onSwitchRole, onDangerAction,
             {/* 危険操作 */}
             <TouchableOpacity
               style={{flexDirection:'row',alignItems:'center',gap:14,backgroundColor:'rgba(239,68,68,0.06)',borderRadius:16,padding:16,borderWidth:1,borderColor:'rgba(239,68,68,0.2)'}}
-              onPress={() => setShowConfirm(true)}
+              onPress={handleDangerPress}
               activeOpacity={0.8}
             >
               <View style={{width:44,height:44,borderRadius:13,backgroundColor:'rgba(239,68,68,0.12)',alignItems:'center',justifyContent:'center'}}>
@@ -3442,13 +3549,14 @@ function TeamMenuSheet({ visible, role, canSwitch, onSwitchRole, onDangerAction,
         </View>
       </Modal>
 
+      {/* メニューModalが閉じてから表示（iOS 2-Modal同時表示禁止対策） */}
       <ConfirmSheet
         visible={showConfirm}
         title={dangerLabel}
         message={dangerMessage}
         confirmLabel={role === 'coach' ? '削除する' : '脱退する'}
         dangerous
-        onConfirm={() => { onClose(); setTimeout(onDangerAction, 100) }}
+        onConfirm={() => { setShowConfirm(false); setTimeout(onDangerAction, 100) }}
         onCancel={() => setShowConfirm(false)}
       />
     </>
@@ -3477,30 +3585,35 @@ export default function TeamScreen() {
 
   useEffect(() => {
     async function init() {
-      initOneSignal()
-      const [roleRaw, setupRaw, joinedRaw] = await Promise.all([
-        AsyncStorage.getItem(ROLE_KEY),
-        AsyncStorage.getItem(SETUP_KEY),
-        AsyncStorage.getItem(JOINED_KEY),
-      ])
-      const role = roleRaw as Role|null
-      // 保存済みデータは常にメモリにロード
-      if (setupRaw)  setSetup(JSON.parse(setupRaw))
-      if (joinedRaw) setJoined(JSON.parse(joinedRaw))
+      try {
+        initOneSignal()
+        const [roleRaw, setupRaw, joinedRaw] = await Promise.all([
+          AsyncStorage.getItem(ROLE_KEY),
+          AsyncStorage.getItem(SETUP_KEY),
+          AsyncStorage.getItem(JOINED_KEY),
+        ])
+        const role = roleRaw as Role|null
+        // 保存済みデータは常にメモリにロード（壊れていてもクラッシュしない）
+        try { if (setupRaw)  setSetup(JSON.parse(setupRaw)) } catch {}
+        try { if (joinedRaw) setJoined(JSON.parse(joinedRaw)) } catch {}
 
-      if (!role) { setState('select-role'); return }
-      if (role === 'coach') {
-        // サブスクリプションキャッシュでコーチプランを確認
-        const subRaw = await AsyncStorage.getItem('trackmate_subscription').catch(() => null)
-        const subTier = subRaw ? (JSON.parse(subRaw)?.plan ?? 'free') : 'free'
-        if (subTier !== 'coach') {
-          // プラン未購入または期限切れ → ペイウォールへ
-          setState('coach-paywall')
-          return
+        if (!role) { setState('select-role'); return }
+        if (role === 'coach') {
+          // サブスクリプションキャッシュでコーチプランを確認
+          const subRaw = await AsyncStorage.getItem('trackmate_subscription').catch(() => null)
+          let subTier = 'free'
+          try { subTier = subRaw ? (JSON.parse(subRaw)?.plan ?? 'free') : 'free' } catch {}
+          if (subTier !== 'coach') {
+            // プラン未購入または期限切れ → ペイウォールへ
+            setState('coach-paywall')
+            return
+          }
+          setState(setupRaw ? 'coach' : 'coach-setup')
+        } else {
+          setState(joinedRaw ? 'player' : 'player-join')
         }
-        setState(setupRaw ? 'coach' : 'coach-setup')
-      } else {
-        setState(joinedRaw ? 'player' : 'player-join')
+      } catch {
+        setState('select-role')
       }
     }
     init()
