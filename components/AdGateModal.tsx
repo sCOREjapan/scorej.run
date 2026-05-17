@@ -1,9 +1,9 @@
-// components/AdGateModal.tsx — アップグレード促進 & 広告リワードモーダル
+// components/AdGateModal.tsx — アップグレード促進 & 広告リワードモーダル（ダークデザイン）
 // 表示パターン:
-//   remaining=1             → 残り1回警告（softWarn）
-//   remaining=0, rewardUses=0, !hardLimited → 無料枠ゼロ + 広告3本で解除 + PRO誘導
-//   remaining=0, hardLimited → PRO日次/月次上限（広告解除なし）
-//   isGuest                 → ログイン促進
+//   needsAd=true, !hardLimited  → 広告1本でAI機能解放（フリープラン）
+//   hardLimited, limitType=daily → 今日は使用済み（明日また可能）
+//   hardLimited, limitType=monthly → 今月のPRO上限
+//   isGuest                     → ログイン促進
 import React, { useEffect, useState } from 'react'
 import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
@@ -16,7 +16,7 @@ import { trackPaywallView } from '../lib/analytics'
 const BRAND       = '#166534'
 const PRO_COLOR   = '#166534'
 const ELITE_COLOR = '#B45309'
-const ADS_NEEDED  = 3   // 解除に必要な広告本数
+const ADS_NEEDED  = 1   // 1本の広告視聴でAI機能1回解放
 
 // ── 機能名マップ ──────────────────────────────────────────────
 const FEATURE_LABELS: Record<Feature, string> = {
@@ -62,7 +62,7 @@ export default function AdGateModal({
     }
   }, [visible, feature, remaining, rewardUses, isGuest])
 
-  // ── 広告3本視聴 → リワード付与 ───────────────────────────
+  // ── 広告1本視聴 → AI機能1回解放 ─────────────────────────
   const handleWatchAds = async () => {
     setWatching(true)
     setAdProgress(0)
@@ -76,7 +76,7 @@ export default function AdGateModal({
     } else {
       Alert.alert(
         '広告を最後まで見てください',
-        `${ADS_NEEDED}本すべて視聴すると1回使用できます。`,
+        '最後まで視聴すると1回無料で使用できます。',
         [{ text: 'OK' }]
       )
       setAdProgress(0)
@@ -87,11 +87,12 @@ export default function AdGateModal({
   // ゲスト：ログイン促進
   if (isGuest) {
     return (
-      <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
         <View style={st.overlay}>
           <View style={st.card}>
-            <View style={[st.iconWrap, { backgroundColor: '#EFF6FF' }]}>
-              <Ionicons name="person-circle-outline" size={36} color="#2563EB" />
+            <View style={st.handle} />
+            <View style={[st.iconWrap, { backgroundColor: 'rgba(37,99,235,0.2)' }]}>
+              <Ionicons name="person-circle-outline" size={36} color="#60a5fa" />
             </View>
             <Text style={st.title}>ログインが必要です</Text>
             <Text style={st.sub}>{featureName}はアカウントが必要な機能です。{'\n'}無料で登録できます。</Text>
@@ -116,11 +117,12 @@ export default function AdGateModal({
   // 残り1回：警告
   if (remaining === 1) {
     return (
-      <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
         <View style={st.overlay}>
           <View style={st.card}>
-            <View style={[st.iconWrap, { backgroundColor: '#FEF3C7' }]}>
-              <Ionicons name="warning-outline" size={32} color="#D97706" />
+            <View style={st.handle} />
+            <View style={[st.iconWrap, { backgroundColor: 'rgba(217,119,6,0.2)' }]}>
+              <Ionicons name="warning-outline" size={32} color="#fbbf24" />
             </View>
             <Text style={st.title}>残り1回です ⚠️</Text>
             <Text style={st.sub}>
@@ -133,7 +135,7 @@ export default function AdGateModal({
             <TouchableOpacity style={st.upgradeRow} onPress={onUpgrade} activeOpacity={0.8}>
               <View style={[st.planBadge, { backgroundColor: PRO_COLOR }]}><Text style={st.planBadgeTxt}>PRO</Text></View>
               <Text style={st.upgradeTxt}>PROプラン ¥480/月で使い放題に</Text>
-              <Ionicons name="chevron-forward" size={14} color="#9ca3af" />
+              <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.4)" />
             </TouchableOpacity>
             <TouchableOpacity style={st.cancelBtn} onPress={onClose} activeOpacity={0.7}>
               <Text style={st.cancelTxt}>今はしない</Text>
@@ -145,20 +147,28 @@ export default function AdGateModal({
   }
 
   // ─────────────────────────────────────────────────────────
-  // PRO日次/月次上限：広告解除なし
+  // 今日は使用済み or PRO上限
   if (hardLimited) {
     return (
-      <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
         <View style={st.overlay}>
           <View style={st.card}>
-            <View style={[st.iconWrap, { backgroundColor: '#FEE2E2' }]}>
-              <Ionicons name="lock-closed" size={32} color="#DC2626" />
+            <View style={st.handle} />
+            <View style={[st.iconWrap, { backgroundColor: 'rgba(220,38,38,0.2)' }]}>
+              <Ionicons name="lock-closed" size={32} color="#f87171" />
             </View>
-            <Text style={st.title}>本日の上限です</Text>
-            <Text style={st.sub}>本日の利用上限に達しました。{'\n'}明日またお使いいただけます。</Text>
-            <TouchableOpacity style={[st.primaryBtn, { backgroundColor: ELITE_COLOR }]} onPress={onUpgrade} activeOpacity={0.85}>
+            <Text style={st.title}>今日は使い切りました</Text>
+            <Text style={st.sub}>
+              {featureName}は毎日1回、広告を見て無料で使えます。{'\n'}明日また使えます。
+            </Text>
+            <TouchableOpacity style={[st.primaryBtn, { backgroundColor: PRO_COLOR }]} onPress={onUpgrade} activeOpacity={0.85}>
               <Ionicons name="star-outline" size={18} color="#fff" />
-              <Text style={st.primaryBtnTxt}>ELITEプランで無制限に ¥1,480/月</Text>
+              <Text style={st.primaryBtnTxt}>PROプラン ¥480/月で月30回使い放題</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={st.eliteRow} onPress={onUpgrade} activeOpacity={0.8}>
+              <View style={[st.planBadge, { backgroundColor: ELITE_COLOR }]}><Text style={st.planBadgeTxt}>ELITE</Text></View>
+              <Text style={st.upgradeTxt}>完全無制限は ELITEプラン ¥980/月</Text>
+              <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.4)" />
             </TouchableOpacity>
             <TouchableOpacity style={st.cancelBtn} onPress={onClose} activeOpacity={0.7}>
               <Text style={st.cancelTxt}>今はしない</Text>
@@ -170,38 +180,25 @@ export default function AdGateModal({
   }
 
   // ─────────────────────────────────────────────────────────
-  // 無料枠ゼロ：広告3本で解除 or PRO課金
+  // 広告1本で今日1回使える
   const proFeatureDetail =
-    feature === 'video'       ? '動画分析 1日1回（ELITEで無制限）' :
-    feature === 'meal'        ? '食事分析 1日3回（ELITEで無制限）' :
-    feature === 'ai_analysis' ? 'AI分析コーチ 無制限' :
-    feature === 'csv'         ? 'CSVエクスポート 月1回（ELITEで無制限）' : 'AI機能 使い放題'
+    feature === 'video'       ? 'AI動画分析 月30回（ELITEで無制限）' :
+    feature === 'meal'        ? 'AI食事分析 月30回（ELITEで無制限）' :
+    feature === 'ai_analysis' ? 'AI練習分析 月30回（ELITEで無制限）' :
+    feature === 'csv'         ? 'CSVエクスポート 月1回（ELITEで無制限）' : 'AI機能 月30回'
 
   // 広告視聴中UI
   if (watching) {
     return (
-      <Modal visible={visible} transparent animationType="fade">
+      <Modal visible={visible} transparent animationType="slide">
         <View style={st.overlay}>
           <View style={st.card}>
-            <View style={[st.iconWrap, { backgroundColor: '#F0FDF4' }]}>
-              <Ionicons name="play-circle" size={36} color={BRAND} />
+            <View style={st.handle} />
+            <View style={[st.iconWrap, { backgroundColor: 'rgba(22,101,52,0.3)' }]}>
+              <Ionicons name="play-circle" size={36} color="#4ade80" />
             </View>
             <Text style={st.title}>広告を視聴中...</Text>
-            <Text style={st.sub}>{adProgress} / {ADS_NEEDED} 本完了{'\n'}最後まで見てください</Text>
-
-            {/* 進捗ドット */}
-            <View style={st.dotsRow}>
-              {Array.from({ length: ADS_NEEDED }).map((_, i) => (
-                <View
-                  key={i}
-                  style={[
-                    st.dot,
-                    i < adProgress ? st.dotDone : i === adProgress ? st.dotActive : st.dotPending
-                  ]}
-                />
-              ))}
-            </View>
-
+            <Text style={st.sub}>最後まで見るとAIが1回使えます</Text>
             <ActivityIndicator size="large" color={BRAND} style={{ marginTop: 8 }} />
           </View>
         </View>
@@ -210,35 +207,26 @@ export default function AdGateModal({
   }
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={st.overlay}>
         <View style={st.card}>
-          <View style={[st.iconWrap, { backgroundColor: '#FEE2E2' }]}>
-            <Ionicons name="lock-closed" size={32} color="#DC2626" />
+          <View style={st.handle} />
+          <View style={[st.iconWrap, { backgroundColor: 'rgba(37,99,235,0.2)' }]}>
+            <Ionicons name="play-circle-outline" size={36} color="#60a5fa" />
           </View>
 
-          <Text style={st.title}>無料枠を使い切りました</Text>
-          <Text style={st.sub}>{featureName}の無料2回を使い切りました。{'\n'}広告視聴またはPROプランで続けて使えます。</Text>
+          <Text style={st.title}>広告を見てAIを使う 🎬</Text>
+          <Text style={st.sub}>{featureName}は毎日1回、広告1本で無料で使えます。</Text>
 
-          {/* 広告3本で解除ボタン */}
+          {/* 広告1本で解除ボタン */}
           <TouchableOpacity
             style={[st.primaryBtn, { backgroundColor: '#1d4ed8' }]}
             onPress={handleWatchAds}
             activeOpacity={0.85}
           >
             <Ionicons name="play-circle-outline" size={18} color="#fff" />
-            <Text style={st.primaryBtnTxt}>動画広告 {ADS_NEEDED} 本を見て1回使う（無料）</Text>
+            <Text style={st.primaryBtnTxt}>広告 1 本を見てAIを使う（無料）</Text>
           </TouchableOpacity>
-
-          {/* 進捗ドット（まだ視聴前でも表示） */}
-          <View style={st.dotsRow}>
-            {Array.from({ length: ADS_NEEDED }).map((_, i) => (
-              <View key={i} style={[st.dot, i < adProgress ? st.dotDone : st.dotPending]} />
-            ))}
-          </View>
-          <Text style={{ fontSize: 10, color: '#9ca3af', marginTop: -4 }}>
-            広告 {ADS_NEEDED} 本 = 1回分
-          </Text>
 
           {/* PRO ボタン */}
           <TouchableOpacity style={[st.primaryBtn, { backgroundColor: PRO_COLOR }]} onPress={onUpgrade} activeOpacity={0.85}>
@@ -249,15 +237,15 @@ export default function AdGateModal({
           {/* PRO 特典 */}
           <View style={st.benefitBox}>
             <Text style={st.benefitTxt}>✓ {proFeatureDetail}</Text>
-            <Text style={st.benefitTxt}>✓ 広告なしで使い放題</Text>
-            <Text style={st.benefitTxt}>✓ 全期間の記録履歴</Text>
+            <Text style={st.benefitTxt}>✓ 広告なしで快適に使える</Text>
+            <Text style={st.benefitTxt}>✓ バナー広告も非表示</Text>
           </View>
 
           {/* ELITE */}
           <TouchableOpacity style={st.eliteRow} onPress={onUpgrade} activeOpacity={0.8}>
             <View style={[st.planBadge, { backgroundColor: ELITE_COLOR }]}><Text style={st.planBadgeTxt}>ELITE</Text></View>
-            <Text style={st.upgradeTxt}>完全無制限は ELITEプラン ¥1,480/月</Text>
-            <Ionicons name="chevron-forward" size={14} color="#9ca3af" />
+            <Text style={st.upgradeTxt}>完全無制限は ELITEプラン ¥980/月</Text>
+            <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.4)" />
           </TouchableOpacity>
 
           <TouchableOpacity style={st.cancelBtn} onPress={onClose} activeOpacity={0.7}>
@@ -270,25 +258,31 @@ export default function AdGateModal({
 }
 
 const st = StyleSheet.create({
-  overlay:       { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', alignItems: 'center', justifyContent: 'center', padding: 20 },
-  card:          { backgroundColor: '#fff', borderRadius: 24, padding: 24, width: '100%', maxWidth: 360, alignItems: 'center', gap: 12 },
+  overlay:       { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' },
+  card:          {
+    backgroundColor: '#1a1a2e',
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 24, paddingBottom: 36,
+    alignItems: 'center', gap: 12,
+  },
+  handle:        { width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)', marginBottom: 4 },
   iconWrap:      { width: 64, height: 64, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
-  title:         { fontSize: 18, fontWeight: '800', color: '#111827', textAlign: 'center' },
-  sub:           { fontSize: 13, color: '#6b7280', textAlign: 'center', lineHeight: 20 },
+  title:         { fontSize: 18, fontWeight: '800', color: '#fff', textAlign: 'center' },
+  sub:           { fontSize: 13, color: 'rgba(255,255,255,0.65)', textAlign: 'center', lineHeight: 20 },
   primaryBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14, paddingVertical: 14, width: '100%' },
   primaryBtnTxt: { color: '#fff', fontSize: 14, fontWeight: '800' },
-  upgradeRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#f9fafb', borderRadius: 12, padding: 12, width: '100%' },
-  eliteRow:      { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FFFBEB', borderRadius: 10, padding: 10, width: '100%' },
+  upgradeRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 12, width: '100%' },
+  eliteRow:      { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: 10, width: '100%' },
   planBadge:     { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
   planBadgeTxt:  { color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
-  upgradeTxt:    { flex: 1, fontSize: 12, color: '#374151', fontWeight: '600' },
-  benefitBox:    { backgroundColor: '#F0FDF4', borderRadius: 12, padding: 12, width: '100%', gap: 4 },
-  benefitTxt:    { fontSize: 12, color: '#166534', lineHeight: 18 },
+  upgradeTxt:    { flex: 1, fontSize: 12, color: 'rgba(255,255,255,0.8)', fontWeight: '600' },
+  benefitBox:    { backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 12, padding: 12, width: '100%', gap: 4 },
+  benefitTxt:    { fontSize: 12, color: 'rgba(255,255,255,0.75)', lineHeight: 18 },
   cancelBtn:     { paddingVertical: 8 },
-  cancelTxt:     { fontSize: 13, color: '#9ca3af' },
+  cancelTxt:     { fontSize: 13, color: 'rgba(255,255,255,0.4)' },
   dotsRow:       { flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 4 },
   dot:           { width: 12, height: 12, borderRadius: 6 },
-  dotPending:    { backgroundColor: '#e5e7eb' },
+  dotPending:    { backgroundColor: 'rgba(255,255,255,0.15)' },
   dotActive:     { backgroundColor: '#93c5fd' },
   dotDone:       { backgroundColor: '#16a34a' },
 })

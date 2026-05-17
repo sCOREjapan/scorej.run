@@ -1,9 +1,9 @@
-// app/paywall.tsx — sCORE プラン選択・購入画面
+// app/paywall.tsx — sCORE プラン選択・購入画面（ダークデザイン）
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Platform, Dimensions,
+  ActivityIndicator, Platform, Animated,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -11,94 +11,84 @@ import { useRouter } from 'expo-router'
 import { usePurchase } from '../context/PurchaseContext'
 import { trackPaywallView, trackUpgrade } from '../lib/analytics'
 
-const { width } = Dimensions.get('window')
-const BRAND = '#166534'
+const BRAND     = '#16a34a'   // green-600
+const BRAND_MID = '#4ade80'   // green-400
+const BG        = '#1a1a2e'   // dark navy
 
 // ── プラン定義 ──────────────────────────────────────────────────────
 const PLANS = [
   {
-    id:       'free',
-    label:    'FREE',
-    color:    '#6b7280',
-    tagline:  '今すぐ無料で始める',
-    features: [
-      '練習ログ・タイム記録 無制限',
-      '記録履歴 全期間',
-      'カレンダー・タイマー・シェアカード',
-      '怪我リスク診断・AIリカバリー相談',
-      'AI練習分析コーチ（累計3回）',
-      '動画フォーム分析（累計2回）',
-      'AI食事分析（累計3回）',
-      'CSVエクスポート（累計1回）',
-    ],
-  },
-  {
-    id:       'pro',
-    label:    'PRO',
-    color:    BRAND,
-    tagline:  '本格的に強くなりたい選手へ',
-    monthlyPrice: '¥480',
-    annualPrice:  '¥4,800',
-    annualMonthly: '¥400',
+    id:             'pro',
+    label:          'PRO',
+    color:          BRAND,
+    tagline:        '本格的に強くなりたい選手へ',
+    titleText:      'sCORE PRO で\n練習を武器にする',
+    monthlyPrice:   '¥480',
+    annualPrice:    '¥4,320',
+    annualMonthly:  '¥360',
     productMonthly: 'score_pro_monthly',
     productAnnual:  'score_pro_annual',
-    features: [
-      'FREEの全機能',
-      'AI練習分析コーチ 無制限',
-      '動画フォーム分析 1日1回',
-      'AI食事分析 1日3回',
-      'CSVエクスポート 月1回',
-    ],
   },
   {
-    id:       'elite',
-    label:    'ELITE',
-    color:    '#f59e0b',
-    tagline:  '本気で結果を出したい選手へ',
-    monthlyPrice: '¥1,480',
-    annualPrice:  '¥14,800',
-    annualMonthly: '¥1,233',
+    id:             'elite',
+    label:          'ELITE',
+    color:          '#d97706',
+    tagline:        '本気で結果を出したい選手へ',
+    titleText:      'sCORE ELITE で\n記録を限界突破する',
+    monthlyPrice:   '¥980',
+    annualPrice:    '¥8,820',
+    annualMonthly:  '¥735',
     productMonthly: 'score_elite_monthly',
     productAnnual:  'score_elite_annual',
-    features: [
-      'PROの全機能',
-      '動画フォーム分析 無制限',
-      'AI食事分析 無制限',
-      'CSVエクスポート 無制限',
-    ],
   },
 ]
 
 type PeriodType = 'monthly' | 'annual'
 
+function FeatRow({ color, text, bold }: { color: string; text: string; bold?: boolean }) {
+  return (
+    <View style={st.featRow}>
+      <Ionicons name="checkmark-circle" size={16} color={color} />
+      <Text style={[st.featRowText, bold && { fontWeight: '800', color: '#fff' }]}>{text}</Text>
+    </View>
+  )
+}
+
 export default function PaywallScreen() {
   const router = useRouter()
   const { tier: currentTier, packages, purchase, restore, loading } = usePurchase()
 
-  const [selectedPlan,   setSelectedPlan]   = useState<'pro' | 'elite'>('pro')
-  const [period,         setPeriod]         = useState<PeriodType>('annual')
-  const [purchasing,     setPurchasing]     = useState(false)
-  const [restoring,      setRestoring]      = useState(false)
+  const [selectedPlan, setSelectedPlan] = useState<'pro' | 'elite'>('pro')
+  const [period,       setPeriod]       = useState<PeriodType>('annual')
+  const [purchasing,   setPurchasing]   = useState(false)
+  const [restoring,    setRestoring]    = useState(false)
 
-  // ペイウォール表示をトラッキング（マウント時1回）
-  useEffect(() => { trackPaywallView('paywall_screen') }, [])
+  const fadeAnim = useRef(new Animated.Value(0)).current
 
-  // ── 購入処理 ──────────────────────────────────────────────────
+  useEffect(() => {
+    trackPaywallView('paywall_screen')
+    Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start()
+  }, [])
+
+  // プラン切替時のフェード
+  const handleSelectPlan = (id: 'pro' | 'elite') => {
+    Animated.sequence([
+      Animated.timing(fadeAnim, { toValue: 0.6, duration: 100, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 1,   duration: 200, useNativeDriver: true }),
+    ]).start()
+    setSelectedPlan(id)
+  }
+
+  // ── 購入処理 ─────────────────────────────────────────────────────
   const handlePurchase = async () => {
-    const plan   = PLANS.find(p => p.id === selectedPlan)
-    const prodId = period === 'annual' ? plan?.productAnnual : plan?.productMonthly
+    const plan   = PLANS.find(p => p.id === selectedPlan)!
+    const prodId = period === 'annual' ? plan.productAnnual : plan.productMonthly
 
-    // RevenueCat パッケージから該当を検索
     const pkg = packages.find(p =>
       p.product?.productIdentifier === prodId ||
-      (period === 'annual'  && (p.packageType === 'ANNUAL'  || p.product?.productIdentifier?.includes('annual')))  ||
+      (period === 'annual'  && (p.packageType === 'ANNUAL'  || p.product?.productIdentifier?.includes('annual'))) ||
       (period === 'monthly' && (p.packageType === 'MONTHLY' || p.product?.productIdentifier?.includes('monthly')))
     )
-
-    if (!pkg && packages.length > 0) {
-      // フォールバック: 最初のパッケージ
-    }
-
     const target = pkg ?? (packages.length > 0 ? packages[0] : null)
     if (!target) return
 
@@ -115,7 +105,7 @@ export default function PaywallScreen() {
     finally { setRestoring(false) }
   }
 
-  // ── Web では案内表示 ──────────────────────────────────────────
+  // ── Web 案内 ─────────────────────────────────────────────────────
   if (Platform.OS === 'web') {
     return (
       <View style={st.webWrap}>
@@ -124,179 +114,187 @@ export default function PaywallScreen() {
           <Text style={st.webTitle}>iOSアプリで購入できます</Text>
           <Text style={st.webSub}>
             sCORE PRO / ELITEは{'\n'}
-            App Storeの「sCORE」アプリからご購入ください。{'\n\n'}
-            (近日公開予定)
+            App Storeの「sCORE」アプリからご購入ください。
           </Text>
-          <TouchableOpacity style={st.closeBtn} onPress={() => router.back()}>
-            <Text style={st.closeBtnText}>閉じる</Text>
+          <TouchableOpacity style={[st.ctaBtn, { marginTop: 32 }]} onPress={() => router.back()}>
+            <Text style={st.ctaBtnText}>閉じる</Text>
           </TouchableOpacity>
         </SafeAreaView>
       </View>
     )
   }
 
-  // ── 選択中プランの価格 ────────────────────────────────────────
-  const plan       = PLANS.find(p => p.id === selectedPlan)!
-  const dispPrice  = period === 'annual' ? plan.annualPrice  : plan.monthlyPrice
+  const plan = PLANS.find(p => p.id === selectedPlan)!
+  const dispPrice  = period === 'annual' ? plan.annualPrice   : plan.monthlyPrice
   const perMonth   = period === 'annual' ? plan.annualMonthly : plan.monthlyPrice
+  const periodText = period === 'annual' ? '年' : '月'
 
   return (
-    <View style={st.container}>
-      <SafeAreaView style={{ flex: 1 }}>
-        {/* ヘッダー */}
-        <View style={st.header}>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-            <Ionicons name="close" size={26} color="#fff" />
-          </TouchableOpacity>
-          <Text style={st.headerTitle}>プランを選ぶ</Text>
-          <View style={{ width: 26 }} />
-        </View>
+    <View style={st.root}>
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={st.scroll}>
+        {/* ── 閉じるボタン ── */}
+        <TouchableOpacity
+          style={st.closeCircle}
+          onPress={() => router.back()}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <Ionicons name="close" size={18} color="rgba(255,255,255,0.7)" />
+        </TouchableOpacity>
 
-          {/* ── ロゴ ── */}
-          <View style={st.hero}>
-            <View style={st.logoMark}><Text style={st.logoLetter}>S</Text></View>
-            <Text style={st.heroTitle}>sCORE</Text>
-            <Text style={st.heroSub}>陸上競技のパートナー</Text>
-          </View>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={st.scroll}
+        >
+          <Animated.View style={{ opacity: fadeAnim }}>
 
-          {/* ── 支払い期間切替 ── */}
-          <View style={st.periodWrap}>
-            <View style={st.periodToggle}>
-              <TouchableOpacity
-                style={[st.periodBtn, period === 'monthly' && st.periodBtnActive]}
-                onPress={() => setPeriod('monthly')}
-              >
-                <Text style={[st.periodBtnText, period === 'monthly' && st.periodBtnTextActive]}>月払い</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[st.periodBtn, period === 'annual' && st.periodBtnActive]}
-                onPress={() => setPeriod('annual')}
-              >
-                <Text style={[st.periodBtnText, period === 'annual' && st.periodBtnTextActive]}>年払い</Text>
-                <View style={st.savePill}><Text style={st.savePillText}>お得</Text></View>
-              </TouchableOpacity>
+            {/* ── ヒーロータイトル ── */}
+            <View style={st.heroSection}>
+              <Text style={st.heroTitle}>{plan.titleText}</Text>
+              <Text style={st.heroSub}>
+                まずは無料で試せます。いつでも解約可能。
+              </Text>
             </View>
-          </View>
 
-          {/* ── プランカード ── */}
-          <View style={st.planWrap}>
-            {PLANS.map(p => {
-              if (p.id === 'free') return null  // FREE は比較表のみ
-              const isSelected = selectedPlan === p.id
-              const isCurrent  = currentTier === p.id
-              const price = period === 'annual' ? p.annualPrice : p.monthlyPrice
-              const sub   = period === 'annual' ? `月あたり ${p.annualMonthly}` : null
-
-              return (
+            {/* ── プラン切替タブ ── */}
+            <View style={st.planTabs}>
+              {PLANS.map(p => (
                 <TouchableOpacity
                   key={p.id}
-                  style={[st.planCard, isSelected && { borderColor: p.color, backgroundColor: `${p.color}18` }]}
-                  onPress={() => setSelectedPlan(p.id as 'pro' | 'elite')}
-                  activeOpacity={0.85}
+                  style={[st.planTab, selectedPlan === p.id && { backgroundColor: p.color }]}
+                  onPress={() => handleSelectPlan(p.id as 'pro' | 'elite')}
+                  activeOpacity={0.8}
                 >
-                  {isCurrent && (
-                    <View style={[st.currentBadge, { backgroundColor: p.color }]}>
-                      <Text style={st.currentBadgeText}>現在のプラン</Text>
-                    </View>
-                  )}
-                  {p.id === 'elite' && !isCurrent && (
-                    <View style={[st.currentBadge, { backgroundColor: '#f59e0b' }]}>
-                      <Text style={st.currentBadgeText}>👑 最上位</Text>
-                    </View>
-                  )}
-
-                  <View style={st.planCardInner}>
-                    {/* ラジオ + ラベル */}
-                    <View style={st.planCardLeft}>
-                      <View style={[st.radio, isSelected && { borderColor: p.color }]}>
-                        {isSelected && <View style={[st.radioDot, { backgroundColor: p.color }]} />}
-                      </View>
-                      <View>
-                        <Text style={[st.planLabel, { color: p.color }]}>{p.label}</Text>
-                        <Text style={st.planTagline}>{p.tagline}</Text>
-                      </View>
-                    </View>
-
-                    {/* 価格 */}
-                    <View style={st.planCardRight}>
-                      <Text style={[st.planPrice, isSelected && { color: '#fff' }]}>{price}</Text>
-                      <Text style={st.planPeriodText}>{period === 'annual' ? '/ 年' : '/ 月'}</Text>
-                      {sub && <Text style={[st.planSubPrice, { color: p.color }]}>{sub}</Text>}
-                    </View>
-                  </View>
-
-                  {/* 機能リスト */}
-                  <View style={st.featList}>
-                    {p.features.map((f, i) => (
-                      <View key={i} style={st.featRow}>
-                        <Ionicons name="checkmark-circle" size={15} color={p.color} />
-                        <Text style={st.featText}>{f}</Text>
-                      </View>
-                    ))}
-                  </View>
+                  <Text style={[st.planTabText, selectedPlan === p.id && { color: '#fff' }]}>
+                    {p.label}
+                  </Text>
                 </TouchableOpacity>
-              )
-            })}
-          </View>
-
-          {/* ── FREE プラン内容 ── */}
-          <View style={st.section}>
-            <Text style={st.sectionLabel}>FREE（無料）でできること</Text>
-            <View style={st.freeBox}>
-              {PLANS[0].features.map((f, i) => (
-                <View key={i} style={st.freeRow}>
-                  <Ionicons name="checkmark" size={14} color="#4ade80" />
-                  <Text style={st.freeText}>{f}</Text>
-                </View>
               ))}
             </View>
-          </View>
 
-          {/* ── 注意書き ── */}
-          <View style={st.noteWrap}>
-            <Text style={st.noteText}>
-              • 購入はApple IDに紐付けられます{'\n'}
-              • 期間終了24時間前までに解約しない限り自動更新されます{'\n'}
-              • 購入の管理はiPhone「設定」→「サブスクリプション」から行えます{'\n'}
-              • 年払いは一括で請求されます
+            {/* ── 期間切替 ── */}
+            <View style={st.periodRow}>
+              <TouchableOpacity
+                style={[st.periodChip, period === 'annual' && { backgroundColor: plan.color }]}
+                onPress={() => setPeriod('annual')}
+                activeOpacity={0.8}
+              >
+                <Text style={[st.periodChipText, period === 'annual' && { color: '#fff' }]}>年払い</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[st.periodChip, period === 'monthly' && { backgroundColor: plan.color }]}
+                onPress={() => setPeriod('monthly')}
+                activeOpacity={0.8}
+              >
+                <Text style={[st.periodChipText, period === 'monthly' && { color: '#fff' }]}>月払い</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* ── プランカード ── */}
+            <View style={[st.planCard, { borderColor: plan.color }]}>
+              {period === 'annual' && (
+                <View style={[st.saveBadge, { backgroundColor: plan.color }]}>
+                  <Text style={st.saveBadgeText}>3ヶ月分お得</Text>
+                </View>
+              )}
+              <View style={st.planCardInner}>
+                <View>
+                  <Text style={[st.planCardLabel, { color: plan.color }]}>
+                    {period === 'annual' ? '年額プラン' : '月額プラン'}
+                  </Text>
+                  <Text style={st.planCardSub}>{perMonth}/月</Text>
+                </View>
+                <Text style={[st.planCardPrice, { color: plan.color }]}>
+                  {dispPrice}
+                  <Text style={st.planCardUnit}>/{periodText}</Text>
+                </Text>
+              </View>
+            </View>
+
+            {/* ── 含まれる機能 ── */}
+            <View style={st.featSection}>
+              <Text style={[st.featSectionTitle, { color: plan.color }]}>
+                {selectedPlan === 'pro' ? 'PRO' : 'ELITE'} に含まれる機能
+              </Text>
+
+              {selectedPlan === 'pro' ? (
+                <>
+                  <FeatRow color={plan.color} text="AI練習分析コーチ 月30回" />
+                  <FeatRow color={plan.color} text="動画フォーム分析 月30回" />
+                  <FeatRow color={plan.color} text="AI食事・栄養分析 月30回" />
+                  <FeatRow color={plan.color} text="AIリカバリー相談 月30回" />
+                  <FeatRow color={plan.color} text="CSVエクスポート 月1回" />
+                  <FeatRow color={plan.color} text="広告なしで快適に使える" />
+                </>
+              ) : (
+                <>
+                  <FeatRow color={plan.color} text="PROの全機能（広告なし）" bold />
+                  <FeatRow color={plan.color} text="AI機能すべて 完全無制限" />
+                  <FeatRow color={plan.color} text="CSVエクスポート 無制限" />
+                </>
+              )}
+
+              <View style={st.featDivider} />
+              <Text style={st.featFreeNote}>
+                FREE でも: 練習ログ無制限 / タイム記録全期間 / 怪我リスク診断 / AIリカバリー相談
+              </Text>
+            </View>
+
+            {/* ── 注意書き ── */}
+            <Text style={st.legalText}>
+              購入はApple IDに紐付けられます。期間終了24時間前までに解約しない限り自動更新されます。
+              購入の管理は「設定」→「サブスクリプション」から行えます。
             </Text>
-          </View>
 
-          <View style={{ height: 140 }} />
+            <View style={{ height: 160 }} />
+          </Animated.View>
         </ScrollView>
 
-        {/* ── 購入ボタン（固定フッター） ── */}
+        {/* ── 固定フッター ── */}
         <View style={st.footer}>
           {loading ? (
-            <View style={[st.purchaseBtn, { justifyContent: 'center' }]}>
+            <View style={[st.ctaBtn, { justifyContent: 'center' }]}>
               <ActivityIndicator color="#fff" />
             </View>
           ) : (
             <TouchableOpacity
-              style={[st.purchaseBtn, { backgroundColor: plan.color }]}
+              style={st.ctaBtn}
               onPress={handlePurchase}
               disabled={purchasing}
-              activeOpacity={0.85}
+              activeOpacity={0.9}
             >
               {purchasing ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={st.purchaseBtnText}>
-                  {`${plan.label} ${period === 'annual' ? '年払い' : '月払い'} ${dispPrice} で始める`}
+                <Text style={st.ctaBtnText}>
+                  プランを選ぶ
                 </Text>
               )}
             </TouchableOpacity>
           )}
 
-          <TouchableOpacity style={st.restoreBtn} onPress={handleRestore} disabled={restoring}>
-            {restoring
-              ? <ActivityIndicator color="#6b7280" size="small" />
-              : <Text style={st.restoreText}>以前の購入を復元する</Text>
-            }
-          </TouchableOpacity>
+          {/* いつでも解約可能 */}
+          <View style={st.cancelRow}>
+            <Ionicons name="shield-checkmark-outline" size={14} color="rgba(255,255,255,0.4)" />
+            <Text style={st.cancelText}>いつでも解約可能</Text>
+          </View>
+
+          {/* サブリンク */}
+          <View style={st.subLinks}>
+            <TouchableOpacity onPress={handleRestore} disabled={restoring}>
+              {restoring
+                ? <ActivityIndicator color="rgba(255,255,255,0.4)" size="small" />
+                : <Text style={st.subLinkText}>購入を復元する</Text>
+              }
+            </TouchableOpacity>
+            <Text style={st.subLinkDot}>·</Text>
+            <TouchableOpacity onPress={() => router.push('/coupon')} style={st.couponLink}>
+              <Ionicons name="ticket-outline" size={13} color="rgba(255,255,255,0.4)" />
+              <Text style={st.subLinkText}>クーポン</Text>
+            </TouchableOpacity>
+          </View>
         </View>
+
       </SafeAreaView>
     </View>
   )
@@ -304,104 +302,121 @@ export default function PaywallScreen() {
 
 // ── スタイル ──────────────────────────────────────────────────────
 const st = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingVertical: 12,
-  },
-  headerTitle: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  scroll: { paddingBottom: 20 },
+  root: { flex: 1, backgroundColor: BG },
 
-  hero: { alignItems: 'center', paddingVertical: 24 },
-  logoMark: {
-    width: 56, height: 56, borderRadius: 16, backgroundColor: BRAND,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 12,
-    shadowColor: BRAND, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.6, shadowRadius: 20,
+  closeCircle: {
+    position:  'absolute', top: 14, right: 20, zIndex: 10,
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center', justifyContent: 'center',
   },
-  logoLetter: { color: '#fff', fontSize: 30, fontWeight: '900' },
-  heroTitle: { fontSize: 24, fontWeight: '900', color: '#fff', letterSpacing: -1 },
-  heroSub:   { fontSize: 13, color: '#9ca3af', marginTop: 4 },
 
-  periodWrap:   { paddingHorizontal: 20, marginBottom: 16 },
-  periodToggle: {
-    flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 14, padding: 4,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
-  },
-  periodBtn: {
-    flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10,
-    flexDirection: 'row', justifyContent: 'center', gap: 6,
-  },
-  periodBtnActive: {
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    shadowColor: '#fff', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08, shadowRadius: 4,
-  },
-  periodBtnText:      { fontSize: 14, fontWeight: '600', color: '#6b7280' },
-  periodBtnTextActive: { color: '#fff', fontWeight: '700' },
-  savePill: {
-    backgroundColor: BRAND, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2,
-  },
-  savePillText: { fontSize: 9, fontWeight: '800', color: '#fff', letterSpacing: 0.5 },
+  scroll: { paddingTop: 64 },
 
-  planWrap: { paddingHorizontal: 16, gap: 12, marginBottom: 24 },
+  // ── ヒーロー
+  heroSection: { paddingHorizontal: 28, paddingTop: 16, paddingBottom: 24 },
+  heroTitle: {
+    fontSize: 32, fontWeight: '900', color: '#ffffff',
+    letterSpacing: -0.8, lineHeight: 40, marginBottom: 12,
+  },
+  heroSub: { fontSize: 14, color: 'rgba(255,255,255,0.6)', lineHeight: 20 },
+
+  // ── プランタブ
+  planTabs: {
+    flexDirection: 'row', marginHorizontal: 28, marginBottom: 28,
+    backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 4, gap: 4,
+  },
+  planTab: {
+    flex: 1, paddingVertical: 9, borderRadius: 9,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  planTabText: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.5)' },
+
+  // ── 期間切替
+  periodRow: {
+    flexDirection: 'row', marginHorizontal: 28, marginBottom: 12, gap: 8,
+  },
+  periodChip: {
+    paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  periodChipText: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.5)' },
+
+  // ── プランカード
   planCard: {
+    marginHorizontal: 28, marginBottom: 20,
     backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 18, padding: 16,
-    position: 'relative', overflow: 'hidden',
+    borderWidth: 2, borderRadius: 18,
+    overflow: 'visible',
   },
-  currentBadge: {
-    position: 'absolute', top: 10, right: 10,
-    borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3,
+  saveBadge: {
+    position: 'absolute', top: -14, alignSelf: 'center',
+    paddingHorizontal: 16, paddingVertical: 5,
+    borderRadius: 20, zIndex: 1,
   },
-  currentBadgeText: { fontSize: 10, color: '#fff', fontWeight: '800' },
-  planCardInner: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 14 },
-  planCardLeft: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, flex: 1 },
-  radio: {
-    width: 22, height: 22, borderRadius: 11,
-    borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center', justifyContent: 'center', marginTop: 2, flexShrink: 0,
+  saveBadgeText: { fontSize: 12, fontWeight: '800', color: '#fff' },
+  planCardInner: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingVertical: 22, marginTop: 6,
   },
-  radioDot: { width: 10, height: 10, borderRadius: 5 },
-  planLabel:   { fontSize: 17, fontWeight: '900', letterSpacing: -0.5 },
-  planTagline: { fontSize: 11, color: '#9ca3af', marginTop: 2 },
-  planCardRight: { alignItems: 'flex-end' },
-  planPrice:     { fontSize: 20, fontWeight: '900', color: '#d1d5db', letterSpacing: -0.5 },
-  planPeriodText: { fontSize: 11, color: '#6b7280', marginTop: 1 },
-  planSubPrice: { fontSize: 11, fontWeight: '700', marginTop: 3 },
+  planCardLabel: { fontSize: 16, fontWeight: '800', marginBottom: 2 },
+  planCardSub:   { fontSize: 13, color: 'rgba(255,255,255,0.4)' },
+  planCardPrice: { fontSize: 30, fontWeight: '900', letterSpacing: -1 },
+  planCardUnit:  { fontSize: 15, fontWeight: '600', letterSpacing: 0 },
 
-  featList: { gap: 8 },
-  featRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  featText: { fontSize: 12, color: '#d1d5db', flex: 1 },
+  // ── 注意書き
+  legalText: {
+    marginHorizontal: 28, fontSize: 11, color: 'rgba(255,255,255,0.3)', lineHeight: 17, textAlign: 'center',
+  },
 
-  section: { paddingHorizontal: 16, marginBottom: 20 },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#4ade80', letterSpacing: 1.5, marginBottom: 10, textTransform: 'uppercase' },
-  freeBox: { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 14, padding: 14, gap: 10 },
-  freeRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  freeText: { fontSize: 13, color: '#9ca3af' },
-
-  noteWrap: { marginHorizontal: 16, padding: 14, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 10 },
-  noteText: { fontSize: 11, color: '#6b7280', lineHeight: 18 },
-
+  // ── フッター
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    paddingHorizontal: 20, paddingBottom: 32, paddingTop: 16,
-    backgroundColor: 'rgba(0,0,0,0.95)',
-    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)',
-    gap: 10,
+    paddingHorizontal: 24, paddingBottom: 36, paddingTop: 12,
+    backgroundColor: BG,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.08)',
   },
-  purchaseBtn: {
-    paddingVertical: 17, borderRadius: 16, alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 14,
-  },
-  purchaseBtnText: { color: '#fff', fontSize: 16, fontWeight: '800', letterSpacing: -0.3 },
-  restoreBtn: { alignItems: 'center', paddingVertical: 8 },
-  restoreText: { color: '#6b7280', fontSize: 13 },
 
-  webWrap:     { flex: 1, backgroundColor: '#000' },
-  webTitle:    { fontSize: 22, fontWeight: '800', color: '#fff', textAlign: 'center', marginBottom: 12 },
-  webSub:      { fontSize: 14, color: '#9ca3af', textAlign: 'center', lineHeight: 24, marginBottom: 32 },
-  closeBtn:    { backgroundColor: BRAND, paddingHorizontal: 36, paddingVertical: 14, borderRadius: 12 },
-  closeBtnText:{ color: '#fff', fontWeight: '700', fontSize: 15 },
+  // ── CTAボタン
+  ctaBtn: {
+    backgroundColor: '#166534', borderRadius: 50,
+    paddingVertical: 18, alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3, shadowRadius: 12, elevation: 6,
+    marginBottom: 12,
+  },
+  ctaBtnText: { color: '#fff', fontSize: 17, fontWeight: '800', letterSpacing: -0.3 },
+
+  // いつでも解約
+  cancelRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 5, marginBottom: 12,
+  },
+  cancelText: { fontSize: 13, color: 'rgba(255,255,255,0.4)' },
+
+  // サブリンク
+  subLinks: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+  },
+  subLinkText: { fontSize: 12, color: 'rgba(255,255,255,0.4)' },
+  subLinkDot:  { color: 'rgba(255,255,255,0.2)', fontSize: 12 },
+  couponLink:  { flexDirection: 'row', alignItems: 'center', gap: 4 },
+
+  // 機能リスト
+  featSection: {
+    marginHorizontal: 28, marginBottom: 20,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1.5, borderRadius: 18, borderColor: 'rgba(255,255,255,0.08)',
+    padding: 20,
+  },
+  featSectionTitle: { fontSize: 13, fontWeight: '800', marginBottom: 14, letterSpacing: 0.3 },
+  featRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  featRowText: { fontSize: 13, color: 'rgba(255,255,255,0.8)', flex: 1 },
+  featDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginVertical: 12 },
+  featFreeNote: { fontSize: 11, color: 'rgba(255,255,255,0.35)', lineHeight: 17 },
+
+  // Web
+  webWrap:  { flex: 1, backgroundColor: BG },
+  webTitle: { fontSize: 22, fontWeight: '800', color: '#fff', textAlign: 'center', marginBottom: 12 },
+  webSub:   { fontSize: 14, color: 'rgba(255,255,255,0.6)', textAlign: 'center', lineHeight: 24, marginBottom: 32 },
 })

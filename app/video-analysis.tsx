@@ -541,19 +541,21 @@ function NativeVideoAnalysis() {
     } catch (e: any) { Alert.alert('エラー', e?.message ?? '動画の選択に失敗しました') }
   }
 
-  async function analyze() {
+  async function analyze(skipGate = false) {
     if (!videoUri) { Alert.alert('動画を選択してください'); return }
     // ゲストはログイン必須
     if (isGuest) { setAdGateRemaining(0); setAdGateHardLimited(false); setAdGateVisible(true); return }
-    // AdGateチェック
-    const gate = await checkAdGate('video')
-    if (!gate.allowed) { setAdGateRemaining(0); setAdGateRewardUses(gate.rewardUses); setAdGateHardLimited(gate.hardLimited); setAdGateVisible(true); return }
-    if (gate.remaining === 0 && gate.rewardUses > 0) {
-      await consumeRewardUse('video')
-    } else if (gate.remaining === 1) {
-      setAdGateRemaining(1); setAdGateVisible(true); return
-    } else {
-      await recordUsage('video')
+    // AdGateチェック（広告視聴後は skipGate=true でバイパス）
+    if (!skipGate) {
+      const gate = await checkAdGate('video')
+      if (!gate.allowed) { setAdGateRemaining(0); setAdGateRewardUses(gate.rewardUses); setAdGateHardLimited(gate.hardLimited); setAdGateVisible(true); return }
+      if (gate.remaining === 0 && gate.rewardUses > 0) {
+        await consumeRewardUse('video')
+      } else if (gate.remaining === 1) {
+        setAdGateRemaining(1); setAdGateVisible(true); return
+      } else {
+        await recordUsage('video')
+      }
     }
     trackFeatureUse('video')
     checkAdGate('video').then(g => { if (g.remaining < 999) setRemaining(g.remaining) }).catch(() => {})
@@ -938,16 +940,12 @@ function NativeVideoAnalysis() {
         onClose={() => setAdGateVisible(false)}
         onAdWatched={async () => {
           setAdGateVisible(false)
-          const g = await checkAdGate('video')
-          if (g.rewardUses > 0) {
-            await consumeRewardUse('video')
-          } else {
-            await recordUsage('video')
-          }
+          // 使用回数を記録してからゲートチェックをスキップして直接分析へ
+          await recordUsage('video')
           trackFeatureUse('video')
           checkAdGate('video').then(g2 => { if (g2.remaining < 999) setRemaining(g2.remaining) }).catch(() => {})
           setError(''); setResult(null); setRawText('')
-          analyze()
+          analyze(true)
         }}
         onUpgrade={() => { setAdGateVisible(false); router.push('/paywall') }}
       />

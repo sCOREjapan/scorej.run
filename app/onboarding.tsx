@@ -17,9 +17,9 @@ import { BRAND, TEXT } from '../lib/theme'
 import { Sounds, unlockAudio } from '../lib/sounds'
 import type { AthleticsEvent, EventCategory } from '../types'
 
-const SURFACE  = 'rgba(255,255,255,0.06)'
-const SURFACE2 = 'rgba(255,255,255,0.1)'
-const TOTAL_STEPS = 4
+const SURFACE  = '#ffffff'
+const SURFACE2 = '#f0f2f5'
+const TOTAL_STEPS = 5
 
 // ── 種目データ ─────────────────────────────────────────────
 const CATEGORIES = [
@@ -79,7 +79,7 @@ function StepBar({ step }: { step: number }) {
           key={i}
           style={{
             flex: 1, height: 3, borderRadius: 2,
-            backgroundColor: i < step ? BRAND : SURFACE2,
+            backgroundColor: i < step ? BRAND : 'rgba(0,0,0,0.12)',
           }}
         />
       ))}
@@ -117,7 +117,7 @@ function Chip({
         </View>
         {selected
           ? <Ionicons name="checkmark-circle" size={22} color={BRAND} />
-          : <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.15)' }} />
+          : <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.2)' }} />
         }
       </TouchableOpacity>
     </Animated.View>
@@ -177,7 +177,7 @@ export default function OnboardingScreen() {
     }
   }, [category])
 
-  const handleFinish = useCallback(async () => {
+  const handleFinish = useCallback(async (skipNav = false) => {
     unlockAudio(); Sounds.save()
 
     const profile = {
@@ -201,7 +201,7 @@ export default function OnboardingScreen() {
       text1: `ようこそ、${profile.name}さん！`,
       text2: '一緒に記録を伸ばしていこう 🏃',
     })
-    router.replace('/(tabs)')
+    if (!skipNav) router.replace('/(tabs)')
   }, [name, event, category, experience, age, pb, user, setOnboarded, router])
 
   const canNextStep1 = name.trim().length >= 1
@@ -209,7 +209,7 @@ export default function OnboardingScreen() {
   const canNextStep3 = event !== ''
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#000' }}>
+    <View style={{ flex: 1, backgroundColor: '#f6f6f8' }}>
       {/* ヘッダー */}
       <SafeAreaView>
         <StepBar step={step} />
@@ -317,6 +317,7 @@ export default function OnboardingScreen() {
                   <Text style={styles.sub}>入力するとAIのアドバイスが精度アップします</Text>
                 </View>
 
+
                 {/* 競技歴 */}
                 <View style={{ gap: 10 }}>
                   <Text style={styles.sectionLabel}>競技歴</Text>
@@ -380,6 +381,62 @@ export default function OnboardingScreen() {
                 </View>
               </View>
             )}
+            {step === 5 && (
+              <View style={{ gap: 20, backgroundColor: '#1a1a2e', borderRadius: 24, padding: 20, marginTop: -4 }}>
+                <View style={styles.titleArea}>
+                  <Text style={styles.emoji}>🚀</Text>
+                  <Text style={[styles.title, { color: '#fff' }]}>プランを選んで{'\n'}始めよう</Text>
+                  <Text style={[styles.sub, { color: 'rgba(255,255,255,0.6)' }]}>いつでも変更・解約できます</Text>
+                </View>
+
+                {/* FREE */}
+                <TouchableOpacity
+                  style={[styles.planCard, { borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.06)' }]}
+                  onPress={() => handleFinish()}
+                  activeOpacity={0.85}
+                >
+                  <View style={{ flex: 1, gap: 4 }}>
+                    <Text style={[styles.planLabel, { color: '#fff' }]}>FREE</Text>
+                    <Text style={[styles.planPrice, { color: 'rgba(255,255,255,0.9)' }]}>¥0 / 月</Text>
+                    <Text style={[styles.planDesc, { color: 'rgba(255,255,255,0.5)' }]}>AI機能 1日1回（広告視聴）• 練習ログ無制限</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.3)" />
+                </TouchableOpacity>
+
+                {/* PRO おすすめ */}
+                <TouchableOpacity
+                  style={[styles.planCard, { borderColor: BRAND, backgroundColor: 'rgba(22,163,74,0.12)' }]}
+                  onPress={async () => { await handleFinish(true); router.push('/paywall') }}
+                  activeOpacity={0.85}
+                >
+                  <View style={{ flex: 1, gap: 4 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={[styles.planLabel, { color: BRAND }]}>PRO</Text>
+                      <View style={{ backgroundColor: BRAND, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 }}>
+                        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800' }}>おすすめ</Text>
+                      </View>
+                    </View>
+                    <Text style={[styles.planPrice, { color: BRAND }]}>¥480 / 月</Text>
+                    <Text style={[styles.planDesc, { color: 'rgba(255,255,255,0.5)' }]}>AI機能 月30回 • 広告なし • 全機能解放</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={BRAND} />
+                </TouchableOpacity>
+
+                {/* ELITE */}
+                <TouchableOpacity
+                  style={[styles.planCard, { borderColor: '#d97706', backgroundColor: 'rgba(217,119,6,0.1)' }]}
+                  onPress={async () => { await handleFinish(true); router.push('/paywall') }}
+                  activeOpacity={0.85}
+                >
+                  <View style={{ flex: 1, gap: 4 }}>
+                    <Text style={[styles.planLabel, { color: '#d97706' }]}>ELITE</Text>
+                    <Text style={[styles.planPrice, { color: '#d97706' }]}>¥980 / 月</Text>
+                    <Text style={[styles.planDesc, { color: 'rgba(255,255,255,0.5)' }]}>全機能 完全無制限 • チーム機能付き</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#d97706" />
+                </TouchableOpacity>
+              </View>
+            )}
           </ScrollView>
         </Animated.View>
       </KeyboardAvoidingView>
@@ -406,9 +463,9 @@ export default function OnboardingScreen() {
               <Ionicons name="arrow-forward" size={18} color="#fff" />
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity style={styles.nextBtn} onPress={handleFinish} activeOpacity={0.85}>
-              <Ionicons name="checkmark-circle" size={20} color="#fff" />
-              <Text style={styles.nextBtnText}>sCORE を始める</Text>
+            // Step 5: プラン選択 — ボタンはカード内に含めているのでフッターにはスキップリンクのみ
+            <TouchableOpacity style={{ alignItems: 'center', paddingVertical: 14 }} onPress={() => handleFinish()} activeOpacity={0.7}>
+              <Text style={{ color: TEXT.hint, fontSize: 14 }}>まず無料で試す</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -444,7 +501,7 @@ const styles = StyleSheet.create({
   content:    { padding: 24, paddingBottom: 20 },
   titleArea:  { gap: 10, marginBottom: 4 },
   emoji:      { fontSize: 42 },
-  title:      { color: '#fff', fontSize: 28, fontWeight: '900', letterSpacing: -0.8, lineHeight: 36 },
+  title:      { color: '#111827', fontSize: 28, fontWeight: '900', letterSpacing: -0.8, lineHeight: 36 },
   sub:        { color: TEXT.secondary, fontSize: 14, lineHeight: 20 },
   sectionLabel: { color: TEXT.hint, fontSize: 11, fontWeight: '700', letterSpacing: 1.2 },
 
@@ -452,40 +509,55 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 14,
     backgroundColor: SURFACE, borderRadius: 14,
     paddingHorizontal: 16, paddingVertical: 14,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
   },
   chipSelected: {
     backgroundColor: 'rgba(229,62,62,0.1)',
     borderColor: BRAND,
   },
-  chipLabel: { color: TEXT.secondary, fontSize: 15, fontWeight: '700' },
+  chipLabel: { color: '#111827', fontSize: 15, fontWeight: '700' },
   chipSub:   { color: TEXT.hint, fontSize: 12, marginTop: 2 },
 
   expBtn: {
     flex: 1, minWidth: '45%', alignItems: 'center',
     backgroundColor: SURFACE, borderRadius: 12,
     padding: 14, borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)', gap: 3,
+    borderColor: 'rgba(0,0,0,0.08)', gap: 3,
   },
   expBtnActive:  { backgroundColor: 'rgba(229,62,62,0.12)', borderColor: BRAND },
-  expLabel:      { color: TEXT.secondary, fontSize: 14, fontWeight: '700' },
+  expLabel:      { color: '#111827', fontSize: 14, fontWeight: '700' },
   expSub:        { color: TEXT.hint, fontSize: 11 },
 
   inputWrap: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: SURFACE2, borderRadius: 14,
     paddingHorizontal: 16, paddingVertical: 14,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.1)',
   },
-  input:     { flex: 1, color: '#fff', fontSize: 16, outlineStyle: 'none' as any },
+  input:     { flex: 1, color: '#111827', fontSize: 16, outlineStyle: 'none' as any },
   inputHint: { color: TEXT.hint, fontSize: 11, paddingLeft: 4 },
 
   bottomBar: { paddingHorizontal: 16, paddingBottom: 8, paddingTop: 8 },
   nextBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    backgroundColor: BRAND, borderRadius: 16, paddingVertical: 18,
-    shadowColor: BRAND, shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4, shadowRadius: 16,
+    backgroundColor: '#1c1c1e', borderRadius: 50, paddingVertical: 18,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18, shadowRadius: 12, elevation: 5,
   },
   nextBtnText: { color: '#fff', fontSize: 17, fontWeight: '800', letterSpacing: -0.3 },
+
+  planCard: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#fff', borderRadius: 16,
+    padding: 18, borderWidth: 2, borderColor: 'rgba(0,0,0,0.08)',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
+  },
+  planCardPro: {
+    borderColor: BRAND,
+    backgroundColor: 'rgba(229,62,62,0.04)',
+  },
+  planLabel: { color: '#111827', fontSize: 15, fontWeight: '900', letterSpacing: 0.5 },
+  planPrice: { color: '#111827', fontSize: 18, fontWeight: '900' },
+  planDesc:  { color: '#6b7280', fontSize: 12, lineHeight: 17, marginTop: 2 },
 })
