@@ -15,6 +15,7 @@ import { ThemeProvider } from '../context/ThemeContext'
 import { PurchaseProvider } from '../context/PurchaseContext'
 import SplashAnimation from '../components/SplashAnimation'
 import { initOneSignal, requestPushPermission } from '../lib/notify'
+import { initAdmob } from '../lib/admob'
 
 const CONSENT_KEY = 'score_terms_accepted_v1'
 
@@ -349,15 +350,25 @@ if (Platform.OS === 'web' && typeof navigator !== 'undefined' && 'serviceWorker'
       const newWorker = reg.installing
       newWorker?.addEventListener('statechange', () => {
         if (newWorker.state === 'activated') {
-          // 新バージョン検知 → 自動リロード
-          window.location.reload()
+          // OAuth コールバック中（?code= / #access_token=）はリロードしない
+          // Google OAuth はクロスオリジンリダイレクトで sessionStorage がクリアされるため
+          // リロードすると PKCE コード交換が中断される
+          const isOAuth = typeof window !== 'undefined' &&
+            (window.location.search.includes('code=') ||
+             window.location.hash.includes('access_token='))
+          if (isOAuth) return
+          // 新バージョン検知 → セッション内で1回だけリロード（連続デプロイによる無限ループ防止）
+          if (typeof sessionStorage !== 'undefined' && !sessionStorage.getItem('_sw_reloaded')) {
+            sessionStorage.setItem('_sw_reloaded', '1')
+            window.location.reload()
+          }
         }
       })
     })
   }).catch(() => {})
 }
 
-const MIN_SPLASH_MS = 2200
+const MIN_SPLASH_MS = 800
 
 // 認証ガード — 未ログイン・未ゲスト選択時は auth 画面へ
 function AuthGate({ children }: { children: React.ReactNode }) {
@@ -382,10 +393,18 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
     const inAuth        = segments[0] === 'auth'
     const inOnboarding  = segments[0] === 'onboarding'
+    const inPublic      = segments[0] === 'coach-landing'
     const authed        = !!user || isGuest
 
-    // 未認証 → /auth へ
-    if (!authed && !inAuth) {
+    // OAuth リダイレクト後はルート URL '/' に着地する（app/index.tsx が存在しないため空白画面）
+    // → 認証済みなら適切な画面へ送る
+    if (authed && segments.length === 0) {
+      router.replace(!isOnboarded ? '/onboarding' : '/(tabs)')
+      return
+    }
+
+    // 未認証 → /auth へ（公開ページは除く）
+    if (!authed && !inAuth && !inPublic) {
       router.replace('/auth')
       return
     }
@@ -444,6 +463,11 @@ function RootLayoutNav() {
         }
       })
     }
+  }, [])
+
+  // AdMob SDK 初期化（ネイティブのみ）
+  useEffect(() => {
+    initAdmob().catch(() => {})
   }, [])
 
 
