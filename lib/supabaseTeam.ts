@@ -42,10 +42,11 @@ export interface TeamMemberRow {
 
 export async function registerMember(teamCode: string, playerName: string, event = ''): Promise<void> {
   if (!isConfigured) return
-  await supabase.from('team_members').upsert(
+  const { error } = await supabase.from('team_members').upsert(
     { id: `${teamCode}_${playerName}`, team_code: teamCode, player_name: playerName, event },
     { onConflict: 'id' },
   )
+  if (error) throw new Error(error.message)
 }
 
 export async function deleteMember(id: string): Promise<void> {
@@ -284,20 +285,8 @@ export async function upsertPlayerStats(
     fullRow, { onConflict: 'team_code,player_name' },
   )
   if (!error) return
-  console.error('[upsertPlayerStats] full upsert failed:', error.message)
-  // streak列が未作成の場合はgoalのみでリトライ
-  const { error: e2 } = await supabase.from('team_player_stats').upsert(
-    { ...baseRow, goal }, { onConflict: 'team_code,player_name' },
-  )
-  if (!e2) return
-  // goal列も未作成の場合はbaseのみでリトライ
-  const { error: e3 } = await supabase.from('team_player_stats').upsert(
-    baseRow, { onConflict: 'team_code,player_name' },
-  )
-  if (e3) {
-    console.error('[upsertPlayerStats] base retry failed:', e3.message)
-    throw new Error(e3.message)   // 全リトライ失敗 → 呼び出し元に伝搬
-  }
+  // 失敗時はサイレントに無視（IO節約のためリトライなし）
+  if (__DEV__) console.warn('[upsertPlayerStats] upsert failed:', error.message)
 }
 
 // ── チーム共有カレンダー ────────────────────────────────────
@@ -351,4 +340,34 @@ export async function addTeamEvent(
 export async function deleteTeamEvent(id: string): Promise<void> {
   if (!isConfigured) return
   await supabase.from('team_events').delete().eq('id', id)
+}
+
+// ── コーチ通知（team_messages テーブルを再利用）────────────────────
+export type CoachNotifType = 'absence' | 'video' | 'risk_alert' | 'message'
+
+export async function sendCoachNotification(
+  teamCode: string,
+  type: CoachNotifType,
+  playerName: string,
+  content: string,
+): Promise<void> {
+  if (!isConfigured) return
+  await supabase.from('team_messages').insert({
+    team_code: teamCode,
+    content: `[${type.toUpperCase()}] ${content}`,
+    author_name: '__system__',
+    is_pinned: false,
+  })
+}
+
+export async function fetchCoachNotifications(teamCode: string): Promise<TeamMessageRow[]> {
+  if (!isConfigured) return []
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+  const { data } = await supabase
+    .from('team_messages').select('*')
+    .eq('team_code', teamCode)
+    .eq('author_name', '__system__')
+    .gte('created_at', sevenDaysAgo)
+    .order('created_at', { ascending: false })
+  return (data ?? []) as TeamMessageRow[]
 }

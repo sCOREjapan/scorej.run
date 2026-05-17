@@ -49,56 +49,27 @@ export function getCompetitionPlanPrompt(
   profile: UserProfile,
   competitionName: string
 ): string {
-  const weeksLeft = Math.ceil(daysLeft / 7)
+  const weeksLeft = Math.min(Math.ceil(daysLeft / 7), 8) // 最大8週
   const category = profile.event_category === 'sprint' ? '短距離' : '中長距離'
 
   const pbInfo = profile.personal_best_ms
-    ? `自己ベスト: ${formatTime(profile.personal_best_ms, profile.primary_event)}`
-    : '自己ベスト未設定'
+    ? `PB:${formatTime(profile.personal_best_ms, profile.primary_event)}`
+    : 'PB未設定'
 
   const targetInfo = profile.target_time_ms
-    ? `目標タイム: ${formatTime(profile.target_time_ms, profile.primary_event)}`
+    ? ` 目標:${formatTime(profile.target_time_ms, profile.primary_event)}`
     : ''
 
-  return `あなたは${category}専門の日本トップレベルの陸上コーチです。
-選手プロフィール：
-- 種目: ${profile.primary_event}
-- ${pbInfo}
-- ${targetInfo}
-- 経験年数: ${profile.experience_years ?? '不明'}年
-- 試合名: ${competitionName}
-- 試合まで: ${daysLeft}日（${weeksLeft}週間）
+  return `${category}専門コーチ。${profile.primary_event}選手(${pbInfo}${targetInfo}, 経験${profile.experience_years ?? '?'}年)の「${competitionName}」まで${weeksLeft}週間の計画をJSONのみで返せ。
 
-【重要】phases の配列には必ず ${weeksLeft} 週分だけ入れてください。それ以上でも以下でもNGです。
-${weeksLeft <= 1 ? '試合直前なので、調整・休息・ウォームアップに集中した1週間計画を作成してください。' : ''}
-${weeksLeft === 2 ? 'テーパリング期間です。強度を落として体を整えることに集中した2週間計画にしてください。' : ''}
-${weeksLeft >= 3 ? `${weeksLeft}週間の逆算計画を作成してください。week_number=1が試合直前週です。` : ''}
+必須ルール:
+- phases配列は必ず${weeksLeft}要素（多くも少なくもNG）
+- week_number=1が試合直前週
+- sessionsは各週5〜6件（月〜土、詳細は簡潔に20文字以内）
+- intensityは easy/moderate/hard/race のみ
+- 前後の説明文・マークダウン不要、JSONだけ返す
 
-以下のJSONのみを返してください（前後のテキスト不要）：
-
-{
-  "phases": [
-    {
-      "week_number": 何週前か（1が直前週）,
-      "theme": "その週のテーマ（例：スピード養成週）",
-      "total_volume_km": 週間走行距離（km、概算）,
-      "sessions": [
-        {
-          "day": "月曜",
-          "type": "interval",
-          "detail": "具体的なメニュー（例：300m×6 rest 5min @ 95%）",
-          "duration_min": 所要時間,
-          "intensity": "easy/moderate/hard/race のいずれか",
-          "optional": false
-        }
-      ],
-      "key_workout": "その週のメインワークアウト（1文）"
-    }
-  ],
-  "peak_week": ピーク強度の週番号（試合から何週前）,
-  "taper_start_week": テーパー開始週番号,
-  "key_advice": "試合に向けた最重要アドバイス（2〜3文）"
-}`
+{"phases":[{"week_number":1,"theme":"テーマ","total_volume_km":30,"sessions":[{"day":"月曜","type":"easy","detail":"jog 30min","duration_min":40,"intensity":"easy"},{"day":"火曜","type":"interval","detail":"400m×5 r3min","duration_min":60,"intensity":"hard"}],"key_workout":"週のメインワークアウト"}],"peak_week":${Math.max(2, weeksLeft-1)},"taper_start_week":2,"key_advice":"アドバイス2文"}`
 }
 
 function formatTime(ms: number, event: TrackEvent): string {

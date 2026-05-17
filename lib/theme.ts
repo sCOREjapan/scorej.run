@@ -44,3 +44,45 @@ export const GLASS = {
 } as const
 
 export const BLUR_INTENSITY = 0
+
+// ── ボタンスタイルプリセット（競合アプリ課金UIに合わせたピル型） ──
+export const BTN = {
+  /** 主要アクション：ブラックピル */
+  primary: {
+    backgroundColor: '#1c1c1e',
+    borderRadius: 50,
+    paddingVertical: 17,
+    alignItems:      'center'  as const,
+    justifyContent:  'center'  as const,
+    flexDirection:   'row'     as const,
+    gap:             8,
+    shadowColor:     '#000',
+    shadowOffset:    { width: 0, height: 4 },
+    shadowOpacity:   0.18,
+    shadowRadius:    12,
+    elevation:       5,
+  },
+  primaryText: {
+    color:         '#fff',
+    fontSize:      16,
+    fontWeight:    '800' as const,
+    letterSpacing: -0.3,
+  },
+  /** セカンダリ：アウトライン */
+  secondary: {
+    borderWidth:    1.5,
+    borderColor:    '#1c1c1e',
+    borderRadius:   50,
+    paddingVertical:16,
+    alignItems:     'center' as const,
+    justifyContent: 'center' as const,
+    flexDirection:  'row'    as const,
+    gap:            8,
+    backgroundColor: 'transparent',
+  },
+  secondaryText: {
+    color:      '#1c1c1e',
+    fontSize:   15,
+    fontWeight: '700' as const,
+  },
+} as const

@@ -17,8 +17,8 @@ import { getMealAnalysisPrompt, getCompetitionPlanPrompt, getSleepAdvicePrompt }
 const MODEL = 'claude-haiku-4-5-20251001'
 const API_URL = 'https://api.anthropic.com/v1/messages'
 // Vercel proxy URL（APIキーをクライアントに持たせない）
-const API_BASE = (process.env.EXPO_PUBLIC_API_BASE_URL ?? '').replace(/\/$/, '')
-const PROXY_URL = API_BASE ? `${API_BASE}/api/analyze` : '/api/analyze'
+const API_BASE = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
+const PROXY_URL = `${API_BASE}/api/analyze`
 
 // ─────────────────────────────────────────
 // 型定義
@@ -161,20 +161,23 @@ export async function generateCompetitionPlan(
   const daysLeft = Math.ceil((competitionDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
   if (daysLeft < 1) throw new Error('試合日が過去です')
 
-  const systemPrompt = getCompetitionPlanPrompt(daysLeft, profile, competitionName)
+  // 週数を最大8週に丸める（トークン超過防止）
+  const cappedDays = Math.min(daysLeft, 56)
+  const systemPrompt = getCompetitionPlanPrompt(cappedDays, profile, competitionName)
 
   const text = await callClaude({
     model: MODEL,
-    max_tokens: 3000,
+    max_tokens: 4096,   // 8週×7日分のJSONが収まる上限
     system: systemPrompt,
     messages: [
       {
         role: 'user',
-        content: `${daysLeft}日後の試合「${competitionName}」に向けた計画をJSONで作成してください。`,
+        content: `${cappedDays}日後（${Math.ceil(cappedDays/7)}週間）の試合「${competitionName}」に向けた計画をJSONで作成してください。`,
       },
     ],
   })
 
+  if (!text) throw new Error('AIからの応答が空でした。しばらく待ってから再試行してください。')
   return safeParseJSON(text)
 }
 

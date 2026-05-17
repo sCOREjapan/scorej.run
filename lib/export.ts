@@ -1,12 +1,19 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Platform } from 'react-native'
+import * as FileSystem from 'expo-file-system/legacy'
+import * as Sharing from 'expo-sharing'
 
-// ── CSVエクスポート（web環境）────────────────────────────────────────
-export async function exportAllDataCSV(): Promise<void> {
-  if (Platform.OS !== 'web') {
-    console.warn('CSVエクスポートはWeb環境のみ対応しています')
-    return
+// ── ネイティブ共有ヘルパー ───────────────────────────────────────────
+async function shareFileNative(content: string, filename: string, mimeType: string): Promise<void> {
+  const path = (FileSystem.cacheDirectory ?? '') + filename
+  await FileSystem.writeAsStringAsync(path, content, { encoding: FileSystem.EncodingType.UTF8 })
+  if (await Sharing.isAvailableAsync()) {
+    await Sharing.shareAsync(path, { mimeType, dialogTitle: filename })
   }
+}
+
+// ── CSVエクスポート（web / native 両対応）──────────────────────────
+export async function exportAllDataCSV(): Promise<void> {
 
   const [sessionsRaw, recordsRaw, bodyRaw] = await Promise.all([
     AsyncStorage.getItem('trackmate_sessions'),
@@ -77,23 +84,24 @@ export async function exportAllDataCSV(): Promise<void> {
 
   const dateStr = new Date().toISOString().slice(0, 10)
   const filename = `score_export_${dateStr}.csv`
-  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
+
+  if (Platform.OS === 'web') {
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  } else {
+    await shareFileNative('\uFEFF' + csv, filename, 'text/csv')
+  }
 }
 
-// ── JSON全エクスポート（バックアップ）────────────────────────────────
+// ── JSON全エクスポート（バックアップ・web / native 両対応）───────────
 export async function exportAllDataJSON(): Promise<void> {
-  if (Platform.OS !== 'web') {
-    console.warn('JSONエクスポートはWeb環境のみ対応しています')
-    return
-  }
 
   const keys = [
     'trackmate_sessions',
@@ -127,13 +135,18 @@ export async function exportAllDataJSON(): Promise<void> {
   const json = JSON.stringify(result, null, 2)
   const dateStr = new Date().toISOString().slice(0, 10)
   const filename = `score_backup_${dateStr}.json`
-  const blob = new Blob([json], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
+
+  if (Platform.OS === 'web') {
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  } else {
+    await shareFileNative(json, filename, 'application/json')
+  }
 }

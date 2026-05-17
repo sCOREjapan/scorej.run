@@ -14,19 +14,19 @@ export const AD_UNIT_IDS = {
   },
 }
 
-export const REWARDED_AD_UNIT_ID = __DEV__
-  ? TestIds.REWARDED
-  : (Platform.select({
-      ios:     AD_UNIT_IDS.ios.rewarded,
-      android: AD_UNIT_IDS.android.rewarded,
-    }) ?? TestIds.REWARDED)
+// AdMobアカウント承認後に本番IDへ切替:
+// export const REWARDED_AD_UNIT_ID = Platform.select({
+//   ios:     AD_UNIT_IDS.ios.rewarded,
+//   android: AD_UNIT_IDS.android.rewarded,
+// }) ?? TestIds.REWARDED
+export const REWARDED_AD_UNIT_ID = TestIds.REWARDED   // テストID（承認後に上記と入替）
 
-export const BANNER_AD_UNIT_ID = __DEV__
-  ? TestIds.BANNER
-  : (Platform.select({
-      ios:     AD_UNIT_IDS.ios.banner,
-      android: AD_UNIT_IDS.android.banner,
-    }) ?? TestIds.BANNER)
+// AdMobアカウント承認後に本番IDへ切替:
+// export const BANNER_AD_UNIT_ID = Platform.select({
+//   ios:     AD_UNIT_IDS.ios.banner,
+//   android: AD_UNIT_IDS.android.banner,
+// }) ?? TestIds.BANNER
+export const BANNER_AD_UNIT_ID = TestIds.BANNER        // テストID（承認後に上記と入替）
 
 /**
  * リワード広告を1本ロード＆表示
@@ -38,15 +38,28 @@ export function showOneRewardedAd(): Promise<boolean> {
       requestNonPersonalizedAdsOnly: false,
     })
 
+    // EARNED_REWARD は CLOSED より前に来ることもあるのでフラグで管理
+    let earnedReward = false
     let settled = false
     const done = (result: boolean) => {
       if (!settled) { settled = true; resolve(result) }
     }
 
-    ad.addAdEventListener(RewardedAdEventType.LOADED,        () => { ad.show().catch(() => done(false)) })
-    ad.addAdEventListener(RewardedAdEventType.EARNED_REWARD, () => done(true))
-    ad.addAdEventListener(AdEventType.CLOSED,                () => done(false))
-    ad.addAdEventListener(AdEventType.ERROR,                 () => done(false))
+    ad.addAdEventListener(RewardedAdEventType.LOADED, () => {
+      ad.show().catch(() => done(false))
+    })
+    // リワード獲得（最後まで視聴） → フラグを立てるだけ
+    ad.addAdEventListener(RewardedAdEventType.EARNED_REWARD, () => {
+      earnedReward = true
+    })
+    // 広告が閉じられたタイミングで結果を確定（EARNED_REWARDより必ず後に呼ばれる）
+    ad.addAdEventListener(AdEventType.CLOSED, () => {
+      done(earnedReward)
+    })
+    // 読み込みエラー or 表示エラー → 失敗
+    ad.addAdEventListener(AdEventType.ERROR, () => {
+      done(false)
+    })
 
     ad.load()
   })
@@ -54,17 +67,17 @@ export function showOneRewardedAd(): Promise<boolean> {
 
 /**
  * リワード広告を指定本数連続表示し、全部視聴したか返す
- * @param count    必要な視聴本数（デフォルト3）
- * @param onProgress 各本完了後に呼ばれる (watched / total)
+ * @param count      必要な視聴本数（デフォルト3）
+ * @param onProgress 各本完了後に呼ばれる (watched)
  */
 export async function watchAdsForReward(
   count = 3,
-  onProgress?: (watched: number, total: number) => void,
+  onProgress?: (watched: number) => void,
 ): Promise<boolean> {
   for (let i = 0; i < count; i++) {
     const watched = await showOneRewardedAd()
-    if (!watched) return false          // 途中離脱 → 失敗
-    onProgress?.(i + 1, count)
+    if (!watched) return false   // 途中離脱 → 失敗
+    onProgress?.(i + 1)
   }
   return true
 }

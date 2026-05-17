@@ -55,6 +55,8 @@ export const supabase: SupabaseClient = IS_PLACEHOLDER
         detectSessionInUrl: Platform.OS === 'web',
         autoRefreshToken: true,
         persistSession: true,
+        // OAuth は PKCE フロー（コード横取り攻撃への耐性が高い）
+        flowType: 'pkce',
         // ネイティブは AsyncStorage、Web は localStorage
         storage: Platform.OS !== 'web'
           ? asyncStorageAdapter

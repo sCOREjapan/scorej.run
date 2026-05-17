@@ -5,7 +5,9 @@ import { syncTeamSessions, upsertPlayerStats, fetchPlayerStats } from './supabas
 import { calcLevelInfo } from './gamification'
 import type { TrainingSession } from '../types'
 
-const JOINED_KEY = 'trackmate_team_joined'
+const JOINED_KEY    = 'trackmate_team_joined'
+const LAST_SYNC_KEY = 'trackmate_team_last_sync'
+const THROTTLE_MS   = 30 * 60 * 1000   // 30分（IO節約）
 
 interface JoinedTeam {
   code:       string
@@ -34,12 +36,26 @@ function calcStreak(sessions: { session_date: string }[]): number {
  * - team_sessions へセッションをupsert（直近30日）
  * - team_player_stats のレベル・連続記録を自動更新（既存PB・種目は上書きしない）
  */
-export async function autoSyncTeam(sessions: TrainingSession[]): Promise<void> {
+export async function autoSyncTeam(
+  sessions: TrainingSession[],
+  { force = false }: { force?: boolean } = {},
+): Promise<void> {
   try {
     const raw = await AsyncStorage.getItem(JOINED_KEY)
     if (!raw) return
     const joined: JoinedTeam = JSON.parse(raw)
     if (!joined?.code || !joined?.playerName) return
+
+    // ── 30分スロットル（force=true でもバイパスしない） ──
+    {
+      const lastRaw = await AsyncStorage.getItem(LAST_SYNC_KEY)
+      if (lastRaw) {
+        const lastSync = parseInt(lastRaw, 10)
+        if (!isNaN(lastSync) && Date.now() - lastSync < THROTTLE_MS) return
+      }
+      // Supabase 呼び出し前にタイムスタンプを書く（並列呼び出し防止）
+      await AsyncStorage.setItem(LAST_SYNC_KEY, String(Date.now()))
+    }
 
     // セッション同期
     await syncTeamSessions(joined.code, joined.playerName, sessions)
