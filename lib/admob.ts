@@ -113,14 +113,18 @@ export async function showRewardedAd(): Promise<boolean> {
     return await new Promise<boolean>((resolve) => {
       let earned = false
       let settled = false
+      let timer: ReturnType<typeof setTimeout>
       const settle = (val: boolean) => {
         if (settled) return
         settled = true
+        clearTimeout(timer)
         unsubLoaded(); unsubEarned(); unsubClosed(); unsubError()
         resolve(val)
       }
 
-      const unsubLoaded  = rewarded.addAdEventListener(RewardedAdEventType.LOADED,        () => { rewarded.show() })
+      const unsubLoaded  = rewarded.addAdEventListener(RewardedAdEventType.LOADED, async () => {
+        try { await rewarded.show() } catch (e) { settle(false) }
+      })
       const unsubEarned  = rewarded.addAdEventListener(RewardedAdEventType.EARNED_REWARD, () => { earned = true })
       const unsubClosed  = rewarded.addAdEventListener(AdEventType.CLOSED,  () => settle(earned))
       const unsubError   = rewarded.addAdEventListener(AdEventType.ERROR, (e: Error) => {
@@ -128,8 +132,7 @@ export async function showRewardedAd(): Promise<boolean> {
         settle(false)
       })
 
-      // 15秒タイムアウト（ロードが長引いたときの安全弁）
-      setTimeout(() => settle(false), 15000)
+      timer = setTimeout(() => settle(false), 15000)
       rewarded.load()
     })
   } catch (e) {
@@ -163,22 +166,25 @@ export async function showInterstitialAd(): Promise<boolean> {
 
     return await new Promise<boolean>((resolve) => {
       let settled = false
+      let timer: ReturnType<typeof setTimeout>
       const settle = (val: boolean) => {
         if (settled) return
         settled = true
+        clearTimeout(timer)
         unsubLoaded(); unsubClosed(); unsubError()
         resolve(val)
       }
 
-      const unsubLoaded = interstitial.addAdEventListener(AdEventType.LOADED,  () => { interstitial.show() })
-      const unsubClosed = interstitial.addAdEventListener(AdEventType.CLOSED,  () => settle(true))
+      const unsubLoaded = interstitial.addAdEventListener(AdEventType.LOADED, async () => {
+        try { await interstitial.show() } catch (e) { settle(false) }
+      })
+      const unsubClosed = interstitial.addAdEventListener(AdEventType.CLOSED, () => settle(true))
       const unsubError  = interstitial.addAdEventListener(AdEventType.ERROR, (e: Error) => {
         console.warn('[admob] interstitial error:', e)
         settle(false)
       })
 
-      // 10秒タイムアウト（ロード失敗でもブロックしない）
-      setTimeout(() => settle(false), 10000)
+      timer = setTimeout(() => settle(false), 10000)
       interstitial.load()
     })
   } catch (e) {
@@ -210,29 +216,43 @@ export async function showAppOpenAd(): Promise<void> {
     const { AppOpenAd, AdEventType } = lib
     const appOpen = AppOpenAd.createForAdRequest(unitId, { requestNonPersonalizedAdsOnly: true })
 
+    let actuallyShown = false
+
     await new Promise<void>((resolve) => {
       let settled = false
+      let timer: ReturnType<typeof setTimeout>
       const settle = () => {
         if (settled) return
         settled = true
+        clearTimeout(timer)
         unsubLoaded(); unsubClosed(); unsubError()
         resolve()
       }
 
-      const unsubLoaded = appOpen.addAdEventListener(AdEventType.LOADED, () => { appOpen.show() })
-      const unsubClosed = appOpen.addAdEventListener(AdEventType.CLOSED, () => settle())
-      const unsubError  = appOpen.addAdEventListener(AdEventType.ERROR, (e: Error) => {
+      const unsubLoaded = appOpen.addAdEventListener(AdEventType.LOADED, async () => {
+        try { await appOpen.show() } catch (showErr) {
+          console.warn('[admob] appOpen.show() error:', showErr)
+          settle()
+        }
+      })
+      // CLOSED は実際に表示された後にのみ発火する
+      const unsubClosed = appOpen.addAdEventListener(AdEventType.CLOSED, () => {
+        actuallyShown = true
+        settle()
+      })
+      const unsubError = appOpen.addAdEventListener(AdEventType.ERROR, (e: Error) => {
         console.warn('[admob] appOpen error:', e)
         settle()
       })
 
-      // 12秒タイムアウト
-      setTimeout(() => settle(), 12000)
+      timer = setTimeout(() => settle(), 12000)
       appOpen.load()
     })
 
-    // 表示完了 → 今日の日付を記録
-    await AsyncStorage.setItem(APP_OPEN_LAST_KEY, todayStr())
+    // 実際に表示・閉じた場合のみ「今日表示済み」と記録
+    if (actuallyShown) {
+      await AsyncStorage.setItem(APP_OPEN_LAST_KEY, todayStr())
+    }
   } catch (e) {
     console.warn('[admob] showAppOpenAd exception:', e)
   }

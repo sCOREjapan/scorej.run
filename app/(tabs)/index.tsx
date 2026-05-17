@@ -35,7 +35,7 @@ import { sendRiskAlertIfNeeded, sendStretchReminderIfNeeded, scheduleCompetition
 import { fetchTeamEvents, sendCoachNotification, type TeamEventRow } from '../../lib/supabaseTeam'
 import type { SleepRecord } from '../../types'
 import ReviewWall, { shouldShowReviewWall } from '../../components/ReviewWall'
-import { showRewardedAd, hasDailyInsightClaimed, markDailyInsightClaimed } from '../../lib/admob'
+import { showRewardedAd, showAppOpenAd, hasDailyInsightClaimed, markDailyInsightClaimed } from '../../lib/admob'
 import { getTier } from '../../lib/adGate'
 
 // ── AsyncStorage keys ───────────────────────────────────
@@ -1163,7 +1163,7 @@ export default function DashboardScreen() {
   const [showAIAdvice,    setShowAIAdvice]    = useState(false)
   const [aiAdvice,        setAiAdvice]        = useState('')
   const [loadingAI,       setLoadingAI]       = useState(false)
-  const [insightClaimed,  setInsightClaimed]  = useState(false)
+  const [insightClaimed,  setInsightClaimed]  = useState<boolean | null>(null)  // null = チェック中
   const [insightLoading,  setInsightLoading]  = useState(false)
   const [weatherBonus,    setWeatherBonus]    = useState(0)
   const [weatherText,     setWeatherText]     = useState<string | null>(null)
@@ -1276,6 +1276,16 @@ export default function DashboardScreen() {
       }
     ).catch(() => {})
   }, [fetchSessions])
+  // App Open Ad — ホーム画面初回表示時（認証後）に1日1回
+  const appOpenShownRef = useRef(false)
+  useEffect(() => {
+    if (appOpenShownRef.current) return
+    appOpenShownRef.current = true
+    // 1秒後に表示（ホーム画面のレンダリングが落ち着いてから）
+    const t = setTimeout(() => showAppOpenAd().catch(() => {}), 1000)
+    return () => clearTimeout(t)
+  }, [])
+
   useFocusEffect(useCallback(() => {
     reloadAll()
     // デイリーインサイト 取得済みかチェック
@@ -1324,7 +1334,7 @@ export default function DashboardScreen() {
 
   // ── デイリーAIインサイト（広告視聴で取得）────────────────────
   async function handleDailyInsight() {
-    if (insightClaimed || insightLoading) return
+    if (insightClaimed === true || insightClaimed === null || insightLoading) return
     const tier = await getTier()
     // PRO以上は広告なしで直接取得
     if (tier !== 'free') {
@@ -1732,6 +1742,7 @@ ${sleepText || 'データなし'}
           </AnimatedEntry>
 
           {/* ── デイリーAIインサイト（広告視聴で取得） ── */}
+          {insightClaimed !== null && (
           <AnimatedEntry delay={330}>
             <HapticTouch
               style={[s.aiCoachCard, {
@@ -1741,7 +1752,7 @@ ${sleepText || 'データなし'}
               haptic="whoosh"
               activeOpacity={0.85}
               onPress={handleDailyInsight}
-              disabled={insightClaimed || insightLoading}
+              disabled={insightClaimed === true || insightLoading}
             >
               <View style={[s.aiCoachDarkIcon, { backgroundColor: insightClaimed ? colors.surface : 'rgba(255,255,255,0.15)' }]}>
                 <Text style={{ fontSize: 20 }}>{insightClaimed ? '✅' : insightLoading ? '⏳' : '🎁'}</Text>
@@ -1765,6 +1776,7 @@ ${sleepText || 'データなし'}
               )}
             </HapticTouch>
           </AnimatedEntry>
+          )}
 
           {/* ── 練習一覧（全件・スクロール形式） ── */}
           <AnimatedEntry delay={360}>

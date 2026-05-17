@@ -15,7 +15,7 @@ import { ThemeProvider } from '../context/ThemeContext'
 import { PurchaseProvider } from '../context/PurchaseContext'
 import SplashAnimation from '../components/SplashAnimation'
 import { initOneSignal, requestPushPermission } from '../lib/notify'
-import { initAdmob, showAppOpenAd } from '../lib/admob'
+import { initAdmob } from '../lib/admob'
 
 const CONSENT_KEY = 'score_terms_accepted_v1'
 
@@ -465,16 +465,9 @@ function RootLayoutNav() {
     }
   }, [])
 
-  // AdMob SDK 初期化 + App Open Ad（1日1回）
+  // AdMob SDK 初期化
   useEffect(() => {
-    initAdmob()
-      .then(() => {
-        // 初期化後2秒待ってからApp Open広告を表示（スプラッシュと被らないよう）
-        setTimeout(() => {
-          showAppOpenAd().catch(() => {})
-        }, 2000)
-      })
-      .catch(() => {})
+    initAdmob().catch(() => {})
   }, [])
 
 
