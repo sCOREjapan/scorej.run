@@ -309,5 +309,6 @@ alter table team_player_stats add column if not exists last_fatigue integer not 
 alter table team_player_stats add column if not exists last_session_date text not null default '';
 alter table team_player_stats add column if not exists sessions_30d integer not null default 0;
 
--- 選手目標
+-- 選手目標・連続記録日数
 alter table team_player_stats add column if not exists goal text not null default '';
+alter table team_player_stats add column if not exists streak integer not null default 0;
