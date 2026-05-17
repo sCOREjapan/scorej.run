@@ -577,21 +577,21 @@
   </div>
 
   <div class="hero-inner">
-    <div class="logo-wrap">
+    <div class="logo-wrap fade-in">
       <div class="logo-mark">S</div>
       <div class="logo-text">s<span>CORE</span></div>
     </div>
-    <div class="badge">陸上競技チーム管理アプリ</div>
-    <h1 class="headline">チーム管理の、<br/><em>新常識。</em></h1>
-    <p class="sub-text">部員全員の体調・練習・怪我リスクを<br/>スマホ一台でリアルタイム把握。<br/>顧問・コーチの負担を根本から変える。</p>
-    <div class="cta-wrap">
+    <div class="badge fade-in fade-in-delay-1">陸上競技チーム管理アプリ</div>
+    <h1 class="headline fade-in fade-in-delay-2">チーム管理の、<br/><em>新常識。</em></h1>
+    <p class="sub-text fade-in fade-in-delay-3">部員全員の体調・練習・怪我リスクを<br/>スマホ一台でリアルタイム把握。<br/>顧問・コーチの負担を根本から変える。</p>
+    <div class="cta-wrap fade-in fade-in-delay-4">
       <a href="https://scorej-run.vercel.app" class="btn-primary">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/></svg>
         チームで使ってみる — 無料
       </a>
       <a href="#pricing" class="btn-ghost">プランを見る ↓</a>
     </div>
-    <p class="free-note">まず選手が無料で使い始め、<strong>コーチがチームに招待するだけ</strong></p>
+    <p class="free-note fade-in fade-in-delay-5">まず選手が無料で使い始め、<strong>コーチがチームに招待するだけ</strong></p>
   </div>
 
   <div class="scroll-hint">
@@ -1223,10 +1223,7 @@
     <div class="dev-tag">✦ Developer</div>
     <div class="dev-content">
       <div class="dev-photo-wrap">
-        <div class="dev-photo">
-          <div class="dev-photo-icon">👤</div>
-          <div>開発者写真<br/>近日公開</div>
-        </div>
+        <img src="dev-photo.jpg" alt="sCORE 開発者" class="dev-photo" style="object-fit:cover; object-position:center top;" />
       </div>
       <div class="dev-text">
         <div class="dev-headline">怪我で、<br/><em>3年間を棒に振った。</em><br/>だから、創った。</div>
@@ -1359,6 +1356,14 @@
 
   // ── FADE-IN SCROLL OBSERVER ──
   (function () {
+    // ヒーロー内の要素はページロード直後に発火
+    const heroEls = document.querySelectorAll('.hero .fade-in')
+    heroEls.forEach((el) => {
+      const delay = parseFloat(getComputedStyle(el).transitionDelay) || 0
+      setTimeout(() => el.classList.add('visible'), 120 + delay * 1000)
+    })
+
+    // それ以外はスクロールで発火
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -1370,7 +1375,7 @@
       },
       { threshold: 0.08, rootMargin: '0px 0px -40px 0px' }
     )
-    document.querySelectorAll('.fade-in').forEach((el) => observer.observe(el))
+    document.querySelectorAll('.fade-in:not(.hero .fade-in)').forEach((el) => observer.observe(el))
   })()
 </script>
 </body>
