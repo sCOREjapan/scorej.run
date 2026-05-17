@@ -24,7 +24,7 @@ export default function BannerAdView({ onLoaded, onFailed }: Props) {
         size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
         requestOptions={{ requestNonPersonalizedAdsOnly: true }}
         onAdLoaded={onLoaded}
-        onAdFailedToLoad={(error) => {
+        onAdFailedToLoad={(error: any) => {
           console.warn('[BannerAd] failed to load:', error)
           onFailed?.()
         }}

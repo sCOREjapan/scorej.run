@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useFocusEffect } from '@react-navigation/native'
 import {
-  ActivityIndicator, Animated, Easing, Modal,
+  ActivityIndicator, Animated, Easing, KeyboardAvoidingView, Modal, Platform,
   ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -26,13 +26,17 @@ import PracticeShareCard, { PracticeShareData } from '../../components/PracticeS
 import StretchHoldButton from '../../components/StretchHoldButton'
 import { registerHomeScroll, unregisterHomeScroll } from '../../lib/homeScroll'
 import { setQuickLogListener, clearQuickLogListener } from '../../lib/quickLogEvent'
-import { getCurrentLocationWeather } from '../../lib/weather'
+import { getCachedWeather, clearWeatherCache } from '../../lib/weather'
 import { calcWeatherRiskBonus, getWeatherRiskText } from '../../lib/weatherRisk'
 import { autoSyncTeam } from '../../lib/teamAutoSync'
 import { trackAppOpen, trackPaywallView } from '../../lib/analytics'
+import { usePurchase } from '../../context/PurchaseContext'
 import { sendRiskAlertIfNeeded, sendStretchReminderIfNeeded, scheduleCompetitionReminder } from '../../lib/notifications'
-import { fetchTeamEvents, type TeamEventRow } from '../../lib/supabaseTeam'
+import { fetchTeamEvents, sendCoachNotification, type TeamEventRow } from '../../lib/supabaseTeam'
 import type { SleepRecord } from '../../types'
+import ReviewWall, { shouldShowReviewWall } from '../../components/ReviewWall'
+import { showRewardedAd, hasDailyInsightClaimed, markDailyInsightClaimed } from '../../lib/admob'
+import { getTier } from '../../lib/adGate'
 
 // ── AsyncStorage keys ───────────────────────────────────
 const CONDITION_KEY      = 'trackmate_condition'
@@ -42,8 +46,16 @@ const SLEEP_KEY          = 'trackmate_sleep'
 const RECOVERY_KEY       = 'trackmate_recovery_records'
 const TASKS_KEY          = 'trackmate_tasks'
 const GOALS_KEY          = 'trackmate_goals'
-const JOINED_KEY         = 'trackmate_team_joined'
+const JOINED_KEY          = 'trackmate_team_joined'
 const EVENT_CONFIRMED_KEY = 'event_confirmed_ids'
+const NOTIF_READ_KEY      = 'notif_read_ids'
+
+// アプリお知らせIDリスト（通知画面と同期）
+const APP_NOTICE_IDS = ['v1.0.1-date-fix','v1.0.1-load-fix','v1.0.1-injury-model','welcome-v1']
+const APP_NOTICE_DATES: Record<string, string> = {
+  'v1.0.1-date-fix': '2026-05-14', 'v1.0.1-load-fix': '2026-05-14',
+  'v1.0.1-injury-model': '2026-05-14', 'welcome-v1': '2026-04-01',
+}
 
 // ── チーム予定ヘルパー ────────────────────────────────────
 const EVENT_CFG_HOME: Record<string, { emoji: string; color: string }> = {
@@ -628,6 +640,69 @@ function GoalCard({
   const [newTaskText,   setNewTaskText]   = useState('')
   const [showAchieved,  setShowAchieved]  = useState(false)
   const [expandedId,    setExpandedId]    = useState<string | null>(null)
+  const [confettiGoalId, setConfettiGoalId] = useState<string | null>(null)
+  const [longPressGoalId, setLongPressGoalId] = useState<string | null>(null)
+  const longPressProgress = useRef(new Animated.Value(0)).current
+  const longPressAnim = useRef<Animated.CompositeAnimation | null>(null)
+
+  // confetti パーティクル
+  const PARTICLES = 18
+  const particleAnims = useRef(
+    Array.from({ length: PARTICLES }, () => ({
+      x:  new Animated.Value(0),
+      y:  new Animated.Value(0),
+      op: new Animated.Value(0),
+      rot: new Animated.Value(0),
+      scale: new Animated.Value(0),
+    }))
+  ).current
+  const EMOJIS = ['🏆','⭐','✨','🎉','🎊','💫','🌟','🔥']
+
+  function triggerConfetti(goalId: string) {
+    setConfettiGoalId(goalId)
+    particleAnims.forEach((p, i) => {
+      const angle = (i / PARTICLES) * Math.PI * 2
+      const dist  = 60 + Math.random() * 80
+      p.x.setValue(0); p.y.setValue(0); p.op.setValue(1); p.rot.setValue(0); p.scale.setValue(0)
+      Animated.parallel([
+        Animated.timing(p.x,     { toValue: Math.cos(angle) * dist,   duration: 900, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
+        Animated.timing(p.y,     { toValue: Math.sin(angle) * dist - 40, duration: 900, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
+        Animated.timing(p.scale, { toValue: 1,    duration: 200, useNativeDriver: true }),
+        Animated.timing(p.rot,   { toValue: 2,    duration: 900, useNativeDriver: true }),
+        Animated.sequence([
+          Animated.delay(500),
+          Animated.timing(p.op, { toValue: 0, duration: 400, useNativeDriver: true }),
+        ]),
+      ]).start()
+    })
+    setTimeout(() => setConfettiGoalId(null), 1200)
+  }
+
+  function startLongPress(goalId: string) {
+    setLongPressGoalId(goalId)
+    longPressProgress.setValue(0)
+    longPressAnim.current = Animated.timing(longPressProgress, {
+      toValue: 1, duration: 700, useNativeDriver: false,
+    })
+    longPressAnim.current.start(({ finished }) => {
+      if (finished) {
+        achieveGoal(goalId)
+        setLongPressGoalId(null)
+        longPressProgress.setValue(0)
+      }
+    })
+  }
+
+  function cancelLongPress() {
+    longPressAnim.current?.stop()
+    setLongPressGoalId(null)
+    longPressProgress.setValue(0)
+  }
+
+  function achieveGoal(goalId: string) {
+    onUpdate(goals.map(g => g.id === goalId ? { ...g, progress: 100, achieved: true } : g))
+    triggerConfetti(goalId)
+  }
 
   const active   = goals.filter(g => !g.achieved)
   const achieved = goals.filter(g => g.achieved)
@@ -798,14 +873,69 @@ function GoalCard({
                       </View>
                     </View>
 
-                    {/* 編集ボタン */}
-                    <TouchableOpacity
-                      onPress={() => openEdit(g)}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      style={{ padding: 4 }}
-                    >
-                      <Ionicons name="create-outline" size={15} color={colors.textHint} />
-                    </TouchableOpacity>
+                    {/* 右側ボタン群 */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      {/* 達成ボタン（長押し or onLongPress で達成） */}
+                      <View style={{ position: 'relative', alignItems: 'center' }}>
+                        {/* 長押し中の進行バー */}
+                        <View style={{ width: 52, height: 44, borderRadius: 10, overflow: 'hidden', position: 'relative' }}>
+                          <Animated.View style={{
+                            position: 'absolute', top: 0, left: 0, bottom: 0,
+                            borderRadius: 10,
+                            backgroundColor: '#34C75966',
+                            width: longPressGoalId === g.id
+                              ? longPressProgress.interpolate({ inputRange: [0,1], outputRange: ['0%','100%'] })
+                              : '0%',
+                          }} />
+                          <TouchableOpacity
+                            onPressIn={() => startLongPress(g.id)}
+                            onPressOut={cancelLongPress}
+                            onLongPress={() => { cancelLongPress(); achieveGoal(g.id) }}
+                            delayLongPress={600}
+                            activeOpacity={0.75}
+                            style={{
+                              width: 52, height: 44, borderRadius: 10,
+                              backgroundColor: 'transparent',
+                              borderWidth: 1.5,
+                              borderColor: longPressGoalId === g.id ? '#34C759' : colors.border,
+                              alignItems: 'center', justifyContent: 'center',
+                              gap: 1,
+                            }}
+                          >
+                            <Text style={{ fontSize: 14 }}>🏆</Text>
+                            <Text style={{ fontSize: 9, color: longPressGoalId === g.id ? '#34C759' : colors.textSec, fontWeight: '600' }}>
+                              {longPressGoalId === g.id ? '達成！' : '長押し'}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                        {/* confetti パーティクル */}
+                        {confettiGoalId === g.id && particleAnims.map((p, i) => (
+                          <Animated.Text
+                            key={i}
+                            style={{
+                              position: 'absolute', top: 8, left: 8,
+                              fontSize: 14, opacity: p.op,
+                              transform: [
+                                { translateX: p.x },
+                                { translateY: p.y },
+                                { scale: p.scale },
+                                { rotate: p.rot.interpolate({ inputRange: [0,2], outputRange: ['0deg','720deg'] }) },
+                              ],
+                            }}
+                          >
+                            {EMOJIS[i % EMOJIS.length]}
+                          </Animated.Text>
+                        ))}
+                      </View>
+                      {/* 編集ボタン */}
+                      <TouchableOpacity
+                        onPress={() => openEdit(g)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        style={{ padding: 4 }}
+                      >
+                        <Ionicons name="create-outline" size={15} color={colors.textHint} />
+                      </TouchableOpacity>
+                    </View>
                   </TouchableOpacity>
 
                   {/* タスクリスト（展開時） */}
@@ -1005,10 +1135,14 @@ const gc = StyleSheet.create({
 // ────────────────────────────────────────────────────────
 // DashboardScreen
 // ────────────────────────────────────────────────────────
+const APP_OPEN_COUNT_KEY = 'score_app_open_count'
+
 export default function DashboardScreen() {
   const router = useRouter()
   const { colors } = useTheme()
+  const { tier: purchaseTier } = usePurchase()
   const { sessions, loading, fetchSessions } = useTrainingSessions()
+  const [appOpenCount,     setAppOpenCount]     = useState(0)
   const [selectedDate,    setSelectedDate]    = useState(TODAY_ISO)
   const [showQuickLog,    setShowQuickLog]    = useState(false)
   const [conditionMap,    setConditionMap]    = useState<Record<string,number>>({})
@@ -1029,15 +1163,18 @@ export default function DashboardScreen() {
   const [showAIAdvice,    setShowAIAdvice]    = useState(false)
   const [aiAdvice,        setAiAdvice]        = useState('')
   const [loadingAI,       setLoadingAI]       = useState(false)
+  const [insightClaimed,  setInsightClaimed]  = useState(false)
+  const [insightLoading,  setInsightLoading]  = useState(false)
   const [weatherBonus,    setWeatherBonus]    = useState(0)
   const [weatherText,     setWeatherText]     = useState<string | null>(null)
   const [weatherLoading,  setWeatherLoading]  = useState(false)
   const [stretchReduction,setStretchReduction]= useState(0)
   const [recoveryBanner,  setRecoveryBanner]  = useState<{ reduction: number } | null>(null)
   const [teamNotifs,      setTeamNotifs]      = useState<TeamEventRow[]>([])
+  const [reviewWallVisible, setReviewWallVisible] = useState(false)
   const [confirmedIds,    setConfirmedIds]    = useState<Set<string>>(new Set())
+  const [notifReadIds,    setNotifReadIds]    = useState<Set<string>>(new Set())
   const [shareSession,    setShareSession]    = useState<PracticeShareData | null>(null)
-
   // ── アプリ起動トラッキング（1日1回） ──
   useEffect(() => {
     const TODAY = new Date().toISOString().slice(0, 10)
@@ -1045,40 +1182,39 @@ export default function DashboardScreen() {
       if (last !== TODAY) {
         trackAppOpen()
         AsyncStorage.setItem('score_last_open_tracked', TODAY).catch(() => {})
+        // アプリ起動回数をインクリメント
+        AsyncStorage.getItem(APP_OPEN_COUNT_KEY).then(raw => {
+          const newCount = (raw ? parseInt(raw, 10) : 0) + 1
+          setAppOpenCount(newCount)
+          AsyncStorage.setItem(APP_OPEN_COUNT_KEY, String(newCount)).catch(() => {})
+        }).catch(() => {})
+      } else {
+        AsyncStorage.getItem(APP_OPEN_COUNT_KEY).then(raw => {
+          setAppOpenCount(raw ? parseInt(raw, 10) : 0)
+        }).catch(() => {})
       }
     }).catch(() => {})
   }, [])
 
-  // ── 永続データ読み込み ──
+  // ── 永続データ読み込み（旧フォーマットマイグレーションのみ / 他は useFocusEffect の reloadAll に任せる）──
   useEffect(() => {
-    // 体調マップを読み込み（旧フォーマットからマイグレーション）
     AsyncStorage.multiGet([CONDITION_MAP_KEY, CONDITION_KEY]).then(([[, mapStr], [, oldVal]]) => {
       if (mapStr) {
-        setConditionMap(JSON.parse(mapStr))
+        try { setConditionMap(JSON.parse(mapStr)) } catch {}
       } else if (oldVal) {
-        // 旧データを今日の体調として移行
         const migrated = { [TODAY_ISO]: Number(oldVal) }
         setConditionMap(migrated)
         AsyncStorage.setItem(CONDITION_MAP_KEY, JSON.stringify(migrated)).catch(() => {})
       }
     }).catch(() => {})
-    AsyncStorage.getItem(SLEEP_KEY).then(r => { if (r) setSleepRecords(JSON.parse(r)) }).catch(() => {})
-    AsyncStorage.getItem(RECOVERY_KEY).then(r => {
-      if (!r) return
-      const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)
-      const records = JSON.parse(r) as Array<{ date: string }>
-      setHasSymptom(records.some(rec => rec.date >= sevenDaysAgo))
-    }).catch(() => {})
-    AsyncStorage.getItem(GOALS_KEY).then(r => { if (r) setGoals(JSON.parse(r)) }).catch(() => {})
-    loadTasks()
-    fetchSessions(MOCK_USER_ID)
   }, [])
 
-  // ── 天気取得 ──
-  const fetchWeather = useCallback(async () => {
+  // ── 天気取得（キャッシュ付き：朝6時・昼12時・夜18時の3回だけAPI呼び出し）──
+  const fetchWeather = useCallback(async (forceRefresh = false) => {
     setWeatherLoading(true)
     try {
-      const w = await getCurrentLocationWeather()
+      if (forceRefresh) await clearWeatherCache()
+      const w = await getCachedWeather()
       if (!w) return
       const bonus = calcWeatherRiskBonus(w)
       setWeatherBonus(bonus)
@@ -1087,7 +1223,22 @@ export default function DashboardScreen() {
     finally { setWeatherLoading(false) }
   }, [])
 
-  useEffect(() => { fetchWeather() }, [fetchWeather])
+  // 天気は起動から少し遅らせて取得（コアUIの描画を優先）
+  useEffect(() => {
+    const t = setTimeout(() => fetchWeather(), 600)
+    return () => clearTimeout(t)
+  }, [fetchWeather])
+
+  // レビューウォール：起動5回目以降に表示（3秒後に）
+  useEffect(() => {
+    const t = setTimeout(async () => {
+      try {
+        const show = await shouldShowReviewWall()
+        if (show) setReviewWallVisible(true)
+      } catch {}
+    }, 3000)
+    return () => clearTimeout(t)
+  }, [])
 
   function handleGoalsUpdate(next: Goal[]) {
     setGoals(next)
@@ -1100,7 +1251,8 @@ export default function DashboardScreen() {
     const today = new Date().toISOString().slice(0, 10)
     AsyncStorage.getItem(STRETCH_RESULT_KEY).then(raw => {
       if (!raw) return
-      const parsed = JSON.parse(raw)
+      let parsed: any
+      try { parsed = JSON.parse(raw) } catch { return }
       if (parsed.date !== today) { setStretchReduction(0); return }
       setStretchReduction(parsed.reduction ?? 0)
       if (parsed.showBanner) {
@@ -1126,29 +1278,39 @@ export default function DashboardScreen() {
   }, [fetchSessions])
   useFocusEffect(useCallback(() => {
     reloadAll()
+    // デイリーインサイト 取得済みかチェック
+    hasDailyInsightClaimed().then(claimed => setInsightClaimed(claimed)).catch(() => {})
     // ホーム画面が表示されるたびにチームへセッションを同期
     AsyncStorage.getItem('trackmate_sessions').then(raw => {
-      if (raw) autoSyncTeam(JSON.parse(raw)).catch(() => {})
+      if (raw) { try { autoSyncTeam(JSON.parse(raw)).catch(() => {}) } catch {} }
     }).catch(() => {})
     // チーム予定 + 確認済みIDを取得
     Promise.all([
       AsyncStorage.getItem(JOINED_KEY),
       AsyncStorage.getItem(EVENT_CONFIRMED_KEY),
     ]).then(([joinedRaw, confirmedRaw]) => {
-      setConfirmedIds(new Set(confirmedRaw ? JSON.parse(confirmedRaw) : []))
+      try { setConfirmedIds(new Set(confirmedRaw ? JSON.parse(confirmedRaw) : [])) } catch {}
       if (!joinedRaw) return
-      const joined = JSON.parse(joinedRaw)
+      let joined: any
+      try { joined = JSON.parse(joinedRaw) } catch { return }
       if (!joined?.code) return
-      fetchTeamEvents(joined.code).then(evts => {
-        // 未来 or 今日の予定のみ（過去は除外）
-        setTeamNotifs(evts.filter(e => !isPastEvent(e.event_date)))
-      }).catch(() => {})
+      if (Date.now() - lastTeamEventsFetch.current >= 5 * 60 * 1000) {
+        lastTeamEventsFetch.current = Date.now()
+        fetchTeamEvents(joined.code).then(evts => {
+          // 未来 or 今日の予定のみ（過去は除外）
+          setTeamNotifs(evts.filter(e => !isPastEvent(e.event_date)))
+        }).catch(() => {})
+      }
+    }).catch(() => {})
+    // 通知画面から戻ったとき用：既読IDを再ロードしてバッジを消す
+    AsyncStorage.getItem(NOTIF_READ_KEY).then(raw => {
+      setNotifReadIds(new Set(raw ? JSON.parse(raw) : []))
     }).catch(() => {})
   }, [reloadAll]))
 
   function loadTasks() {
     AsyncStorage.getItem(TASKS_KEY).then(r => {
-      if (r) setTasks(JSON.parse(r))
+      if (r) { try { setTasks(JSON.parse(r)) } catch {} }
     }).catch(() => {})
   }
 
@@ -1158,6 +1320,31 @@ export default function DashboardScreen() {
       AsyncStorage.setItem(TASKS_KEY, JSON.stringify(next)).catch(() => {})
       return next
     })
+  }
+
+  // ── デイリーAIインサイト（広告視聴で取得）────────────────────
+  async function handleDailyInsight() {
+    if (insightClaimed || insightLoading) return
+    const tier = await getTier()
+    // PRO以上は広告なしで直接取得
+    if (tier !== 'free') {
+      await markDailyInsightClaimed()
+      setInsightClaimed(true)
+      handleGetAIAdvice()
+      return
+    }
+    // FREEは広告視聴が必要
+    setInsightLoading(true)
+    try {
+      const watched = await showRewardedAd()
+      if (watched) {
+        await markDailyInsightClaimed()
+        setInsightClaimed(true)
+        handleGetAIAdvice()
+      }
+    } finally {
+      setInsightLoading(false)
+    }
   }
 
   // ── AIコーチアドバイス ──────────────────────────────────
@@ -1195,34 +1382,60 @@ export default function DashboardScreen() {
         ? recentSleep.map(r => `${r.sleep_date}: ${r.duration_min ? (r.duration_min/60).toFixed(1) : '?'}h`).join(', ')
         : '記録なし'
 
-      const prompt = `あなたは陸上競技の専門コーチです。以下のデータをもとに、選手へのアドバイスを日本語で3〜5項目、具体的かつ実践的に提供してください。
+      const systemPrompt = `あなたは陸上競技専門のエリートコーチです。オリンピック選手も指導した経験を持ち、スポーツ科学・栄養学・スポーツ心理学の知識を統合した高度なアドバイスができます。
 
-【今日の日付】${today}
-【今日の体調】${conditionLabel}（${conditionLevel}/10）
-【怪我リスクスコア】${riskLabel}
-【直近7日の練習記録】
-${sessionsText}
-【直近7日の睡眠】${sleepText}
-【体の痛み・違和感】${hasSymptom ? 'あり（直近7日以内）' : 'なし'}
+コーチとしてのスタイル：
+- 選手のデータを深く読み解き、表面的でない本質的な課題を指摘する
+- 具体的な数値・種目名・タイムを出して語る（「もっと走れ」ではなく「火曜の400m×6本はインターバルを90秒に縮めてみよう」）
+- 選手の頑張りをちゃんと認め、自信を持たせてから改善点を伝える
+- 科学的根拠を簡潔に添える（「睡眠不足は成長ホルモンの分泌を30%下げる」など）
+- 語尾は「〜だ」「〜しよう」「〜が大切」など、コーチらしい力強い言葉で締める
+- 絶対にテンプレっぽい文章にしない。その選手のデータを見て初めて言える言葉を選ぶ`
 
-アドバイスは以下の観点を含めてください：
-1. 今週の練習の評価・総評
-2. 疲労・リカバリーへのアドバイス
-3. 来週に向けての練習方針
-4. 食事・睡眠・生活習慣のアドバイス（あれば）
-5. 注意すべき点
+      const prompt = `今日は${today}。以下の選手データを見て、このコーチとしての分析・アドバイスをしてください。
 
-回答は各項目を絵文字＋見出し付きで、読みやすくまとめてください。`
+━━━ 選手の現在地 ━━━
+体調スコア：${conditionLevel}/10（${conditionLabel}）
+怪我リスク：${riskLabel}
+痛み・違和感：${hasSymptom ? '⚠️ あり（直近7日以内に記録あり）' : 'なし'}
+
+━━━ 直近7日の練習 ━━━
+${sessionsText || '記録なし（まだ練習ログがない）'}
+
+━━━ 睡眠 ━━━
+${sleepText || 'データなし'}
+
+━━━━━━━━━━━━━━━━━━━━━
+
+以下の構成で、このコーチとしてのリアルな言葉でアドバイスしてください。
+
+🔍 **今週の総評**
+（練習量・強度・体調の変化を具体的に読み解く。数字を使う。）
+
+💪 **よくやった点・強み**
+（認めるべき努力や成果を正直に伝える。具体的に。）
+
+⚡ **今すぐ変えるべきこと**
+（最も重要な改善点1〜2個を、理由と一緒にズバリ言う。）
+
+🗓 **明日〜来週の練習方針**
+（今週のデータを踏まえた具体的な練習提案。種目・セット数・強度まで）
+
+🌙 **リカバリー・コンディション**
+（睡眠・栄養・疲労管理について、今のデータに基づいた具体策）
+
+最後に、コーチとしての一言メッセージ（1〜2文。熱く、でも的確に）`
 
       {
-        const apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? '').replace(/\/$/, '')
-        const endpoint = apiBase ? `${apiBase}/api/analyze` : '/api/analyze'
+        const apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
+        const endpoint = `${apiBase}/api/analyze`
         const res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
-            model: 'claude-haiku-4-5-20251001',
-            max_tokens: 800,
+            model: 'claude-sonnet-4-5',
+            max_tokens: 1400,
+            system: systemPrompt,
             messages: [{ role: 'user', content: prompt }],
           }),
         })
@@ -1271,7 +1484,23 @@ ${sessionsText}
     // 前回から閾値をまたいで上昇した場合のみ通知（再マウントやリフレッシュでは発火しない）
     const crossedRisk    = prev !== null && prev < 80 && effectiveRiskScore >= 80
     const crossedStretch = prev !== null && prev < 75 && effectiveRiskScore >= 75
-    if (crossedRisk)    sendRiskAlertIfNeeded(effectiveRiskScore)
+    if (crossedRisk) {
+      sendRiskAlertIfNeeded(effectiveRiskScore)
+      // コーチに怪我リスクを通知
+      AsyncStorage.getItem(JOINED_KEY).then(raw => {
+        if (!raw) return
+        let joined: any
+        try { joined = JSON.parse(raw) } catch { return }
+        if (joined?.code && joined?.playerName) {
+          sendCoachNotification(
+            joined.code,
+            'risk_alert',
+            joined.playerName,
+            `${joined.playerName}の怪我リスクが高くなっています（スコア: ${effectiveRiskScore}）`,
+          ).catch(() => {})
+        }
+      }).catch(() => {})
+    }
     if (crossedStretch) sendStretchReminderIfNeeded(effectiveRiskScore, stretchReduction > 0)
   }, [effectiveRiskScore, stretchReduction])
 
@@ -1280,7 +1509,8 @@ ${sessionsText}
   }, [effectiveRiskScore])
 
   // ── スクロールトップ ──
-  const scrollRef = useRef<ScrollView>(null)
+  const scrollRef            = useRef<ScrollView>(null)
+  const lastTeamEventsFetch  = useRef<number>(0)
   useEffect(() => {
     registerHomeScroll(() => scrollRef.current?.scrollTo({ y: 0, animated: true }))
     setQuickLogListener(() => setShowQuickLog(true))
@@ -1311,23 +1541,31 @@ ${sessionsText}
               </HapticTouch>
               {/* 右アイコン群 */}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                {/* 通知ベル → 設定画面の通知セクションへ */}
+                {/* 通知ベル → 通知・連絡ボックスへ */}
                 <HapticTouch
                   style={[s.iconBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
                   haptic="whoosh"
-                  onPress={() => { unlockAudio(); router.push('/settings') }}
+                  onPress={() => { unlockAudio(); router.push('/notifications') }}
                   activeOpacity={0.8}
                 >
                   <View>
                     <Ionicons name="notifications-outline" size={18} color={colors.textSec} />
-                    {teamNotifs.filter(e => isNewTeamEvent(e.created_at) && !confirmedIds.has(e.id)).length > 0 && (
-                      <View style={{
-                        position: 'absolute', top: -3, right: -3,
-                        width: 8, height: 8, borderRadius: 4,
-                        backgroundColor: '#FF3B30',
-                        borderWidth: 1.5, borderColor: colors.surface,
-                      }} />
-                    )}
+                    {(() => {
+                      // チーム連絡の未読 or アプリお知らせの未読があればバッジ表示
+                      const teamUnread = teamNotifs.some(e => isNewTeamEvent(e.created_at) && !notifReadIds.has(e.id))
+                      const appUnread  = APP_NOTICE_IDS.some(id => {
+                        const d = APP_NOTICE_DATES[id]
+                        return d && Date.now() - new Date(d + 'T00:00:00').getTime() < 3 * 24 * 60 * 60 * 1000 && !notifReadIds.has(id)
+                      })
+                      return (teamUnread || appUnread) ? (
+                        <View style={{
+                          position: 'absolute', top: -3, right: -3,
+                          width: 8, height: 8, borderRadius: 4,
+                          backgroundColor: '#FF3B30',
+                          borderWidth: 1.5, borderColor: colors.surface,
+                        }} />
+                      ) : null
+                    })()}
                   </View>
                 </HapticTouch>
                 {/* プロフィール → マイページへ */}
@@ -1431,7 +1669,7 @@ ${sessionsText}
               effectiveRiskScore={effectiveRiskScore ?? undefined}
               weatherBonus={weatherBonus}
               onStretchStart={handleStretchStart}
-              onRefreshWeather={fetchWeather}
+              onRefreshWeather={() => fetchWeather(true)}
               weatherLoading={weatherLoading}
             />
           </AnimatedEntry>
@@ -1490,6 +1728,41 @@ ${sessionsText}
                     : '体調・練習・睡眠データから総合分析。タップで取得。'}
                 </Text>
               </View>
+            </HapticTouch>
+          </AnimatedEntry>
+
+          {/* ── デイリーAIインサイト（広告視聴で取得） ── */}
+          <AnimatedEntry delay={330}>
+            <HapticTouch
+              style={[s.aiCoachCard, {
+                backgroundColor: insightClaimed ? (colors.surface) : '#166534',
+                opacity: insightLoading ? 0.7 : 1,
+              }]}
+              haptic="whoosh"
+              activeOpacity={0.85}
+              onPress={handleDailyInsight}
+              disabled={insightClaimed || insightLoading}
+            >
+              <View style={[s.aiCoachDarkIcon, { backgroundColor: insightClaimed ? colors.surface : 'rgba(255,255,255,0.15)' }]}>
+                <Text style={{ fontSize: 20 }}>{insightClaimed ? '✅' : insightLoading ? '⏳' : '🎁'}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.aiCoachLabel, { color: insightClaimed ? colors.text : '#fff' }]}>
+                  {insightClaimed ? '今日のインサイト取得済み' : '今日のAIインサイトを取得'}
+                </Text>
+                <Text style={{ fontSize: 12, color: insightClaimed ? colors.textSec : 'rgba(255,255,255,0.75)', lineHeight: 17 }}>
+                  {insightClaimed
+                    ? '明日またリセットされます'
+                    : insightLoading
+                    ? '広告を読み込み中...'
+                    : '📺 広告を見てAIコーチのアドバイスを取得（無料）'}
+                </Text>
+              </View>
+              {!insightClaimed && !insightLoading && (
+                <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }}>
+                  <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>FREE</Text>
+                </View>
+              )}
             </HapticTouch>
           </AnimatedEntry>
 
@@ -1601,6 +1874,36 @@ ${sessionsText}
               })()}
             </GlassCard>
           </AnimatedEntry>
+
+          {/* ── チームアップセルカード（Pro ユーザー・3回目以降起動時のみ） ── */}
+          {purchaseTier === 'pro' && appOpenCount >= 3 && (
+            <AnimatedEntry delay={410}>
+              <TouchableOpacity
+                style={{
+                  backgroundColor: '#f0fdf4',
+                  borderRadius: 16,
+                  padding: 16,
+                  borderWidth: 1,
+                  borderColor: 'rgba(22,101,52,0.2)',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 14,
+                  marginBottom: 10,
+                }}
+                onPress={() => router.push('/(tabs)/team')}
+                activeOpacity={0.85}
+              >
+                <View style={{ width: 46, height: 46, borderRadius: 13, backgroundColor: 'rgba(22,101,52,0.12)', alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 22 }}>👥</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: '#166534', fontSize: 14, fontWeight: '800' }}>部員全員で使うと ¥149/人</Text>
+                  <Text style={{ color: '#4b7c5a', fontSize: 12, lineHeight: 17, marginTop: 2 }}>ELITEチームプランで部員全員の{'\n'}コンディションを一括管理できます</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color="#166534" />
+              </TouchableOpacity>
+            </AnimatedEntry>
+          )}
 
           {/* ── リカバリー ── */}
           <AnimatedEntry delay={420}>
@@ -1716,6 +2019,12 @@ ${sessionsText}
       </Modal>
 
       <PWAInstallPrompt />
+
+      {/* レビューウォール */}
+      <ReviewWall
+        visible={reviewWallVisible}
+        onClose={() => setReviewWallVisible(false)}
+      />
     </View>
   )
 }
@@ -1790,6 +2099,7 @@ const s = StyleSheet.create({
     borderTopLeftRadius: 20, borderTopRightRadius: 20,
     paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16,
     maxHeight: '85%',
+    flex: 1,
   },
   modalHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

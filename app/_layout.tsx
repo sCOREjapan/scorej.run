@@ -15,7 +15,7 @@ import { ThemeProvider } from '../context/ThemeContext'
 import { PurchaseProvider } from '../context/PurchaseContext'
 import SplashAnimation from '../components/SplashAnimation'
 import { initOneSignal, requestPushPermission } from '../lib/notify'
-import { initAdmob } from '../lib/admob'
+import { initAdmob, showAppOpenAd } from '../lib/admob'
 
 const CONSENT_KEY = 'score_terms_accepted_v1'
 
@@ -393,7 +393,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
     const inAuth        = segments[0] === 'auth'
     const inOnboarding  = segments[0] === 'onboarding'
-    const inPublic      = segments[0] === 'coach-landing'
+    const inPublic      = segments[0] === 'coach-landing' || segments[0] === 'guide'
     const authed        = !!user || isGuest
 
     // OAuth リダイレクト後はルート URL '/' に着地する（app/index.tsx が存在しないため空白画面）
@@ -465,9 +465,16 @@ function RootLayoutNav() {
     }
   }, [])
 
-  // AdMob SDK 初期化（ネイティブのみ）
+  // AdMob SDK 初期化 + App Open Ad（1日1回）
   useEffect(() => {
-    initAdmob().catch(() => {})
+    initAdmob()
+      .then(() => {
+        // 初期化後2秒待ってからApp Open広告を表示（スプラッシュと被らないよう）
+        setTimeout(() => {
+          showAppOpenAd().catch(() => {})
+        }, 2000)
+      })
+      .catch(() => {})
   }, [])
 
 
