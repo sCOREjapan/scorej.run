@@ -21,6 +21,7 @@ module.exports = {
     ios: {
       supportsTablet: false,
       bundleIdentifier: 'com.scorejapan.score',
+      usesAppleSignIn: true,
       infoPlist: {
         CFBundleURLTypes: [
           {
@@ -28,21 +29,22 @@ module.exports = {
               'com.googleusercontent.apps.918711129795-5lt5a8v4ud03iu2lg35olfits8rc78dg'
             ]
           }
-        ]
+        ],
+        // iOS 14+ でのパーソナライズ広告に必要（ATT: App Tracking Transparency）
+        NSUserTrackingUsageDescription:
+          'パーソナライズされた広告を表示するために広告識別子を使用します。',
       }
     },
     android: { adaptiveIcon: { backgroundColor: '#0a0a0a' }, package: 'com.scorejapan.score' },
     plugins: [
       'expo-router',
+      'expo-apple-authentication',
       // AdMob — App IDはAdMobダッシュボード > アプリ > [アプリ名] > アプリの設定 で確認
       // TODO: 下記の ADMOB_APP_ID_IOS / ANDROID を実際のApp IDに差し替える
       // 形式: ca-app-pub-XXXXXXXX~YYYYYYYYYY  (スラッシュではなくチルダ~)
       ['react-native-google-mobile-ads', {
-        // AdMobアカウントが承認されたら本番IDに差し替える:
-        // iosAppId: 'ca-app-pub-6225795381877305~3874907264',
-        // androidAppId: 'ca-app-pub-6225795381877305~6309498919',
-        androidAppId: 'ca-app-pub-3940256099942544~3347511713',  // Google テストApp ID
-        iosAppId:     'ca-app-pub-3940256099942544~1458002511',  // Google テストApp ID
+        iosAppId:     'ca-app-pub-6225795381877305~3874907264',  // ✅ 本番 iOS App ID
+        androidAppId: 'ca-app-pub-6225795381877305~6309498919',  // ✅ 本番 Android App ID
       }],
       ['expo-location', {
         locationAlwaysAndWhenInUsePermission: '天気情報と怪我リスク計算のために現在地を使用します',
@@ -60,6 +62,8 @@ module.exports = {
         savePhotosPermission: 'シェアカードをカメラロールに保存するために写真ライブラリへのアクセスが必要です',
         isAccessMediaLocationEnabled: false,
       }],
+      // react-native-purchases: EAS (native) ビルド時のみ追加（web export では不要）
+      ...(IS_EAS ? [['react-native-purchases', {}]] : []),
     ],
     scheme: 'score',
     web: { bundler: 'metro', output: 'static', favicon: './assets/icon.png' },
