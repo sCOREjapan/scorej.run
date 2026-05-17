@@ -11,6 +11,7 @@ import Svg, {
 } from 'react-native-svg'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { useRouter } from 'expo-router'
 
 /* ─── 型定義 ─────────────────────────────────── */
 type Severity = 'mild' | 'moderate' | 'severe'
@@ -88,6 +89,7 @@ const STORAGE_KEY = 'trackmate_recovery_records'
 
 /* ════════════════════════════════════════════ */
 export default function RecoveryScreen() {
+  const router = useRouter()
   const [bodyParts, setBodyParts] = useState<string[]>([])
   const [painLevel, setPainLevel] = useState(5)
   const [painType,  setPainType]  = useState('')
@@ -372,6 +374,7 @@ export default function RecoveryScreen() {
         }}
         onUpgrade={() => {
           setAdGateVisible(false)
+          router.push('/paywall')
         }}
       />
     </View>
@@ -788,8 +791,10 @@ const s = StyleSheet.create({
                       borderWidth:1,borderColor:'rgba(255,149,0,0.28)',marginBottom:16},
   disclaimerBannerTxt:{color:'#b45309',fontSize:11,lineHeight:17,flex:1},
   submitBtn:        {flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,
-                      backgroundColor:'#166534',borderRadius:16,paddingVertical:18,marginTop:16},
-  submitTxt:        {color:'#fff',fontSize:16,fontWeight:'800'},
+                      backgroundColor:'#1c1c1e',borderRadius:50,paddingVertical:18,marginTop:16,
+                      shadowColor:'#000',shadowOffset:{width:0,height:4},
+                      shadowOpacity:0.18,shadowRadius:12,elevation:5},
+  submitTxt:        {color:'#fff',fontSize:16,fontWeight:'800',letterSpacing:-0.3},
 
   diagCard:         {backgroundColor:'#fff',borderRadius:14,padding:16,borderLeftWidth:4,marginBottom:12,
                       shadowColor:'#000',shadowOffset:{width:0,height:2},shadowOpacity:0.06,shadowRadius:8,elevation:2},

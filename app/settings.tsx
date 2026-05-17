@@ -9,6 +9,8 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useRouter } from 'expo-router'
+import * as FileSystem from 'expo-file-system/legacy'
+import * as Sharing from 'expo-sharing'
 
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
@@ -80,16 +82,28 @@ async function exportCSV() {
       csv += row.join(',') + '\n'
     })
 
+    const filename = `score_${new Date().toISOString().slice(0, 10)}.csv`
+
     if (typeof document !== 'undefined') {
+      // Web: ダウンロードリンクを生成
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
       const url  = URL.createObjectURL(blob)
       const a    = document.createElement('a')
       a.href     = url
-      a.download = `score_${new Date().toISOString().slice(0, 10)}.csv`
+      a.download = filename
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
+    } else {
+      // Native: ファイルに書き込んで共有シートを開く
+      const path = (FileSystem.cacheDirectory ?? '') + filename
+      await FileSystem.writeAsStringAsync(path, csv, { encoding: FileSystem.EncodingType.UTF8 })
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(path, { mimeType: 'text/csv', dialogTitle: 'CSVをエクスポート' })
+      } else {
+        Alert.alert('完了', `${filename} を保存しました`)
+      }
     }
   } catch (e) {
     Alert.alert('エラー', 'エクスポートに失敗しました')
@@ -331,30 +345,44 @@ export default function SettingsScreen() {
     )
   }, [locPerm])
 
-  // キャッシュクリア
+  // 全データリセット（AsyncStorage + FileSystem + ログアウト）
   const handleClearCache = async () => {
-    if (Platform.OS === 'web') {
-      const ok = window.confirm('キャッシュをクリアしますか？\nすべての記録データが削除されます。この操作は取り消せません。')
-      if (!ok) return
+    const doReset = async () => {
+      // 1. AsyncStorage を全消去
       await AsyncStorage.clear().catch(() => {})
-      // Service Worker キャッシュも削除
+      // 2. FileSystem キャッシュディレクトリを削除
+      if (Platform.OS !== 'web') {
+        try {
+          const cacheDir = FileSystem.cacheDirectory
+          if (cacheDir) {
+            const items = await FileSystem.readDirectoryAsync(cacheDir).catch(() => [] as string[])
+            await Promise.all(items.map(f => FileSystem.deleteAsync(cacheDir + f, { idempotent: true }).catch(() => {})))
+          }
+        } catch {}
+      }
+      // 3. ログアウトしてログイン画面へ
+      await signOut().catch(() => {})
+    }
+
+    if (Platform.OS === 'web') {
+      const ok = window.confirm('全データをリセットしますか？\n練習記録・プロフィール・設定がすべて削除されます。この操作は取り消せません。')
+      if (!ok) return
+      await doReset()
       if ('caches' in window) {
         const keys = await caches.keys().catch(() => [] as string[])
         await Promise.all(keys.map(k => caches.delete(k))).catch(() => {})
       }
-      window.alert('キャッシュを削除しました。再読み込みします。')
       window.location.reload()
     } else {
       Alert.alert(
-        'キャッシュをクリア',
-        'アプリのキャッシュデータをすべて削除します。この操作は取り消せません。',
+        '全データをリセット',
+        '練習記録・プロフィール・チーム情報・設定がすべて削除されます。\n\nこの操作は取り消せません。',
         [
           { text: 'キャンセル', style: 'cancel' },
           {
-            text: '削除', style: 'destructive',
+            text: 'すべて削除', style: 'destructive',
             onPress: async () => {
-              await AsyncStorage.clear().catch(() => {})
-              Alert.alert('完了', 'キャッシュを削除しました')
+              await doReset()
             },
           },
         ]
@@ -427,8 +455,22 @@ export default function SettingsScreen() {
               </View>
               {!isPro && (
                 <Text style={{ color: '#9ca3af', fontSize: 12, marginTop: 10, lineHeight: 18 }}>
-                  PRO にアップグレードするとAI分析・ログ無制限・CSV出力などが使えます
+                  PRO（¥480/月）でAI練習分析・動画フォーム分析が使い放題{'\n'}
+                  ELITE（¥1,480/月）でチーム管理・全機能無制限
                 </Text>
+              )}
+              {/* クーポンコード入力 */}
+              {!isPro && (
+                <TouchableOpacity
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 }}
+                  onPress={() => router.push('/coupon')}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="ticket-outline" size={14} color="#9ca3af" />
+                  <Text style={{ color: '#9ca3af', fontSize: 12, textDecorationLine: 'underline' }}>
+                    クーポンコードをお持ちの方はこちら
+                  </Text>
+                </TouchableOpacity>
               )}
             </View>
           </AnimatedSection>
@@ -704,7 +746,7 @@ export default function SettingsScreen() {
                 activeOpacity={0.75}
               >
                 <Ionicons name="trash-outline" size={18} color="#E53935" />
-                <Text style={[styles.actionText, { color: '#E53935' }]}>キャッシュをクリア</Text>
+                <Text style={[styles.actionText, { color: '#E53935' }]}>全データをリセット</Text>
                 <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
               </TouchableOpacity>
             </SectionCard>
@@ -829,10 +871,12 @@ const styles = StyleSheet.create({
   // 保存ボタン
   saveBtn: {
     marginTop: 14,
-    backgroundColor: '#166534', borderRadius: 12,
-    paddingVertical: 12, alignItems: 'center',
+    backgroundColor: '#1c1c1e', borderRadius: 50,
+    paddingVertical: 13, alignItems: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18, shadowRadius: 12, elevation: 5,
   },
-  saveBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  saveBtnText: { color: '#fff', fontSize: 15, fontWeight: '800', letterSpacing: -0.3 },
 
   // ログアウト行
   dangerRow: {

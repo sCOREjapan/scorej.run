@@ -89,19 +89,21 @@ export default function TermsScreen() {
               <SubLi n={9}>タイマー・ストップウォッチ</SubLi>
               <SubLi n={10}>レベル・XP表示（ゲーミフィケーション）</SubLi>
             </Sub>
-            <Sub title="2-2. PROプラン機能（月額480円または年額4,800円）">
-              <SubLi n={1}>AI練習分析 無制限（FREEプランは初回3回まで）</SubLi>
-              <SubLi n={2}>動画フォーム分析（月5回、FREEプランは初回2回まで）</SubLi>
-              <SubLi n={3}>CSVエクスポート（FREEプランは初回1回まで）</SubLi>
-              <SubLi n={4}>全国ランキング参加（種目別・世代別）</SubLi>
-              <SubLi n={5}>GPSランニング記録</SubLi>
+            <Sub title="2-2. PROプラン機能（月額480円または年額4,800円・月あたり400円）">
+              <SubLi n={1}>AI練習分析コーチ 無制限（FREEプランは累計3回まで）</SubLi>
+              <SubLi n={2}>動画フォーム分析 1日1回（FREEプランは累計2回まで）</SubLi>
+              <SubLi n={3}>AI食事・栄養分析 1日3回（FREEプランは累計3回まで）</SubLi>
+              <SubLi n={4}>CSVエクスポート 月1回（FREEプランは累計1回まで）</SubLi>
+              <SubLi n={5}>怪我リスク診断 無制限</SubLi>
+              <SubLi n={6}>全国ランキング参加（種目別・世代別）</SubLi>
             </Sub>
-            <Sub title="2-3. ELITEプラン機能（月額1,480円または年額14,800円）">
+            <Sub title="2-3. ELITEプラン機能（月額1,480円または年額14,800円・月あたり1,233円）">
               <SubLi n={1}>PROプランの全機能</SubLi>
-              <SubLi n={2}>動画フォーム分析 無制限（PROプランは月5回）</SubLi>
-              <SubLi n={3}>AIコーチチャット（練習内容に対する個別フィードバック）</SubLi>
-              <SubLi n={4}>チーム機能（部員10名まで管理・コーチビュー・選手ダッシュボード）</SubLi>
-              <SubLi n={5}>優先サポート（当社への問い合わせへの優先対応）</SubLi>
+              <SubLi n={2}>動画フォーム分析 無制限（PROプランは1日1回）</SubLi>
+              <SubLi n={3}>AI食事・栄養分析 無制限（PROプランは1日3回）</SubLi>
+              <SubLi n={4}>CSVエクスポート 無制限（PROプランは月1回）</SubLi>
+              <SubLi n={5}>チーム管理機能（部員10名まで管理・コーチビュー・選手コンディション一覧）</SubLi>
+              <SubLi n={6}>優先サポート（当社への問い合わせへの優先対応）</SubLi>
             </Sub>
           </Section>
 
@@ -150,9 +152,8 @@ export default function TermsScreen() {
               <SubLi n={2}>購入の復元は、設定画面の「以前の購入を復元する」ボタンから行えます。</SubLi>
             </Sub>
             <Sub title="5-5. 無料利用枠">
-              <SubLi n={1}>FREEプランにおいて、AI練習分析は累計3回、動画フォーム分析は累計2回、CSVエクスポートは累計1回を無料で利用できます。これらの無料枠は、アカウント単位で管理されます。</SubLi>
-              <SubLi n={2}>怪我リスクAI診断は、FREEプランにおいて1日1回（日本時間0:00リセット）無料で利用できます。</SubLi>
-              <SubLi n={3}>AIリカバリー相談は、全プランで無制限に無料で利用できます。</SubLi>
+              <SubLi n={1}>FREEプランにおいて、AI練習分析は累計3回、動画フォーム分析は累計2回、AI食事分析は累計3回、CSVエクスポートは累計1回を無料で利用できます。これらの無料枠はアカウント単位で管理されます。</SubLi>
+              <SubLi n={2}>怪我リスク診断・AIリカバリー相談は、全プランで無制限に無料で利用できます。</SubLi>
             </Sub>
           </Section>
 

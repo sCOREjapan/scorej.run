@@ -6,8 +6,10 @@ import {
   ScrollView,
   TouchableOpacity,
   Animated,
+  Image,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useFocusEffect } from '@react-navigation/native'
 
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -16,12 +18,31 @@ import { BRAND, NEON, TEXT } from '../lib/theme'
 import { Sounds } from '../lib/sounds'
 import AnimatedSection from '../components/AnimatedSection'
 import type { TrainingSession, RaceRecord, SleepRecord, CoachNote } from '../types'
+import {
+  fetchCoachNotifications,
+  type TeamMessageRow,
+  type CoachNotifType,
+} from '../lib/supabaseTeam'
+import { supabase } from '../lib/supabase'
+
+const JOINED_KEY_CV = 'trackmate_team_joined'
 
 
-const SESSIONS_KEY = 'trackmate_sessions'
-const RECORDS_KEY = 'trackmate_race_records'
-const SLEEP_KEY = 'trackmate_sleep'
-const TEAM_KEY = 'trackmate_team'
+const SESSIONS_KEY  = 'trackmate_sessions'
+const RECORDS_KEY   = 'trackmate_race_records'
+const SLEEP_KEY     = 'trackmate_sleep'
+const TEAM_KEY      = 'trackmate_team'
+const COACH_REQ_KEY = 'trackmate_coach_video_requests'
+
+type CoachVideoRequest = {
+  id:           string
+  videoUri:     string
+  thumbnailUri: string
+  message:      string
+  event:        string
+  sentAt:       string
+  checked?:     boolean
+}
 
 // ── スケルトン ────────────────────────────────────────────────────
 function Skeleton({ h = 16, w = '100%' }: { h?: number; w?: string | number }) {
@@ -85,6 +106,48 @@ function PbItem({ event, display }: { event: string; display: string }) {
 // ══════════════════════════════════════════════════════════════════
 // メイン
 // ══════════════════════════════════════════════════════════════════
+// ── 通知ヘルパー ──────────────────────────────────────────────────
+function parseNotifType(content: string): CoachNotifType {
+  if (content.startsWith('[ABSENCE]')) return 'absence'
+  if (content.startsWith('[VIDEO]')) return 'video'
+  if (content.startsWith('[RISK_ALERT]')) return 'risk_alert'
+  return 'message'
+}
+
+function notifIcon(type: CoachNotifType): string {
+  const map: Record<CoachNotifType, string> = {
+    absence: '😴', video: '🎥', risk_alert: '🚨', message: '💬',
+  }
+  return map[type]
+}
+
+function notifLabel(type: CoachNotifType, playerName: string): string {
+  switch (type) {
+    case 'absence':    return `${playerName}が休みを報告しました`
+    case 'video':      return `${playerName}がフォーム分析を送信しました`
+    case 'risk_alert': return `${playerName}の怪我リスクが高くなっています`
+    case 'message':    return `${playerName}がメッセージを送りました`
+  }
+}
+
+function timeAgo(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime()
+  const mins  = Math.floor(diffMs / 60000)
+  const hours = Math.floor(diffMs / 3600000)
+  const days  = Math.floor(diffMs / 86400000)
+  if (mins < 1)  return 'たった今'
+  if (mins < 60) return `${mins}分前`
+  if (hours < 24) return `${hours}時間前`
+  return `${days}日前`
+}
+
+function extractPlayerName(content: string): string {
+  // "[TYPE] playerName が..." → first word before が
+  const body = content.replace(/^\[[A-Z_]+\]\s*/, '')
+  const m = body.match(/^([^\sがを（]+)/)
+  return m ? m[1] : '選手'
+}
+
 export default function CoachViewScreen() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
@@ -94,19 +157,74 @@ export default function CoachViewScreen() {
   const [pbList, setPbList] = useState<{ event: string; display: string }[]>([])
   const [sleepData, setSleepData] = useState<{ date: string; score: number }[]>([])
   const [coachNotes, setCoachNotes] = useState<CoachNote[]>([])
+  const [videoRequests, setVideoRequests] = useState<CoachVideoRequest[]>([])
 
   // サマリー
   const [sessionCount, setSessionCount] = useState(0)
   const [avgFatigue, setAvgFatigue] = useState(0)
 
+  // コーチ通知
+  const [coachNotifs, setCoachNotifs] = useState<TeamMessageRow[]>([])
+  const [teamCodeRef, setTeamCodeRef] = useState<string | null>(null)
+
+  const loadNotifs = useCallback(async (code: string) => {
+    try {
+      const notifs = await fetchCoachNotifications(code)
+      setCoachNotifs(notifs)
+    } catch {}
+  }, [])
+
+  // フォーカス時に通知を再取得
+  useFocusEffect(
+    useCallback(() => {
+      AsyncStorage.getItem(JOINED_KEY_CV).then(raw => {
+        if (!raw) return
+        const joined = JSON.parse(raw)
+        if (joined?.code) {
+          setTeamCodeRef(joined.code)
+          loadNotifs(joined.code)
+        }
+      }).catch(() => {})
+    }, [loadNotifs])
+  )
+
+  // Realtime 購読
+  useEffect(() => {
+    if (!teamCodeRef) return
+    const channel = supabase
+      .channel(`coach-notifs-${teamCodeRef}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'team_messages',
+          filter: `team_code=eq.${teamCodeRef}`,
+        },
+        (payload) => {
+          const row = payload.new as TeamMessageRow
+          if (row.author_name === '__system__') {
+            setCoachNotifs(prev => [row, ...prev])
+          }
+        },
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [teamCodeRef])
+
+  const notifUnreadCount = coachNotifs.filter(n => {
+    return Date.now() - new Date(n.created_at).getTime() < 24 * 60 * 60 * 1000
+  }).length
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [rawSessions, rawRecords, rawSleep, rawTeam] = await Promise.all([
+      const [rawSessions, rawRecords, rawSleep, rawTeam, rawVideoReqs] = await Promise.all([
         AsyncStorage.getItem(SESSIONS_KEY),
         AsyncStorage.getItem(RECORDS_KEY),
         AsyncStorage.getItem(SLEEP_KEY),
         AsyncStorage.getItem(TEAM_KEY),
+        AsyncStorage.getItem(COACH_REQ_KEY),
       ])
 
       // ── 過去7日のセッション ──────────────────────────────────────
@@ -154,6 +272,11 @@ export default function CoachViewScreen() {
           setCoachNotes([...pinned, ...others].slice(0, 5))
         }
       }
+
+      // ── 送られた動画 ─────────────────────────────────────────────
+      if (rawVideoReqs) {
+        setVideoRequests(JSON.parse(rawVideoReqs))
+      }
     } catch {
       // ignore
     } finally {
@@ -164,6 +287,20 @@ export default function CoachViewScreen() {
   useEffect(() => { load() }, [load])
 
   const fatigueColor = avgFatigue >= 7 ? BRAND : avgFatigue >= 5 ? NEON.amber : NEON.green
+
+  const markVideoChecked = async (id: string) => {
+    const updated = videoRequests.map(r => r.id === id ? { ...r, checked: true } : r)
+    setVideoRequests(updated)
+    await AsyncStorage.setItem(COACH_REQ_KEY, JSON.stringify(updated)).catch(() => {})
+  }
+
+  const deleteVideoRequest = async (id: string) => {
+    const updated = videoRequests.filter(r => r.id !== id)
+    setVideoRequests(updated)
+    await AsyncStorage.setItem(COACH_REQ_KEY, JSON.stringify(updated)).catch(() => {})
+  }
+
+  const uncheckedCount = videoRequests.filter(r => !r.checked).length
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f6f6f8' }}>
@@ -179,6 +316,51 @@ export default function CoachViewScreen() {
         </View>
 
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+
+          {/* ── 通知 ── */}
+          <AnimatedSection delay={0} type="fade-up">
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Ionicons name="notifications-outline" size={18} color={BRAND} />
+                <Text style={styles.cardTitle}>通知</Text>
+                {notifUnreadCount > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{notifUnreadCount}</Text>
+                  </View>
+                )}
+                <Text style={styles.cardSub}>過去7日間</Text>
+              </View>
+              {coachNotifs.length === 0 ? (
+                <View style={styles.empty}>
+                  <Ionicons name="notifications-outline" size={36} color={TEXT.hint} />
+                  <Text style={styles.emptyText}>通知はまだありません</Text>
+                  <Text style={styles.emptyHint}>選手がアクションを起こすとここに表示されます</Text>
+                </View>
+              ) : (
+                <View style={{ gap: 8 }}>
+                  {coachNotifs.map(n => {
+                    const type = parseNotifType(n.content)
+                    const playerName = extractPlayerName(n.content)
+                    const isNew = Date.now() - new Date(n.created_at).getTime() < 24 * 60 * 60 * 1000
+                    return (
+                      <View key={n.id} style={[styles.notifCard, isNew && styles.notifCardNew]}>
+                        <Text style={styles.notifIcon}>{notifIcon(type)}</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.notifText}>{notifLabel(type, playerName)}</Text>
+                          <Text style={styles.notifTime}>{timeAgo(n.created_at)}</Text>
+                        </View>
+                        {isNew && (
+                          <View style={styles.newBadge}>
+                            <Text style={styles.newBadgeText}>NEW</Text>
+                          </View>
+                        )}
+                      </View>
+                    )
+                  })}
+                </View>
+              )}
+            </View>
+          </AnimatedSection>
 
           {/* ── 今週の練習サマリー ── */}
           <AnimatedSection delay={0} type="fade-up">
@@ -297,6 +479,102 @@ export default function CoachViewScreen() {
                     </View>
                   )}
                 </>
+              )}
+            </View>
+          </AnimatedSection>
+
+          {/* ── 送られた動画 ── */}
+          <AnimatedSection delay={200} type="fade-up">
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Ionicons name="videocam-outline" size={18} color={NEON.green} />
+                <Text style={styles.cardTitle}>送られた動画</Text>
+                {uncheckedCount > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{uncheckedCount}</Text>
+                  </View>
+                )}
+              </View>
+
+              {loading ? (
+                <View style={{ gap: 8 }}>
+                  <Skeleton h={80} />
+                  <Skeleton h={80} />
+                </View>
+              ) : videoRequests.length === 0 ? (
+                <View style={styles.empty}>
+                  <Ionicons name="videocam-outline" size={36} color={TEXT.hint} />
+                  <Text style={styles.emptyText}>まだ動画が届いていません</Text>
+                  <Text style={styles.emptyHint}>選手が「コーチに送る」から動画を送ると{'\n'}ここに表示されます</Text>
+                </View>
+              ) : (
+                <View style={{ gap: 10 }}>
+                  {videoRequests.map(req => (
+                    <View
+                      key={req.id}
+                      style={[styles.videoCard, !req.checked && styles.videoCardNew]}
+                    >
+                      <View style={{ flexDirection: 'row', gap: 12 }}>
+                        {/* サムネイル */}
+                        <View style={styles.thumbWrap}>
+                          {req.thumbnailUri
+                            ? <Image source={{ uri: req.thumbnailUri }} style={styles.thumb} />
+                            : <View style={[styles.thumb, { backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' }]}>
+                                <Ionicons name="film-outline" size={24} color={TEXT.hint} />
+                              </View>
+                          }
+                          {!req.checked && <View style={styles.newDot} />}
+                        </View>
+
+                        {/* 情報 */}
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                            {req.event ? (
+                              <View style={styles.eventBadge}>
+                                <Text style={styles.eventBadgeText}>{req.event}</Text>
+                              </View>
+                            ) : null}
+                            {!req.checked && (
+                              <View style={styles.newBadge}>
+                                <Text style={styles.newBadgeText}>NEW</Text>
+                              </View>
+                            )}
+                          </View>
+                          <Text style={styles.videoMessage} numberOfLines={2}>
+                            {req.message || '（メモなし）'}
+                          </Text>
+                          <Text style={styles.videoDate}>
+                            {new Date(req.sentAt).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* アクション */}
+                      <View style={styles.videoActions}>
+                        {!req.checked && (
+                          <TouchableOpacity
+                            style={styles.checkedBtn}
+                            onPress={() => markVideoChecked(req.id)}
+                            activeOpacity={0.8}
+                          >
+                            <Ionicons name="checkmark" size={14} color="#fff" />
+                            <Text style={styles.checkedBtnText}>確認済み</Text>
+                          </TouchableOpacity>
+                        )}
+                        {req.checked && (
+                          <Text style={styles.checkedLabel}>✓ 確認済み</Text>
+                        )}
+                        <TouchableOpacity
+                          style={styles.deleteBtn}
+                          onPress={() => deleteVideoRequest(req.id)}
+                          activeOpacity={0.8}
+                        >
+                          <Ionicons name="trash-outline" size={14} color="#ef4444" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ))}
+                </View>
               )}
             </View>
           </AnimatedSection>
@@ -471,5 +749,56 @@ const styles = StyleSheet.create({
   // 空状態
   empty: { alignItems: 'center', paddingVertical: 20, gap: 8 },
   emptyText: { color: TEXT.secondary, fontSize: 13 },
-  emptyHint: { color: TEXT.hint, fontSize: 11 },
+  emptyHint: { color: TEXT.hint, fontSize: 11, textAlign: 'center', lineHeight: 18 },
+
+  // 通知カード
+  notifCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    padding: 12,
+  },
+  notifCardNew: {
+    borderColor: 'rgba(255,59,48,0.35)',
+    backgroundColor: 'rgba(255,59,48,0.05)',
+  },
+  notifIcon: { fontSize: 22, width: 28, textAlign: 'center' },
+  notifText: { color: TEXT.secondary, fontSize: 13, lineHeight: 18 },
+  notifTime: { color: TEXT.hint, fontSize: 11, marginTop: 2 },
+
+  // バッジ（未確認数）
+  badge: { backgroundColor: '#ef4444', borderRadius: 10, minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
+  badgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
+
+  // 動画カード
+  videoCard: {
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    padding: 12,
+    gap: 10,
+  },
+  videoCardNew: {
+    borderColor: 'rgba(74,222,128,0.4)',
+    backgroundColor: 'rgba(74,222,128,0.05)',
+  },
+  thumbWrap: { position: 'relative' },
+  thumb: { width: 80, height: 56, borderRadius: 8, backgroundColor: '#1e293b' },
+  newDot: { position: 'absolute', top: -4, right: -4, width: 12, height: 12, borderRadius: 6, backgroundColor: '#ef4444', borderWidth: 2, borderColor: '#111111' },
+  eventBadge: { backgroundColor: 'rgba(74,222,128,0.15)', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
+  eventBadgeText: { color: NEON.green, fontSize: 11, fontWeight: '700' },
+  newBadge: { backgroundColor: '#ef4444', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  newBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+  videoMessage: { color: TEXT.secondary, fontSize: 13, lineHeight: 19, marginBottom: 4 },
+  videoDate: { color: TEXT.hint, fontSize: 11 },
+  videoActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 4 },
+  checkedBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: NEON.green + '22', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: NEON.green + '44' },
+  checkedBtnText: { color: NEON.green, fontSize: 12, fontWeight: '700' },
+  checkedLabel: { color: TEXT.hint, fontSize: 12 },
+  deleteBtn: { width: 32, height: 32, borderRadius: 8, backgroundColor: 'rgba(239,68,68,0.1)', alignItems: 'center', justifyContent: 'center' },
 })

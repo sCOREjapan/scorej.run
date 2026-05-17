@@ -274,9 +274,11 @@ const ps = StyleSheet.create({
   partMuscle:    { color: '#9ca3af', fontSize: 10, textAlign: 'center' },
   startBtn:      {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, backgroundColor: '#166534', borderRadius: 16, paddingVertical: 16,
+    gap: 8, backgroundColor: '#1c1c1e', borderRadius: 50, paddingVertical: 17,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18, shadowRadius: 12, elevation: 5,
   },
-  startBtnText:  { color: '#fff', fontSize: 15, fontWeight: '900' },
+  startBtnText:  { color: '#fff', fontSize: 15, fontWeight: '900', letterSpacing: -0.3 },
 })
 
 // ══════════════════════════════════════════════════════════════
@@ -616,10 +618,12 @@ const cs = StyleSheet.create({
   riskDelta:  { color: '#22c55e', fontSize: 14, fontWeight: '700' },
   homeBtn:    {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, backgroundColor: '#166534', borderRadius: 16,
-    paddingVertical: 16, width: '100%',
+    gap: 8, backgroundColor: '#1c1c1e', borderRadius: 50,
+    paddingVertical: 17, width: '100%',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18, shadowRadius: 12, elevation: 5,
   },
-  homeBtnText:{ color: '#fff', fontSize: 15, fontWeight: '900' },
+  homeBtnText:{ color: '#fff', fontSize: 15, fontWeight: '900', letterSpacing: -0.3 },
 })
 
 // ══════════════════════════════════════════════════════════════

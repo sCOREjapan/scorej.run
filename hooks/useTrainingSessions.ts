@@ -57,7 +57,7 @@ export function useTrainingSessions(): UseTrainingSessionsReturn {
         setSessions(prev => {
           const next = [newSession, ...prev]
           AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(next))
-            .then(() => autoSyncTeam(next))
+            .then(() => autoSyncTeam(next, { force: true }))
             .catch(() => {})
           return next
         })
@@ -80,7 +80,7 @@ export function useTrainingSessions(): UseTrainingSessionsReturn {
       setSessions(prev => {
         const next = prev.map(s => (s.id === id ? { ...s, ...updates } : s))
         AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(next))
-          .then(() => autoSyncTeam(next))
+          .then(() => autoSyncTeam(next, { force: true }))
           .catch(() => {})
         return next
       })

@@ -296,41 +296,58 @@ export default function WorkoutMenuScreen() {
 
       const libraryText = pickedItems.map(p => `・${p.text}（${p.folderName}）`).join('\n')
 
-      const prompt = `あなたは陸上競技の専門コーチです。
-選手が以下の種目をピックアップしました。これらの種目を中心に、今日の練習メニューを組んでください。
+      const systemPrompt1 = `あなたは日本トップレベルの陸上競技コーチです。国体・インターハイ・実業団選手の指導経験があり、科学的トレーニング理論（ピリオダイゼーション・超回復・ATP-PC系/乳酸系/有酸素系のエネルギー供給）を実践に落とし込んだメニュー設計が得意です。
 
-【ピックアップした種目】
+メニュー設計の原則：
+- ウォームアップは「体温上昇→関節可動域→神経系活性化」の順で段階的に
+- メインは目的（スピード/持久/筋力/技術）を明確にしてセット数・本数・休憩を具体的に
+- クールダウンはメインの強度に応じた適切な長さで、翌日に向けたリカバリーを意識
+- セット間の休憩時間は必ず記載（例：「レスト3分」）
+- 総練習時間の目安を書く
+- 「なぜこの構成なのか」の理由をコーチとして簡潔に語る`
+
+      const prompt = `選手が以下の種目をピックアップしました。これらをメインに組み込んだ、今日の完全な練習メニューを作ってください。
+
+【ピックアップ種目】
 ${libraryText}
 
-【今日のイメージ・意図】
-${pickIntent.trim() || '特に指定なし'}
+【選手の今日のイメージ・意図】
+${pickIntent.trim() || '特に指定なし（コーチの判断で最適なメニューを）'}
 
-以下の形式で出力してください：
----
-📋 今日のメニュー
+━━━━━━━━━━━━━━━━━━━━━
 
-【ウォームアップ】
-（種目を記載）
+以下の形式で、プロコーチとして詳細なメニューを作成してください：
 
-【メイン練習】
-（ピックアップした種目を中心に記載）
+📋 **今日のメニュー**
+（目的・テーマを1行で）
+（推定所要時間：〇〇分）
 
-【クールダウン】
-（種目を記載）
+**🔥 ウォームアップ（〇分）**
+1. （種目）×（時間/距離/回数）
+2. ...
+※ 各種目の目的を一言添える
 
-💬 コーチコメント
-（選手へのひとこと。モチベーションを高める具体的なアドバイスを2〜3文で）
----
+**⚡ メイン練習（〇分）**
+（ピックアップ種目を必ず中心に構成）
+1. （種目）（セット数）×（本数/距離）— レスト（時間）
+   → 目標ペース/強度：（具体的に）
+2. ...
 
-ピックアップされた種目は必ずメインに組み込み、種目は具体的に記載（セット数・距離・インターバルなど）。`
+**🌊 クールダウン（〇分）**
+1. （種目）×（時間）
+2. ...
+
+**💬 コーチから**
+（このメニューの意図・今日のポイント・選手への熱いメッセージを3〜5文で。「なぜこの構成か」を含める）`
 
       {
         const res = await fetch(_endpoint1, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
-            model: 'claude-haiku-4-5-20251001',
-            max_tokens: 800,
+            model: 'claude-sonnet-4-5',
+            max_tokens: 1500,
+            system: systemPrompt1,
             messages: [{ role: 'user', content: prompt }],
           }),
         })
@@ -379,41 +396,54 @@ ${pickIntent.trim() || '特に指定なし'}
         `【${f.name}】\n${f.items.map(item => `・${item}`).join('\n')}`
       ).join('\n\n')
 
-      const prompt = `あなたは陸上競技の専門コーチです。
-以下の「練習ライブラリ」から種目を選んで、今日の練習メニューを組んでください。
+      const systemPrompt2 = `あなたは日本トップレベルの陸上競技コーチです。国体・インターハイ・実業団選手の指導経験があり、科学的トレーニング理論（ピリオダイゼーション・超回復・ATP-PC系/乳酸系/有酸素系のエネルギー供給）を実践に落とし込んだメニュー設計が得意です。
 
-【今日のイメージ・意図】
-${aiIntent.trim()}
+メニュー設計の原則：
+- ウォームアップは「体温上昇→関節可動域→神経系活性化」の順で段階的に
+- メインは目的（スピード/持久/筋力/技術）を明確にしてセット数・本数・休憩を具体的に
+- クールダウンはメインの強度に応じた適切な長さで、翌日に向けたリカバリーを意識
+- セット間の休憩時間は必ず記載
+- 総練習時間の目安を書く
+- 選手の意図・要望に応えながら、科学的に正しい負荷設計をする
+- ライブラリにある種目を最大限活用し、不足する場合は理由とともに補完種目を提案する`
 
-【練習ライブラリ】
-${libraryText || '（ライブラリ未登録）'}
+      const prompt = `選手からのリクエスト：「${aiIntent.trim()}」
 
-以下の形式で出力してください：
----
-📋 今日のメニュー
+【選手の練習ライブラリ】
+${libraryText || '（まだライブラリに種目が登録されていません）'}
 
-【ウォームアップ】
-（種目を記載）
+━━━━━━━━━━━━━━━━━━━━━
 
-【メイン練習】
-（種目を記載）
+このリクエストと選手のライブラリを踏まえて、今日の完全な練習メニューを作ってください。
 
-【クールダウン】
-（種目を記載）
+📋 **今日のメニュー**
+（テーマ・目的を1行で）
+（推定所要時間：〇〇分）
 
-💬 コーチコメント
-（選手へのひとこと。モチベーションを高める具体的なアドバイスを2〜3文で）
----
+**🔥 ウォームアップ（〇分）**
+1. （種目）×（時間/距離/回数） — （目的）
+2. ...
 
-ライブラリにある種目を優先して使い、必要なら補完してください。種目は具体的に記載（セット数・距離・インターバルなど）。`
+**⚡ メイン練習（〇分）**
+1. （種目）（セット数）×（本数/距離）— レスト（時間）
+   → 強度/目標：（具体的に）
+2. ...
+
+**🌊 クールダウン（〇分）**
+1. （種目）×（時間）
+2. ...
+
+**💬 コーチから**
+（選手のリクエストを受けてどんな意図でこのメニューを設計したか。今日のポイントと注意点。最後に選手への一言。計4〜6文で熱く語る）`
 
       {
         const res = await fetch(_endpoint2, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
-            model: 'claude-haiku-4-5-20251001',
-            max_tokens: 800,
+            model: 'claude-sonnet-4-5',
+            max_tokens: 1500,
+            system: systemPrompt2,
             messages: [{ role: 'user', content: prompt }],
           }),
         })
@@ -603,7 +633,7 @@ ${libraryText || '（ライブラリ未登録）'}
                 disabled={!folderName.trim()}
                 activeOpacity={0.85}
               >
-                <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>保存</Text>
+                <Text style={{ color: '#1c1c1e', fontWeight: '800', fontSize: 15, letterSpacing: -0.3 }}>保存</Text>
               </HapticTouch>
 
               {editFolder && (
@@ -882,8 +912,8 @@ ${libraryText || '（ライブラリ未登録）'}
                     disabled={pickedItems.length === 0}
                     activeOpacity={0.85}
                   >
-                    <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>次へ</Text>
-                    <Ionicons name="chevron-forward" size={16} color="#fff" />
+                    <Text style={{ color: '#1c1c1e', fontWeight: '800', fontSize: 15, letterSpacing: -0.3 }}>次へ</Text>
+                    <Ionicons name="chevron-forward" size={16} color="#1c1c1e" />
                   </HapticTouch>
                 </View>
               </>
@@ -1036,7 +1066,7 @@ const m = StyleSheet.create({
   colorDot:    { width: 28, height: 28, borderRadius: 14 },
   colorDotSelected: { borderWidth: 2.5, borderColor: '#fff', transform: [{ scale: 1.15 }] },
   iconBtn:     { width: 40, height: 40, borderRadius: 10, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)' },
-  saveBtn:     { backgroundColor: BRAND, borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginBottom: 10 },
+  saveBtn:     { backgroundColor: '#ffffff', borderRadius: 50, paddingVertical: 15, alignItems: 'center', marginBottom: 10 },
   deleteBtn:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
 })
 
@@ -1055,7 +1085,7 @@ const pk = StyleSheet.create({
   checkbox:     { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: '#333', alignItems: 'center', justifyContent: 'center' },
   itemText:     { flex: 1, color: '#aaa', fontSize: 14 },
   bottomBar:    { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.08)', backgroundColor: '#0a0a0a' },
-  nextBtn:      { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: BRAND, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 13 },
+  nextBtn:      { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#ffffff', borderRadius: 50, paddingHorizontal: 24, paddingVertical: 13 },
   backBtn:      { flexDirection: 'row', alignItems: 'center', gap: 4 },
   confirmList:  { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', padding: 8 },
   confirmRow:   { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.06)' },

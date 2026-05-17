@@ -606,11 +606,13 @@ const styles = StyleSheet.create({
     height: 60, textAlignVertical: 'top',
   },
   saveBtn: {
-    backgroundColor: NEON.blue, borderRadius: 14,
-    paddingVertical: 16, flexDirection: 'row',
+    backgroundColor: '#1c1c1e', borderRadius: 50,
+    paddingVertical: 17, flexDirection: 'row',
     alignItems: 'center', justifyContent: 'center', gap: 8,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18, shadowRadius: 12, elevation: 5,
   },
-  saveBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
+  saveBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800', letterSpacing: -0.3 },
 
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   sectionTitle: { color: TEXT.primary, fontSize: 15, fontWeight: '700', flex: 1 },
@@ -630,6 +632,6 @@ const styles = StyleSheet.create({
 
   empty: { alignItems: 'center', paddingVertical: 32, gap: 12 },
   emptyText: { color: TEXT.secondary, fontSize: 14 },
-  emptyBtn: { backgroundColor: BRAND, borderRadius: 10, paddingHorizontal: 20, paddingVertical: 10 },
-  emptyBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
+  emptyBtn: { backgroundColor: '#1c1c1e', borderRadius: 50, paddingHorizontal: 24, paddingVertical: 12 },
+  emptyBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14, letterSpacing: -0.3 },
 })

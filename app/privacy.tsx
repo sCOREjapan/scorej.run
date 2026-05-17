@@ -231,8 +231,8 @@ export default function PrivacyScreen() {
             <Li n={1}>
               プランの概要と価格
               <SubLi>FREE（無料）：基本機能を無制限で利用可能。永続無料。</SubLi>
-              <SubLi>PRO（プロ）：¥780/月 または ¥6,800/年（税込）</SubLi>
-              <SubLi>ELITE（エリート）：¥1,480/月 または ¥12,800/年（税込）</SubLi>
+              <SubLi>PRO（プロ）：¥480/月 または ¥4,800/年（税込・月あたり¥400）</SubLi>
+              <SubLi>ELITE（エリート）：¥1,480/月 または ¥14,800/年（税込・月あたり¥1,233）</SubLi>
             </Li>
             <Li n={2}>
               RevenueCatによる課金管理：アプリ内課金の処理・検証はRevenueCat Inc.を通じて行われます。RevenueCatはApple App Store / Google Play Storeのレシートを受け取り、エンタイトルメント（利用権限）情報を当社アプリへ通知します。

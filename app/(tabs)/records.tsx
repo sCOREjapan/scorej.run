@@ -439,11 +439,16 @@ function SessionDetailSheet({ session, onClose, onDelete }: {
   )
 }
 
-// ── グローカレンダー ──────────────────────────────────────────────
-const TYPE_GLOW_COLORS: Record<string,string> = {
-  interval: '#E53935', tempo: '#FF9500', easy: '#34C759',
-  long: '#5AC8FA', sprint: '#FF3B30', drill: '#AF52DE',
-  strength: '#FF6B35', race: '#FFD700', rest: '#94a3b8',
+// ── 練習カレンダー ─────────────────────────────────────────────────
+// 疲労レベル → 背景色（intensity tier）
+function getIntensityBg(fatigue: number | null | undefined): string {
+  const f = fatigue ?? 0
+  if (f === 0)  return 'transparent'
+  if (f <= 2)   return '#DCFCE7'
+  if (f <= 4)   return '#BBF7D0'
+  if (f <= 6)   return '#FEF9C3'
+  if (f <= 8)   return '#FED7AA'
+  return '#FECACA'
 }
 
 function GlowCalendar({ sessions }: { sessions: TrainingSession[] }) {
@@ -453,11 +458,11 @@ function GlowCalendar({ sessions }: { sessions: TrainingSession[] }) {
 
   const DOW_LABELS = ['日', '月', '火', '水', '木', '金', '土']
 
-  // date → sessions map
-  const sessionMap: Record<string, TrainingSession[]> = {}
+  // date → max fatigue map
+  const fatigueMap: Record<string, number> = {}
   sessions.forEach(s => {
-    sessionMap[s.session_date] = sessionMap[s.session_date] ?? []
-    sessionMap[s.session_date].push(s)
+    const f = s.fatigue_level ?? 0
+    fatigueMap[s.session_date] = Math.max(fatigueMap[s.session_date] ?? 0, f)
   })
 
   function prevMonth() {
@@ -475,6 +480,17 @@ function GlowCalendar({ sessions }: { sessions: TrainingSession[] }) {
   const firstDow    = new Date(viewYear, viewMonth, 1).getDay()
   const today       = now.toISOString().slice(0, 10)
   const canNext     = viewYear < now.getFullYear() || (viewYear === now.getFullYear() && viewMonth < now.getMonth())
+
+  // 週ごとの行を構築
+  const totalSlots = firstDow + daysInMonth
+  const weekCount  = Math.ceil(totalSlots / 7)
+  const weeks: (number | null)[][] = Array.from({ length: weekCount }, (_, wi) =>
+    Array.from({ length: 7 }, (_, di) => {
+      const slot = wi * 7 + di
+      const day  = slot - firstDow + 1
+      return (day >= 1 && day <= daysInMonth) ? day : null
+    })
+  )
 
   return (
     <View>
@@ -501,75 +517,55 @@ function GlowCalendar({ sessions }: { sessions: TrainingSession[] }) {
         ))}
       </View>
 
-      {/* 日付グリッド */}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-        {Array.from({ length: firstDow }).map((_, i) => (
-          <View key={`e${i}`} style={{ width: `${100 / 7}%` as any, aspectRatio: 1 }} />
-        ))}
-        {Array.from({ length: daysInMonth }).map((_, i) => {
-          const day     = i + 1
-          const mm      = String(viewMonth + 1).padStart(2, '0')
-          const dd      = String(day).padStart(2, '0')
-          const dateStr = `${viewYear}-${mm}-${dd}`
-          const isToday = dateStr === today
-          const dow     = (firstDow + i) % 7
-          const daySess = sessionMap[dateStr]
-          const hasSession = daySess && daySess.length > 0
+      {/* 日付グリッド（週ごとの行） */}
+      {weeks.map((week, wi) => (
+        <View key={wi} style={{ flexDirection: 'row' }}>
+          {week.map((day, di) => {
+            if (day === null) {
+              return <View key={`e${di}`} style={{ flex: 1, aspectRatio: 1 }} />
+            }
+            const mm      = String(viewMonth + 1).padStart(2, '0')
+            const dd      = String(day).padStart(2, '0')
+            const dateStr = `${viewYear}-${mm}-${dd}`
+            const isToday = dateStr === today
+            const fat     = fatigueMap[dateStr]
+            const bgColor = isToday ? '#3B82F6' : getIntensityBg(fat)
+            const textColor = isToday ? '#fff'
+              : di === 0 ? '#EF4444'
+              : di === 6 ? '#5AC8FA'
+              : TEXT.primary
 
-          // glow params
-          let glowColor = '#34C759'
-          let glowOpacity = 0
-          let glowSize = 30
-          if (hasSession) {
-            const primary = daySess[0]
-            glowColor = TYPE_GLOW_COLORS[primary.session_type] ?? '#34C759'
-            const fatigue = primary.fatigue_level ?? 5
-            glowOpacity = 0.22 + (fatigue / 10) * 0.5   // 0.22 ~ 0.72
-            glowSize = daySess.length >= 2 ? 36 : 30
-          }
-
-          return (
-            <View key={day} style={{ width: `${100 / 7}%` as any, aspectRatio: 1, alignItems: 'center', justifyContent: 'center' }}>
-              {hasSession && (
-                <View style={{
-                  position: 'absolute',
-                  width: glowSize, height: glowSize, borderRadius: glowSize / 2,
-                  backgroundColor: glowColor,
-                  opacity: glowOpacity,
-                  shadowColor: glowColor,
-                  shadowOffset: { width: 0, height: 0 },
-                  shadowOpacity: 1,
-                  shadowRadius: 8,
-                  elevation: 4,
-                }} />
-              )}
-              <Text style={{
-                fontSize: 12, fontWeight: isToday ? '900' : hasSession ? '800' : '400',
-                color: isToday ? BRAND
-                  : hasSession ? (glowOpacity > 0.5 ? '#fff' : TEXT.primary)
-                  : dow === 0 ? '#EF4444' : dow === 6 ? '#5AC8FA' : TEXT.primary,
-                zIndex: 1,
-              }}>{day}</Text>
-              {isToday && !hasSession && (
-                <View style={{ position: 'absolute', bottom: 1, width: 3, height: 3, borderRadius: 1.5, backgroundColor: BRAND }} />
-              )}
-            </View>
-          )
-        })}
-      </View>
+            return (
+              <View key={day} style={{
+                flex: 1, aspectRatio: 1,
+                margin: 1.5,
+                borderRadius: 6,
+                backgroundColor: bgColor,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <Text style={{
+                  fontSize: 12,
+                  fontWeight: isToday ? '900' : fat ? '700' : '400',
+                  color: textColor,
+                }}>{day}</Text>
+              </View>
+            )
+          })}
+        </View>
+      ))}
 
       {/* 凡例 */}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.06)' }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.06)' }}>
         {[
-          { label: 'ジョグ', color: '#34C759' },
-          { label: 'インターバル', color: '#E53935' },
-          { label: 'テンポ走', color: '#FF9500' },
-          { label: 'スプリント', color: '#FF3B30' },
-          { label: 'ロング走', color: '#5AC8FA' },
-          { label: '試合', color: '#FFD700' },
+          { label: '低負荷', color: '#DCFCE7' },
+          { label: '軽め', color: '#BBF7D0' },
+          { label: '中程度', color: '#FEF9C3' },
+          { label: 'きつめ', color: '#FED7AA' },
+          { label: '高負荷', color: '#FECACA' },
         ].map(item => (
           <View key={item.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.color }} />
+            <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: item.color, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' }} />
             <Text style={{ color: TEXT.hint, fontSize: 9 }}>{item.label}</Text>
           </View>
         ))}

@@ -19,6 +19,47 @@ import PracticeShareCard, { PracticeShareData } from './PracticeShareCard'
 const SESSIONS_KEY = 'trackmate_sessions'
 const TASKS_KEY    = 'trackmate_tasks'
 
+// ── 日付ヘルパー ─────────────────────────────────────────────────
+/** ローカル日付を YYYY-MM-DD 文字列に変換（toISOStringはUTCになるのでNG） */
+function localDateStr(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function dateOffset(days: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() - days)
+  return localDateStr(d)
+}
+
+/** テキストから日付を抽出（昨日/一昨日/MM月DD日/MM/DD） */
+function parseDateFromText(text: string): string | null {
+  if (/一昨日|おととい/.test(text)) return dateOffset(2)
+  if (/昨日/.test(text))           return dateOffset(1)
+  const mmdd = text.match(/(\d{1,2})月(\d{1,2})日/)
+  if (mmdd) {
+    const now = new Date()
+    const d = new Date(now.getFullYear(), parseInt(mmdd[1]) - 1, parseInt(mmdd[2]))
+    if (d <= now) return localDateStr(d)
+  }
+  const slash = text.match(/(\d{1,2})\/(\d{1,2})/)
+  if (slash) {
+    const now = new Date()
+    const d = new Date(now.getFullYear(), parseInt(slash[1]) - 1, parseInt(slash[2]))
+    if (d <= now) return localDateStr(d)
+  }
+  return null
+}
+
+/** YYYY-MM-DD → 表示文字列 */
+function formatDateLabel(iso: string): string {
+  const d = new Date(iso + 'T12:00:00')
+  const weekdays = ['日', '月', '火', '水', '木', '金', '土']
+  return `${d.getMonth() + 1}/${d.getDate()}（${weekdays[d.getDay()]}）`
+}
+
 // ── 正規表現フォールバックパーサー ───────────────────────────────
 function fallbackParse(text: string, today: string): Record<string, any> {
   const t = text
@@ -154,11 +195,13 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
   const [parsing, setParsing]           = useState(false)
   const [showShare, setShowShare]       = useState(false)
   const [shareData, setShareData]       = useState<PracticeShareData | null>(null)
+  const [selectedDate, setSelectedDate] = useState(dateOffset(0))
 
   const slideAnim = useRef(new Animated.Value(300)).current
 
   React.useEffect(() => {
     if (visible) {
+      setSelectedDate(dateOffset(0))  // モーダルを開くたびに「今日」にリセット
       Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 10, useNativeDriver: Platform.OS !== 'web' }).start()
     } else {
       slideAnim.setValue(300)
@@ -177,8 +220,12 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
 
     const today = new Date().toISOString().slice(0, 10)
 
+    // テキスト内の日付を優先、なければボタンで選択した日付
+    const textDate = parseDateFromText(freeText)
+    const sessionDate = textDate || selectedDate
+
     // ── Step 1: まず正規表現でフォールバック解析（必ず結果あり） ─
-    let parsed: Record<string, any> = fallbackParse(freeText, today)
+    let parsed: Record<string, any> = fallbackParse(freeText, sessionDate)
 
     // ── Step 2: AIでより正確に解析（成功すればフォールバックを上書き） ─
     try {
@@ -197,12 +244,13 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
             max_tokens: 500,
             messages: [{
               role: 'user',
-              content: `陸上競技の練習記録テキストを正確にJSONに変換してください。今日の日付は${today}です。
+              content: `陸上競技の練習記録テキストを正確にJSONに変換してください。今日の日付は${today}、記録対象日は${sessionDate}です。
 
 入力テキスト:
 "${freeText}"
 
 ルール:
+- session_date: 「昨日」「5月10日」等の表記があればその日付、なければ${sessionDate}
 - session_type: interval(本数+レスト), tempo(ペース走), easy(ジョグ/LSD), long(30分以上の長距離), sprint(全力短距離), drill(ドリル), strength(ウェイト/筋トレ), race(試合/大会), rest(休養)
 - time_ms: タイムをミリ秒の整数に変換。「46秒80」→46800, 「1:28.50」→88500, 「11"25」→11250。タイムの記載がなければnull
 - distance_m: 距離をメートルの整数に変換。「10km」→10000, 「400m」→400。記載がなければnull
@@ -212,7 +260,7 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
 - event: 記録した種目（100m, 200m, 400m, 800m, 1500m, 3000m, 5000m, 10000m, 110mH, 100mH, 400mH, 3000mSC のいずれか、なければnull）
 
 必ずJSONのみを返してください（説明・前後の文章は不要）:
-{"session_date":"${today}","session_type":"...","event":"...orNull","time_ms":数値orNull,"distance_m":数値orNull,"reps":数値orNull,"fatigue_level":1〜10の整数,"condition_level":1〜10の整数}`,
+{"session_date":"YYYY-MM-DD","session_type":"...","event":"...orNull","time_ms":数値orNull,"distance_m":数値orNull,"reps":数値orNull,"fatigue_level":1〜10の整数,"condition_level":1〜10の整数}`,
             }],
           }),
         })
@@ -254,7 +302,7 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
       })
 
       await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions))
-      autoSyncTeam(sessions).catch(() => {})
+      autoSyncTeam(sessions, { force: true }).catch(() => {})
       trackSessionRecord(parsed.session_type || 'easy')
 
       // 改善タスクを自動生成してホーム画面に表示
@@ -310,14 +358,38 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
         <Animated.View style={[st.sheet, { transform: [{ translateY: slideAnim }] }]}>
           <View style={st.handle} />
           <View style={st.header}>
-            <Text style={st.title}>今日の練習を記録</Text>
+            <Text style={st.title}>練習を記録</Text>
             <TouchableOpacity onPress={handleClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Ionicons name="close" size={22} color={TEXT.secondary} />
             </TouchableOpacity>
           </View>
 
+          {/* 日付セレクター */}
+          <View style={st.dateRow}>
+            {([0, 1, 2] as const).map(offset => {
+              const d = dateOffset(offset)
+              const labels = ['今日', '昨日', '一昨日']
+              const active = selectedDate === d
+              return (
+                <TouchableOpacity
+                  key={offset}
+                  style={[st.dateBtn, active && st.dateBtnActive]}
+                  onPress={() => setSelectedDate(d)}
+                  activeOpacity={0.75}
+                >
+                  <Text style={[st.dateBtnTxt, active && st.dateBtnTxtActive]}>
+                    {labels[offset]}
+                  </Text>
+                  {active && (
+                    <Text style={st.dateBtnSub}>{formatDateLabel(d)}</Text>
+                  )}
+                </TouchableOpacity>
+              )
+            })}
+          </View>
+
           <Text style={st.hint}>
-            自由に入力してください — AIが自動で整理します
+            自由に入力 — 「昨日」「5月10日」と書いても反映されます
           </Text>
 
           <TextInput
@@ -395,4 +467,20 @@ const st = StyleSheet.create({
     gap: 8, backgroundColor: BRAND, borderRadius: 14, paddingVertical: 16,
   },
   saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+
+  // 日付セレクター
+  dateRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  dateBtn: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    borderRadius: 10, paddingVertical: 8,
+    backgroundColor: '#f0f2f5',
+    borderWidth: 1.5, borderColor: 'transparent',
+  },
+  dateBtnActive: {
+    backgroundColor: '#e8f5e9',
+    borderColor: BRAND,
+  },
+  dateBtnTxt: { fontSize: 13, fontWeight: '700', color: '#6b7280' },
+  dateBtnTxtActive: { color: BRAND },
+  dateBtnSub: { fontSize: 10, color: BRAND, marginTop: 2, fontWeight: '600' },
 })

@@ -5,6 +5,7 @@ import {
   Animated, Modal, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useFocusEffect } from '@react-navigation/native'
 import { TEXT, SURFACE, SURFACE2, DIVIDER, NEON, BRAND } from '../../lib/theme'
 import { useTheme } from '../../context/ThemeContext'
 import { Ionicons } from '@expo/vector-icons'
@@ -39,6 +40,7 @@ type DayRecord = {
   label: string
   sub?: string
   eventId?: string     // CalendarEvent の場合のみ
+  fatigue?: number     // 練習強度（1-10）
 }
 
 // ── カテゴリ定義 ────────────────────────────────────────────
@@ -84,6 +86,15 @@ function toYMD(d: Date) {
 }
 function getDaysInMonth(y: number, m: number) { return new Date(y, m + 1, 0).getDate() }
 function getFirstDow(y: number, m: number)    { return new Date(y, m, 1).getDay() }
+
+/** 疲労度（1-10）→ セル背景色 */
+function getIntensityBg(fatigue: number): string {
+  if (fatigue <= 2) return '#DCFCE7'  // 超軽め: 薄緑
+  if (fatigue <= 4) return '#BBF7D0'  // 軽め: 緑
+  if (fatigue <= 6) return '#FEF9C3'  // 中程度: 薄黄
+  if (fatigue <= 8) return '#FED7AA'  // きつい: 薄オレンジ
+  return '#FECACA'                     // 超きつい: 薄赤
+}
 
 // ────────────────────────────────────────────────────────────
 // AddEventModal
@@ -249,6 +260,7 @@ export default function CalendarScreen() {
   const [selectedDate, setSelectedDate] = useState(toYMD(today))
   const [dayMap,       setDayMap]       = useState<Record<string, DotType[]>>({})
   const [recordMap,    setRecordMap]    = useState<Record<string, DayRecord[]>>({})
+  const [colorMap,     setColorMap]     = useState<Record<string, string>>({})   // 日付 → 強度色
   const [modalVisible, setModalVisible] = useState(false)
   const [editEvent,    setEditEvent]    = useState<CalendarEvent | null>(null)
   const fadeAnim = useRef(new Animated.Value(1)).current
@@ -265,23 +277,35 @@ export default function CalendarScreen() {
 
       const newDayMap:    Record<string, DotType[]>    = {}
       const newRecordMap: Record<string, DayRecord[]> = {}
+      const newColorMap:  Record<string, string>       = {}
+      // 同日複数セッション時は最高疲労度を採用
+      const maxFatigueMap: Record<string, number>      = {}
 
-      function addDot(date: string, type: DotType, label: string, sub?: string, eventId?: string) {
+      function addDot(date: string, type: DotType, label: string, sub?: string, eventId?: string, fatigue?: number) {
         if (!date) return
         const ymd = date.slice(0, 10)
         if (!newDayMap[ymd]) newDayMap[ymd] = []
         if (!newDayMap[ymd].includes(type)) newDayMap[ymd].push(type)
         if (!newRecordMap[ymd]) newRecordMap[ymd] = []
-        newRecordMap[ymd].push({ type, label, sub, eventId })
+        newRecordMap[ymd].push({ type, label, sub, eventId, fatigue })
       }
 
       // 練習セッション
       if (sessionsRaw) {
-        (JSON.parse(sessionsRaw) as any[]).forEach(s =>
-          addDot(s.session_date ?? s.created_at, 'gps',
+        (JSON.parse(sessionsRaw) as any[]).forEach(s => {
+          const fatigue = s.fatigue_level ?? 5
+          addDot(
+            s.session_date ?? s.created_at, 'gps',
             s.session_type ?? 'GPS練習',
-            s.distance_m ? `${(s.distance_m / 1000).toFixed(1)}km` : undefined)
-        )
+            s.distance_m ? `${(s.distance_m / 1000).toFixed(1)}km` : undefined,
+            undefined, fatigue,
+          )
+          const ymd = (s.session_date ?? s.created_at ?? '').slice(0, 10)
+          if (ymd && (maxFatigueMap[ymd] === undefined || fatigue > maxFatigueMap[ymd])) {
+            maxFatigueMap[ymd] = fatigue
+            newColorMap[ymd]   = getIntensityBg(fatigue)
+          }
+        })
       }
       // タイム計測
       if (raceRaw) {
@@ -311,10 +335,14 @@ export default function CalendarScreen() {
 
       setDayMap(newDayMap)
       setRecordMap(newRecordMap)
+      setColorMap(newColorMap)
     } catch { /* ignore */ }
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  // タブに戻ったときも再読み込み（他の画面で記録を追加した場合に反映）
+  useFocusEffect(useCallback(() => { load() }, [load]))
 
   async function deleteEvent(eventId: string) {
     try {
@@ -342,18 +370,17 @@ export default function CalendarScreen() {
   const maxYear  = today.getFullYear() + Math.floor((today.getMonth() + 5) / 12)
   const maxMonth = (today.getMonth() + 5) % 12
   const isAtMax  = year > maxYear || (year === maxYear && month >= maxMonth)
-  const isAtMin  = year < 2020   // 極端な過去はブロック
+  const isAtMin  = year === 2020 && month === 0  // 2020年1月より前には戻れない
 
   function changeMonth(delta: number) {
     if (delta > 0 && isAtMax) return   // 5ヶ月先以上は進めない
     if (delta < 0 && isAtMin) return
     Animated.timing(fadeAnim, { toValue: 0, duration: 110, useNativeDriver: true }).start(() => {
-      setMonth(prev => {
-        let nm = prev + delta, ny = year
-        if (nm < 0)  { nm = 11; ny -= 1; setYear(ny) }
-        if (nm > 11) { nm = 0;  ny += 1; setYear(ny) }
-        return nm
-      })
+      let nm = month + delta, ny = year
+      if (nm < 0)  { nm = 11; ny -= 1 }
+      if (nm > 11) { nm = 0;  ny += 1 }
+      setMonth(nm)
+      setYear(ny)
       Animated.timing(fadeAnim, { toValue: 1, duration: 180, useNativeDriver: true }).start()
     })
   }
@@ -367,8 +394,10 @@ export default function CalendarScreen() {
   ]
   while (cells.length % 7 !== 0) cells.push(null)
 
-  const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`
-  const monthEntries = Object.entries(dayMap).filter(([d]) => d.startsWith(monthPrefix))
+  const monthPrefix    = `${year}-${String(month + 1).padStart(2, '0')}`
+  const monthEntries   = Object.entries(dayMap).filter(([d]) => d.startsWith(monthPrefix))
+  const trainingCount  = Object.keys(colorMap).filter(d => d.startsWith(monthPrefix)).length
+  const restCount      = monthEntries.filter(([, d]) => d.includes('event')).length  // 予定件数
 
   const { colors } = useTheme()
   // 予定（event/competition）を先頭に、練習記録は後ろに並べる
@@ -394,43 +423,72 @@ export default function CalendarScreen() {
             </HapticTouch>
           </View>
 
-          {/* ── 凡例 ── */}
-          <View style={st.legend}>
-            {(Object.entries(DOT_COLORS) as [DotType, string][]).map(([type, color]) => (
-              <View key={type} style={st.legendItem}>
-                <View style={[st.legendDot, { backgroundColor: color }]} />
-                <Text style={[st.legendTxt, { color: colors.textHint }]}>{DOT_LABELS[type]}</Text>
-              </View>
-            ))}
-          </View>
-
           {/* ── カレンダーグリッド ── */}
-          <Animated.View style={[st.calCard, { opacity: fadeAnim, backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Animated.View style={[st.calCard, { opacity: fadeAnim }]}>
+
+            {/* 月サマリーチップ */}
+            <View style={st.summaryChips}>
+              <View style={st.chipTraining}>
+                <Ionicons name="flash" size={13} color="#F59E0B" />
+                <Text style={st.chipTrainingTxt}>Training: {trainingCount}</Text>
+              </View>
+              <View style={st.chipRest}>
+                <Ionicons name="bed-outline" size={13} color="#3B82F6" />
+                <Text style={st.chipRestTxt}>Rest: {restCount}</Text>
+              </View>
+            </View>
+
+            {/* 曜日ヘッダー */}
             <View style={st.weekRow}>
               {WEEKDAYS.map((w, i) => (
-                <Text key={w} style={[st.weekLbl, { color: colors.textHint },
-                  i === 0 && { color: '#E53935' },
-                  i === 6 && { color: '#2196F3' },
+                <Text key={w} style={[st.weekLbl,
+                  i === 0 && { color: '#EF4444' },
+                  i === 6 && { color: '#3B82F6' },
                 ]}>{w}</Text>
               ))}
             </View>
+
+            {/* グリッド（週単位行：flexWrap廃止でズレ防止） */}
             <View style={st.grid}>
-              {cells.map((day, idx) => {
-                if (day === null) return <View key={`e${idx}`} style={st.dayCell} />
-                const ymd = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-                return (
-                  <DayCell
-                    key={ymd}
-                    day={day}
-                    isToday={ymd === todayYMD}
-                    isSelected={ymd === selectedDate}
-                    dots={dayMap[ymd] ?? []}
-                    dow={(firstDow + day - 1) % 7}
-                    onPress={() => setSelectedDate(ymd)}
-                    previewLabel={recordMap[ymd]?.[0]?.label}
-                  />
-                )
-              })}
+              {Array.from({ length: Math.ceil(cells.length / 7) }, (_, wi) => (
+                <View key={wi} style={st.weekRowGrid}>
+                  {cells.slice(wi * 7, wi * 7 + 7).map((day, di) => {
+                    if (day === null) return <View key={`e${wi}-${di}`} style={st.cellEmpty} />
+                    const ymd = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+                    return (
+                      <DayCell
+                        key={ymd}
+                        day={day}
+                        isToday={ymd === todayYMD}
+                        isSelected={ymd === selectedDate}
+                        bgColor={colorMap[ymd]}
+                        records={recordMap[ymd] ?? []}
+                        dow={di}
+                        onPress={() => setSelectedDate(ymd)}
+                      />
+                    )
+                  })}
+                </View>
+              ))}
+            </View>
+
+            {/* 強度凡例 */}
+            <View style={st.intensityLegend}>
+              {[
+                { label: '軽', color: '#DCFCE7' },
+                { label: '中', color: '#FEF9C3' },
+                { label: '強', color: '#FED7AA' },
+                { label: '超', color: '#FECACA' },
+              ].map(({ label, color }) => (
+                <View key={label} style={st.intensityItem}>
+                  <View style={[st.intensityBox, { backgroundColor: color }]} />
+                  <Text style={st.intensityTxt}>{label}</Text>
+                </View>
+              ))}
+              <View style={st.intensityItem}>
+                <View style={[st.intensityBox, { backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB' }]} />
+                <Text style={st.intensityTxt}>なし</Text>
+              </View>
             </View>
           </Animated.View>
 
@@ -465,8 +523,6 @@ export default function CalendarScreen() {
               >
                 {selectedRecords.map((rec, idx) => {
                   const isEv  = selectedIsEvent(rec)
-                  const color = isEv ? getCatInfo(rec.label.split(' ')[1] as any)?.color ?? '#9B6BFF' : DOT_COLORS[rec.type]
-                  // For events, color comes from category stored on the event
                   const dotColor = isEv ? '#9B6BFF' : DOT_COLORS[rec.type]
                   return (
                     <View key={idx} style={st.recordRow}>
@@ -530,48 +586,81 @@ export default function CalendarScreen() {
   )
 }
 
+// ── レコード種別 → 絵文字 ──────────────────────────────────
+function recEmoji(type: DotType): string {
+  switch (type) {
+    case 'race':        return '⏱'
+    case 'gps':         return '🏃'
+    case 'workout':     return '💪'
+    case 'competition': return '🏁'
+    case 'event':       return '📝'
+  }
+}
+
 // ── DayCell ────────────────────────────────────────────────
-function DayCell({ day, isToday, isSelected, dots, dow, onPress, previewLabel }: {
+function DayCell({ day, isToday, isSelected, bgColor, records, dow, onPress }: {
   day: number; isToday: boolean; isSelected: boolean
-  dots: DotType[]; dow: number; onPress: () => void
-  previewLabel?: string
+  bgColor?: string; records: DayRecord[]; dow: number; onPress: () => void
 }) {
   const scale = useRef(new Animated.Value(1)).current
   function press() {
     Animated.sequence([
-      Animated.timing(scale, { toValue: 0.82, duration: 70, useNativeDriver: true }),
-      Animated.timing(scale, { toValue: 1,    duration: 100, useNativeDriver: true }),
+      Animated.timing(scale, { toValue: 0.88, duration: 55, useNativeDriver: true }),
+      Animated.spring(scale, { toValue: 1, friction: 8, useNativeDriver: true }),
     ]).start()
     onPress()
   }
-  const dayColor = isToday ? '#fff'
-    : dow === 0 ? '#E53935'
-    : dow === 6 ? '#2196F3'
-    : '#374151'
 
-  // Strip leading emoji (e.g. "📝 ") and take first 5 chars
-  const preview = previewLabel
-    ? previewLabel.replace(/^[\p{Emoji}\s]+/u, '').slice(0, 5)
-    : undefined
+  const txtColor = dow === 0 ? '#EF4444'
+    : dow === 6   ? '#3B82F6'
+    : '#111827'
+
+  // 重複を除いた表示レコード（最大2件）
+  const seen = new Set<DotType>()
+  const displayRecs = records.filter(r => {
+    if (seen.has(r.type)) return false
+    seen.add(r.type); return true
+  }).slice(0, 2)
+
+  // 予定系（event/competition）の最初のラベル（短縮）
+  const evRec = records.find(r => r.type === 'event' || r.type === 'competition')
 
   return (
-    <TouchableOpacity activeOpacity={0.8} onPress={press} style={st.dayCell}>
-      <Animated.View style={{ transform: [{ scale }], alignItems: 'center' }}>
-        <View style={[st.dayNum, isToday && st.todayBg, isSelected && !isToday && st.selBg]}>
-          <Text style={[{ fontSize: 13, fontWeight: '500', color: dayColor }, isToday && { color: '#fff', fontWeight: '800' }]}>
-            {day}
-          </Text>
+    <TouchableOpacity style={st.cellWrap} onPress={press} activeOpacity={1}>
+      <Animated.View style={[
+        st.cell,
+        bgColor ? { backgroundColor: bgColor } : {},
+        isSelected && st.cellSelected,
+        { transform: [{ scale }] },
+      ]}>
+        {/* 上部：日付数字（今日 = 青丸） */}
+        <View style={st.cellTop}>
+          <View style={[st.numWrap, isToday && st.todayCircle]}>
+            <Text style={[st.numTxt, { color: isToday ? '#fff' : txtColor }]}>{day}</Text>
+          </View>
         </View>
-        {dots.length > 0 && (
-          <View style={st.dotsRow}>
-            {dots.slice(0, 3).map(t => (
-              <View key={t} style={[st.dot, { backgroundColor: DOT_COLORS[t] }]} />
-            ))}
+
+        {/* 下部：予定・記録ラベル */}
+        {displayRecs.length > 0 && (
+          <View style={st.cellBottom}>
+            {evRec ? (
+              // 予定がある場合：絵文字＋短縮タイトル
+              <View style={[st.cellTag, { backgroundColor: DOT_COLORS[evRec.type] + '22' }]}>
+                <Text style={st.cellTagEmoji}>{recEmoji(evRec.type)}</Text>
+                <Text style={[st.cellTagTxt, { color: DOT_COLORS[evRec.type] }]} numberOfLines={1}>
+                  {evRec.label.replace(/^[^\s]+\s/, '').slice(0, 5)}
+                </Text>
+              </View>
+            ) : (
+              // 練習のみ：絵文字ドット
+              <View style={st.cellDots}>
+                {displayRecs.map((r, i) => (
+                  <View key={i} style={[st.cellDot, { backgroundColor: DOT_COLORS[r.type] }]} />
+                ))}
+              </View>
+            )}
           </View>
         )}
-        {preview ? (
-          <Text style={st.dayPreview} numberOfLines={1}>{preview}</Text>
-        ) : null}
       </Animated.View>
     </TouchableOpacity>
   )
@@ -615,8 +704,9 @@ const m = StyleSheet.create({
   catLabel: { fontSize: 12, fontWeight: '700' },
   input:    { backgroundColor: SURFACE2, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, color: '#111827', fontSize: 15, borderWidth: 1, borderColor: DIVIDER },
   inputMulti: { height: 72, textAlignVertical: 'top', paddingTop: 10 },
-  saveBtn:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: BRAND, borderRadius: 14, paddingVertical: 15, marginTop: 20 },
-  saveTxt:  { color: '#fff', fontSize: 16, fontWeight: '800' },
+  saveBtn:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#1c1c1e', borderRadius: 50, paddingVertical: 16, marginTop: 20,
+              shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.18, shadowRadius: 12, elevation: 5 },
+  saveTxt:  { color: '#fff', fontSize: 16, fontWeight: '800', letterSpacing: -0.3 },
 })
 
 // ── Calendar styles ────────────────────────────────────────
@@ -625,36 +715,58 @@ const st = StyleSheet.create({
   monthNav:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16, paddingVertical: 4 },
   navBtn:      { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   monthTitle:  { color: '#fff', fontSize: 20, fontWeight: '800', minWidth: 140, textAlign: 'center' },
-  legend:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 2 },
-  legendItem:  { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  legendDot:   { width: 7, height: 7, borderRadius: 3.5 },
-  legendTxt:   { color: '#666', fontSize: 10 },
-  calCard:     { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
-  weekRow:     { flexDirection: 'row', marginBottom: 6 },
-  weekLbl:     { flex: 1, textAlign: 'center', color: '#666', fontSize: 12, fontWeight: '700' },
-  grid:        { flexDirection: 'row', flexWrap: 'wrap' },
-  dayCell:     { width: `${100 / 7}%`, aspectRatio: 0.75, alignItems: 'center', justifyContent: 'flex-start', paddingTop: 4 },
-  dayNum:      { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  todayBg:     { backgroundColor: '#166534' },
-  selBg:       { backgroundColor: 'rgba(22,101,52,0.12)', borderWidth: 1, borderColor: '#166534' },
-  dotsRow:     { flexDirection: 'row', gap: 2, marginTop: 2, height: 5, alignItems: 'center' },
-  dot:         { width: 4, height: 4, borderRadius: 2 },
-  dayPreview:  { fontSize: 8, color: '#888', marginTop: 2, maxWidth: 36, textAlign: 'center' },
+
+  // カレンダーカード（常にホワイト）
+  calCard:        { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', paddingHorizontal: 8, paddingTop: 12, paddingBottom: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 3 },
+  summaryChips:   { flexDirection: 'row', gap: 8, marginBottom: 10, paddingHorizontal: 4 },
+  chipTraining:   { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FEF9C3', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 },
+  chipTrainingTxt:{ color: '#92400E', fontSize: 12, fontWeight: '700' },
+  chipRest:       { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#DBEAFE', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 },
+  chipRestTxt:    { color: '#1D4ED8', fontSize: 12, fontWeight: '700' },
+
+  // 曜日ヘッダー
+  weekRow:     { flexDirection: 'row', marginBottom: 4, paddingHorizontal: 2 },
+  weekLbl:     { flex: 1, textAlign: 'center', color: '#6B7280', fontSize: 11, fontWeight: '700' },
+
+  // グリッド（週単位行）
+  grid:        { paddingHorizontal: 2 },
+  weekRowGrid: { flexDirection: 'row' },
+  cellWrap:    { flex: 1, aspectRatio: 0.72, padding: 2 },
+  cellEmpty:   { flex: 1, aspectRatio: 0.72 },
+  cell:        { flex: 1, borderRadius: 10, flexDirection: 'column', justifyContent: 'space-between', backgroundColor: '#F9FAFB', paddingTop: 5, paddingBottom: 4, overflow: 'hidden' },
+  cellSelected:{ borderWidth: 2, borderColor: '#111827' },
+  cellTop:     { alignItems: 'center' },
+  numWrap:     { width: 28, height: 28, alignItems: 'center', justifyContent: 'center', borderRadius: 14 },
+  numTxt:      { fontSize: 15, fontWeight: '700', color: '#111827' },
+  todayCircle: { backgroundColor: '#3B82F6' },
+  // 下部イベント表示
+  cellBottom:  { alignSelf: 'stretch', paddingHorizontal: 3, paddingBottom: 1 },
+  cellTag:     { flexDirection: 'row', alignItems: 'center', gap: 1, borderRadius: 4, paddingHorizontal: 3, paddingVertical: 2, overflow: 'hidden' },
+  cellTagEmoji:{ fontSize: 9, flexShrink: 0 },
+  cellTagTxt:  { fontSize: 9, fontWeight: '700', flexShrink: 1, flexGrow: 0 },
+  cellDots:    { flexDirection: 'row', gap: 3, alignItems: 'center' },
+  cellDot:     { width: 5, height: 5, borderRadius: 2.5 },
+
+  // 強度凡例
+  intensityLegend: { flexDirection: 'row', gap: 10, marginTop: 10, paddingHorizontal: 4, justifyContent: 'flex-end', alignItems: 'center' },
+  intensityItem:   { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  intensityBox:    { width: 12, height: 12, borderRadius: 3 },
+  intensityTxt:    { fontSize: 10, color: '#9CA3AF' },
 
   // Detail
   detailCard:   { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 14, gap: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
   detailHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  detailTitle:  { color: '#fff', fontSize: 14, fontWeight: '700', flex: 1 },
+  detailTitle:  { color: '#111827', fontSize: 14, fontWeight: '700', flex: 1 },
   addBtn:       { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: BRAND, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
   addBtnTxt:    { color: '#fff', fontSize: 12, fontWeight: '700' },
   emptyBox:     { alignItems: 'center', paddingVertical: 16, gap: 5 },
   emptyEmoji:   { fontSize: 28, marginBottom: 2 },
   emptyTxt:     { color: '#444', fontSize: 13 },
-  emptySub:     { color: '#333', fontSize: 12 },
+  emptySub:     { color: '#6B7280', fontSize: 12 },
   recordRow:    { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(0,0,0,0.03)', borderRadius: 8, padding: 10 },
   recordIcon:   { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  recordLbl:    { color: '#fff', fontSize: 13, fontWeight: '600' },
-  recordSub:    { color: '#666', fontSize: 11 },
+  recordLbl:    { color: '#111827', fontSize: 13, fontWeight: '600' },
+  recordSub:    { color: '#6B7280', fontSize: 11 },
   eventActions: { flexDirection: 'row', gap: 12, paddingHorizontal: 4 },
   badge:        { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, borderWidth: 1 },
   badgeTxt:     { fontSize: 10, fontWeight: '700' },

@@ -231,8 +231,8 @@ export default function AIDiagnosisScreen() {
         })),
       }
 
-      const _apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? '').replace(/\/$/, '')
-      const _endpoint = _apiBase ? `${_apiBase}/api/analyze` : '/api/analyze'
+      const _apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
+      const _endpoint = `${_apiBase}/api/analyze`
 
       const response = await fetch(_endpoint, {
         method: 'POST',

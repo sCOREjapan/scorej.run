@@ -1,5 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { Animated, TouchableOpacity, Platform, View, Text, StyleSheet, Pressable, useWindowDimensions } from 'react-native'
+import BannerAdView from '../../components/BannerAdView'
+import { usePurchase } from '../../context/PurchaseContext'
 import { Tabs, useRouter, usePathname } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -257,11 +259,17 @@ const fab = StyleSheet.create({
   },
 })
 
+const BANNER_H = 50   // バナー広告の高さ見込み
+
 // ── メインレイアウト ─────────────────────────────────────
 export default function TabLayout() {
   const insets   = useSafeAreaInsets()
   const pathname = usePathname()
-  const fabBottomOffset = Math.max(insets.bottom, 16) + 56  // タブバー高さ分オフセット
+  const { tier } = usePurchase()
+  const showBanner = tier === 'free'   // Pro以上はバナー非表示
+  const [bannerLoaded, setBannerLoaded] = useState(false)
+  // バナー表示中はFABをその分上にずらす
+  const fabBottomOffset = Math.max(insets.bottom, 16) + 56 + (bannerLoaded ? BANNER_H : 0)
   const hideFab  = pathname === '/team' || pathname === '/(tabs)/team'
 
   // 初回起動時に通知 → 位置情報の順で許可ダイアログを表示
@@ -320,6 +328,14 @@ export default function TabLayout() {
           <Tabs.Screen key={name} name={name} options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, headerShown: false }} />
         ))}
       </Tabs>
+
+      {/* ── バナー広告（タブバー直上、フリープランのみ・ネイティブのみ） ── */}
+      {showBanner && (
+        <BannerAdView
+          onLoaded={() => setBannerLoaded(true)}
+          onFailed={() => setBannerLoaded(false)}
+        />
+      )}
 
       {/* ── W3 カスタムタブバー ── */}
       <CustomTabBar bottomInset={insets.bottom} />
