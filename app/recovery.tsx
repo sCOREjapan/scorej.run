@@ -455,148 +455,239 @@ function BodyMap({ view, selected, onToggle }: {
 
 /* ─── 解剖学的筋肉図（ライン画スタイル） ────── */
 function AnatomicalBody({ view }: { view:'front'|'back' }) {
-  const fill   = '#f8f8f6'   // ほぼ白
-  const stroke = '#1a1a1e'   // 黒に近いアウトライン
-  const sw     = 1.3
-  const detail = '#4a4a4a'   // 筋肉ライン（濃いグレー）
+  const fill   = '#f8f8f6'
+  const stroke = '#1a1a1e'
+  const sw     = 1.25
+  const ml     = '#484848'
+  const ms     = 0.8
 
-  const ds = 0.85  // 筋肉ライン太さ
-
-  /* ── 共通パーツ ── */
-  const Head = () => (
-    <>
-      <Ellipse cx={110} cy={27} rx={17} ry={20} fill={fill} stroke={stroke} strokeWidth={sw}/>
-      {/* 鼻 */}
-      <Path d="M108.5,30 L110,35 L111.5,30" fill="none" stroke={stroke} strokeWidth={0.7}/>
-    </>
-  )
-  const Neck = () => (
-    <Path d="M103,46 L102,66 Q110,70 118,66 L117,46 Q110,43 103,46Z"
-      fill={fill} stroke={stroke} strokeWidth={sw}/>
-  )
-  const Arms = () => (
-    <>
-      {/* 左上腕 */}
-      <Path d="M67,82 C58,94 52,116 49,140 C46,158 45,174 47,188 L58,190 C62,178 64,162 67,140 C70,116 72,96 73,84Z"
+  // 指1本: (base_cx, base_y) → (tip_cx, tip_y)
+  const Finger = ({ bx, by, tx, ty }: {bx:number,by:number,tx:number,ty:number}) => {
+    const w = 2.8
+    const dx = tx - bx, dy = ty - by
+    const len = Math.sqrt(dx*dx+dy*dy)
+    const nx = -dy/len*w, ny = dx/len*w
+    return (
+      <Path
+        d={`M${bx+nx},${by+ny} C${bx+nx},${(by+ty)/2} ${tx+nx},${ty-4} ${tx},${ty}
+            C${tx-nx},${ty-4} ${bx-nx},${(by+ty)/2} ${bx-nx},${by+ny} Z`}
         fill={fill} stroke={stroke} strokeWidth={sw}/>
-      {/* 左前腕 */}
-      <Path d="M47,188 C43,205 39,222 37,236 Q43,244 51,242 Q57,240 59,232 C59,218 61,204 58,190Z"
-        fill={fill} stroke={stroke} strokeWidth={sw}/>
-      {/* 左手 */}
-      <Path d="M37,236 C34,246 31,256 30,264 Q36,270 42,266 L44,256 Q47,266 52,268 Q57,268 58,260 L59,250 Q62,260 66,260 Q70,258 69,248 L67,238 Q57,240 51,242 Q43,244 37,236Z"
-        fill={fill} stroke={stroke} strokeWidth={sw}/>
-      {/* 右上腕 */}
-      <Path d="M153,82 C162,94 168,116 171,140 C174,158 175,174 173,188 L162,190 C158,178 156,162 153,140 C150,116 148,96 147,84Z"
-        fill={fill} stroke={stroke} strokeWidth={sw}/>
-      {/* 右前腕 */}
-      <Path d="M173,188 C177,205 181,222 183,236 Q177,244 169,242 Q163,240 161,232 C161,218 159,204 162,190Z"
-        fill={fill} stroke={stroke} strokeWidth={sw}/>
-      {/* 右手 */}
-      <Path d="M183,236 C186,246 189,256 190,264 Q184,270 178,266 L176,256 Q173,266 168,268 Q163,268 162,260 L161,250 Q158,260 154,260 Q150,258 151,248 L153,238 Q163,240 169,242 Q177,244 183,236Z"
-        fill={fill} stroke={stroke} strokeWidth={sw}/>
-    </>
-  )
-  const Legs = () => (
-    <>
-      {/* 左大腿 */}
-      <Path d="M82,202 C74,210 68,228 66,252 C64,272 65,292 68,312 L80,320 C86,322 94,320 100,316 L104,306 C107,288 107,268 105,248 C103,228 99,210 94,200Z"
-        fill={fill} stroke={stroke} strokeWidth={sw}/>
-      {/* 左下腿 */}
-      <Path d="M68,310 C64,330 63,350 64,370 C65,386 68,398 72,408 L87,408 C92,406 96,400 97,392 C98,380 97,358 97,334 L97,308 C92,315 80,318 73,314Z"
-        fill={fill} stroke={stroke} strokeWidth={sw}/>
-      {/* 左足 */}
-      <Path d="M64,404 C58,418 54,430 54,435 Q64,439 78,439 Q90,438 96,430 Q98,420 97,408Z"
-        fill={fill} stroke={stroke} strokeWidth={sw}/>
-      {/* 右大腿 */}
-      <Path d="M138,202 C146,210 152,228 154,252 C156,272 155,292 152,312 L140,320 C134,322 126,320 120,316 L116,306 C113,288 113,268 115,248 C117,228 121,210 126,200Z"
-        fill={fill} stroke={stroke} strokeWidth={sw}/>
-      {/* 右下腿 */}
-      <Path d="M152,310 C156,330 157,350 156,370 C155,386 152,398 148,408 L133,408 C128,406 124,400 123,392 C122,380 123,358 123,334 L123,308 C128,315 140,318 147,314Z"
-        fill={fill} stroke={stroke} strokeWidth={sw}/>
-      {/* 右足 */}
-      <Path d="M156,404 C162,418 166,430 166,435 Q156,439 142,439 Q130,438 124,430 Q122,420 123,408Z"
-        fill={fill} stroke={stroke} strokeWidth={sw}/>
-    </>
-  )
+    )
+  }
 
   if (view === 'front') {
     return (
       <G>
-        {/* ── ボディシルエット ── */}
-        <Path d="M80,78 C72,86 68,100 68,118 C68,134 72,148 77,160 C80,170 80,184 82,196 L93,204 L127,204 L138,196 C140,184 140,170 143,160 C148,148 152,134 152,118 C152,100 148,86 140,78 C130,71 120,70 118,70 L102,70 C100,70 90,71 80,78Z"
+        {/* ── 頭 ── */}
+        <Ellipse cx={110} cy={25} rx={18} ry={22} fill={fill} stroke={stroke} strokeWidth={sw}/>
+        <Path d="M108,29 L110,36 L112,29" fill="none" stroke={stroke} strokeWidth={0.7}/>
+
+        {/* ── 首 ── */}
+        <Path d="M103,45 C101,53 101,62 102,70 Q110,75 118,70 C119,62 119,53 117,45 Q110,43 103,45Z"
           fill={fill} stroke={stroke} strokeWidth={sw}/>
-        <Legs/><Arms/><Neck/><Head/>
 
-        {/* ── 大胸筋 ── */}
-        <Path d="M102,70 Q90,76 80,86 C80,98 84,108 92,112 C98,108 106,100 110,92"
-          fill="none" stroke={detail} strokeWidth={ds}/>
-        <Path d="M118,70 Q130,76 140,86 C140,98 136,108 128,112 C122,108 114,100 110,92"
-          fill="none" stroke={detail} strokeWidth={ds}/>
-        {/* 胸骨・正中線 */}
-        <Line x1={110} y1={70} x2={110} y2={112} stroke={detail} strokeWidth={0.7}/>
-        {/* 鎖骨 */}
-        <Path d="M103,71 Q90,77 77,84" fill="none" stroke={detail} strokeWidth={ds}/>
-        <Path d="M117,71 Q130,77 143,84" fill="none" stroke={detail} strokeWidth={ds}/>
+        {/* ── 胴体（肩幅を広く・ウエストくびれ・ヒップ張り）── */}
+        <Path d="M102,70
+          C92,72 78,76 62,86
+          C50,94 42,108 40,124
+          C38,140 40,156 46,170
+          C50,180 54,192 56,204
+          L80,220 L140,220
+          C146,204 150,184 154,170
+          C160,156 162,140 160,124
+          C158,108 150,94 138,86
+          C122,76 128,72 118,70Z"
+          fill={fill} stroke={stroke} strokeWidth={sw}/>
 
-        {/* ── 三角筋ライン ── */}
-        <Path d="M67,84 C60,94 56,108 56,122 C60,126 66,126 70,120 C72,108 72,94 73,84"
-          fill="none" stroke={detail} strokeWidth={ds}/>
-        <Path d="M153,84 C160,94 164,108 164,122 C160,126 154,126 150,120 C148,108 148,94 147,84"
-          fill="none" stroke={detail} strokeWidth={ds}/>
+        {/* ── 三角筋（左）── */}
+        <Path d="M56,88
+          C44,96 34,110 32,126
+          C30,140 34,154 40,162
+          C48,156 56,142 60,128
+          C64,114 62,98 58,90Z"
+          fill={fill} stroke={stroke} strokeWidth={sw}/>
 
-        {/* ── 上腕二頭筋（楕円） ── */}
-        <Ellipse cx={56} cy={148} rx={8} ry={16} fill="none" stroke={detail} strokeWidth={ds}/>
-        <Ellipse cx={164} cy={148} rx={8} ry={16} fill="none" stroke={detail} strokeWidth={ds}/>
+        {/* ── 三角筋（右）── */}
+        <Path d="M164,88
+          C176,96 186,110 188,126
+          C190,140 186,154 180,162
+          C172,156 164,142 160,128
+          C156,114 158,98 162,90Z"
+          fill={fill} stroke={stroke} strokeWidth={sw}/>
 
-        {/* ── 前腕筋ライン 左 ── */}
-        <Path d="M50,192 C46,208 42,226 40,238" fill="none" stroke={detail} strokeWidth={0.7}/>
-        <Path d="M55,191 C52,207 49,224 48,236" fill="none" stroke={detail} strokeWidth={0.7}/>
-        <Path d="M59,190 C57,206 55,222 55,234" fill="none" stroke={detail} strokeWidth={0.7}/>
-        {/* 前腕筋ライン 右 */}
-        <Path d="M170,192 C174,208 178,226 180,238" fill="none" stroke={detail} strokeWidth={0.7}/>
-        <Path d="M165,191 C168,207 171,224 172,236" fill="none" stroke={detail} strokeWidth={0.7}/>
-        <Path d="M161,190 C163,206 165,222 165,234" fill="none" stroke={detail} strokeWidth={0.7}/>
+        {/* ── 上腕（左）── */}
+        <Path d="M32,126
+          C26,144 20,164 18,184
+          C16,200 16,214 20,226
+          L34,228
+          C36,216 38,202 40,186
+          C42,168 44,148 46,130
+          C40,122 36,120 32,126Z"
+          fill={fill} stroke={stroke} strokeWidth={sw}/>
+        {/* 上腕二頭筋 楕円 */}
+        <Ellipse cx={28} cy={172} rx={8} ry={20} fill="none" stroke={ml} strokeWidth={ms}/>
 
-        {/* ── 前鋸筋（脇の鋸歯） ── */}
-        <Path d="M78,118 L72,122" fill="none" stroke={detail} strokeWidth={0.7}/>
-        <Path d="M78,128 L71,133" fill="none" stroke={detail} strokeWidth={0.7}/>
-        <Path d="M78,138 L72,142" fill="none" stroke={detail} strokeWidth={0.7}/>
-        <Path d="M142,118 L148,122" fill="none" stroke={detail} strokeWidth={0.7}/>
-        <Path d="M142,128 L149,133" fill="none" stroke={detail} strokeWidth={0.7}/>
-        <Path d="M142,138 L148,142" fill="none" stroke={detail} strokeWidth={0.7}/>
+        {/* ── 上腕（右）── */}
+        <Path d="M188,126
+          C194,144 200,164 202,184
+          C204,200 204,214 200,226
+          L186,228
+          C184,216 182,202 180,186
+          C178,168 176,148 174,130
+          C180,122 184,120 188,126Z"
+          fill={fill} stroke={stroke} strokeWidth={sw}/>
+        <Ellipse cx={192} cy={172} rx={8} ry={20} fill="none" stroke={ml} strokeWidth={ms}/>
+
+        {/* ── 前腕（左）── */}
+        <Path d="M20,226
+          C16,244 12,262 10,278
+          C9,286 9,292 11,298
+          L24,300
+          C26,288 28,272 32,256
+          C34,242 36,228 34,228Z"
+          fill={fill} stroke={stroke} strokeWidth={sw}/>
+        <Path d="M22,230 C18,250 15,272 14,286" fill="none" stroke={ml} strokeWidth={0.65}/>
+        <Path d="M27,229 C24,249 21,270 21,284" fill="none" stroke={ml} strokeWidth={0.65}/>
+
+        {/* ── 前腕（右）── */}
+        <Path d="M200,226
+          C204,244 208,262 210,278
+          C211,286 211,292 209,298
+          L196,300
+          C194,288 192,272 188,256
+          C186,242 184,228 186,228Z"
+          fill={fill} stroke={stroke} strokeWidth={sw}/>
+        <Path d="M198,230 C202,250 205,272 206,286" fill="none" stroke={ml} strokeWidth={0.65}/>
+        <Path d="M193,229 C196,249 199,270 199,284" fill="none" stroke={ml} strokeWidth={0.65}/>
+
+        {/* ── 手のひら（左）── */}
+        <Path d="M11,298 C9,306 8,314 9,320 C10,326 14,328 18,326 L26,324 C28,316 28,308 28,300 L24,300Z"
+          fill={fill} stroke={stroke} strokeWidth={sw}/>
+        {/* 左 指5本 */}
+        <Finger bx={11} by={322} tx={9}  ty={342}/>
+        <Finger bx={16} by={324} tx={14} ty={346}/>
+        <Finger bx={21} by={325} tx={21} ty={348}/>
+        <Finger bx={26} by={323} tx={28} ty={344}/>
+        {/* 親指（左） */}
+        <Path d="M9,308 C5,306 2,302 2,296 C2,290 6,288 10,290 C12,292 12,296 11,300Z"
+          fill={fill} stroke={stroke} strokeWidth={sw}/>
+
+        {/* ── 手のひら（右）── */}
+        <Path d="M209,298 C211,306 212,314 211,320 C210,326 206,328 202,326 L194,324 C192,316 192,308 192,300 L196,300Z"
+          fill={fill} stroke={stroke} strokeWidth={sw}/>
+        {/* 右 指5本 */}
+        <Finger bx={209} by={322} tx={211} ty={342}/>
+        <Finger bx={204} by={324} tx={206} ty={346}/>
+        <Finger bx={199} by={325} tx={199} ty={348}/>
+        <Finger bx={194} by={323} tx={192} ty={344}/>
+        {/* 親指（右） */}
+        <Path d="M211,308 C215,306 218,302 218,296 C218,290 214,288 210,290 C208,292 208,296 209,300Z"
+          fill={fill} stroke={stroke} strokeWidth={sw}/>
+
+        {/* ── 大胸筋ライン ── */}
+        <Path d="M102,72 Q84,78 66,92"    fill="none" stroke={ml} strokeWidth={ms}/>
+        <Path d="M118,72 Q136,78 154,92"  fill="none" stroke={ml} strokeWidth={ms}/>
+        <Path d="M102,72 Q90,80 82,92 Q78,104 82,116 C88,120 98,116 106,108 L110,102"
+          fill="none" stroke={ml} strokeWidth={ms}/>
+        <Path d="M118,72 Q130,80 138,92 Q142,104 138,116 C132,120 122,116 114,108 L110,102"
+          fill="none" stroke={ml} strokeWidth={ms}/>
+        <Line x1={110} y1={72} x2={110} y2={118} stroke={ml} strokeWidth={0.7}/>
+
+        {/* ── 三角筋ライン（前部・中部境界）── */}
+        <Path d="M40,124 C44,136 48,148 50,158" fill="none" stroke={ml} strokeWidth={ms}/>
+        <Path d="M180,124 C176,136 172,148 170,158" fill="none" stroke={ml} strokeWidth={ms}/>
+
+        {/* ── 前鋸筋 ── */}
+        <Path d="M56,130 L50,134" fill="none" stroke={ml} strokeWidth={0.65}/>
+        <Path d="M56,140 L49,145" fill="none" stroke={ml} strokeWidth={0.65}/>
+        <Path d="M56,150 L50,154" fill="none" stroke={ml} strokeWidth={0.65}/>
+        <Path d="M164,130 L170,134" fill="none" stroke={ml} strokeWidth={0.65}/>
+        <Path d="M164,140 L171,145" fill="none" stroke={ml} strokeWidth={0.65}/>
+        <Path d="M164,150 L170,154" fill="none" stroke={ml} strokeWidth={0.65}/>
 
         {/* ── 腹直筋 ── */}
-        <Line x1={110} y1={114} x2={110} y2={170} stroke={detail} strokeWidth={0.75} strokeDasharray="2,3"/>
-        <Path d="M100,124 Q105,122 110,123 Q115,122 120,124" fill="none" stroke={detail} strokeWidth={ds}/>
-        <Path d="M98,136 Q104,134 110,135 Q116,134 122,136" fill="none" stroke={detail} strokeWidth={ds}/>
-        <Path d="M97,148 Q103,146 110,147 Q117,146 123,148" fill="none" stroke={detail} strokeWidth={ds}/>
+        <Line x1={110} y1={120} x2={110} y2={184} stroke={ml} strokeWidth={0.75} strokeDasharray="2,3"/>
+        <Path d="M100,130 Q105,128 110,129 Q115,128 120,130" fill="none" stroke={ml} strokeWidth={ms}/>
+        <Path d="M98,143 Q104,141 110,142 Q116,141 122,143" fill="none" stroke={ml} strokeWidth={ms}/>
+        <Path d="M97,156 Q103,154 110,155 Q117,154 123,156" fill="none" stroke={ml} strokeWidth={ms}/>
 
         {/* ── 外腹斜筋 ── */}
-        <Path d="M80,138 C80,154 80,166 82,178 L96,178" fill="none" stroke={detail} strokeWidth={0.7}/>
-        <Path d="M140,138 C140,154 140,166 138,178 L124,178" fill="none" stroke={detail} strokeWidth={0.7}/>
+        <Path d="M56,150 C56,164 56,176 58,188 L76,188" fill="none" stroke={ml} strokeWidth={0.65}/>
+        <Path d="M164,150 C164,164 164,176 162,188 L144,188" fill="none" stroke={ml} strokeWidth={0.65}/>
 
         {/* ── 鼠径部 Vライン ── */}
-        <Path d="M82,178 Q92,198 100,202" fill="none" stroke={detail} strokeWidth={ds}/>
-        <Path d="M138,178 Q128,198 120,202" fill="none" stroke={detail} strokeWidth={ds}/>
-        <Path d="M98,178 Q104,188 110,190 Q116,188 122,178" fill="none" stroke={detail} strokeWidth={ds}/>
+        <Path d="M58,188 Q70,208 80,214"    fill="none" stroke={ml} strokeWidth={ms}/>
+        <Path d="M162,188 Q150,208 140,214" fill="none" stroke={ml} strokeWidth={ms}/>
+        <Path d="M98,188 Q104,198 110,200 Q116,198 122,188" fill="none" stroke={ml} strokeWidth={ms}/>
+        <Circle cx={110} cy={175} r={2.5} fill="none" stroke={ml} strokeWidth={0.9}/>
 
-        {/* ── へそ ── */}
-        <Circle cx={110} cy={167} r={2.5} fill="none" stroke={detail} strokeWidth={0.9}/>
+        {/* ── 大腿（左）── */}
+        <Path d="M80,220
+          C70,232 62,254 60,278
+          C58,300 60,322 66,340
+          L80,348 C88,350 98,348 104,344
+          L108,332
+          C112,312 111,288 109,264
+          C107,242 102,222 96,220Z"
+          fill={fill} stroke={stroke} strokeWidth={sw}/>
+        {/* 外側広筋 */}
+        <Path d="M78,226 C70,252 66,278 66,302 C66,320 70,334 74,342" fill="none" stroke={ml} strokeWidth={0.65}/>
+        {/* 大腿直筋 */}
+        <Path d="M88,222 C86,250 84,278 84,300 C84,320 86,336 90,342" fill="none" stroke={ml} strokeWidth={0.65}/>
+        {/* 内側広筋 */}
+        <Path d="M101,224 C105,252 106,278 104,302 C102,320 98,334 94,342" fill="none" stroke={ml} strokeWidth={0.65}/>
 
-        {/* ── 大腿四頭筋 左 ── */}
-        <Path d="M80,208 C72,230 68,256 68,278 C68,296 70,310 72,318" fill="none" stroke={detail} strokeWidth={0.7}/>
-        <Path d="M88,204 C86,228 84,254 84,276 C84,296 86,310 90,318" fill="none" stroke={detail} strokeWidth={0.7}/>
-        <Path d="M100,208 C103,232 104,256 102,278 C100,296 97,312 94,318" fill="none" stroke={detail} strokeWidth={0.7}/>
-        {/* 大腿四頭筋 右 */}
-        <Path d="M140,208 C148,230 152,256 152,278 C152,296 150,310 148,318" fill="none" stroke={detail} strokeWidth={0.7}/>
-        <Path d="M132,204 C134,228 136,254 136,276 C136,296 134,310 130,318" fill="none" stroke={detail} strokeWidth={0.7}/>
-        <Path d="M120,208 C117,232 116,256 118,278 C120,296 123,312 126,318" fill="none" stroke={detail} strokeWidth={0.7}/>
+        {/* ── 大腿（右）── */}
+        <Path d="M140,220
+          C150,232 158,254 160,278
+          C162,300 160,322 154,340
+          L140,348 C132,350 122,348 116,344
+          L112,332
+          C108,312 109,288 111,264
+          C113,242 118,222 124,220Z"
+          fill={fill} stroke={stroke} strokeWidth={sw}/>
+        <Path d="M142,226 C150,252 154,278 154,302 C154,320 150,334 146,342" fill="none" stroke={ml} strokeWidth={0.65}/>
+        <Path d="M132,222 C134,250 136,278 136,300 C136,320 134,336 130,342" fill="none" stroke={ml} strokeWidth={0.65}/>
+        <Path d="M119,224 C115,252 114,278 116,302 C118,320 122,334 126,342" fill="none" stroke={ml} strokeWidth={0.65}/>
 
-        {/* ── 前脛骨筋 ── */}
-        <Path d="M74,316 C72,338 70,360 71,380 C72,396 76,408 80,414" fill="none" stroke={detail} strokeWidth={0.7}/>
-        <Line x1={82} y1={318} x2={81} y2={408} stroke={detail} strokeWidth={0.7}/>
-        <Path d="M146,316 C148,338 150,360 149,380 C148,396 144,408 140,414" fill="none" stroke={detail} strokeWidth={0.7}/>
-        <Line x1={138} y1={318} x2={139} y2={408} stroke={detail} strokeWidth={0.7}/>
+        {/* ── 下腿（左）── */}
+        <Path d="M66,338
+          C62,360 60,382 61,402
+          C62,416 67,428 73,432
+          L90,432
+          C96,430 100,422 101,410
+          C102,394 101,370 101,346
+          L101,336 L80,346Z"
+          fill={fill} stroke={stroke} strokeWidth={sw}/>
+        {/* 前脛骨筋 */}
+        <Path d="M74,342 C72,366 72,390 74,410 C76,422 80,430 84,432" fill="none" stroke={ml} strokeWidth={0.65}/>
+        <Line x1={86} y1={344} x2={85} y2={428} stroke={ml} strokeWidth={0.65}/>
+
+        {/* ── 下腿（右）── */}
+        <Path d="M154,338
+          C158,360 160,382 159,402
+          C158,416 153,428 147,432
+          L130,432
+          C124,430 120,422 119,410
+          C118,394 119,370 119,346
+          L119,336 L140,346Z"
+          fill={fill} stroke={stroke} strokeWidth={sw}/>
+        <Path d="M146,342 C148,366 148,390 146,410 C144,422 140,430 136,432" fill="none" stroke={ml} strokeWidth={0.65}/>
+        <Line x1={134} y1={344} x2={135} y2={428} stroke={ml} strokeWidth={0.65}/>
+
+        {/* ── 足（左）── */}
+        <Path d="M61,428 C55,438 51,447 51,452 Q63,456 80,455 Q96,454 102,444 Q103,434 101,428Z"
+          fill={fill} stroke={stroke} strokeWidth={sw}/>
+        {[{x1:54,y1:452,x2:58,y2:439},{x1:63,y1:454,x2:66,y2:441},{x1:72,y1:455,x2:74,y2:442},{x1:81,y1:455,x2:82,y2:443},{x1:89,y1:453,x2:90,y2:441}].map((t,i)=>(
+          <Line key={i} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} stroke={ml} strokeWidth={0.7}/>
+        ))}
+
+        {/* ── 足（右）── */}
+        <Path d="M159,428 C165,438 169,447 169,452 Q157,456 140,455 Q124,454 118,444 Q117,434 119,428Z"
+          fill={fill} stroke={stroke} strokeWidth={sw}/>
+        {[{x1:166,y1:452,x2:162,y2:439},{x1:157,y1:454,x2:154,y2:441},{x1:148,y1:455,x2:146,y2:442},{x1:139,y1:455,x2:138,y2:443},{x1:131,y1:453,x2:130,y2:441}].map((t,i)=>(
+          <Line key={i} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} stroke={ml} strokeWidth={0.7}/>
+        ))}
       </G>
     )
   }
@@ -604,83 +695,210 @@ function AnatomicalBody({ view }: { view:'front'|'back' }) {
   // ── 背面 ──
   return (
     <G>
-      {/* ── ボディシルエット ── */}
-      <Path d="M80,78 C72,86 68,100 68,118 C68,134 72,148 77,160 C80,170 80,184 82,196 L93,204 L127,204 L138,196 C140,184 140,170 143,160 C148,148 152,134 152,118 C152,100 148,86 140,78 C130,71 120,70 118,70 L102,70 C100,70 90,71 80,78Z"
-        fill={fill} stroke={stroke} strokeWidth={sw}/>
-      <Legs/><Arms/><Neck/><Head/>
+      {/* ── 頭 ── */}
+      <Ellipse cx={110} cy={25} rx={18} ry={22} fill={fill} stroke={stroke} strokeWidth={sw}/>
 
-      {/* ── 脊椎 ── */}
-      <Line x1={110} y1={72} x2={110} y2={200} stroke={detail} strokeWidth={0.8} strokeDasharray="3,4"/>
+      {/* ── 首 ── */}
+      <Path d="M103,45 C101,53 101,62 102,70 Q110,75 118,70 C119,62 119,53 117,45 Q110,43 103,45Z"
+        fill={fill} stroke={stroke} strokeWidth={sw}/>
+
+      {/* ── 胴体（背面）── */}
+      <Path d="M102,70
+        C92,72 78,76 62,86
+        C50,94 42,108 40,124
+        C38,140 40,156 46,170
+        C50,180 54,192 56,204
+        L80,220 L140,220
+        C146,204 150,184 154,170
+        C160,156 162,140 160,124
+        C158,108 150,94 138,86
+        C122,76 128,72 118,70Z"
+        fill={fill} stroke={stroke} strokeWidth={sw}/>
+
+      {/* ── 三角筋 後部（左）── */}
+      <Path d="M56,88
+        C44,96 34,110 32,126
+        C30,140 34,154 40,162
+        C48,156 56,142 60,128
+        C64,114 62,98 58,90Z"
+        fill={fill} stroke={stroke} strokeWidth={sw}/>
+      {/* ── 三角筋 後部（右）── */}
+      <Path d="M164,88
+        C176,96 186,110 188,126
+        C190,140 186,154 180,162
+        C172,156 164,142 160,128
+        C156,114 158,98 162,90Z"
+        fill={fill} stroke={stroke} strokeWidth={sw}/>
+
+      {/* ── 上腕三頭筋（左）── */}
+      <Path d="M32,126
+        C26,144 20,164 18,184
+        C16,200 16,214 20,226
+        L34,228
+        C36,216 38,202 40,186
+        C42,168 44,148 46,130
+        C40,122 36,120 32,126Z"
+        fill={fill} stroke={stroke} strokeWidth={sw}/>
+      <Path d="M26,132 C24,152 22,170 22,188 C22,202 24,214 26,222" fill="none" stroke={ml} strokeWidth={ms}/>
+      <Path d="M34,130 C32,152 30,170 30,188 C30,202 32,214 34,222" fill="none" stroke={ml} strokeWidth={ms}/>
+
+      {/* ── 上腕三頭筋（右）── */}
+      <Path d="M188,126
+        C194,144 200,164 202,184
+        C204,200 204,214 200,226
+        L186,228
+        C184,216 182,202 180,186
+        C178,168 176,148 174,130
+        C180,122 184,120 188,126Z"
+        fill={fill} stroke={stroke} strokeWidth={sw}/>
+      <Path d="M194,132 C196,152 198,170 198,188 C198,202 196,214 194,222" fill="none" stroke={ml} strokeWidth={ms}/>
+      <Path d="M186,130 C188,152 190,170 190,188 C190,202 188,214 186,222" fill="none" stroke={ml} strokeWidth={ms}/>
+
+      {/* ── 前腕（左・背面）── */}
+      <Path d="M20,226
+        C16,244 12,262 10,278
+        C9,286 9,292 11,298
+        L24,300
+        C26,288 28,272 32,256
+        C34,242 36,228 34,228Z"
+        fill={fill} stroke={stroke} strokeWidth={sw}/>
+      <Path d="M23,230 C19,250 16,272 15,286" fill="none" stroke={ml} strokeWidth={0.65}/>
+      <Path d="M28,229 C25,249 23,270 22,284" fill="none" stroke={ml} strokeWidth={0.65}/>
+
+      {/* ── 前腕（右・背面）── */}
+      <Path d="M200,226
+        C204,244 208,262 210,278
+        C211,286 211,292 209,298
+        L196,300
+        C194,288 192,272 188,256
+        C186,242 184,228 186,228Z"
+        fill={fill} stroke={stroke} strokeWidth={sw}/>
+      <Path d="M197,230 C201,250 204,272 205,286" fill="none" stroke={ml} strokeWidth={0.65}/>
+      <Path d="M192,229 C195,249 197,270 198,284" fill="none" stroke={ml} strokeWidth={0.65}/>
+
+      {/* ── 手（左・背面）── */}
+      <Path d="M11,298 C9,306 8,314 9,320 C10,326 14,328 18,326 L26,324 C28,316 28,308 28,300 L24,300Z"
+        fill={fill} stroke={stroke} strokeWidth={sw}/>
+      <Finger bx={11} by={322} tx={9}  ty={342}/>
+      <Finger bx={16} by={324} tx={14} ty={346}/>
+      <Finger bx={21} by={325} tx={21} ty={348}/>
+      <Finger bx={26} by={323} tx={28} ty={344}/>
+      <Path d="M9,308 C5,306 2,302 2,296 C2,290 6,288 10,290 C12,292 12,296 11,300Z"
+        fill={fill} stroke={stroke} strokeWidth={sw}/>
+
+      {/* ── 手（右・背面）── */}
+      <Path d="M209,298 C211,306 212,314 211,320 C210,326 206,328 202,326 L194,324 C192,316 192,308 192,300 L196,300Z"
+        fill={fill} stroke={stroke} strokeWidth={sw}/>
+      <Finger bx={209} by={322} tx={211} ty={342}/>
+      <Finger bx={204} by={324} tx={206} ty={346}/>
+      <Finger bx={199} by={325} tx={199} ty={348}/>
+      <Finger bx={194} by={323} tx={192} ty={344}/>
+      <Path d="M211,308 C215,306 218,302 218,296 C218,290 214,288 210,290 C208,292 208,296 209,300Z"
+        fill={fill} stroke={stroke} strokeWidth={sw}/>
+
+      {/* ── 脊椎ライン ── */}
+      <Line x1={110} y1={72} x2={110} y2={204} stroke={ml} strokeWidth={0.85} strokeDasharray="3,4"/>
 
       {/* ── 僧帽筋 ── */}
-      <Path d="M103,72 Q96,84 88,96 Q84,108 88,120 C94,124 102,120 108,112 L110,104 L112,112 C118,120 126,124 132,120 Q136,108 132,96 Q124,84 117,72"
-        fill="none" stroke={detail} strokeWidth={ds}/>
+      <Path d="M102,72 Q94,82 86,96 Q82,110 88,122 C94,126 102,122 108,114 L110,106 L112,114 C118,122 126,126 132,122 Q138,110 134,96 Q126,82 118,72"
+        fill="none" stroke={ml} strokeWidth={ms}/>
 
-      {/* ── 肩甲骨 ── */}
-      <Path d="M78,96 C74,108 74,124 80,132 C86,136 94,134 98,126 C102,116 100,102 94,94Z"
-        fill="none" stroke={detail} strokeWidth={ds}/>
-      <Path d="M142,96 C146,108 146,124 140,132 C134,136 126,134 122,126 C118,116 120,102 126,94Z"
-        fill="none" stroke={detail} strokeWidth={ds}/>
-      <Line x1={82} y1={98} x2={94} y2={128} stroke={detail} strokeWidth={0.7}/>
-      <Line x1={138} y1={98} x2={126} y2={128} stroke={detail} strokeWidth={0.7}/>
+      {/* ── 肩甲骨（左）── */}
+      <Path d="M76,96 C72,110 72,126 78,136 C84,142 94,140 98,132 C102,122 100,108 94,98Z"
+        fill="none" stroke={ml} strokeWidth={ms}/>
+      <Line x1={80} y1={100} x2={94} y2={132} stroke={ml} strokeWidth={0.65}/>
+
+      {/* ── 肩甲骨（右）── */}
+      <Path d="M144,96 C148,110 148,126 142,136 C136,142 126,140 122,132 C118,122 120,108 126,98Z"
+        fill="none" stroke={ml} strokeWidth={ms}/>
+      <Line x1={140} y1={100} x2={126} y2={132} stroke={ml} strokeWidth={0.65}/>
 
       {/* ── 広背筋 ── */}
-      <Path d="M80,126 C76,146 76,168 78,186 C80,196 84,202 88,204" fill="none" stroke={detail} strokeWidth={0.7}/>
-      <Path d="M140,126 C144,146 144,168 142,186 C140,196 136,202 132,204" fill="none" stroke={detail} strokeWidth={0.7}/>
-
-      {/* ── 三角筋後部ライン ── */}
-      <Path d="M68,86 C62,98 58,112 58,126 C62,130 68,128 72,120 C73,108 72,94 73,84"
-        fill="none" stroke={detail} strokeWidth={ds}/>
-      <Path d="M152,86 C158,98 162,112 162,126 C158,130 152,128 148,120 C147,108 148,94 147,84"
-        fill="none" stroke={detail} strokeWidth={ds}/>
-
-      {/* ── 上腕三頭筋 ── */}
-      <Path d="M52,126 C50,148 50,166 52,180 Q56,186 60,182 Q64,178 64,166 C64,148 63,130 62,120"
-        fill="none" stroke={detail} strokeWidth={ds}/>
-      <Path d="M168,126 C170,148 170,166 168,180 Q164,186 160,182 Q156,178 156,166 C156,148 157,130 158,120"
-        fill="none" stroke={detail} strokeWidth={ds}/>
-      {/* 三頭筋縦線 */}
-      <Line x1={57} y1={128} x2={57} y2={180} stroke={detail} strokeWidth={0.7}/>
-      <Line x1={163} y1={128} x2={163} y2={180} stroke={detail} strokeWidth={0.7}/>
-
-      {/* ── 前腕筋ライン（背面）左 ── */}
-      <Path d="M50,192 C46,208 42,226 40,238" fill="none" stroke={detail} strokeWidth={0.7}/>
-      <Path d="M55,190 C52,206 50,222 49,234" fill="none" stroke={detail} strokeWidth={0.7}/>
-      <Path d="M59,190 C57,206 55,222 55,234" fill="none" stroke={detail} strokeWidth={0.7}/>
-      {/* 前腕筋ライン（背面）右 */}
-      <Path d="M170,192 C174,208 178,226 180,238" fill="none" stroke={detail} strokeWidth={0.7}/>
-      <Path d="M165,190 C168,206 170,222 171,234" fill="none" stroke={detail} strokeWidth={0.7}/>
-      <Path d="M161,190 C163,206 165,222 165,234" fill="none" stroke={detail} strokeWidth={0.7}/>
+      <Path d="M78,130 C74,150 74,172 76,190 C78,202 82,210 86,214" fill="none" stroke={ml} strokeWidth={0.65}/>
+      <Path d="M142,130 C146,150 146,172 144,190 C142,202 138,210 134,214" fill="none" stroke={ml} strokeWidth={0.65}/>
 
       {/* ── 大臀筋 ── */}
-      <Path d="M82,202 C72,216 66,234 65,254 C64,272 68,288 74,298 C82,294 92,280 98,264 C104,248 107,228 107,212 C107,204 104,200 98,200"
-        fill="none" stroke={detail} strokeWidth={ds}/>
-      <Path d="M138,202 C148,216 154,234 155,254 C156,272 152,288 146,298 C138,294 128,280 122,264 C116,248 113,228 113,212 C113,204 116,200 122,200"
-        fill="none" stroke={detail} strokeWidth={ds}/>
-      <Path d="M110,200 C108,220 108,244 110,268" fill="none" stroke={detail} strokeWidth={0.7}/>
+      <Path d="M80,220
+        C68,234 60,254 59,276
+        C58,294 62,310 70,320
+        C78,316 90,302 97,286
+        C104,270 107,250 107,232
+        C107,222 104,218 98,218"
+        fill="none" stroke={ml} strokeWidth={ms}/>
+      <Path d="M140,220
+        C152,234 160,254 161,276
+        C162,294 158,310 150,320
+        C142,316 130,302 123,286
+        C116,270 113,250 113,232
+        C113,222 116,218 122,218"
+        fill="none" stroke={ml} strokeWidth={ms}/>
+      <Path d="M110,218 C108,238 108,262 110,284" fill="none" stroke={ml} strokeWidth={0.65}/>
 
-      {/* ── ハムストリング 左 ── */}
-      <Path d="M70,298 C68,318 68,342 70,362" fill="none" stroke={detail} strokeWidth={0.7}/>
-      <Path d="M84,296 C83,318 83,342 84,362" fill="none" stroke={detail} strokeWidth={0.7}/>
-      <Path d="M98,296 C98,318 97,342 96,360" fill="none" stroke={detail} strokeWidth={0.7}/>
-      {/* ハムストリング 右 */}
-      <Path d="M150,298 C152,318 152,342 150,362" fill="none" stroke={detail} strokeWidth={0.7}/>
-      <Path d="M136,296 C137,318 137,342 136,362" fill="none" stroke={detail} strokeWidth={0.7}/>
-      <Path d="M122,296 C122,318 123,342 124,360" fill="none" stroke={detail} strokeWidth={0.7}/>
+      {/* ── 大腿（左・背面）── */}
+      <Path d="M80,220
+        C70,232 62,254 60,278
+        C58,300 60,322 66,340
+        L80,348 C88,350 98,348 104,344
+        L108,332
+        C112,312 111,288 109,264
+        C107,242 102,222 96,220Z"
+        fill={fill} stroke={stroke} strokeWidth={sw}/>
+      {/* ハムストリング ライン */}
+      <Path d="M70,226 C68,252 66,278 68,302 C70,320 74,336 78,344" fill="none" stroke={ml} strokeWidth={0.65}/>
+      <Path d="M86,222 C84,250 82,278 83,300 C84,318 88,334 92,342" fill="none" stroke={ml} strokeWidth={0.65}/>
+      <Path d="M101,224 C104,252 105,278 103,300 C101,318 97,332 93,340" fill="none" stroke={ml} strokeWidth={0.65}/>
 
-      {/* ── 腓腹筋（ふくらはぎ 2頭）左 ── */}
-      <Path d="M72,316 C70,338 70,360 72,378 C74,392 78,404 82,408" fill="none" stroke={detail} strokeWidth={0.7}/>
-      <Path d="M90,314 C92,336 92,358 90,376 C88,390 85,402 82,408" fill="none" stroke={detail} strokeWidth={0.7}/>
-      {/* アキレス腱 左 */}
-      <Line x1={82} y1={406} x2={82} y2={418} stroke={detail} strokeWidth={1.0}/>
-      {/* 腓腹筋 右 */}
-      <Path d="M148,316 C150,338 150,360 148,378 C146,392 142,404 138,408" fill="none" stroke={detail} strokeWidth={0.7}/>
-      <Path d="M130,314 C128,336 128,358 130,376 C132,390 135,402 138,408" fill="none" stroke={detail} strokeWidth={0.7}/>
-      {/* アキレス腱 右 */}
-      <Line x1={138} y1={406} x2={138} y2={418} stroke={detail} strokeWidth={1.0}/>
+      {/* ── 大腿（右・背面）── */}
+      <Path d="M140,220
+        C150,232 158,254 160,278
+        C162,300 160,322 154,340
+        L140,348 C132,350 122,348 116,344
+        L112,332
+        C108,312 109,288 111,264
+        C113,242 118,222 124,220Z"
+        fill={fill} stroke={stroke} strokeWidth={sw}/>
+      <Path d="M150,226 C152,252 154,278 152,302 C150,320 146,336 142,344" fill="none" stroke={ml} strokeWidth={0.65}/>
+      <Path d="M134,222 C136,250 138,278 137,300 C136,318 132,334 128,342" fill="none" stroke={ml} strokeWidth={0.65}/>
+      <Path d="M119,224 C116,252 115,278 117,300 C119,318 123,332 127,340" fill="none" stroke={ml} strokeWidth={0.65}/>
+
+      {/* ── 下腿（左）── */}
+      <Path d="M66,338
+        C62,360 60,382 61,402
+        C62,416 67,428 73,432
+        L90,432
+        C96,430 100,422 101,410
+        C102,394 101,370 101,346
+        L101,336 L80,346Z"
+        fill={fill} stroke={stroke} strokeWidth={sw}/>
+      {/* 腓腹筋（2頭） */}
+      <Path d="M72,344 C70,368 70,392 72,410 C74,422 78,430 82,432" fill="none" stroke={ml} strokeWidth={0.65}/>
+      <Path d="M91,342 C93,366 93,390 91,408 C89,420 86,428 82,432" fill="none" stroke={ml} strokeWidth={0.65}/>
+      {/* アキレス腱 */}
+      <Line x1={82} y1={430} x2={82} y2={440} stroke={ml} strokeWidth={1.1}/>
+
+      {/* ── 下腿（右）── */}
+      <Path d="M154,338
+        C158,360 160,382 159,402
+        C158,416 153,428 147,432
+        L130,432
+        C124,430 120,422 119,410
+        C118,394 119,370 119,346
+        L119,336 L140,346Z"
+        fill={fill} stroke={stroke} strokeWidth={sw}/>
+      <Path d="M148,344 C150,368 150,392 148,410 C146,422 142,430 138,432" fill="none" stroke={ml} strokeWidth={0.65}/>
+      <Path d="M129,342 C127,366 127,390 129,408 C131,420 134,428 138,432" fill="none" stroke={ml} strokeWidth={0.65}/>
+      <Line x1={138} y1={430} x2={138} y2={440} stroke={ml} strokeWidth={1.1}/>
+
+      {/* ── 足（左・背面）── */}
+      <Path d="M61,428 C55,438 51,447 51,452 Q63,456 80,455 Q96,454 102,444 Q103,434 101,428Z"
+        fill={fill} stroke={stroke} strokeWidth={sw}/>
+      {/* ── 足（右・背面）── */}
+      <Path d="M159,428 C165,438 169,447 169,452 Q157,456 140,455 Q124,454 118,444 Q117,434 119,428Z"
+        fill={fill} stroke={stroke} strokeWidth={sw}/>
     </G>
   )
 }
+
 
 /* ─── 診断結果ビュー ────────────────────────────── */
 function ResultView({ result, onBack }: { result:RecoveryResult; onBack:()=>void }) {
