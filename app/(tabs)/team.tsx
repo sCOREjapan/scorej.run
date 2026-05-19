@@ -1663,94 +1663,50 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
               )}
 
               {/* メンバーカードリスト */}
-              <View style={{gap:10}}>
+              <View style={{gap:6}}>
                 {filteredMembers.map((m) => {
                   const rKey      = riskCfgKey(m.risk.riskScore)
-                  const lKey      = loadCfgKey(m.weeklyLoad)
                   const rCfg      = RISK_CFG[rKey]
-                  const lCfg      = LOAD_CFG[lKey]
-                  const lvInfo    = calcLevelInfo(m.sessions.length)
-                  const lvTier    = RANK_TIERS.find(t => lvInfo.level >= t.min && lvInfo.level < t.max) ?? RANK_TIERS[0]
-                  const isHigh    = m.risk.riskScore >= 70
                   const unackedPain = (m.painParts?.length ?? 0) > 0 && !m.ackedByCoach
                   const ackedPain   = (m.painParts?.length ?? 0) > 0 && m.ackedByCoach
+                  const bg = unackedPain ? 'rgba(239,68,68,0.07)' : rCfg.bg
+                  const accent = unackedPain ? '#EF4444' : rCfg.color
 
                   return (
                     <HapticTouch
                       haptic="tap"
                       key={m.id}
-                      style={[
-                        co.memberCard,
-                        unackedPain && { borderColor:'rgba(255,149,0,0.5)', backgroundColor:'rgba(255,149,0,0.04)' },
-                        !unackedPain && isHigh && { borderColor:'rgba(229,57,53,0.3)', backgroundColor:'rgba(229,57,53,0.03)' },
-                      ]}
+                      style={[co.memberCard, { backgroundColor: bg, borderLeftWidth: 4, borderLeftColor: accent, padding: 10 }]}
                       onPress={() => { setDetailMember(m); setDetailRisk(m.risk) }}
                       activeOpacity={0.88}
                     >
-
-
-                      {/* 未確認の痛み報告バナー */}
-                      {unackedPain && (
-                        <View style={{flexDirection:'row',alignItems:'center',gap:6,backgroundColor:'rgba(255,149,0,0.1)',borderRadius:8,paddingHorizontal:10,paddingVertical:6,marginBottom:10,borderWidth:1,borderColor:'rgba(239,68,68,0.25)'}}>
-                          <Text style={{fontSize:14}}>🤕</Text>
-                          <Text style={{color:'#EF4444',fontSize:12,fontWeight:'800',flex:1}}>
-                            痛み報告あり — タップして確認
-                          </Text>
-                          <View style={{backgroundColor:'#EF4444',borderRadius:4,paddingHorizontal:5,paddingVertical:1}}>
-                            <Text style={{color:'#fff',fontSize:9,fontWeight:'800'}}>未確認</Text>
-                          </View>
-                        </View>
-                      )}
-
                       <View style={{flexDirection:'row',alignItems:'center',gap:10}}>
-                        <Avatar name={m.name} size={44} color={avatarColor(m.name)}/>
+                        <Avatar name={m.name} size={34} color={avatarColor(m.name)}/>
 
-                        <View style={{flex:1,gap:6}}>
-                          {/* 名前 + ランク + 種目 */}
-                          <View style={{flexDirection:'row',alignItems:'center',gap:6,flexWrap:'wrap'}}>
-                            <Text style={{color:TEXT.primary,fontSize:15,fontWeight:'800'}}>{m.name}</Text>
-                            <View style={{flexDirection:'row',alignItems:'center',gap:3,backgroundColor:lvTier.color+'20',borderRadius:8,paddingHorizontal:6,paddingVertical:2,borderWidth:1,borderColor:lvTier.color+'40'}}>
-                              <Text style={{fontSize:10}}>{lvTier.emoji}</Text>
-                              <Text style={{color:lvTier.color,fontSize:10,fontWeight:'800'}}>Lv.{lvInfo.level}</Text>
-                            </View>
-                            {m.event ? <Text style={{color:TEXT.secondary,fontSize:11}}>{m.event}</Text> : null}
-                          </View>
-
-                          {/* 怪我リスクスコア（メイン表示）*/}
-                          <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
-                            {!(m as any).hasRiskData ? (
-                              <View style={{backgroundColor:'#f0f2f5',borderRadius:10,paddingHorizontal:10,paddingVertical:6,flexDirection:'row',alignItems:'center',gap:4}}>
-                                <Ionicons name="cloud-offline-outline" size={12} color="#9ca3af"/>
-                                <Text style={{color:'#9ca3af',fontSize:11,fontWeight:'700'}}>未同期</Text>
-                              </View>
-                            ) : (
-                              <View style={{backgroundColor:rCfg.bg,borderRadius:10,paddingHorizontal:12,paddingVertical:6,flexDirection:'row',alignItems:'center',gap:5}}>
-                                <Text style={{color:rCfg.color,fontSize:20,fontWeight:'900',letterSpacing:-0.5}}>{m.risk.riskScore}</Text>
-                                <View style={{gap:1}}>
-                                  <Text style={{color:rCfg.color,fontSize:10,fontWeight:'800'}}>リスク</Text>
-                                  <Text style={{color:rCfg.color,fontSize:9,opacity:0.85}}>{rCfg.label}</Text>
-                                </View>
-                              </View>
-                            )}
-                            {/* 確認済み痛み */}
-                            {ackedPain && (
-                              <View style={{backgroundColor:'rgba(52,199,89,0.1)',borderRadius:8,paddingHorizontal:8,paddingVertical:5,flexDirection:'row',alignItems:'center',gap:3}}>
-                                <Ionicons name="checkmark-circle" size={11} color="#34C759"/>
-                                <Text style={{color:'#34C759',fontSize:10,fontWeight:'700'}}>痛み確認済</Text>
-                              </View>
-                            )}
-                          </View>
-
-                          {/* リスクバー */}
-                          {(m as any).hasRiskData && (
-                            <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
-                              <View style={{flex:1,height:5,borderRadius:3,backgroundColor:'rgba(0,0,0,0.07)',overflow:'hidden'}}>
-                                <View style={{width:`${m.risk.riskScore}%`,height:'100%',borderRadius:3,backgroundColor:rCfg.color}}/>
-                              </View>
-                              <Text style={{color:'#bbb',fontSize:9}}>{m.sessions.length}回</Text>
-                            </View>
-                          )}
+                        <View style={{flex:1,gap:1}}>
+                          <Text style={{color:TEXT.primary,fontSize:14,fontWeight:'800'}} numberOfLines={1}>{m.name}</Text>
+                          <Text style={{color:TEXT.secondary,fontSize:11}} numberOfLines={1}>
+                            {m.event ?? '種目未設定'}{m.sessions.length > 0 ? `  ·  ${m.sessions.length}回` : ''}
+                          </Text>
                         </View>
+
+                        {/* スコア */}
+                        {!(m as any).hasRiskData ? (
+                          <Text style={{color:'#bbb',fontSize:11,fontWeight:'600'}}>未同期</Text>
+                        ) : (
+                          <View style={{alignItems:'flex-end',gap:0}}>
+                            <Text style={{color:accent,fontSize:24,fontWeight:'900',lineHeight:26}}>{m.risk.riskScore}</Text>
+                            <Text style={{color:accent,fontSize:9,fontWeight:'700'}}>{rCfg.label}</Text>
+                          </View>
+                        )}
+
+                        {/* 痛みバッジ */}
+                        {unackedPain && (
+                          <View style={{backgroundColor:'#EF4444',borderRadius:5,paddingHorizontal:5,paddingVertical:2}}>
+                            <Text style={{color:'#fff',fontSize:9,fontWeight:'800'}}>🤕未確認</Text>
+                          </View>
+                        )}
+                        {ackedPain && <Ionicons name="checkmark-circle" size={13} color="#34C759"/>}
 
                         {/* 削除ボタン */}
                         <TouchableOpacity
@@ -1758,7 +1714,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
                           hitSlop={{top:12,bottom:12,left:12,right:12}}
                           style={{padding:4}}
                         >
-                          <Ionicons name="trash-outline" size={15} color="#d1d5db"/>
+                          <Ionicons name="trash-outline" size={14} color="#d1d5db"/>
                         </TouchableOpacity>
                       </View>
                     </HapticTouch>
@@ -3471,7 +3427,7 @@ const co = StyleSheet.create({
   tabLabel:   { fontSize:13, fontWeight:'700' },
   badge:      { width:16, height:16, borderRadius:8, backgroundColor:'#ef4444', alignItems:'center', justifyContent:'center' },
   alertChip:  { flexDirection:'row', alignItems:'center', gap:5, backgroundColor:'rgba(239,68,68,0.08)', borderRadius:8, borderWidth:1, borderColor:'#ef4444'+'40', paddingHorizontal:10, paddingVertical:6 },
-  memberCard: { backgroundColor:'#ffffff', borderRadius:16, borderWidth:1, borderColor:'rgba(0,0,0,0.08)', padding:16, shadowColor:'#000', shadowOffset:{width:0,height:2}, shadowOpacity:0.06, shadowRadius:8, elevation:2 },
+  memberCard: { backgroundColor:'#ffffff', borderRadius:12, borderWidth:1, borderColor:'rgba(0,0,0,0.07)', padding:10, shadowColor:'#000', shadowOffset:{width:0,height:1}, shadowOpacity:0.04, shadowRadius:3, elevation:1 },
   composeBox: { flexDirection:'row', gap:10, alignItems:'flex-end', backgroundColor:'#ffffff', borderRadius:14, borderWidth:1, borderColor:'rgba(0,0,0,0.10)', padding:12 },
   composeInput:{ flex:1, color:TEXT.primary, fontSize:14, minHeight:40, maxHeight:100 },
   sendBtn:    { width:42, height:42, borderRadius:12, backgroundColor:BRAND, alignItems:'center', justifyContent:'center' },
