@@ -229,7 +229,7 @@ export default function NutritionScreen() {
     if (isGuest) { setAdGateRemaining(0); setAdGateHardLimited(false); setAdGateVisible(true); return }
     const gate = await checkAdGate('meal')
     if (!gate.allowed) {
-      setAdGateRemaining(0); setAdGateRewardUses(gate.rewardUses); setAdGateHardLimited(gate.hardLimited); setAdGateLimitType(gate.limitType); setAdGateVisible(true); return
+      setAdGateRemaining(gate.remaining); setAdGateRewardUses(gate.rewardUses); setAdGateHardLimited(gate.hardLimited); setAdGateLimitType(gate.limitType); setAdGateVisible(true); return
     }
     if (gate.remaining === 0 && gate.rewardUses > 0) {
       await consumeRewardUse('meal')

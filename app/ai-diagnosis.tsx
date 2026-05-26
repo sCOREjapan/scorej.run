@@ -163,7 +163,7 @@ export default function AIDiagnosisScreen() {
     // AdGateチェック
     const gate = await checkAdGate('ai_analysis')
     if (!gate.allowed) {
-      setAdGateRemaining(0)
+      setAdGateRemaining(gate.remaining)
       setAdGateRewardUses(gate.rewardUses)
       setAdGateHardLimited(gate.hardLimited)
       setAdGateLimitType(gate.limitType)

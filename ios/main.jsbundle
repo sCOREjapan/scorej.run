@@ -265792,7 +265792,7 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
       }
       var gate = yield (0, _libAdGate.checkAdGate)('meal');
       if (!gate.allowed) {
-        setAdGateRemaining(0);
+        setAdGateRemaining(gate.remaining);
         setAdGateRewardUses(gate.rewardUses);
         setAdGateHardLimited(gate.hardLimited);
         setAdGateLimitType(gate.limitType);
@@ -308127,7 +308127,7 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
       // AdGateチェック
       var gate = yield (0, _libAdGate.checkAdGate)('ai_analysis');
       if (!gate.allowed) {
-        setAdGateRemaining(0);
+        setAdGateRemaining(gate.remaining);
         setAdGateRewardUses(gate.rewardUses);
         setAdGateHardLimited(gate.hardLimited);
         setAdGateLimitType(gate.limitType);
