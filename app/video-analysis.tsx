@@ -749,7 +749,7 @@ function NativeVideoAnalysis() {
     // AdGateチェック（広告視聴後は skipGate=true でバイパス）
     if (!skipGate) {
       const gate = await checkAdGate('video')
-      if (!gate.allowed) { setAdGateRemaining(0); setAdGateRewardUses(gate.rewardUses); setAdGateHardLimited(gate.hardLimited); setAdGateLimitType(gate.limitType); setAdGateVisible(true); return }
+      if (!gate.allowed) { setAdGateRemaining(gate.remaining); setAdGateRewardUses(gate.rewardUses); setAdGateHardLimited(gate.hardLimited); setAdGateLimitType(gate.limitType); setAdGateVisible(true); return }
       if (gate.remaining === 0 && gate.rewardUses > 0) {
         await consumeRewardUse('video')
       } else if (gate.remaining === 1) {
@@ -1293,6 +1293,7 @@ function WebPlayer({ isPremiumUser: isPremiumProp }: { isPremiumUser: boolean })
   const [comprehensive, setComprehensive] = useState<ComprehensiveAnalysis | null>(null)
   const [loadingComp, setLoadingComp] = useState(false)
   const [adGateVisible,     setAdGateVisible]     = useState(false)
+  const [adGateRemainingW,  setAdGateRemainingW]  = useState(0)
   const [adGateHardLimited, setAdGateHardLimited] = useState(false)
   const [adGateRewardUsesW, setAdGateRewardUsesW] = useState(0)
   const [adGateLimitTypeW,  setAdGateLimitTypeW]  = useState<'none'|'daily'|'monthly'|'total'>('none')
@@ -1519,6 +1520,7 @@ ${summary}
     if (!vid?.src) { Alert.alert('動画を選択してください'); return }
     const gate = await checkAdGate('video')
     if (!gate.allowed) {
+      setAdGateRemainingW(gate.remaining)
       setAdGateRewardUsesW(gate.rewardUses)
       setAdGateHardLimited(gate.hardLimited)
       setAdGateLimitTypeW(gate.limitType)
@@ -1660,7 +1662,7 @@ ${summary}
         <AdGateModal
           visible={adGateVisible}
           feature="video"
-          remaining={0}
+          remaining={adGateRemainingW}
           rewardUses={adGateRewardUsesW}
           hardLimited={adGateHardLimited}
           limitType={adGateLimitTypeW}
