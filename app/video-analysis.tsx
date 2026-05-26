@@ -721,7 +721,7 @@ function NativeVideoAnalysis() {
       if (tier === 'free' && !cancelled) {
         timerId = setTimeout(() => setUpsellVisible(true), 5000)
       }
-    })
+    }).catch(() => {})
     return () => {
       cancelled = true
       if (timerId !== null) clearTimeout(timerId)

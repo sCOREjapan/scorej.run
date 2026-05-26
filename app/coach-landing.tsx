@@ -131,7 +131,7 @@ export default function CoachLandingPage() {
 
           <FadeCard delay={440}>
             <TouchableOpacity style={s.heroBtn} onPress={handleTrial} activeOpacity={0.85}>
-              <Text style={s.heroBtnTxt}>7日間無料で試してみる</Text>
+              <Text style={s.heroBtnTxt}>まず無料で試してみる</Text>
               <Ionicons name="arrow-forward" size={18} color={WHITE} />
             </TouchableOpacity>
             <Text style={s.heroNote}>クレジットカード不要・いつでもキャンセル可</Text>
@@ -303,7 +303,7 @@ export default function CoachLandingPage() {
                 </View>
               ))}
               <TouchableOpacity style={s.planBtn} onPress={handleTrial} activeOpacity={0.85}>
-                <Text style={s.planBtnTxt}>7日間無料で試す</Text>
+                <Text style={s.planBtnTxt}>無料で試す</Text>
               </TouchableOpacity>
             </FadeCard>
           </View>
@@ -316,13 +316,13 @@ export default function CoachLandingPage() {
               選手の怪我は、{'\n'}防げる時代になった。
             </Text>
             <Text style={s.ctaBody}>
-              sCORE は日本の陸上競技者のために作られた本気のアプリです。{'\n'}まず7日間、無料で試してください。
+              sCORE は日本の陸上競技者のために作られた本気のアプリです。{'\n'}まず無料で試してください。いつでも解約できます。
             </Text>
             <TouchableOpacity style={s.ctaBtn} onPress={handleTrial} activeOpacity={0.85}>
               <Text style={s.ctaBtnTxt}>無料でチームを作成する</Text>
               <Ionicons name="arrow-forward" size={18} color={WHITE} />
             </TouchableOpacity>
-            <Text style={s.ctaNote}>7日間無料・クレジットカード不要・いつでもキャンセル</Text>
+            <Text style={s.ctaNote}>無料プランあり・クレジットカード不要・いつでもキャンセル</Text>
           </FadeCard>
         </View>
 
