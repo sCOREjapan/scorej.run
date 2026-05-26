@@ -349,10 +349,11 @@ function Slide5({ isActive }: { isActive: boolean }) {
 }
 
 function Slide6({ isActive }: { isActive: boolean }) {
-  const { signInWithGoogle, signInWithApple, signUpWithEmail, continueAsGuest } = useAuth()
+  const { signInWithGoogle, signInWithApple, signUpWithEmail, signInWithEmail, continueAsGuest } = useAuth()
   const [googleLoading, setGoogleLoading] = useState(false)
   const [appleLoading,  setAppleLoading]  = useState(false)
   const [showSignup, setShowSignup] = useState(false)
+  const [isLoginMode, setIsLoginMode] = useState(false)     // true=ログイン, false=新規登録
   const [emailSent, setEmailSent]   = useState(false)      // 確認メール送信済み状態
   const [sentEmail, setSentEmail]   = useState('')
   const [email, setEmail]       = useState('')
@@ -377,17 +378,22 @@ function Slide6({ isActive }: { isActive: boolean }) {
     setAppleLoading(true)
     signInWithApple().catch(() => {}).finally(() => setAppleLoading(false))
   }
-  const handleSignup = async () => {
+  const handleSubmit = async () => {
     if (!email.trim() || password.length < 6) return
     unlockAudio(); Sounds.pop()
     setLoading(true)
     try {
-      const result = await signUpWithEmail(email.trim(), password)
-      if (result === 'confirm_email') {
-        setSentEmail(email.trim())
-        setEmailSent(true)  // 確認メール送信済みUIに切替
+      if (isLoginMode) {
+        await signInWithEmail(email.trim(), password)
+        // 成功 → AuthGate が自動でタブへ遷移（Toast はAuthContext側で表示）
+      } else {
+        const result = await signUpWithEmail(email.trim(), password)
+        if (result === 'confirm_email') {
+          setSentEmail(email.trim())
+          setEmailSent(true)  // 確認メール送信済みUIに切替
+        }
+        // 'signed_in' → AuthGate が自動でタブへ遷移
       }
-      // 'signed_in' → AuthGate が自動でタブへ遷移
     } finally { setLoading(false) }
   }
 
@@ -459,13 +465,19 @@ function Slide6({ isActive }: { isActive: boolean }) {
                 </TouchableOpacity>
               </View>
             ) : !showSignup ? (
-              <TouchableOpacity style={lg.emailBtn} onPress={() => { setShowSignup(true); Sounds.tap() }} activeOpacity={0.7}>
-                <Ionicons name="person-add-outline" size={17} color={BRAND} />
-                <Text style={lg.emailBtnText}>メールで新規アカウント作成</Text>
-              </TouchableOpacity>
+              <View style={{ gap: 8 }}>
+                <TouchableOpacity style={lg.emailBtn} onPress={() => { setShowSignup(true); setIsLoginMode(false); Sounds.tap() }} activeOpacity={0.7}>
+                  <Ionicons name="person-add-outline" size={17} color={BRAND} />
+                  <Text style={lg.emailBtnText}>メールで新規アカウント作成</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[lg.emailBtn, { borderColor: 'rgba(0,0,0,0.1)', backgroundColor: 'rgba(0,0,0,0.02)' }]} onPress={() => { setShowSignup(true); setIsLoginMode(true); Sounds.tap() }} activeOpacity={0.7}>
+                  <Ionicons name="log-in-outline" size={17} color={TEXT.secondary} />
+                  <Text style={[lg.emailBtnText, { color: TEXT.secondary }]}>メールでログイン</Text>
+                </TouchableOpacity>
+              </View>
             ) : (
               <View style={{ gap: 10 }}>
-                <Text style={lg.signupTitle}>新規アカウント作成</Text>
+                <Text style={lg.signupTitle}>{isLoginMode ? 'メールでログイン' : '新規アカウント作成'}</Text>
                 <View style={lg.inputWrap}>
                   <Ionicons name="mail-outline" size={16} color={TEXT.hint} />
                   <TextInput style={lg.input} placeholder="メールアドレス" placeholderTextColor={TEXT.hint} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
@@ -477,10 +489,18 @@ function Slide6({ isActive }: { isActive: boolean }) {
                     <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={18} color={TEXT.hint} />
                   </TouchableOpacity>
                 </View>
-                <TouchableOpacity style={[lg.primaryBtn, (!email.trim() || password.length < 6) && { opacity: 0.4 }]} onPress={handleSignup} disabled={loading || !email.trim() || password.length < 6} activeOpacity={0.85}>
-                  {loading ? <ActivityIndicator color="#fff" size="small" /> : <><Ionicons name="person-add" size={16} color="#fff" /><Text style={lg.primaryBtnText}>アカウント作成</Text></>}
+                <TouchableOpacity style={[lg.primaryBtn, (!email.trim() || password.length < 6) && { opacity: 0.4 }]} onPress={handleSubmit} disabled={loading || !email.trim() || password.length < 6} activeOpacity={0.85}>
+                  {loading ? <ActivityIndicator color="#fff" size="small" /> : isLoginMode
+                    ? <><Ionicons name="log-in" size={16} color="#fff" /><Text style={lg.primaryBtnText}>ログイン</Text></>
+                    : <><Ionicons name="person-add" size={16} color="#fff" /><Text style={lg.primaryBtnText}>アカウント作成</Text></>
+                  }
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => setShowSignup(false)} style={{ alignItems: 'center', paddingVertical: 6 }}>
+                <TouchableOpacity onPress={() => setIsLoginMode(v => !v)} style={{ alignItems: 'center', paddingVertical: 4 }}>
+                  <Text style={{ color: BRAND, fontSize: 13 }}>
+                    {isLoginMode ? 'アカウントをお持ちでない方はこちら' : '既にアカウントをお持ちの方はこちら'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => { setShowSignup(false); setEmail(''); setPassword('') }} style={{ alignItems: 'center', paddingVertical: 4 }}>
                   <Text style={{ color: TEXT.hint, fontSize: 13 }}>キャンセル</Text>
                 </TouchableOpacity>
               </View>
