@@ -253,12 +253,14 @@ export default function CompetitionScreen() {
         AsyncStorage.getItem(PROFILE_KEY),
       ])
       if (rawComp) {
-        const all: CompetitionPlan[] = JSON.parse(rawComp)
-        const today = new Date().toISOString().slice(0, 10)
-        setCompetitions(all.filter(c => c.competition_date >= today))
+        try {
+          const all: CompetitionPlan[] = JSON.parse(rawComp)
+          const today = new Date().toISOString().slice(0, 10)
+          setCompetitions(all.filter(c => c.competition_date >= today))
+        } catch {}
       }
       if (rawEntry) {
-        setEntryStatusMap(JSON.parse(rawEntry))
+        try { setEntryStatusMap(JSON.parse(rawEntry)) } catch {}
       }
       if (rawProfile) {
         try { setUserProfile(JSON.parse(rawProfile)) } catch {}

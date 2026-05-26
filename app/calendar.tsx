@@ -109,38 +109,46 @@ export default function CalendarScreen() {
 
       // GPS練習セッション
       if (sessionsRaw) {
-        const sessions: any[] = JSON.parse(sessionsRaw)
-        sessions.forEach((s: any) => {
-          const label = s.session_type ?? 'GPS練習'
-          const sub = s.distance_m ? `${(s.distance_m / 1000).toFixed(1)}km` : undefined
-          addDot(s.session_date ?? s.created_at, 'gps', label, sub)
-        })
+        try {
+          const sessions: any[] = JSON.parse(sessionsRaw)
+          sessions.forEach((s: any) => {
+            const label = s.session_type ?? 'GPS練習'
+            const sub = s.distance_m ? `${(s.distance_m / 1000).toFixed(1)}km` : undefined
+            addDot(s.session_date ?? s.created_at, 'gps', label, sub)
+          })
+        } catch {}
       }
 
       // タイム計測（レース記録）
       if (raceRaw) {
-        const races: any[] = JSON.parse(raceRaw)
-        races.forEach((r: any) => {
-          const label = r.event ?? 'タイム計測'
-          const sub = r.time ? r.time : undefined
-          addDot(r.date ?? r.created_at, 'race', label, sub)
-        })
+        try {
+          const races: any[] = JSON.parse(raceRaw)
+          races.forEach((r: any) => {
+            const label = r.event ?? 'タイム計測'
+            const sub = r.time ? r.time : undefined
+            addDot(r.date ?? r.created_at, 'race', label, sub)
+          })
+        } catch {}
       }
 
       // 練習メニュー
       if (workoutRaw) {
-        const workouts: any[] = JSON.parse(workoutRaw)
-        workouts.forEach((w: any) => {
-          addDot(w.date ?? w.created_at, 'workout', w.title ?? '練習メニュー', undefined)
-        })
+        try {
+          const workouts: any[] = JSON.parse(workoutRaw)
+          workouts.forEach((w: any) => {
+            addDot(w.date ?? w.created_at, 'workout', w.title ?? '練習メニュー', undefined)
+          })
+        } catch {}
       }
 
       // 大会
       if (compRaw) {
-        const comps: any[] = JSON.parse(compRaw)
-        comps.forEach((c: any) => {
-          addDot(c.date ?? c.competition_date ?? c.created_at, 'competition', c.name ?? '大会', c.event)
-        })
+        try {
+          const comps: any[] = JSON.parse(compRaw)
+          comps.forEach((c: any) => {
+            addDot(c.date ?? c.competition_date ?? c.created_at, 'competition', c.name ?? '大会', c.event)
+          })
+        } catch {}
       }
 
       setDayMap(newDayMap)

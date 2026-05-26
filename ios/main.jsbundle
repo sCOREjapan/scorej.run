@@ -248731,12 +248731,16 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
           rawEntry = _yield$Promise$all2[1],
           rawProfile = _yield$Promise$all2[2];
         if (rawComp) {
-          var all = JSON.parse(rawComp);
-          var today = new Date().toISOString().slice(0, 10);
-          setCompetitions(all.filter(c => c.competition_date >= today));
+          try {
+            var all = JSON.parse(rawComp);
+            var today = new Date().toISOString().slice(0, 10);
+            setCompetitions(all.filter(c => c.competition_date >= today));
+          } catch {}
         }
         if (rawEntry) {
-          setEntryStatusMap(JSON.parse(rawEntry));
+          try {
+            setEntryStatusMap(JSON.parse(rawEntry));
+          } catch {}
         }
         if (rawProfile) {
           try {
@@ -248880,7 +248884,7 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
             children: "\u8A66\u5408\u30E2\u30FC\u30C9"
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 376,
+            lineNumber: 378,
             columnNumber: 9
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(HapticTouch.default, {
             haptic: "whoosh",
@@ -248896,17 +248900,17 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
               color: "#fff"
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 378,
+              lineNumber: 380,
               columnNumber: 11
             }, this)
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 377,
+            lineNumber: 379,
             columnNumber: 9
           }, this)]
         }, void 0, true, {
           fileName: _jsxFileName,
-          lineNumber: 375,
+          lineNumber: 377,
           columnNumber: 7
         }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.ScrollView, {
           style: styles.scroll,
@@ -248927,7 +248931,7 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                 color: _libTheme.NEON.amber
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 387,
+                lineNumber: 389,
                 columnNumber: 13
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                 style: {
@@ -248938,7 +248942,7 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                 children: "\u5927\u4F1A\u30EA\u30DE\u30A4\u30F3\u30C0\u30FC\u901A\u77E5"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 388,
+                lineNumber: 390,
                 columnNumber: 13
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TouchableOpacity, {
                 style: {
@@ -248957,22 +248961,22 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                   children: notifGranted ? '✓ 有効' : '許可する'
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 393,
+                  lineNumber: 395,
                   columnNumber: 15
                 }, this)
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 389,
+                lineNumber: 391,
                 columnNumber: 13
               }, this)]
             }, void 0, true, {
               fileName: _jsxFileName,
-              lineNumber: 386,
+              lineNumber: 388,
               columnNumber: 11
             }, this)
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 385,
+            lineNumber: 387,
             columnNumber: 9
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(AnimatedSection.default, {
             delay: 50,
@@ -248997,27 +249001,27 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                     children: f
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 415,
+                    lineNumber: 417,
                     columnNumber: 19
                   }, this)
                 }, f, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 405,
+                  lineNumber: 407,
                   columnNumber: 17
                 }, this))
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 403,
+                lineNumber: 405,
                 columnNumber: 13
               }, this)
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 402,
+              lineNumber: 404,
               columnNumber: 11
             }, this)
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 401,
+            lineNumber: 403,
             columnNumber: 9
           }, this), generating && /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
             style: styles.card,
@@ -249026,7 +249030,7 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
               children: compDate ? `AIが${Math.ceil((new Date(compDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 7))}週間計画を作成中...` : 'AI計画を作成中...'
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 428,
+              lineNumber: 430,
               columnNumber: 13
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
               style: {
@@ -249036,36 +249040,36 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                 height: 80
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 432,
-                columnNumber: 15
-              }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(SkeletonRect, {
-                height: 60
-              }, void 0, false, {
-                fileName: _jsxFileName,
-                lineNumber: 433,
-                columnNumber: 15
-              }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(SkeletonRect, {
-                height: 60
-              }, void 0, false, {
-                fileName: _jsxFileName,
                 lineNumber: 434,
+                columnNumber: 15
+              }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(SkeletonRect, {
+                height: 60
+              }, void 0, false, {
+                fileName: _jsxFileName,
+                lineNumber: 435,
+                columnNumber: 15
+              }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(SkeletonRect, {
+                height: 60
+              }, void 0, false, {
+                fileName: _jsxFileName,
+                lineNumber: 436,
                 columnNumber: 15
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(SkeletonRect, {
                 height: 20,
                 width: "60%"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 435,
+                lineNumber: 437,
                 columnNumber: 15
               }, this)]
             }, void 0, true, {
               fileName: _jsxFileName,
-              lineNumber: 431,
+              lineNumber: 433,
               columnNumber: 13
             }, this)]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 427,
+            lineNumber: 429,
             columnNumber: 11
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(AnimatedSection.default, {
             delay: 100,
@@ -249078,12 +249082,12 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                 height: 88
               }, i, false, {
                 fileName: _jsxFileName,
-                lineNumber: 444,
+                lineNumber: 446,
                 columnNumber: 30
               }, this))
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 443,
+              lineNumber: 445,
               columnNumber: 11
             }, this) : filteredCompetitions.length === 0 && !generating ? competitions.length === 0 ? /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
               style: styles.empty,
@@ -249093,21 +249097,21 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                 color: _libTheme.TEXT.hint
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 449,
+                lineNumber: 451,
                 columnNumber: 15
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                 style: styles.emptyTitle,
                 children: "\u8A66\u5408\u3092\u767B\u9332\u3057\u3088\u3046"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 450,
+                lineNumber: 452,
                 columnNumber: 15
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                 style: styles.emptyText,
                 children: "\u8A66\u5408\u65E5\u3092\u5165\u529B\u3059\u308C\u3070\u3001AI\u304C\u6B8B\u308A\u65E5\u6570\u306B\u5408\u308F\u305B\u305F\u6700\u9069\u306A\u30C8\u30EC\u30FC\u30CB\u30F3\u30B0\u8A08\u753B\u3092\u4F5C\u6210\u3057\u307E\u3059"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 451,
+                lineNumber: 453,
                 columnNumber: 15
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(HapticTouch.default, {
                 haptic: "whoosh",
@@ -249118,17 +249122,17 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                   children: "\u8A66\u5408\u3092\u767B\u9332\u3059\u308B"
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 453,
+                  lineNumber: 455,
                   columnNumber: 17
                 }, this)
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 452,
+                lineNumber: 454,
                 columnNumber: 15
               }, this)]
             }, void 0, true, {
               fileName: _jsxFileName,
-              lineNumber: 448,
+              lineNumber: 450,
               columnNumber: 13
             }, this) : /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
               style: styles.empty,
@@ -249138,19 +249142,19 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                 color: _libTheme.TEXT.hint
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 458,
+                lineNumber: 460,
                 columnNumber: 15
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                 style: styles.emptyTitle,
                 children: "\u8A72\u5F53\u3059\u308B\u8A66\u5408\u304C\u3042\u308A\u307E\u305B\u3093"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 459,
+                lineNumber: 461,
                 columnNumber: 15
               }, this)]
             }, void 0, true, {
               fileName: _jsxFileName,
-              lineNumber: 457,
+              lineNumber: 459,
               columnNumber: 13
             }, this) : /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactJsxDevRuntime.Fragment, {
               children: [filteredCompetitions.map(c => /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(HapticTouch.default, {
@@ -249166,12 +249170,12 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                   }
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 471,
+                  lineNumber: 473,
                   columnNumber: 17
                 }, this)
               }, c.id, false, {
                 fileName: _jsxFileName,
-                lineNumber: 465,
+                lineNumber: 467,
                 columnNumber: 15
               }, this)), selectedComp && selectedComp.phases.length > 0 && /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(AnimatedSection.default, {
                 delay: 0,
@@ -249180,7 +249184,7 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                   competition: selectedComp
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 483,
+                  lineNumber: 485,
                   columnNumber: 17
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                   style: [styles.card, {
@@ -249194,7 +249198,7 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                       color: _libTheme.BRAND
                     }, void 0, false, {
                       fileName: _jsxFileName,
-                      lineNumber: 488,
+                      lineNumber: 490,
                       columnNumber: 21
                     }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                       style: styles.sectionTitle,
@@ -249207,17 +249211,17 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                         children: ["\uFF08\u8A66\u5408", Math.max(0, Math.ceil((new Date(selectedComp.competition_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))), "\u65E5\u524D\uFF09"]
                       }, void 0, true, {
                         fileName: _jsxFileName,
-                        lineNumber: 492,
+                        lineNumber: 494,
                         columnNumber: 23
                       }, this)]
                     }, void 0, true, {
                       fileName: _jsxFileName,
-                      lineNumber: 489,
+                      lineNumber: 491,
                       columnNumber: 21
                     }, this)]
                   }, void 0, true, {
                     fileName: _jsxFileName,
-                    lineNumber: 487,
+                    lineNumber: 489,
                     columnNumber: 19
                   }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                     style: {
@@ -249227,33 +249231,33 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                       week: week
                     }, week.week_number, false, {
                       fileName: _jsxFileName,
-                      lineNumber: 499,
+                      lineNumber: 501,
                       columnNumber: 23
                     }, this))
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 497,
+                    lineNumber: 499,
                     columnNumber: 19
                   }, this)]
                 }, void 0, true, {
                   fileName: _jsxFileName,
-                  lineNumber: 486,
+                  lineNumber: 488,
                   columnNumber: 17
                 }, this)]
               }, void 0, true, {
                 fileName: _jsxFileName,
-                lineNumber: 481,
+                lineNumber: 483,
                 columnNumber: 15
               }, this)]
             }, void 0, true)
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 441,
+            lineNumber: 443,
             columnNumber: 9
           }, this)]
         }, void 0, true, {
           fileName: _jsxFileName,
-          lineNumber: 382,
+          lineNumber: 384,
           columnNumber: 7
         }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Modal, {
           visible: modalVisible,
@@ -249278,19 +249282,19 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                       children: "\u30AD\u30E3\u30F3\u30BB\u30EB"
                     }, void 0, false, {
                       fileName: _jsxFileName,
-                      lineNumber: 517,
+                      lineNumber: 519,
                       columnNumber: 19
                     }, this)
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 516,
+                    lineNumber: 518,
                     columnNumber: 17
                   }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                     style: styles.modalTitle,
                     children: "\u8A66\u5408\u3092\u767B\u9332"
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 519,
+                    lineNumber: 521,
                     columnNumber: 17
                   }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                     style: {
@@ -249298,19 +249302,19 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                     }
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 520,
+                    lineNumber: 522,
                     columnNumber: 17
                   }, this)]
                 }, void 0, true, {
                   fileName: _jsxFileName,
-                  lineNumber: 515,
+                  lineNumber: 517,
                   columnNumber: 15
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                   style: styles.label,
                   children: "\u8A66\u5408\u540D"
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 523,
+                  lineNumber: 525,
                   columnNumber: 15
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TextInput, {
                   style: styles.input,
@@ -249320,14 +249324,14 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                   placeholderTextColor: "#9ca3af"
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 524,
+                  lineNumber: 526,
                   columnNumber: 15
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                   style: styles.label,
                   children: "\u8A66\u5408\u65E5"
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 532,
+                  lineNumber: 534,
                   columnNumber: 15
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TouchableOpacity, {
                   style: [styles.input, {
@@ -249343,12 +249347,12 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                     children: compDate || '日付を選択'
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 538,
+                    lineNumber: 540,
                     columnNumber: 17
                   }, this)
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 533,
+                  lineNumber: 535,
                   columnNumber: 15
                 }, this), showDatePicker && /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactJsxDevRuntime.Fragment, {
                   children: [/*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(DateTimePicker.default, {
@@ -249371,7 +249375,7 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                     themeVariant: "light"
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 544,
+                    lineNumber: 546,
                     columnNumber: 19
                   }, this), _reactNative.Platform.OS === 'ios' && /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TouchableOpacity, {
                     style: {
@@ -249392,12 +249396,12 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                       children: "\u5B8C\u4E86"
                     }, void 0, false, {
                       fileName: _jsxFileName,
-                      lineNumber: 566,
+                      lineNumber: 568,
                       columnNumber: 23
                     }, this)
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 562,
+                    lineNumber: 564,
                     columnNumber: 21
                   }, this)]
                 }, void 0, true), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
@@ -249405,7 +249409,7 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                   children: "\u7A2E\u76EE"
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 572,
+                  lineNumber: 574,
                   columnNumber: 15
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.ScrollView, {
                   horizontal: true,
@@ -249429,22 +249433,22 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                         children: e
                       }, void 0, false, {
                         fileName: _jsxFileName,
-                        lineNumber: 582,
+                        lineNumber: 584,
                         columnNumber: 23
                       }, this)
                     }, e, false, {
                       fileName: _jsxFileName,
-                      lineNumber: 576,
+                      lineNumber: 578,
                       columnNumber: 21
                     }, this))
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 574,
+                    lineNumber: 576,
                     columnNumber: 17
                   }, this)
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 573,
+                  lineNumber: 575,
                   columnNumber: 15
                 }, this), isFieldEvent ? /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactJsxDevRuntime.Fragment, {
                   children: [/*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
@@ -249452,7 +249456,7 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                     children: "\u76EE\u6A19\u8A18\u9332\uFF08m\u30FB\u4EFB\u610F\uFF09"
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 590,
+                    lineNumber: 592,
                     columnNumber: 19
                   }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                     style: styles.timeRow,
@@ -249469,7 +249473,7 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                       placeholderTextColor: "#9ca3af"
                     }, void 0, false, {
                       fileName: _jsxFileName,
-                      lineNumber: 592,
+                      lineNumber: 594,
                       columnNumber: 21
                     }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                       style: [styles.timeUnit, {
@@ -249478,12 +249482,12 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                       children: "m"
                     }, void 0, false, {
                       fileName: _jsxFileName,
-                      lineNumber: 600,
+                      lineNumber: 602,
                       columnNumber: 21
                     }, this)]
                   }, void 0, true, {
                     fileName: _jsxFileName,
-                    lineNumber: 591,
+                    lineNumber: 593,
                     columnNumber: 19
                   }, this)]
                 }, void 0, true) : /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactJsxDevRuntime.Fragment, {
@@ -249492,7 +249496,7 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                     children: "\u76EE\u6A19\u30BF\u30A4\u30E0\uFF08\u4EFB\u610F\uFF09"
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 605,
+                    lineNumber: 607,
                     columnNumber: 19
                   }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                     style: styles.timeRow,
@@ -249503,7 +249507,7 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                         children: "\u5206"
                       }, void 0, false, {
                         fileName: _jsxFileName,
-                        lineNumber: 608,
+                        lineNumber: 610,
                         columnNumber: 23
                       }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TextInput, {
                         style: styles.timeInput,
@@ -249516,19 +249520,19 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                         textAlign: "center"
                       }, void 0, false, {
                         fileName: _jsxFileName,
-                        lineNumber: 609,
+                        lineNumber: 611,
                         columnNumber: 23
                       }, this)]
                     }, void 0, true, {
                       fileName: _jsxFileName,
-                      lineNumber: 607,
+                      lineNumber: 609,
                       columnNumber: 21
                     }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                       style: styles.timeSep,
                       children: ":"
                     }, void 0, false, {
                       fileName: _jsxFileName,
-                      lineNumber: 620,
+                      lineNumber: 622,
                       columnNumber: 21
                     }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                       style: styles.timeCol,
@@ -249537,7 +249541,7 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                         children: "\u79D2"
                       }, void 0, false, {
                         fileName: _jsxFileName,
-                        lineNumber: 622,
+                        lineNumber: 624,
                         columnNumber: 23
                       }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TextInput, {
                         style: styles.timeInput,
@@ -249550,17 +249554,17 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                         textAlign: "center"
                       }, void 0, false, {
                         fileName: _jsxFileName,
-                        lineNumber: 623,
+                        lineNumber: 625,
                         columnNumber: 23
                       }, this)]
                     }, void 0, true, {
                       fileName: _jsxFileName,
-                      lineNumber: 621,
+                      lineNumber: 623,
                       columnNumber: 21
                     }, this)]
                   }, void 0, true, {
                     fileName: _jsxFileName,
-                    lineNumber: 606,
+                    lineNumber: 608,
                     columnNumber: 19
                   }, this)]
                 }, void 0, true), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(HapticTouch.default, {
@@ -249574,39 +249578,39 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                     color: "#fff"
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 639,
+                    lineNumber: 641,
                     columnNumber: 17
                   }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                     style: styles.generateBtnText,
                     children: "AI\u3067\u8A08\u753B\u3092\u4F5C\u6210\u3059\u308B"
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 640,
+                    lineNumber: 642,
                     columnNumber: 17
                   }, this)]
                 }, void 0, true, {
                   fileName: _jsxFileName,
-                  lineNumber: 638,
+                  lineNumber: 640,
                   columnNumber: 15
                 }, this)]
               }, void 0, true, {
                 fileName: _jsxFileName,
-                lineNumber: 514,
+                lineNumber: 516,
                 columnNumber: 13
               }, this)
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 513,
+              lineNumber: 515,
               columnNumber: 11
             }, this)
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 512,
+            lineNumber: 514,
             columnNumber: 9
           }, this)
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 511,
+          lineNumber: 513,
           columnNumber: 7
         }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Modal, {
           visible: entryModalComp !== null,
@@ -249626,19 +249630,19 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                     children: "\u30AD\u30E3\u30F3\u30BB\u30EB"
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 658,
+                    lineNumber: 660,
                     columnNumber: 17
                   }, this)
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 657,
+                  lineNumber: 659,
                   columnNumber: 15
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                   style: styles.modalTitle,
                   children: "\u30A8\u30F3\u30C8\u30EA\u30FC\u72B6\u614B"
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 660,
+                  lineNumber: 662,
                   columnNumber: 15
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                   style: {
@@ -249646,12 +249650,12 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                   }
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 661,
+                  lineNumber: 663,
                   columnNumber: 15
                 }, this)]
               }, void 0, true, {
                 fileName: _jsxFileName,
-                lineNumber: 656,
+                lineNumber: 658,
                 columnNumber: 13
               }, this), entryModalComp && /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                 style: [styles.label, {
@@ -249660,7 +249664,7 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                 children: entryModalComp.competition_name
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 664,
+                lineNumber: 666,
                 columnNumber: 15
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                 style: {
@@ -249682,7 +249686,7 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                       }]
                     }, void 0, false, {
                       fileName: _jsxFileName,
-                      lineNumber: 682,
+                      lineNumber: 684,
                       columnNumber: 21
                     }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                       style: [styles.entryStatusText, {
@@ -249691,7 +249695,7 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                       children: status
                     }, void 0, false, {
                       fileName: _jsxFileName,
-                      lineNumber: 683,
+                      lineNumber: 685,
                       columnNumber: 21
                     }, this), isCurrent && /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_expoVectorIcons.Ionicons, {
                       name: "checkmark-circle",
@@ -249699,43 +249703,43 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                       color: color
                     }, void 0, false, {
                       fileName: _jsxFileName,
-                      lineNumber: 687,
+                      lineNumber: 689,
                       columnNumber: 23
                     }, this)]
                   }, status, true, {
                     fileName: _jsxFileName,
-                    lineNumber: 673,
+                    lineNumber: 675,
                     columnNumber: 19
                   }, this);
                 })
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 668,
+                lineNumber: 670,
                 columnNumber: 13
               }, this)]
             }, void 0, true, {
               fileName: _jsxFileName,
-              lineNumber: 655,
+              lineNumber: 657,
               columnNumber: 11
             }, this)
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 654,
+            lineNumber: 656,
             columnNumber: 9
           }, this)
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 648,
+          lineNumber: 650,
           columnNumber: 7
         }, this)]
       }, void 0, true, {
         fileName: _jsxFileName,
-        lineNumber: 374,
+        lineNumber: 376,
         columnNumber: 5
       }, this)
     }, void 0, false, {
       fileName: _jsxFileName,
-      lineNumber: 373,
+      lineNumber: 375,
       columnNumber: 5
     }, this);
   }
@@ -249767,19 +249771,19 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
           color: _libTheme.BRAND
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 731,
+          lineNumber: 733,
           columnNumber: 9
         }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
           style: tw.sectionTitle,
           children: ["\u4ECA\u65E5\u306E\u30E1\u30CB\u30E5\u30FC\uFF08", todayDow, "\uFF09"]
         }, void 0, true, {
           fileName: _jsxFileName,
-          lineNumber: 732,
+          lineNumber: 734,
           columnNumber: 9
         }, this)]
       }, void 0, true, {
         fileName: _jsxFileName,
-        lineNumber: 730,
+        lineNumber: 732,
         columnNumber: 7
       }, this), todaySession ? /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
         style: tw.sessionBox,
@@ -249789,7 +249793,7 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
           }]
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 736,
+          lineNumber: 738,
           columnNumber: 11
         }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
           style: {
@@ -249806,36 +249810,36 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
               children: todaySession.type
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 739,
+              lineNumber: 741,
               columnNumber: 15
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
               style: tw.sessionDur,
               children: [todaySession.duration_min, "\u5206"]
             }, void 0, true, {
               fileName: _jsxFileName,
-              lineNumber: 740,
+              lineNumber: 742,
               columnNumber: 15
             }, this)]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 738,
+            lineNumber: 740,
             columnNumber: 13
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
             style: tw.sessionDetail,
             children: todaySession.detail
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 742,
+            lineNumber: 744,
             columnNumber: 13
           }, this)]
         }, void 0, true, {
           fileName: _jsxFileName,
-          lineNumber: 737,
+          lineNumber: 739,
           columnNumber: 11
         }, this)]
       }, void 0, true, {
         fileName: _jsxFileName,
-        lineNumber: 735,
+        lineNumber: 737,
         columnNumber: 9
       }, this) : /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
         style: tw.restBox,
@@ -249846,19 +249850,19 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
           children: "\uD83D\uDCA4"
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 747,
+          lineNumber: 749,
           columnNumber: 11
         }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
           style: tw.restText,
           children: "\u4ECA\u65E5\u306F\u4F11\u990A\u65E5"
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 748,
+          lineNumber: 750,
           columnNumber: 11
         }, this)]
       }, void 0, true, {
         fileName: _jsxFileName,
-        lineNumber: 746,
+        lineNumber: 748,
         columnNumber: 9
       }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
         style: [tw.sectionRow, {
@@ -249870,7 +249874,7 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
           color: _libTheme.TEXT.secondary
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 754,
+          lineNumber: 756,
           columnNumber: 9
         }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
           style: [tw.sectionTitle, {
@@ -249881,12 +249885,12 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
           children: ["\u660E\u65E5\uFF08", tomorrowDow, "\uFF09"]
         }, void 0, true, {
           fileName: _jsxFileName,
-          lineNumber: 755,
+          lineNumber: 757,
           columnNumber: 9
         }, this)]
       }, void 0, true, {
         fileName: _jsxFileName,
-        lineNumber: 753,
+        lineNumber: 755,
         columnNumber: 7
       }, this), tomorrowSession ? /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
         style: [tw.sessionBox, {
@@ -249898,7 +249902,7 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
           }]
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 761,
+          lineNumber: 763,
           columnNumber: 11
         }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
           style: {
@@ -249917,19 +249921,19 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
               children: tomorrowSession.type
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 764,
+              lineNumber: 766,
               columnNumber: 15
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
               style: tw.sessionDur,
               children: [tomorrowSession.duration_min, "\u5206"]
             }, void 0, true, {
               fileName: _jsxFileName,
-              lineNumber: 765,
+              lineNumber: 767,
               columnNumber: 15
             }, this)]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 763,
+            lineNumber: 765,
             columnNumber: 13
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
             style: tw.sessionDetail,
@@ -249937,17 +249941,17 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
             children: tomorrowSession.detail
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 767,
+            lineNumber: 769,
             columnNumber: 13
           }, this)]
         }, void 0, true, {
           fileName: _jsxFileName,
-          lineNumber: 762,
+          lineNumber: 764,
           columnNumber: 11
         }, this)]
       }, void 0, true, {
         fileName: _jsxFileName,
-        lineNumber: 760,
+        lineNumber: 762,
         columnNumber: 9
       }, this) : /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
         style: {
@@ -249958,7 +249962,7 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
         children: "\u660E\u65E5\u306F\u4F11\u990A\u65E5"
       }, void 0, false, {
         fileName: _jsxFileName,
-        lineNumber: 771,
+        lineNumber: 773,
         columnNumber: 9
       }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
         style: tw.themeBox,
@@ -249967,26 +249971,26 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
           children: "\u4ECA\u9031\u306E\u30C6\u30FC\u30DE"
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 776,
+          lineNumber: 778,
           columnNumber: 9
         }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
           style: tw.themeText,
           children: currentWeek.theme
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 777,
+          lineNumber: 779,
           columnNumber: 9
         }, this), currentWeek.key_workout ? /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
           style: tw.keyText,
           children: ["\uD83C\uDFAF ", currentWeek.key_workout]
         }, void 0, true, {
           fileName: _jsxFileName,
-          lineNumber: 779,
+          lineNumber: 781,
           columnNumber: 11
         }, this) : null]
       }, void 0, true, {
         fileName: _jsxFileName,
-        lineNumber: 775,
+        lineNumber: 777,
         columnNumber: 7
       }, this), dietAdvice ? /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
         style: tw.dietBox,
@@ -249996,24 +250000,24 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
           color: _libTheme.NEON.amber
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 786,
+          lineNumber: 788,
           columnNumber: 11
         }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
           style: tw.dietText,
           children: dietAdvice
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 787,
+          lineNumber: 789,
           columnNumber: 11
         }, this)]
       }, void 0, true, {
         fileName: _jsxFileName,
-        lineNumber: 785,
+        lineNumber: 787,
         columnNumber: 9
       }, this) : null]
     }, void 0, true, {
       fileName: _jsxFileName,
-      lineNumber: 728,
+      lineNumber: 730,
       columnNumber: 5
     }, this);
   }
@@ -311457,38 +311461,46 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
 
         // GPS練習セッション
         if (sessionsRaw) {
-          var sessions = JSON.parse(sessionsRaw);
-          sessions.forEach(s => {
-            var label = s.session_type ?? 'GPS練習';
-            var sub = s.distance_m ? `${(s.distance_m / 1000).toFixed(1)}km` : undefined;
-            addDot(s.session_date ?? s.created_at, 'gps', label, sub);
-          });
+          try {
+            var sessions = JSON.parse(sessionsRaw);
+            sessions.forEach(s => {
+              var label = s.session_type ?? 'GPS練習';
+              var sub = s.distance_m ? `${(s.distance_m / 1000).toFixed(1)}km` : undefined;
+              addDot(s.session_date ?? s.created_at, 'gps', label, sub);
+            });
+          } catch {}
         }
 
         // タイム計測（レース記録）
         if (raceRaw) {
-          var races = JSON.parse(raceRaw);
-          races.forEach(r => {
-            var label = r.event ?? 'タイム計測';
-            var sub = r.time ? r.time : undefined;
-            addDot(r.date ?? r.created_at, 'race', label, sub);
-          });
+          try {
+            var races = JSON.parse(raceRaw);
+            races.forEach(r => {
+              var label = r.event ?? 'タイム計測';
+              var sub = r.time ? r.time : undefined;
+              addDot(r.date ?? r.created_at, 'race', label, sub);
+            });
+          } catch {}
         }
 
         // 練習メニュー
         if (workoutRaw) {
-          var workouts = JSON.parse(workoutRaw);
-          workouts.forEach(w => {
-            addDot(w.date ?? w.created_at, 'workout', w.title ?? '練習メニュー', undefined);
-          });
+          try {
+            var workouts = JSON.parse(workoutRaw);
+            workouts.forEach(w => {
+              addDot(w.date ?? w.created_at, 'workout', w.title ?? '練習メニュー', undefined);
+            });
+          } catch {}
         }
 
         // 大会
         if (compRaw) {
-          var comps = JSON.parse(compRaw);
-          comps.forEach(c => {
-            addDot(c.date ?? c.competition_date ?? c.created_at, 'competition', c.name ?? '大会', c.event);
-          });
+          try {
+            var comps = JSON.parse(compRaw);
+            comps.forEach(c => {
+              addDot(c.date ?? c.competition_date ?? c.created_at, 'competition', c.name ?? '大会', c.event);
+            });
+          } catch {}
         }
         setDayMap(newDayMap);
         setRecordMap(newRecordMap);
@@ -311565,7 +311577,7 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
         style: _reactNative.StyleSheet.absoluteFill
       }, void 0, false, {
         fileName: _jsxFileName,
-        lineNumber: 202,
+        lineNumber: 210,
         columnNumber: 7
       }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNativeSafeAreaContext.SafeAreaView, {
         style: styles.safe,
@@ -311584,19 +311596,19 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                 color: "#fff"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 208,
+                lineNumber: 216,
                 columnNumber: 15
               }, this)
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 207,
+              lineNumber: 215,
               columnNumber: 13
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
               style: styles.monthTitle,
               children: [year, "\u5E74", month + 1, "\u6708"]
             }, void 0, true, {
               fileName: _jsxFileName,
-              lineNumber: 210,
+              lineNumber: 218,
               columnNumber: 13
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TouchableOpacity, {
               onPress: () => changeMonth(1),
@@ -311608,17 +311620,17 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                 color: "#fff"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 212,
+                lineNumber: 220,
                 columnNumber: 15
               }, this)
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 211,
+              lineNumber: 219,
               columnNumber: 13
             }, this)]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 206,
+            lineNumber: 214,
             columnNumber: 11
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
             style: styles.legendRow,
@@ -311634,25 +311646,25 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                   }]
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 220,
+                  lineNumber: 228,
                   columnNumber: 17
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                   style: styles.legendText,
                   children: DOT_LABELS[type]
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 221,
+                  lineNumber: 229,
                   columnNumber: 17
                 }, this)]
               }, type, true, {
                 fileName: _jsxFileName,
-                lineNumber: 219,
+                lineNumber: 227,
                 columnNumber: 15
               }, this);
             })
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 217,
+            lineNumber: 225,
             columnNumber: 11
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Animated.View, {
             style: [styles.calCard, {
@@ -311669,12 +311681,12 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                 children: w
               }, w, false, {
                 fileName: _jsxFileName,
-                lineNumber: 231,
+                lineNumber: 239,
                 columnNumber: 17
               }, this))
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 229,
+              lineNumber: 237,
               columnNumber: 13
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
               style: styles.grid,
@@ -311684,7 +311696,7 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                     style: styles.dayCell
                   }, `empty-${idx}`, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 248,
+                    lineNumber: 256,
                     columnNumber: 26
                   }, this);
                 }
@@ -311703,18 +311715,18 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                   onPress: () => handleDayPress(day)
                 }, ymd, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 257,
+                  lineNumber: 265,
                   columnNumber: 19
                 }, this);
               })
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 245,
+              lineNumber: 253,
               columnNumber: 13
             }, this)]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 227,
+            lineNumber: 235,
             columnNumber: 11
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
             style: styles.detailCard,
@@ -311726,33 +311738,33 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                 color: "#888"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 275,
+                lineNumber: 283,
                 columnNumber: 15
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                 style: styles.detailTitle,
                 children: [selectedDate.replace(/-/g, '/'), " \u306E\u8A18\u9332"]
               }, void 0, true, {
                 fileName: _jsxFileName,
-                lineNumber: 276,
+                lineNumber: 284,
                 columnNumber: 15
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                 style: styles.detailCount,
                 children: [selectedRecords.length, "\u4EF6"]
               }, void 0, true, {
                 fileName: _jsxFileName,
-                lineNumber: 279,
+                lineNumber: 287,
                 columnNumber: 15
               }, this)]
             }, void 0, true, {
               fileName: _jsxFileName,
-              lineNumber: 274,
+              lineNumber: 282,
               columnNumber: 13
             }, this), selectedRecords.length === 0 ? /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
               style: styles.noRecords,
               children: "\u3053\u306E\u65E5\u306E\u8A18\u9332\u306F\u3042\u308A\u307E\u305B\u3093"
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 282,
+              lineNumber: 290,
               columnNumber: 15
             }, this) : /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
               style: {
@@ -311770,12 +311782,12 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                     color: DOT_COLORS[rec.type]
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 288,
+                    lineNumber: 296,
                     columnNumber: 23
                   }, this)
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 287,
+                  lineNumber: 295,
                   columnNumber: 21
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                   style: {
@@ -311786,19 +311798,19 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                     children: rec.label
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 291,
+                    lineNumber: 299,
                     columnNumber: 23
                   }, this), rec.sub ? /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                     style: styles.recordSub,
                     children: rec.sub
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 292,
+                    lineNumber: 300,
                     columnNumber: 34
                   }, this) : null]
                 }, void 0, true, {
                   fileName: _jsxFileName,
-                  lineNumber: 290,
+                  lineNumber: 298,
                   columnNumber: 21
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                   style: [styles.recordBadge, {
@@ -311812,27 +311824,27 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                     children: DOT_LABELS[rec.type]
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 295,
+                    lineNumber: 303,
                     columnNumber: 23
                   }, this)
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 294,
+                  lineNumber: 302,
                   columnNumber: 21
                 }, this)]
               }, idx, true, {
                 fileName: _jsxFileName,
-                lineNumber: 286,
+                lineNumber: 294,
                 columnNumber: 19
               }, this))
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 284,
+              lineNumber: 292,
               columnNumber: 15
             }, this)]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 273,
+            lineNumber: 281,
             columnNumber: 11
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
             style: styles.summaryCard,
@@ -311841,7 +311853,7 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
               children: [month + 1, "\u6708\u306E\u30B5\u30DE\u30EA\u30FC"]
             }, void 0, true, {
               fileName: _jsxFileName,
-              lineNumber: 305,
+              lineNumber: 313,
               columnNumber: 13
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
               style: styles.summaryRow,
@@ -311853,7 +311865,7 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                 unit: "\u65E5"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 307,
+                lineNumber: 315,
                 columnNumber: 15
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(SummaryItem, {
                 icon: "navigate-outline",
@@ -311863,7 +311875,7 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                 unit: "\u56DE"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 308,
+                lineNumber: 316,
                 columnNumber: 15
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(SummaryItem, {
                 icon: "barbell-outline",
@@ -311877,7 +311889,7 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                 unit: "\u4EF6"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 309,
+                lineNumber: 317,
                 columnNumber: 15
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(SummaryItem, {
                 icon: "trophy-outline",
@@ -311891,32 +311903,32 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
                 unit: "\u56DE"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 310,
+                lineNumber: 318,
                 columnNumber: 15
               }, this)]
             }, void 0, true, {
               fileName: _jsxFileName,
-              lineNumber: 306,
+              lineNumber: 314,
               columnNumber: 13
             }, this)]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 304,
+            lineNumber: 312,
             columnNumber: 11
           }, this)]
         }, void 0, true, {
           fileName: _jsxFileName,
-          lineNumber: 204,
+          lineNumber: 212,
           columnNumber: 9
         }, this)
       }, void 0, false, {
         fileName: _jsxFileName,
-        lineNumber: 203,
+        lineNumber: 211,
         columnNumber: 7
       }, this)]
     }, void 0, true, {
       fileName: _jsxFileName,
-      lineNumber: 201,
+      lineNumber: 209,
       columnNumber: 5
     }, this);
   }
@@ -311971,12 +311983,12 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
             children: day
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 358,
+            lineNumber: 366,
             columnNumber: 11
           }, this)
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 353,
+          lineNumber: 361,
           columnNumber: 9
         }, this), dots.length > 0 && /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
           style: styles.dotsRow,
@@ -311986,22 +311998,22 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
             }]
           }, type, false, {
             fileName: _jsxFileName,
-            lineNumber: 369,
+            lineNumber: 377,
             columnNumber: 15
           }, this))
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 367,
+          lineNumber: 375,
           columnNumber: 11
         }, this)]
       }, void 0, true, {
         fileName: _jsxFileName,
-        lineNumber: 352,
+        lineNumber: 360,
         columnNumber: 7
       }, this)
     }, void 0, false, {
       fileName: _jsxFileName,
-      lineNumber: 351,
+      lineNumber: 359,
       columnNumber: 5
     }, this);
   }
@@ -312027,12 +312039,12 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
           color: color
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 395,
+          lineNumber: 403,
           columnNumber: 9
         }, this)
       }, void 0, false, {
         fileName: _jsxFileName,
-        lineNumber: 394,
+        lineNumber: 402,
         columnNumber: 7
       }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
         style: sumStyles.value,
@@ -312041,24 +312053,24 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
           children: unit
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 397,
+          lineNumber: 405,
           columnNumber: 44
         }, this)]
       }, void 0, true, {
         fileName: _jsxFileName,
-        lineNumber: 397,
+        lineNumber: 405,
         columnNumber: 7
       }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
         style: sumStyles.label,
         children: label
       }, void 0, false, {
         fileName: _jsxFileName,
-        lineNumber: 398,
+        lineNumber: 406,
         columnNumber: 7
       }, this)]
     }, void 0, true, {
       fileName: _jsxFileName,
-      lineNumber: 393,
+      lineNumber: 401,
       columnNumber: 5
     }, this);
   }
