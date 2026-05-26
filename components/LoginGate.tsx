@@ -1,5 +1,5 @@
 // components/LoginGate.tsx — AI機能のログイン必須ゲート
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import {
   View,
   Text,
@@ -7,9 +7,9 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
+import { useAuth } from '../context/AuthContext'
 
 interface LoginGateProps {
   children: React.ReactNode
@@ -17,17 +17,10 @@ interface LoginGateProps {
 }
 
 export default function LoginGate({ children, featureName = 'AI機能' }: LoginGateProps) {
-  const [status, setStatus] = useState<'loading' | 'guest' | 'user'>('loading')
+  const { user, loading } = useAuth()
   const router = useRouter()
 
-  useEffect(() => {
-    AsyncStorage.getItem('userId').then(id => {
-      const isGuest = !id || id.startsWith('guest_') || id === 'guest'
-      setStatus(isGuest ? 'guest' : 'user')
-    }).catch(() => setStatus('guest'))
-  }, [])
-
-  if (status === 'loading') {
+  if (loading) {
     return (
       <View style={styles.center}>
         <ActivityIndicator color="#FF6B35" />
@@ -35,7 +28,8 @@ export default function LoginGate({ children, featureName = 'AI機能' }: LoginG
     )
   }
 
-  if (status === 'guest') {
+  // 未ログイン（ゲスト含む）
+  if (!user) {
     return (
       <View style={styles.container}>
         <View style={styles.card}>

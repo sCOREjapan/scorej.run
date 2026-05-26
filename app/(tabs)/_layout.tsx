@@ -282,10 +282,12 @@ export default function TabLayout() {
       await initNotificationsOnFirstLaunch().catch(() => {})
 
       // 2) 位置情報許可（通知ダイアログ後、間を置いて表示）
+      // Web専用: native では expo-location (lib/weather.ts) が担当するので不要
       const LOC_ASKED_KEY = 'score_location_asked'
+      if (Platform.OS !== 'web') return   // native は expo-location が処理
       if (typeof window === 'undefined') return
       if (typeof navigator === 'undefined' || !navigator.geolocation) return
-      const alreadyAsked = localStorage.getItem(LOC_ASKED_KEY)
+      const alreadyAsked = typeof localStorage !== 'undefined' ? localStorage.getItem(LOC_ASKED_KEY) : '1'
       if (alreadyAsked) return
 
       // geolocation の許可状態を確認
@@ -298,7 +300,7 @@ export default function TabLayout() {
 
       // 通知ダイアログとの間に 1.5 秒空ける
       await new Promise(r => setTimeout(r, 1500))
-      localStorage.setItem(LOC_ASKED_KEY, '1')
+      if (typeof localStorage !== 'undefined') localStorage.setItem(LOC_ASKED_KEY, '1')
 
       // iOS ネイティブの位置情報許可ダイアログを表示
       navigator.geolocation.getCurrentPosition(
