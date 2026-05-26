@@ -1,6 +1,6 @@
 // app/timer.tsx — タイム計測タイマー（全画面）
 
-import React, { useState, useRef, useCallback } from 'react'
+import React, { useState, useRef, useCallback, useEffect } from 'react'
 import {
   View,
   Text,
@@ -102,6 +102,11 @@ export default function TimerScreen() {
     }
   }
 
+  // コンポーネントのアンマウント時にインターバルをクリア（メモリリーク防止）
+  useEffect(() => {
+    return () => { if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null } }
+  }, [])
+
   const handleStart = useCallback(() => {
     setTimerState('running')
     startTick()
@@ -157,7 +162,8 @@ export default function TimerScreen() {
 
       const today = new Date().toISOString().slice(0, 10)
       const raw = await AsyncStorage.getItem(SESSIONS_KEY)
-      const existing: TrainingSession[] = raw ? JSON.parse(raw) : []
+      let existing: TrainingSession[] = []
+      try { if (raw) existing = JSON.parse(raw) } catch {}  // データ破損でも新規保存を継続
 
       const newSession: TrainingSession = {
         id: `timer_${Date.now()}`,
