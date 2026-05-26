@@ -1,7 +1,7 @@
 // context/PurchaseContext.tsx — プラン状態グローバル管理（FREE / PRO / ELITE）
 
 import React, {
-  createContext, useContext, useEffect, useState, useCallback,
+  createContext, useContext, useEffect, useRef, useState, useCallback,
 } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import Toast from 'react-native-toast-message'
@@ -14,6 +14,7 @@ import {
   restoreAndCheck,
   logOutPurchases,
 } from '../lib/purchaseService'
+import { useAuth } from './AuthContext'
 
 const SUB_KEY   = 'trackmate_subscription'
 const TRIAL_KEY = 'score_trial_coupon'   // トライアルクーポン使用履歴
@@ -124,6 +125,9 @@ async function cacheStatus(tier: PlanTier, expiresAt?: string) {
 }
 
 export function PurchaseProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth()
+  const prevUserIdRef = useRef<string | null>(null)
+
   const [tier,      setTier]      = useState<PlanTier>('free')
   const [expiresAt, setExpiresAt] = useState<string | undefined>(undefined)
   const [isTrial,   setIsTrial]   = useState(false)
@@ -192,6 +196,30 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
       } catch {}
     })()
   }, [])
+
+  // ── ユーザーIDが変わったとき RevenueCat に紐付け ────────────────
+  // ログイン → RevenueCat に userId を渡してサブスクを引き継ぐ
+  // ログアウト → RevenueCat を匿名状態に戻す
+  useEffect(() => {
+    const currentId = user?.id ?? null
+    const prevId    = prevUserIdRef.current
+    if (currentId === prevId) return
+    prevUserIdRef.current = currentId
+
+    if (currentId) {
+      // 新しいユーザーがログイン
+      initPurchases(currentId)
+        .then(() => getPremiumStatus())
+        .then(({ tier: t, expiresAt: exp }) => {
+          setTier(t); setExpiresAt(exp); setIsTrial(false)
+          cacheStatus(t, exp)
+        })
+        .catch(() => {})
+    } else if (prevId) {
+      // ログアウト
+      logOutPurchases().catch(() => {})
+    }
+  }, [user?.id])
 
   // ── ステータス更新 ─────────────────────────────────────────────
   const refreshStatus = useCallback(async () => {

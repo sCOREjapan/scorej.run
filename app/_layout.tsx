@@ -671,6 +671,17 @@ function RootLayoutNav() {
             name="paywall"
             options={{ headerShown: false, presentation: 'modal' }}
           />
+          {/* 未登録スクリーン — 独自ヘッダーを持つため headerShown: false */}
+          <Stack.Screen name="coupon"           options={{ headerShown: false }} />
+          <Stack.Screen name="coach-landing"    options={{ headerShown: false }} />
+          <Stack.Screen name="guide"            options={{ headerShown: false }} />
+          <Stack.Screen name="manual-log"       options={{ headerShown: false }} />
+          <Stack.Screen name="notifications"    options={{ headerShown: false }} />
+          <Stack.Screen name="practice-input"   options={{ headerShown: false }} />
+          <Stack.Screen name="stretch-recovery" options={{ headerShown: false }} />
+          <Stack.Screen name="team-invite"      options={{ headerShown: false }} />
+          <Stack.Screen name="coach-view"       options={{ headerShown: false }} />
+          <Stack.Screen name="level-roadmap"    options={{ headerShown: false }} />
         </Stack>
       </AuthGate>
       <Toast />
