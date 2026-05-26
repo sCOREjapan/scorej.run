@@ -293,45 +293,55 @@ export default function CalendarScreen() {
 
       // 練習セッション
       if (sessionsRaw) {
-        (JSON.parse(sessionsRaw) as any[]).forEach(s => {
-          const fatigue = s.fatigue_level ?? 5
-          addDot(
-            s.session_date ?? s.created_at, 'gps',
-            s.session_type ?? 'GPS練習',
-            s.distance_m ? `${(s.distance_m / 1000).toFixed(1)}km` : undefined,
-            undefined, fatigue,
-          )
-          const ymd = (s.session_date ?? s.created_at ?? '').slice(0, 10)
-          if (ymd && (maxFatigueMap[ymd] === undefined || fatigue > maxFatigueMap[ymd])) {
-            maxFatigueMap[ymd] = fatigue
-            newColorMap[ymd]   = getIntensityBg(fatigue)
-          }
-        })
+        try {
+          (JSON.parse(sessionsRaw) as any[]).forEach(s => {
+            const fatigue = s.fatigue_level ?? 5
+            addDot(
+              s.session_date ?? s.created_at, 'gps',
+              s.session_type ?? 'GPS練習',
+              s.distance_m ? `${(s.distance_m / 1000).toFixed(1)}km` : undefined,
+              undefined, fatigue,
+            )
+            const ymd = (s.session_date ?? s.created_at ?? '').slice(0, 10)
+            if (ymd && (maxFatigueMap[ymd] === undefined || fatigue > maxFatigueMap[ymd])) {
+              maxFatigueMap[ymd] = fatigue
+              newColorMap[ymd]   = getIntensityBg(fatigue)
+            }
+          })
+        } catch {}
       }
       // タイム計測
       if (raceRaw) {
-        (JSON.parse(raceRaw) as any[]).forEach(r =>
-          addDot(r.date ?? r.created_at, 'race', r.event ?? 'タイム計測', r.time)
-        )
+        try {
+          (JSON.parse(raceRaw) as any[]).forEach(r =>
+            addDot(r.date ?? r.created_at, 'race', r.event ?? 'タイム計測', r.time)
+          )
+        } catch {}
       }
       // 練習メニュー
       if (workoutRaw) {
-        (JSON.parse(workoutRaw) as any[]).forEach(w =>
-          addDot(w.date ?? w.created_at, 'workout', w.title ?? '練習メニュー')
-        )
+        try {
+          (JSON.parse(workoutRaw) as any[]).forEach(w =>
+            addDot(w.date ?? w.created_at, 'workout', w.title ?? '練習メニュー')
+          )
+        } catch {}
       }
       // 大会
       if (compRaw) {
-        (JSON.parse(compRaw) as any[]).forEach(c =>
-          addDot(c.date ?? c.competition_date ?? c.created_at, 'competition', c.name ?? '大会', c.event)
-        )
+        try {
+          (JSON.parse(compRaw) as any[]).forEach(c =>
+            addDot(c.date ?? c.competition_date ?? c.created_at, 'competition', c.name ?? '大会', c.event)
+          )
+        } catch {}
       }
       // 自由入力予定
       if (eventsRaw) {
-        (JSON.parse(eventsRaw) as CalendarEvent[]).forEach(ev => {
-          const cat = getCatInfo(ev.category)
-          addDot(ev.date, 'event', `${cat.emoji} ${ev.title}`, ev.notes, ev.id)
-        })
+        try {
+          (JSON.parse(eventsRaw) as CalendarEvent[]).forEach(ev => {
+            const cat = getCatInfo(ev.category)
+            addDot(ev.date, 'event', `${cat.emoji} ${ev.title}`, ev.notes, ev.id)
+          })
+        } catch {}
       }
 
       setDayMap(newDayMap)
