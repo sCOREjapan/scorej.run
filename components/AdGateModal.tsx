@@ -25,6 +25,7 @@ const FEATURE_LABELS: Record<Feature, string> = {
   meal:        'AI食事分析',
   csv:         'CSVエクスポート',
   recovery:    'AIリカバリー相談',
+  workout:     'AI練習メニュー生成',
 }
 
 interface Props {

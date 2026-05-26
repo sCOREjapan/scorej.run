@@ -5,6 +5,7 @@ import {
 } from 'react-native'
 import { checkAdGate, recordUsage, consumeRewardUse } from '../lib/adGate'
 import AdGateModal from '../components/AdGateModal'
+import { useAuth } from '../context/AuthContext'
 import Svg, {
   Circle, Ellipse, Path, G, Line, Rect,
   Text as SvgText,
@@ -112,7 +113,9 @@ export default function RecoveryScreen() {
   const [history,   setHistory]   = useState<SavedRecord[]>([])
   const [tab,       setTab]       = useState<'input'|'result'|'history'>('input')
   const [apiError,  setApiError]  = useState('')
+  const { isGuest } = useAuth()
   const [adGateVisible,     setAdGateVisible]     = useState(false)
+  const [adGateRemaining,   setAdGateRemaining]   = useState(0)
   const [adGateHardLimited, setAdGateHardLimited] = useState(false)
   const [adGateRewardUses,  setAdGateRewardUses]  = useState(0)
   const [adGateLimitType,   setAdGateLimitType]   = useState<'none'|'daily'|'monthly'|'total'>('none')
@@ -194,6 +197,7 @@ export default function RecoveryScreen() {
     if (!timing)   { setApiError('発生タイミングを選択してください'); return }
     const gate = await checkAdGate('recovery')
     if (!gate.allowed) {
+      setAdGateRemaining(gate.remaining)
       setAdGateRewardUses(gate.rewardUses)
       setAdGateHardLimited(gate.hardLimited)
       setAdGateLimitType(gate.limitType)
@@ -376,9 +380,11 @@ export default function RecoveryScreen() {
       <AdGateModal
         visible={adGateVisible}
         feature="recovery"
+        remaining={adGateRemaining}
         rewardUses={adGateRewardUses}
         hardLimited={adGateHardLimited}
         limitType={adGateLimitType}
+        isGuest={isGuest}
         onClose={() => setAdGateVisible(false)}
         onAdWatched={async () => {
           setAdGateVisible(false)

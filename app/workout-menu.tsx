@@ -10,6 +10,10 @@ import { BG_GRADIENT, TEXT, BRAND, NEON } from '../lib/theme'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import Toast from 'react-native-toast-message'
+import { checkAdGate, recordUsage, consumeRewardUse } from '../lib/adGate'
+import AdGateModal from '../components/AdGateModal'
+import { useAuth } from '../context/AuthContext'
+import { useRouter } from 'expo-router'
 
 // ── キー ─────────────────────────────────────────────────
 const LIBRARY_KEY  = 'trackmate_exercise_library'
@@ -185,6 +189,16 @@ export default function WorkoutMenuScreen() {
   const [histModal, setHistModal] = useState(false)
   const [histItem, setHistItem] = useState<AIGeneratedMenu | null>(null)
 
+  // AdGate
+  const { isGuest } = useAuth()
+  const router = useRouter()
+  const [adGateVisible,     setAdGateVisible]     = useState(false)
+  const [adGateRemaining,   setAdGateRemaining]   = useState(0)
+  const [adGateHardLimited, setAdGateHardLimited] = useState(false)
+  const [adGateRewardUses,  setAdGateRewardUses]  = useState(0)
+  const [adGateLimitType,   setAdGateLimitType]   = useState<'none'|'daily'|'monthly'|'total'>('none')
+  const [adGatePendingFn,   setAdGatePendingFn]   = useState<'pick' | 'intent' | null>(null)
+
   const load = useCallback(async () => {
     const [f, h] = await AsyncStorage.multiGet([LIBRARY_KEY, HISTORY_KEY]).catch(() => [[], []] as any)
     try { if (f[1]) setFolders(JSON.parse(f[1])) } catch {}  // データ破損でも履歴を読み込む
@@ -296,6 +310,21 @@ export default function WorkoutMenuScreen() {
 
   async function handleGenerateFromPicked() {
     if (pickedItems.length === 0) return
+    const gate = await checkAdGate('workout')
+    if (!gate.allowed) {
+      setAdGateRemaining(gate.remaining)
+      setAdGateRewardUses(gate.rewardUses)
+      setAdGateHardLimited(gate.hardLimited)
+      setAdGateLimitType(gate.limitType)
+      setAdGatePendingFn('pick')
+      setAdGateVisible(true)
+      return
+    }
+    if (gate.remaining === 0 && gate.rewardUses > 0) {
+      await consumeRewardUse('workout')
+    } else {
+      await recordUsage('workout')
+    }
     setPickLoading(true)
     setPickResult('')
     try {
@@ -393,6 +422,21 @@ ${pickIntent.trim() || '特に指定なし（コーチの判断で最適なメ�
 
   async function handleGenerate() {
     if (!aiIntent.trim()) return
+    const gate = await checkAdGate('workout')
+    if (!gate.allowed) {
+      setAdGateRemaining(gate.remaining)
+      setAdGateRewardUses(gate.rewardUses)
+      setAdGateHardLimited(gate.hardLimited)
+      setAdGateLimitType(gate.limitType)
+      setAdGatePendingFn('intent')
+      setAdGateVisible(true)
+      return
+    }
+    if (gate.remaining === 0 && gate.rewardUses > 0) {
+      await consumeRewardUse('workout')
+    } else {
+      await recordUsage('workout')
+    }
     setAiLoading(true)
     setAiResult('')
     try {
@@ -1033,6 +1077,31 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
           </View>
         </View>
       </Modal>
+
+      <AdGateModal
+        visible={adGateVisible}
+        feature="workout"
+        remaining={adGateRemaining}
+        rewardUses={adGateRewardUses}
+        hardLimited={adGateHardLimited}
+        limitType={adGateLimitType}
+        isGuest={isGuest}
+        onClose={() => { setAdGateVisible(false); setAdGatePendingFn(null) }}
+        onAdWatched={async () => {
+          setAdGateVisible(false)
+          const g = await checkAdGate('workout')
+          if (g.rewardUses > 0) { await consumeRewardUse('workout') }
+          else { await recordUsage('workout') }
+          if (adGatePendingFn === 'pick') { handleGenerateFromPicked() }
+          else if (adGatePendingFn === 'intent') { handleGenerate() }
+          setAdGatePendingFn(null)
+        }}
+        onUpgrade={() => {
+          setAdGateVisible(false)
+          setAdGatePendingFn(null)
+          router.push('/paywall')
+        }}
+      />
     </View>
   )
 }

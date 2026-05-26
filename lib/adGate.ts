@@ -7,12 +7,12 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
-export type Feature = 'ai_analysis' | 'video' | 'meal' | 'csv' | 'recovery'
+export type Feature = 'ai_analysis' | 'video' | 'meal' | 'csv' | 'recovery' | 'workout'
 
 // ── FREE：AI機能は1日3回まで・毎回広告視聴が必要 ───────────────
 // 1回目も2回目も3回目も、使用するたびに広告を視聴（needsAd: true）
 // 3回使用後は hardLimited（当日は利用不可）
-const FREE_DAILY_AI_FEATURES: Feature[] = ['ai_analysis', 'video', 'meal', 'recovery']
+const FREE_DAILY_AI_FEATURES: Feature[] = ['ai_analysis', 'video', 'meal', 'recovery', 'workout']
 const FREE_DAILY_AI_LIMIT    = 3
 const FREE_CSV_TOTAL_LIMIT   = 1
 
@@ -23,6 +23,7 @@ const PRO_MONTHLY_LIMITS: Partial<Record<Feature, number>> = {
   meal:        30,
   csv:         1,
   recovery:    30,
+  workout:     30,
 }
 
 // ── ストレージキー ────────────────────────────────────────────
@@ -55,7 +56,7 @@ async function getTotalUsage(): Promise<Record<Feature, number>> {
     const raw = await AsyncStorage.getItem(TOTAL_KEY)
     if (raw) return JSON.parse(raw)
   } catch {}
-  return { ai_analysis: 0, video: 0, meal: 0, csv: 0, recovery: 0 }
+  return { ai_analysis: 0, video: 0, meal: 0, csv: 0, recovery: 0, workout: 0 }
 }
 async function saveTotalUsage(u: Record<Feature, number>) {
   await AsyncStorage.setItem(TOTAL_KEY, JSON.stringify(u))
@@ -97,7 +98,7 @@ async function getRewardUses(): Promise<Record<Feature, number>> {
     const raw = await AsyncStorage.getItem(REWARD_KEY)
     if (raw) return JSON.parse(raw)
   } catch {}
-  return { ai_analysis: 0, video: 0, meal: 0, csv: 0, recovery: 0 }
+  return { ai_analysis: 0, video: 0, meal: 0, csv: 0, recovery: 0, workout: 0 }
 }
 
 /** 広告視聴でリワード1回を付与 */
