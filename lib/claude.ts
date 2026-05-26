@@ -101,7 +101,11 @@ function safeParseJSON<T>(text: string): T {
   const start = cleaned.indexOf('{')
   const end   = cleaned.lastIndexOf('}')
   if (start === -1 || end === -1) throw new Error('AIの応答にJSONが含まれていません')
-  return JSON.parse(cleaned.slice(start, end + 1)) as T
+  try {
+    return JSON.parse(cleaned.slice(start, end + 1)) as T
+  } catch {
+    throw new Error('AIの応答の解析に失敗しました。もう一度お試しください。')
+  }
 }
 
 // ─────────────────────────────────────────

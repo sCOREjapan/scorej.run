@@ -11,23 +11,11 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTrainingSessions } from '../hooks/useTrainingSessions'
 import AIFeedbackCard from '../components/AIFeedbackCard'
 import ConditionBadge from '../components/ConditionBadge'
-import type { TrainingSession, UserProfile } from '../types'
-
-const MOCK_USER: UserProfile = {
-  id: 'mock-user-1',
-  name: '田中 太郎',
-  primary_event: '400m',
-  secondary_events: ['200m'],
-  event_category: 'sprint',
-  personal_best_ms: 47800,
-  target_time_ms: 47000,
-  age: 20,
-  experience_years: 5,
-  created_at: new Date().toISOString(),
-}
+import type { TrainingSession } from '../types'
 
 // ─── Skeleton ─────────────────────────────────────────────────────────
 const SkeletonRect: React.FC<{ height?: number; width?: number | string }> = ({
@@ -103,7 +91,9 @@ export default function SessionDetailScreen() {
   const [session, setSession] = useState<TrainingSession | undefined>(undefined)
 
   useEffect(() => {
-    fetchSessions(MOCK_USER.id)
+    AsyncStorage.getItem('userId').then(uid => {
+      if (uid) fetchSessions(uid)
+    }).catch(() => {})
   }, [fetchSessions])
 
   useEffect(() => {
