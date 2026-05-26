@@ -349,13 +349,14 @@ function Slide5({ isActive }: { isActive: boolean }) {
 }
 
 function Slide6({ isActive }: { isActive: boolean }) {
-  const { signInWithGoogle, signInWithApple, signUpWithEmail, signInWithEmail, continueAsGuest } = useAuth()
+  const { signInWithGoogle, signInWithApple, signUpWithEmail, signInWithEmail, resendConfirmationEmail, continueAsGuest } = useAuth()
   const [googleLoading, setGoogleLoading] = useState(false)
   const [appleLoading,  setAppleLoading]  = useState(false)
   const [showSignup, setShowSignup] = useState(false)
   const [isLoginMode, setIsLoginMode] = useState(false)     // true=ログイン, false=新規登録
   const [emailSent, setEmailSent]   = useState(false)      // 確認メール送信済み状態
   const [sentEmail, setSentEmail]   = useState('')
+  const [resending, setResending]   = useState(false)
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
@@ -459,8 +460,24 @@ function Slide6({ isActive }: { isActive: boolean }) {
                   {'\n'}に届いた認証リンクをクリックするとログインできます
                 </Text>
                 <Text style={lg.confirmNote}>迷惑メールフォルダも確認してください</Text>
-                <TouchableOpacity onPress={() => { setEmailSent(false); setShowSignup(true) }}
-                  style={{ marginTop: 14, paddingVertical: 8 }}>
+                <TouchableOpacity
+                  onPress={async () => {
+                    if (resending || !sentEmail) return
+                    setResending(true)
+                    await resendConfirmationEmail(sentEmail)
+                    setResending(false)
+                  }}
+                  style={{ marginTop: 12, paddingVertical: 10, paddingHorizontal: 20,
+                    backgroundColor: 'rgba(0,0,0,0.04)', borderRadius: 10, alignItems: 'center' }}
+                  disabled={resending}
+                >
+                  {resending
+                    ? <ActivityIndicator size="small" color={BRAND} />
+                    : <Text style={{ color: BRAND, fontSize: 13, fontWeight: '600' }}>確認メールを再送する</Text>
+                  }
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => { setEmailSent(false); setShowSignup(true); setEmail(''); setPassword('') }}
+                  style={{ marginTop: 8, paddingVertical: 8 }}>
                   <Text style={{ color: TEXT.hint, fontSize: 12 }}>別のメールアドレスで試す</Text>
                 </TouchableOpacity>
               </View>
