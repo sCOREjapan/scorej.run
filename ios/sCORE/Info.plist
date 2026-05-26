@@ -29,7 +29,15 @@
       <dict>
         <key>CFBundleURLSchemes</key>
         <array>
+          <!-- Google OAuth コールバック用 URL スキーム -->
           <string>com.googleusercontent.apps.918711129795-5lt5a8v4ud03iu2lg35olfits8rc78dg</string>
+        </array>
+      </dict>
+      <dict>
+        <key>CFBundleURLSchemes</key>
+        <array>
+          <!-- expo-auth-session / Supabase PKCE コールバック: score://auth-callback -->
+          <string>score</string>
         </array>
       </dict>
     </array>
