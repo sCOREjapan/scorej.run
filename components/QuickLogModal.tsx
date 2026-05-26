@@ -227,24 +227,19 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
     // ── Step 1: まず正規表現でフォールバック解析（必ず結果あり） ─
     let parsed: Record<string, any> = fallbackParse(freeText, sessionDate)
 
-    // ── Step 2: AIでより正確に解析（成功すればフォールバックを上書き） ─
+    // ── Step 2: Vercelプロキシ経由でAI解析（成功すればフォールバックを上書き） ─
     try {
-      const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY
-      if (apiKey) {
-        const res = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: {
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01',
-            'content-type': 'application/json',
-            'anthropic-dangerous-direct-browser-access': 'true',
-          },
-          body: JSON.stringify({
-            model: 'claude-haiku-4-5-20251001',
-            max_tokens: 500,
-            messages: [{
-              role: 'user',
-              content: `陸上競技の練習記録テキストを正確にJSONに変換してください。今日の日付は${today}、記録対象日は${sessionDate}です。
+      const _apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? '').replace(/\/$/, '')
+      const _endpoint = _apiBase ? `${_apiBase}/api/analyze` : '/api/analyze'
+      const res = await fetch(_endpoint, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 500,
+          messages: [{
+            role: 'user',
+            content: `陸上競技の練習記録テキストを正確にJSONに変換してください。今日の日付は${today}、記録対象日は${sessionDate}です。
 
 入力テキスト:
 "${freeText}"
@@ -261,19 +256,18 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
 
 必ずJSONのみを返してください（説明・前後の文章は不要）:
 {"session_date":"YYYY-MM-DD","session_type":"...","event":"...orNull","time_ms":数値orNull,"distance_m":数値orNull,"reps":数値orNull,"fatigue_level":1〜10の整数,"condition_level":1〜10の整数}`,
-            }],
-          }),
-        })
-        if (res.ok) {
-          const data = await res.json()
-          const rawText = data.content?.[0]?.text ?? ''
-          // JSONブロックを抽出（余計なテキストが前後についても対応）
-          const jsonMatch = rawText.match(/\{[\s\S]*\}/)
-          if (jsonMatch) {
-            const aiParsed = JSON.parse(jsonMatch[0])
-            // AI結果で上書き（nullでないフィールドのみ）
-            parsed = { ...parsed, ...aiParsed }
-          }
+          }],
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        const rawText = data.content?.[0]?.text ?? ''
+        // JSONブロックを抽出（余計なテキストが前後についても対応）
+        const jsonMatch = rawText.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          const aiParsed = JSON.parse(jsonMatch[0])
+          // AI結果で上書き（nullでないフィールドのみ）
+          parsed = { ...parsed, ...aiParsed }
         }
       }
     } catch {
@@ -284,7 +278,8 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
     const toNum = (v: any) => (v !== null && v !== undefined && v !== 'null' && !isNaN(Number(v)) && Number(v) > 0) ? Number(v) : undefined
     try {
       const existing = await AsyncStorage.getItem(SESSIONS_KEY)
-      const sessions = existing ? JSON.parse(existing) : []
+      let sessions: any[] = []
+      try { if (existing) sessions = JSON.parse(existing) } catch {}  // データ破損でも新規保存を継続
 
       sessions.unshift({
         id:              `ql_${Date.now()}`,

@@ -39,7 +39,7 @@ export default function MyPageScreen() {
   }, []))
 
   useEffect(() => {
-    AsyncStorage.getItem(PROFILE_KEY).then(v => { if (v) setProfile(JSON.parse(v)) }).catch(() => {})
+    AsyncStorage.getItem(PROFILE_KEY).then(v => { if (v) { try { setProfile(JSON.parse(v)) } catch {} } }).catch(() => {})
     fetchSessions(MOCK_USER_ID)
   }, [])
 

@@ -15,7 +15,6 @@ import { getVideoAnalysisPrompt } from '../prompts/video'
 import { getMealAnalysisPrompt, getCompetitionPlanPrompt, getSleepAdvicePrompt } from '../prompts/index'
 
 const MODEL = 'claude-haiku-4-5-20251001'
-const API_URL = 'https://api.anthropic.com/v1/messages'
 // Vercel proxy URL（APIキーをクライアントに持たせない）
 const API_BASE = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
 const PROXY_URL = `${API_BASE}/api/analyze`

@@ -179,8 +179,10 @@ export default function ManualLogScreen() {
   useEffect(() => {
     AsyncStorage.getItem(CONDITION_MAP_KEY).then(r => {
       if (!r) return
-      const map = JSON.parse(r)
-      if (map[today]) setCondLevel(map[today])
+      try {
+        const map = JSON.parse(r)
+        if (map[today]) setCondLevel(map[today])
+      } catch {}
     }).catch(() => {})
   }, [])
 
@@ -213,7 +215,8 @@ export default function ManualLogScreen() {
       }
 
       const raw = await AsyncStorage.getItem(SESSIONS_KEY)
-      const sessions: TrainingSession[] = raw ? JSON.parse(raw) : []
+      let sessions: TrainingSession[] = []
+      try { if (raw) sessions = JSON.parse(raw) } catch {}  // データ破損でも新規保存を継続
       sessions.unshift(newSession)
       await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions))
       autoSyncTeam(sessions, { force: true }).catch(() => {})

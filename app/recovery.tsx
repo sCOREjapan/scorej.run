@@ -41,43 +41,43 @@ type ZoneShape =
 
 const ZONES: ZoneDef[] = [
   { id:'head',        label:'頭・首',              front:{type:'circle', cx:110,cy:28,r:20},           back:{type:'circle', cx:110,cy:28,r:20} },
-  { id:'neck',        label:'首・頸部',             front:{type:'ellipse',cx:110,cy:62,rx:11,ry:9},    back:{type:'ellipse',cx:110,cy:62,rx:11,ry:9} },
-  { id:'shoulder_l',  label:'左肩',                front:{type:'ellipse',cx:70,cy:85,rx:17,ry:12},    back:{type:'ellipse',cx:70,cy:85,rx:17,ry:12} },
-  { id:'shoulder_r',  label:'右肩',                front:{type:'ellipse',cx:150,cy:85,rx:17,ry:12},   back:{type:'ellipse',cx:150,cy:85,rx:17,ry:12} },
-  { id:'chest',       label:'胸・肋骨',             front:{type:'ellipse',cx:110,cy:114,rx:26,ry:20} },
-  { id:'upper_back',  label:'背中（上）',            back:{type:'ellipse', cx:110,cy:112,rx:26,ry:20} },
-  { id:'belly',       label:'腹部',                front:{type:'ellipse',cx:110,cy:158,rx:20,ry:16} },
-  { id:'lower_back',  label:'腰・下背部',            back:{type:'ellipse', cx:110,cy:158,rx:20,ry:16} },
-  { id:'upper_arm_l', label:'左上腕',              front:{type:'ellipse',cx:53,cy:132,rx:11,ry:26},   back:{type:'ellipse',cx:53,cy:132,rx:11,ry:26} },
-  { id:'upper_arm_r', label:'右上腕',              front:{type:'ellipse',cx:167,cy:132,rx:11,ry:26},  back:{type:'ellipse',cx:167,cy:132,rx:11,ry:26} },
-  { id:'elbow_l',     label:'左肘',                front:{type:'ellipse',cx:48,cy:174,rx:11,ry:10},   back:{type:'ellipse',cx:48,cy:174,rx:11,ry:10} },
-  { id:'elbow_r',     label:'右肘',                front:{type:'ellipse',cx:172,cy:174,rx:11,ry:10},  back:{type:'ellipse',cx:172,cy:174,rx:11,ry:10} },
-  { id:'forearm_l',   label:'左前腕',              front:{type:'ellipse',cx:43,cy:205,rx:10,ry:21},   back:{type:'ellipse',cx:43,cy:205,rx:10,ry:21} },
-  { id:'forearm_r',   label:'右前腕',              front:{type:'ellipse',cx:177,cy:205,rx:10,ry:21},  back:{type:'ellipse',cx:177,cy:205,rx:10,ry:21} },
-  { id:'wrist_l',     label:'左手首',              front:{type:'ellipse',cx:38,cy:234,rx:9,ry:8},     back:{type:'ellipse',cx:38,cy:234,rx:9,ry:8} },
-  { id:'wrist_r',     label:'右手首',              front:{type:'ellipse',cx:182,cy:234,rx:9,ry:8},    back:{type:'ellipse',cx:182,cy:234,rx:9,ry:8} },
-  { id:'hip_l',       label:'左股関節',             front:{type:'ellipse',cx:87,cy:196,rx:21,ry:16},   back:{type:'ellipse',cx:87,cy:196,rx:21,ry:16} },
-  { id:'hip_r',       label:'右股関節',             front:{type:'ellipse',cx:133,cy:196,rx:21,ry:16},  back:{type:'ellipse',cx:133,cy:196,rx:21,ry:16} },
-  { id:'groin',       label:'鼠径部・内転筋',        front:{type:'ellipse',cx:110,cy:206,rx:13,ry:11} },
-  { id:'buttock',     label:'臀部・お尻',            back:{type:'ellipse', cx:110,cy:202,rx:28,ry:19} },
-  { id:'quad_l',      label:'大腿前（左）',           front:{type:'ellipse',cx:85,cy:258,rx:18,ry:34} },
-  { id:'quad_r',      label:'大腿前（右）',           front:{type:'ellipse',cx:135,cy:258,rx:18,ry:34} },
-  { id:'hamstring_l', label:'ハムストリング（左）',    back:{type:'ellipse', cx:85,cy:256,rx:18,ry:34} },
-  { id:'hamstring_r', label:'ハムストリング（右）',    back:{type:'ellipse', cx:135,cy:256,rx:18,ry:34} },
-  { id:'it_band_l',   label:'腸脛靭帯（左）',         front:{type:'ellipse',cx:70,cy:266,rx:6,ry:30},   back:{type:'ellipse',cx:70,cy:266,rx:6,ry:30} },
-  { id:'it_band_r',   label:'腸脛靭帯（右）',         front:{type:'ellipse',cx:150,cy:266,rx:6,ry:30},  back:{type:'ellipse',cx:150,cy:266,rx:6,ry:30} },
-  { id:'knee_l',      label:'左膝',                front:{type:'ellipse',cx:83,cy:310,rx:16,ry:12},   back:{type:'ellipse',cx:83,cy:310,rx:16,ry:12} },
-  { id:'knee_r',      label:'右膝',                front:{type:'ellipse',cx:137,cy:310,rx:16,ry:12},  back:{type:'ellipse',cx:137,cy:310,rx:16,ry:12} },
-  { id:'shin_l',      label:'すね（左）',             front:{type:'ellipse',cx:82,cy:352,rx:11,ry:28} },
-  { id:'shin_r',      label:'すね（右）',             front:{type:'ellipse',cx:138,cy:352,rx:11,ry:28} },
-  { id:'calf_l',      label:'ふくらはぎ（左）',        back:{type:'ellipse', cx:82,cy:352,rx:12,ry:28} },
-  { id:'calf_r',      label:'ふくらはぎ（右）',        back:{type:'ellipse', cx:138,cy:352,rx:12,ry:28} },
-  { id:'achilles_l',  label:'アキレス腱（左）',        back:{type:'ellipse', cx:80,cy:392,rx:7,ry:13} },
-  { id:'achilles_r',  label:'アキレス腱（右）',        back:{type:'ellipse', cx:140,cy:392,rx:7,ry:13} },
-  { id:'ankle_l',     label:'左足首',              front:{type:'ellipse',cx:81,cy:396,rx:11,ry:9},    back:{type:'ellipse',cx:81,cy:396,rx:11,ry:9} },
-  { id:'ankle_r',     label:'右足首',              front:{type:'ellipse',cx:139,cy:396,rx:11,ry:9},   back:{type:'ellipse',cx:139,cy:396,rx:11,ry:9} },
-  { id:'foot_l',      label:'左足・足底',            front:{type:'ellipse',cx:77,cy:420,rx:17,ry:9},    back:{type:'ellipse',cx:77,cy:420,rx:17,ry:9} },
-  { id:'foot_r',      label:'右足・足底',            front:{type:'ellipse',cx:143,cy:420,rx:17,ry:9},   back:{type:'ellipse',cx:143,cy:420,rx:17,ry:9} },
+  { id:'neck',        label:'首・頸部',             front:{type:'ellipse',cx:110,cy:57,rx:10,ry:8},    back:{type:'ellipse',cx:110,cy:57,rx:10,ry:8} },
+  { id:'shoulder_l',  label:'左肩',                front:{type:'ellipse',cx:72,cy:72,rx:15,ry:10},    back:{type:'ellipse',cx:72,cy:72,rx:15,ry:10} },
+  { id:'shoulder_r',  label:'右肩',                front:{type:'ellipse',cx:148,cy:72,rx:15,ry:10},   back:{type:'ellipse',cx:148,cy:72,rx:15,ry:10} },
+  { id:'chest',       label:'胸・肋骨',             front:{type:'ellipse',cx:110,cy:100,rx:24,ry:18} },
+  { id:'upper_back',  label:'背中（上）',            back:{type:'ellipse', cx:110,cy:100,rx:24,ry:18} },
+  { id:'belly',       label:'腹部',                front:{type:'ellipse',cx:110,cy:132,rx:20,ry:14} },
+  { id:'lower_back',  label:'腰・下背部',            back:{type:'ellipse', cx:110,cy:132,rx:20,ry:14} },
+  { id:'upper_arm_l', label:'左上腕',              front:{type:'ellipse',cx:67,cy:94,rx:10,ry:22},    back:{type:'ellipse',cx:67,cy:94,rx:10,ry:22} },
+  { id:'upper_arm_r', label:'右上腕',              front:{type:'ellipse',cx:153,cy:94,rx:10,ry:22},   back:{type:'ellipse',cx:153,cy:94,rx:10,ry:22} },
+  { id:'elbow_l',     label:'左肘',                front:{type:'ellipse',cx:62,cy:130,rx:10,ry:9},    back:{type:'ellipse',cx:62,cy:130,rx:10,ry:9} },
+  { id:'elbow_r',     label:'右肘',                front:{type:'ellipse',cx:158,cy:130,rx:10,ry:9},   back:{type:'ellipse',cx:158,cy:130,rx:10,ry:9} },
+  { id:'forearm_l',   label:'左前腕',              front:{type:'ellipse',cx:62,cy:152,rx:9,ry:18},    back:{type:'ellipse',cx:62,cy:152,rx:9,ry:18} },
+  { id:'forearm_r',   label:'右前腕',              front:{type:'ellipse',cx:158,cy:152,rx:9,ry:18},   back:{type:'ellipse',cx:158,cy:152,rx:9,ry:18} },
+  { id:'wrist_l',     label:'左手首',              front:{type:'ellipse',cx:62,cy:176,rx:9,ry:7},     back:{type:'ellipse',cx:62,cy:176,rx:9,ry:7} },
+  { id:'wrist_r',     label:'右手首',              front:{type:'ellipse',cx:158,cy:176,rx:9,ry:7},    back:{type:'ellipse',cx:158,cy:176,rx:9,ry:7} },
+  { id:'hip_l',       label:'左股関節',             front:{type:'ellipse',cx:92,cy:185,rx:18,ry:12},   back:{type:'ellipse',cx:92,cy:185,rx:18,ry:12} },
+  { id:'hip_r',       label:'右股関節',             front:{type:'ellipse',cx:128,cy:185,rx:18,ry:12},  back:{type:'ellipse',cx:128,cy:185,rx:18,ry:12} },
+  { id:'groin',       label:'鼠径部・内転筋',        front:{type:'ellipse',cx:110,cy:194,rx:12,ry:10} },
+  { id:'buttock',     label:'臀部・お尻',            back:{type:'ellipse', cx:110,cy:185,rx:26,ry:16} },
+  { id:'quad_l',      label:'大腿前（左）',           front:{type:'ellipse',cx:95,cy:220,rx:14,ry:26} },
+  { id:'quad_r',      label:'大腿前（右）',           front:{type:'ellipse',cx:125,cy:220,rx:14,ry:26} },
+  { id:'hamstring_l', label:'ハムストリング（左）',    back:{type:'ellipse', cx:95,cy:220,rx:14,ry:26} },
+  { id:'hamstring_r', label:'ハムストリング（右）',    back:{type:'ellipse', cx:125,cy:220,rx:14,ry:26} },
+  { id:'it_band_l',   label:'腸脛靭帯（左）',         front:{type:'ellipse',cx:82,cy:225,rx:5,ry:22},   back:{type:'ellipse',cx:82,cy:225,rx:5,ry:22} },
+  { id:'it_band_r',   label:'腸脛靭帯（右）',         front:{type:'ellipse',cx:138,cy:225,rx:5,ry:22},  back:{type:'ellipse',cx:138,cy:225,rx:5,ry:22} },
+  { id:'knee_l',      label:'左膝',                front:{type:'ellipse',cx:95,cy:256,rx:14,ry:10},   back:{type:'ellipse',cx:95,cy:256,rx:14,ry:10} },
+  { id:'knee_r',      label:'右膝',                front:{type:'ellipse',cx:125,cy:256,rx:14,ry:10},  back:{type:'ellipse',cx:125,cy:256,rx:14,ry:10} },
+  { id:'shin_l',      label:'すね（左）',             front:{type:'ellipse',cx:95,cy:290,rx:10,ry:24} },
+  { id:'shin_r',      label:'すね（右）',             front:{type:'ellipse',cx:125,cy:290,rx:10,ry:24} },
+  { id:'calf_l',      label:'ふくらはぎ（左）',        back:{type:'ellipse', cx:95,cy:290,rx:10,ry:24} },
+  { id:'calf_r',      label:'ふくらはぎ（右）',        back:{type:'ellipse', cx:125,cy:290,rx:10,ry:24} },
+  { id:'achilles_l',  label:'アキレス腱（左）',        back:{type:'ellipse', cx:95,cy:326,rx:7,ry:11} },
+  { id:'achilles_r',  label:'アキレス腱（右）',        back:{type:'ellipse', cx:125,cy:326,rx:7,ry:11} },
+  { id:'ankle_l',     label:'左足首',              front:{type:'ellipse',cx:95,cy:336,rx:10,ry:8},    back:{type:'ellipse',cx:95,cy:336,rx:10,ry:8} },
+  { id:'ankle_r',     label:'右足首',              front:{type:'ellipse',cx:125,cy:336,rx:10,ry:8},   back:{type:'ellipse',cx:125,cy:336,rx:10,ry:8} },
+  { id:'foot_l',      label:'左足・足底',            front:{type:'ellipse',cx:91,cy:348,rx:16,ry:8},    back:{type:'ellipse',cx:91,cy:348,rx:16,ry:8} },
+  { id:'foot_r',      label:'右足・足底',            front:{type:'ellipse',cx:129,cy:348,rx:16,ry:8},   back:{type:'ellipse',cx:129,cy:348,rx:16,ry:8} },
 ]
 
 const PAIN_TYPES     = [{id:'sharp',label:'鋭い・刺すような'},{id:'dull',label:'鈍い・重い'},{id:'burning',label:'燃えるような・しびれ'},{id:'aching',label:'じんじん・疼く'}]
@@ -105,6 +105,7 @@ export default function RecoveryScreen() {
   const [adGateVisible,     setAdGateVisible]     = useState(false)
   const [adGateHardLimited, setAdGateHardLimited] = useState(false)
   const [adGateRewardUses,  setAdGateRewardUses]  = useState(0)
+  const [adGateLimitType,   setAdGateLimitType]   = useState<'none'|'daily'|'monthly'|'total'>('none')
   const fadeAnim = useRef(new Animated.Value(1)).current
 
   const fadeIn = () => {
@@ -113,7 +114,7 @@ export default function RecoveryScreen() {
   }
 
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then(r => { if(r) setHistory(JSON.parse(r)) }).catch(()=>{})
+    AsyncStorage.getItem(STORAGE_KEY).then(r => { if(r) { try { setHistory(JSON.parse(r)) } catch {} } }).catch(()=>{})
   },[])
 
   const togglePart = (id: string) => {
@@ -180,6 +181,7 @@ export default function RecoveryScreen() {
     if (!gate.allowed) {
       setAdGateRewardUses(gate.rewardUses)
       setAdGateHardLimited(gate.hardLimited)
+      setAdGateLimitType(gate.limitType)
       setAdGateVisible(true)
       return
     }
@@ -361,6 +363,7 @@ export default function RecoveryScreen() {
         feature="recovery"
         rewardUses={adGateRewardUses}
         hardLimited={adGateHardLimited}
+        limitType={adGateLimitType}
         onClose={() => setAdGateVisible(false)}
         onAdWatched={async () => {
           setAdGateVisible(false)
@@ -385,7 +388,7 @@ export default function RecoveryScreen() {
 function BodyMap({ view, selected, onToggle }: {
   view:'front'|'back'; selected:string[]; onToggle:(id:string)=>void
 }) {
-  const W=220, H=440
+  const W=220, H=370
   const zones = ZONES.filter(z => view==='front' ? !!z.front : !!z.back)
   const getShape = (z: ZoneDef) => view==='front' ? z.front! : z.back!
   const getLabelY = (shape: ZoneShape) => {
@@ -395,7 +398,7 @@ function BodyMap({ view, selected, onToggle }: {
 
   return (
     <Svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}
-      style={{backgroundColor:'#f8f8f6', borderRadius:12}}>
+      style={{backgroundColor:'#f8fafc', borderRadius:14, borderWidth:1, borderColor:'#e2e8f0'}}>
 
       {/* なめらかボディシルエット */}
       <AnatomicalBody view={view} />
@@ -453,448 +456,71 @@ function BodyMap({ view, selected, onToggle }: {
   )
 }
 
-/* ─── 解剖学的筋肉図（ライン画スタイル） ────── */
+/* ─── シンプル人体図 ────── */
 function AnatomicalBody({ view }: { view:'front'|'back' }) {
-  const fill   = '#f8f8f6'
-  const stroke = '#1a1a1e'
-  const sw     = 1.25
-  const ml     = '#484848'
-  const ms     = 0.8
+  const fill   = '#f0f4f8'
+  const stroke = '#334155'
+  const sw     = 1.6
+  const center = 110
 
-  // 指1本: (base_cx, base_y) → (tip_cx, tip_y)
-  const Finger = ({ bx, by, tx, ty }: {bx:number,by:number,tx:number,ty:number}) => {
-    const w = 2.8
-    const dx = tx - bx, dy = ty - by
-    const len = Math.sqrt(dx*dx+dy*dy)
-    const nx = -dy/len*w, ny = dx/len*w
-    return (
-      <Path
-        d={`M${bx+nx},${by+ny} C${bx+nx},${(by+ty)/2} ${tx+nx},${ty-4} ${tx},${ty}
-            C${tx-nx},${ty-4} ${bx-nx},${(by+ty)/2} ${bx-nx},${by+ny} Z`}
-        fill={fill} stroke={stroke} strokeWidth={sw}/>
-    )
-  }
-
-  if (view === 'front') {
-    return (
-      <G>
-        {/* ── 頭 ── */}
-        <Ellipse cx={110} cy={25} rx={18} ry={22} fill={fill} stroke={stroke} strokeWidth={sw}/>
-        <Path d="M108,29 L110,36 L112,29" fill="none" stroke={stroke} strokeWidth={0.7}/>
-
-        {/* ── 首 ── */}
-        <Path d="M103,45 C101,53 101,62 102,70 Q110,75 118,70 C119,62 119,53 117,45 Q110,43 103,45Z"
-          fill={fill} stroke={stroke} strokeWidth={sw}/>
-
-        {/* ── 胴体（肩幅を広く・ウエストくびれ・ヒップ張り）── */}
-        <Path d="M102,70
-          C92,72 78,76 62,86
-          C50,94 42,108 40,124
-          C38,140 40,156 46,170
-          C50,180 54,192 56,204
-          L80,220 L140,220
-          C146,204 150,184 154,170
-          C160,156 162,140 160,124
-          C158,108 150,94 138,86
-          C122,76 128,72 118,70Z"
-          fill={fill} stroke={stroke} strokeWidth={sw}/>
-
-        {/* ── 三角筋（左）── */}
-        <Path d="M56,88
-          C44,96 34,110 32,126
-          C30,140 34,154 40,162
-          C48,156 56,142 60,128
-          C64,114 62,98 58,90Z"
-          fill={fill} stroke={stroke} strokeWidth={sw}/>
-
-        {/* ── 三角筋（右）── */}
-        <Path d="M164,88
-          C176,96 186,110 188,126
-          C190,140 186,154 180,162
-          C172,156 164,142 160,128
-          C156,114 158,98 162,90Z"
-          fill={fill} stroke={stroke} strokeWidth={sw}/>
-
-        {/* ── 上腕（左）── */}
-        <Path d="M32,126
-          C26,144 20,164 18,184
-          C16,200 16,214 20,226
-          L34,228
-          C36,216 38,202 40,186
-          C42,168 44,148 46,130
-          C40,122 36,120 32,126Z"
-          fill={fill} stroke={stroke} strokeWidth={sw}/>
-        {/* 上腕二頭筋 楕円 */}
-        <Ellipse cx={28} cy={172} rx={8} ry={20} fill="none" stroke={ml} strokeWidth={ms}/>
-
-        {/* ── 上腕（右）── */}
-        <Path d="M188,126
-          C194,144 200,164 202,184
-          C204,200 204,214 200,226
-          L186,228
-          C184,216 182,202 180,186
-          C178,168 176,148 174,130
-          C180,122 184,120 188,126Z"
-          fill={fill} stroke={stroke} strokeWidth={sw}/>
-        <Ellipse cx={192} cy={172} rx={8} ry={20} fill="none" stroke={ml} strokeWidth={ms}/>
-
-        {/* ── 前腕（左）── */}
-        <Path d="M20,226
-          C16,244 12,262 10,278
-          C9,286 9,292 11,298
-          L24,300
-          C26,288 28,272 32,256
-          C34,242 36,228 34,228Z"
-          fill={fill} stroke={stroke} strokeWidth={sw}/>
-        <Path d="M22,230 C18,250 15,272 14,286" fill="none" stroke={ml} strokeWidth={0.65}/>
-        <Path d="M27,229 C24,249 21,270 21,284" fill="none" stroke={ml} strokeWidth={0.65}/>
-
-        {/* ── 前腕（右）── */}
-        <Path d="M200,226
-          C204,244 208,262 210,278
-          C211,286 211,292 209,298
-          L196,300
-          C194,288 192,272 188,256
-          C186,242 184,228 186,228Z"
-          fill={fill} stroke={stroke} strokeWidth={sw}/>
-        <Path d="M198,230 C202,250 205,272 206,286" fill="none" stroke={ml} strokeWidth={0.65}/>
-        <Path d="M193,229 C196,249 199,270 199,284" fill="none" stroke={ml} strokeWidth={0.65}/>
-
-        {/* ── 手のひら（左）── */}
-        <Path d="M11,298 C9,306 8,314 9,320 C10,326 14,328 18,326 L26,324 C28,316 28,308 28,300 L24,300Z"
-          fill={fill} stroke={stroke} strokeWidth={sw}/>
-        {/* 左 指5本 */}
-        <Finger bx={11} by={322} tx={9}  ty={342}/>
-        <Finger bx={16} by={324} tx={14} ty={346}/>
-        <Finger bx={21} by={325} tx={21} ty={348}/>
-        <Finger bx={26} by={323} tx={28} ty={344}/>
-        {/* 親指（左） */}
-        <Path d="M9,308 C5,306 2,302 2,296 C2,290 6,288 10,290 C12,292 12,296 11,300Z"
-          fill={fill} stroke={stroke} strokeWidth={sw}/>
-
-        {/* ── 手のひら（右）── */}
-        <Path d="M209,298 C211,306 212,314 211,320 C210,326 206,328 202,326 L194,324 C192,316 192,308 192,300 L196,300Z"
-          fill={fill} stroke={stroke} strokeWidth={sw}/>
-        {/* 右 指5本 */}
-        <Finger bx={209} by={322} tx={211} ty={342}/>
-        <Finger bx={204} by={324} tx={206} ty={346}/>
-        <Finger bx={199} by={325} tx={199} ty={348}/>
-        <Finger bx={194} by={323} tx={192} ty={344}/>
-        {/* 親指（右） */}
-        <Path d="M211,308 C215,306 218,302 218,296 C218,290 214,288 210,290 C208,292 208,296 209,300Z"
-          fill={fill} stroke={stroke} strokeWidth={sw}/>
-
-        {/* ── 大胸筋ライン ── */}
-        <Path d="M102,72 Q84,78 66,92"    fill="none" stroke={ml} strokeWidth={ms}/>
-        <Path d="M118,72 Q136,78 154,92"  fill="none" stroke={ml} strokeWidth={ms}/>
-        <Path d="M102,72 Q90,80 82,92 Q78,104 82,116 C88,120 98,116 106,108 L110,102"
-          fill="none" stroke={ml} strokeWidth={ms}/>
-        <Path d="M118,72 Q130,80 138,92 Q142,104 138,116 C132,120 122,116 114,108 L110,102"
-          fill="none" stroke={ml} strokeWidth={ms}/>
-        <Line x1={110} y1={72} x2={110} y2={118} stroke={ml} strokeWidth={0.7}/>
-
-        {/* ── 三角筋ライン（前部・中部境界）── */}
-        <Path d="M40,124 C44,136 48,148 50,158" fill="none" stroke={ml} strokeWidth={ms}/>
-        <Path d="M180,124 C176,136 172,148 170,158" fill="none" stroke={ml} strokeWidth={ms}/>
-
-        {/* ── 前鋸筋 ── */}
-        <Path d="M56,130 L50,134" fill="none" stroke={ml} strokeWidth={0.65}/>
-        <Path d="M56,140 L49,145" fill="none" stroke={ml} strokeWidth={0.65}/>
-        <Path d="M56,150 L50,154" fill="none" stroke={ml} strokeWidth={0.65}/>
-        <Path d="M164,130 L170,134" fill="none" stroke={ml} strokeWidth={0.65}/>
-        <Path d="M164,140 L171,145" fill="none" stroke={ml} strokeWidth={0.65}/>
-        <Path d="M164,150 L170,154" fill="none" stroke={ml} strokeWidth={0.65}/>
-
-        {/* ── 腹直筋 ── */}
-        <Line x1={110} y1={120} x2={110} y2={184} stroke={ml} strokeWidth={0.75} strokeDasharray="2,3"/>
-        <Path d="M100,130 Q105,128 110,129 Q115,128 120,130" fill="none" stroke={ml} strokeWidth={ms}/>
-        <Path d="M98,143 Q104,141 110,142 Q116,141 122,143" fill="none" stroke={ml} strokeWidth={ms}/>
-        <Path d="M97,156 Q103,154 110,155 Q117,154 123,156" fill="none" stroke={ml} strokeWidth={ms}/>
-
-        {/* ── 外腹斜筋 ── */}
-        <Path d="M56,150 C56,164 56,176 58,188 L76,188" fill="none" stroke={ml} strokeWidth={0.65}/>
-        <Path d="M164,150 C164,164 164,176 162,188 L144,188" fill="none" stroke={ml} strokeWidth={0.65}/>
-
-        {/* ── 鼠径部 Vライン ── */}
-        <Path d="M58,188 Q70,208 80,214"    fill="none" stroke={ml} strokeWidth={ms}/>
-        <Path d="M162,188 Q150,208 140,214" fill="none" stroke={ml} strokeWidth={ms}/>
-        <Path d="M98,188 Q104,198 110,200 Q116,198 122,188" fill="none" stroke={ml} strokeWidth={ms}/>
-        <Circle cx={110} cy={175} r={2.5} fill="none" stroke={ml} strokeWidth={0.9}/>
-
-        {/* ── 大腿（左）── */}
-        <Path d="M80,220
-          C70,232 62,254 60,278
-          C58,300 60,322 66,340
-          L80,348 C88,350 98,348 104,344
-          L108,332
-          C112,312 111,288 109,264
-          C107,242 102,222 96,220Z"
-          fill={fill} stroke={stroke} strokeWidth={sw}/>
-        {/* 外側広筋 */}
-        <Path d="M78,226 C70,252 66,278 66,302 C66,320 70,334 74,342" fill="none" stroke={ml} strokeWidth={0.65}/>
-        {/* 大腿直筋 */}
-        <Path d="M88,222 C86,250 84,278 84,300 C84,320 86,336 90,342" fill="none" stroke={ml} strokeWidth={0.65}/>
-        {/* 内側広筋 */}
-        <Path d="M101,224 C105,252 106,278 104,302 C102,320 98,334 94,342" fill="none" stroke={ml} strokeWidth={0.65}/>
-
-        {/* ── 大腿（右）── */}
-        <Path d="M140,220
-          C150,232 158,254 160,278
-          C162,300 160,322 154,340
-          L140,348 C132,350 122,348 116,344
-          L112,332
-          C108,312 109,288 111,264
-          C113,242 118,222 124,220Z"
-          fill={fill} stroke={stroke} strokeWidth={sw}/>
-        <Path d="M142,226 C150,252 154,278 154,302 C154,320 150,334 146,342" fill="none" stroke={ml} strokeWidth={0.65}/>
-        <Path d="M132,222 C134,250 136,278 136,300 C136,320 134,336 130,342" fill="none" stroke={ml} strokeWidth={0.65}/>
-        <Path d="M119,224 C115,252 114,278 116,302 C118,320 122,334 126,342" fill="none" stroke={ml} strokeWidth={0.65}/>
-
-        {/* ── 下腿（左）── */}
-        <Path d="M66,338
-          C62,360 60,382 61,402
-          C62,416 67,428 73,432
-          L90,432
-          C96,430 100,422 101,410
-          C102,394 101,370 101,346
-          L101,336 L80,346Z"
-          fill={fill} stroke={stroke} strokeWidth={sw}/>
-        {/* 前脛骨筋 */}
-        <Path d="M74,342 C72,366 72,390 74,410 C76,422 80,430 84,432" fill="none" stroke={ml} strokeWidth={0.65}/>
-        <Line x1={86} y1={344} x2={85} y2={428} stroke={ml} strokeWidth={0.65}/>
-
-        {/* ── 下腿（右）── */}
-        <Path d="M154,338
-          C158,360 160,382 159,402
-          C158,416 153,428 147,432
-          L130,432
-          C124,430 120,422 119,410
-          C118,394 119,370 119,346
-          L119,336 L140,346Z"
-          fill={fill} stroke={stroke} strokeWidth={sw}/>
-        <Path d="M146,342 C148,366 148,390 146,410 C144,422 140,430 136,432" fill="none" stroke={ml} strokeWidth={0.65}/>
-        <Line x1={134} y1={344} x2={135} y2={428} stroke={ml} strokeWidth={0.65}/>
-
-        {/* ── 足（左）── */}
-        <Path d="M61,428 C55,438 51,447 51,452 Q63,456 80,455 Q96,454 102,444 Q103,434 101,428Z"
-          fill={fill} stroke={stroke} strokeWidth={sw}/>
-        {[{x1:54,y1:452,x2:58,y2:439},{x1:63,y1:454,x2:66,y2:441},{x1:72,y1:455,x2:74,y2:442},{x1:81,y1:455,x2:82,y2:443},{x1:89,y1:453,x2:90,y2:441}].map((t,i)=>(
-          <Line key={i} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} stroke={ml} strokeWidth={0.7}/>
-        ))}
-
-        {/* ── 足（右）── */}
-        <Path d="M159,428 C165,438 169,447 169,452 Q157,456 140,455 Q124,454 118,444 Q117,434 119,428Z"
-          fill={fill} stroke={stroke} strokeWidth={sw}/>
-        {[{x1:166,y1:452,x2:162,y2:439},{x1:157,y1:454,x2:154,y2:441},{x1:148,y1:455,x2:146,y2:442},{x1:139,y1:455,x2:138,y2:443},{x1:131,y1:453,x2:130,y2:441}].map((t,i)=>(
-          <Line key={i} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} stroke={ml} strokeWidth={0.7}/>
-        ))}
-      </G>
-    )
-  }
-
-  // ── 背面 ──
   return (
     <G>
-      {/* ── 頭 ── */}
-      <Ellipse cx={110} cy={25} rx={18} ry={22} fill={fill} stroke={stroke} strokeWidth={sw}/>
+      {/* 頭 */}
+      <Ellipse cx={center} cy={28} rx={19} ry={22} fill={fill} stroke={stroke} strokeWidth={sw}/>
 
-      {/* ── 首 ── */}
-      <Path d="M103,45 C101,53 101,62 102,70 Q110,75 118,70 C119,62 119,53 117,45 Q110,43 103,45Z"
-        fill={fill} stroke={stroke} strokeWidth={sw}/>
+      {/* 首 */}
+      <Rect x={104} y={50} width={12} height={14} rx={4} fill={fill} stroke={stroke} strokeWidth={sw}/>
 
-      {/* ── 胴体（背面）── */}
-      <Path d="M102,70
-        C92,72 78,76 62,86
-        C50,94 42,108 40,124
-        C38,140 40,156 46,170
-        C50,180 54,192 56,204
-        L80,220 L140,220
-        C146,204 150,184 154,170
-        C160,156 162,140 160,124
-        C158,108 150,94 138,86
-        C122,76 128,72 118,70Z"
-        fill={fill} stroke={stroke} strokeWidth={sw}/>
+      {/* 胴体 */}
+      <Rect x={82} y={64} width={56} height={86} rx={10} fill={fill} stroke={stroke} strokeWidth={sw}/>
 
-      {/* ── 三角筋 後部（左）── */}
-      <Path d="M56,88
-        C44,96 34,110 32,126
-        C30,140 34,154 40,162
-        C48,156 56,142 60,128
-        C64,114 62,98 58,90Z"
-        fill={fill} stroke={stroke} strokeWidth={sw}/>
-      {/* ── 三角筋 後部（右）── */}
-      <Path d="M164,88
-        C176,96 186,110 188,126
-        C190,140 186,154 180,162
-        C172,156 164,142 160,128
-        C156,114 158,98 162,90Z"
-        fill={fill} stroke={stroke} strokeWidth={sw}/>
+      {/* 腰・骨盤 */}
+      <Ellipse cx={center} cy={170} rx={30} ry={12} fill={fill} stroke={stroke} strokeWidth={sw}/>
 
-      {/* ── 上腕三頭筋（左）── */}
-      <Path d="M32,126
-        C26,144 20,164 18,184
-        C16,200 16,214 20,226
-        L34,228
-        C36,216 38,202 40,186
-        C42,168 44,148 46,130
-        C40,122 36,120 32,126Z"
-        fill={fill} stroke={stroke} strokeWidth={sw}/>
-      <Path d="M26,132 C24,152 22,170 22,188 C22,202 24,214 26,222" fill="none" stroke={ml} strokeWidth={ms}/>
-      <Path d="M34,130 C32,152 30,170 30,188 C30,202 32,214 34,222" fill="none" stroke={ml} strokeWidth={ms}/>
+      {/* 左上腕 */}
+      <Rect x={58} y={68} width={18} height={52} rx={8} fill={fill} stroke={stroke} strokeWidth={sw}/>
+      {/* 左前腕 */}
+      <Rect x={55} y={124} width={14} height={44} rx={7} fill={fill} stroke={stroke} strokeWidth={sw}/>
+      {/* 左手首・手 */}
+      <Ellipse cx={62} cy={176} rx={9} ry={7} fill={fill} stroke={stroke} strokeWidth={sw}/>
 
-      {/* ── 上腕三頭筋（右）── */}
-      <Path d="M188,126
-        C194,144 200,164 202,184
-        C204,200 204,214 200,226
-        L186,228
-        C184,216 182,202 180,186
-        C178,168 176,148 174,130
-        C180,122 184,120 188,126Z"
-        fill={fill} stroke={stroke} strokeWidth={sw}/>
-      <Path d="M194,132 C196,152 198,170 198,188 C198,202 196,214 194,222" fill="none" stroke={ml} strokeWidth={ms}/>
-      <Path d="M186,130 C188,152 190,170 190,188 C190,202 188,214 186,222" fill="none" stroke={ml} strokeWidth={ms}/>
+      {/* 右上腕 */}
+      <Rect x={144} y={68} width={18} height={52} rx={8} fill={fill} stroke={stroke} strokeWidth={sw}/>
+      {/* 右前腕 */}
+      <Rect x={151} y={124} width={14} height={44} rx={7} fill={fill} stroke={stroke} strokeWidth={sw}/>
+      {/* 右手首・手 */}
+      <Ellipse cx={158} cy={176} rx={9} ry={7} fill={fill} stroke={stroke} strokeWidth={sw}/>
 
-      {/* ── 前腕（左・背面）── */}
-      <Path d="M20,226
-        C16,244 12,262 10,278
-        C9,286 9,292 11,298
-        L24,300
-        C26,288 28,272 32,256
-        C34,242 36,228 34,228Z"
-        fill={fill} stroke={stroke} strokeWidth={sw}/>
-      <Path d="M23,230 C19,250 16,272 15,286" fill="none" stroke={ml} strokeWidth={0.65}/>
-      <Path d="M28,229 C25,249 23,270 22,284" fill="none" stroke={ml} strokeWidth={0.65}/>
+      {/* 左太もも */}
+      <Rect x={84} y={182} width={22} height={68} rx={9} fill={fill} stroke={stroke} strokeWidth={sw}/>
+      {/* 左膝 */}
+      <Ellipse cx={95} cy={256} rx={13} ry={10} fill={fill} stroke={stroke} strokeWidth={sw}/>
+      {/* 左すね・ふくらはぎ */}
+      <Rect x={86} y={266} width={18} height={62} rx={8} fill={fill} stroke={stroke} strokeWidth={sw}/>
+      {/* 左足首・足 */}
+      <Ellipse cx={95} cy={336} rx={12} ry={8} fill={fill} stroke={stroke} strokeWidth={sw}/>
+      <Ellipse cx={91} cy={348} rx={18} ry={8} fill={fill} stroke={stroke} strokeWidth={sw}/>
 
-      {/* ── 前腕（右・背面）── */}
-      <Path d="M200,226
-        C204,244 208,262 210,278
-        C211,286 211,292 209,298
-        L196,300
-        C194,288 192,272 188,256
-        C186,242 184,228 186,228Z"
-        fill={fill} stroke={stroke} strokeWidth={sw}/>
-      <Path d="M197,230 C201,250 204,272 205,286" fill="none" stroke={ml} strokeWidth={0.65}/>
-      <Path d="M192,229 C195,249 197,270 198,284" fill="none" stroke={ml} strokeWidth={0.65}/>
+      {/* 右太もも */}
+      <Rect x={114} y={182} width={22} height={68} rx={9} fill={fill} stroke={stroke} strokeWidth={sw}/>
+      {/* 右膝 */}
+      <Ellipse cx={125} cy={256} rx={13} ry={10} fill={fill} stroke={stroke} strokeWidth={sw}/>
+      {/* 右すね・ふくらはぎ */}
+      <Rect x={116} y={266} width={18} height={62} rx={8} fill={fill} stroke={stroke} strokeWidth={sw}/>
+      {/* 右足首・足 */}
+      <Ellipse cx={125} cy={336} rx={12} ry={8} fill={fill} stroke={stroke} strokeWidth={sw}/>
+      <Ellipse cx={129} cy={348} rx={18} ry={8} fill={fill} stroke={stroke} strokeWidth={sw}/>
 
-      {/* ── 手（左・背面）── */}
-      <Path d="M11,298 C9,306 8,314 9,320 C10,326 14,328 18,326 L26,324 C28,316 28,308 28,300 L24,300Z"
-        fill={fill} stroke={stroke} strokeWidth={sw}/>
-      <Finger bx={11} by={322} tx={9}  ty={342}/>
-      <Finger bx={16} by={324} tx={14} ty={346}/>
-      <Finger bx={21} by={325} tx={21} ty={348}/>
-      <Finger bx={26} by={323} tx={28} ty={344}/>
-      <Path d="M9,308 C5,306 2,302 2,296 C2,290 6,288 10,290 C12,292 12,296 11,300Z"
-        fill={fill} stroke={stroke} strokeWidth={sw}/>
-
-      {/* ── 手（右・背面）── */}
-      <Path d="M209,298 C211,306 212,314 211,320 C210,326 206,328 202,326 L194,324 C192,316 192,308 192,300 L196,300Z"
-        fill={fill} stroke={stroke} strokeWidth={sw}/>
-      <Finger bx={209} by={322} tx={211} ty={342}/>
-      <Finger bx={204} by={324} tx={206} ty={346}/>
-      <Finger bx={199} by={325} tx={199} ty={348}/>
-      <Finger bx={194} by={323} tx={192} ty={344}/>
-      <Path d="M211,308 C215,306 218,302 218,296 C218,290 214,288 210,290 C208,292 208,296 209,300Z"
-        fill={fill} stroke={stroke} strokeWidth={sw}/>
-
-      {/* ── 脊椎ライン ── */}
-      <Line x1={110} y1={72} x2={110} y2={204} stroke={ml} strokeWidth={0.85} strokeDasharray="3,4"/>
-
-      {/* ── 僧帽筋 ── */}
-      <Path d="M102,72 Q94,82 86,96 Q82,110 88,122 C94,126 102,122 108,114 L110,106 L112,114 C118,122 126,126 132,122 Q138,110 134,96 Q126,82 118,72"
-        fill="none" stroke={ml} strokeWidth={ms}/>
-
-      {/* ── 肩甲骨（左）── */}
-      <Path d="M76,96 C72,110 72,126 78,136 C84,142 94,140 98,132 C102,122 100,108 94,98Z"
-        fill="none" stroke={ml} strokeWidth={ms}/>
-      <Line x1={80} y1={100} x2={94} y2={132} stroke={ml} strokeWidth={0.65}/>
-
-      {/* ── 肩甲骨（右）── */}
-      <Path d="M144,96 C148,110 148,126 142,136 C136,142 126,140 122,132 C118,122 120,108 126,98Z"
-        fill="none" stroke={ml} strokeWidth={ms}/>
-      <Line x1={140} y1={100} x2={126} y2={132} stroke={ml} strokeWidth={0.65}/>
-
-      {/* ── 広背筋 ── */}
-      <Path d="M78,130 C74,150 74,172 76,190 C78,202 82,210 86,214" fill="none" stroke={ml} strokeWidth={0.65}/>
-      <Path d="M142,130 C146,150 146,172 144,190 C142,202 138,210 134,214" fill="none" stroke={ml} strokeWidth={0.65}/>
-
-      {/* ── 大臀筋 ── */}
-      <Path d="M80,220
-        C68,234 60,254 59,276
-        C58,294 62,310 70,320
-        C78,316 90,302 97,286
-        C104,270 107,250 107,232
-        C107,222 104,218 98,218"
-        fill="none" stroke={ml} strokeWidth={ms}/>
-      <Path d="M140,220
-        C152,234 160,254 161,276
-        C162,294 158,310 150,320
-        C142,316 130,302 123,286
-        C116,270 113,250 113,232
-        C113,222 116,218 122,218"
-        fill="none" stroke={ml} strokeWidth={ms}/>
-      <Path d="M110,218 C108,238 108,262 110,284" fill="none" stroke={ml} strokeWidth={0.65}/>
-
-      {/* ── 大腿（左・背面）── */}
-      <Path d="M80,220
-        C70,232 62,254 60,278
-        C58,300 60,322 66,340
-        L80,348 C88,350 98,348 104,344
-        L108,332
-        C112,312 111,288 109,264
-        C107,242 102,222 96,220Z"
-        fill={fill} stroke={stroke} strokeWidth={sw}/>
-      {/* ハムストリング ライン */}
-      <Path d="M70,226 C68,252 66,278 68,302 C70,320 74,336 78,344" fill="none" stroke={ml} strokeWidth={0.65}/>
-      <Path d="M86,222 C84,250 82,278 83,300 C84,318 88,334 92,342" fill="none" stroke={ml} strokeWidth={0.65}/>
-      <Path d="M101,224 C104,252 105,278 103,300 C101,318 97,332 93,340" fill="none" stroke={ml} strokeWidth={0.65}/>
-
-      {/* ── 大腿（右・背面）── */}
-      <Path d="M140,220
-        C150,232 158,254 160,278
-        C162,300 160,322 154,340
-        L140,348 C132,350 122,348 116,344
-        L112,332
-        C108,312 109,288 111,264
-        C113,242 118,222 124,220Z"
-        fill={fill} stroke={stroke} strokeWidth={sw}/>
-      <Path d="M150,226 C152,252 154,278 152,302 C150,320 146,336 142,344" fill="none" stroke={ml} strokeWidth={0.65}/>
-      <Path d="M134,222 C136,250 138,278 137,300 C136,318 132,334 128,342" fill="none" stroke={ml} strokeWidth={0.65}/>
-      <Path d="M119,224 C116,252 115,278 117,300 C119,318 123,332 127,340" fill="none" stroke={ml} strokeWidth={0.65}/>
-
-      {/* ── 下腿（左）── */}
-      <Path d="M66,338
-        C62,360 60,382 61,402
-        C62,416 67,428 73,432
-        L90,432
-        C96,430 100,422 101,410
-        C102,394 101,370 101,346
-        L101,336 L80,346Z"
-        fill={fill} stroke={stroke} strokeWidth={sw}/>
-      {/* 腓腹筋（2頭） */}
-      <Path d="M72,344 C70,368 70,392 72,410 C74,422 78,430 82,432" fill="none" stroke={ml} strokeWidth={0.65}/>
-      <Path d="M91,342 C93,366 93,390 91,408 C89,420 86,428 82,432" fill="none" stroke={ml} strokeWidth={0.65}/>
-      {/* アキレス腱 */}
-      <Line x1={82} y1={430} x2={82} y2={440} stroke={ml} strokeWidth={1.1}/>
-
-      {/* ── 下腿（右）── */}
-      <Path d="M154,338
-        C158,360 160,382 159,402
-        C158,416 153,428 147,432
-        L130,432
-        C124,430 120,422 119,410
-        C118,394 119,370 119,346
-        L119,336 L140,346Z"
-        fill={fill} stroke={stroke} strokeWidth={sw}/>
-      <Path d="M148,344 C150,368 150,392 148,410 C146,422 142,430 138,432" fill="none" stroke={ml} strokeWidth={0.65}/>
-      <Path d="M129,342 C127,366 127,390 129,408 C131,420 134,428 138,432" fill="none" stroke={ml} strokeWidth={0.65}/>
-      <Line x1={138} y1={430} x2={138} y2={440} stroke={ml} strokeWidth={1.1}/>
-
-      {/* ── 足（左・背面）── */}
-      <Path d="M61,428 C55,438 51,447 51,452 Q63,456 80,455 Q96,454 102,444 Q103,434 101,428Z"
-        fill={fill} stroke={stroke} strokeWidth={sw}/>
-      {/* ── 足（右・背面）── */}
-      <Path d="M159,428 C165,438 169,447 169,452 Q157,456 140,455 Q124,454 118,444 Q117,434 119,428Z"
-        fill={fill} stroke={stroke} strokeWidth={sw}/>
+      {/* 背面専用マーク */}
+      {view === 'back' && (
+        <G>
+          {/* 脊柱ライン */}
+          <Line x1={center} y1={64} x2={center} y2={150} stroke={stroke} strokeWidth={0.8} strokeDasharray="3,3"/>
+          {/* 肩甲骨ヒント */}
+          <Ellipse cx={97} cy={94} rx={10} ry={14} fill="none" stroke={stroke} strokeWidth={0.9} strokeDasharray="3,2"/>
+          <Ellipse cx={123} cy={94} rx={10} ry={14} fill="none" stroke={stroke} strokeWidth={0.9} strokeDasharray="3,2"/>
+        </G>
+      )}
     </G>
   )
 }
