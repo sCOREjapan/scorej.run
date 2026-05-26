@@ -78,8 +78,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const s = sessionResult?.data?.session ?? null
       setSession(s)
       setUser(s?.user ?? null)
-      // 起動時: 既存セッションがあればクラウド同期（バックグラウンド）
-      if (s?.user?.id) syncAll(s.user.id).catch(() => {})
+      // 起動時: 既存セッションがあればuserIdをキャッシュ + クラウド同期
+      if (s?.user?.id) {
+        AsyncStorage.setItem('userId', s.user.id).catch(() => {})
+        syncAll(s.user.id).catch(() => {})
+      }
       setLoading(false)
     }
 
@@ -100,8 +103,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // ログイン直後: クラウドとローカルを双方向マージ同期
             // （ゲストで使ったデータをクラウドへ移行 + 他デバイスのデータを取得）
             if (newSession?.user?.id) {
+              // userId をローカルにキャッシュ（各画面の user_id フィールド設定で使用）
+              AsyncStorage.setItem('userId', newSession.user.id).catch(() => {})
               syncAll(newSession.user.id).catch(() => {})
             }
+          }
+          // セッション終了時はキャッシュをクリア
+          if (event === 'SIGNED_OUT') {
+            AsyncStorage.removeItem('userId').catch(() => {})
           }
         },
       )
