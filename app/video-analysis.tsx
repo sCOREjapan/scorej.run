@@ -1510,7 +1510,7 @@ ${summary}
         setAnnotations([...results])
       } catch { /* skip */ }
     }
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(results))
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(results)).catch(() => {})
     vid.currentTime = 0
     setPhase('player')
     /* 総合評価を非同期で生成 */

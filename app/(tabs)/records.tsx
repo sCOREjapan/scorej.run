@@ -1467,8 +1467,8 @@ export default function RecordsScreen() {
   const handleDelete = useCallback(async (id: string) => {
     Sounds.delete()
     const updated = records.filter(r => r.id !== id)
-    await AsyncStorage.setItem(RECORDS_KEY, JSON.stringify(updated))
     setRecords(updated)
+    await AsyncStorage.setItem(RECORDS_KEY, JSON.stringify(updated)).catch(() => {})
   }, [records])
 
   // フィルター適用

@@ -3784,7 +3784,7 @@ export default function TeamScreen() {
         return
       }
     }
-    await AsyncStorage.setItem(ROLE_KEY, role)
+    await AsyncStorage.setItem(ROLE_KEY, role).catch(() => {})
     if (role === 'coach')  { setState(setup  ? 'coach'  : 'coach-setup')  }
     else                   { setState(joined ? 'player' : 'player-join') }
   }
@@ -3794,20 +3794,20 @@ export default function TeamScreen() {
 
   // ロール切り替え — データは消さない
   async function handleSwitchRole() {
-    await AsyncStorage.removeItem(ROLE_KEY)
+    await AsyncStorage.removeItem(ROLE_KEY).catch(() => {})
     setState('select-role')
   }
 
   // チーム削除（コーチ）
   async function handleDeleteTeam() {
-    await AsyncStorage.multiRemove([ROLE_KEY, SETUP_KEY])
+    await AsyncStorage.multiRemove([ROLE_KEY, SETUP_KEY]).catch(() => {})
     setSetup(null)
     setState('select-role')
   }
 
   // チーム脱退（選手）
   async function handleLeaveTeam() {
-    await AsyncStorage.multiRemove([ROLE_KEY, JOINED_KEY])
+    await AsyncStorage.multiRemove([ROLE_KEY, JOINED_KEY]).catch(() => {})
     setJoined(null)
     setState('select-role')
   }
@@ -3816,7 +3816,7 @@ export default function TeamScreen() {
 
   if (state==='loading')          return <View style={{flex:1,backgroundColor:'#0a0a0a'}}/>
   if (state==='select-role')      return <Animated.View style={fadeStyle}><RoleSelectionScreen onSelect={handleSelectRole}/></Animated.View>
-  if (state==='coach-paywall')    return <Animated.View style={fadeStyle}><CoachPaywallScreen onBack={() => setState('select-role')} onPurchased={async () => { await AsyncStorage.setItem(ROLE_KEY, 'coach'); setState(setup ? 'coach' : 'coach-setup') }}/></Animated.View>
+  if (state==='coach-paywall')    return <Animated.View style={fadeStyle}><CoachPaywallScreen onBack={() => setState('select-role')} onPurchased={async () => { await AsyncStorage.setItem(ROLE_KEY, 'coach').catch(() => {}); setState(setup ? 'coach' : 'coach-setup') }}/></Animated.View>
   if (state==='coach-setup')      return <Animated.View style={fadeStyle}><CoachSetupScreen onCreated={handleCoachCreated} onBack={() => setState('select-role')}/></Animated.View>
   if (state==='coach' && setup)   return <Animated.View style={fadeStyle}><CoachDashboard  setup={setup}   onSwitchRole={handleSwitchRole} onDeleteTeam={handleDeleteTeam}  canSwitchRole={true}/></Animated.View>
   if (state==='player-join')      return <Animated.View style={fadeStyle}><PlayerJoinScreen onJoined={handlePlayerJoined} onBack={() => setState('select-role')}/></Animated.View>
