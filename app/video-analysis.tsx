@@ -1421,7 +1421,7 @@ function WebPlayer({ isPremiumUser: isPremiumProp }: { isPremiumUser: boolean })
   const analyzeFrame = async (dataUrl: string, t: number): Promise<FrameAdvice> => {
     const apiBase2 = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
     const endpoint2 = `${apiBase2}/api/analyze`
-    const model = isPremiumUser ? 'claude-haiku-4-5-20251001' : 'claude-haiku-4-5-20251001'
+    const model = 'claude-haiku-4-5-20251001'
     const res = await fetchWithTimeout(endpoint2, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
