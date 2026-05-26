@@ -56,6 +56,9 @@ export default function CouponScreen() {
       } else {
         shake()
       }
+    } catch {
+      shake()
+      setResult('invalid')
     } finally {
       setLoading(false)
     }
