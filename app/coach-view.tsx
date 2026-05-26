@@ -179,11 +179,13 @@ export default function CoachViewScreen() {
     useCallback(() => {
       AsyncStorage.getItem(JOINED_KEY_CV).then(raw => {
         if (!raw) return
-        const joined = JSON.parse(raw)
-        if (joined?.code) {
-          setTeamCodeRef(joined.code)
-          loadNotifs(joined.code)
-        }
+        try {
+          const joined = JSON.parse(raw)
+          if (joined?.code) {
+            setTeamCodeRef(joined.code)
+            loadNotifs(joined.code)
+          }
+        } catch {}
       }).catch(() => {})
     }, [loadNotifs])
   )
@@ -228,55 +230,65 @@ export default function CoachViewScreen() {
       ])
 
       // ── 過去7日のセッション ──────────────────────────────────────
-      if (rawSessions) {
-        const all: TrainingSession[] = JSON.parse(rawSessions)
-        const cutoff = new Date()
-        cutoff.setDate(cutoff.getDate() - 7)
-        const week = all.filter(s => new Date(s.session_date) >= cutoff)
-        setRecentSessions(week)
-        setSessionCount(week.length)
-        if (week.length > 0) {
-          const avg = week.reduce((sum, s) => sum + s.fatigue_level, 0) / week.length
-          setAvgFatigue(Math.round(avg * 10) / 10)
+      try {
+        if (rawSessions) {
+          const all: TrainingSession[] = JSON.parse(rawSessions)
+          const cutoff = new Date()
+          cutoff.setDate(cutoff.getDate() - 7)
+          const week = all.filter(s => new Date(s.session_date) >= cutoff)
+          setRecentSessions(week)
+          setSessionCount(week.length)
+          if (week.length > 0) {
+            const avg = week.reduce((sum, s) => sum + s.fatigue_level, 0) / week.length
+            setAvgFatigue(Math.round(avg * 10) / 10)
+          }
         }
-      }
+      } catch {}
 
       // ── PB一覧 ──────────────────────────────────────────────────
-      if (rawRecords) {
-        const all: RaceRecord[] = JSON.parse(rawRecords)
-        const pbMap: Record<string, string> = {}
-        all.filter(r => r.is_pb).forEach(r => {
-          pbMap[r.event] = r.result_display
-        })
-        setPbList(Object.entries(pbMap).map(([event, display]) => ({ event, display })))
-      }
+      try {
+        if (rawRecords) {
+          const all: RaceRecord[] = JSON.parse(rawRecords)
+          const pbMap: Record<string, string> = {}
+          all.filter(r => r.is_pb).forEach(r => {
+            pbMap[r.event] = r.result_display
+          })
+          setPbList(Object.entries(pbMap).map(([event, display]) => ({ event, display })))
+        }
+      } catch {}
 
       // ── 過去7日の睡眠 ───────────────────────────────────────────
-      if (rawSleep) {
-        const all: SleepRecord[] = JSON.parse(rawSleep)
-        const cutoff = new Date()
-        cutoff.setDate(cutoff.getDate() - 7)
-        const week = all
-          .filter(s => new Date(s.sleep_date) >= cutoff)
-          .sort((a, b) => a.sleep_date.localeCompare(b.sleep_date))
-          .slice(-7)
-        setSleepData(week.map(s => ({ date: s.sleep_date, score: s.quality_score })))
-      }
+      try {
+        if (rawSleep) {
+          const all: SleepRecord[] = JSON.parse(rawSleep)
+          const cutoff = new Date()
+          cutoff.setDate(cutoff.getDate() - 7)
+          const week = all
+            .filter(s => new Date(s.sleep_date) >= cutoff)
+            .sort((a, b) => a.sleep_date.localeCompare(b.sleep_date))
+            .slice(-7)
+          setSleepData(week.map(s => ({ date: s.sleep_date, score: s.quality_score })))
+        }
+      } catch {}
 
       // ── コーチノート ─────────────────────────────────────────────
-      if (rawTeam) {
-        const team = JSON.parse(rawTeam)
-        if (Array.isArray(team.coach_notes)) {
-          const pinned = (team.coach_notes as CoachNote[]).filter(n => n.pinned)
-          const others = (team.coach_notes as CoachNote[]).filter(n => !n.pinned)
-          setCoachNotes([...pinned, ...others].slice(0, 5))
+      try {
+        if (rawTeam) {
+          const team = JSON.parse(rawTeam)
+          if (Array.isArray(team.coach_notes)) {
+            const pinned = (team.coach_notes as CoachNote[]).filter(n => n.pinned)
+            const others = (team.coach_notes as CoachNote[]).filter(n => !n.pinned)
+            setCoachNotes([...pinned, ...others].slice(0, 5))
+          }
         }
-      }
+      } catch {}
 
       // ── 送られた動画 ─────────────────────────────────────────────
-      if (rawVideoReqs) {
-        setVideoRequests(JSON.parse(rawVideoReqs))
-      }
+      try {
+        if (rawVideoReqs) {
+          setVideoRequests(JSON.parse(rawVideoReqs))
+        }
+      } catch {}
     } catch {
       // ignore
     } finally {

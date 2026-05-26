@@ -37,6 +37,16 @@ interface MessagesRequest {
 // ─────────────────────────────────────────
 // fetch を使った直接 API 呼び出し（React Native 対応）
 // ─────────────────────────────────────────
+// タイムアウト付きfetch（Hermesの AbortSignal.timeout 非対応に対応）
+function fetchWithTimeout(url: string, options: RequestInit, ms: number): Promise<Response> {
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    return fetch(url, { ...options, signal: AbortSignal.timeout(ms) })
+  }
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), ms)
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(id))
+}
+
 async function callClaude(req: MessagesRequest): Promise<string> {
   const body = JSON.stringify({
     model: req.model,
@@ -47,14 +57,15 @@ async function callClaude(req: MessagesRequest): Promise<string> {
 
   let res: Response
   try {
-    res = await fetch(PROXY_URL, {
+    res = await fetchWithTimeout(PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body,
-    })
+    }, 30000) // 30秒タイムアウト
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    throw new Error(`ネットワークエラー: ${msg}`)
+    const isTimeout = msg.includes('abort') || msg.includes('timeout') || msg.includes('Abort')
+    throw new Error(isTimeout ? 'AI応答がタイムアウトしました。再試行してください。' : `ネットワークエラー: ${msg}`)
   }
 
   if (!res.ok) {
@@ -85,8 +96,13 @@ function detectMediaType(base64: string): 'image/jpeg' | 'image/png' | 'image/gi
 // JSONパース（安全版）
 // ─────────────────────────────────────────
 function safeParseJSON<T>(text: string): T {
+  // コードブロック除去後、JSON抽出（AIが余計なテキストを返す場合に対応）
   const cleaned = text.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim()
-  return JSON.parse(cleaned) as T
+  // JSON オブジェクトの先頭・末尾を特定して取り出す
+  const start = cleaned.indexOf('{')
+  const end   = cleaned.lastIndexOf('}')
+  if (start === -1 || end === -1) throw new Error('AIの応答にJSONが含まれていません')
+  return JSON.parse(cleaned.slice(start, end + 1)) as T
 }
 
 // ─────────────────────────────────────────

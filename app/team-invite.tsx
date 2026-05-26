@@ -51,14 +51,15 @@ export default function TeamInviteScreen() {
   useEffect(() => {
     AsyncStorage.getItem(TEAM_KEY).then(raw => {
       if (raw) {
-        const team = JSON.parse(raw)
-        if (team.invite_code) {
-          setMyCode(team.invite_code)
-          return
-        }
+        try {
+          const team = JSON.parse(raw)
+          if (team.invite_code) {
+            setMyCode(team.invite_code)
+            return
+          }
+        } catch {}
       }
-      const code = generateCode()
-      setMyCode(code)
+      setMyCode(generateCode())
     }).catch(() => {
       setMyCode(generateCode())
     })

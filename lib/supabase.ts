@@ -1,4 +1,6 @@
 // lib/supabase.ts
+// MUST be imported first — polyfills globalThis.crypto before Supabase initializes PKCE
+import './cryptoPolyfill'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Platform } from 'react-native'

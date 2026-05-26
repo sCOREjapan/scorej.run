@@ -151,7 +151,7 @@ function LabeledInput({
 export default function SettingsScreen() {
   const { user, signOut, isGuest, signOutGuest } = useAuth()
   const { colors } = useTheme()
-  const { tier, isPro, isElite, expiresAt } = usePurchase()
+  const { tier, isPro, isElite, isCoach, isCoachPro, expiresAt } = usePurchase()
   const router = useRouter()
 
   // プロフィール
@@ -161,6 +161,7 @@ export default function SettingsScreen() {
   const [csvGateVisible,     setCsvGateVisible]     = useState(false)
   const [csvGateRemaining,   setCsvGateRemaining]   = useState(0)
   const [csvGateHardLimited, setCsvGateHardLimited] = useState(false)
+  const [csvGateLimitType,   setCsvGateLimitType]   = useState<'none'|'daily'|'monthly'|'total'>('none')
 
   // チームロール
   const [teamRole, setTeamRole] = useState<string | null>(null)
@@ -178,13 +179,15 @@ export default function SettingsScreen() {
   useEffect(() => {
     AsyncStorage.getItem(PROFILE_KEY).then(v => {
       if (v) {
-        const p = JSON.parse(v)
-        setProfile({ name: p.name ?? '', event: p.event ?? '', age: p.age != null ? String(p.age) : '', club: p.club ?? '' })
+        try {
+          const p = JSON.parse(v)
+          setProfile({ name: p.name ?? '', event: p.event ?? '', age: p.age != null ? String(p.age) : '', club: p.club ?? '' })
+        } catch {}
       }
     }).catch(() => {})
 
     AsyncStorage.getItem(NOTIF_KEY).then(v => {
-      if (v) setNotifSettings(JSON.parse(v))
+      if (v) { try { setNotifSettings(JSON.parse(v)) } catch {} }
     }).catch(() => {})
   }, [])
 
@@ -402,6 +405,7 @@ export default function SettingsScreen() {
     if (gate.remaining === 0) {
       setCsvGateRemaining(0)
       setCsvGateHardLimited(gate.hardLimited)
+      setCsvGateLimitType(gate.limitType)
       setCsvGateVisible(true)
       return
     }
@@ -427,14 +431,14 @@ export default function SettingsScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <View style={{
-                    backgroundColor: isElite ? '#f59e0b22' : isPro ? '#16653422' : '#6b728022',
+                    backgroundColor: isCoachPro ? '#d9770622' : isCoach ? '#16653422' : isElite ? '#f59e0b22' : isPro ? '#16653422' : '#6b728022',
                     borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4,
                   }}>
                     <Text style={{
-                      color: isElite ? '#f59e0b' : isPro ? '#166534' : '#6b7280',
+                      color: isCoachPro ? '#d97706' : isCoach ? '#166534' : isElite ? '#f59e0b' : isPro ? '#166534' : '#6b7280',
                       fontSize: 13, fontWeight: '800',
                     }}>
-                      {isElite ? '👑 ELITE' : isPro ? '✦ PRO' : 'FREE'}
+                      {isCoachPro ? '🏆 チームPro' : isCoach ? '📋 コーチ' : isElite ? '👑 ELITE' : isPro ? '✦ PRO' : 'FREE'}
                     </Text>
                   </View>
                   {expiresAt && (
@@ -455,8 +459,9 @@ export default function SettingsScreen() {
               </View>
               {!isPro && (
                 <Text style={{ color: '#9ca3af', fontSize: 12, marginTop: 10, lineHeight: 18 }}>
-                  PRO（¥480/月）でAI練習分析・動画フォーム分析が使い放題{'\n'}
-                  ELITE（¥1,480/月）でチーム管理・全機能無制限
+                  PRO（¥480/月）でAI練習分析・動画フォーム分析が月30回{'\n'}
+                  ELITE（¥980/月）でAI機能完全無制限{'\n'}
+                  コーチ・チーム管理はコーチプラン（¥2,980〜）
                 </Text>
               )}
               {/* クーポンコード入力 */}
@@ -796,6 +801,7 @@ export default function SettingsScreen() {
         feature="csv"
         remaining={csvGateRemaining}
         hardLimited={csvGateHardLimited}
+        limitType={csvGateLimitType}
         isGuest={isGuest}
         onClose={() => setCsvGateVisible(false)}
         onAdWatched={async () => {

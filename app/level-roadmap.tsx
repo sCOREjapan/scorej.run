@@ -29,14 +29,10 @@ export default function LevelRoadmapScreen() {
     } else {
       // 自分のデータ
       AsyncStorage.getItem(SESSIONS_KEY).then(r => {
-        const arr = r ? JSON.parse(r) : []
-        setSessionCount(arr.length)
+        try { setSessionCount(r ? JSON.parse(r).length : 0) } catch {}
       }).catch(() => {})
       AsyncStorage.getItem('trackmate_my_profile').then(r => {
-        if (r) {
-          const p = JSON.parse(r)
-          setDisplayName(p.name ?? '')
-        }
+        if (r) { try { const p = JSON.parse(r); setDisplayName(p.name ?? '') } catch {} }
       }).catch(() => {})
     }
   }, [params.sessions, params.name])

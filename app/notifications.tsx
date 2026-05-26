@@ -31,6 +31,15 @@ interface AppNotice {
 }
 const APP_NOTICES: AppNotice[] = [
   {
+    id:    'v1.1.0-team-pro',
+    date:  '2026-05-23',
+    badge: 'NEW',
+    title: 'チームProプラン登場',
+    body:  'チーム管理機能＋AI全機能完全無制限をセットにした最上位プランが登場しました。コーチダッシュボードまたは設定画面からご確認ください。',
+    icon:  'trophy-outline',
+    color: '#7c3aed',
+  },
+  {
     id:    'v1.0.1-date-fix',
     date:  '2026-05-14',
     badge: 'UPDATE',
@@ -125,7 +134,7 @@ export default function NotificationsScreen() {
   // 既読IDをロード
   useEffect(() => {
     AsyncStorage.getItem(READ_KEY).then(raw => {
-      if (raw) setReadIds(new Set(JSON.parse(raw)))
+      if (raw) { try { setReadIds(new Set(JSON.parse(raw))) } catch {} }
     }).catch(() => {})
   }, [])
 

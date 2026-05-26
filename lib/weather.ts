@@ -18,6 +18,10 @@ export type WeatherData = {
 
 const CACHE_KEY = 'weather_cache_v3'
 
+// デフォルト位置（東京）— 位置情報権限なし時のフォールバック
+const DEFAULT_LAT = 35.6895
+const DEFAULT_LON = 139.6917
+
 // ─────────────────────────────────────────
 // WMO weathercode → emoji + label
 // ─────────────────────────────────────────
@@ -34,14 +38,25 @@ function decodeWeatherCode(code: number): { icon: string; label: string } {
 }
 
 // ─────────────────────────────────────────
-// スロット判定：1日2スロット
-//   morning: 00:00〜11:59（初回起動時に取得）
-//   noon:    12:00〜23:59（昼以降に1回だけ更新）
+// スロット判定：1日1回だけ取得
+//   同じ日（YYYY-MM-DD）なら何時でもキャッシュを返す
 // ─────────────────────────────────────────
 function getDaySlot(): string {
-  const dateStr = new Date().toLocaleDateString('sv-SE') // YYYY-MM-DD
-  const h = new Date().getHours()
-  return h >= 12 ? `${dateStr}_noon` : `${dateStr}_morning`
+  return new Date().toLocaleDateString('sv-SE') // YYYY-MM-DD のみ
+}
+
+// ─────────────────────────────────────────
+// タイムアウト付き fetch（AbortSignal.timeout は Hermes 非対応の可能性あり）
+// ─────────────────────────────────────────
+function fetchWithTimeout(url: string, ms: number): Promise<Response> {
+  // AbortSignal.timeout が利用可能な場合はそちらを使う
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    return fetch(url, { signal: AbortSignal.timeout(ms) })
+  }
+  // フォールバック：手動タイムアウト
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), ms)
+  return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(id))
 }
 
 // ─────────────────────────────────────────
@@ -49,7 +64,7 @@ function getDaySlot(): string {
 // ─────────────────────────────────────────
 export async function getWeather(lat: number, lon: number): Promise<WeatherData> {
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,windspeed_10m,weathercode&timezone=Asia/Tokyo`
-  const res = await fetch(url, { signal: AbortSignal.timeout(8000) })
+  const res = await fetchWithTimeout(url, 8000)
   if (!res.ok) throw new Error(`Open-Meteo API error: ${res.status}`)
   const data = await res.json()
   const current = data.current
@@ -104,35 +119,74 @@ export async function getCachedWeather(): Promise<WeatherData | null> {
 
 // ─────────────────────────────────────────
 // 位置情報を使って天気を取得（内部用）
+// 位置情報権限なし時は東京デフォルトでAPIを叩く（天気だけでも取得）
 // ─────────────────────────────────────────
 async function fetchWeatherFromLocation(): Promise<WeatherData | null> {
   try {
     if (Platform.OS !== 'web') {
       const Location = await import('expo-location')
-      const { status } = await Location.requestForegroundPermissionsAsync()
-      if (status !== 'granted') return null
-      const pos = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Low,
-      })
-      return await getWeather(pos.coords.latitude, pos.coords.longitude)
+
+      // まず現在権限を確認（requestせずに確認）
+      const { status: existingStatus } = await Location.getForegroundPermissionsAsync()
+
+      let lat = DEFAULT_LAT
+      let lon = DEFAULT_LON
+
+      if (existingStatus === 'granted') {
+        // 既に許可済み → 位置情報を取得
+        try {
+          const pos = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Low,
+          })
+          lat = pos.coords.latitude
+          lon = pos.coords.longitude
+        } catch {
+          // 位置取得失敗 → デフォルト位置を使用
+        }
+      } else if (existingStatus === 'undetermined') {
+        // まだ確認していない → リクエスト
+        const { status } = await Location.requestForegroundPermissionsAsync()
+        if (status === 'granted') {
+          try {
+            const pos = await Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.Low,
+            })
+            lat = pos.coords.latitude
+            lon = pos.coords.longitude
+          } catch {
+            // 位置取得失敗 → デフォルト位置
+          }
+        }
+        // denied → デフォルト位置（東京）で天気取得継続
+      }
+      // denied の場合もデフォルト位置（東京）で天気取得
+
+      return await getWeather(lat, lon)
     }
 
     // Web: navigator.geolocation
     return new Promise((resolve) => {
       if (typeof navigator === 'undefined' || !navigator.geolocation) {
-        resolve(null); return
+        // 位置情報なし → 東京デフォルト
+        getWeather(DEFAULT_LAT, DEFAULT_LON).then(resolve).catch(() => resolve(null))
+        return
       }
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
           try { resolve(await getWeather(pos.coords.latitude, pos.coords.longitude)) }
           catch { resolve(null) }
         },
-        () => resolve(null),
+        async () => {
+          // 位置情報拒否 → 東京デフォルト
+          try { resolve(await getWeather(DEFAULT_LAT, DEFAULT_LON)) }
+          catch { resolve(null) }
+        },
         { timeout: 8000 }
       )
     })
   } catch {
-    return null
+    // 最終フォールバック：東京の天気
+    try { return await getWeather(DEFAULT_LAT, DEFAULT_LON) } catch { return null }
   }
 }
 
@@ -141,6 +195,20 @@ async function fetchWeatherFromLocation(): Promise<WeatherData | null> {
 // ─────────────────────────────────────────
 export async function getCurrentLocationWeather(): Promise<WeatherData | null> {
   return getCachedWeather()
+}
+
+// ─────────────────────────────────────────
+// キャッシュのみ即時読み込み（API呼び出しなし・起動直後の即表示用）
+// ─────────────────────────────────────────
+export async function getWeatherCacheOnly(): Promise<WeatherData | null> {
+  try {
+    const raw = await AsyncStorage.getItem(CACHE_KEY)
+    if (!raw) return null
+    const cached: { data: WeatherData; slot: string } = JSON.parse(raw)
+    return cached.data ?? null
+  } catch {
+    return null
+  }
 }
 
 // キャッシュを強制クリア（手動リフレッシュボタン用）
