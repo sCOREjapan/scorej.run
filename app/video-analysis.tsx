@@ -829,8 +829,8 @@ function NativeVideoAnalysis() {
 frameNotesは最大5件、改善点が顕著なフレームのみ記載してください。`
 
       // Vercel proxy経由でAnthropicを呼び出し（APIキーをクライアントに持たせない）
-      const apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? '').replace(/\/$/, '')
-      const endpoint = apiBase ? `${apiBase}/api/analyze` : '/api/analyze'
+      const apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
+      const endpoint = `${apiBase}/api/analyze`
 
       const res = await fetchWithTimeout(endpoint, {
         method: 'POST',
@@ -1415,8 +1415,8 @@ function WebPlayer({ isPremiumUser: isPremiumProp }: { isPremiumUser: boolean })
 
   /* ── Claude Vision: フレーム分析 ── */
   const analyzeFrame = async (dataUrl: string, t: number): Promise<FrameAdvice> => {
-    const apiBase2 = (process.env.EXPO_PUBLIC_API_BASE_URL ?? '').replace(/\/$/, '')
-    const endpoint2 = apiBase2 ? `${apiBase2}/api/analyze` : '/api/analyze'
+    const apiBase2 = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
+    const endpoint2 = `${apiBase2}/api/analyze`
     const model = isPremiumUser ? 'claude-haiku-4-5-20251001' : 'claude-haiku-4-5-20251001'
     const res = await fetchWithTimeout(endpoint2, {
       method: 'POST',
@@ -1447,8 +1447,8 @@ JSON形式のみで回答:
       const summary = anns.map((a, i) =>
         `フレーム${i+1}(${formatTime(a.timestamp)}): ${a.advice.overall} | 改善: ${a.advice.improvements.join(' / ')}`
       ).join('\n')
-      const apiBase3 = (process.env.EXPO_PUBLIC_API_BASE_URL ?? '').replace(/\/$/, '')
-      const endpoint3 = apiBase3 ? `${apiBase3}/api/analyze` : '/api/analyze'
+      const apiBase3 = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
+      const endpoint3 = `${apiBase3}/api/analyze`
       const res = await fetchWithTimeout(endpoint3, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },

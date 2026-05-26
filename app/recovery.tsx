@@ -140,8 +140,8 @@ export default function RecoveryScreen() {
     const typeLabel    = PAIN_TYPES.find(p=>p.id===painType)?.label ?? ''
     const timingLabel  = TIMING_OPTIONS.find(p=>p.id===timing)?.label ?? ''
     const durLabel     = DURATION_OPTIONS.find(p=>p.id===duration)?.label ?? '不明'
-    const _apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? '').replace(/\/$/, '')
-    const _endpoint = _apiBase ? `${_apiBase}/api/analyze` : '/api/analyze'
+    const _apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
+    const _endpoint = `${_apiBase}/api/analyze`
 
     try {
       const res = await fetchWithTimeout(_endpoint, {

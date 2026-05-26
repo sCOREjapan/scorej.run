@@ -299,8 +299,8 @@ export default function WorkoutMenuScreen() {
     setPickLoading(true)
     setPickResult('')
     try {
-      const _apiBase1 = (process.env.EXPO_PUBLIC_API_BASE_URL ?? '').replace(/\/$/, '')
-      const _endpoint1 = _apiBase1 ? `${_apiBase1}/api/analyze` : '/api/analyze'
+      const _apiBase1 = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
+      const _endpoint1 = `${_apiBase1}/api/analyze`
 
       const libraryText = pickedItems.map(p => `・${p.text}（${p.folderName}）`).join('\n')
 
@@ -353,7 +353,7 @@ ${pickIntent.trim() || '特に指定なし（コーチの判断で最適なメ�
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
-            model: 'claude-sonnet-4-5',
+            model: 'claude-haiku-4-5-20251001',
             max_tokens: 1500,
             system: systemPrompt1,
             messages: [{ role: 'user', content: prompt }],
@@ -396,8 +396,8 @@ ${pickIntent.trim() || '特に指定なし（コーチの判断で最適なメ�
     setAiLoading(true)
     setAiResult('')
     try {
-      const _apiBase2 = (process.env.EXPO_PUBLIC_API_BASE_URL ?? '').replace(/\/$/, '')
-      const _endpoint2 = _apiBase2 ? `${_apiBase2}/api/analyze` : '/api/analyze'
+      const _apiBase2 = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
+      const _endpoint2 = `${_apiBase2}/api/analyze`
       const useFolders = folders.filter(f => selectedFolderIds.includes(f.id) && f.items.length > 0)
 
       const libraryText = useFolders.map(f =>
@@ -449,7 +449,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
-            model: 'claude-sonnet-4-5',
+            model: 'claude-haiku-4-5-20251001',
             max_tokens: 1500,
             system: systemPrompt2,
             messages: [{ role: 'user', content: prompt }],

@@ -344,8 +344,8 @@ export default function NotebookScreen() {
 
     // ── Step 2: AIでより正確に解析（成功すればフォールバックを上書き） ─
     try {
-      const _nb_apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? '').replace(/\/$/, '')
-      const _nb_endpoint = _nb_apiBase ? `${_nb_apiBase}/api/analyze` : '/api/analyze'
+      const _nb_apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
+      const _nb_endpoint = `${_nb_apiBase}/api/analyze`
       const res = await fetchWithTimeout(_nb_endpoint, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },

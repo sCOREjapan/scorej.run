@@ -239,8 +239,8 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
 
     // ── Step 2: Vercelプロキシ経由でAI解析（成功すればフォールバックを上書き） ─
     try {
-      const _apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? '').replace(/\/$/, '')
-      const _endpoint = _apiBase ? `${_apiBase}/api/analyze` : '/api/analyze'
+      const _apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
+      const _endpoint = `${_apiBase}/api/analyze`
       const res = await fetchWithTimeout(_endpoint, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
