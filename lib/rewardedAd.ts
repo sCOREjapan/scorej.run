@@ -14,19 +14,14 @@ export const AD_UNIT_IDS = {
   },
 }
 
-// AdMobアカウント承認後に本番IDへ切替:
-// export const REWARDED_AD_UNIT_ID = Platform.select({
-//   ios:     AD_UNIT_IDS.ios.rewarded,
-//   android: AD_UNIT_IDS.android.rewarded,
-// }) ?? TestIds.REWARDED
-export const REWARDED_AD_UNIT_ID = TestIds.REWARDED   // テストID（承認後に上記と入替）
+// DEV → テストID、PROD → 本番ID
+export const REWARDED_AD_UNIT_ID = __DEV__
+  ? TestIds.REWARDED
+  : (Platform.select({ ios: AD_UNIT_IDS.ios.rewarded, android: AD_UNIT_IDS.android.rewarded }) ?? TestIds.REWARDED)
 
-// AdMobアカウント承認後に本番IDへ切替:
-// export const BANNER_AD_UNIT_ID = Platform.select({
-//   ios:     AD_UNIT_IDS.ios.banner,
-//   android: AD_UNIT_IDS.android.banner,
-// }) ?? TestIds.BANNER
-export const BANNER_AD_UNIT_ID = TestIds.BANNER        // テストID（承認後に上記と入替）
+export const BANNER_AD_UNIT_ID = __DEV__
+  ? TestIds.BANNER
+  : (Platform.select({ ios: AD_UNIT_IDS.ios.banner, android: AD_UNIT_IDS.android.banner }) ?? TestIds.BANNER)
 
 /**
  * リワード広告を1本ロード＆表示
