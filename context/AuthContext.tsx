@@ -185,19 +185,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error: exchError } = await (supabase.auth as any).exchangeCodeForSession(result.url)
       if (exchError) {
         console.log('[Google OAuth] exchangeCode error:', exchError.message)
+        // フォールバック1: URL から code だけ抜き取って再試行（カスタムスキームの URL パース失敗対策）
+        try {
+          const codeMatch = result.url.match(/[?&]code=([^&\s]+)/)
+          const code = codeMatch ? decodeURIComponent(codeMatch[1]) : null
+          if (code) {
+            const { error: retryError } = await (supabase.auth as any).exchangeCodeForSession(code)
+            if (!retryError) {
+              console.log('[Google OAuth] exchangeCode retry success')
+              return   // 成功 → onAuthStateChange が呼ばれるのでここで終了
+            }
+            console.log('[Google OAuth] retry error:', retryError.message)
+          }
+        } catch (retryEx: any) {
+          console.log('[Google OAuth] retry exception:', retryEx?.message)
+        }
+        // フォールバック2: implicit flow のハッシュトークン（旧 Supabase 対応）
         try {
           const hash = result.url.split('#')[1] ?? ''
-          const get  = (k: string) =>
-            new URL(result.url).searchParams.get(k) ?? new URLSearchParams(hash).get(k) ?? undefined
-          const accessToken = get('access_token'); const refreshToken = get('refresh_token')
+          const params = new URLSearchParams(hash)
+          const accessToken = params.get('access_token')
+          const refreshToken = params.get('refresh_token')
           if (accessToken && refreshToken) {
             await (supabase.auth as any).setSession({ access_token: accessToken, refresh_token: refreshToken })
-          } else {
-            Toast.show({ type: 'error', text1: 'Googleログイン失敗 [Step3]', text2: exchError.message, visibilityTime: 5000 })
+            return
           }
-        } catch {
-          Toast.show({ type: 'error', text1: 'Googleログイン失敗 [Step3]', text2: exchError.message, visibilityTime: 5000 })
-        }
+        } catch {}
+        Toast.show({ type: 'error', text1: 'Googleログイン失敗 [Step3]', text2: exchError.message, visibilityTime: 5000 })
       }
     } catch (e: any) {
       const msg = e?.message ?? 'エラーが発生しました'

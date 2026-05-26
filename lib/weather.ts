@@ -133,16 +133,18 @@ async function fetchWeatherFromLocation(): Promise<WeatherData | null> {
       let lat = DEFAULT_LAT
       let lon = DEFAULT_LON
 
+      // expo-location にタイムアウトオプションがないため Promise.race で制御
+      const getPositionWithTimeout = (): Promise<any> =>
+        Promise.race([
+          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low }),
+          new Promise<null>(resolve => setTimeout(() => resolve(null), 8000)),
+        ])
+
       if (existingStatus === 'granted') {
         // 既に許可済み → 位置情報を取得（タイムアウト付き）
         try {
-          const pos = await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.Low,
-            timeInterval: 5000,
-            mayShowUserSettingsDialog: false,
-          })
-          lat = pos.coords.latitude
-          lon = pos.coords.longitude
+          const pos = await getPositionWithTimeout()
+          if (pos) { lat = pos.coords.latitude; lon = pos.coords.longitude }
         } catch {
           // 位置取得失敗 → デフォルト位置を使用
         }
@@ -151,13 +153,8 @@ async function fetchWeatherFromLocation(): Promise<WeatherData | null> {
         const { status } = await Location.requestForegroundPermissionsAsync()
         if (status === 'granted') {
           try {
-            const pos = await Location.getCurrentPositionAsync({
-              accuracy: Location.Accuracy.Low,
-              timeInterval: 5000,
-              mayShowUserSettingsDialog: false,
-            })
-            lat = pos.coords.latitude
-            lon = pos.coords.longitude
+            const pos = await getPositionWithTimeout()
+            if (pos) { lat = pos.coords.latitude; lon = pos.coords.longitude }
           } catch {
             // 位置取得失敗 → デフォルト位置
           }

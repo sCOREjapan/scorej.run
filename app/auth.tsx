@@ -361,6 +361,7 @@ function Slide6({ isActive }: { isActive: boolean }) {
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading]   = useState(false)
+  const [authError, setAuthError] = useState('')
 
   const isInAppBrowser = typeof navigator !== 'undefined' &&
     /Instagram|FBAN|FBAV|Twitter|Line|MicroMessenger|GSA/i.test(navigator.userAgent)
@@ -382,19 +383,27 @@ function Slide6({ isActive }: { isActive: boolean }) {
   const handleSubmit = async () => {
     if (!email.trim() || password.length < 6) return
     unlockAudio(); Sounds.pop()
-    setLoading(true)
+    setLoading(true); setAuthError('')
     try {
       if (isLoginMode) {
-        await signInWithEmail(email.trim(), password)
-        // 成功 → AuthGate が自動でタブへ遷移（Toast はAuthContext側で表示）
+        const ok = await signInWithEmail(email.trim(), password)
+        // signInWithEmail が false を返した場合（Toast表示済み）はここで何もしない
+        if (ok === false) {
+          setAuthError('メールアドレスかパスワードを確認してください')
+        }
+        // 成功 → AuthGate が自動でタブへ遷移
       } else {
         const result = await signUpWithEmail(email.trim(), password)
         if (result === 'confirm_email') {
           setSentEmail(email.trim())
-          setEmailSent(true)  // 確認メール送信済みUIに切替
+          setEmailSent(true)
+        } else if (result === false) {
+          setAuthError('登録に失敗しました。別のメールアドレスをお試しください')
         }
         // 'signed_in' → AuthGate が自動でタブへ遷移
       }
+    } catch (e: any) {
+      setAuthError(e?.message ?? 'エラーが発生しました')
     } finally { setLoading(false) }
   }
 
@@ -497,7 +506,7 @@ function Slide6({ isActive }: { isActive: boolean }) {
                 <Text style={lg.signupTitle}>{isLoginMode ? 'メールでログイン' : '新規アカウント作成'}</Text>
                 <View style={lg.inputWrap}>
                   <Ionicons name="mail-outline" size={16} color={TEXT.hint} />
-                  <TextInput style={lg.input} placeholder="メールアドレス" placeholderTextColor={TEXT.hint} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
+                  <TextInput style={lg.input} placeholder="メールアドレス" placeholderTextColor={TEXT.hint} value={email} onChangeText={v => { setEmail(v); setAuthError('') }} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
                 </View>
                 <View style={lg.inputWrap}>
                   <Ionicons name="lock-closed-outline" size={16} color={TEXT.hint} />
@@ -506,6 +515,12 @@ function Slide6({ isActive }: { isActive: boolean }) {
                     <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={18} color={TEXT.hint} />
                   </TouchableOpacity>
                 </View>
+                {!!authError && (
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6, backgroundColor: 'rgba(229,62,62,0.08)', borderRadius: 10, padding: 10, marginBottom: 6 }}>
+                    <Ionicons name="alert-circle-outline" size={14} color={RED} style={{ marginTop: 1 }} />
+                    <Text style={{ color: RED, fontSize: 12, flex: 1, lineHeight: 18 }}>{authError}</Text>
+                  </View>
+                )}
                 <TouchableOpacity style={[lg.primaryBtn, (!email.trim() || password.length < 6) && { opacity: 0.4 }]} onPress={handleSubmit} disabled={loading || !email.trim() || password.length < 6} activeOpacity={0.85}>
                   {loading ? <ActivityIndicator color="#fff" size="small" /> : isLoginMode
                     ? <><Ionicons name="log-in" size={16} color="#fff" /><Text style={lg.primaryBtnText}>ログイン</Text></>

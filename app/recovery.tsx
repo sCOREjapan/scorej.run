@@ -148,7 +148,7 @@ export default function RecoveryScreen() {
         method:'POST',
         headers:{ 'content-type':'application/json' },
         body: JSON.stringify({
-          model:'claude-haiku-4-5-20251001', max_tokens:2048,
+          model:'claude-haiku-4-5-20251001', max_tokens:4096,
           messages:[{ role:'user', content:
 `あなたは陸上競技に詳しいスポーツトレーナーです。選手の症状をもとに、ケアと回復のアドバイスをしてください。医療診断ではなく、参考情報として提供してください。
 
@@ -168,7 +168,12 @@ export default function RecoveryScreen() {
       const text  = data.content?.[0]?.text ?? ''
       const match = text.match(/\{[\s\S]*\}/)
       if (!match) throw new Error(`JSONなし: ${text.slice(0,80)}`)
-      const parsed: RecoveryResult = JSON.parse(match[0])
+      let parsed: RecoveryResult
+      try {
+        parsed = JSON.parse(match[0])
+      } catch {
+        throw new Error(`JSON解析失敗（レスポンスが不完全です）: ${text.slice(0, 60)}`)
+      }
       setResult(parsed)
       const rec: SavedRecord = {
         id:Date.now().toString(), date:new Date().toLocaleDateString('ja-JP'),
@@ -407,8 +412,9 @@ function BodyMap({ view, selected, onToggle }: {
   }
 
   return (
-    <Svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}
-      style={{backgroundColor:'#f8fafc', borderRadius:14, borderWidth:1, borderColor:'#e2e8f0'}}>
+    <Svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+      {/* 背景（react-native-svg の style prop が効かない環境対策） */}
+      <Rect x={0} y={0} width={W} height={H} fill="#f8fafc" rx={14} ry={14} />
 
       {/* なめらかボディシルエット */}
       <AnatomicalBody view={view} />
