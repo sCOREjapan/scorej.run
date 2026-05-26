@@ -312,3 +312,6 @@ alter table team_player_stats add column if not exists sessions_30d integer not 
 -- 選手目標・連続記録日数
 alter table team_player_stats add column if not exists goal text not null default '';
 alter table team_player_stats add column if not exists streak integer not null default 0;
+
+-- 選手プロフィールアイコン（絵文字）
+alter table team_members add column if not exists icon text not null default '';

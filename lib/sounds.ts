@@ -204,7 +204,7 @@ const NATIVE_SOUND_DEFS: Record<string, NativeSoundDef> = {
 
 // expo-av / expo-file-system の遅延インポートキャッシュ
 let _Audio: typeof import('expo-av').Audio | null = null
-let _FS: typeof import('expo-file-system') | null = null
+let _FS: typeof import('expo-file-system/legacy') | null = null
 let _audioReady = false
 
 async function initNativeAudio() {
@@ -217,7 +217,7 @@ async function initNativeAudio() {
       staysActiveInBackground: false,
       shouldDuckAndroid: true,
     })
-    _FS = await import('expo-file-system') as any
+    _FS = await import('expo-file-system/legacy') as any
     _audioReady = true
   } catch {}
 }

@@ -1,6 +1,5 @@
-// api/analyze.ts — Anthropic API proxy (Vercel Serverless Function)
-// ANTHROPIC_API_KEY を Vercel の環境変数に設定してください（EXPO_PUBLIC_ なしで）
-// Edge Function (25s制限) → Node.js Serverless Function (最大60s) に変更
+// api/analyze.ts — Anthropic API proxy (Vercel Serverless Function / Fluid Compute)
+// Node.js ランタイム（デフォルト）を使用: Edge より互換性が高く maxDuration=60 が有効
 export const maxDuration = 60
 
 export default async function handler(request: Request): Promise<Response> {

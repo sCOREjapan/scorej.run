@@ -48,22 +48,27 @@ export default async function handler(request: Request): Promise<Response> {
     app_id:            appId,
     headings:          { en: notif.heading, ja: notif.heading },
     contents:          { en: notif.body,    ja: notif.body    },
-    url:               'https://track-mate-murex.vercel.app',
+    url:               'https://scorej-run.vercel.app',
     included_segments: ['All'],
     web_push_topic:    notif.tag,   // 同じタグは1日1回に集約
   }
 
-  const res = await fetch('https://onesignal.com/api/v1/notifications', {
-    method:  'POST',
-    headers: {
-      'Content-Type':  'application/json',
-      'Authorization': `Basic ${apiKey}`,
-    },
-    body: JSON.stringify(payload),
-  })
-
-  const data = await res.json()
-  return new Response(JSON.stringify({ type, ...data }), {
-    headers: { 'Content-Type': 'application/json' },
-  })
+  try {
+    const res = await fetch('https://onesignal.com/api/v1/notifications', {
+      method:  'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Basic ${apiKey}`,
+      },
+      body: JSON.stringify(payload),
+    })
+    const data = await res.json()
+    return new Response(JSON.stringify({ type, ...data }), {
+      headers: { 'Content-Type': 'application/json' },
+    })
+  } catch (e: any) {
+    return new Response(JSON.stringify({ error: e?.message ?? 'OneSignal request failed' }), {
+      status: 500, headers: { 'Content-Type': 'application/json' },
+    })
+  }
 }

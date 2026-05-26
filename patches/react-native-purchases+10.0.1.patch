@@ -1,0 +1,70 @@
+diff --git a/node_modules/react-native-purchases/ios/RNPurchases.m b/node_modules/react-native-purchases/ios/RNPurchases.m
+index eb76986..6f9a34e 100644
+--- a/node_modules/react-native-purchases/ios/RNPurchases.m
++++ b/node_modules/react-native-purchases/ios/RNPurchases.m
+@@ -67,20 +67,51 @@ - (void)sendEventWithName:(NSString *)name body:(id)body {
+                   diagnosticsEnabled:(BOOL)diagnosticsEnabled
+                   automaticDeviceIdentifierCollectionEnabled:(BOOL)automaticDeviceIdentifierCollectionEnabled
+                   preferredUILocaleOverride:(nullable NSString *)preferredUILocaleOverride) {
+-    RCPurchases *purchases = [RCPurchases configureWithAPIKey:apiKey.mappingNSNullToNil
+-                                                    appUserID:appUserID.mappingNSNullToNil
+-                                      purchasesAreCompletedBy:purchasesAreCompletedBy.mappingNSNullToNil
+-                                        userDefaultsSuiteName:userDefaultsSuiteName.mappingNSNullToNil
+-                                               platformFlavor:self.platformFlavor
+-                                        platformFlavorVersion:self.platformFlavorVersion
+-                                              storeKitVersion:storeKitVersion.mappingNSNullToNil
+-                                            dangerousSettings:nil
+-                         shouldShowInAppMessagesAutomatically:shouldShowInAppMessagesAutomatically
+-                                             verificationMode:entitlementVerificationMode.mappingNSNullToNil
+-                                           diagnosticsEnabled:diagnosticsEnabled
+-                   automaticDeviceIdentifierCollectionEnabled:automaticDeviceIdentifierCollectionEnabled
+-                                              preferredLocale:preferredUILocaleOverride.mappingNSNullToNil];
+-    purchases.delegate = self;
++    // Capture ivars needed inside the block.
++    NSString *capturedApiKey = apiKey.mappingNSNullToNil;
++    NSString *capturedAppUserID = appUserID.mappingNSNullToNil;
++    NSString *capturedPurchasesAreCompletedBy = purchasesAreCompletedBy.mappingNSNullToNil;
++    NSString *capturedUserDefaultsSuiteName = userDefaultsSuiteName.mappingNSNullToNil;
++    NSString *capturedPlatformFlavor = self.platformFlavor;
++    NSString *capturedPlatformFlavorVersion = self.platformFlavorVersion;
++    NSString *capturedStoreKitVersion = storeKitVersion.mappingNSNullToNil;
++    BOOL capturedShouldShowInAppMessages = shouldShowInAppMessagesAutomatically;
++    NSString *capturedVerificationMode = entitlementVerificationMode.mappingNSNullToNil;
++    BOOL capturedDiagnosticsEnabled = diagnosticsEnabled;
++    BOOL capturedAutoDeviceId = automaticDeviceIdentifierCollectionEnabled;
++    NSString *capturedPreferredLocale = preferredUILocaleOverride.mappingNSNullToNil;
++    __weak typeof(self) weakSelf = self;
++
++    // TurboModule compat layer ignores methodQueue; explicitly hop to main thread
++    // to avoid StoreKit / RevenueCat main-thread assertions on iOS 26+ beta.
++    void (^configure)(void) = ^{
++        @try {
++            RCPurchases *purchases = [RCPurchases configureWithAPIKey:capturedApiKey
++                                                            appUserID:capturedAppUserID
++                                              purchasesAreCompletedBy:capturedPurchasesAreCompletedBy
++                                                userDefaultsSuiteName:capturedUserDefaultsSuiteName
++                                                       platformFlavor:capturedPlatformFlavor
++                                                platformFlavorVersion:capturedPlatformFlavorVersion
++                                                      storeKitVersion:capturedStoreKitVersion
++                                                    dangerousSettings:nil
++                                 shouldShowInAppMessagesAutomatically:capturedShouldShowInAppMessages
++                                                     verificationMode:capturedVerificationMode
++                                                   diagnosticsEnabled:capturedDiagnosticsEnabled
++                           automaticDeviceIdentifierCollectionEnabled:capturedAutoDeviceId
++                                                      preferredLocale:capturedPreferredLocale];
++            purchases.delegate = weakSelf;
++        } @catch (NSException *exception) {
++            NSLog(@"[RNPurchases] setupPurchases exception (non-fatal): %@ — %@", exception.name, exception.reason);
++        } @catch (...) {
++            NSLog(@"[RNPurchases] setupPurchases unknown exception (non-fatal)");
++        }
++    };
++
++    if ([NSThread isMainThread]) {
++        configure();
++    } else {
++        dispatch_async(dispatch_get_main_queue(), configure);
++    }
+ }
+ 
+ RCT_EXPORT_METHOD(setAllowSharingStoreAccount:(BOOL)allowSharingStoreAccount) {

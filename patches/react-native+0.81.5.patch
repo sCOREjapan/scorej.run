@@ -1,0 +1,40 @@
+diff --git a/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm b/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm
+index 2a67797..483984c 100644
+--- a/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm
++++ b/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm
+@@ -366,13 +366,13 @@ id convertJSIValueToObjCObject(
+     @try {
+       [inv invokeWithTarget:strongModule];
+     } @catch (NSException *exception) {
+-      if (isSync) {
+-        // We can only convert NSException to JSError in sync method calls.
+-        // See https://github.com/reactwg/react-native-new-architecture/discussions/276#discussioncomment-12567155
+-        throw convertNSExceptionToJSError(runtime, exception, std::string{moduleName}, methodNameStr);
+-      } else {
+-        @throw exception;
+-      }
++      // iOS 26 beta workaround: both throw-paths below cause SIGABRT on iOS 26:
++      //   • throw convertNSExceptionToJSError()  → C++ exception → terminate()
++      //   • @throw exception (async)             → NSException rethrow → terminate()
++      // Log and swallow so the app does not crash; the promise/return value
++      // will be undefined on the JS side, which is recoverable.
++      NSLog(@"[RCTTurboModule] %s.%s threw NSException (swallowed to avoid terminate): %@ — %@",
++            moduleName, methodName, exception.name, exception.reason);
+     } @finally {
+       [retainedObjectsForInvocation removeAllObjects];
+     }
+@@ -435,7 +435,13 @@ TraceSection s(
+     @try {
+       [inv invokeWithTarget:strongModule];
+     } @catch (NSException *exception) {
+-      throw convertNSExceptionToJSError(runtime, exception, std::string{moduleName}, methodNameStr);
++      // iOS 26 beta workaround: throwing a C++ JSError from inside an @catch
++      // block that was dispatched via libdispatch causes the exception to be
++      // re-thrown through objc_exception_rethrow → __cxa_rethrow, and because
++      // there is no enclosing C++ catch in the dispatch callout, std::terminate
++      // is called → SIGABRT.  Log and swallow so the app keeps running.
++      NSLog(@"[RCTTurboModule] VOID %s.%s threw NSException (swallowed to avoid terminate): %@ — %@",
++            moduleName, methodName, exception.name, exception.reason);
+     } @finally {
+       [retainedObjectsForInvocation removeAllObjects];
+     }

@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import Svg, { Circle } from 'react-native-svg'
 import * as Haptics from 'expo-haptics'
+import { Sounds, unlockAudio } from '../lib/sounds'
 
 const STRETCH_RESULT_KEY   = 'trackmate_stretch_result'
 const MAX_DAILY_REDUCTION  = 20
@@ -23,8 +24,9 @@ const BODY_PARTS = [
     name:          '肩・首',
     icon:          '🙆',
     muscle:        '僧帽筋・胸鎖乳突筋',
-    desc:          '首をゆっくり左右に傾け、反対の手で軽く押さえる。肩の力を抜いて10秒キープ。',
+    desc:          '首をゆっくり傾け、反対の手で軽く押さえる。肩の力を抜いて10秒キープ。',
     illustration:  '🧘',
+    bilateral:     true,
   },
   {
     id:            'lower_back',
@@ -33,6 +35,7 @@ const BODY_PARTS = [
     muscle:        '脊柱起立筋・腰方形筋',
     desc:          '仰向けに寝て両膝を曲げ、左右にゆっくり倒す。腰の緊張をほぐす。',
     illustration:  '🛌',
+    bilateral:     false,
   },
   {
     id:            'hip',
@@ -41,14 +44,16 @@ const BODY_PARTS = [
     muscle:        '鼠蹊部・腸腰筋',
     desc:          '片膝を前に出し、もう片方の膝を床につける。骨盤を前に押し出してキープ。',
     illustration:  '🧎',
+    bilateral:     true,
   },
   {
     id:            'hamstring',
     name:          'ハムストリング',
     icon:          '🦵',
     muscle:        '太もも裏',
-    desc:          '床に座り片足を伸ばして前屈。膝を曲げずに太もも裏を伸ばす。左右交互に。',
+    desc:          '床に座り片足を伸ばして前屈。膝を曲げずに太もも裏を伸ばす。',
     illustration:  '🤸',
+    bilateral:     true,
   },
   {
     id:            'calf_achilles',
@@ -57,6 +62,7 @@ const BODY_PARTS = [
     muscle:        '腓腹筋・アキレス腱',
     desc:          '壁に手をつき片足を後ろに引いてかかとを床につける。ふくらはぎを伸ばす。',
     illustration:  '🏃',
+    bilateral:     true,
   },
   {
     id:            'ankle',
@@ -65,10 +71,12 @@ const BODY_PARTS = [
     muscle:        '前脛骨筋・足底筋膜',
     desc:          '足首をゆっくり大きく回す。内回し・外回しを各方向10回ずつ。',
     illustration:  '🦵',
+    bilateral:     true,
   },
 ] as const
 
 type PartId = typeof BODY_PARTS[number]['id']
+type Side   = 'left' | 'right' | null
 
 // ── ロジック ─────────────────────────────────────────────────
 function getRecommendedParts(riskScore: number): PartId[] {
@@ -109,27 +117,6 @@ async function saveResult(reduction: number, lastReduction: number) {
       showBanner: true,
       lastReduction,
     }))
-  } catch {}
-}
-
-// ── ビープ音（Web Audio API） ─────────────────────────────────
-function playBeep(freq: number = 880, duration: number = 0.12) {
-  if (typeof window === 'undefined') return
-  try {
-    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
-    if (!AudioCtx) return
-    const ctx  = new AudioCtx()
-    const osc  = ctx.createOscillator()
-    const gain = ctx.createGain()
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-    osc.frequency.value = freq
-    osc.type = 'sine'
-    gain.gain.setValueAtTime(0.4, ctx.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration)
-    osc.start(ctx.currentTime)
-    osc.stop(ctx.currentTime + duration)
-    setTimeout(() => ctx.close(), (duration + 0.1) * 1000)
   } catch {}
 }
 
@@ -227,6 +214,11 @@ function PartSelectScreen({
                   <Text style={ps.badgeText}>推奨</Text>
                 </View>
               )}
+              {part.bilateral && (
+                <View style={ps.bilateralBadge}>
+                  <Text style={ps.bilateralBadgeText}>左右</Text>
+                </View>
+              )}
               <Text style={{ fontSize: 36, marginBottom: 6 }}>{part.icon}</Text>
               <Text style={[ps.partName, isSelected && { color: '#C8102E' }]}>{part.name}</Text>
               <Text style={[ps.partMuscle, isSelected && { color: 'rgba(200,16,46,0.6)' }]}>{part.muscle}</Text>
@@ -270,6 +262,12 @@ const ps = StyleSheet.create({
     paddingHorizontal: 6, paddingVertical: 2,
   },
   badgeText:     { color: '#fff', fontSize: 9, fontWeight: '900' },
+  bilateralBadge: {
+    position: 'absolute', top: 8, left: 8,
+    backgroundColor: 'rgba(37,99,235,0.12)', borderRadius: 6,
+    paddingHorizontal: 5, paddingVertical: 2,
+  },
+  bilateralBadgeText: { color: '#2563eb', fontSize: 9, fontWeight: '900' },
   partName:      { color: '#111827', fontSize: 13, fontWeight: '800', textAlign: 'center' },
   partMuscle:    { color: '#9ca3af', fontSize: 10, textAlign: 'center' },
   startBtn:      {
@@ -284,6 +282,8 @@ const ps = StyleSheet.create({
 // ══════════════════════════════════════════════════════════════
 // 画面2: ストレッチ実施
 // ══════════════════════════════════════════════════════════════
+const TIME_OPTIONS = [0, 25, 30, 45, 60]
+
 function StretchScreen({
   parts,
   secondsPerStretch,
@@ -292,55 +292,92 @@ function StretchScreen({
   onBack,
   onChangeSeconds,
 }: {
-  parts:            typeof BODY_PARTS[number][]
+  parts:             typeof BODY_PARTS[number][]
   secondsPerStretch: number
-  onComplete:       (totalSec: number, skipped: number) => void
-  onSkip:           (partId: PartId) => void
-  onBack:           () => void
-  onChangeSeconds:  (s: number) => void
+  onComplete:        (totalSec: number, skipped: number) => void
+  onSkip:            (partId: PartId) => void
+  onBack:            () => void
+  onChangeSeconds:   (s: number) => void
 }) {
-  const [currentIndex, setCurrentIndex]   = useState(0)
-  const [secondsLeft,  setSecondsLeft]    = useState(secondsPerStretch)
-  const [isPaused,     setIsPaused]       = useState(false)
-  const [isStarted,    setIsStarted]      = useState(false)
-  const [skipped,      setSkipped]        = useState<Set<PartId>>(new Set())
-  const [totalSpent,   setTotalSpent]     = useState(0)
-  const [showTimePicker, setShowTimePicker] = useState(false)
+  const [currentIndex,    setCurrentIndex]    = useState(0)
+  const [secondsLeft,     setSecondsLeft]     = useState(secondsPerStretch > 0 ? secondsPerStretch : 0)
+  const [isPaused,        setIsPaused]        = useState(false)
+  const [isStarted,       setIsStarted]       = useState(false)
+  const [skipped,         setSkipped]         = useState<Set<PartId>>(new Set())
+  const [totalSpent,      setTotalSpent]      = useState(0)
+  const [showTimePicker,  setShowTimePicker]  = useState(false)
+  const [side,            setSide]            = useState<Side>(() => parts[0]?.bilateral ? 'left' : null)
+  const [leftElapsed,     setLeftElapsed]     = useState(0)
 
-  const part    = parts[currentIndex]
-  const isLast  = currentIndex === parts.length - 1
+  const part     = parts[currentIndex]
+  const isLast   = currentIndex === parts.length - 1
+  const isManual = secondsPerStretch === 0
 
-  // タイマーリセット（部位が変わったとき）
+  // ── 部位変更時リセット ─────────────────────────────────────
   useEffect(() => {
-    setSecondsLeft(secondsPerStretch)
-    setIsStarted(false)  // 次の部位はスタート待ち
-  }, [currentIndex, secondsPerStretch])
+    const p = parts[currentIndex]
+    setSide(p?.bilateral ? 'left' : null)
+    setLeftElapsed(0)
+    setSecondsLeft(secondsPerStretch > 0 ? secondsPerStretch : 0)
+    setIsStarted(false)
+    setIsPaused(false)
+  }, [currentIndex])
 
-  // カウントダウン
+  // ── 秒数変更時リセット ────────────────────────────────────
   useEffect(() => {
-    if (!isStarted || isPaused) return
-    if (secondsLeft <= 0) {
-      // タイマー自然終了 → 全時間経過
-      playBeep(1046, 0.15)
-      setTimeout(() => playBeep(1318, 0.2), 180)
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {})
-      setTimeout(() => advanceNext(false, secondsPerStretch), 600)
-      return
+    setSecondsLeft(secondsPerStretch > 0 ? secondsPerStretch : 0)
+    setIsStarted(false)
+    setIsPaused(false)
+  }, [secondsPerStretch])
+
+  // ── 左→右切り替え時リセット ───────────────────────────────
+  const prevSideRef = useRef<Side>(null)
+  useEffect(() => {
+    if (side === 'right' && prevSideRef.current === 'left') {
+      setSecondsLeft(secondsPerStretch > 0 ? secondsPerStretch : 0)
+      setIsStarted(false)
+      setIsPaused(false)
     }
+    prevSideRef.current = side
+  }, [side])
+
+  // ── カウントダウン ────────────────────────────────────────
+  useEffect(() => {
+    if (isManual || !isStarted || isPaused) return
+
+    if (secondsLeft <= 0) {
+      if (side === 'left') {
+        // 左側タイマー終了 → 右側へ切り替え
+        Sounds.ding()
+        setLeftElapsed(secondsPerStretch)
+        const t = setTimeout(() => setSide('right'), 700)
+        return () => clearTimeout(t)
+      } else {
+        // 右側 or 片側 → 完了
+        Sounds.save()
+        const elapsed = side === 'right'
+          ? leftElapsed + secondsPerStretch
+          : secondsPerStretch
+        const t = setTimeout(() => advanceNext(false, elapsed), 700)
+        return () => clearTimeout(t)
+      }
+    }
+
     // 残り5秒カウントダウン音
     if (secondsLeft <= 5) {
-      playBeep(secondsLeft === 1 ? 1046 : 660, 0.1)
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {})
+      Sounds.tap()
     }
-    const timer = setInterval(() => {
-      setSecondsLeft(s => s - 1)
-    }, 1000)
+    const timer = setInterval(() => setSecondsLeft(s => s - 1), 1000)
     return () => clearInterval(timer)
-  }, [secondsLeft, isPaused, isStarted])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [secondsLeft, isPaused, isStarted, side, isManual])
 
-  // wasSkipped: スキップの場合 / earlyDone: 早期完了（実際の経過秒を渡す）
+  // ── 次の部位へ進む ────────────────────────────────────────
   function advanceNext(wasSkipped: boolean, overrideElapsed?: number) {
-    const elapsed = wasSkipped ? 0 : (overrideElapsed ?? (secondsPerStretch - secondsLeft))
+    const elapsed = wasSkipped
+      ? 0
+      : (overrideElapsed ?? (secondsPerStretch > 0 ? secondsPerStretch - secondsLeft : 0))
+
     if (!wasSkipped) {
       setTotalSpent(t => t + elapsed)
     } else {
@@ -348,12 +385,32 @@ function StretchScreen({
       onSkip(part.id)
     }
     if (isLast) {
-      const total = wasSkipped ? totalSpent : totalSpent + elapsed
+      const total        = wasSkipped ? totalSpent : totalSpent + elapsed
       const skippedCount = wasSkipped ? skipped.size + 1 : skipped.size
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
       onComplete(total, skippedCount)
     } else {
       setCurrentIndex(i => i + 1)
+    }
+  }
+
+  // ── 完了ボタン（早期終了 or 手動モード）─────────────────────
+  function handleComplete() {
+    if (side === 'left') {
+      // 左側完了 → 右側へ切り替え
+      Sounds.ding()
+      const elapsed = isManual ? 0 : secondsPerStretch - secondsLeft
+      setLeftElapsed(elapsed)
+      setSide('right')
+    } else {
+      // 右側 or 片側完了
+      Sounds.save()
+      const elapsed = isManual
+        ? 0
+        : side === 'right'
+          ? leftElapsed + (secondsPerStretch - secondsLeft)
+          : secondsPerStretch - secondsLeft
+      advanceNext(false, elapsed)
     }
   }
 
@@ -365,25 +422,26 @@ function StretchScreen({
     }
   }
 
-  const progress     = 1 - secondsLeft / secondsPerStretch
-  const timerColor   =
+  const progress   = secondsPerStretch > 0 ? 1 - secondsLeft / secondsPerStretch : 0
+  const timerColor =
     secondsLeft > 20 ? '#C8102E' :
     secondsLeft > 10 ? '#F5A623' : '#34C759'
 
-  const TIME_OPTIONS = [15, 30, 45, 60]
+  const completeLabel = side === 'left' ? '左完了 →' : '完了'
 
   return (
     <View style={{ flex: 1 }}>
       {/* 進捗 */}
       <View style={ss.progressRow}>
         <Text style={ss.progressText}>{currentIndex + 1}/{parts.length} 部位</Text>
-        {/* 秒数変更バッジ */}
         <TouchableOpacity
           style={ss.timeBadge}
           onPress={() => setShowTimePicker(v => !v)}
           activeOpacity={0.7}
         >
-          <Text style={ss.timeBadgeText}>⏱ {secondsPerStretch}秒</Text>
+          <Text style={ss.timeBadgeText}>
+            {isManual ? '⏱ 手動' : `⏱ ${secondsPerStretch}秒`}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -397,7 +455,9 @@ function StretchScreen({
               onPress={() => { onChangeSeconds(t); setShowTimePicker(false) }}
               activeOpacity={0.7}
             >
-              <Text style={[ss.timeOptText, t === secondsPerStretch && { color: '#C8102E' }]}>{t}秒</Text>
+              <Text style={[ss.timeOptText, t === secondsPerStretch && { color: '#C8102E' }]}>
+                {t === 0 ? '手動' : `${t}秒`}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -405,27 +465,47 @@ function StretchScreen({
 
       <ScrollView contentContainerStyle={ss.content} showsVerticalScrollIndicator={false}>
         {/* イラスト */}
-        <View style={{ alignItems: 'center', marginBottom: 16 }}>
-          <PartIllustration illustration={part.illustration} isActive={!isPaused} />
-        </View>
-
-        {/* 部位名・説明 */}
-        <Text style={ss.partName}>{part.icon} {part.name}</Text>
-        <Text style={ss.muscle}>{part.muscle}</Text>
-        <Text style={ss.desc}>{part.desc}</Text>
-
-        {/* 円形タイマー */}
-        <View style={{ alignItems: 'center', marginVertical: 24 }}>
-          <CircularTimer
-            progress={progress}
-            seconds={secondsLeft}
-            color={timerColor}
+        <View style={{ alignItems: 'center', marginBottom: 12 }}>
+          <PartIllustration
+            illustration={part.illustration}
+            isActive={isManual ? true : (!isPaused && isStarted)}
           />
         </View>
 
-        {/* 操作ボタン */}
-        {!isStarted ? (
-          // ── スタート前 ──
+        {/* 部位名 */}
+        <Text style={ss.partName}>{part.icon} {part.name}</Text>
+
+        {/* 左右インジケーター（bilateral のみ） */}
+        {side !== null && (
+          <View style={ss.sideIndicator}>
+            <View style={[ss.sideStep, side === 'left' && ss.sideStepActive]}>
+              <Text style={[ss.sideStepText, side === 'left' && { color: '#fff' }]}>左</Text>
+            </View>
+            <Ionicons name="arrow-forward" size={14} color="#c4b5b5" style={{ marginHorizontal: 4 }} />
+            <View style={[ss.sideStep, side === 'right' && ss.sideStepActive]}>
+              <Text style={[ss.sideStepText, side === 'right' && { color: '#fff' }]}>右</Text>
+            </View>
+          </View>
+        )}
+
+        <Text style={ss.muscle}>{part.muscle}</Text>
+        <Text style={ss.desc}>{part.desc}</Text>
+
+        {/* タイマー or 手動スペース */}
+        {!isManual ? (
+          <View style={{ alignItems: 'center', marginVertical: 24 }}>
+            <CircularTimer
+              progress={progress}
+              seconds={secondsLeft}
+              color={timerColor}
+            />
+          </View>
+        ) : (
+          <View style={{ height: 32 }} />
+        )}
+
+        {/* ── スタート前（タイマーモード）── */}
+        {!isStarted && !isManual && (
           <View style={ss.btnRow}>
             <TouchableOpacity style={ss.subBtn} onPress={handleBack} activeOpacity={0.7}>
               <Ionicons name="arrow-back" size={18} color="#9ca3af" />
@@ -433,21 +513,49 @@ function StretchScreen({
             </TouchableOpacity>
             <TouchableOpacity
               style={[ss.mainBtn, { backgroundColor: '#C8102E' }]}
-              onPress={() => setIsStarted(true)}
+              onPress={() => {
+                unlockAudio()
+                setIsStarted(true)
+              }}
               activeOpacity={0.85}
             >
               <Ionicons name="play" size={18} color="#fff" />
-              <Text style={ss.mainBtnText}>スタート</Text>
+              <Text style={ss.mainBtnText}>
+                {side === 'left' ? '左スタート' : side === 'right' ? '右スタート' : 'スタート'}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity style={ss.subBtn} onPress={() => advanceNext(true)} activeOpacity={0.7}>
               <Text style={ss.subBtnText}>スキップ</Text>
               <Ionicons name="arrow-forward" size={18} color="#9ca3af" />
             </TouchableOpacity>
           </View>
-        ) : (
-          // ── 実施中 ──
+        )}
+
+        {/* ── 手動モード（タイマーなし）── */}
+        {isManual && (
+          <View style={ss.btnRow}>
+            <TouchableOpacity style={ss.subBtn} onPress={handleBack} activeOpacity={0.7}>
+              <Ionicons name="arrow-back" size={18} color="#9ca3af" />
+              <Text style={ss.subBtnText}>戻る</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[ss.mainBtn, { backgroundColor: '#C8102E' }]}
+              onPress={handleComplete}
+              activeOpacity={0.85}
+            >
+              <Ionicons name={side === 'left' ? 'arrow-forward' : 'checkmark'} size={18} color="#fff" />
+              <Text style={ss.mainBtnText}>{completeLabel}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={ss.subBtn} onPress={() => advanceNext(true)} activeOpacity={0.7}>
+              <Text style={ss.subBtnText}>スキップ</Text>
+              <Ionicons name="arrow-forward" size={18} color="#9ca3af" />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* ── 実施中（タイマーモード）── */}
+        {isStarted && !isManual && (
           <>
-            {/* メインボタン行: 一時停止 | 完了 */}
             <View style={ss.btnRow}>
               <TouchableOpacity style={ss.subBtn} onPress={handleBack} activeOpacity={0.7}>
                 <Ionicons name="arrow-back" size={18} color="#9ca3af" />
@@ -461,14 +569,13 @@ function StretchScreen({
                 <Ionicons name={isPaused ? 'play' : 'pause'} size={16} color="#fff" />
                 <Text style={ss.mainBtnText}>{isPaused ? '再開' : '一時停止'}</Text>
               </TouchableOpacity>
-              {/* 早期完了ボタン（実際の経過秒を記録） */}
               <TouchableOpacity
                 style={[ss.mainBtn, { backgroundColor: '#C8102E' }]}
-                onPress={() => advanceNext(false)}
+                onPress={handleComplete}
                 activeOpacity={0.85}
               >
-                <Ionicons name="checkmark" size={18} color="#fff" />
-                <Text style={ss.mainBtnText}>完了</Text>
+                <Ionicons name={side === 'left' ? 'arrow-forward' : 'checkmark'} size={18} color="#fff" />
+                <Text style={ss.mainBtnText}>{completeLabel}</Text>
               </TouchableOpacity>
             </View>
             <TouchableOpacity
@@ -511,9 +618,28 @@ const ss = StyleSheet.create({
   timeOptActive: { backgroundColor: 'rgba(22,101,52,0.08)', borderWidth: 1.5, borderColor: '#166534' },
   timeOptText:   { color: '#6b7280', fontSize: 13, fontWeight: '700' },
   content:       { padding: 20, paddingBottom: 40, alignItems: 'center' },
-  partName:      { color: '#111827', fontSize: 22, fontWeight: '900', marginBottom: 4, textAlign: 'center' },
+  partName:      { color: '#111827', fontSize: 22, fontWeight: '900', marginBottom: 6, textAlign: 'center' },
   muscle:        { color: '#6b7280', fontSize: 12, marginBottom: 10, textAlign: 'center' },
   desc:          { color: '#6b7280', fontSize: 13, lineHeight: 20, textAlign: 'center', paddingHorizontal: 10 },
+  // 左右インジケーター
+  sideIndicator: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    marginBottom: 8, marginTop: 2,
+  },
+  sideStep: {
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: 'rgba(0,0,0,0.06)',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.10)',
+  },
+  sideStepActive: {
+    backgroundColor: '#C8102E',
+    borderColor: '#C8102E',
+  },
+  sideStepText: {
+    color: '#9ca3af', fontSize: 13, fontWeight: '900',
+  },
+  // ボタン
   btnRow:        {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     width: '100%', marginTop: 8,
@@ -661,7 +787,6 @@ export default function StretchRecoveryScreen() {
 
   function handleStretchComplete(totalSec: number, skippedCount: number) {
     const reduction = calcRecoveryReduction(totalSec, skippedCount)
-    const completed = selectedParts.length - skippedCount
     setResult({ totalSec, reduction })
     saveResult(reduction, reduction)
     setPhase('complete')

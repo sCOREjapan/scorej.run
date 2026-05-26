@@ -43,8 +43,9 @@ module.exports = {
       // TODO: 下記の ADMOB_APP_ID_IOS / ANDROID を実際のApp IDに差し替える
       // 形式: ca-app-pub-XXXXXXXX~YYYYYYYYYY  (スラッシュではなくチルダ~)
       ['react-native-google-mobile-ads', {
-        iosAppId:     'ca-app-pub-6225795381877305~3874907264',  // ✅ 本番 iOS App ID
-        androidAppId: 'ca-app-pub-6225795381877305~6309498919',  // ✅ 本番 Android App ID
+        // 本番AdMob App ID（これを変えると起動クラッシュする）
+        iosAppId:     'ca-app-pub-6225795381877305~3874907264',
+        androidAppId: 'ca-app-pub-6225795381877305~6309498919',
       }],
       ['expo-location', {
         locationAlwaysAndWhenInUsePermission: '天気情報と怪我リスク計算のために現在地を使用します',

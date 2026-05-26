@@ -37,15 +37,15 @@ export interface TeamMemberRow {
   team_code: string
   player_name: string
   event: string
+  icon?: string
   joined_at: string
 }
 
-export async function registerMember(teamCode: string, playerName: string, event = ''): Promise<void> {
+export async function registerMember(teamCode: string, playerName: string, event = '', icon = ''): Promise<void> {
   if (!isConfigured) return
-  const { error } = await supabase.from('team_members').upsert(
-    { id: `${teamCode}_${playerName}`, team_code: teamCode, player_name: playerName, event },
-    { onConflict: 'id' },
-  )
+  const row: Record<string, string> = { id: `${teamCode}_${playerName}`, team_code: teamCode, player_name: playerName, event }
+  if (icon) row.icon = icon
+  const { error } = await supabase.from('team_members').upsert(row, { onConflict: 'id' })
   if (error) throw new Error(error.message)
 }
 
@@ -307,14 +307,13 @@ export interface TeamEventRow {
 
 export async function fetchTeamEvents(teamCode: string): Promise<TeamEventRow[]> {
   if (!isConfigured) return []
-  const today = new Date().toISOString().slice(0, 10)
-  // 過去7日 + 未来すべて
   const from = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('team_events').select('*')
     .eq('team_code', teamCode)
     .gte('event_date', from)
     .order('event_date', { ascending: true })
+  if (error) console.warn('[fetchTeamEvents]', error.message)
   return (data ?? []) as TeamEventRow[]
 }
 

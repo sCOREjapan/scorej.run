@@ -70,6 +70,11 @@ export async function initAdmob(): Promise<void> {
   const lib = getAdmob()
   if (!lib || _initialized) return
   try {
+    // シミュレーター・エミュレーターでは必ずテスト広告を表示
+    // （'EMULATOR' は iOS Simulator / Android Emulator に自動適用される特殊ID）
+    await lib.MobileAds().setRequestConfiguration({
+      testDeviceIdentifiers: ['EMULATOR'],
+    })
     await lib.MobileAds().initialize()
     _initialized = true
   } catch (e) {

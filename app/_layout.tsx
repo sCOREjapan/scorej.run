@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import React, { Component, useEffect, useState } from 'react'
 import {
   Platform, View, ActivityIndicator, TouchableOpacity,
   Text, Modal, ScrollView, Linking, StyleSheet,
@@ -16,6 +16,68 @@ import { PurchaseProvider } from '../context/PurchaseContext'
 import SplashAnimation from '../components/SplashAnimation'
 import { initOneSignal, requestPushPermission } from '../lib/notify'
 import { initAdmob } from '../lib/admob'
+
+// ── iOS 26 beta Hermes 0.81.5 クラッシュ回避 ───────────────────────
+// Hermes の String.fromCodePoint ネイティブ実装にスタックバッファオーバー
+// フローのバグがある。アプリ起動時に純粋 JS 実装で上書きする。
+// (metro.config.js の getPolyfills でも同一ポリフィルを先行注入済み)
+;(function _patchFromCodePoint() {
+  if (typeof String.fromCodePoint !== 'function') return
+  const _orig = String.fromCodePoint
+  ;(String as any).fromCodePoint = function safeFromCodePoint() {
+    var result = ''
+    for (var i = 0; i < arguments.length; i++) {
+      var cp: number = Number(arguments[i])
+      if (isNaN(cp) || cp < 0 || cp > 0x10FFFF || Math.floor(cp) !== cp) {
+        result += '?'; continue
+      }
+      if (cp <= 0xFFFF) {
+        result += String.fromCharCode(cp)
+      } else {
+        var adj = cp - 0x10000
+        result += String.fromCharCode(0xD800 + (adj >> 10), 0xDC00 + (adj & 0x3FF))
+      }
+    }
+    return result
+  }
+})()
+
+// ── グローバル React エラーバウンダリ ─────────────────────────────
+// JS 例外がコンポーネントツリーで未捕捉になっても黒画面/クラッシュに
+// ならないように、全体を囲むエラーバウンダリで安全に捕捉する。
+interface EBState { hasError: boolean; errorMsg: string }
+class AppErrorBoundary extends Component<{ children: React.ReactNode }, EBState> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props)
+    this.state = { hasError: false, errorMsg: '' }
+  }
+  static getDerivedStateFromError(error: any): EBState {
+    return { hasError: true, errorMsg: String(error?.message ?? error) }
+  }
+  componentDidCatch(error: any, info: any) {
+    console.error('[AppErrorBoundary] Uncaught error:', error, info?.componentStack ?? '')
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={{ flex: 1, backgroundColor: '#0a0a0a', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+          <Text style={{ color: '#e5e7eb', fontSize: 20, fontWeight: '700', textAlign: 'center', marginBottom: 12 }}>
+            申し訳ありません
+          </Text>
+          <Text style={{ color: '#6b7280', fontSize: 14, textAlign: 'center', lineHeight: 22 }}>
+            エラーが発生しました。アプリを再起動してください。
+          </Text>
+          {__DEV__ && (
+            <Text style={{ color: '#ef4444', fontSize: 11, textAlign: 'center', marginTop: 16 }}>
+              {this.state.errorMsg}
+            </Text>
+          )}
+        </View>
+      )
+    }
+    return this.props.children
+  }
+}
 
 const CONSENT_KEY = 'score_terms_accepted_v1'
 
@@ -394,14 +456,21 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     const inAuth        = segments[0] === 'auth'
     const inOnboarding  = segments[0] === 'onboarding'
     const inPublic      = segments[0] === 'coach-landing' || segments[0] === 'guide'
+    const inPaywall     = segments[0] === 'paywall'   // オンボーディング→ペイウォール遷移中も許可
     const authed        = !!user || isGuest
 
     // OAuth リダイレクト後はルート URL '/' に着地する（app/index.tsx が存在しないため空白画面）
     // → 認証済みなら適切な画面へ送る
-    if (authed && segments.length === 0) {
+    if (authed && (segments as string[]).length === 0) {
       router.replace(!isOnboarded ? '/onboarding' : '/(tabs)')
       return
     }
+
+    // Web OAuth コールバック中（?code= / #access_token=）は Supabase がコード交換を完了するまで待つ
+    // loading=false になった後でも交換が進行中の場合があるため、/auth へのリダイレクトをブロック
+    const hasOAuthParams = typeof window !== 'undefined' &&
+      (window.location.search.includes('code=') || window.location.hash.includes('access_token='))
+    if (!authed && hasOAuthParams) return
 
     // 未認証 → /auth へ（公開ページは除く）
     if (!authed && !inAuth && !inPublic) {
@@ -420,13 +489,15 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     }
 
     // 認証済みでオンボーディング未完了 → /onboarding
-    if (authed && !isOnboarded && !inOnboarding) {
+    // ペイウォールはオンボーディングStep5からの遷移中なので除外
+    if (authed && !isOnboarded && !inOnboarding && !inPublic && !inPaywall) {
       router.replace('/onboarding')
       return
     }
 
     // オンボーディング済みでオンボーディングにいる → tabs
-    if (authed && isOnboarded && inOnboarding) {
+    // ペイウォールに遷移中の場合は上書きしない
+    if (authed && isOnboarded && inOnboarding && !inPaywall) {
       router.replace('/(tabs)')
     }
   }, [user, loading, isGuest, isOnboarded, segments, consentAccepted])
@@ -610,12 +681,14 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <PurchaseProvider>
-          <RootLayoutNav />
-        </PurchaseProvider>
-      </AuthProvider>
-    </ThemeProvider>
+    <AppErrorBoundary>
+      <ThemeProvider>
+        <AuthProvider>
+          <PurchaseProvider>
+            <RootLayoutNav />
+          </PurchaseProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </AppErrorBoundary>
   )
 }

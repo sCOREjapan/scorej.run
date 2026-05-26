@@ -1,1 +1,23 @@
-{"version":"0.0.1","configurations":[{"name":"preview-static","runtimeExecutable":"npx","runtimeArgs":["serve","public","-p","4321","--no-clipboard"],"port":4321}]}
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "trackmate",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["expo", "start", "--web", "--port", "8082"],
+      "port": 8082
+    },
+    {
+      "name": "mockup",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8099"],
+      "port": 8099
+    },
+    {
+      "name": "lp",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8100"],
+      "port": 8100
+    }
+  ]
+}

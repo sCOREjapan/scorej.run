@@ -92,6 +92,7 @@ const SLEEP_KEY           = 'trackmate_sleep'
 const CONDITION_MAP_KEY   = 'trackmate_condition_map'
 const RECOVERY_KEY        = 'trackmate_recovery_records'
 const STRETCH_RESULT_KEY  = 'trackmate_stretch_result'
+const PLAYER_ICON_KEY     = 'score_player_icon'
 
 type Role = 'coach' | 'player'
 
@@ -119,7 +120,7 @@ const BODY_PARTS = [
 ]
 
 // ── デモメンバー（Supabaseにデータがない時のフォールバック）─
-type Member = { id: string; name: string; event: string; sessions: TrainingSession[]; lastActive: string; painParts?: string[]; painDetail?: string; ackedByCoach?: boolean }
+type Member = { id: string; name: string; event: string; icon?: string; sessions: TrainingSession[]; lastActive: string; painParts?: string[]; painDetail?: string; ackedByCoach?: boolean }
 const DEMO_MEMBERS: Member[] = [
   {
     id: 'demo-tanaka', name: '田中 翼', event: '100m / 200m',
@@ -265,15 +266,53 @@ function fatigueInfo(v: number) {
 }
 
 // ── 共通コンポーネント ────────────────────────────────────
-function Avatar({ name, size=40, color=BRAND }: { name:string; size?:number; color?:string }) {
+function Avatar({ name, size=40, color=BRAND, emoji }: { name:string; size?:number; color?:string; emoji?:string }) {
   return (
     <View style={{width:size,height:size,borderRadius:size/2,backgroundColor:color+'22',borderWidth:1.5,borderColor:color+'44',alignItems:'center',justifyContent:'center'}}>
-      <Text style={{color,fontSize:size*.38,fontWeight:'800'}}>{name.charAt(0)}</Text>
+      {emoji
+        ? <Text style={{fontSize:size*.52,lineHeight:size*.68}}>{emoji}</Text>
+        : <Text style={{color,fontSize:size*.38,fontWeight:'800'}}>{name.charAt(0)}</Text>
+      }
     </View>
   )
 }
 const AVATAR_COLORS = ['#FF3B30','#FF9500','#34C759','#007AFF','#AF52DE']
 function avatarColor(name: string) { return AVATAR_COLORS[name.charCodeAt(0)%AVATAR_COLORS.length] }
+
+const PLAYER_ICONS = ['🏃','🔥','⚡','🌟','🦁','🐯','🎯','💪','🏆','🥇','🎽','🦅','🌊','🐺','💎','🌙','☀️','🎪','🦊','🐉']
+
+function PlayerIconPicker({ visible, current, onSelect, onClose }: {
+  visible: boolean; current: string; onSelect: (emoji: string) => void; onClose: () => void
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.5)',justifyContent:'flex-end'}}>
+        <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose}/>
+        <View style={{backgroundColor:'#fff',borderTopLeftRadius:24,borderTopRightRadius:24,padding:20,paddingBottom:44,gap:0}}>
+          <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:16}}/>
+          <Text style={{fontSize:16,fontWeight:'800',color:'#111827',marginBottom:16}}>アイコンを選ぶ</Text>
+          <View style={{flexDirection:'row',flexWrap:'wrap',gap:10}}>
+            {PLAYER_ICONS.map(icon => (
+              <TouchableOpacity
+                key={icon}
+                style={{width:52,height:52,borderRadius:14,backgroundColor:current===icon?'rgba(52,199,89,0.15)':'#f3f4f6',alignItems:'center',justifyContent:'center',borderWidth:current===icon?2:0,borderColor:'#34C759'}}
+                onPress={() => onSelect(icon)}
+                activeOpacity={0.75}
+              >
+                <Text style={{fontSize:26}}>{icon}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {current !== '' && (
+            <TouchableOpacity style={{marginTop:16,alignItems:'center'}} onPress={() => onSelect('')}>
+              <Text style={{color:'#9ca3af',fontSize:13}}>アイコンをリセット（イニシャル表示に戻す）</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    </Modal>
+  )
+}
 
 // ─────────────────────────────────────────────────────────
 // BodyPartSelector — 痛い箇所セレクター
@@ -553,15 +592,16 @@ const COACH_FEATURES = [
 
 function CoachPaywallScreen({ onBack, onPurchased }: { onBack: () => void; onPurchased: () => void }) {
   const { packages, purchase, restore, tier, applyAccessCode } = usePurchase()
-  const [busy,        setBusy]        = useState(false)
-  const [showCode,    setShowCode]    = useState(false)
-  const [codeInput,   setCodeInput]   = useState('')
-  const [codeError,   setCodeError]   = useState('')
-  const [codeLoading, setCodeLoading] = useState(false)
+  const [busy,          setBusy]          = useState(false)
+  const [busyPro,       setBusyPro]       = useState(false)
+  const [showCode,      setShowCode]      = useState(false)
+  const [codeInput,     setCodeInput]     = useState('')
+  const [codeError,     setCodeError]     = useState('')
+  const [codeLoading,   setCodeLoading]   = useState(false)
 
-  // プラン購入後にtierがcoachになったら自動遷移
+  // プラン購入後にtierがcoachまたはcoach_proになったら自動遷移
   React.useEffect(() => {
-    if (tier === 'coach') onPurchased()
+    if (tier === 'coach' || tier === 'coach_pro') onPurchased()
   }, [tier, onPurchased])
 
   async function handleApplyCode() {
@@ -585,13 +625,29 @@ function CoachPaywallScreen({ onBack, onPurchased }: { onBack: () => void; onPur
       p?.offeringIdentifier === 'coach'
     )
     if (!coachPkg) {
-      // パッケージが見つからない場合はデモ購入（開発中フォールバック）
       Toast.show({ type: 'error', text1: 'パッケージが見つかりません', text2: 'App Storeの接続を確認してください', visibilityTime: 3000 })
       return
     }
     setBusy(true)
     const ok = await purchase(coachPkg)
     setBusy(false)
+    if (ok) onPurchased()
+  }
+
+  async function handlePurchasePro() {
+    // coach_proパッケージを探す（月額優先）
+    const coachProPkg = packages.find((p: any) =>
+      p?.product?.identifier === 'score_coach_pro_monthly' ||
+      p?.identifier === 'score_coach_pro_monthly' ||
+      p?.offeringIdentifier === 'coach_pro'
+    )
+    if (!coachProPkg) {
+      Toast.show({ type: 'error', text1: 'パッケージが見つかりません', text2: 'App Storeの接続を確認してください', visibilityTime: 3000 })
+      return
+    }
+    setBusyPro(true)
+    const ok = await purchase(coachProPkg)
+    setBusyPro(false)
     if (ok) onPurchased()
   }
 
@@ -616,54 +672,109 @@ function CoachPaywallScreen({ onBack, onPurchased }: { onBack: () => void; onPur
             <View style={{ width: 64, height: 64, borderRadius: 18, backgroundColor: COACH_GREEN + '44', borderWidth: 1.5, borderColor: COACH_GREEN + '88', alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="clipboard" size={32} color="#4ADE80" />
             </View>
-            <View style={{ backgroundColor: COACH_GREEN, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 3 }}>
-              <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>COACH PLAN</Text>
-            </View>
             <Text style={{ color: '#fff', fontSize: 24, fontWeight: '900', textAlign: 'center' }}>
-              チームを指導する{'\n'}全機能が使えます
+              コーチプランを選択
             </Text>
             <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, textAlign: 'center', lineHeight: 20 }}>
               コーチ・監督・顧問の先生向け{'\n'}チーム管理の完全版プランです
             </Text>
           </View>
 
-          {/* 価格 */}
-          <View style={{ backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', padding: 20, alignItems: 'center', gap: 4 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 4 }}>
-              <Text style={{ color: '#4ADE80', fontSize: 40, fontWeight: '900', lineHeight: 44 }}>¥2,980</Text>
-              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginBottom: 6 }}>/月</Text>
-            </View>
-            <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>年払い ¥29,800/年（¥2,483/月）</Text>
-          </View>
-
-          {/* 機能一覧 */}
-          <View style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(74,222,128,0.2)', padding: 16, gap: 10 }}>
-            <Text style={{ color: '#4ADE80', fontSize: 12, fontWeight: '800', letterSpacing: 0.8, marginBottom: 2 }}>含まれる機能</Text>
-            {COACH_FEATURES.map((f, i) => (
-              <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: COACH_GREEN + '66', alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name="checkmark" size={13} color="#4ADE80" />
-                </View>
-                <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, flex: 1 }}>{f}</Text>
+          {/* チームプラン（¥2,980） */}
+          <View style={{ backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 18, borderWidth: 1, borderColor: 'rgba(74,222,128,0.3)', padding: 20, gap: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={{ backgroundColor: COACH_GREEN, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 3 }}>
+                <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>チームプラン</Text>
               </View>
-            ))}
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 4 }}>
+              <Text style={{ color: '#4ADE80', fontSize: 36, fontWeight: '900', lineHeight: 40 }}>¥2,980</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginBottom: 4 }}>/月</Text>
+            </View>
+            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>年払い ¥29,800/年（¥2,483/月）</Text>
+
+            {/* 機能一覧 */}
+            <View style={{ gap: 8 }}>
+              {COACH_FEATURES.map((f, i) => (
+                <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: COACH_GREEN + '66', alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name="checkmark" size={13} color="#4ADE80" />
+                  </View>
+                  <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, flex: 1 }}>{f}</Text>
+                </View>
+              ))}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(156,163,175,0.3)', alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="close" size={13} color="#9ca3af" />
+                </View>
+                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, flex: 1 }}>AI機能なし</Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={[{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#16A34A', borderRadius: 14, paddingVertical: 15 }, busy && { opacity: 0.5 }]}
+              onPress={handlePurchase}
+              disabled={busy}
+              activeOpacity={0.85}
+            >
+              {busy
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <Ionicons name="shield-checkmark" size={18} color="#fff" />
+              }
+              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '900' }}>
+                {busy ? '処理中...' : 'チームプランを開始する'}
+              </Text>
+            </TouchableOpacity>
           </View>
 
-          {/* 購入ボタン */}
-          <TouchableOpacity
-            style={[{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#16A34A', borderRadius: 16, paddingVertical: 17, marginTop: 4 }, busy && { opacity: 0.5 }]}
-            onPress={handlePurchase}
-            disabled={busy}
-            activeOpacity={0.85}
-          >
-            {busy
-              ? <ActivityIndicator size="small" color="#fff" />
-              : <Ionicons name="shield-checkmark" size={20} color="#fff" />
-            }
-            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '900' }}>
-              {busy ? '処理中...' : 'コーチプランを開始する'}
-            </Text>
-          </TouchableOpacity>
+          {/* チームProプラン（¥4,980） */}
+          <View style={{ backgroundColor: 'rgba(217,119,6,0.08)', borderRadius: 18, borderWidth: 2, borderColor: '#d97706', padding: 20, gap: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={{ backgroundColor: '#d97706', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 3 }}>
+                <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>チームPro</Text>
+              </View>
+              <View style={{ backgroundColor: '#92400e', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 }}>
+                <Text style={{ color: '#fbbf24', fontSize: 10, fontWeight: '800' }}>おすすめ</Text>
+              </View>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 4 }}>
+              <Text style={{ color: '#fbbf24', fontSize: 36, fontWeight: '900', lineHeight: 40 }}>¥4,980</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginBottom: 4 }}>/月</Text>
+            </View>
+
+            {/* 機能一覧 */}
+            <View style={{ gap: 8 }}>
+              {COACH_FEATURES.map((f, i) => (
+                <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#d97706' + '66', alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name="checkmark" size={13} color="#fbbf24" />
+                  </View>
+                  <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, flex: 1 }}>{f}</Text>
+                </View>
+              ))}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#d97706' + '66', alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="checkmark" size={13} color="#fbbf24" />
+                </View>
+                <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, flex: 1, fontWeight: '700' }}>AI機能すべて完全無制限 ✨</Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={[{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#d97706', borderRadius: 14, paddingVertical: 15 }, busyPro && { opacity: 0.5 }]}
+              onPress={handlePurchasePro}
+              disabled={busyPro}
+              activeOpacity={0.85}
+            >
+              {busyPro
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <Ionicons name="star" size={18} color="#fff" />
+              }
+              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '900' }}>
+                {busyPro ? '処理中...' : 'チームProを開始する'}
+              </Text>
+            </TouchableOpacity>
+          </View>
 
           {/* 復元 */}
           <TouchableOpacity onPress={handleRestore} disabled={busy} style={{ alignItems: 'center', paddingVertical: 8 }} activeOpacity={0.7}>
@@ -1200,13 +1311,21 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
   }
 
   async function ackPain(playerName: string) {
-    await ackBodyReport(setup.code, playerName)
-    setBodyReports(prev => prev.map(r =>
-      r.player_name === playerName ? { ...r, acked_by_coach: true } : r,
-    ))
-    // シートを閉じず、detailMemberの状態を即時「確認済み」に更新して表示
-    setDetailMember(prev => prev ? { ...prev, ackedByCoach: true } : null)
-    Toast.show({ type: 'success', text1: '確認済みにしました ✓', visibilityTime: 1400 })
+    try {
+      const { error } = await supabase.from('team_body_reports')
+        .update({ acked_by_coach: true })
+        .eq('team_code', setup.code)
+        .eq('player_name', playerName)
+      if (error) throw new Error(error.message)
+      // ローカル即時更新（Realtimeが来ても acked_by_coach:true を維持）
+      setBodyReports(prev => prev.map(r =>
+        r.player_name === playerName ? { ...r, acked_by_coach: true } : r,
+      ))
+      setDetailMember(prev => prev ? { ...prev, ackedByCoach: true } : null)
+      Toast.show({ type: 'success', text1: '確認済みにしました ✓', visibilityTime: 1400 })
+    } catch (e: any) {
+      Toast.show({ type: 'error', text1: '確認に失敗しました', text2: e?.message ?? String(e), visibilityTime: 3000 })
+    }
   }
 
   async function addEvent() {
@@ -1233,11 +1352,17 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
     } catch (e: any) {
       console.error('[addEvent]', e)
       const msg = e?.message ?? String(e)
-      // テーブル未作成の場合はわかりやすいメッセージを出す
-      const hint = msg.includes('does not exist')
-        ? 'Supabaseでteam_eventsテーブルを作成してください'
-        : msg
-      Toast.show({ type: 'error', text1: '予定を追加できませんでした', text2: hint, visibilityTime: 4000 })
+      if (msg.includes('does not exist') || msg.includes('未設定')) {
+        Alert.alert(
+          '⚠️ テーブルが見つかりません',
+          'Supabaseダッシュボードの SQL エディタで schema.sql を実行してください。\n\ncreate table if not exists team_events (...)',
+          [{ text: 'OK' }],
+        )
+      } else if (msg.includes('violates check constraint')) {
+        Toast.show({ type: 'error', text1: '種別の値が無効です', text2: msg, visibilityTime: 4000 })
+      } else {
+        Toast.show({ type: 'error', text1: '予定を追加できませんでした', text2: msg, visibilityTime: 4000 })
+      }
     }
   }
 
@@ -1445,6 +1570,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
           id: m.id,
           name: m.player_name,
           event: m.event || '',
+          icon: m.icon || undefined,
           lastActive: m.joined_at,
           painParts: rpt?.parts ?? [],
           painDetail: rpt?.detail ?? '',
@@ -1681,13 +1807,11 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
                       activeOpacity={0.88}
                     >
                       <View style={{flexDirection:'row',alignItems:'center',gap:10}}>
-                        <Avatar name={m.name} size={34} color={avatarColor(m.name)}/>
+                        <Avatar name={m.name} size={34} color={avatarColor(m.name)} emoji={m.icon}/>
 
                         <View style={{flex:1,gap:1}}>
                           <Text style={{color:TEXT.primary,fontSize:14,fontWeight:'800'}} numberOfLines={1}>{m.name}</Text>
-                          <Text style={{color:TEXT.secondary,fontSize:11}} numberOfLines={1}>
-                            {m.event ?? '種目未設定'}{m.sessions.length > 0 ? `  ·  ${m.sessions.length}回` : ''}
-                          </Text>
+                          <Text style={{color:TEXT.secondary,fontSize:11}} numberOfLines={1}>{m.event || '種目未設定'}</Text>
                         </View>
 
                         {/* スコア */}
@@ -1760,22 +1884,51 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
                 </View>
               ) : (
                 <View style={{gap:8}}>
-                  {messages.map(msg => (
-                    <View key={msg.id} style={[co.msgCard, msg.is_pinned&&{borderColor:'#FF9500'+'50',backgroundColor:'rgba(255,149,0,0.06)'}]}>
-                      <View style={{flexDirection:'row',alignItems:'center',gap:6,marginBottom:6}}>
-                        {msg.is_pinned && <Ionicons name="pin" size={12} color="#FF9500"/>}
-                        <Text style={{color:BRAND,fontSize:12,fontWeight:'700',flex:1}}>{msg.author_name}</Text>
-                        <Text style={{color:'#555',fontSize:11}}>{timeAgo(msg.created_at)}</Text>
-                        <TouchableOpacity onPress={() => togglePin(msg.id, msg.is_pinned)} hitSlop={{top:8,bottom:8,left:8,right:8}}>
-                          <Ionicons name={msg.is_pinned?'pin':'pin-outline'} size={14} color={msg.is_pinned?'#FF9500':'#444'}/>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => deleteMsg(msg.id)} hitSlop={{top:8,bottom:8,left:8,right:8}}>
-                          <Ionicons name="trash-outline" size={14} color="#FF3B30"/>
-                        </TouchableOpacity>
+                  {messages.map(msg => {
+                    const isSystem = msg.author_name === '__system__'
+                    const sysType = isSystem
+                      ? msg.content.startsWith('[ABSENCE]') ? 'absence'
+                      : msg.content.startsWith('[VIDEO]')   ? 'video'
+                      : msg.content.startsWith('[RISK')     ? 'risk'
+                      : 'system'
+                      : null
+                    const sysBody = isSystem ? msg.content.replace(/^\[[A-Z_]+\]\s*/, '') : msg.content
+                    const sysIcon = sysType === 'absence' ? '🙏' : sysType === 'video' ? '🎥' : sysType === 'risk' ? '⚠️' : '📢'
+                    const sysColor = sysType === 'absence' ? '#FF9500' : sysType === 'video' ? BRAND : sysType === 'risk' ? '#E53935' : '#6b7280'
+                    const sysLabel = sysType === 'absence' ? '欠席報告' : sysType === 'video' ? '動画・フォーム分析' : sysType === 'risk' ? 'リスクアラート' : '通知'
+                    return isSystem ? (
+                      <View key={msg.id} style={{flexDirection:'row',alignItems:'flex-start',gap:10,backgroundColor:sysColor+'10',borderRadius:12,borderWidth:1,borderColor:sysColor+'30',padding:12}}>
+                        <View style={{width:32,height:32,borderRadius:10,backgroundColor:sysColor+'20',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:1}}>
+                          <Text style={{fontSize:16}}>{sysIcon}</Text>
+                        </View>
+                        <View style={{flex:1,gap:2}}>
+                          <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
+                            <Text style={{color:sysColor,fontSize:11,fontWeight:'800'}}>{sysLabel}</Text>
+                            <Text style={{color:'#999',fontSize:11}}>{timeAgo(msg.created_at)}</Text>
+                            <TouchableOpacity onPress={() => deleteMsg(msg.id)} hitSlop={{top:8,bottom:8,left:8,right:8}} style={{marginLeft:'auto'}}>
+                              <Ionicons name="close-outline" size={14} color="#ccc"/>
+                            </TouchableOpacity>
+                          </View>
+                          <Text style={{color:TEXT.primary,fontSize:13,lineHeight:20}}>{sysBody}</Text>
+                        </View>
                       </View>
-                      <Text style={{color:TEXT.primary,fontSize:14,lineHeight:22}}>{msg.content}</Text>
-                    </View>
-                  ))}
+                    ) : (
+                      <View key={msg.id} style={[co.msgCard, msg.is_pinned&&{borderColor:'#FF9500'+'50',backgroundColor:'rgba(255,149,0,0.06)'}]}>
+                        <View style={{flexDirection:'row',alignItems:'center',gap:6,marginBottom:6}}>
+                          {msg.is_pinned && <Ionicons name="pin" size={12} color="#FF9500"/>}
+                          <Text style={{color:BRAND,fontSize:12,fontWeight:'700',flex:1}}>{msg.author_name}</Text>
+                          <Text style={{color:'#555',fontSize:11}}>{timeAgo(msg.created_at)}</Text>
+                          <TouchableOpacity onPress={() => togglePin(msg.id, msg.is_pinned)} hitSlop={{top:8,bottom:8,left:8,right:8}}>
+                            <Ionicons name={msg.is_pinned?'pin':'pin-outline'} size={14} color={msg.is_pinned?'#FF9500':'#444'}/>
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => deleteMsg(msg.id)} hitSlop={{top:8,bottom:8,left:8,right:8}}>
+                            <Ionicons name="trash-outline" size={14} color="#FF3B30"/>
+                          </TouchableOpacity>
+                        </View>
+                        <Text style={{color:TEXT.primary,fontSize:14,lineHeight:22}}>{msg.content}</Text>
+                      </View>
+                    )
+                  })}
                 </View>
               )}
           </>
@@ -1812,14 +1965,25 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
                           </View>
                         </View>
                       </View>
-                      <TouchableOpacity
-                        style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6,backgroundColor:BRAND+'18',borderRadius:10,paddingVertical:10,marginTop:10,borderWidth:1,borderColor:BRAND+'30'}}
-                        onPress={() => { markWatched(v.id); Linking.openURL(v.url) }}
-                        activeOpacity={0.8}
-                      >
-                        <Ionicons name="open-outline" size={15} color={BRAND}/>
-                        <Text style={{color:BRAND,fontSize:13,fontWeight:'700'}}>動画を見る</Text>
-                      </TouchableOpacity>
+                      {v.url ? (
+                        <TouchableOpacity
+                          style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6,backgroundColor:BRAND+'18',borderRadius:10,paddingVertical:10,marginTop:10,borderWidth:1,borderColor:BRAND+'30'}}
+                          onPress={() => { markWatched(v.id); Linking.openURL(v.url) }}
+                          activeOpacity={0.8}
+                        >
+                          <Ionicons name="open-outline" size={15} color={BRAND}/>
+                          <Text style={{color:BRAND,fontSize:13,fontWeight:'700'}}>動画を見る</Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity
+                          style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6,backgroundColor:'rgba(0,0,0,0.04)',borderRadius:10,paddingVertical:10,marginTop:10,borderWidth:1,borderColor:'rgba(0,0,0,0.08)'}}
+                          onPress={() => markWatched(v.id)}
+                          activeOpacity={0.8}
+                        >
+                          <Ionicons name="checkmark-circle-outline" size={15} color={TEXT.secondary}/>
+                          <Text style={{color:TEXT.secondary,fontSize:13,fontWeight:'600'}}>確認済みにする</Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
                   ))}
                 </View>
@@ -2404,9 +2568,8 @@ function MemberDetailSheet({ member, preCalcRisk, onClose, onAck }: {
   return (
     <View style={[StyleSheet.absoluteFill,{backgroundColor:'rgba(0,0,0,0.85)',justifyContent:'flex-end'}]}>
       <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose}/>
-      <View style={{backgroundColor:'#ffffff',borderTopLeftRadius:24,borderTopRightRadius:24,paddingBottom:44,borderTopWidth:1,borderColor:'rgba(0,0,0,0.08)',overflow:'hidden'}}>
-
-
+      <View style={{backgroundColor:'#ffffff',borderTopLeftRadius:24,borderTopRightRadius:24,paddingBottom:44,borderTopWidth:1,borderColor:'rgba(0,0,0,0.08)',overflow:'hidden',maxHeight:SCREEN_H*0.88}}>
+        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={{padding:20}}>
           <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:16}}/>
 
@@ -2513,6 +2676,7 @@ function MemberDetailSheet({ member, preCalcRisk, onClose, onAck }: {
             参加日: {daysSince(member.lastActive)}
           </Text>
         </View>
+        </ScrollView>
       </View>
     </View>
   )
@@ -2632,6 +2796,8 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
   const [weatherBonus,      setWeatherBonus]      = useState(0)
   const [stretchReduction,  setStretchReduction]  = useState(0)
   const [plTab,             setPlTab]             = useState<'home'|'members'>('home')
+  const [playerIcon,        setPlayerIcon]        = useState('')
+  const [showIconPicker,    setShowIconPicker]    = useState(false)
   // ── 欠席報告 ────────────────────────────────────────────
   const [absenceNote,       setAbsenceNote]       = useState('')
   const [absenceSaving,     setAbsenceSaving]     = useState(false)
@@ -2639,7 +2805,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
 
   const load = useCallback(async () => {
     try {
-    const [sr, sleepRaw, condRaw, recovRaw, stretchRaw, msgs, mems, rpts, stats, teamSessions, evts, confirmedRaw] = await Promise.all([
+    const [sr, sleepRaw, condRaw, recovRaw, stretchRaw, msgs, mems, rpts, stats, teamSessions, evts, confirmedRaw, iconRaw] = await Promise.all([
       AsyncStorage.getItem(SESSIONS_KEY),
       AsyncStorage.getItem(SLEEP_KEY),
       AsyncStorage.getItem(CONDITION_MAP_KEY),
@@ -2652,12 +2818,15 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
       fetchTeamSessions(joined.code),
       fetchTeamEvents(joined.code),
       AsyncStorage.getItem(EVENT_CONFIRMED_KEY),
+      AsyncStorage.getItem(PLAYER_ICON_KEY),
     ])
-    const loadedSessions: TrainingSession[] = sr ? JSON.parse(sr) : []
+    let loadedSessions: TrainingSession[] = []
+    try { if (sr) loadedSessions = JSON.parse(sr) } catch {}
     setSessions(loadedSessions)
-    setSleepRecs(sleepRaw ? JSON.parse(sleepRaw) : [])
-    setConfirmedEventIds(new Set(confirmedRaw ? JSON.parse(confirmedRaw) : []))
-    setConditionMap(condRaw ? JSON.parse(condRaw) : {})
+    try { setSleepRecs(sleepRaw ? JSON.parse(sleepRaw) : []) } catch { setSleepRecs([]) }
+    try { setConfirmedEventIds(new Set(confirmedRaw ? JSON.parse(confirmedRaw) : [])) } catch { setConfirmedEventIds(new Set()) }
+    try { setConditionMap(condRaw ? JSON.parse(condRaw) : {}) } catch { setConditionMap({}) }
+    setPlayerIcon(iconRaw ?? '')
     // ホーム画面と完全一致の hasSymptom 計算：回復記録のみ（痛み報告は含めない）
     try {
       const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)
@@ -2730,6 +2899,18 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
     return () => clearInterval(t)
   }, [load])
 
+  async function savePlayerIcon(emoji: string) {
+    setPlayerIcon(emoji)
+    setShowIconPicker(false)
+    try { await AsyncStorage.setItem(PLAYER_ICON_KEY, emoji) } catch {}
+    // event フィールドを上書きしないよう icon カラムだけ update する
+    try {
+      await supabase.from('team_members')
+        .update({ icon: emoji })
+        .eq('id', `${joined.code}_${joined.playerName}`)
+    } catch {}
+  }
+
   // 予定の確認済みトグル（端末ローカル保存 / コーチへ送信なし）
   const toggleEventConfirm = useCallback(async (eventId: string) => {
     setConfirmedEventIds(prev => {
@@ -2769,9 +2950,11 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
   // 通知許可 + タグ登録
   useEffect(() => {
     (async () => {
-      await initOneSignal()
-      await requestPushPermission()
-      await registerUserTags('player', joined.code)
+      try {
+        await initOneSignal()
+        await requestPushPermission()
+        await registerUserTags('player', joined.code)
+      } catch {}
     })()
   }, [joined.code])
 
@@ -2830,8 +3013,8 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
     const effective = Math.min(100, Math.max(0, base.riskScore + weatherBonus - stretchReduction))
     return { ...base, riskScore: effective }
   }, [sessions, sleepRecs, avgCondLv, hasSymptom, weatherBonus, stretchReduction])
-  const pinned  = messages.filter(m => m.is_pinned)
-  const regular = messages.filter(m => !m.is_pinned)
+  const pinned  = messages.filter(m => m.is_pinned && m.author_name !== '__system__')
+  const regular = messages.filter(m => !m.is_pinned && m.author_name !== '__system__')
 
   return (
     <View style={{flex:1,backgroundColor:'#f6f6f8'}}>
@@ -2845,14 +3028,23 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
           <>
             {/* ─ 固定ヘッダー ─ */}
             <View style={{paddingHorizontal:16,paddingTop:12,paddingBottom:10,backgroundColor:'#f6f6f8'}}>
-              <View style={{flexDirection:'row',alignItems:'flex-start',justifyContent:'space-between',marginBottom:10}}>
-                <View style={{gap:2}}>
-                  <Text style={{color:TEXT.primary,fontSize:20,fontWeight:'800'}}>{joined.teamName}</Text>
-                  <View style={{flexDirection:'row',gap:6,alignItems:'center',marginTop:2}}>
-                    <View style={{backgroundColor:'#34C759'+'20',borderRadius:6,paddingHorizontal:7,paddingVertical:2}}>
-                      <Text style={{color:'#34C759',fontSize:11,fontWeight:'700'}}>選手</Text>
+              <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+                <View style={{flexDirection:'row',alignItems:'center',gap:10,flex:1}}>
+                  {/* タップでアイコン変更 */}
+                  <TouchableOpacity onPress={() => setShowIconPicker(true)} activeOpacity={0.8} style={{position:'relative'}}>
+                    <Avatar name={joined.playerName} size={44} color={BRAND} emoji={playerIcon||undefined}/>
+                    <View style={{position:'absolute',bottom:0,right:0,backgroundColor:'#34C759',borderRadius:5,width:14,height:14,alignItems:'center',justifyContent:'center'}}>
+                      <Ionicons name="pencil" size={8} color="#fff"/>
                     </View>
-                    <Text style={{color:'#555',fontSize:11}}>{joined.playerName}　コーチ: {joined.coachName}</Text>
+                  </TouchableOpacity>
+                  <View style={{gap:2,flex:1}}>
+                    <Text style={{color:TEXT.primary,fontSize:18,fontWeight:'800'}} numberOfLines={1}>{joined.teamName}</Text>
+                    <View style={{flexDirection:'row',gap:6,alignItems:'center'}}>
+                      <View style={{backgroundColor:'#34C759'+'20',borderRadius:6,paddingHorizontal:7,paddingVertical:2}}>
+                        <Text style={{color:'#34C759',fontSize:11,fontWeight:'700'}}>選手</Text>
+                      </View>
+                      <Text style={{color:'#555',fontSize:11}} numberOfLines={1}>{joined.playerName}</Text>
+                    </View>
                   </View>
                 </View>
                 <View style={{flexDirection:'row',gap:8,alignItems:'center'}}>
@@ -3402,6 +3594,13 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
         onClose={() => setShowMenu(false)}
       />
 
+      <PlayerIconPicker
+        visible={showIconPicker}
+        current={playerIcon}
+        onSelect={savePlayerIcon}
+        onClose={() => setShowIconPicker(false)}
+      />
+
       {/* チームメイト詳細シート */}
       {selectedTeammate && (
         <TeammateProfileSheet
@@ -3559,7 +3758,7 @@ export default function TeamScreen() {
           const subRaw = await AsyncStorage.getItem('trackmate_subscription').catch(() => null)
           let subTier = 'free'
           try { subTier = subRaw ? (JSON.parse(subRaw)?.plan ?? 'free') : 'free' } catch {}
-          if (subTier !== 'coach') {
+          if (subTier !== 'coach' && subTier !== 'coach_pro') {
             // プラン未購入または期限切れ → ペイウォールへ
             setState('coach-paywall')
             return
@@ -3578,8 +3777,8 @@ export default function TeamScreen() {
   // ロール選択 — コーチはplan検証あり
   async function handleSelectRole(role: Role) {
     if (role === 'coach') {
-      // コーチプランを持っていなければペイウォールへ
-      if (tier !== 'coach') {
+      // コーチプラン（coach または coach_pro）を持っていなければペイウォールへ
+      if (tier !== 'coach' && tier !== 'coach_pro') {
         setState('coach-paywall')
         return
       }

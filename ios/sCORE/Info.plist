@@ -34,7 +34,7 @@
       </dict>
     </array>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>$(CURRENT_PROJECT_VERSION)</string>
     <key>GADApplicationIdentifier</key>
     <string>ca-app-pub-6225795381877305~3874907264</string>
     <key>GADDelayAppMeasurementInit</key>
@@ -55,11 +55,11 @@
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
     <string>天気情報と怪我リスク計算のために現在地を使用します</string>
     <key>NSLocationAlwaysUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your location</string>
+    <string>天気情報と怪我リスク計算のために現在地を使用します</string>
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>天気情報と怪我リスク計算のために現在地を使用します</string>
     <key>NSMicrophoneUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your microphone</string>
+    <string>動画フォーム分析のためマイクを使用します</string>
     <key>NSPhotoLibraryAddUsageDescription</key>
     <string>シェアカードをカメラロールに保存するために写真ライブラリへのアクセスが必要です</string>
     <key>NSPhotoLibraryUsageDescription</key>

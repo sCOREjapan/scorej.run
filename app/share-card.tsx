@@ -416,7 +416,7 @@ export default function ShareCardScreen() {
         Toast.show({ type: 'error', text1: '写真ライブラリへのアクセスを許可してください' })
         return
       }
-      const uri = await captureRef(previewRef, { format: 'png', quality: 1 })
+      const uri = await captureRef(previewRef, { format: 'png', quality: 1, transparent: true } as any)
       await MediaLibrary.saveToLibraryAsync(uri)
       Toast.show({ type: 'success', text1: 'カメラロールに保存しました 📸', visibilityTime: 2000 })
     } catch {
@@ -705,7 +705,7 @@ const s = StyleSheet.create({
   hintRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 7, backgroundColor: BRAND + '15', borderRadius: 10, padding: 12, borderWidth: 1, borderColor: BRAND + '30' },
   hintTxt: { color: 'rgba(255,255,255,0.65)', fontSize: 12, flex: 1, lineHeight: 18 },
 
-  previewWrap: { maxWidth: 340, alignSelf: 'center', width: '100%' },
+  previewWrap: { maxWidth: 340, alignSelf: 'center', width: '100%', backgroundColor: 'transparent' },
 
   actions:  { gap: 10 },
   dlBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, backgroundColor: BRAND, borderRadius: 14, paddingVertical: 15 },

@@ -137,7 +137,8 @@ function AddEventModal({
     unlockAudio(); setSaving(true)
     try {
       const raw = await AsyncStorage.getItem(EVENTS_KEY)
-      let events: CalendarEvent[] = raw ? JSON.parse(raw) : []
+      let events: CalendarEvent[] = []
+      try { if (raw) events = JSON.parse(raw) } catch {}  // データ破損でも新規保存を継続
       if (editEvent) {
         events = events.map(e => e.id === editEvent.id
           ? { ...e, title: title.trim(), category, notes: notes.trim() || undefined }
@@ -357,13 +358,15 @@ export default function CalendarScreen() {
   }
 
   async function openEdit(eventId: string) {
-    const raw = await AsyncStorage.getItem(EVENTS_KEY)
-    if (!raw) return
-    const events: CalendarEvent[] = JSON.parse(raw)
-    const ev = events.find(e => e.id === eventId)
-    if (!ev) return
-    setEditEvent(ev)
-    setModalVisible(true)
+    try {
+      const raw = await AsyncStorage.getItem(EVENTS_KEY)
+      if (!raw) return
+      const events: CalendarEvent[] = JSON.parse(raw)
+      const ev = events.find(e => e.id === eventId)
+      if (!ev) return
+      setEditEvent(ev)
+      setModalVisible(true)
+    } catch { /* ignore */ }
   }
 
   // 過去制限なし・未来は5ヶ月先まで

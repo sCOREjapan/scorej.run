@@ -139,21 +139,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Native: PKCE + in-app browser
       const redirectTo = AuthSession.makeRedirectUri({ scheme: 'score', path: 'auth-callback' })
+      console.log('[Google OAuth] redirectTo:', redirectTo)
 
       const { data, error } = await (supabase.auth as any).signInWithOAuth({
         provider: 'google',
         options:  { redirectTo, skipBrowserRedirect: true },
       })
       if (error || !data?.url) {
-        if (error) Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: error.message })
+        const msg = error?.message ?? 'OAuth URL取得失敗'
+        console.log('[Google OAuth] Step1 error:', msg)
+        Toast.show({ type: 'error', text1: 'Googleログイン失敗 [Step1]', text2: msg, visibilityTime: 5000 })
+        return
+      }
+      console.log('[Google OAuth] OAuth URL取得成功')
+
+      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo)
+      console.log('[Google OAuth] browser result type:', result.type)
+      if (result.type !== 'success' || !result.url) {
+        if (result.type === 'cancel' || result.type === 'dismiss') {
+          // ユーザーがキャンセルした場合は何もしない
+          return
+        }
+        Toast.show({ type: 'error', text1: 'Googleログイン失敗 [Step2]', text2: `ブラウザ結果: ${result.type}`, visibilityTime: 5000 })
         return
       }
 
-      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo)
-      if (result.type !== 'success' || !result.url) return
-
       const { error: exchError } = await (supabase.auth as any).exchangeCodeForSession(result.url)
       if (exchError) {
+        console.log('[Google OAuth] exchangeCode error:', exchError.message)
         try {
           const hash = result.url.split('#')[1] ?? ''
           const get  = (k: string) =>
@@ -162,14 +175,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (accessToken && refreshToken) {
             await (supabase.auth as any).setSession({ access_token: accessToken, refresh_token: refreshToken })
           } else {
-            Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: exchError.message })
+            Toast.show({ type: 'error', text1: 'Googleログイン失敗 [Step3]', text2: exchError.message, visibilityTime: 5000 })
           }
         } catch {
-          Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: exchError.message })
+          Toast.show({ type: 'error', text1: 'Googleログイン失敗 [Step3]', text2: exchError.message, visibilityTime: 5000 })
         }
       }
     } catch (e: any) {
-      Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: e?.message ?? 'エラーが発生しました' })
+      const msg = e?.message ?? 'エラーが発生しました'
+      console.log('[Google OAuth] catch error:', msg)
+      Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: msg, visibilityTime: 5000 })
     }
   }, [])
 
@@ -383,6 +398,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsGuest(true)
     setLoading(false)
     // ゲストはオンボーディング済みとして扱う（onboarding.tsx で別途処理）
+    // アクセスコード・サブスクキャッシュをクリア（前ユーザーの課金状態を引き継がせない）
+    AsyncStorage.multiRemove(['score_access_code', 'trackmate_subscription', 'score_trial_coupon']).catch(() => {})
   }, [])
 
   // ── ゲスト解除（設定画面の「ログイン」ボタン用） ─────────

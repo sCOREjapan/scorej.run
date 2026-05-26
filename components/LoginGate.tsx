@@ -24,7 +24,7 @@ export default function LoginGate({ children, featureName = 'AI機能' }: LoginG
     AsyncStorage.getItem('userId').then(id => {
       const isGuest = !id || id.startsWith('guest_') || id === 'guest'
       setStatus(isGuest ? 'guest' : 'user')
-    })
+    }).catch(() => setStatus('guest'))
   }, [])
 
   if (status === 'loading') {

@@ -1,0 +1,69 @@
+diff --git a/node_modules/@expo/vector-icons/build/createIconSet.js b/node_modules/@expo/vector-icons/build/createIconSet.js
+index 48982ea..3c0661c 100644
+--- a/node_modules/@expo/vector-icons/build/createIconSet.js
++++ b/node_modules/@expo/vector-icons/build/createIconSet.js
+@@ -4,6 +4,13 @@ import { Text, PixelRatio, } from 'react-native';
+ import createIconSet from './vendor/react-native-vector-icons/lib/create-icon-set';
+ import createIconButtonComponent from './vendor/react-native-vector-icons/lib/icon-button';
+ export { DEFAULT_ICON_COLOR, DEFAULT_ICON_SIZE, } from './vendor/react-native-vector-icons/lib/create-icon-set';
++// iOS 26 beta Hermes workaround – see create-icon-set.js for details
++function _safeFromCodePoint(cp) {
++    if (typeof cp !== 'number' || cp < 0 || cp > 0x10FFFF) return '?';
++    if (cp <= 0xFFFF) return String.fromCharCode(cp);
++    var adj = cp - 0x10000;
++    return String.fromCharCode(0xD800 + (adj >> 10), 0xDC00 + (adj & 0x3FF));
++}
+ export default function (glyphMap, fontName, expoAssetId, fontStyle) {
+     const font = { [fontName]: expoAssetId };
+     const RNVIconComponent = createIconSet(glyphMap, fontName, null, fontStyle);
+@@ -26,7 +33,7 @@ export default function (glyphMap, fontName, expoAssetId, fontStyle) {
+                 return null;
+             }
+             await Font.loadAsync(font);
+-            const renderToImageResult = await Font.renderToImageAsync(String.fromCodePoint(glyphMap[name]), {
++            const renderToImageResult = await Font.renderToImageAsync(_safeFromCodePoint(glyphMap[name]), {
+                 fontFamily: fontName,
+                 color: color,
+                 size,
+diff --git a/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/lib/create-icon-set.js b/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/lib/create-icon-set.js
+index 5847373..c636833 100644
+--- a/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/lib/create-icon-set.js
++++ b/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/lib/create-icon-set.js
+@@ -5,6 +5,19 @@ import ensureNativeModuleAvailable from './ensure-native-module-available';
+ import createIconSourceCache from './create-icon-source-cache';
+ import createIconButtonComponent from './icon-button';
+ 
++// iOS 26 beta / Hermes 0.81.5 workaround: String.fromCodePoint has a stack
++// buffer overflow bug in Hermes on iOS 26 beta (23E261).  All icon fonts use
++// Private-Use-Area code points (0xE000–0xF8FF), which are entirely within
++// the BMP (≤ 0xFFFF), so String.fromCharCode is a correct, safe replacement.
++// For code points above 0xFFFF we fall back to manual surrogate-pair math,
++// which also avoids the buggy native path.
++function _safeFromCodePoint(cp) {
++  if (typeof cp !== 'number' || cp < 0 || cp > 0x10FFFF) return '?';
++  if (cp <= 0xFFFF) return String.fromCharCode(cp);
++  var adj = cp - 0x10000;
++  return String.fromCharCode(0xD800 + (adj >> 10), 0xDC00 + (adj & 0x3FF));
++}
++
+ export const NativeIconAPI =
+   NativeModules.RNVectorIconsManager || NativeModules.RNVectorIconsModule;
+ 
+@@ -42,7 +55,7 @@ export default function createIconSet(
+ 
+       let glyph = name ? glyphMap[name] || '?' : '';
+       if (typeof glyph === 'number') {
+-        glyph = String.fromCodePoint(glyph);
++        glyph = _safeFromCodePoint(glyph);
+       }
+ 
+       const styleDefaults = {
+@@ -72,7 +85,7 @@ export default function createIconSet(
+   function resolveGlyph(name) {
+     const glyph = glyphMap[name] || '?';
+     if (typeof glyph === 'number') {
+-      return String.fromCodePoint(glyph);
++      return _safeFromCodePoint(glyph);
+     }
+     return glyph;
+   }

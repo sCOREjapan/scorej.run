@@ -24,8 +24,8 @@ const PLANS = [
     tagline:        '本格的に強くなりたい選手へ',
     titleText:      'sCORE PRO で\n練習を武器にする',
     monthlyPrice:   '¥480',
-    annualPrice:    '¥4,320',
-    annualMonthly:  '¥360',
+    annualPrice:    '¥4,800',
+    annualMonthly:  '¥400',
     productMonthly: 'score_pro_monthly',
     productAnnual:  'score_pro_annual',
   },
@@ -36,8 +36,8 @@ const PLANS = [
     tagline:        '本気で結果を出したい選手へ',
     titleText:      'sCORE ELITE で\n記録を限界突破する',
     monthlyPrice:   '¥980',
-    annualPrice:    '¥8,820',
-    annualMonthly:  '¥735',
+    annualPrice:    '¥9,800',
+    annualMonthly:  '¥816',
     productMonthly: 'score_elite_monthly',
     productAnnual:  'score_elite_annual',
   },
@@ -194,7 +194,7 @@ export default function PaywallScreen() {
             <View style={[st.planCard, { borderColor: plan.color }]}>
               {period === 'annual' && (
                 <View style={[st.saveBadge, { backgroundColor: plan.color }]}>
-                  <Text style={st.saveBadgeText}>3ヶ月分お得</Text>
+                  <Text style={st.saveBadgeText}>2ヶ月分お得</Text>
                 </View>
               )}
               <View style={st.planCardInner}>
@@ -219,24 +219,25 @@ export default function PaywallScreen() {
 
               {selectedPlan === 'pro' ? (
                 <>
+                  <FeatRow color={plan.color} text="バナー・全広告 完全非表示 🚫" bold />
                   <FeatRow color={plan.color} text="AI練習分析コーチ 月30回" />
                   <FeatRow color={plan.color} text="動画フォーム分析 月30回" />
                   <FeatRow color={plan.color} text="AI食事・栄養分析 月30回" />
                   <FeatRow color={plan.color} text="AIリカバリー相談 月30回" />
                   <FeatRow color={plan.color} text="CSVエクスポート 月1回" />
-                  <FeatRow color={plan.color} text="広告なしで快適に使える" />
                 </>
               ) : (
                 <>
-                  <FeatRow color={plan.color} text="PROの全機能（広告なし）" bold />
-                  <FeatRow color={plan.color} text="AI機能すべて 完全無制限" />
+                  <FeatRow color={plan.color} text="バナー・全広告 完全非表示 🚫" bold />
+                  <FeatRow color={plan.color} text="PROの全機能" />
+                  <FeatRow color={plan.color} text="AI機能すべて 完全無制限" bold />
                   <FeatRow color={plan.color} text="CSVエクスポート 無制限" />
                 </>
               )}
 
               <View style={st.featDivider} />
               <Text style={st.featFreeNote}>
-                FREE でも: 練習ログ無制限 / タイム記録全期間 / 怪我リスク診断 / AIリカバリー相談
+                FREE でも: 練習ログ無制限 / タイム記録全期間 / 怪我リスク診断{'\n'}※ FREE は広告あり / AI機能は1日1〜3回制限あり
               </Text>
             </View>
 

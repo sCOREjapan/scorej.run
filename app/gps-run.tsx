@@ -91,8 +91,10 @@ export default function GpsRunScreen() {
   // ─── 権限チェック ─────────────────────────────────────────────────
   useEffect(() => {
     ;(async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync()
-      setPermissionStatus(status === 'granted' ? 'granted' : 'denied')
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync()
+        setPermissionStatus(status === 'granted' ? 'granted' : 'denied')
+      } catch { setPermissionStatus('denied') }
     })()
     return () => {
       stopTimer()
@@ -218,7 +220,8 @@ export default function GpsRunScreen() {
   async function saveSession(distM: number, ms: number) {
     try {
       const raw = await AsyncStorage.getItem(SESSIONS_KEY)
-      const existing: TrainingSession[] = raw ? JSON.parse(raw) : []
+      let existing: TrainingSession[] = []
+      try { if (raw) existing = JSON.parse(raw) } catch {}  // データ破損でも新規保存を継続
       const newSession: TrainingSession = {
         id: `gps_${Date.now()}`,
         user_id: MOCK_USER_ID,

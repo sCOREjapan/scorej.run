@@ -30,7 +30,8 @@ export function useTrainingSessions(): UseTrainingSessionsReturn {
     setError(null)
     try {
       const raw = await AsyncStorage.getItem(SESSIONS_KEY)
-      const data: TrainingSession[] = raw ? JSON.parse(raw) : []
+      let data: TrainingSession[] = []
+      try { if (raw) data = JSON.parse(raw) } catch {}  // データ破損でも空配列で継続
       setSessions(data)
       setLoading('success')
     } catch (err) {

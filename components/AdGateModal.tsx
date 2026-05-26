@@ -33,6 +33,7 @@ interface Props {
   remaining?:   number   // 残り無料回数
   rewardUses?:  number   // 広告で獲得済みの残りリワード回数
   hardLimited?: boolean
+  limitType?:   'none' | 'daily' | 'monthly' | 'total'   // ← 制限種別（メッセージ分岐用）
   isGuest?:     boolean
   onClose:      () => void
   onAdWatched:  () => void  // 「今回は使う」「リワード使用」ボタン
@@ -41,7 +42,7 @@ interface Props {
 
 export default function AdGateModal({
   visible, feature, remaining = 0, rewardUses = 0, hardLimited = false,
-  isGuest = false, onClose, onAdWatched, onUpgrade,
+  limitType = 'none', isGuest = false, onClose, onAdWatched, onUpgrade,
 }: Props) {
   const router = useRouter()
   const featureName = FEATURE_LABELS[feature] ?? '機能'
@@ -147,8 +148,20 @@ export default function AdGateModal({
   }
 
   // ─────────────────────────────────────────────────────────
-  // 今日は使用済み or PRO上限
+  // 今日 / 今月 / 無料枠 を使い切った
   if (hardLimited) {
+    const isMonthly = limitType === 'monthly'
+    const isTotal   = limitType === 'total'
+    const limitTitle = isMonthly ? '今月は使い切りました'
+                     : isTotal   ? '無料枠を使い切りました'
+                     :             '今日は使い切りました'
+    const limitSub   = isMonthly
+      ? `${featureName}の今月の上限に達しました。\nELITEプランなら完全無制限です。`
+      : isTotal
+      ? `${featureName}の無料回数を使い切りました。\nアップグレードで続けて使えます。`
+      : `${featureName}は毎日1回、広告を見て無料で使えます。\n明日また使えます。`
+    const proLabel   = isMonthly ? 'ELITEプラン ¥980/月で完全無制限に'
+                                 : 'PROプラン ¥480/月で月30回使い放題'
     return (
       <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
         <View style={st.overlay}>
@@ -157,19 +170,19 @@ export default function AdGateModal({
             <View style={[st.iconWrap, { backgroundColor: 'rgba(220,38,38,0.2)' }]}>
               <Ionicons name="lock-closed" size={32} color="#f87171" />
             </View>
-            <Text style={st.title}>今日は使い切りました</Text>
-            <Text style={st.sub}>
-              {featureName}は毎日1回、広告を見て無料で使えます。{'\n'}明日また使えます。
-            </Text>
-            <TouchableOpacity style={[st.primaryBtn, { backgroundColor: PRO_COLOR }]} onPress={onUpgrade} activeOpacity={0.85}>
+            <Text style={st.title}>{limitTitle}</Text>
+            <Text style={st.sub}>{limitSub}</Text>
+            <TouchableOpacity style={[st.primaryBtn, { backgroundColor: isMonthly ? ELITE_COLOR : PRO_COLOR }]} onPress={onUpgrade} activeOpacity={0.85}>
               <Ionicons name="star-outline" size={18} color="#fff" />
-              <Text style={st.primaryBtnTxt}>PROプラン ¥480/月で月30回使い放題</Text>
+              <Text style={st.primaryBtnTxt}>{proLabel}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={st.eliteRow} onPress={onUpgrade} activeOpacity={0.8}>
-              <View style={[st.planBadge, { backgroundColor: ELITE_COLOR }]}><Text style={st.planBadgeTxt}>ELITE</Text></View>
-              <Text style={st.upgradeTxt}>完全無制限は ELITEプラン ¥980/月</Text>
-              <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.4)" />
-            </TouchableOpacity>
+            {!isMonthly && (
+              <TouchableOpacity style={st.eliteRow} onPress={onUpgrade} activeOpacity={0.8}>
+                <View style={[st.planBadge, { backgroundColor: ELITE_COLOR }]}><Text style={st.planBadgeTxt}>ELITE</Text></View>
+                <Text style={st.upgradeTxt}>完全無制限は ELITEプラン ¥980/月</Text>
+                <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.4)" />
+              </TouchableOpacity>
+            )}
             <TouchableOpacity style={st.cancelBtn} onPress={onClose} activeOpacity={0.7}>
               <Text style={st.cancelTxt}>今はしない</Text>
             </TouchableOpacity>

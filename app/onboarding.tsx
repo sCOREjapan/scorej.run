@@ -177,7 +177,7 @@ export default function OnboardingScreen() {
     }
   }, [category])
 
-  const handleFinish = useCallback(async (skipNav = false) => {
+  const handleFinish = useCallback(async (skipNav = false, goPaywall = false) => {
     unlockAudio(); Sounds.save()
 
     const profile = {
@@ -194,14 +194,21 @@ export default function OnboardingScreen() {
     }
 
     await AsyncStorage.setItem('trackmate_my_profile', JSON.stringify(profile)).catch(() => {})
-    await setOnboarded()
 
-    Toast.show({
-      type: 'success',
-      text1: `ようこそ、${profile.name}さん！`,
-      text2: '一緒に記録を伸ばしていこう 🏃',
-    })
-    if (!skipNav) router.replace('/(tabs)')
+    if (goPaywall) {
+      // ペイウォールへ先にナビゲートしてから setOnboarded を呼ぶ
+      // → AuthGate が /(tabs) に上書きする前に segments が変わるのでレース条件を回避
+      router.replace('/paywall')
+      await setOnboarded()
+    } else {
+      await setOnboarded()
+      Toast.show({
+        type: 'success',
+        text1: `ようこそ、${profile.name}さん！`,
+        text2: '一緒に記録を伸ばしていこう 🏃',
+      })
+      if (!skipNav) router.replace('/(tabs)')
+    }
   }, [name, event, category, experience, age, pb, user, setOnboarded, router])
 
   const canNextStep1 = name.trim().length >= 1
@@ -382,58 +389,128 @@ export default function OnboardingScreen() {
               </View>
             )}
             {step === 5 && (
-              <View style={{ gap: 20, backgroundColor: '#1a1a2e', borderRadius: 24, padding: 20, marginTop: -4 }}>
+              <View style={{ gap: 14 }}>
                 <View style={styles.titleArea}>
                   <Text style={styles.emoji}>🚀</Text>
-                  <Text style={[styles.title, { color: '#fff' }]}>プランを選んで{'\n'}始めよう</Text>
-                  <Text style={[styles.sub, { color: 'rgba(255,255,255,0.6)' }]}>いつでも変更・解約できます</Text>
+                  <Text style={styles.title}>プランを選んで{'\n'}始めよう</Text>
+                  <Text style={styles.sub}>いつでも変更・解約できます</Text>
                 </View>
 
-                {/* FREE */}
+                {/* ── PRO おすすめ（最上段・一番目立つ） ── */}
                 <TouchableOpacity
-                  style={[styles.planCard, { borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.06)' }]}
-                  onPress={() => handleFinish()}
-                  activeOpacity={0.85}
+                  onPress={() => handleFinish(false, true)}
+                  activeOpacity={0.88}
+                  style={{
+                    backgroundColor: '#fff',
+                    borderRadius: 20,
+                    borderWidth: 2,
+                    borderColor: BRAND,
+                    padding: 20,
+                    shadowColor: BRAND,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.18,
+                    shadowRadius: 16,
+                    elevation: 6,
+                  }}
                 >
-                  <View style={{ flex: 1, gap: 4 }}>
-                    <Text style={[styles.planLabel, { color: '#fff' }]}>FREE</Text>
-                    <Text style={[styles.planPrice, { color: 'rgba(255,255,255,0.9)' }]}>¥0 / 月</Text>
-                    <Text style={[styles.planDesc, { color: 'rgba(255,255,255,0.5)' }]}>AI機能 1日1回（広告視聴）• 練習ログ無制限</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.3)" />
-                </TouchableOpacity>
-
-                {/* PRO おすすめ */}
-                <TouchableOpacity
-                  style={[styles.planCard, { borderColor: BRAND, backgroundColor: 'rgba(22,163,74,0.12)' }]}
-                  onPress={async () => { await handleFinish(true); router.push('/paywall') }}
-                  activeOpacity={0.85}
-                >
-                  <View style={{ flex: 1, gap: 4 }}>
+                  {/* ヘッダー行 */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Text style={[styles.planLabel, { color: BRAND }]}>PRO</Text>
-                      <View style={{ backgroundColor: BRAND, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 }}>
-                        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800' }}>おすすめ</Text>
+                      <View style={{ backgroundColor: BRAND, borderRadius: 8, paddingHorizontal: 11, paddingVertical: 5 }}>
+                        <Text style={{ color: '#fff', fontSize: 14, fontWeight: '900', letterSpacing: 0.5 }}>✦ PRO</Text>
+                      </View>
+                      <View style={{ backgroundColor: '#fef9c3', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
+                        <Text style={{ color: '#ca8a04', fontSize: 10, fontWeight: '800' }}>⭐ おすすめ</Text>
                       </View>
                     </View>
-                    <Text style={[styles.planPrice, { color: BRAND }]}>¥480 / 月</Text>
-                    <Text style={[styles.planDesc, { color: 'rgba(255,255,255,0.5)' }]}>AI機能 月30回 • 広告なし • 全機能解放</Text>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={{ fontSize: 26, fontWeight: '900', color: BRAND, letterSpacing: -0.5 }}>¥480</Text>
+                      <Text style={{ fontSize: 11, color: '#9ca3af', marginTop: -2 }}>/月</Text>
+                    </View>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color={BRAND} />
+                  {/* 機能リスト */}
+                  <View style={{ gap: 7 }}>
+                    {[
+                      { icon: 'ban-outline', text: '広告・バナー 完全非表示' },
+                      { icon: 'sparkles-outline', text: 'AI練習分析・動画分析 月30回' },
+                      { icon: 'document-text-outline', text: 'CSVエクスポート・全機能解放' },
+                    ].map(f => (
+                      <View key={f.text} style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
+                        <Ionicons name={f.icon as any} size={15} color={BRAND} />
+                        <Text style={{ color: '#374151', fontSize: 13, fontWeight: '600' }}>{f.text}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  <View style={{ backgroundColor: BRAND, borderRadius: 12, paddingVertical: 12, marginTop: 16, alignItems: 'center' }}>
+                    <Text style={{ color: '#fff', fontSize: 15, fontWeight: '800' }}>PROプランで始める →</Text>
+                  </View>
                 </TouchableOpacity>
 
-                {/* ELITE */}
+                {/* ── ELITE ── */}
                 <TouchableOpacity
-                  style={[styles.planCard, { borderColor: '#d97706', backgroundColor: 'rgba(217,119,6,0.1)' }]}
-                  onPress={async () => { await handleFinish(true); router.push('/paywall') }}
-                  activeOpacity={0.85}
+                  onPress={() => handleFinish(false, true)}
+                  activeOpacity={0.88}
+                  style={{
+                    backgroundColor: '#fff',
+                    borderRadius: 20,
+                    borderWidth: 1.5,
+                    borderColor: '#d97706',
+                    padding: 20,
+                    shadowColor: '#d97706',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 8,
+                    elevation: 3,
+                  }}
                 >
-                  <View style={{ flex: 1, gap: 4 }}>
-                    <Text style={[styles.planLabel, { color: '#d97706' }]}>ELITE</Text>
-                    <Text style={[styles.planPrice, { color: '#d97706' }]}>¥980 / 月</Text>
-                    <Text style={[styles.planDesc, { color: 'rgba(255,255,255,0.5)' }]}>全機能 完全無制限 • チーム機能付き</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                    <View style={{ backgroundColor: '#fef3c7', borderRadius: 8, paddingHorizontal: 11, paddingVertical: 5 }}>
+                      <Text style={{ color: '#d97706', fontSize: 14, fontWeight: '900', letterSpacing: 0.5 }}>👑 ELITE</Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={{ fontSize: 26, fontWeight: '900', color: '#d97706', letterSpacing: -0.5 }}>¥980</Text>
+                      <Text style={{ fontSize: 11, color: '#9ca3af', marginTop: -2 }}>/月</Text>
+                    </View>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color="#d97706" />
+                  <View style={{ gap: 7 }}>
+                    {[
+                      { icon: 'infinite-outline', text: 'AI全機能 完全無制限 ∞' },
+                      { icon: 'ban-outline', text: '広告・バナー 完全非表示' },
+                      { icon: 'videocam-outline', text: '動画フォーム分析 無制限' },
+                    ].map(f => (
+                      <View key={f.text} style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
+                        <Ionicons name={f.icon as any} size={15} color="#d97706" />
+                        <Text style={{ color: '#374151', fontSize: 13, fontWeight: '600' }}>{f.text}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </TouchableOpacity>
+
+                {/* ── FREE（テキストリンク風・目立たせない） ── */}
+                <TouchableOpacity
+                  onPress={() => handleFinish()}
+                  activeOpacity={0.7}
+                  style={{
+                    backgroundColor: '#f9fafb',
+                    borderRadius: 16,
+                    borderWidth: 1,
+                    borderColor: '#e5e7eb',
+                    paddingVertical: 14,
+                    paddingHorizontal: 20,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <View style={{ backgroundColor: '#f3f4f6', borderRadius: 7, paddingHorizontal: 9, paddingVertical: 4 }}>
+                      <Text style={{ color: '#6b7280', fontSize: 12, fontWeight: '800' }}>FREE</Text>
+                    </View>
+                    <Text style={{ color: '#6b7280', fontSize: 13 }}>まず無料で始める</Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={{ fontSize: 16, fontWeight: '800', color: '#9ca3af' }}>¥0</Text>
+                  </View>
                 </TouchableOpacity>
               </View>
             )}
@@ -463,10 +540,8 @@ export default function OnboardingScreen() {
               <Ionicons name="arrow-forward" size={18} color="#fff" />
             </TouchableOpacity>
           ) : (
-            // Step 5: プラン選択 — ボタンはカード内に含めているのでフッターにはスキップリンクのみ
-            <TouchableOpacity style={{ alignItems: 'center', paddingVertical: 14 }} onPress={() => handleFinish()} activeOpacity={0.7}>
-              <Text style={{ color: TEXT.hint, fontSize: 14 }}>まず無料で試す</Text>
-            </TouchableOpacity>
+            // Step 5: プラン選択 — カード内にFREEボタンを含めているのでフッターは非表示
+            <View style={{ paddingVertical: 8 }} />
           )}
         </View>
       </SafeAreaView>

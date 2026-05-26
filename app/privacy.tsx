@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { BG_GRADIENT, TEXT } from '../lib/theme'
 
-const LAST_UPDATED = '2026年5月8日'
+const LAST_UPDATED = '2026年5月23日'
 const APP_NAME     = 'sCORE'
 const CONTACT      = 'focusports.shop'
 const OPERATOR     = '個人事業主（屋号：trackmate）（以下「当社」）'
@@ -22,10 +22,19 @@ function P({ children, style }: { children: React.ReactNode; style?: any }) {
   return <Text style={[s.body, style]}>{children}</Text>
 }
 function Li({ n, children }: { n?: string | number; children: React.ReactNode }) {
+  // React Native では <Text> 内に <View> を入れると描画バグが出るため
+  // 必ず <View> コンテナを使い、文字列だけ <Text> でラップする
+  const childArray = Array.isArray(children) ? children : [children]
   return (
     <View style={s.liRow}>
       <Text style={s.bullet}>{n ? `（${n}）` : '・'}</Text>
-      <Text style={[s.body, { flex: 1 }]}>{children}</Text>
+      <View style={{ flex: 1 }}>
+        {childArray.map((child, i) =>
+          typeof child === 'string' || typeof child === 'number'
+            ? <Text key={i} style={s.body}>{child}</Text>
+            : <React.Fragment key={i}>{child as React.ReactNode}</React.Fragment>
+        )}
+      </View>
     </View>
   )
 }
@@ -58,8 +67,8 @@ function Table({ rows }: { rows: [string, string, string][] }) {
 
 export default function PrivacyScreen() {
   return (
-    <View style={{ flex: 1 }}>
-      <LinearGradient colors={BG_GRADIENT} style={StyleSheet.absoluteFill} />
+    <View style={{ flex: 1, backgroundColor: '#0a0a0a' }}>
+      <LinearGradient colors={['#0a0a0a', '#111827', '#0a0a0a'] as const} style={StyleSheet.absoluteFill} />
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
           <Text style={s.title}>プライバシーポリシー</Text>

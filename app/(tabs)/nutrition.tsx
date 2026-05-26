@@ -117,6 +117,7 @@ export default function NutritionScreen() {
   const [adGateRemaining,   setAdGateRemaining]   = useState(0)
   const [adGateHardLimited, setAdGateHardLimited] = useState(false)
   const [adGateRewardUses,  setAdGateRewardUses]  = useState(0)
+  const [adGateLimitType,   setAdGateLimitType]   = useState<'none'|'daily'|'monthly'|'total'>('none')
   const [remaining,         setRemaining]         = useState<number | null>(null)
   const [result, setResult] = useState<MealAnalysisResult | null>(null)
   const [history, setHistory] = useState<MealRecord[]>([])
@@ -131,7 +132,7 @@ export default function NutritionScreen() {
       if (raw) {
         try { setHistory(JSON.parse(raw)) } catch { /* ignore */ }
       }
-    })
+    }).catch(() => {})
     checkAdGate('meal').then(g => {
       if (g.remaining < 999) setRemaining(g.remaining)
     }).catch(() => {})
@@ -215,7 +216,7 @@ export default function NutritionScreen() {
     if (isGuest) { setAdGateRemaining(0); setAdGateHardLimited(false); setAdGateVisible(true); return }
     const gate = await checkAdGate('meal')
     if (!gate.allowed) {
-      setAdGateRemaining(0); setAdGateRewardUses(gate.rewardUses); setAdGateHardLimited(gate.hardLimited); setAdGateVisible(true); return
+      setAdGateRemaining(0); setAdGateRewardUses(gate.rewardUses); setAdGateHardLimited(gate.hardLimited); setAdGateLimitType(gate.limitType); setAdGateVisible(true); return
     }
     if (gate.remaining === 0 && gate.rewardUses > 0) {
       await consumeRewardUse('meal')
@@ -418,6 +419,7 @@ export default function NutritionScreen() {
       remaining={adGateRemaining}
       rewardUses={adGateRewardUses}
       hardLimited={adGateHardLimited}
+      limitType={adGateLimitType}
       isGuest={isGuest}
       onClose={() => setAdGateVisible(false)}
       onAdWatched={async () => {

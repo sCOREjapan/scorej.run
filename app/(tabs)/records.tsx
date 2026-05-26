@@ -1385,7 +1385,7 @@ export default function RecordsScreen() {
       if (sleepRaw)  { try { setSleepRecords(JSON.parse(sleepRaw)) }  catch {} }
       if (weightRaw) { try { setWeightRecords(JSON.parse(weightRaw)) }catch {} }
       setLoading(false)
-    })
+    }).catch(() => setLoading(false))  // エラー時もローディングを解除
   }, [])
 
   useEffect(() => { loadData() }, [loadData])

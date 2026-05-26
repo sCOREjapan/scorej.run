@@ -16,11 +16,14 @@ export default async function handler(request: Request): Promise<Response> {
     })
   }
 
-  const { title, message, target, teamCode } = await request.json() as {
-    title: string
-    message: string
-    target: 'players' | 'coaches' | 'all'
-    teamCode?: string
+  let title: string, message: string, target: 'players' | 'coaches' | 'all', teamCode: string | undefined
+  try {
+    const body = await request.json() as { title: string; message: string; target: 'players' | 'coaches' | 'all'; teamCode?: string }
+    title = body.title; message = body.message; target = body.target; teamCode = body.teamCode
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+      status: 400, headers: { 'Content-Type': 'application/json' },
+    })
   }
 
   // ロール + チームコードで絞り込む
@@ -38,7 +41,7 @@ export default async function handler(request: Request): Promise<Response> {
     app_id:   appId,
     headings: { en: title, ja: title },
     contents: { en: message, ja: message },
-    url:      'https://track-mate-murex.vercel.app/(tabs)/team',
+    url:      'https://scorej-run.vercel.app/(tabs)/team',
   }
 
   if (filters.length > 0) {
@@ -47,17 +50,22 @@ export default async function handler(request: Request): Promise<Response> {
     payload.included_segments = ['All']
   }
 
-  const res = await fetch('https://onesignal.com/api/v1/notifications', {
-    method: 'POST',
-    headers: {
-      'Content-Type':  'application/json',
-      'Authorization': `Basic ${apiKey}`,
-    },
-    body: JSON.stringify(payload),
-  })
-
-  const data = await res.json()
-  return new Response(JSON.stringify(data), {
-    headers: { 'Content-Type': 'application/json' },
-  })
+  try {
+    const res = await fetch('https://onesignal.com/api/v1/notifications', {
+      method: 'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Basic ${apiKey}`,
+      },
+      body: JSON.stringify(payload),
+    })
+    const data = await res.json()
+    return new Response(JSON.stringify(data), {
+      headers: { 'Content-Type': 'application/json' },
+    })
+  } catch (e: any) {
+    return new Response(JSON.stringify({ error: e?.message ?? 'OneSignal request failed' }), {
+      status: 500, headers: { 'Content-Type': 'application/json' },
+    })
+  }
 }

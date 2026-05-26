@@ -59,5 +59,55 @@ target 'sCORE' do
       :mac_catalyst_enabled => false,
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
+
+    # ── fmt 11.0.2 + Apple Clang 17 (Xcode 17) fix ─────────────────
+    # fmt 11.0.2 の `basic_format_string` constructor が consteval で、
+    # `fmt::format_to(out, FMT_STRING("..."), runtime_string)` を呼ぶと
+    # 「call to consteval function is not a constant expression」でコンパイル失敗。
+    # base.h を直接 patch して FMT_USE_CONSTEVAL を override 可能にする。
+    fmt_base_h = File.join(__dir__, 'Pods/fmt/include/fmt/base.h')
+    if File.exist?(fmt_base_h)
+      content = File.read(fmt_base_h)
+      marker = '// Detect consteval, C++20 constexpr extensions and std::is_constant_evaluated.'
+      if content.include?(marker) && !content.include?('#ifndef FMT_USE_CONSTEVAL')
+        # `// Detect consteval...` の直前に `#ifndef FMT_USE_CONSTEVAL` を、
+        # 直後の `#if FMT_USE_CONSTEVAL` の前に `#endif` を挿入。
+        content = content.sub(
+          "#{marker}\n#if !defined(__cpp_lib_is_constant_evaluated)",
+          "#{marker}\n// iOS 26 beta / Xcode 17: allow user override via -DFMT_USE_CONSTEVAL=0\n#ifndef FMT_USE_CONSTEVAL\n#if !defined(__cpp_lib_is_constant_evaluated)"
+        )
+        # 最後の `#endif` を `#endif\n#endif  // ifndef FMT_USE_CONSTEVAL` に変換
+        content = content.sub(
+          "#  define FMT_USE_CONSTEVAL 0\n#endif\n#if FMT_USE_CONSTEVAL",
+          "#  define FMT_USE_CONSTEVAL 0\n#endif\n#endif  // ifndef FMT_USE_CONSTEVAL\n#if FMT_USE_CONSTEVAL"
+        )
+        File.write(fmt_base_h, content)
+        puts '[Podfile] Patched fmt/base.h: added #ifndef FMT_USE_CONSTEVAL guard'
+      end
+    end
+
+    # fmt prefix header に FMT_USE_CONSTEVAL=0 を define
+    fmt_pch = File.join(__dir__, 'Pods/Target Support Files/fmt/fmt-prefix.pch')
+    if File.exist?(fmt_pch)
+      pch_content = File.read(fmt_pch)
+      unless pch_content.include?('FMT_USE_CONSTEVAL')
+        pch_content = "// iOS 26 beta / Xcode 17 workaround: disable consteval in fmt\n#ifndef FMT_USE_CONSTEVAL\n#  define FMT_USE_CONSTEVAL 0\n#endif\n\n" + pch_content
+        File.write(fmt_pch, pch_content)
+        puts '[Podfile] Patched fmt-prefix.pch: defined FMT_USE_CONSTEVAL=0'
+      end
+    end
+
+    # fmt target の GCC_PREPROCESSOR_DEFINITIONS にも追加（三重保険）
+    installer.pods_project.targets.each do |target|
+      if target.name == 'fmt'
+        target.build_configurations.each do |build_config|
+          defs = build_config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] || '$(inherited)'
+          unless defs.include?('FMT_USE_CONSTEVAL')
+            build_config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = "#{defs} FMT_USE_CONSTEVAL=0"
+          end
+        end
+      end
+    end
+    installer.pods_project.save
   end
 end

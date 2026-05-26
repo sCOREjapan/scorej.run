@@ -370,12 +370,12 @@ function Slide6({ isActive }: { isActive: boolean }) {
     }
     unlockAudio(); Sounds.pop()
     setGoogleLoading(true)
-    signInWithGoogle().finally(() => setGoogleLoading(false))
+    signInWithGoogle().catch(() => {}).finally(() => setGoogleLoading(false))
   }
   const handleApple = () => {
     unlockAudio(); Sounds.pop()
     setAppleLoading(true)
-    signInWithApple().finally(() => setAppleLoading(false))
+    signInWithApple().catch(() => {}).finally(() => setAppleLoading(false))
   }
   const handleSignup = async () => {
     if (!email.trim() || password.length < 6) return
