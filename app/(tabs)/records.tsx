@@ -1343,6 +1343,7 @@ export default function RecordsScreen() {
   const [csvGateRemaining,   setCsvGateRemaining]   = useState(0)
   const [csvGateHardLimited, setCsvGateHardLimited] = useState(false)
   const [csvGateRewardUses,  setCsvGateRewardUses]  = useState(0)
+  const [csvGateLimitType,   setCsvGateLimitType]   = useState<'none'|'daily'|'monthly'|'total'>('none')
   const [records, setRecords] = useState<RaceRecord[]>([])
   const [sessions, setSessions] = useState<TrainingSession[]>([])
   const [conditionMap, setConditionMap] = useState<Record<string,number>>({})
@@ -1503,7 +1504,7 @@ export default function RecordsScreen() {
                 Sounds.whoosh()
                 if (isGuest) { setCsvGateRemaining(0); setCsvGateHardLimited(false); setCsvGateVisible(true); return }
                 const gate = await checkAdGate('csv')
-                if (!gate.allowed) { setCsvGateRemaining(0); setCsvGateRewardUses(gate.rewardUses); setCsvGateHardLimited(gate.hardLimited); setCsvGateVisible(true); return }
+                if (!gate.allowed) { setCsvGateRemaining(0); setCsvGateRewardUses(gate.rewardUses); setCsvGateHardLimited(gate.hardLimited); setCsvGateLimitType(gate.limitType); setCsvGateVisible(true); return }
                 if (gate.remaining === 0 && gate.rewardUses > 0) {
                   await consumeRewardUse('csv')
                 } else if (gate.remaining === 1) {
@@ -1823,6 +1824,7 @@ export default function RecordsScreen() {
         remaining={csvGateRemaining}
         rewardUses={csvGateRewardUses}
         hardLimited={csvGateHardLimited}
+        limitType={csvGateLimitType}
         isGuest={isGuest}
         onClose={() => setCsvGateVisible(false)}
         onAdWatched={async () => {
