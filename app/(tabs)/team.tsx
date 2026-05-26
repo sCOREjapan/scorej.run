@@ -3312,8 +3312,9 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                       if (absenceSaving) return
                       setAbsenceSaving(true)
                       try {
+                        const _absenceUserId = (await AsyncStorage.getItem('userId').catch(() => null)) ?? 'local'
                         await addAbsenceSession({
-                          user_id: 'mock-user-1',
+                          user_id: _absenceUserId,
                           session_date: new Date().toISOString().slice(0, 10),
                           session_type: 'rest',
                           fatigue_level: 1,

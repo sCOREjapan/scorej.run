@@ -72,7 +72,6 @@ function fallbackParse(text: string, today: string): Record<string, any> {
 }
 const CONDITION_MAP_KEY = 'trackmate_condition_map'
 const BRAND           = '#166534'
-const MOCK_USER_ID    = 'mock-user-1'
 
 async function saveImprovementTasks(sessionType: string, fatigue: number, notes: string) {
   const texts: string[] = []
@@ -372,7 +371,7 @@ export default function NotebookScreen() {
     const toNum = (v: any) => (v !== null && v !== undefined && v !== 'null' && !isNaN(Number(v)) && Number(v) > 0) ? Number(v) : undefined
     try {
       const newSession: TrainingSession = {
-        id: `local-${Date.now()}`, user_id: MOCK_USER_ID, created_at: new Date().toISOString(),
+        id: `local-${Date.now()}`, user_id: (await AsyncStorage.getItem('userId').catch(() => null)) ?? 'local', created_at: new Date().toISOString(),
         session_date:    parsed.session_date    || today,
         session_type:    parsed.session_type    || 'easy',
         event:           parsed.event && parsed.event !== 'null' && parsed.event !== null ? String(parsed.event) as any : undefined,
