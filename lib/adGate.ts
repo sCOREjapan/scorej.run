@@ -59,7 +59,7 @@ async function getTotalUsage(): Promise<Record<Feature, number>> {
   return { ai_analysis: 0, video: 0, meal: 0, csv: 0, recovery: 0, workout: 0 }
 }
 async function saveTotalUsage(u: Record<Feature, number>) {
-  await AsyncStorage.setItem(TOTAL_KEY, JSON.stringify(u))
+  await AsyncStorage.setItem(TOTAL_KEY, JSON.stringify(u)).catch(() => {})
 }
 
 // ── 日次 ──────────────────────────────────────────────────────
@@ -74,7 +74,7 @@ async function getDailyUsage(): Promise<{ date: string; counts: Record<string, n
   return { date: todayStr(), counts: {} }
 }
 async function saveDailyUsage(d: { date: string; counts: Record<string, number> }) {
-  await AsyncStorage.setItem(DAILY_KEY, JSON.stringify(d))
+  await AsyncStorage.setItem(DAILY_KEY, JSON.stringify(d)).catch(() => {})
 }
 
 // ── 月次 ──────────────────────────────────────────────────────
@@ -89,7 +89,7 @@ async function getMonthlyUsage(): Promise<{ month: string; counts: Record<string
   return { month: currentMonth(), counts: {} }
 }
 async function saveMonthlyUsage(d: { month: string; counts: Record<string, number> }) {
-  await AsyncStorage.setItem(MONTHLY_KEY, JSON.stringify(d))
+  await AsyncStorage.setItem(MONTHLY_KEY, JSON.stringify(d)).catch(() => {})
 }
 
 // ── リワード回数管理 ──────────────────────────────────────────
@@ -105,7 +105,7 @@ async function getRewardUses(): Promise<Record<Feature, number>> {
 export async function grantRewardUse(feature: Feature): Promise<void> {
   const uses = await getRewardUses()
   uses[feature] = (uses[feature] ?? 0) + 1
-  await AsyncStorage.setItem(REWARD_KEY, JSON.stringify(uses))
+  await AsyncStorage.setItem(REWARD_KEY, JSON.stringify(uses)).catch(() => {})
 }
 
 /** リワード1回を消費（残りがあればtrue） */
@@ -113,7 +113,7 @@ export async function consumeRewardUse(feature: Feature): Promise<boolean> {
   const uses = await getRewardUses()
   if ((uses[feature] ?? 0) > 0) {
     uses[feature] -= 1
-    await AsyncStorage.setItem(REWARD_KEY, JSON.stringify(uses))
+    await AsyncStorage.setItem(REWARD_KEY, JSON.stringify(uses)).catch(() => {})
     return true
   }
   return false
