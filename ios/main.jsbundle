@@ -343744,27 +343744,13 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
     function toggleExpandFolder(id) {
       setExpandedFolders(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
     }
-    function handleGenerateFromPicked() {
-      return _handleGenerateFromPicked.apply(this, arguments);
-    } // ── AI生成 ────────────────────────────────────────────
-    function _handleGenerateFromPicked() {
-      _handleGenerateFromPicked = (0, _asyncToGenerator.default)(function* () {
-        if (pickedItems.length === 0) return;
-        var gate = yield (0, _libAdGate.checkAdGate)('workout');
-        if (!gate.allowed) {
-          setAdGateRemaining(gate.remaining);
-          setAdGateRewardUses(gate.rewardUses);
-          setAdGateHardLimited(gate.hardLimited);
-          setAdGateLimitType(gate.limitType);
-          setAdGatePendingFn('pick');
-          setAdGateVisible(true);
-          return;
-        }
-        if (gate.remaining === 0 && gate.rewardUses > 0) {
-          yield (0, _libAdGate.consumeRewardUse)('workout');
-        } else {
-          yield (0, _libAdGate.recordUsage)('workout');
-        }
+
+    // ── 広告視聴後に呼ばれるコア生成（ゲートチェック・使用記録なし）──
+    function generateFromPickedCore() {
+      return _generateFromPickedCore.apply(this, arguments);
+    }
+    function _generateFromPickedCore() {
+      _generateFromPickedCore = (0, _asyncToGenerator.default)(function* () {
         setPickLoading(true);
         setPickResult('');
         try {
@@ -343852,27 +343838,21 @@ ${pickIntent.trim() || '特に指定なし（コーチの判断で最適なメ�
           setPickLoading(false);
         }
       });
+      return _generateFromPickedCore.apply(this, arguments);
+    }
+    function handleGenerateFromPicked() {
       return _handleGenerateFromPicked.apply(this, arguments);
-    }
-    function openAI() {
-      setAiIntent('');
-      setAiResult('');
-      setSelectedFolderIds(folders.map(f => f.id));
-      setAiModal(true);
-    }
-    function handleGenerate() {
-      return _handleGenerate.apply(this, arguments);
-    }
-    function _handleGenerate() {
-      _handleGenerate = (0, _asyncToGenerator.default)(function* () {
-        if (!aiIntent.trim()) return;
+    } // ── AI生成 ────────────────────────────────────────────
+    function _handleGenerateFromPicked() {
+      _handleGenerateFromPicked = (0, _asyncToGenerator.default)(function* () {
+        if (pickedItems.length === 0) return;
         var gate = yield (0, _libAdGate.checkAdGate)('workout');
         if (!gate.allowed) {
           setAdGateRemaining(gate.remaining);
           setAdGateRewardUses(gate.rewardUses);
           setAdGateHardLimited(gate.hardLimited);
           setAdGateLimitType(gate.limitType);
-          setAdGatePendingFn('intent');
+          setAdGatePendingFn('pick');
           setAdGateVisible(true);
           return;
         }
@@ -343881,6 +343861,21 @@ ${pickIntent.trim() || '特に指定なし（コーチの判断で最適なメ�
         } else {
           yield (0, _libAdGate.recordUsage)('workout');
         }
+        generateFromPickedCore();
+      });
+      return _handleGenerateFromPicked.apply(this, arguments);
+    }
+    function openAI() {
+      setAiIntent('');
+      setAiResult('');
+      setSelectedFolderIds(folders.map(f => f.id));
+      setAiModal(true);
+    }
+    function generateCore() {
+      return _generateCore.apply(this, arguments);
+    }
+    function _generateCore() {
+      _generateCore = (0, _asyncToGenerator.default)(function* () {
         setAiLoading(true);
         setAiResult('');
         try {
@@ -343966,6 +343961,31 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
           setAiLoading(false);
         }
       });
+      return _generateCore.apply(this, arguments);
+    }
+    function handleGenerate() {
+      return _handleGenerate.apply(this, arguments);
+    }
+    function _handleGenerate() {
+      _handleGenerate = (0, _asyncToGenerator.default)(function* () {
+        if (!aiIntent.trim()) return;
+        var gate = yield (0, _libAdGate.checkAdGate)('workout');
+        if (!gate.allowed) {
+          setAdGateRemaining(gate.remaining);
+          setAdGateRewardUses(gate.rewardUses);
+          setAdGateHardLimited(gate.hardLimited);
+          setAdGateLimitType(gate.limitType);
+          setAdGatePendingFn('intent');
+          setAdGateVisible(true);
+          return;
+        }
+        if (gate.remaining === 0 && gate.rewardUses > 0) {
+          yield (0, _libAdGate.consumeRewardUse)('workout');
+        } else {
+          yield (0, _libAdGate.recordUsage)('workout');
+        }
+        generateCore();
+      });
       return _handleGenerate.apply(this, arguments);
     }
     var todayStr = new Date().toLocaleDateString('ja-JP', {
@@ -343982,7 +344002,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
         style: _reactNative.StyleSheet.absoluteFill
       }, void 0, false, {
         fileName: _jsxFileName,
-        lineNumber: 529,
+        lineNumber: 538,
         columnNumber: 7
       }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNativeSafeAreaContext.SafeAreaView, {
         style: s.safe,
@@ -344002,18 +344022,18 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                 children: label
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 542,
+                lineNumber: 551,
                 columnNumber: 15
               }, this)
             }, key, false, {
               fileName: _jsxFileName,
-              lineNumber: 535,
+              lineNumber: 544,
               columnNumber: 13
             }, this);
           })
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 533,
+          lineNumber: 542,
           columnNumber: 9
         }, this), tab === 'library' ? /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.ScrollView, {
           contentContainerStyle: s.content,
@@ -344032,12 +344052,12 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                 children: "\uD83D\uDCCB"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 553,
+                lineNumber: 562,
                 columnNumber: 17
               }, this)
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 552,
+              lineNumber: 561,
               columnNumber: 15
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
               style: {
@@ -344048,19 +344068,19 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                 children: "\u7A2E\u76EE\u3092\u30D4\u30C3\u30AF\u3057\u3066AI\u751F\u6210"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 556,
+                lineNumber: 565,
                 columnNumber: 17
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                 style: s.manualBtnSub,
                 children: "\u4F7F\u3044\u305F\u3044\u7A2E\u76EE\u3092\u9078\u3093\u3067AI\u306B\u30E1\u30CB\u30E5\u30FC\u3092\u4F5C\u3063\u3066\u3082\u3089\u3046"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 557,
+                lineNumber: 566,
                 columnNumber: 17
               }, this)]
             }, void 0, true, {
               fileName: _jsxFileName,
-              lineNumber: 555,
+              lineNumber: 564,
               columnNumber: 15
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_expoVectorIcons.Ionicons, {
               name: "chevron-forward",
@@ -344068,12 +344088,12 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
               color: _libTheme.NEON.green
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 559,
+              lineNumber: 568,
               columnNumber: 15
             }, this)]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 551,
+            lineNumber: 560,
             columnNumber: 13
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(HapticTouch.default, {
             haptic: "whoosh",
@@ -344089,12 +344109,12 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                 children: "\uD83E\uDD16"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 565,
+                lineNumber: 574,
                 columnNumber: 17
               }, this)
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 564,
+              lineNumber: 573,
               columnNumber: 15
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
               style: {
@@ -344105,19 +344125,19 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                 children: "AI\u3067\u4ECA\u65E5\u306E\u30E1\u30CB\u30E5\u30FC\u3092\u4F5C\u308B"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 568,
+                lineNumber: 577,
                 columnNumber: 17
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                 style: s.aiBtnSub,
                 children: "\u7DF4\u7FD2\u306E\u30A4\u30E1\u30FC\u30B8\u3092\u4F1D\u3048\u308B\u3060\u3051"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 569,
+                lineNumber: 578,
                 columnNumber: 17
               }, this)]
             }, void 0, true, {
               fileName: _jsxFileName,
-              lineNumber: 567,
+              lineNumber: 576,
               columnNumber: 15
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_expoVectorIcons.Ionicons, {
               name: "chevron-forward",
@@ -344125,12 +344145,12 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
               color: _libTheme.NEON.blue
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 571,
+              lineNumber: 580,
               columnNumber: 15
             }, this)]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 563,
+            lineNumber: 572,
             columnNumber: 13
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
             style: s.sectionHeader,
@@ -344139,7 +344159,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
               children: "\u7DF4\u7FD2\u30E9\u30A4\u30D6\u30E9\u30EA"
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 576,
+              lineNumber: 585,
               columnNumber: 15
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(HapticTouch.default, {
               haptic: "whoosh",
@@ -344152,7 +344172,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                 color: "#fff"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 578,
+                lineNumber: 587,
                 columnNumber: 17
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                 style: {
@@ -344163,17 +344183,17 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                 children: "\u30D5\u30A9\u30EB\u30C0\u8FFD\u52A0"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 579,
+                lineNumber: 588,
                 columnNumber: 17
               }, this)]
             }, void 0, true, {
               fileName: _jsxFileName,
-              lineNumber: 577,
+              lineNumber: 586,
               columnNumber: 15
             }, this)]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 575,
+            lineNumber: 584,
             columnNumber: 13
           }, this), folders.length === 0 ? /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(HapticTouch.default, {
             haptic: "whoosh",
@@ -344188,7 +344208,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
               children: "\uD83D\uDCC1"
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 585,
+              lineNumber: 594,
               columnNumber: 17
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
               style: {
@@ -344198,7 +344218,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
               children: "\u30D5\u30A9\u30EB\u30C0\u3092\u4F5C\u3063\u3066\u7A2E\u76EE\u3092\u767B\u9332\u3057\u3088\u3046"
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 586,
+              lineNumber: 595,
               columnNumber: 17
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
               style: {
@@ -344209,12 +344229,12 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
               children: "\u4F8B\uFF1A\u30C9\u30EA\u30EB\u30E1\u30CB\u30E5\u30FC\u3001\u30E9\u30F3\u30E1\u30CB\u30E5\u30FC"
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 587,
+              lineNumber: 596,
               columnNumber: 17
             }, this)]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 584,
+            lineNumber: 593,
             columnNumber: 15
           }, this) : /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
             style: {
@@ -344229,17 +344249,17 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
               onEdit: () => openEditFolder(f)
             }, f.id, false, {
               fileName: _jsxFileName,
-              lineNumber: 592,
+              lineNumber: 601,
               columnNumber: 19
             }, this))
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 590,
+            lineNumber: 599,
             columnNumber: 15
           }, this)]
         }, void 0, true, {
           fileName: _jsxFileName,
-          lineNumber: 548,
+          lineNumber: 557,
           columnNumber: 11
         }, this) : /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.ScrollView, {
           contentContainerStyle: s.content,
@@ -344254,7 +344274,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
               children: "\uD83E\uDD16"
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 606,
+              lineNumber: 615,
               columnNumber: 17
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
               style: {
@@ -344264,12 +344284,12 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
               children: "\u307E\u3060AI\u751F\u6210\u5C65\u6B74\u304C\u3042\u308A\u307E\u305B\u3093"
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 607,
+              lineNumber: 616,
               columnNumber: 17
             }, this)]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 605,
+            lineNumber: 614,
             columnNumber: 15
           }, this) : history.map(h => /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(HapticTouch.default, {
             haptic: "tap",
@@ -344293,7 +344313,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                 children: h.intent.startsWith('[ピック]') ? '📋' : '🤖'
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 619,
+                lineNumber: 628,
                 columnNumber: 21
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                 style: s.histDate,
@@ -344304,7 +344324,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                 })
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 620,
+                lineNumber: 629,
                 columnNumber: 21
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                 style: {
@@ -344322,17 +344342,17 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                   children: h.intent.startsWith('[ピック]') ? 'ピック生成' : 'AI生成'
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 622,
+                  lineNumber: 631,
                   columnNumber: 23
                 }, this)
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 621,
+                lineNumber: 630,
                 columnNumber: 21
               }, this)]
             }, void 0, true, {
               fileName: _jsxFileName,
-              lineNumber: 618,
+              lineNumber: 627,
               columnNumber: 19
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
               style: s.histIntent,
@@ -344340,7 +344360,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
               children: ["\u300C", h.intent.replace('[ピック] ', ''), "\u300D"]
             }, void 0, true, {
               fileName: _jsxFileName,
-              lineNumber: 627,
+              lineNumber: 636,
               columnNumber: 19
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
               style: s.histPreview,
@@ -344348,22 +344368,22 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
               children: h.result
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 628,
+              lineNumber: 637,
               columnNumber: 19
             }, this)]
           }, h.id, true, {
             fileName: _jsxFileName,
-            lineNumber: 611,
+            lineNumber: 620,
             columnNumber: 17
           }, this))
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 603,
+          lineNumber: 612,
           columnNumber: 11
         }, this)]
       }, void 0, true, {
         fileName: _jsxFileName,
-        lineNumber: 530,
+        lineNumber: 539,
         columnNumber: 7
       }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Modal, {
         visible: folderModal,
@@ -344386,7 +344406,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                   children: editFolder ? 'フォルダを編集' : 'フォルダを作成'
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 643,
+                  lineNumber: 652,
                   columnNumber: 17
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TouchableOpacity, {
                   onPress: () => setFolderModal(false),
@@ -344396,24 +344416,24 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                     color: "#888"
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 645,
+                    lineNumber: 654,
                     columnNumber: 19
                   }, this)
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 644,
+                  lineNumber: 653,
                   columnNumber: 17
                 }, this)]
               }, void 0, true, {
                 fileName: _jsxFileName,
-                lineNumber: 642,
+                lineNumber: 651,
                 columnNumber: 15
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                 style: m.label,
                 children: "\u30D5\u30A9\u30EB\u30C0\u540D"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 649,
+                lineNumber: 658,
                 columnNumber: 15
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TextInput, {
                 value: folderName,
@@ -344423,14 +344443,14 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                 style: m.input
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 650,
+                lineNumber: 659,
                 columnNumber: 15
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                 style: m.label,
                 children: "\u30AB\u30E9\u30FC"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 658,
+                lineNumber: 667,
                 columnNumber: 15
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                 style: {
@@ -344448,24 +344468,24 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                     }, folderColor === c && m.colorDotSelected]
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 662,
+                    lineNumber: 671,
                     columnNumber: 21
                   }, this)
                 }, c, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 661,
+                  lineNumber: 670,
                   columnNumber: 19
                 }, this))
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 659,
+                lineNumber: 668,
                 columnNumber: 15
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                 style: m.label,
                 children: "\u30A2\u30A4\u30B3\u30F3"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 667,
+                lineNumber: 676,
                 columnNumber: 15
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                 style: {
@@ -344486,17 +344506,17 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                     color: folderIcon === icon ? folderColor : '#666'
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 676,
+                    lineNumber: 685,
                     columnNumber: 21
                   }, this)
                 }, icon, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 670,
+                  lineNumber: 679,
                   columnNumber: 19
                 }, this))
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 668,
+                lineNumber: 677,
                 columnNumber: 15
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(HapticTouch.default, {
                 haptic: "save",
@@ -344516,12 +344536,12 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                   children: "\u4FDD\u5B58"
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 688,
+                  lineNumber: 697,
                   columnNumber: 17
                 }, this)
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 681,
+                lineNumber: 690,
                 columnNumber: 15
               }, this), editFolder && /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TouchableOpacity, {
                 style: m.deleteBtn,
@@ -344533,7 +344553,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                   color: "#FF3B30"
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 697,
+                  lineNumber: 706,
                   columnNumber: 19
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                   style: {
@@ -344544,32 +344564,32 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                   children: "\u30D5\u30A9\u30EB\u30C0\u3092\u524A\u9664"
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 698,
+                  lineNumber: 707,
                   columnNumber: 19
                 }, this)]
               }, void 0, true, {
                 fileName: _jsxFileName,
-                lineNumber: 692,
+                lineNumber: 701,
                 columnNumber: 17
               }, this)]
             }, void 0, true, {
               fileName: _jsxFileName,
-              lineNumber: 641,
+              lineNumber: 650,
               columnNumber: 13
             }, this)
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 640,
+            lineNumber: 649,
             columnNumber: 11
           }, this)
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 639,
+          lineNumber: 648,
           columnNumber: 9
         }, this)
       }, void 0, false, {
         fileName: _jsxFileName,
-        lineNumber: 638,
+        lineNumber: 647,
         columnNumber: 7
       }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Modal, {
         visible: detailModal,
@@ -344606,12 +344626,12 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                       color: detailFolder.color
                     }, void 0, false, {
                       fileName: _jsxFileName,
-                      lineNumber: 715,
+                      lineNumber: 724,
                       columnNumber: 23
                     }, this)
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 714,
+                    lineNumber: 723,
                     columnNumber: 21
                   }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                     style: [m.sheetTitle, {
@@ -344620,12 +344640,12 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                     children: detailFolder.name
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 717,
+                    lineNumber: 726,
                     columnNumber: 21
                   }, this)]
                 }, void 0, true, {
                   fileName: _jsxFileName,
-                  lineNumber: 713,
+                  lineNumber: 722,
                   columnNumber: 19
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TouchableOpacity, {
                   onPress: () => setDetailModal(false),
@@ -344635,17 +344655,17 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                     color: "#888"
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 720,
+                    lineNumber: 729,
                     columnNumber: 21
                   }, this)
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 719,
+                  lineNumber: 728,
                   columnNumber: 19
                 }, this)]
               }, void 0, true, {
                 fileName: _jsxFileName,
-                lineNumber: 712,
+                lineNumber: 721,
                 columnNumber: 17
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.ScrollView, {
                 style: {
@@ -344670,7 +344690,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                     returnKeyType: "done"
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 727,
+                    lineNumber: 736,
                     columnNumber: 21
                   }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TouchableOpacity, {
                     onPress: handleAddItem,
@@ -344687,17 +344707,17 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                       color: "#fff"
                     }, void 0, false, {
                       fileName: _jsxFileName,
-                      lineNumber: 742,
+                      lineNumber: 751,
                       columnNumber: 23
                     }, this)
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 736,
+                    lineNumber: 745,
                     columnNumber: 21
                   }, this)]
                 }, void 0, true, {
                   fileName: _jsxFileName,
-                  lineNumber: 726,
+                  lineNumber: 735,
                   columnNumber: 19
                 }, this), detailFolder.items.length === 0 ? /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                   style: {
@@ -344712,12 +344732,12 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                     children: "\u7A2E\u76EE\u3092\u8FFD\u52A0\u3057\u3066\u304F\u3060\u3055\u3044"
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 748,
+                    lineNumber: 757,
                     columnNumber: 23
                   }, this)
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 747,
+                  lineNumber: 756,
                   columnNumber: 21
                 }, this) : /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                   style: {
@@ -344732,33 +344752,33 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                     onMoveDown: () => handleMoveItem(idx, 'down')
                   }, idx, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 753,
+                    lineNumber: 762,
                     columnNumber: 25
                   }, this))
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 751,
+                  lineNumber: 760,
                   columnNumber: 21
                 }, this)]
               }, void 0, true, {
                 fileName: _jsxFileName,
-                lineNumber: 724,
+                lineNumber: 733,
                 columnNumber: 17
               }, this)]
             }, void 0, true)
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 709,
+            lineNumber: 718,
             columnNumber: 11
           }, this)
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 708,
+          lineNumber: 717,
           columnNumber: 9
         }, this)
       }, void 0, false, {
         fileName: _jsxFileName,
-        lineNumber: 707,
+        lineNumber: 716,
         columnNumber: 7
       }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Modal, {
         visible: aiModal,
@@ -344789,7 +344809,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                   children: "\uD83E\uDD16"
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 778,
+                  lineNumber: 787,
                   columnNumber: 17
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                   style: [m.sheetTitle, {
@@ -344798,12 +344818,12 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                   children: "AI\u30E1\u30CB\u30E5\u30FC\u751F\u6210"
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 779,
+                  lineNumber: 788,
                   columnNumber: 17
                 }, this)]
               }, void 0, true, {
                 fileName: _jsxFileName,
-                lineNumber: 777,
+                lineNumber: 786,
                 columnNumber: 15
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TouchableOpacity, {
                 onPress: () => setAiModal(false),
@@ -344813,17 +344833,17 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                   color: "#888"
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 782,
+                  lineNumber: 791,
                   columnNumber: 17
                 }, this)
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 781,
+                lineNumber: 790,
                 columnNumber: 15
               }, this)]
             }, void 0, true, {
               fileName: _jsxFileName,
-              lineNumber: 776,
+              lineNumber: 785,
               columnNumber: 13
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.KeyboardAvoidingView, {
               style: {
@@ -344842,7 +344862,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                     children: "\u4F7F\u7528\u3059\u308B\u30E9\u30A4\u30D6\u30E9\u30EA"
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 792,
+                    lineNumber: 801,
                     columnNumber: 21
                   }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                     style: {
@@ -344873,7 +344893,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                           color: selected ? f.color : '#666'
                         }, void 0, false, {
                           fileName: _jsxFileName,
-                          lineNumber: 811,
+                          lineNumber: 820,
                           columnNumber: 29
                         }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                           style: {
@@ -344884,18 +344904,18 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                           children: f.name
                         }, void 0, false, {
                           fileName: _jsxFileName,
-                          lineNumber: 812,
+                          lineNumber: 821,
                           columnNumber: 29
                         }, this)]
                       }, f.id, true, {
                         fileName: _jsxFileName,
-                        lineNumber: 797,
+                        lineNumber: 806,
                         columnNumber: 27
                       }, this);
                     })
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 793,
+                    lineNumber: 802,
                     columnNumber: 21
                   }, this)]
                 }, void 0, true), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
@@ -344903,7 +344923,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                   children: "\u4ECA\u65E5\u306E\u7DF4\u7FD2\u30A4\u30E1\u30FC\u30B8\u3092\u4F1D\u3048\u308B"
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 821,
+                  lineNumber: 830,
                   columnNumber: 17
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TextInput, {
                   value: aiIntent,
@@ -344917,7 +344937,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                   multiline: true
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 822,
+                  lineNumber: 831,
                   columnNumber: 17
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(HapticTouch.default, {
                   haptic: "whoosh",
@@ -344932,7 +344952,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                     color: "#fff"
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 839,
+                    lineNumber: 848,
                     columnNumber: 21
                   }, this) : /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                     style: {
@@ -344941,19 +344961,19 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                     children: "\uD83E\uDD16"
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 841,
+                    lineNumber: 850,
                     columnNumber: 21
                   }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                     style: ai.genBtnText,
                     children: aiLoading ? 'メニュー生成中...' : 'メニューを生成する'
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 843,
+                    lineNumber: 852,
                     columnNumber: 19
                   }, this)]
                 }, void 0, true, {
                   fileName: _jsxFileName,
-                  lineNumber: 831,
+                  lineNumber: 840,
                   columnNumber: 17
                 }, this), aiResult !== '' && /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                   style: ai.resultCard,
@@ -344967,7 +344987,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                       }
                     }, i, false, {
                       fileName: _jsxFileName,
-                      lineNumber: 851,
+                      lineNumber: 860,
                       columnNumber: 50
                     }, this);
                     return /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
@@ -344980,7 +345000,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                       children: line
                     }, i, false, {
                       fileName: _jsxFileName,
-                      lineNumber: 853,
+                      lineNumber: 862,
                       columnNumber: 25
                     }, this);
                   }), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TouchableOpacity, {
@@ -344993,7 +345013,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                       color: _libTheme.NEON.blue
                     }, void 0, false, {
                       fileName: _jsxFileName,
-                      lineNumber: 866,
+                      lineNumber: 875,
                       columnNumber: 23
                     }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                       style: {
@@ -345004,42 +345024,42 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                       children: "\u518D\u751F\u6210"
                     }, void 0, false, {
                       fileName: _jsxFileName,
-                      lineNumber: 867,
+                      lineNumber: 876,
                       columnNumber: 23
                     }, this)]
                   }, void 0, true, {
                     fileName: _jsxFileName,
-                    lineNumber: 861,
+                    lineNumber: 870,
                     columnNumber: 21
                   }, this)]
                 }, void 0, true, {
                   fileName: _jsxFileName,
-                  lineNumber: 848,
+                  lineNumber: 857,
                   columnNumber: 19
                 }, this)]
               }, void 0, true, {
                 fileName: _jsxFileName,
-                lineNumber: 787,
+                lineNumber: 796,
                 columnNumber: 15
               }, this)
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 786,
+              lineNumber: 795,
               columnNumber: 13
             }, this)]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 775,
+            lineNumber: 784,
             columnNumber: 11
           }, this)
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 774,
+          lineNumber: 783,
           columnNumber: 9
         }, this)
       }, void 0, false, {
         fileName: _jsxFileName,
-        lineNumber: 773,
+        lineNumber: 782,
         columnNumber: 7
       }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Modal, {
         visible: pickModal,
@@ -345070,7 +345090,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                   children: "\uD83D\uDCCB"
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 883,
+                  lineNumber: 892,
                   columnNumber: 17
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                   style: [m.sheetTitle, {
@@ -345079,12 +345099,12 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                   children: pickStep === 'select' ? '種目をピックする' : 'AIでメニューを生成'
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 884,
+                  lineNumber: 893,
                   columnNumber: 17
                 }, this)]
               }, void 0, true, {
                 fileName: _jsxFileName,
-                lineNumber: 882,
+                lineNumber: 891,
                 columnNumber: 15
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TouchableOpacity, {
                 onPress: () => setPickModal(false),
@@ -345094,17 +345114,17 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                   color: "#888"
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 889,
+                  lineNumber: 898,
                   columnNumber: 17
                 }, this)
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 888,
+                lineNumber: 897,
                 columnNumber: 15
               }, this)]
             }, void 0, true, {
               fileName: _jsxFileName,
-              lineNumber: 881,
+              lineNumber: 890,
               columnNumber: 13
             }, this), pickStep === 'select' ? /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactJsxDevRuntime.Fragment, {
               children: [/*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.ScrollView, {
@@ -345125,7 +345145,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                     children: "\uD83D\uDCC1"
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 898,
+                    lineNumber: 907,
                     columnNumber: 23
                   }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                     style: {
@@ -345135,12 +345155,12 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                     children: "\u5148\u306B\u30E9\u30A4\u30D6\u30E9\u30EA\u306B\u30D5\u30A9\u30EB\u30C0\u3092\u4F5C\u6210\u3057\u3066\u304F\u3060\u3055\u3044"
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 899,
+                    lineNumber: 908,
                     columnNumber: 23
                   }, this)]
                 }, void 0, true, {
                   fileName: _jsxFileName,
-                  lineNumber: 897,
+                  lineNumber: 906,
                   columnNumber: 21
                 }, this) : folders.map(folder => {
                   var isExpanded = expandedFolders.includes(folder.id);
@@ -345165,19 +345185,19 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                           color: folder.color
                         }, void 0, false, {
                           fileName: _jsxFileName,
-                          lineNumber: 913,
+                          lineNumber: 922,
                           columnNumber: 31
                         }, this)
                       }, void 0, false, {
                         fileName: _jsxFileName,
-                        lineNumber: 912,
+                        lineNumber: 921,
                         columnNumber: 29
                       }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                         style: pk.folderName,
                         children: folder.name
                       }, void 0, false, {
                         fileName: _jsxFileName,
-                        lineNumber: 915,
+                        lineNumber: 924,
                         columnNumber: 29
                       }, this), pickedCount > 0 && /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                         style: [pk.badge, {
@@ -345192,12 +345212,12 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                           children: pickedCount
                         }, void 0, false, {
                           fileName: _jsxFileName,
-                          lineNumber: 918,
+                          lineNumber: 927,
                           columnNumber: 33
                         }, this)
                       }, void 0, false, {
                         fileName: _jsxFileName,
-                        lineNumber: 917,
+                        lineNumber: 926,
                         columnNumber: 31
                       }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_expoVectorIcons.Ionicons, {
                         name: isExpanded ? 'chevron-up' : 'chevron-down',
@@ -345205,12 +345225,12 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                         color: "#555"
                       }, void 0, false, {
                         fileName: _jsxFileName,
-                        lineNumber: 921,
+                        lineNumber: 930,
                         columnNumber: 29
                       }, this)]
                     }, void 0, true, {
                       fileName: _jsxFileName,
-                      lineNumber: 907,
+                      lineNumber: 916,
                       columnNumber: 27
                     }, this), isExpanded && /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                       style: pk.itemList,
@@ -345223,7 +345243,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                         children: "\u7A2E\u76EE\u304C\u3042\u308A\u307E\u305B\u3093"
                       }, void 0, false, {
                         fileName: _jsxFileName,
-                        lineNumber: 927,
+                        lineNumber: 936,
                         columnNumber: 33
                       }, this) : folder.items.map((item, idx) => {
                         var picked = pickedItems.some(p => p.folderId === folder.id && p.text === item);
@@ -345244,12 +345264,12 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                               color: "#fff"
                             }, void 0, false, {
                               fileName: _jsxFileName,
-                              lineNumber: 939,
+                              lineNumber: 948,
                               columnNumber: 52
                             }, this)
                           }, void 0, false, {
                             fileName: _jsxFileName,
-                            lineNumber: 938,
+                            lineNumber: 947,
                             columnNumber: 39
                           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                             style: [pk.itemText, picked && {
@@ -345258,29 +345278,29 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                             children: item
                           }, void 0, false, {
                             fileName: _jsxFileName,
-                            lineNumber: 941,
+                            lineNumber: 950,
                             columnNumber: 39
                           }, this)]
                         }, idx, true, {
                           fileName: _jsxFileName,
-                          lineNumber: 932,
+                          lineNumber: 941,
                           columnNumber: 37
                         }, this);
                       })
                     }, void 0, false, {
                       fileName: _jsxFileName,
-                      lineNumber: 925,
+                      lineNumber: 934,
                       columnNumber: 29
                     }, this)]
                   }, folder.id, true, {
                     fileName: _jsxFileName,
-                    lineNumber: 906,
+                    lineNumber: 915,
                     columnNumber: 25
                   }, this);
                 })
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 895,
+                lineNumber: 904,
                 columnNumber: 17
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                 style: pk.bottomBar,
@@ -345296,7 +345316,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                     children: "\u9078\u629E\u4E2D"
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 957,
+                    lineNumber: 966,
                     columnNumber: 21
                   }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                     style: {
@@ -345307,12 +345327,12 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                     children: [pickedItems.length, "\u7A2E\u76EE"]
                   }, void 0, true, {
                     fileName: _jsxFileName,
-                    lineNumber: 958,
+                    lineNumber: 967,
                     columnNumber: 21
                   }, this)]
                 }, void 0, true, {
                   fileName: _jsxFileName,
-                  lineNumber: 956,
+                  lineNumber: 965,
                   columnNumber: 19
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(HapticTouch.default, {
                   haptic: "whoosh",
@@ -345335,7 +345355,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                     children: "\u6B21\u3078"
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 967,
+                    lineNumber: 976,
                     columnNumber: 21
                   }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_expoVectorIcons.Ionicons, {
                     name: "chevron-forward",
@@ -345343,17 +345363,17 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                     color: "#1c1c1e"
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 968,
+                    lineNumber: 977,
                     columnNumber: 21
                   }, this)]
                 }, void 0, true, {
                   fileName: _jsxFileName,
-                  lineNumber: 960,
+                  lineNumber: 969,
                   columnNumber: 19
                 }, this)]
               }, void 0, true, {
                 fileName: _jsxFileName,
-                lineNumber: 955,
+                lineNumber: 964,
                 columnNumber: 17
               }, this)]
             }, void 0, true) : /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.KeyboardAvoidingView, {
@@ -345375,7 +345395,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                   children: ["\u30D4\u30C3\u30AF\u3057\u305F\u7A2E\u76EE (", pickedItems.length, ")"]
                 }, void 0, true, {
                   fileName: _jsxFileName,
-                  lineNumber: 977,
+                  lineNumber: 986,
                   columnNumber: 19
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                   style: pk.confirmList,
@@ -345395,19 +345415,19 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                         children: p.folderName
                       }, void 0, false, {
                         fileName: _jsxFileName,
-                        lineNumber: 982,
+                        lineNumber: 991,
                         columnNumber: 27
                       }, this)
                     }, void 0, false, {
                       fileName: _jsxFileName,
-                      lineNumber: 981,
+                      lineNumber: 990,
                       columnNumber: 25
                     }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                       style: pk.confirmText,
                       children: p.text
                     }, void 0, false, {
                       fileName: _jsxFileName,
-                      lineNumber: 984,
+                      lineNumber: 993,
                       columnNumber: 25
                     }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TouchableOpacity, {
                       onPress: () => setPickedItems(prev => prev.filter((_, i) => i !== idx)),
@@ -345423,22 +345443,22 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                         color: "#444"
                       }, void 0, false, {
                         fileName: _jsxFileName,
-                        lineNumber: 986,
+                        lineNumber: 995,
                         columnNumber: 27
                       }, this)
                     }, void 0, false, {
                       fileName: _jsxFileName,
-                      lineNumber: 985,
+                      lineNumber: 994,
                       columnNumber: 25
                     }, this)]
                   }, idx, true, {
                     fileName: _jsxFileName,
-                    lineNumber: 980,
+                    lineNumber: 989,
                     columnNumber: 23
                   }, this))
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 978,
+                  lineNumber: 987,
                   columnNumber: 19
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                   style: [m.label, {
@@ -345447,7 +345467,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                   children: "\u4ECA\u65E5\u306E\u7DF4\u7FD2\u30A4\u30E1\u30FC\u30B8\uFF08\u4EFB\u610F\uFF09"
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 993,
+                  lineNumber: 1002,
                   columnNumber: 19
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TextInput, {
                   value: pickIntent,
@@ -345461,7 +345481,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                   multiline: true
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 994,
+                  lineNumber: 1003,
                   columnNumber: 19
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(HapticTouch.default, {
                   haptic: "whoosh",
@@ -345476,7 +345496,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                     color: "#fff"
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 1012,
+                    lineNumber: 1021,
                     columnNumber: 25
                   }, this) : /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                     style: {
@@ -345485,19 +345505,19 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                     children: "\uD83E\uDD16"
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 1013,
+                    lineNumber: 1022,
                     columnNumber: 25
                   }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                     style: ai.genBtnText,
                     children: pickLoading ? 'メニュー生成中...' : 'このピック内容でAI生成'
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 1015,
+                    lineNumber: 1024,
                     columnNumber: 21
                   }, this)]
                 }, void 0, true, {
                   fileName: _jsxFileName,
-                  lineNumber: 1004,
+                  lineNumber: 1013,
                   columnNumber: 19
                 }, this), pickResult !== '' && /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                   style: ai.resultCard,
@@ -345511,7 +345531,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                       }
                     }, i, false, {
                       fileName: _jsxFileName,
-                      lineNumber: 1023,
+                      lineNumber: 1032,
                       columnNumber: 52
                     }, this);
                     return /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
@@ -345524,7 +345544,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                       children: line
                     }, i, false, {
                       fileName: _jsxFileName,
-                      lineNumber: 1025,
+                      lineNumber: 1034,
                       columnNumber: 27
                     }, this);
                   }), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TouchableOpacity, {
@@ -345537,7 +345557,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                       color: _libTheme.NEON.blue
                     }, void 0, false, {
                       fileName: _jsxFileName,
-                      lineNumber: 1031,
+                      lineNumber: 1040,
                       columnNumber: 25
                     }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                       style: {
@@ -345548,22 +345568,22 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                       children: "\u518D\u751F\u6210"
                     }, void 0, false, {
                       fileName: _jsxFileName,
-                      lineNumber: 1032,
+                      lineNumber: 1041,
                       columnNumber: 25
                     }, this)]
                   }, void 0, true, {
                     fileName: _jsxFileName,
-                    lineNumber: 1030,
+                    lineNumber: 1039,
                     columnNumber: 23
                   }, this)]
                 }, void 0, true, {
                   fileName: _jsxFileName,
-                  lineNumber: 1020,
+                  lineNumber: 1029,
                   columnNumber: 21
                 }, this)]
               }, void 0, true, {
                 fileName: _jsxFileName,
-                lineNumber: 974,
+                lineNumber: 983,
                 columnNumber: 17
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                 style: pk.bottomBar,
@@ -345577,7 +345597,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                     color: "#888"
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 1040,
+                    lineNumber: 1049,
                     columnNumber: 21
                   }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                     style: {
@@ -345587,37 +345607,37 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                     children: "\u7A2E\u76EE\u3092\u9078\u3073\u76F4\u3059"
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 1041,
+                    lineNumber: 1050,
                     columnNumber: 21
                   }, this)]
                 }, void 0, true, {
                   fileName: _jsxFileName,
-                  lineNumber: 1039,
+                  lineNumber: 1048,
                   columnNumber: 19
                 }, this)
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 1038,
+                lineNumber: 1047,
                 columnNumber: 17
               }, this)]
             }, void 0, true, {
               fileName: _jsxFileName,
-              lineNumber: 973,
+              lineNumber: 982,
               columnNumber: 15
             }, this)]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 880,
+            lineNumber: 889,
             columnNumber: 11
           }, this)
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 879,
+          lineNumber: 888,
           columnNumber: 9
         }, this)
       }, void 0, false, {
         fileName: _jsxFileName,
-        lineNumber: 878,
+        lineNumber: 887,
         columnNumber: 7
       }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Modal, {
         visible: histModal,
@@ -345637,7 +345657,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                 children: "\u751F\u6210\u30E1\u30CB\u30E5\u30FC"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 1055,
+                lineNumber: 1064,
                 columnNumber: 15
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TouchableOpacity, {
                 onPress: () => setHistModal(false),
@@ -345647,17 +345667,17 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                   color: "#888"
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 1057,
+                  lineNumber: 1066,
                   columnNumber: 17
                 }, this)
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 1056,
+                lineNumber: 1065,
                 columnNumber: 15
               }, this)]
             }, void 0, true, {
               fileName: _jsxFileName,
-              lineNumber: 1054,
+              lineNumber: 1063,
               columnNumber: 13
             }, this), histItem && /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.ScrollView, {
               showsVerticalScrollIndicator: false,
@@ -345676,7 +345696,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                   children: new Date(histItem.created_at).toLocaleString('ja-JP')
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 1063,
+                  lineNumber: 1072,
                   columnNumber: 19
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                   style: {
@@ -345687,12 +345707,12 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                   children: ["\u300C", histItem.intent, "\u300D"]
                 }, void 0, true, {
                   fileName: _jsxFileName,
-                  lineNumber: 1064,
+                  lineNumber: 1073,
                   columnNumber: 19
                 }, this)]
               }, void 0, true, {
                 fileName: _jsxFileName,
-                lineNumber: 1062,
+                lineNumber: 1071,
                 columnNumber: 17
               }, this), histItem.result.split('\n').map((line, i) => {
                 var isBold = /^[📋💬【】🔥⚡]/.test(line);
@@ -345704,7 +345724,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                   }
                 }, i, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 1068,
+                  lineNumber: 1077,
                   columnNumber: 46
                 }, this);
                 return /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
@@ -345717,28 +345737,28 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
                   children: line
                 }, i, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 1070,
+                  lineNumber: 1079,
                   columnNumber: 21
                 }, this);
               })]
             }, void 0, true, {
               fileName: _jsxFileName,
-              lineNumber: 1061,
+              lineNumber: 1070,
               columnNumber: 15
             }, this)]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 1053,
+            lineNumber: 1062,
             columnNumber: 11
           }, this)
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 1052,
+          lineNumber: 1061,
           columnNumber: 9
         }, this)
       }, void 0, false, {
         fileName: _jsxFileName,
-        lineNumber: 1051,
+        lineNumber: 1060,
         columnNumber: 7
       }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(AdGateModal.default, {
         visible: adGateVisible,
@@ -345754,18 +345774,20 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
         },
         onAdWatched: /*#__PURE__*/(0, _asyncToGenerator.default)(function* () {
           setAdGateVisible(false);
+          // 使用を記録してからコア関数を直接呼ぶ（二重記録防止）
           var g = yield (0, _libAdGate.checkAdGate)('workout');
           if (g.rewardUses > 0) {
             yield (0, _libAdGate.consumeRewardUse)('workout');
           } else {
             yield (0, _libAdGate.recordUsage)('workout');
           }
-          if (adGatePendingFn === 'pick') {
-            handleGenerateFromPicked();
-          } else if (adGatePendingFn === 'intent') {
-            handleGenerate();
-          }
+          var pending = adGatePendingFn;
           setAdGatePendingFn(null);
+          if (pending === 'pick') {
+            generateFromPickedCore();
+          } else if (pending === 'intent') {
+            generateCore();
+          }
         }),
         onUpgrade: () => {
           setAdGateVisible(false);
@@ -345774,12 +345796,12 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
         }
       }, void 0, false, {
         fileName: _jsxFileName,
-        lineNumber: 1081,
+        lineNumber: 1090,
         columnNumber: 7
       }, this)]
     }, void 0, true, {
       fileName: _jsxFileName,
-      lineNumber: 528,
+      lineNumber: 537,
       columnNumber: 5
     }, this);
   }

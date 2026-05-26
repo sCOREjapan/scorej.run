@@ -308,23 +308,8 @@ export default function WorkoutMenuScreen() {
     setExpandedFolders(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
   }
 
-  async function handleGenerateFromPicked() {
-    if (pickedItems.length === 0) return
-    const gate = await checkAdGate('workout')
-    if (!gate.allowed) {
-      setAdGateRemaining(gate.remaining)
-      setAdGateRewardUses(gate.rewardUses)
-      setAdGateHardLimited(gate.hardLimited)
-      setAdGateLimitType(gate.limitType)
-      setAdGatePendingFn('pick')
-      setAdGateVisible(true)
-      return
-    }
-    if (gate.remaining === 0 && gate.rewardUses > 0) {
-      await consumeRewardUse('workout')
-    } else {
-      await recordUsage('workout')
-    }
+  // ── 広告視聴後に呼ばれるコア生成（ゲートチェック・使用記録なし）──
+  async function generateFromPickedCore() {
     setPickLoading(true)
     setPickResult('')
     try {
@@ -412,23 +397,15 @@ ${pickIntent.trim() || '特に指定なし（コーチの判断で最適なメ�
     }
   }
 
-  // ── AI生成 ────────────────────────────────────────────
-  function openAI() {
-    setAiIntent('')
-    setAiResult('')
-    setSelectedFolderIds(folders.map(f => f.id))
-    setAiModal(true)
-  }
-
-  async function handleGenerate() {
-    if (!aiIntent.trim()) return
+  async function handleGenerateFromPicked() {
+    if (pickedItems.length === 0) return
     const gate = await checkAdGate('workout')
     if (!gate.allowed) {
       setAdGateRemaining(gate.remaining)
       setAdGateRewardUses(gate.rewardUses)
       setAdGateHardLimited(gate.hardLimited)
       setAdGateLimitType(gate.limitType)
-      setAdGatePendingFn('intent')
+      setAdGatePendingFn('pick')
       setAdGateVisible(true)
       return
     }
@@ -437,6 +414,18 @@ ${pickIntent.trim() || '特に指定なし（コーチの判断で最適なメ�
     } else {
       await recordUsage('workout')
     }
+    generateFromPickedCore()
+  }
+
+  // ── AI生成 ────────────────────────────────────────────
+  function openAI() {
+    setAiIntent('')
+    setAiResult('')
+    setSelectedFolderIds(folders.map(f => f.id))
+    setAiModal(true)
+  }
+
+  async function generateCore() {
     setAiLoading(true)
     setAiResult('')
     try {
@@ -520,6 +509,26 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
     } finally {
       setAiLoading(false)
     }
+  }
+
+  async function handleGenerate() {
+    if (!aiIntent.trim()) return
+    const gate = await checkAdGate('workout')
+    if (!gate.allowed) {
+      setAdGateRemaining(gate.remaining)
+      setAdGateRewardUses(gate.rewardUses)
+      setAdGateHardLimited(gate.hardLimited)
+      setAdGateLimitType(gate.limitType)
+      setAdGatePendingFn('intent')
+      setAdGateVisible(true)
+      return
+    }
+    if (gate.remaining === 0 && gate.rewardUses > 0) {
+      await consumeRewardUse('workout')
+    } else {
+      await recordUsage('workout')
+    }
+    generateCore()
   }
 
   const todayStr = new Date().toLocaleDateString('ja-JP', { month: 'short', day: 'numeric', weekday: 'short' })
@@ -1089,12 +1098,14 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
         onClose={() => { setAdGateVisible(false); setAdGatePendingFn(null) }}
         onAdWatched={async () => {
           setAdGateVisible(false)
+          // 使用を記録してからコア関数を直接呼ぶ（二重記録防止）
           const g = await checkAdGate('workout')
           if (g.rewardUses > 0) { await consumeRewardUse('workout') }
           else { await recordUsage('workout') }
-          if (adGatePendingFn === 'pick') { handleGenerateFromPicked() }
-          else if (adGatePendingFn === 'intent') { handleGenerate() }
+          const pending = adGatePendingFn
           setAdGatePendingFn(null)
+          if (pending === 'pick') { generateFromPickedCore() }
+          else if (pending === 'intent') { generateCore() }
         }}
         onUpgrade={() => {
           setAdGateVisible(false)
