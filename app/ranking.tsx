@@ -20,7 +20,6 @@ import type { AthleticsEvent, RaceRecord } from '../types'
 
 // ─── 定数 ───────────────────────────────────────────────────────────────
 const RECORDS_KEY = 'trackmate_race_records'
-const MOCK_USER_ID = 'mock-user-1'
 
 const TRACK_EVENTS: AthleticsEvent[] = [
   '100m', '200m', '400m', '800m', '1500m',

@@ -216,23 +216,23 @@ export default function OnboardingScreen() {
   const canNextStep3 = event !== ''
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#f6f6f8' }}>
+    <View style={{ flex: 1, backgroundColor: step === 5 ? '#1a1a2e' : '#f6f6f8' }}>
       {/* ヘッダー */}
       <SafeAreaView>
         <StepBar step={step} />
         <View style={styles.header}>
           {step > 1 ? (
             <TouchableOpacity onPress={goBack} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Ionicons name="chevron-back" size={22} color={TEXT.secondary} />
+              <Ionicons name="chevron-back" size={22} color={step === 5 ? 'rgba(255,255,255,0.6)' : TEXT.secondary} />
             </TouchableOpacity>
           ) : <View style={{ width: 40 }} />}
-          <Text style={styles.stepLabel}>STEP {step} / {TOTAL_STEPS}</Text>
+          <Text style={[styles.stepLabel, step === 5 && { color: 'rgba(255,255,255,0.4)' }]}>STEP {step} / {TOTAL_STEPS}</Text>
           <TouchableOpacity
             onPress={() => { Sounds.tap(); transition(() => setStep(s => Math.min(s + 1, TOTAL_STEPS))) }}
             style={styles.skipBtn}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Text style={styles.skipText}>{step < TOTAL_STEPS ? 'スキップ' : ''}</Text>
+            <Text style={[styles.skipText, step === 5 && { color: 'rgba(255,255,255,0.4)' }]}>{step < TOTAL_STEPS ? 'スキップ' : ''}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -392,8 +392,8 @@ export default function OnboardingScreen() {
               <View style={{ gap: 14 }}>
                 <View style={styles.titleArea}>
                   <Text style={styles.emoji}>🚀</Text>
-                  <Text style={styles.title}>プランを選んで{'\n'}始めよう</Text>
-                  <Text style={styles.sub}>いつでも変更・解約できます</Text>
+                  <Text style={[styles.title, { color: '#fff' }]}>プランを選んで{'\n'}始めよう</Text>
+                  <Text style={[styles.sub, { color: 'rgba(255,255,255,0.6)' }]}>いつでも変更・解約できます</Text>
                 </View>
 
                 {/* ── PRO おすすめ（最上段・一番目立つ） ── */}
@@ -401,14 +401,14 @@ export default function OnboardingScreen() {
                   onPress={() => handleFinish(false, true)}
                   activeOpacity={0.88}
                   style={{
-                    backgroundColor: '#fff',
+                    backgroundColor: 'rgba(255,255,255,0.07)',
                     borderRadius: 20,
                     borderWidth: 2,
                     borderColor: BRAND,
                     padding: 20,
                     shadowColor: BRAND,
                     shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.18,
+                    shadowOpacity: 0.3,
                     shadowRadius: 16,
                     elevation: 6,
                   }}
@@ -437,7 +437,7 @@ export default function OnboardingScreen() {
                     ].map(f => (
                       <View key={f.text} style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
                         <Ionicons name={f.icon as any} size={15} color={BRAND} />
-                        <Text style={{ color: '#374151', fontSize: 13, fontWeight: '600' }}>{f.text}</Text>
+                        <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '600' }}>{f.text}</Text>
                       </View>
                     ))}
                   </View>
@@ -451,14 +451,14 @@ export default function OnboardingScreen() {
                   onPress={() => handleFinish(false, true)}
                   activeOpacity={0.88}
                   style={{
-                    backgroundColor: '#fff',
+                    backgroundColor: 'rgba(255,255,255,0.05)',
                     borderRadius: 20,
                     borderWidth: 1.5,
                     borderColor: '#d97706',
                     padding: 20,
                     shadowColor: '#d97706',
                     shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.1,
+                    shadowOpacity: 0.2,
                     shadowRadius: 8,
                     elevation: 3,
                   }}
@@ -480,7 +480,7 @@ export default function OnboardingScreen() {
                     ].map(f => (
                       <View key={f.text} style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
                         <Ionicons name={f.icon as any} size={15} color="#d97706" />
-                        <Text style={{ color: '#374151', fontSize: 13, fontWeight: '600' }}>{f.text}</Text>
+                        <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '600' }}>{f.text}</Text>
                       </View>
                     ))}
                   </View>
@@ -491,10 +491,10 @@ export default function OnboardingScreen() {
                   onPress={() => handleFinish()}
                   activeOpacity={0.7}
                   style={{
-                    backgroundColor: '#f9fafb',
+                    backgroundColor: 'rgba(255,255,255,0.04)',
                     borderRadius: 16,
                     borderWidth: 1,
-                    borderColor: '#e5e7eb',
+                    borderColor: 'rgba(255,255,255,0.12)',
                     paddingVertical: 14,
                     paddingHorizontal: 20,
                     flexDirection: 'row',
@@ -503,13 +503,13 @@ export default function OnboardingScreen() {
                   }}
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    <View style={{ backgroundColor: '#f3f4f6', borderRadius: 7, paddingHorizontal: 9, paddingVertical: 4 }}>
-                      <Text style={{ color: '#6b7280', fontSize: 12, fontWeight: '800' }}>FREE</Text>
+                    <View style={{ backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 7, paddingHorizontal: 9, paddingVertical: 4 }}>
+                      <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: '800' }}>FREE</Text>
                     </View>
-                    <Text style={{ color: '#6b7280', fontSize: 13 }}>まず無料で始める</Text>
+                    <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13 }}>まず無料で始める</Text>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={{ fontSize: 16, fontWeight: '800', color: '#9ca3af' }}>¥0</Text>
+                    <Text style={{ fontSize: 16, fontWeight: '800', color: 'rgba(255,255,255,0.35)' }}>¥0</Text>
                   </View>
                 </TouchableOpacity>
               </View>

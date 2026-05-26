@@ -14,7 +14,6 @@ import { Sounds, unlockAudio } from '../../lib/sounds'
 import HapticTouch from '../../components/HapticTouch'
 
 const PROFILE_KEY = 'trackmate_my_profile'
-const MOCK_USER_ID = 'mock-user-1'
 
 interface MyProfile {
   name: string
@@ -40,7 +39,7 @@ export default function MyPageScreen() {
 
   useEffect(() => {
     AsyncStorage.getItem(PROFILE_KEY).then(v => { if (v) { try { setProfile(JSON.parse(v)) } catch {} } }).catch(() => {})
-    fetchSessions(MOCK_USER_ID)
+    fetchSessions('')
   }, [])
 
   const displayName = profile.name || 'アスリート'

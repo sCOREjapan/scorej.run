@@ -132,8 +132,6 @@ const CONDITION_EMOJIS = [
   { emoji: '💪', label: '絶好調',   value: 10 },
 ] as const
 
-const MOCK_USER_ID = 'mock-user-1'
-
 // ────────────────────────────────────────────────────────
 // AnimatedEntry
 // ────────────────────────────────────────────────────────
@@ -1263,7 +1261,7 @@ export default function DashboardScreen() {
   }
 
   const reloadAll = useCallback(() => {
-    fetchSessions(MOCK_USER_ID)
+    fetchSessions('')
     // ストレッチ結果読み込み
     const today = new Date().toISOString().slice(0, 10)
     AsyncStorage.getItem(STRETCH_RESULT_KEY).then(raw => {
@@ -1976,7 +1974,7 @@ ${sleepText || 'データなし'}
         visible={showQuickLog}
         onClose={() => setShowQuickLog(false)}
         onSaved={() => {
-          fetchSessions(MOCK_USER_ID)
+          fetchSessions('')
           loadTasks()
         }}
       />
