@@ -293,7 +293,7 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
 
       sessions.unshift({
         id:              `ql_${Date.now()}`,
-        user_id:         'mock-user-1',
+        user_id:         (await AsyncStorage.getItem('userId').catch(() => null)) ?? 'local',
         session_date:    parsed.session_date    || today,
         session_type:    parsed.session_type    || 'easy',
         event:           parsed.event && parsed.event !== 'null' && parsed.event !== null ? String(parsed.event) : undefined,
