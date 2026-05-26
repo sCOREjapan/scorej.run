@@ -338408,14 +338408,15 @@ __d(function (global, require, _$$_IMPORT_DEFAULT, _$$_IMPORT_ALL, module, expor
     React.default.useEffect(() => {
       if (phase !== 'result') return;
       var cancelled = false;
+      var timerId = null;
       (0, _libAdGate.getTier)().then(tier => {
         if (tier === 'free' && !cancelled) {
-          var t = setTimeout(() => setUpsellVisible(true), 5000);
-          return () => clearTimeout(t);
+          timerId = setTimeout(() => setUpsellVisible(true), 5000);
         }
       });
       return () => {
         cancelled = true;
+        if (timerId !== null) clearTimeout(timerId);
       };
     }, [phase]);
     function pickVideo() {
@@ -338678,7 +338679,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
             children: "\u30D5\u30A9\u30FC\u30E0\u5206\u6790"
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 905,
+            lineNumber: 908,
             columnNumber: 11
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
             style: {
@@ -338689,12 +338690,12 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
             children: ["AI\u304C", MAX_FRAMES, "\u30D5\u30EC\u30FC\u30E0\u3092\u540C\u6642\u89E3\u6790\u30FB\u6700\u901F\u8A3A\u65AD"]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 906,
+            lineNumber: 909,
             columnNumber: 11
           }, this)]
         }, void 0, true, {
           fileName: _jsxFileName,
-          lineNumber: 904,
+          lineNumber: 907,
           columnNumber: 9
         }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
           style: {
@@ -338711,7 +338712,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
             children: "\u7A2E\u76EE\uFF08\u4EFB\u610F\uFF09"
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 911,
+            lineNumber: 914,
             columnNumber: 11
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TextInput, {
             style: {
@@ -338729,12 +338730,12 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
             onChangeText: setEvent
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 912,
+            lineNumber: 915,
             columnNumber: 11
           }, this)]
         }, void 0, true, {
           fileName: _jsxFileName,
-          lineNumber: 910,
+          lineNumber: 913,
           columnNumber: 9
         }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
           style: {
@@ -338756,7 +338757,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
             children: "\uD83D\uDC64 \u5206\u6790\u5BFE\u8C61\u306E\u7279\u5B9A\uFF08\u8907\u6570\u4EBA\u6620\u3063\u3066\u3044\u308B\u5834\u5408\uFF09"
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 925,
+            lineNumber: 928,
             columnNumber: 11
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
             style: {
@@ -338777,7 +338778,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
                 children: "\u670D\u306E\u8272"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 930,
+                lineNumber: 933,
                 columnNumber: 15
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TextInput, {
                 style: {
@@ -338796,12 +338797,12 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
                 onChangeText: setClothingColor
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 931,
+                lineNumber: 934,
                 columnNumber: 15
               }, this)]
             }, void 0, true, {
               fileName: _jsxFileName,
-              lineNumber: 929,
+              lineNumber: 932,
               columnNumber: 13
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
               style: {
@@ -338817,7 +338818,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
                 children: "\u9774\u306E\u8272"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 941,
+                lineNumber: 944,
                 columnNumber: 15
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TextInput, {
                 style: {
@@ -338836,17 +338837,17 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
                 onChangeText: setShoeColor
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 942,
+                lineNumber: 945,
                 columnNumber: 15
               }, this)]
             }, void 0, true, {
               fileName: _jsxFileName,
-              lineNumber: 940,
+              lineNumber: 943,
               columnNumber: 13
             }, this)]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 928,
+            lineNumber: 931,
             columnNumber: 11
           }, this), clothingColor || shoeColor ? /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
             style: {
@@ -338857,7 +338858,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
             children: ["\u2713 ", [clothingColor && `服：${clothingColor}`, shoeColor && `靴：${shoeColor}`].filter(Boolean).join('　'), "\u306E\u9078\u624B\u3092\u5206\u6790\u5BFE\u8C61\u306B\u3057\u307E\u3059"]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 953,
+            lineNumber: 956,
             columnNumber: 13
           }, this) : /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
             style: {
@@ -338868,12 +338869,12 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
             children: "\u5165\u529B\u3059\u308B\u3068\u8907\u6570\u4EBA\u306E\u52D5\u753B\u3067\u3082\u6B63\u78BA\u306B\u5206\u6790\u3067\u304D\u307E\u3059"
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 957,
+            lineNumber: 960,
             columnNumber: 13
           }, this)]
         }, void 0, true, {
           fileName: _jsxFileName,
-          lineNumber: 923,
+          lineNumber: 926,
           columnNumber: 9
         }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TouchableOpacity, {
           onPress: pickVideo,
@@ -338894,7 +338895,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
             color: videoUri ? '#16a34a' : '#9ca3af'
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 973,
+            lineNumber: 976,
             columnNumber: 11
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
             style: {
@@ -338906,7 +338907,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
             children: videoUri ? '動画選択済み ✓  （タップして変更）' : '動画をタップして選択'
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 978,
+            lineNumber: 981,
             columnNumber: 11
           }, this), !videoUri && /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
             style: {
@@ -338917,12 +338918,12 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
             children: "MP4 / MOV \u5BFE\u5FDC"
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 982,
+            lineNumber: 985,
             columnNumber: 13
           }, this)]
         }, void 0, true, {
           fileName: _jsxFileName,
-          lineNumber: 962,
+          lineNumber: 965,
           columnNumber: 9
         }, this), frames.length > 0 && /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
           style: {
@@ -338939,7 +338940,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
             children: ["\u62BD\u51FA\u30D5\u30EC\u30FC\u30E0 (", frames.length, "\u679A)"]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 989,
+            lineNumber: 992,
             columnNumber: 13
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.ScrollView, {
             horizontal: true,
@@ -338963,7 +338964,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
                 }
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 995,
+                lineNumber: 998,
                 columnNumber: 19
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                 style: {
@@ -338984,27 +338985,27 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
                   children: i + 1
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 1001,
+                  lineNumber: 1004,
                   columnNumber: 21
                 }, this)
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 999,
+                lineNumber: 1002,
                 columnNumber: 19
               }, this)]
             }, i, true, {
               fileName: _jsxFileName,
-              lineNumber: 994,
+              lineNumber: 997,
               columnNumber: 17
             }, this))
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 992,
+            lineNumber: 995,
             columnNumber: 13
           }, this)]
         }, void 0, true, {
           fileName: _jsxFileName,
-          lineNumber: 988,
+          lineNumber: 991,
           columnNumber: 11
         }, this), error ? /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
           style: {
@@ -339023,12 +339024,12 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
             children: ["\u26A0\uFE0F ", error]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 1013,
+            lineNumber: 1016,
             columnNumber: 13
           }, this)
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 1011,
+          lineNumber: 1014,
           columnNumber: 11
         }, this) : null, phase === 'extracting' || phase === 'analyzing' ? /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
           style: {
@@ -339041,7 +339042,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
             size: "large"
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1020,
+            lineNumber: 1023,
             columnNumber: 13
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
             style: {
@@ -339052,7 +339053,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
             children: stepLabel
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1021,
+            lineNumber: 1024,
             columnNumber: 13
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
             style: {
@@ -339076,7 +339077,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
                   }
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 1027,
+                  lineNumber: 1030,
                   columnNumber: 21
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                   style: {
@@ -339086,23 +339087,23 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
                   children: step
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 1029,
+                  lineNumber: 1032,
                   columnNumber: 21
                 }, this)]
               }, step, true, {
                 fileName: _jsxFileName,
-                lineNumber: 1026,
+                lineNumber: 1029,
                 columnNumber: 19
               }, this);
             })
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1022,
+            lineNumber: 1025,
             columnNumber: 13
           }, this)]
         }, void 0, true, {
           fileName: _jsxFileName,
-          lineNumber: 1019,
+          lineNumber: 1022,
           columnNumber: 11
         }, this) : /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactJsxDevRuntime.Fragment, {
           children: [remaining !== null && /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
@@ -339125,7 +339126,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
               color: remaining <= 1 ? '#dc2626' : '#16a34a'
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1044,
+              lineNumber: 1047,
               columnNumber: 17
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
               style: {
@@ -339136,12 +339137,12 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
               children: remaining === 0 ? '無料枠を使い切りました' : `残り${remaining}回（無料枠）`
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1046,
+              lineNumber: 1049,
               columnNumber: 17
             }, this)]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 1039,
+            lineNumber: 1042,
             columnNumber: 15
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TouchableOpacity, {
             onPress: () => analyze(),
@@ -339170,7 +339171,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
               color: videoUri ? '#fff' : '#9ca3af'
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1063,
+              lineNumber: 1066,
               columnNumber: 15
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
               style: {
@@ -339181,12 +339182,12 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
               children: phase === 'result' ? '再分析する' : 'AIで分析する'
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1064,
+              lineNumber: 1067,
               columnNumber: 15
             }, this)]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 1051,
+            lineNumber: 1054,
             columnNumber: 13
           }, this)]
         }, void 0, true), result && phase === 'result' && /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
@@ -339199,7 +339200,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
             frameNotes: result.frameNotes
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1076,
+            lineNumber: 1079,
             columnNumber: 15
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
             style: {
@@ -339223,13 +339224,13 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
               }
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1086,
+              lineNumber: 1089,
               columnNumber: 15
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(ScoreRing, {
               score: result.score
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1087,
+              lineNumber: 1090,
               columnNumber: 15
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
               style: {
@@ -339246,17 +339247,17 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
                 children: result.overall
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 1089,
+                lineNumber: 1092,
                 columnNumber: 17
               }, this)
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1088,
+              lineNumber: 1091,
               columnNumber: 15
             }, this)]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 1084,
+            lineNumber: 1087,
             columnNumber: 13
           }, this), result.positives?.length > 0 && /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(ResultSection, {
             title: "\u826F\u3044\u70B9",
@@ -339265,7 +339266,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
             items: result.positives
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1097,
+            lineNumber: 1100,
             columnNumber: 15
           }, this), result.improvements?.length > 0 && /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(ResultSection, {
             title: "\u6539\u5584\u70B9",
@@ -339274,7 +339275,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
             items: result.improvements
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1102,
+            lineNumber: 1105,
             columnNumber: 15
           }, this), result.menu?.length > 0 && /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
             style: {
@@ -339298,7 +339299,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
                 children: "\uD83C\uDFC3"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 1109,
+                lineNumber: 1112,
                 columnNumber: 19
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                 style: {
@@ -339309,12 +339310,12 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
                 children: "\u304A\u3059\u3059\u3081\u7DF4\u7FD2\u30E1\u30CB\u30E5\u30FC"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 1110,
+                lineNumber: 1113,
                 columnNumber: 19
               }, this)]
             }, void 0, true, {
               fileName: _jsxFileName,
-              lineNumber: 1108,
+              lineNumber: 1111,
               columnNumber: 17
             }, this), result.menu.map((m, i) => /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
               style: {
@@ -339341,12 +339342,12 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
                   children: i + 1
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 1116,
+                  lineNumber: 1119,
                   columnNumber: 23
                 }, this)
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 1114,
+                lineNumber: 1117,
                 columnNumber: 21
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                 style: {
@@ -339361,7 +339362,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
                   children: m.name
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 1119,
+                  lineNumber: 1122,
                   columnNumber: 23
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                   style: {
@@ -339373,22 +339374,22 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
                   children: m.detail
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 1120,
+                  lineNumber: 1123,
                   columnNumber: 23
                 }, this)]
               }, void 0, true, {
                 fileName: _jsxFileName,
-                lineNumber: 1118,
+                lineNumber: 1121,
                 columnNumber: 21
               }, this)]
             }, i, true, {
               fileName: _jsxFileName,
-              lineNumber: 1113,
+              lineNumber: 1116,
               columnNumber: 19
             }, this))]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 1107,
+            lineNumber: 1110,
             columnNumber: 15
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TouchableOpacity, {
             onPress: () => analyze(),
@@ -339410,17 +339411,17 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
               children: "\uD83D\uDD04 \u518D\u5206\u6790\u3059\u308B"
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1134,
+              lineNumber: 1137,
               columnNumber: 15
             }, this)
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1128,
+            lineNumber: 1131,
             columnNumber: 13
           }, this)]
         }, void 0, true, {
           fileName: _jsxFileName,
-          lineNumber: 1073,
+          lineNumber: 1076,
           columnNumber: 11
         }, this), rawText && !result && phase === 'result' && /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
           style: {
@@ -339439,17 +339440,17 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
             children: rawText
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1142,
+            lineNumber: 1145,
             columnNumber: 13
           }, this)
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 1141,
+          lineNumber: 1144,
           columnNumber: 11
         }, this)]
       }, void 0, true, {
         fileName: _jsxFileName,
-        lineNumber: 897,
+        lineNumber: 900,
         columnNumber: 7
       }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(AdGateModal.default, {
         visible: adGateVisible,
@@ -339479,7 +339480,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
         }
       }, void 0, false, {
         fileName: _jsxFileName,
-        lineNumber: 1147,
+        lineNumber: 1150,
         columnNumber: 7
       }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Modal, {
         visible: upsellVisible,
@@ -339520,7 +339521,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
                   }
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 1174,
+                  lineNumber: 1177,
                   columnNumber: 17
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                   style: {
@@ -339534,7 +339535,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
                     color: "#d97706"
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 1176,
+                    lineNumber: 1179,
                     columnNumber: 19
                   }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                     style: {
@@ -339545,12 +339546,12 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
                     children: "\u6BCE\u56DE\u4F7F\u3046\u306A\u3089 Pro \u304C\u304A\u5F97"
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 1177,
+                    lineNumber: 1180,
                     columnNumber: 19
                   }, this)]
                 }, void 0, true, {
                   fileName: _jsxFileName,
-                  lineNumber: 1175,
+                  lineNumber: 1178,
                   columnNumber: 17
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                   style: {
@@ -339561,7 +339562,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
                   children: ["\u52D5\u753B\u30D5\u30A9\u30FC\u30E0\u5206\u6790\u306F\u6BCE\u65E51\u56DE\uFF08\u5E83\u544A1\u672C\uFF09\u3067\u4F7F\u3048\u307E\u3059\u3002", '\n', "Pro \u30D7\u30E9\u30F3\u306A\u3089\u670830\u56DE\u30FB\u5E83\u544A\u306A\u3057\u3067\u4F7F\u3044\u653E\u984C\u3002"]
                 }, void 0, true, {
                   fileName: _jsxFileName,
-                  lineNumber: 1179,
+                  lineNumber: 1182,
                   columnNumber: 17
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                   style: {
@@ -339584,7 +339585,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
                       children: "FREE\uFF08\u4ECA\u306E\u30D7\u30E9\u30F3\uFF09"
                     }, void 0, false, {
                       fileName: _jsxFileName,
-                      lineNumber: 1185,
+                      lineNumber: 1188,
                       columnNumber: 21
                     }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                       style: {
@@ -339594,12 +339595,12 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
                       children: "\u6BCE\u65E51\u56DE\u30FB\u5E83\u544A\u3042\u308A"
                     }, void 0, false, {
                       fileName: _jsxFileName,
-                      lineNumber: 1186,
+                      lineNumber: 1189,
                       columnNumber: 21
                     }, this)]
                   }, void 0, true, {
                     fileName: _jsxFileName,
-                    lineNumber: 1184,
+                    lineNumber: 1187,
                     columnNumber: 19
                   }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                     style: {
@@ -339629,12 +339630,12 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
                           children: "PRO"
                         }, void 0, false, {
                           fileName: _jsxFileName,
-                          lineNumber: 1191,
+                          lineNumber: 1194,
                           columnNumber: 25
                         }, this)
                       }, void 0, false, {
                         fileName: _jsxFileName,
-                        lineNumber: 1190,
+                        lineNumber: 1193,
                         columnNumber: 23
                       }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                         style: {
@@ -339645,12 +339646,12 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
                         children: "\xA5480/\u6708"
                       }, void 0, false, {
                         fileName: _jsxFileName,
-                        lineNumber: 1193,
+                        lineNumber: 1196,
                         columnNumber: 23
                       }, this)]
                     }, void 0, true, {
                       fileName: _jsxFileName,
-                      lineNumber: 1189,
+                      lineNumber: 1192,
                       columnNumber: 21
                     }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                       style: {
@@ -339661,17 +339662,17 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
                       children: "\u670830\u56DE\u30FB\u5E83\u544A\u306A\u3057"
                     }, void 0, false, {
                       fileName: _jsxFileName,
-                      lineNumber: 1195,
+                      lineNumber: 1198,
                       columnNumber: 21
                     }, this)]
                   }, void 0, true, {
                     fileName: _jsxFileName,
-                    lineNumber: 1188,
+                    lineNumber: 1191,
                     columnNumber: 19
                   }, this)]
                 }, void 0, true, {
                   fileName: _jsxFileName,
-                  lineNumber: 1183,
+                  lineNumber: 1186,
                   columnNumber: 17
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TouchableOpacity, {
                   style: {
@@ -339694,12 +339695,12 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
                     children: "Pro \u30D7\u30E9\u30F3\u3092\u898B\u308B \xA5480/\u6708\u301C"
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 1203,
+                    lineNumber: 1206,
                     columnNumber: 19
                   }, this)
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 1198,
+                  lineNumber: 1201,
                   columnNumber: 17
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TouchableOpacity, {
                   style: {
@@ -339716,42 +339717,42 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
                     children: "\u4ECA\u306F\u3057\u306A\u3044"
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 1206,
+                    lineNumber: 1209,
                     columnNumber: 19
                   }, this)
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 1205,
+                  lineNumber: 1208,
                   columnNumber: 17
                 }, this)]
               }, void 0, true, {
                 fileName: _jsxFileName,
-                lineNumber: 1173,
+                lineNumber: 1176,
                 columnNumber: 15
               }, this)
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1172,
+              lineNumber: 1175,
               columnNumber: 13
             }, this)
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1171,
+            lineNumber: 1174,
             columnNumber: 11
           }, this)
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 1170,
+          lineNumber: 1173,
           columnNumber: 9
         }, this)
       }, void 0, false, {
         fileName: _jsxFileName,
-        lineNumber: 1169,
+        lineNumber: 1172,
         columnNumber: 7
       }, this)]
     }, void 0, true, {
       fileName: _jsxFileName,
-      lineNumber: 896,
+      lineNumber: 899,
       columnNumber: 5
     }, this);
   }
@@ -339765,7 +339766,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
     if (_reactNative.Platform.OS !== 'web') {
       return /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(NativeVideoAnalysisRoot, {}, void 0, false, {
         fileName: _jsxFileName,
-        lineNumber: 1220,
+        lineNumber: 1223,
         columnNumber: 12
       }, this);
     }
@@ -339773,7 +339774,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
       isPremiumUser: true
     }, void 0, false, {
       fileName: _jsxFileName,
-      lineNumber: 1222,
+      lineNumber: 1225,
       columnNumber: 10
     }, this);
   }
@@ -339812,12 +339813,12 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
             color: "#166534"
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1231,
+            lineNumber: 1234,
             columnNumber: 11
           }, this)
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 1230,
+          lineNumber: 1233,
           columnNumber: 9
         }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
           style: {
@@ -339829,7 +339830,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
           children: "\u30D5\u30A9\u30FC\u30E0\u52D5\u753B\u5206\u6790"
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 1233,
+          lineNumber: 1236,
           columnNumber: 9
         }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
           style: {
@@ -339841,7 +339842,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
           children: ["AI\u306B\u3088\u308B\u52D5\u753B\u30D5\u30A9\u30FC\u30E0\u5206\u6790\u306F", '\n', "\u30D7\u30EC\u30DF\u30A2\u30E0\u30D7\u30E9\u30F3\u9650\u5B9A\u306E\u6A5F\u80FD\u3067\u3059"]
         }, void 0, true, {
           fileName: _jsxFileName,
-          lineNumber: 1236,
+          lineNumber: 1239,
           columnNumber: 9
         }, this), [{
           icon: '🎯',
@@ -339872,7 +339873,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
             children: item.icon
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1248,
+            lineNumber: 1251,
             columnNumber: 13
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
             style: {
@@ -339883,12 +339884,12 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
             children: item.text
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1249,
+            lineNumber: 1252,
             columnNumber: 13
           }, this)]
         }, i, true, {
           fileName: _jsxFileName,
-          lineNumber: 1247,
+          lineNumber: 1250,
           columnNumber: 11
         }, this)), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
           style: {
@@ -339909,7 +339910,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
             children: "\u30D7\u30EC\u30DF\u30A2\u30E0\u30D7\u30E9\u30F3"
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1255,
+            lineNumber: 1258,
             columnNumber: 11
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
             style: {
@@ -339925,12 +339926,12 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
               children: "/\u6708"
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1256,
+              lineNumber: 1259,
               columnNumber: 83
             }, this)]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 1256,
+            lineNumber: 1259,
             columnNumber: 11
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
             style: {
@@ -339940,12 +339941,12 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
             children: "\u3044\u3064\u3067\u3082\u30AD\u30E3\u30F3\u30BB\u30EB\u53EF\u80FD"
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1257,
+            lineNumber: 1260,
             columnNumber: 11
           }, this)]
         }, void 0, true, {
           fileName: _jsxFileName,
-          lineNumber: 1254,
+          lineNumber: 1257,
           columnNumber: 9
         }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
           style: {
@@ -339966,7 +339967,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
             children: "\uD83D\uDC65 \u30C1\u30FC\u30E0\u30FB\u5B66\u6821\u5411\u3051\u30D7\u30E9\u30F3"
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1261,
+            lineNumber: 1264,
             columnNumber: 11
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
             style: {
@@ -339977,12 +339978,12 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
             children: ["\u90E8\u6D3B\u30FB\u30C1\u30FC\u30E0\u5168\u54E1\u3067\u4F7F\u3048\u308B\u30D7\u30E9\u30F3\u306F\xA53,000/\u6708\u301C", '\n', "\u8A2D\u5B9A\u753B\u9762\u304B\u3089\u304A\u554F\u3044\u5408\u308F\u305B\u304F\u3060\u3055\u3044"]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 1262,
+            lineNumber: 1265,
             columnNumber: 11
           }, this)]
         }, void 0, true, {
           fileName: _jsxFileName,
-          lineNumber: 1260,
+          lineNumber: 1263,
           columnNumber: 9
         }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
           style: {
@@ -339993,17 +339994,17 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
           children: ["\u203B \u73FE\u5728\u30B5\u30D6\u30B9\u30AF\u30EA\u30D7\u30B7\u30E7\u30F3\u6C7A\u6E08\u306F\u6E96\u5099\u4E2D\u3067\u3059", '\n', "\u30EA\u30EA\u30FC\u30B9\u6642\u306B\u3054\u767B\u9332\u306E\u30E1\u30FC\u30EB\u306B\u3054\u9023\u7D61\u3057\u307E\u3059"]
         }, void 0, true, {
           fileName: _jsxFileName,
-          lineNumber: 1265,
+          lineNumber: 1268,
           columnNumber: 9
         }, this)]
       }, void 0, true, {
         fileName: _jsxFileName,
-        lineNumber: 1229,
+        lineNumber: 1232,
         columnNumber: 7
       }, this)
     }, void 0, false, {
       fileName: _jsxFileName,
-      lineNumber: 1228,
+      lineNumber: 1231,
       columnNumber: 5
     }, this);
   }
@@ -340448,21 +340449,21 @@ ${summary}
             color: "#166534"
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1562,
+            lineNumber: 1565,
             columnNumber: 11
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
             style: s.uploadTitle,
             children: "\u7DF4\u7FD2\u30D5\u30A9\u30FC\u30E0\u3092AI\u5206\u6790"
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1563,
+            lineNumber: 1566,
             columnNumber: 11
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
             style: s.uploadSub,
             children: "\u30A2\u30C3\u30D7\u30ED\u30FC\u30C9 \u2192 AI\u81EA\u52D5\u5206\u6790 \u2192 \u30B9\u30ED\u30FC\u3067\u78BA\u8A8D"
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1564,
+            lineNumber: 1567,
             columnNumber: 11
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
             style: s.stepRow,
@@ -340480,30 +340481,30 @@ ${summary}
                     color: "#166534"
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 1573,
+                    lineNumber: 1576,
                     columnNumber: 19
                   }, this)
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 1572,
+                  lineNumber: 1575,
                   columnNumber: 17
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                   style: s.stepLabel,
                   children: label
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 1575,
+                  lineNumber: 1578,
                   columnNumber: 17
                 }, this)]
               }, i, true, {
                 fileName: _jsxFileName,
-                lineNumber: 1571,
+                lineNumber: 1574,
                 columnNumber: 15
               }, this);
             })
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1565,
+            lineNumber: 1568,
             columnNumber: 11
           }, this), videoName ? /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
             style: s.fileTag,
@@ -340513,7 +340514,7 @@ ${summary}
               color: "#4CAF50"
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1582,
+              lineNumber: 1585,
               columnNumber: 15
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
               style: s.fileTagText,
@@ -340521,12 +340522,12 @@ ${summary}
               children: videoName
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1583,
+              lineNumber: 1586,
               columnNumber: 15
             }, this)]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 1581,
+            lineNumber: 1584,
             columnNumber: 13
           }, this) : null, /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TouchableOpacity, {
             style: s.uploadBtn,
@@ -340537,19 +340538,19 @@ ${summary}
               color: "#fff"
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1588,
+              lineNumber: 1591,
               columnNumber: 13
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
               style: s.uploadBtnText,
               children: videoName ? '動画を変更' : '動画を選ぶ'
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1589,
+              lineNumber: 1592,
               columnNumber: 13
             }, this)]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 1587,
+            lineNumber: 1590,
             columnNumber: 11
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
             style: s.settingCard,
@@ -340558,14 +340559,14 @@ ${summary}
               children: "\uD83C\uDFC3 \u5206\u6790\u3059\u308B\u7A2E\u76EE\uFF08\u4EFB\u610F\uFF09"
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1594,
+              lineNumber: 1597,
               columnNumber: 13
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
               style: s.settingDesc,
               children: "\u9078\u3076\u3068\u7A2E\u76EE\u306B\u7279\u5316\u3057\u305F\u30A2\u30C9\u30D0\u30A4\u30B9\u304C\u5F97\u3089\u308C\u307E\u3059"
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1595,
+              lineNumber: 1598,
               columnNumber: 13
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.ScrollView, {
               horizontal: true,
@@ -340587,22 +340588,22 @@ ${summary}
                   children: ev || '指定なし'
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 1603,
+                  lineNumber: 1606,
                   columnNumber: 19
                 }, this)
               }, ev || '指定なし', false, {
                 fileName: _jsxFileName,
-                lineNumber: 1598,
+                lineNumber: 1601,
                 columnNumber: 17
               }, this))
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1596,
+              lineNumber: 1599,
               columnNumber: 13
             }, this)]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 1593,
+            lineNumber: 1596,
             columnNumber: 11
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
             style: s.settingCard,
@@ -340611,14 +340612,14 @@ ${summary}
               children: "\uD83D\uDC64 \u5206\u6790\u3059\u308B\u9078\u624B\u306E\u7279\u5FB4\uFF08\u8907\u6570\u4EBA\u52D5\u753B\u306E\u5834\u5408\uFF09"
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1613,
+              lineNumber: 1616,
               columnNumber: 13
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
               style: s.settingDesc,
               children: "\u670D\u306E\u8272\u30FB\u9774\u306E\u8272\u306A\u3069\u3092\u5165\u529B\u3059\u308B\u3068\u305D\u306E\u9078\u624B\u306B\u7D5E\u3063\u3066\u5206\u6790\u3057\u307E\u3059"
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1614,
+              lineNumber: 1617,
               columnNumber: 13
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TextInput, {
               value: athleteColor,
@@ -340629,12 +340630,12 @@ ${summary}
               multiline: true
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1615,
+              lineNumber: 1618,
               columnNumber: 13
             }, this)]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 1612,
+            lineNumber: 1615,
             columnNumber: 11
           }, this), videoName ? /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TouchableOpacity, {
             style: s.analyzeBtn,
@@ -340645,19 +340646,19 @@ ${summary}
               color: "#fff"
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1627,
+              lineNumber: 1630,
               columnNumber: 15
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
               style: s.analyzeBtnText,
               children: "AI\u3067\u5206\u6790\u30B9\u30BF\u30FC\u30C8 \uD83D\uDE80"
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1628,
+              lineNumber: 1631,
               columnNumber: 15
             }, this)]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 1626,
+            lineNumber: 1629,
             columnNumber: 13
           }, this) : null, /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
             style: isPremiumUser ? s.planBannerPro : s.planBannerFree,
@@ -340667,7 +340668,7 @@ ${summary}
                 children: "\u26A1"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 1636,
+                lineNumber: 1639,
                 columnNumber: 17
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                 children: [/*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
@@ -340675,19 +340676,19 @@ ${summary}
                   children: "\u9AD8\u7CBE\u5EA6\u30E2\u30FC\u30C9\uFF08Opus\uFF09"
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 1638,
+                  lineNumber: 1641,
                   columnNumber: 19
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                   style: s.planBannerSub,
                   children: "\u30D7\u30EC\u30DF\u30A2\u30E0\u306E\u9AD8\u7CBE\u5EA6AI\u3067\u5206\u6790\u3057\u307E\u3059"
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 1639,
+                  lineNumber: 1642,
                   columnNumber: 19
                 }, this)]
               }, void 0, true, {
                 fileName: _jsxFileName,
-                lineNumber: 1637,
+                lineNumber: 1640,
                 columnNumber: 17
               }, this)]
             }, void 0, true) : /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactJsxDevRuntime.Fragment, {
@@ -340696,7 +340697,7 @@ ${summary}
                 children: "\uD83E\uDD16"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 1644,
+                lineNumber: 1647,
                 columnNumber: 17
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                 style: {
@@ -340707,7 +340708,7 @@ ${summary}
                   children: "\u6A19\u6E96\u30E2\u30FC\u30C9\uFF08Haiku\uFF09\u3067\u5206\u6790"
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 1646,
+                  lineNumber: 1649,
                   columnNumber: 19
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                   style: s.planBannerSub,
@@ -340719,35 +340720,35 @@ ${summary}
                     children: "\u30D7\u30EC\u30DF\u30A2\u30E0 \xA5490/\u6708"
                   }, void 0, false, {
                     fileName: _jsxFileName,
-                    lineNumber: 1648,
+                    lineNumber: 1651,
                     columnNumber: 21
                   }, this), '  にすると高精度AI（Opus）で\n骨格・重心・角度まで詳細分析']
                 }, void 0, true, {
                   fileName: _jsxFileName,
-                  lineNumber: 1647,
+                  lineNumber: 1650,
                   columnNumber: 19
                 }, this)]
               }, void 0, true, {
                 fileName: _jsxFileName,
-                lineNumber: 1645,
+                lineNumber: 1648,
                 columnNumber: 17
               }, this)]
             }, void 0, true)
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1633,
+            lineNumber: 1636,
             columnNumber: 11
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
             style: s.privacyNote,
             children: ["\uD83D\uDD12 \u52D5\u753B\u306F\u30C7\u30D0\u30A4\u30B9\u5185\u306E\u307F\u3067\u51E6\u7406", '\n', "\u30D5\u30EC\u30FC\u30E0\u753B\u50CF\u306E\u307FAI\u5206\u6790\u306B\u4F7F\u7528\u3057\u307E\u3059"]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 1656,
+            lineNumber: 1659,
             columnNumber: 11
           }, this)]
         }, void 0, true, {
           fileName: _jsxFileName,
-          lineNumber: 1561,
+          lineNumber: 1564,
           columnNumber: 9
         }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(AdGateModal.default, {
           visible: adGateVisible,
@@ -340773,12 +340774,12 @@ ${summary}
           }
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 1662,
+          lineNumber: 1665,
           columnNumber: 9
         }, this)]
       }, void 0, true, {
         fileName: _jsxFileName,
-        lineNumber: 1560,
+        lineNumber: 1563,
         columnNumber: 7
       }, this);
     }
@@ -340795,21 +340796,21 @@ ${summary}
             color: "#166534"
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1695,
+            lineNumber: 1698,
             columnNumber: 11
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
             style: s.analyzeTitle,
             children: "AI\u304C\u30D5\u30A9\u30FC\u30E0\u3092\u5206\u6790\u4E2D"
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1696,
+            lineNumber: 1699,
             columnNumber: 11
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
             style: s.analyzeCount,
             children: [progress.done, " / ", progress.total]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 1697,
+            lineNumber: 1700,
             columnNumber: 11
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
             style: s.barTrack,
@@ -340819,36 +340820,36 @@ ${summary}
               }]
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1699,
+              lineNumber: 1702,
               columnNumber: 13
             }, this)
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1698,
+            lineNumber: 1701,
             columnNumber: 11
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
             style: s.analyzeSub,
             children: progress.done === 0 ? 'キーフレームを抽出中...' : `フレーム ${progress.done} を分析しました`
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1701,
+            lineNumber: 1704,
             columnNumber: 11
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
             style: s.analyzeNote,
             children: "\u3053\u306E\u753B\u9762\u3092\u9589\u3058\u306A\u3044\u3067\u304F\u3060\u3055\u3044"
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1704,
+            lineNumber: 1707,
             columnNumber: 11
           }, this)]
         }, void 0, true, {
           fileName: _jsxFileName,
-          lineNumber: 1694,
+          lineNumber: 1697,
           columnNumber: 9
         }, this)
       }, void 0, false, {
         fileName: _jsxFileName,
-        lineNumber: 1693,
+        lineNumber: 1696,
         columnNumber: 7
       }, this);
     }
@@ -340873,7 +340874,7 @@ ${summary}
           }
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 1716,
+          lineNumber: 1719,
           columnNumber: 9
         }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
           style: s.sliderRow,
@@ -340882,7 +340883,7 @@ ${summary}
             children: formatTime(currentTime)
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1731,
+            lineNumber: 1734,
             columnNumber: 11
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)("input", {
             type: "range",
@@ -340899,19 +340900,19 @@ ${summary}
             }
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1732,
+            lineNumber: 1735,
             columnNumber: 11
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
             style: s.timeText,
             children: formatTime(duration)
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1738,
+            lineNumber: 1741,
             columnNumber: 11
           }, this)]
         }, void 0, true, {
           fileName: _jsxFileName,
-          lineNumber: 1730,
+          lineNumber: 1733,
           columnNumber: 9
         }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
           style: s.ctrlRow,
@@ -340924,12 +340925,12 @@ ${summary}
               color: "#fff"
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1744,
+              lineNumber: 1747,
               columnNumber: 13
             }, this)
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1743,
+            lineNumber: 1746,
             columnNumber: 11
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TouchableOpacity, {
             style: s.playBtn,
@@ -340940,12 +340941,12 @@ ${summary}
               color: "#fff"
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1747,
+              lineNumber: 1750,
               columnNumber: 13
             }, this)
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1746,
+            lineNumber: 1749,
             columnNumber: 11
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TouchableOpacity, {
             style: s.iconBtn,
@@ -340956,17 +340957,17 @@ ${summary}
               color: "#fff"
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1750,
+              lineNumber: 1753,
               columnNumber: 13
             }, this)
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1749,
+            lineNumber: 1752,
             columnNumber: 11
           }, this)]
         }, void 0, true, {
           fileName: _jsxFileName,
-          lineNumber: 1742,
+          lineNumber: 1745,
           columnNumber: 9
         }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
           style: s.rateRow,
@@ -340978,17 +340979,17 @@ ${summary}
               children: [r, "x"]
             }, void 0, true, {
               fileName: _jsxFileName,
-              lineNumber: 1758,
+              lineNumber: 1761,
               columnNumber: 15
             }, this)
           }, r, false, {
             fileName: _jsxFileName,
-            lineNumber: 1757,
+            lineNumber: 1760,
             columnNumber: 13
           }, this))
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 1755,
+          lineNumber: 1758,
           columnNumber: 9
         }, this), activeAnn ? /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
           style: s.adviceCard,
@@ -340997,14 +340998,14 @@ ${summary}
             children: ["\uD83E\uDD16 ", formatTime(activeAnn.timestamp), " \u306E\u30D5\u30EC\u30FC\u30E0\u5206\u6790"]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 1766,
+            lineNumber: 1769,
             columnNumber: 13
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
             style: s.adviceOverall,
             children: activeAnn.advice.overall
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1767,
+            lineNumber: 1770,
             columnNumber: 13
           }, this), activeAnn.advice.positives.length > 0 && /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactJsxDevRuntime.Fragment, {
             children: [/*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
@@ -341012,14 +341013,14 @@ ${summary}
               children: "\u2705 \u826F\u3044\u70B9"
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1769,
+              lineNumber: 1772,
               columnNumber: 15
             }, this), activeAnn.advice.positives.map((p, i) => /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
               style: s.adviceItem,
               children: ["\u2022 ", p]
             }, i, true, {
               fileName: _jsxFileName,
-              lineNumber: 1770,
+              lineNumber: 1773,
               columnNumber: 57
             }, this))]
           }, void 0, true), activeAnn.advice.improvements.length > 0 && /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactJsxDevRuntime.Fragment, {
@@ -341028,14 +341029,14 @@ ${summary}
               children: "\u26A0\uFE0F \u6539\u5584\u70B9"
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1773,
+              lineNumber: 1776,
               columnNumber: 15
             }, this), activeAnn.advice.improvements.map((p, i) => /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
               style: s.adviceItem,
               children: ["\u2022 ", p]
             }, i, true, {
               fileName: _jsxFileName,
-              lineNumber: 1774,
+              lineNumber: 1777,
               columnNumber: 60
             }, this))]
           }, void 0, true), activeAnn.advice.injuryRisk && activeAnn.advice.injuryRisk !== 'リスク低' && /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
@@ -341057,7 +341058,7 @@ ${summary}
               children: "\uD83D\uDEA8 \u602A\u6211\u30EA\u30B9\u30AF"
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1778,
+              lineNumber: 1781,
               columnNumber: 17
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
               style: {
@@ -341067,17 +341068,17 @@ ${summary}
               children: activeAnn.advice.injuryRisk
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1779,
+              lineNumber: 1782,
               columnNumber: 17
             }, this)]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 1777,
+            lineNumber: 1780,
             columnNumber: 15
           }, this)]
         }, void 0, true, {
           fileName: _jsxFileName,
-          lineNumber: 1765,
+          lineNumber: 1768,
           columnNumber: 11
         }, this) : /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
           style: s.noAdviceCard,
@@ -341086,19 +341087,19 @@ ${summary}
             children: "\u518D\u751F\u3059\u308B\u3068\u5206\u6790\u6E08\u307F\u30D5\u30EC\u30FC\u30E0\u3067\u30A2\u30C9\u30D0\u30A4\u30B9\u304C\u8868\u793A\u3055\u308C\u307E\u3059"
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1785,
+            lineNumber: 1788,
             columnNumber: 13
           }, this)
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 1784,
+          lineNumber: 1787,
           columnNumber: 11
         }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
           style: s.sectionTitle,
           children: ["\u5206\u6790\u6E08\u307F\u30D5\u30EC\u30FC\u30E0 (", annotations.length, "\u4EF6)"]
         }, void 0, true, {
           fileName: _jsxFileName,
-          lineNumber: 1790,
+          lineNumber: 1793,
           columnNumber: 9
         }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.ScrollView, {
           horizontal: true,
@@ -341125,14 +341126,14 @@ ${summary}
               alt: ""
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1798,
+              lineNumber: 1801,
               columnNumber: 15
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
               style: s.thumbTime,
               children: formatTime(ann.timestamp)
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1801,
+              lineNumber: 1804,
               columnNumber: 15
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
               style: s.thumbOverall,
@@ -341140,30 +341141,30 @@ ${summary}
               children: ann.advice.overall
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1802,
+              lineNumber: 1805,
               columnNumber: 15
             }, this)]
           }, ann.id, true, {
             fileName: _jsxFileName,
-            lineNumber: 1793,
+            lineNumber: 1796,
             columnNumber: 13
           }, this))
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 1791,
+          lineNumber: 1794,
           columnNumber: 9
         }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
           style: s.divider
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 1810,
+          lineNumber: 1813,
           columnNumber: 9
         }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
           style: s.bigSectionTitle,
           children: "\u7DCF\u5408\u8A55\u4FA1 & \u30C8\u30EC\u30FC\u30CB\u30F3\u30B0\u30E1\u30CB\u30E5\u30FC"
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 1811,
+          lineNumber: 1814,
           columnNumber: 9
         }, this), loadingComp ? /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
           style: s.compLoading,
@@ -341172,19 +341173,19 @@ ${summary}
             color: "#166534"
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1815,
+            lineNumber: 1818,
             columnNumber: 13
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
             style: s.compLoadingTxt,
             children: "AI\u304C\u7DCF\u5408\u8A55\u4FA1\u3092\u751F\u6210\u4E2D..."
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1816,
+            lineNumber: 1819,
             columnNumber: 13
           }, this)]
         }, void 0, true, {
           fileName: _jsxFileName,
-          lineNumber: 1814,
+          lineNumber: 1817,
           columnNumber: 11
         }, this) : comprehensive ? /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactJsxDevRuntime.Fragment, {
           children: [/*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
@@ -341197,26 +341198,26 @@ ${summary}
                 color: "#166534"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 1823,
+                lineNumber: 1826,
                 columnNumber: 17
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                 style: s.compCardTitle,
                 children: "\u7DCF\u5408\u8A55\u4FA1"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 1824,
+                lineNumber: 1827,
                 columnNumber: 17
               }, this)]
             }, void 0, true, {
               fileName: _jsxFileName,
-              lineNumber: 1822,
+              lineNumber: 1825,
               columnNumber: 15
             }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
               style: s.compSummary,
               children: comprehensive.summary
             }, void 0, false, {
               fileName: _jsxFileName,
-              lineNumber: 1826,
+              lineNumber: 1829,
               columnNumber: 15
             }, this), comprehensive.keyFindings.length > 0 && /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactJsxDevRuntime.Fragment, {
               children: [/*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
@@ -341224,7 +341225,7 @@ ${summary}
                 children: "\uD83D\uDCCC \u5168\u4F53\u7684\u306A\u7279\u5FB4"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 1828,
+                lineNumber: 1831,
                 columnNumber: 17
               }, this), comprehensive.keyFindings.map((f, i) => /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                 style: s.findingRow,
@@ -341232,19 +341233,19 @@ ${summary}
                   style: s.findingDot
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 1831,
+                  lineNumber: 1834,
                   columnNumber: 21
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                   style: s.findingTxt,
                   children: f
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 1832,
+                  lineNumber: 1835,
                   columnNumber: 21
                 }, this)]
               }, i, true, {
                 fileName: _jsxFileName,
-                lineNumber: 1830,
+                lineNumber: 1833,
                 columnNumber: 19
               }, this))]
             }, void 0, true), comprehensive.injuryWarnings && comprehensive.injuryWarnings.length > 0 && /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
@@ -341266,7 +341267,7 @@ ${summary}
                 children: "\uD83D\uDEA8 \u602A\u6211\u4E88\u9632\u30A2\u30C9\u30D0\u30A4\u30B9"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 1838,
+                lineNumber: 1841,
                 columnNumber: 19
               }, this), comprehensive.injuryWarnings.map((w, i) => /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                 style: {
@@ -341277,17 +341278,17 @@ ${summary}
                 children: ["\u2022 ", w]
               }, i, true, {
                 fileName: _jsxFileName,
-                lineNumber: 1840,
+                lineNumber: 1843,
                 columnNumber: 21
               }, this))]
             }, void 0, true, {
               fileName: _jsxFileName,
-              lineNumber: 1837,
+              lineNumber: 1840,
               columnNumber: 17
             }, this)]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 1821,
+            lineNumber: 1824,
             columnNumber: 13
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
             style: s.compCard,
@@ -341299,19 +341300,19 @@ ${summary}
                 color: "#166534"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 1849,
+                lineNumber: 1852,
                 columnNumber: 17
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                 style: s.compCardTitle,
                 children: "\u63A8\u5968\u30C8\u30EC\u30FC\u30CB\u30F3\u30B0\u30E1\u30CB\u30E5\u30FC"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 1850,
+                lineNumber: 1853,
                 columnNumber: 17
               }, this)]
             }, void 0, true, {
               fileName: _jsxFileName,
-              lineNumber: 1848,
+              lineNumber: 1851,
               columnNumber: 15
             }, this), comprehensive.trainingMenu.map((ex, i) => /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
               style: s.menuItem,
@@ -341322,12 +341323,12 @@ ${summary}
                   children: i + 1
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 1854,
+                  lineNumber: 1857,
                   columnNumber: 43
                 }, this)
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 1854,
+                lineNumber: 1857,
                 columnNumber: 19
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
                 style: {
@@ -341338,29 +341339,29 @@ ${summary}
                   children: ex.name
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 1856,
+                  lineNumber: 1859,
                   columnNumber: 21
                 }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                   style: s.menuDetail,
                   children: ex.detail
                 }, void 0, false, {
                   fileName: _jsxFileName,
-                  lineNumber: 1857,
+                  lineNumber: 1860,
                   columnNumber: 21
                 }, this)]
               }, void 0, true, {
                 fileName: _jsxFileName,
-                lineNumber: 1855,
+                lineNumber: 1858,
                 columnNumber: 19
               }, this)]
             }, i, true, {
               fileName: _jsxFileName,
-              lineNumber: 1853,
+              lineNumber: 1856,
               columnNumber: 17
             }, this))]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 1847,
+            lineNumber: 1850,
             columnNumber: 13
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
             style: s.compCard,
@@ -341372,19 +341373,19 @@ ${summary}
                 color: "#166534"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 1866,
+                lineNumber: 1869,
                 columnNumber: 17
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                 style: s.compCardTitle,
                 children: "\u6B21\u306E\u7DF4\u7FD2\u3067\u610F\u8B58\u3059\u308B\u3053\u3068"
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 1867,
+                lineNumber: 1870,
                 columnNumber: 17
               }, this)]
             }, void 0, true, {
               fileName: _jsxFileName,
-              lineNumber: 1865,
+              lineNumber: 1868,
               columnNumber: 15
             }, this), comprehensive.nextSteps.map((step, i) => /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
               style: s.nextStepRow,
@@ -341393,24 +341394,24 @@ ${summary}
                 children: i + 1
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 1871,
+                lineNumber: 1874,
                 columnNumber: 19
               }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
                 style: s.nextStepTxt,
                 children: step
               }, void 0, false, {
                 fileName: _jsxFileName,
-                lineNumber: 1872,
+                lineNumber: 1875,
                 columnNumber: 19
               }, this)]
             }, i, true, {
               fileName: _jsxFileName,
-              lineNumber: 1870,
+              lineNumber: 1873,
               columnNumber: 17
             }, this))]
           }, void 0, true, {
             fileName: _jsxFileName,
-            lineNumber: 1864,
+            lineNumber: 1867,
             columnNumber: 13
           }, this)]
         }, void 0, true) : /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.View, {
@@ -341420,12 +341421,12 @@ ${summary}
             children: "\u5206\u6790\u304C\u5B8C\u4E86\u3059\u308B\u3068\u7DCF\u5408\u8A55\u4FA1\u304C\u8868\u793A\u3055\u308C\u307E\u3059"
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1879,
+            lineNumber: 1882,
             columnNumber: 13
           }, this)
         }, void 0, false, {
           fileName: _jsxFileName,
-          lineNumber: 1878,
+          lineNumber: 1881,
           columnNumber: 11
         }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.TouchableOpacity, {
           style: s.reanalyzeBtn,
@@ -341441,29 +341442,29 @@ ${summary}
             color: "#555"
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1892,
+            lineNumber: 1895,
             columnNumber: 11
           }, this), /*#__PURE__*/(0, _reactJsxDevRuntime.jsxDEV)(_reactNative.Text, {
             style: s.reanalyzeTxt,
             children: "\u5225\u306E\u52D5\u753B\u3067\u5206\u6790\u3059\u308B"
           }, void 0, false, {
             fileName: _jsxFileName,
-            lineNumber: 1893,
+            lineNumber: 1896,
             columnNumber: 11
           }, this)]
         }, void 0, true, {
           fileName: _jsxFileName,
-          lineNumber: 1883,
+          lineNumber: 1886,
           columnNumber: 9
         }, this)]
       }, void 0, true, {
         fileName: _jsxFileName,
-        lineNumber: 1713,
+        lineNumber: 1716,
         columnNumber: 7
       }, this)
     }, void 0, false, {
       fileName: _jsxFileName,
-      lineNumber: 1712,
+      lineNumber: 1715,
       columnNumber: 5
     }, this);
   }

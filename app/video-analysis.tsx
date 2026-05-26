@@ -716,13 +716,16 @@ function NativeVideoAnalysis() {
   React.useEffect(() => {
     if (phase !== 'result') return
     let cancelled = false
+    let timerId: ReturnType<typeof setTimeout> | null = null
     getTier().then(tier => {
       if (tier === 'free' && !cancelled) {
-        const t = setTimeout(() => setUpsellVisible(true), 5000)
-        return () => clearTimeout(t)
+        timerId = setTimeout(() => setUpsellVisible(true), 5000)
       }
     })
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+      if (timerId !== null) clearTimeout(timerId)
+    }
   }, [phase])
 
   async function pickVideo() {
