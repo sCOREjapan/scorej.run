@@ -51,7 +51,7 @@ export default function LoginGate({ children, featureName = 'AI機能' }: LoginG
 
           <TouchableOpacity
             style={styles.loginBtn}
-            onPress={() => router.push('/login' as any)}
+            onPress={() => router.push('/auth' as any)}
             activeOpacity={0.85}
           >
             <Ionicons name="log-in-outline" size={18} color="#fff" style={{ marginRight: 6 }} />

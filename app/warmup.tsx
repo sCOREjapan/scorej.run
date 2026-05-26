@@ -164,7 +164,7 @@ export default function WarmupScreen() {
 const st = StyleSheet.create({
   content:       { padding: 16, gap: 12, paddingBottom: 40 },
   header:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
-  title:         { color: '#fff', fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
+  title:         { color: TEXT.primary, fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
   riskBadge:     { borderWidth: 1, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
   noteCard:      { backgroundColor: SURFACE, borderRadius: 12, padding: 14 },
   noteText:      { color: TEXT.secondary, fontSize: 13, lineHeight: 20 },
@@ -177,7 +177,7 @@ const st = StyleSheet.create({
   itemChecked:   { opacity: 0.55 },
   catDot:        { width: 4, height: 36, borderRadius: 2 },
   itemIcon:      { fontSize: 22 },
-  itemName:      { color: '#fff', fontSize: 15, fontWeight: '700', marginBottom: 2 },
+  itemName:      { color: TEXT.primary, fontSize: 15, fontWeight: '700', marginBottom: 2 },
   itemDetail:    { color: TEXT.secondary, fontSize: 12, lineHeight: 17 },
   checkbox:      {
     width: 26, height: 26, borderRadius: 13,
