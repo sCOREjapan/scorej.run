@@ -15,6 +15,16 @@ import Toast from 'react-native-toast-message'
 const LIBRARY_KEY  = 'trackmate_exercise_library'
 const HISTORY_KEY  = 'trackmate_ai_menus'
 
+// Hermesの AbortSignal.timeout 非対応に対応したタイムアウト付きfetch
+function fetchWithTimeout(url: string, options: RequestInit, ms: number): Promise<Response> {
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    return fetch(url, { ...options, signal: AbortSignal.timeout(ms) })
+  }
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), ms)
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(id))
+}
+
 // ── 型 ───────────────────────────────────────────────────
 export interface LibraryFolder {
   id: string
@@ -176,11 +186,9 @@ export default function WorkoutMenuScreen() {
   const [histItem, setHistItem] = useState<AIGeneratedMenu | null>(null)
 
   const load = useCallback(async () => {
-    try {
-      const [f, h] = await AsyncStorage.multiGet([LIBRARY_KEY, HISTORY_KEY])
-      if (f[1]) setFolders(JSON.parse(f[1]))
-      if (h[1]) setHistory(JSON.parse(h[1]))
-    } catch {}
+    const [f, h] = await AsyncStorage.multiGet([LIBRARY_KEY, HISTORY_KEY]).catch(() => [[], []] as any)
+    try { if (f[1]) setFolders(JSON.parse(f[1])) } catch {}  // データ破損でも履歴を読み込む
+    try { if (h[1]) setHistory(JSON.parse(h[1])) } catch {}
   }, [])
 
   useEffect(() => { load() }, [load])
@@ -341,7 +349,7 @@ ${pickIntent.trim() || '特に指定なし（コーチの判断で最適なメ�
 （このメニューの意図・今日のポイント・選手への熱いメッセージを3〜5文で。「なぜこの構成か」を含める）`
 
       {
-        const res = await fetch(_endpoint1, {
+        const res = await fetchWithTimeout(_endpoint1, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
@@ -350,7 +358,7 @@ ${pickIntent.trim() || '特に指定なし（コーチの判断で最適なメ�
             system: systemPrompt1,
             messages: [{ role: 'user', content: prompt }],
           }),
-        })
+        }, 45000)
         if (res.ok) {
           const data = await res.json()
           const text = data.content?.[0]?.text ?? 'メニューを生成できませんでした'
@@ -437,7 +445,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
 （選手のリクエストを受けてどんな意図でこのメニューを設計したか。今日のポイントと注意点。最後に選手への一言。計4〜6文で熱く語る）`
 
       {
-        const res = await fetch(_endpoint2, {
+        const res = await fetchWithTimeout(_endpoint2, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
@@ -446,7 +454,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
             system: systemPrompt2,
             messages: [{ role: 'user', content: prompt }],
           }),
-        })
+        }, 45000)
         if (res.ok) {
           const data = await res.json()
           const text = data.content?.[0]?.text ?? 'メニューを生成できませんでした'

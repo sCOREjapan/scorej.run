@@ -19,6 +19,16 @@ import type { TrainingSession } from '../../types'
 const SESSIONS_KEY    = 'trackmate_sessions'
 const TASKS_KEY       = 'trackmate_tasks'
 
+// Hermesの AbortSignal.timeout 非対応に対応したタイムアウト付きfetch
+function fetchWithTimeout(url: string, options: RequestInit, ms: number): Promise<Response> {
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    return fetch(url, { ...options, signal: AbortSignal.timeout(ms) })
+  }
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), ms)
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(id))
+}
+
 // ── 正規表現フォールバックパーサー ───────────────────────────────
 function fallbackParse(text: string, today: string): Record<string, any> {
   const t = text
@@ -305,8 +315,8 @@ export default function NotebookScreen() {
     setLoading(true)
     try {
       const [rawSessions, rawCond] = await AsyncStorage.multiGet([SESSIONS_KEY, CONDITION_MAP_KEY])
-      if (rawSessions[1]) setSessions(JSON.parse(rawSessions[1]))
-      if (rawCond[1])     setConditionMap(JSON.parse(rawCond[1]))
+      try { if (rawSessions[1]) setSessions(JSON.parse(rawSessions[1])) } catch {}
+      try { if (rawCond[1])     setConditionMap(JSON.parse(rawCond[1])) } catch {}
     } finally { setLoading(false) }
   }, [])
 
@@ -337,14 +347,14 @@ export default function NotebookScreen() {
     try {
       const _nb_apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? '').replace(/\/$/, '')
       const _nb_endpoint = _nb_apiBase ? `${_nb_apiBase}/api/analyze` : '/api/analyze'
-      const res = await fetch(_nb_endpoint, {
+      const res = await fetchWithTimeout(_nb_endpoint, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           model: 'claude-haiku-4-5-20251001', max_tokens: 500,
           messages: [{ role: 'user', content: `陸上競技の練習記録テキストを正確にJSONに変換してください。今日の日付は${today}です。\n\n入力テキスト:\n"${freeText}"\n\nルール:\n- session_type: interval(本数+レスト), tempo(ペース走), easy(ジョグ/LSD), long(長距離), sprint(全力短距離), drill(ドリル), strength(ウェイト/筋トレ), race(試合/大会), rest(休養)\n- time_ms: タイムをミリ秒整数に変換。「46秒80」→46800, 「1:28.50」→88500。なければnull\n- distance_m: 距離をメートル整数に変換。「10km」→10000。なければnull\n- reps: 本数の整数。なければnull\n- fatigue_level: 疲労度1〜10の整数（明記なければ雰囲気から推定）\n- condition_level: 体調1〜10の整数（明記なければ6）\n- event: 100m/200m/400m/800m/1500m/3000m/5000m/10000m/110mH/100mH/400mH/3000mSC/競歩/走幅跳/三段跳/走高跳/棒高跳/砲丸投/やり投/円盤投/ハンマー投 のいずれか、なければnull\n\nJSONのみ返答:\n{"session_date":"${today}","session_type":"...","event":"...orNull","time_ms":数値orNull,"distance_m":数値orNull,"reps":数値orNull,"fatigue_level":整数,"condition_level":整数}` }],
         }),
-      })
+      }, 30000)
       if (res.ok) {
         const data = await res.json()
         const rawText = data.content?.[0]?.text ?? ''
@@ -376,7 +386,8 @@ export default function NotebookScreen() {
       // ストレージへの書き込みを確実に完了させてから状態更新
       // （他タブのuseFocusEffectが先に走るレースコンディションを防ぐ）
       const rawExisting = await AsyncStorage.getItem(SESSIONS_KEY)
-      const existing: TrainingSession[] = rawExisting ? JSON.parse(rawExisting) : []
+      let existing: TrainingSession[] = []
+      try { if (rawExisting) existing = JSON.parse(rawExisting) } catch {}  // データ破損でも新規保存を継続
       const next = [newSession, ...existing]
       await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(next))
       setSessions(next)

@@ -19,6 +19,16 @@ import PracticeShareCard, { PracticeShareData } from './PracticeShareCard'
 const SESSIONS_KEY = 'trackmate_sessions'
 const TASKS_KEY    = 'trackmate_tasks'
 
+// Hermesの AbortSignal.timeout 非対応に対応したタイムアウト付きfetch
+function fetchWithTimeout(url: string, options: RequestInit, ms: number): Promise<Response> {
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    return fetch(url, { ...options, signal: AbortSignal.timeout(ms) })
+  }
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), ms)
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(id))
+}
+
 // ── 日付ヘルパー ─────────────────────────────────────────────────
 /** ローカル日付を YYYY-MM-DD 文字列に変換（toISOStringはUTCになるのでNG） */
 function localDateStr(d: Date): string {
@@ -231,7 +241,7 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
     try {
       const _apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? '').replace(/\/$/, '')
       const _endpoint = _apiBase ? `${_apiBase}/api/analyze` : '/api/analyze'
-      const res = await fetch(_endpoint, {
+      const res = await fetchWithTimeout(_endpoint, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -258,7 +268,7 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
 {"session_date":"YYYY-MM-DD","session_type":"...","event":"...orNull","time_ms":数値orNull,"distance_m":数値orNull,"reps":数値orNull,"fatigue_level":1〜10の整数,"condition_level":1〜10の整数}`,
           }],
         }),
-      })
+      }, 30000)
       if (res.ok) {
         const data = await res.json()
         const rawText = data.content?.[0]?.text ?? ''

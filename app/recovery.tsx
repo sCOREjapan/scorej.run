@@ -39,6 +39,16 @@ type ZoneShape =
   | { type: 'circle'; cx: number; cy: number; r: number }
   | { type: 'ellipse'; cx: number; cy: number; rx: number; ry: number }
 
+// Hermesの AbortSignal.timeout 非対応に対応したタイムアウト付きfetch
+function fetchWithTimeout(url: string, options: RequestInit, ms: number): Promise<Response> {
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    return fetch(url, { ...options, signal: AbortSignal.timeout(ms) })
+  }
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), ms)
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(id))
+}
+
 const ZONES: ZoneDef[] = [
   { id:'head',        label:'頭・首',              front:{type:'circle', cx:110,cy:28,r:20},           back:{type:'circle', cx:110,cy:28,r:20} },
   { id:'neck',        label:'首・頸部',             front:{type:'ellipse',cx:110,cy:57,rx:10,ry:8},    back:{type:'ellipse',cx:110,cy:57,rx:10,ry:8} },
@@ -134,7 +144,7 @@ export default function RecoveryScreen() {
     const _endpoint = _apiBase ? `${_apiBase}/api/analyze` : '/api/analyze'
 
     try {
-      const res = await fetch(_endpoint, {
+      const res = await fetchWithTimeout(_endpoint, {
         method:'POST',
         headers:{ 'content-type':'application/json' },
         body: JSON.stringify({
@@ -148,8 +158,8 @@ export default function RecoveryScreen() {
 以下JSONのみで返答（他テキスト不要）:
 {"suspected_condition":"傷害名","severity":"mild|moderate|severe","immediate_actions":["今すぐすること1","2","3"],"rice_protocol":{"rest":"安静方法","ice":"アイシング方法と時間","compression":"圧迫方法","elevation":"挙上方法"},"taping":{"purpose":"目的","method":"ステップバイステップの貼り方（テープの向き・角度・長さを具体的に）","tape_type":"推奨テープ種類"},"recovery_timeline":{"phase1":{"period":"0〜3日","description":"急性期の対応"},"phase2":{"period":"4〜14日","description":"回復期のリハビリ"},"phase3":{"period":"2〜8週","description":"競技復帰プロセス"}},"exercises":["エクササイズ1（回数・方法）","2","3"],"see_doctor_if":["病院受診サイン1","2","3"],"training_modification":"代替練習と注意点","medical_basis":"医学的根拠の説明"}`
           }]
-        })
-      })
+        }),
+      }, 35000)
       if (!res.ok) {
         const t = await res.text()
         throw new Error(`HTTP ${res.status}: ${t.slice(0,120)}`)

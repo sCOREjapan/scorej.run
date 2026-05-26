@@ -18,6 +18,16 @@ import { trackFeatureUse } from '../lib/analytics'
 
 const AI_DIAGNOSES_KEY = 'trackmate_ai_diagnoses'
 
+// Hermesの AbortSignal.timeout 非対応に対応したタイムアウト付きfetch
+function fetchWithTimeout(url: string, options: RequestInit, ms: number): Promise<Response> {
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    return fetch(url, { ...options, signal: AbortSignal.timeout(ms) })
+  }
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), ms)
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(id))
+}
+
 type FatigueLevel = '低' | '中' | '高' | '注意'
 
 type DiagnosisResult = {
@@ -125,6 +135,7 @@ export default function AIDiagnosisScreen() {
   const [adGateRemaining,  setAdGateRemaining]  = useState(0)
   const [adGateHardLimited,setAdGateHardLimited]= useState(false)
   const [adGateRewardUses, setAdGateRewardUses] = useState(0)
+  const [adGateLimitType,  setAdGateLimitType]  = useState<'none'|'daily'|'monthly'|'total'>('none')
   const [remaining,        setRemaining]        = useState<number | null>(null)
   const { isGuest } = useAuth()
   const router = useRouter()
@@ -134,7 +145,7 @@ export default function AIDiagnosisScreen() {
       if (raw) {
         try { setHistory(JSON.parse(raw)) } catch {}
       }
-    })
+    }).catch(() => {})
     // 残り回数を取得して表示
     checkAdGate('ai_analysis').then(g => {
       if (g.remaining < 999) setRemaining(g.remaining)
@@ -155,6 +166,7 @@ export default function AIDiagnosisScreen() {
       setAdGateRemaining(0)
       setAdGateRewardUses(gate.rewardUses)
       setAdGateHardLimited(gate.hardLimited)
+      setAdGateLimitType(gate.limitType)
       setAdGateVisible(true)
       return
     }
@@ -234,7 +246,7 @@ export default function AIDiagnosisScreen() {
       const _apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
       const _endpoint = `${_apiBase}/api/analyze`
 
-      const response = await fetch(_endpoint, {
+      const response = await fetchWithTimeout(_endpoint, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -258,7 +270,7 @@ ${JSON.stringify(trainingData, null, 2)}
             },
           ],
         }),
-      })
+      }, 35000)
 
       if (!response.ok) {
         const errText = await response.text()
@@ -409,6 +421,7 @@ ${JSON.stringify(trainingData, null, 2)}
         remaining={adGateRemaining}
         rewardUses={adGateRewardUses}
         hardLimited={adGateHardLimited}
+        limitType={adGateLimitType}
         isGuest={isGuest}
         onClose={() => setAdGateVisible(false)}
         onAdWatched={async () => {

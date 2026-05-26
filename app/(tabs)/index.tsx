@@ -26,7 +26,7 @@ import PracticeShareCard, { PracticeShareData } from '../../components/PracticeS
 import StretchHoldButton from '../../components/StretchHoldButton'
 import { registerHomeScroll, unregisterHomeScroll } from '../../lib/homeScroll'
 import { setQuickLogListener, clearQuickLogListener } from '../../lib/quickLogEvent'
-import { getCachedWeather, clearWeatherCache } from '../../lib/weather'
+import { getCachedWeather, getWeatherCacheOnly, clearWeatherCache } from '../../lib/weather'
 import { calcWeatherRiskBonus, getWeatherRiskText } from '../../lib/weatherRisk'
 import { autoSyncTeam } from '../../lib/teamAutoSync'
 import { trackAppOpen, trackPaywallView } from '../../lib/analytics'
@@ -37,6 +37,16 @@ import type { SleepRecord } from '../../types'
 import ReviewWall, { shouldShowReviewWall } from '../../components/ReviewWall'
 import { showRewardedAd, showAppOpenAd, hasDailyInsightClaimed, markDailyInsightClaimed } from '../../lib/admob'
 import { getTier } from '../../lib/adGate'
+
+// Hermesの AbortSignal.timeout 非対応に対応したタイムアウト付きfetch
+function fetchWithTimeout(url: string, options: RequestInit, ms: number): Promise<Response> {
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    return fetch(url, { ...options, signal: AbortSignal.timeout(ms) })
+  }
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), ms)
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(id))
+}
 
 // ── AsyncStorage keys ───────────────────────────────────
 const CONDITION_KEY      = 'trackmate_condition'
@@ -1209,25 +1219,32 @@ export default function DashboardScreen() {
     }).catch(() => {})
   }, [])
 
-  // ── 天気取得（キャッシュ付き：朝6時・昼12時・夜18時の3回だけAPI呼び出し）──
+  // ── 天気：キャッシュを即反映するヘルパー ──────────────────────────────────
+  const applyWeather = useCallback((w: import('../../lib/weather').WeatherData) => {
+    const bonus = calcWeatherRiskBonus(w)
+    setWeatherBonus(bonus)
+    setWeatherText(getWeatherRiskText(w, bonus))
+  }, [])
+
+  // ── 天気取得（1日1回のみAPI呼び出し、それ以外はキャッシュ）────────────────
   const fetchWeather = useCallback(async (forceRefresh = false) => {
     setWeatherLoading(true)
     try {
       if (forceRefresh) await clearWeatherCache()
       const w = await getCachedWeather()
-      if (!w) return
-      const bonus = calcWeatherRiskBonus(w)
-      setWeatherBonus(bonus)
-      setWeatherText(getWeatherRiskText(w, bonus))
+      if (w) applyWeather(w)
     } catch {}
     finally { setWeatherLoading(false) }
-  }, [])
+  }, [applyWeather])
 
-  // 天気は起動から少し遅らせて取得（コアUIの描画を優先）
+  // 起動直後：キャッシュがあれば遅延なしで即表示 → その後バックグラウンドで更新チェック
   useEffect(() => {
+    // ① まずキャッシュのみ即読み（画面が開いた瞬間に表示）
+    getWeatherCacheOnly().then(w => { if (w) applyWeather(w) }).catch(() => {})
+    // ② 600ms後にAPI or キャッシュ有効期限チェック（当日まだ未取得なら取得）
     const t = setTimeout(() => fetchWeather(), 600)
     return () => clearTimeout(t)
-  }, [fetchWeather])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // レビューウォール：起動5回目以降に表示（3秒後に）
   useEffect(() => {
@@ -1314,7 +1331,7 @@ export default function DashboardScreen() {
     }).catch(() => {})
     // 通知画面から戻ったとき用：既読IDを再ロードしてバッジを消す
     AsyncStorage.getItem(NOTIF_READ_KEY).then(raw => {
-      setNotifReadIds(new Set(raw ? JSON.parse(raw) : []))
+      try { setNotifReadIds(new Set(raw ? JSON.parse(raw) : [])) } catch {}
     }).catch(() => {})
   }, [reloadAll]))
 
@@ -1336,8 +1353,8 @@ export default function DashboardScreen() {
   async function handleDailyInsight() {
     if (insightClaimed === true || insightClaimed === null || insightLoading) return
     const tier = await getTier()
-    // PRO以上は広告なしで直接取得
-    if (tier !== 'free') {
+    // PRO / ELITE / チームPro は広告なしで直接取得（coach はAIなしプランなので FREE と同じ）
+    if (tier === 'pro' || tier === 'elite' || tier === 'coach_pro') {
       await markDailyInsightClaimed()
       setInsightClaimed(true)
       handleGetAIAdvice()
@@ -1439,16 +1456,16 @@ ${sleepText || 'データなし'}
       {
         const apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
         const endpoint = `${apiBase}/api/analyze`
-        const res = await fetch(endpoint, {
+        const res = await fetchWithTimeout(endpoint, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
-            model: 'claude-sonnet-4-5',
+            model: 'claude-haiku-4-5-20251001',
             max_tokens: 1400,
             system: systemPrompt,
             messages: [{ role: 'user', content: prompt }],
           }),
-        })
+        }, 35000)
         if (res.ok) {
           const data = await res.json()
           const txt = data.content?.[0]?.text
@@ -1725,7 +1742,7 @@ ${sleepText || 'データなし'}
               style={[s.aiCoachCard, { backgroundColor: colors.surface }]}
               haptic="whoosh"
               activeOpacity={0.85}
-              onPress={() => { unlockAudio(); handleGetAIAdvice() }}
+              onPress={() => { unlockAudio(); aiAdvice ? setShowAIAdvice(true) : handleDailyInsight() }}
             >
               <View style={s.aiCoachDarkIcon}>
                 <Text style={{ fontSize: 20 }}>🤖</Text>
