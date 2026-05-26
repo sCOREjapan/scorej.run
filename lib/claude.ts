@@ -60,7 +60,7 @@ async function callClaude(req: MessagesRequest): Promise<string> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body,
-    }, 30000) // 30秒タイムアウト
+    }, 50000) // 50秒タイムアウト（Vercel maxDuration=60に合わせて余裕を持たせる）
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     const isTimeout = msg.includes('abort') || msg.includes('timeout') || msg.includes('Abort')

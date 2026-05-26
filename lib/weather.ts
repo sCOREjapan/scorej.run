@@ -64,16 +64,17 @@ function fetchWithTimeout(url: string, ms: number): Promise<Response> {
 // ─────────────────────────────────────────
 export async function getWeather(lat: number, lon: number): Promise<WeatherData> {
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,windspeed_10m,weathercode&timezone=Asia/Tokyo`
-  const res = await fetchWithTimeout(url, 8000)
+  const res = await fetchWithTimeout(url, 12000)
   if (!res.ok) throw new Error(`Open-Meteo API error: ${res.status}`)
   const data = await res.json()
-  const current = data.current
-  const { icon, label } = decodeWeatherCode(current.weathercode)
+  const current = data?.current
+  if (!current) throw new Error('Open-Meteo: unexpected response format')
+  const { icon, label } = decodeWeatherCode(current.weathercode ?? 0)
   return {
-    temp: current.temperature_2m,
-    humidity: current.relative_humidity_2m,
-    windspeed: current.windspeed_10m,
-    weathercode: current.weathercode,
+    temp:        current.temperature_2m        ?? 20,
+    humidity:    current.relative_humidity_2m  ?? 50,
+    windspeed:   current.windspeed_10m         ?? 0,
+    weathercode: current.weathercode           ?? 0,
     icon,
     label,
   }
@@ -133,10 +134,12 @@ async function fetchWeatherFromLocation(): Promise<WeatherData | null> {
       let lon = DEFAULT_LON
 
       if (existingStatus === 'granted') {
-        // 既に許可済み → 位置情報を取得
+        // 既に許可済み → 位置情報を取得（タイムアウト付き）
         try {
           const pos = await Location.getCurrentPositionAsync({
             accuracy: Location.Accuracy.Low,
+            timeInterval: 5000,
+            mayShowUserSettingsDialog: false,
           })
           lat = pos.coords.latitude
           lon = pos.coords.longitude
@@ -150,6 +153,8 @@ async function fetchWeatherFromLocation(): Promise<WeatherData | null> {
           try {
             const pos = await Location.getCurrentPositionAsync({
               accuracy: Location.Accuracy.Low,
+              timeInterval: 5000,
+              mayShowUserSettingsDialog: false,
             })
             lat = pos.coords.latitude
             lon = pos.coords.longitude
@@ -181,7 +186,7 @@ async function fetchWeatherFromLocation(): Promise<WeatherData | null> {
           try { resolve(await getWeather(DEFAULT_LAT, DEFAULT_LON)) }
           catch { resolve(null) }
         },
-        { timeout: 8000 }
+        { timeout: 10000 }
       )
     })
   } catch {
