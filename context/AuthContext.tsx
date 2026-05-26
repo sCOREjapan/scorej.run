@@ -69,10 +69,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const init = async () => {
       try {
-        // 1+2 を並列実行（直列だと 2 倍かかる）
-        const [ob, sessionResult] = await Promise.all([
+        // 1+2+3 を並列実行（直列だと 3 倍かかる）
+        const [ob, sessionResult, storedUserId] = await Promise.all([
           AsyncStorage.getItem(ONBOARDING_KEY).catch(() => null),
           (supabase.auth as any).getSession().catch(() => ({ data: null })),
+          AsyncStorage.getItem('userId').catch(() => null),
         ])
         if (!mounted) return
         setIsOnboarded(ob === 'true')
@@ -83,6 +84,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (s?.user?.id) {
           AsyncStorage.setItem('userId', s.user.id).catch(() => {})
           syncAll(s.user.id).catch(() => {})
+        } else if (storedUserId?.startsWith('guest_') || storedUserId === 'guest') {
+          // ゲストとして続けていたユーザーを再認識（アプリ再起動でもゲスト状態を維持）
+          setIsGuest(true)
         }
       } catch {
         // 予期せぬエラーでも loading を解除してアプリを続行
@@ -411,7 +415,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const continueAsGuest = useCallback(() => {
     setIsGuest(true)
     setLoading(false)
-    // ゲストはオンボーディング済みとして扱う（onboarding.tsx で別途処理）
+    // ゲストIDを永続化（アプリ再起動後もゲスト状態を維持するため）
+    const guestId = `guest_${Date.now()}`
+    AsyncStorage.setItem('userId', guestId).catch(() => {})
     // アクセスコード・サブスクキャッシュをクリア（前ユーザーの課金状態を引き継がせない）
     AsyncStorage.multiRemove(['score_access_code', 'trackmate_subscription', 'score_trial_coupon']).catch(() => {})
   }, [])
@@ -419,6 +425,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ── ゲスト解除（設定画面の「ログイン」ボタン用） ─────────
   const signOutGuest = useCallback(() => {
     setIsGuest(false)
+    // ゲストIDをクリア（再ログイン促進）
+    AsyncStorage.removeItem('userId').catch(() => {})
     // AuthGate が authed=false を検知して /auth へ自動リダイレクト
   }, [])
 
