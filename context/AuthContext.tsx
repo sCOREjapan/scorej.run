@@ -68,22 +68,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let mounted = true
 
     const init = async () => {
-      // 1+2 を並列実行（直列だと 2 倍かかる）
-      const [ob, sessionResult] = await Promise.all([
-        AsyncStorage.getItem(ONBOARDING_KEY).catch(() => null),
-        (supabase.auth as any).getSession().catch(() => ({ data: null })),
-      ])
-      if (!mounted) return
-      setIsOnboarded(ob === 'true')
-      const s = sessionResult?.data?.session ?? null
-      setSession(s)
-      setUser(s?.user ?? null)
-      // 起動時: 既存セッションがあればuserIdをキャッシュ + クラウド同期
-      if (s?.user?.id) {
-        AsyncStorage.setItem('userId', s.user.id).catch(() => {})
-        syncAll(s.user.id).catch(() => {})
+      try {
+        // 1+2 を並列実行（直列だと 2 倍かかる）
+        const [ob, sessionResult] = await Promise.all([
+          AsyncStorage.getItem(ONBOARDING_KEY).catch(() => null),
+          (supabase.auth as any).getSession().catch(() => ({ data: null })),
+        ])
+        if (!mounted) return
+        setIsOnboarded(ob === 'true')
+        const s = sessionResult?.data?.session ?? null
+        setSession(s)
+        setUser(s?.user ?? null)
+        // 起動時: 既存セッションがあればuserIdをキャッシュ + クラウド同期
+        if (s?.user?.id) {
+          AsyncStorage.setItem('userId', s.user.id).catch(() => {})
+          syncAll(s.user.id).catch(() => {})
+        }
+      } catch {
+        // 予期せぬエラーでも loading を解除してアプリを続行
+      } finally {
+        if (mounted) setLoading(false)
       }
-      setLoading(false)
     }
 
     init()
