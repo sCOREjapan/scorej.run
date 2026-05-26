@@ -19,7 +19,6 @@ import { shouldShowInterstitial, showInterstitialAd } from '../lib/admob'
 
 const SESSIONS_KEY      = 'trackmate_sessions'
 const CONDITION_MAP_KEY = 'trackmate_condition_map'
-const MOCK_USER_ID      = 'mock-user-1'
 const BRAND             = '#E53935'
 
 // ── 種目定義 ──────────────────────────────────────────────
@@ -201,7 +200,7 @@ export default function ManualLogScreen() {
 
       const newSession: TrainingSession = {
         id:             `manual-${Date.now()}`,
-        user_id:        MOCK_USER_ID,
+        user_id:        (await AsyncStorage.getItem('userId').catch(() => null)) ?? 'local',
         created_at:     new Date().toISOString(),
         session_date:   date,
         session_type:   sessionType,

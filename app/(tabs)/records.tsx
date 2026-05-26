@@ -33,8 +33,6 @@ const SESSIONS_KEY      = 'trackmate_sessions'
 const CONDITION_MAP_KEY = 'trackmate_condition_map'
 const SLEEP_KEY         = 'trackmate_sleep'
 const WEIGHT_KEY        = 'trackmate_weight'
-const MOCK_USER_ID      = 'mock-user-1'
-
 type WeightRecord = { id: string; date: string; weight_kg: number }
 const SCREEN_W          = Dimensions.get('window').width
 
@@ -1440,7 +1438,7 @@ export default function RecordsScreen() {
     try {
       const newRec: RaceRecord = {
         id: `rec_${Date.now()}`,
-        user_id: MOCK_USER_ID,
+        user_id: (await AsyncStorage.getItem('userId').catch(() => null)) ?? 'local',
         event: fEvent,
         result_display: display,
         result_ms,

@@ -24,7 +24,6 @@ import { shouldShowInterstitial, showInterstitialAd } from '../lib/admob'
 
 // ─── 定数 ───────────────────────────────────────────────────────────────
 const SESSIONS_KEY = 'trackmate_sessions'
-const MOCK_USER_ID = 'mock-user-1'
 
 const SPLIT_EVENTS: AthleticsEvent[] = [
   '100m', '200m', '400m', '110mH', '100mH', '400mH', '800m', '1500m',
@@ -167,7 +166,7 @@ export default function TimerScreen() {
 
       const newSession: TrainingSession = {
         id: `timer_${Date.now()}`,
-        user_id: MOCK_USER_ID,
+        user_id: (await AsyncStorage.getItem('userId').catch(() => null)) ?? 'local',
         session_date: today,
         session_type: 'sprint',
         event: selectedEvent,

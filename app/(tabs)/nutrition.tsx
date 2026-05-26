@@ -27,13 +27,7 @@ import AnimatedSection from '../../components/AnimatedSection'
 import type { MealType, MealRecord, MealAnalysisResult, UserProfile } from '../../types'
 
 const STORAGE_KEY = 'trackmate_meals'
-
-const MOCK_USER: UserProfile = {
-  id: 'mock-user-1', name: '田中 太郎', primary_event: '400m',
-  secondary_events: ['200m'], event_category: 'sprint',
-  personal_best_ms: 47800, target_time_ms: 47000,
-  age: 20, experience_years: 5, created_at: new Date().toISOString(),
-}
+const PROFILE_KEY = 'trackmate_my_profile'
 
 const MEAL_TYPES: { value: MealType; label: string; icon: string }[] = [
   { value: 'breakfast', label: '朝食',  icon: '🌅' },
@@ -123,7 +117,8 @@ export default function NutritionScreen() {
   const [history, setHistory] = useState<MealRecord[]>([])
   const [recordDate, setRecordDate] = useState(new Date().toISOString().slice(0, 10))
   const today = new Date().toISOString().slice(0, 10)
-  const { isGuest } = useAuth()
+  const { user, isGuest } = useAuth()
+  const [eventCategory, setEventCategory] = useState<'sprint' | 'middle' | 'long'>('sprint')
   const router = useRouter()
 
   // ローカルストレージから履歴を読み込む + 残り回数取得
@@ -131,6 +126,15 @@ export default function NutritionScreen() {
     AsyncStorage.getItem(STORAGE_KEY).then(raw => {
       if (raw) {
         try { setHistory(JSON.parse(raw)) } catch { /* ignore */ }
+      }
+    }).catch(() => {})
+    // ユーザープロフィールからevent_categoryを読み込む
+    AsyncStorage.getItem(PROFILE_KEY).then(raw => {
+      if (raw) {
+        try {
+          const p = JSON.parse(raw)
+          if (p?.event_category === 'middle' || p?.event_category === 'long') setEventCategory(p.event_category)
+        } catch {}
       }
     }).catch(() => {})
     checkAdGate('meal').then(g => {
@@ -202,13 +206,22 @@ export default function NutritionScreen() {
     setAnalyzing(true)
     try {
       const base64 = await imageUriToBase64(imageUri)
-      const res = await analyzeMeal(base64, MOCK_USER, mealType, timing)
+      // 実際のユーザープロフィールを使用（最低限の情報だけ渡す）
+      const profile: UserProfile = {
+        id: user?.id ?? 'local',
+        name: '',
+        primary_event: '100m',
+        secondary_events: [],
+        event_category: eventCategory as import('../../types').EventCategory,
+        created_at: new Date().toISOString(),
+      }
+      const res = await analyzeMeal(base64, profile, mealType, timing)
       if (!res || !Array.isArray(res.foods)) throw new Error('応答形式が不正です')
       setResult(res)
     } catch (e) {
       Toast.show({ type: 'error', text1: 'AI分析に失敗しました', text2: e instanceof Error ? e.message : '' })
     } finally { setAnalyzing(false) }
-  }, [imageUri, mealType, timing])
+  }, [imageUri, mealType, timing, user, eventCategory])
 
   const handleAnalyze = useCallback(async () => {
     if (!imageUri) return
@@ -236,7 +249,7 @@ export default function NutritionScreen() {
     try {
       const newRecord: MealRecord = {
         id: `local_${Date.now()}`,
-        user_id: MOCK_USER.id,
+        user_id: user?.id ?? 'local',
         meal_date: recordDate,
         meal_type: mealType,
         foods: result.foods,

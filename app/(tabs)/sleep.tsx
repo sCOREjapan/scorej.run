@@ -14,7 +14,6 @@ import HapticTouch from '../../components/HapticTouch'
 import AnimatedSection from '../../components/AnimatedSection'
 import type { SleepRecord } from '../../types'
 
-const MOCK_USER_ID = 'mock-user-1'
 const SLEEP_KEY = 'trackmate_sleep'
 const SCREEN_W = Dimensions.get('window').width
 
@@ -324,7 +323,7 @@ export default function SleepScreen() {
 
       const record: SleepRecord = {
         id: `local-${Date.now()}`,
-        user_id: MOCK_USER_ID,
+        user_id: (await AsyncStorage.getItem('userId').catch(() => null)) ?? 'local',
         sleep_date: recordDate,
         sleep_start: sleepStart.toISOString(),
         sleep_end:   sleepEnd.toISOString(),

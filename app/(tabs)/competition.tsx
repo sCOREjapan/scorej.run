@@ -33,20 +33,7 @@ const ENTRY_KEY = 'trackmate_entry_status'
 import { generateCompetitionPlan } from '../../lib/claude'
 import type { CompetitionPlan, TrackEvent, AthleticsEvent, WeekPlan, UserProfile } from '../../types'
 
-const MOCK_USER_ID = 'mock-user-1'
-
-const MOCK_USER: UserProfile = {
-  id: MOCK_USER_ID,
-  name: '田中 太郎',
-  primary_event: '400m',
-  secondary_events: ['200m'],
-  event_category: 'sprint',
-  personal_best_ms: 47800,
-  target_time_ms: 47000,
-  age: 20,
-  experience_years: 5,
-  created_at: new Date().toISOString(),
-}
+const PROFILE_KEY = 'trackmate_my_profile'
 
 const EVENTS: AthleticsEvent[] = [
   // トラック
@@ -211,6 +198,7 @@ function WeekCard({ week }: { week: WeekPlan }) {
 // ══════════════════════════════════════════════════════════════════
 export default function CompetitionScreen() {
   const [competitions, setCompetitions] = useState<CompetitionPlan[]>([])
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
   const [modalVisible, setModalVisible] = useState(false)
@@ -259,9 +247,10 @@ export default function CompetitionScreen() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [rawComp, rawEntry] = await Promise.all([
+      const [rawComp, rawEntry, rawProfile] = await Promise.all([
         AsyncStorage.getItem(COMP_KEY),
         AsyncStorage.getItem(ENTRY_KEY),
+        AsyncStorage.getItem(PROFILE_KEY),
       ])
       if (rawComp) {
         const all: CompetitionPlan[] = JSON.parse(rawComp)
@@ -270,6 +259,9 @@ export default function CompetitionScreen() {
       }
       if (rawEntry) {
         setEntryStatusMap(JSON.parse(rawEntry))
+      }
+      if (rawProfile) {
+        try { setUserProfile(JSON.parse(rawProfile)) } catch {}
       }
     } catch {
       // ignore
@@ -317,11 +309,17 @@ export default function CompetitionScreen() {
         ? (parseFloat(targetDistM || '0') * 1000)  // 投擲・跳躍はm→疑似ms保存
         : (minN * 60 + secN) * 1000 || 0
 
+      const realUserId = (await AsyncStorage.getItem('userId').catch(() => null)) ?? 'local'
       const profile: UserProfile = {
-        ...MOCK_USER,
-        primary_event: isFieldEvent ? '100m' : (compEvent as TrackEvent),  // field eventはAI生成用に100mでフォールバック
+        id: realUserId,
+        name: userProfile?.name ?? '',
+        primary_event: isFieldEvent ? '100m' : (compEvent as TrackEvent),
+        secondary_events: userProfile?.secondary_events ?? [],
         event_category: ['100m','200m','400m','110mH','100mH','400mH'].includes(compEvent) ? 'sprint' : 'middle',
+        personal_best_ms: userProfile?.personal_best_ms,
         target_time_ms,
+        experience_years: userProfile?.experience_years,
+        created_at: new Date().toISOString(),
       }
 
       const planData = await generateCompetitionPlan(dateObj, compName, profile)
@@ -330,7 +328,7 @@ export default function CompetitionScreen() {
 
       const newPlan: CompetitionPlan = {
         id: `local-${Date.now()}`,
-        user_id: MOCK_USER_ID,
+        user_id: realUserId,
         competition_name: compName,
         competition_date: compDate,
         event: compEvent,

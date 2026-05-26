@@ -24,7 +24,6 @@ import { shouldShowInterstitial, showInterstitialAd } from '../lib/admob'
 
 // ─── 定数 ──────────────────────────────────────────────────────────────
 const SESSIONS_KEY = 'trackmate_sessions'
-const MOCK_USER_ID = 'mock-user-1'
 // 体重70kgを仮定したカロリー計算係数（kcal/km）
 const CALORIES_PER_KM = 70
 
@@ -224,7 +223,7 @@ export default function GpsRunScreen() {
       try { if (raw) existing = JSON.parse(raw) } catch {}  // データ破損でも新規保存を継続
       const newSession: TrainingSession = {
         id: `gps_${Date.now()}`,
-        user_id: MOCK_USER_ID,
+        user_id: (await AsyncStorage.getItem('userId').catch(() => null)) ?? 'local',
         session_date: new Date().toISOString().slice(0, 10),
         session_type: 'easy',
         distance_m: Math.round(distM),
