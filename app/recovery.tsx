@@ -195,6 +195,8 @@ export default function RecoveryScreen() {
     if (bodyParts.length === 0) { setApiError('部位をタップして選択してください（複数可）'); return }
     if (!painType) { setApiError('痛みの種類を選択してください'); return }
     if (!timing)   { setApiError('発生タイミングを選択してください'); return }
+    // ゲストはログイン必須
+    if (isGuest) { setAdGateRemaining(0); setAdGateHardLimited(false); setAdGateLimitType('none'); setAdGateVisible(true); return }
     const gate = await checkAdGate('recovery')
     if (!gate.allowed) {
       setAdGateRemaining(gate.remaining)

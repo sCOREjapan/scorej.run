@@ -399,6 +399,8 @@ ${pickIntent.trim() || '特に指定なし（コーチの判断で最適なメ�
 
   async function handleGenerateFromPicked() {
     if (pickedItems.length === 0) return
+    // ゲストはログイン必須
+    if (isGuest) { setAdGateRemaining(0); setAdGateHardLimited(false); setAdGateLimitType('none'); setAdGatePendingFn('pick'); setAdGateVisible(true); return }
     const gate = await checkAdGate('workout')
     if (!gate.allowed) {
       setAdGateRemaining(gate.remaining)
@@ -513,6 +515,8 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
 
   async function handleGenerate() {
     if (!aiIntent.trim()) return
+    // ゲストはログイン必須
+    if (isGuest) { setAdGateRemaining(0); setAdGateHardLimited(false); setAdGateLimitType('none'); setAdGatePendingFn('intent'); setAdGateVisible(true); return }
     const gate = await checkAdGate('workout')
     if (!gate.allowed) {
       setAdGateRemaining(gate.remaining)
