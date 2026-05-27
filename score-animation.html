@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>sCORE — スコアアニメーション</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: #0a0a0a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif;
+    overflow: hidden;
+  }
+
+  .scene {
+    position: relative;
+    width: 320px;
+    height: 320px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ── 全画面グリーン塗りつぶし ── */
+  .fill-overlay {
+    position: fixed;
+    inset: 0;
+    background: #166534;
+    border-radius: 50%;
+    transform: scale(0);
+    transform-origin: center center;
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* ── SVG リング ── */
+  svg {
+    position: absolute;
+    top: 0; left: 0;
+    transform: rotate(-90deg);  /* 12時スタート */
+  }
+
+  /* 背景リング */
+  .ring-bg {
+    fill: none;
+    stroke: rgba(255,255,255,0.08);
+    stroke-width: 18;
+    stroke-linecap: round;
+  }
+
+  /* メインプログレスリング */
+  .ring-progress {
+    fill: none;
+    stroke: #16a34a;
+    stroke-width: 18;
+    stroke-linecap: round;
+    stroke-dasharray: 754;   /* 2π × r(120) ≈ 754 */
+    stroke-dashoffset: 754;  /* 最初は完全に隠す */
+    filter: drop-shadow(0 0 12px rgba(34,197,94,0.7));
+    transition: stroke 0.3s ease;
+  }
+
+  /* ── 中央テキスト ── */
+  .center-text {
+    position: relative;
+    z-index: 10;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .score-number {
+    font-size: 72px;
+    font-weight: 900;
+    color: #fff;
+    line-height: 1;
+    letter-spacing: -2px;
+    text-shadow: 0 0 30px rgba(34,197,94,0.5);
+    transition: color 0.5s ease;
+  }
+
+  .score-pct {
+    font-size: 28px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.6);
+  }
+
+  .score-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.4);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  /* ── パルス（70%で停止時） ── */
+  @keyframes pulse-ring {
+    0%   { transform: rotate(-90deg) scale(1); opacity: 1; }
+    50%  { transform: rotate(-90deg) scale(1.04); opacity: 0.8; }
+    100% { transform: rotate(-90deg) scale(1); opacity: 1; }
+  }
+
+  .ring-pulse {
+    animation: pulse-ring 0.6s ease-in-out 2;
+  }
+
+  /* ── 完成フラッシュ ── */
+  @keyframes flash {
+    0%   { opacity: 0; }
+    20%  { opacity: 0.4; }
+    100% { opacity: 0; }
+  }
+
+  .flash-overlay {
+    position: absolute;
+    inset: -40px;
+    background: radial-gradient(circle, rgba(34,197,94,0.6) 0%, transparent 70%);
+    border-radius: 50%;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  /* ── 全画面塗りつぶしアニメーション ── */
+  @keyframes screen-fill {
+    0%   { transform: scale(0); opacity: 1; border-radius: 50%; }
+    70%  { border-radius: 50%; }
+    100% { transform: scale(15); opacity: 1; border-radius: 0%; }
+  }
+
+  @keyframes fade-center {
+    0%   { opacity: 1; }
+    30%  { opacity: 0; }
+    100% { opacity: 0; }
+  }
+
+  /* ── 完成メッセージ ── */
+  .complete-msg {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .complete-msg .msg-icon {
+    font-size: 80px;
+    margin-bottom: 20px;
+    transform: scale(0);
+  }
+
+  .complete-msg .msg-text {
+    font-size: 32px;
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: 1px;
+    transform: translateY(20px);
+    opacity: 0;
+  }
+
+  .complete-msg .msg-sub {
+    font-size: 15px;
+    color: rgba(255,255,255,0.7);
+    margin-top: 10px;
+    transform: translateY(20px);
+    opacity: 0;
+  }
+
+  /* リプレイボタン */
+  #replay {
+    position: fixed;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: #fff;
+    padding: 12px 28px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    z-index: 300;
+    backdrop-filter: blur(10px);
+    opacity: 0;
+    transition: opacity 0.5s;
+  }
+  #replay:hover { background: rgba(255,255,255,0.25); }
+</style>
+</head>
+<body>
+
+<div class="scene">
+  <!-- SVGリング -->
+  <svg width="320" height="320" viewBox="0 0 320 320" id="svg-ring">
+    <circle class="ring-bg"       cx="160" cy="160" r="120"/>
+    <circle class="ring-progress" cx="160" cy="160" r="120" id="progress-ring"/>
+  </svg>
+
+  <!-- フラッシュ -->
+  <div class="flash-overlay" id="flash"></div>
+
+  <!-- 中央（テキストなし） -->
+  <div class="center-text" id="center-text"></div>
+</div>
+
+<!-- 全画面グリーン塗りつぶし -->
+<div class="fill-overlay" id="fill-overlay"></div>
+
+<!-- 完成メッセージ（テキストなし） -->
+<div class="complete-msg" id="complete-msg"></div>
+
+<!-- リプレイ -->
+<button id="replay" onclick="startAnimation()">▶</button>
+
+<script>
+const CIRCUMFERENCE = 2 * Math.PI * 120  // ≈ 754
+const ring     = document.getElementById('progress-ring')
+const svgEl    = document.getElementById('svg-ring')
+const scoreNum = document.getElementById('score-num')
+const fillEl   = document.getElementById('fill-overlay')
+const flashEl  = document.getElementById('flash')
+const centerEl = document.getElementById('center-text')
+const msgEl    = document.getElementById('complete-msg')
+const msgIcon  = document.getElementById('msg-icon')
+const msgText  = document.getElementById('msg-text')
+const msgSub   = document.getElementById('msg-sub')
+const replayBtn= document.getElementById('replay')
+
+function setProgress(pct) {
+  const offset = CIRCUMFERENCE * (1 - pct / 100)
+  ring.style.strokeDashoffset = offset
+}
+
+function easeInOut(t) {
+  return t < 0.5 ? 2*t*t : -1+(4-2*t)*t
+}
+
+function animateTo(from, to, duration, onDone, delay = 0) {
+  return new Promise(resolve => {
+    setTimeout(() => {
+      const start = performance.now()
+      function step(now) {
+        const elapsed = now - start
+        const t = Math.min(elapsed / duration, 1)
+        const eased = easeInOut(t)
+        setProgress(from + (to - from) * eased)
+        if (t < 1) {
+          requestAnimationFrame(step)
+        } else {
+          setProgress(to)
+          resolve()
+          if (onDone) onDone()
+        }
+      }
+      requestAnimationFrame(step)
+    }, delay)
+  })
+}
+
+function wait(ms) {
+  return new Promise(r => setTimeout(r, ms))
+}
+
+async function startAnimation() {
+  // リセット
+  replayBtn.style.opacity = '0'
+  replayBtn.style.pointerEvents = 'none'
+  fillEl.style.animation = ''
+  fillEl.style.transform = 'scale(0)'
+  fillEl.style.opacity = '0'
+  msgEl.style.opacity = '0'
+  msgIcon.style.transform = 'scale(0)'
+  msgText.style.opacity = '0'
+  msgText.style.transform = 'translateY(20px)'
+  msgSub.style.opacity = '0'
+  msgSub.style.transform = 'translateY(20px)'
+  centerEl.style.opacity = '1'
+  svgEl.style.animation = ''
+  svgEl.style.transform = 'rotate(-90deg)'
+  ring.style.stroke = '#16a34a'
+  ring.style.filter = 'drop-shadow(0 0 12px rgba(34,197,94,0.7))'
+  setProgress(0)
+
+  await wait(400)
+
+  // ── STEP 1: 0% → 70% （1.8秒） ──
+  await animateTo(0, 70, 1800)
+
+  // ── STEP 2: 70%で停止・パルス ──
+  ring.style.stroke = '#22c55e'
+  svgEl.classList.add('ring-pulse')
+  scoreNum.style.color = '#4ade80'
+  await wait(1400)
+  svgEl.classList.remove('ring-pulse')
+
+  // ── STEP 3: 70% → 100% （1.2秒） ──
+  ring.style.stroke = '#4ade80'
+  ring.style.filter = 'drop-shadow(0 0 20px rgba(74,222,128,0.9))'
+  scoreNum.style.color = '#fff'
+  await animateTo(70, 100, 1200)
+
+  // ── STEP 4: フラッシュ ──
+  flashEl.style.animation = 'flash 0.6s ease-out forwards'
+  await wait(300)
+
+  // ── STEP 5: 全画面グリーン塗りつぶし ──
+  fillEl.style.opacity = '1'
+  fillEl.style.animation = 'screen-fill 1.0s cubic-bezier(0.4, 0, 0.2, 1) forwards'
+  centerEl.style.animation = 'fade-center 0.5s ease-out forwards'
+  await wait(600)
+
+  // ── STEP 6: 完成メッセージ ──
+  msgEl.style.opacity = '1'
+  msgIcon.style.transition = 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)'
+  msgIcon.style.transform = 'scale(1)'
+  await wait(200)
+  msgText.style.transition = 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)'
+  msgText.style.opacity = '1'
+  msgText.style.transform = 'translateY(0)'
+  await wait(150)
+  msgSub.style.transition = 'all 0.4s ease'
+  msgSub.style.opacity = '1'
+  msgSub.style.transform = 'translateY(0)'
+
+  await wait(800)
+  replayBtn.style.opacity = '1'
+  replayBtn.style.pointerEvents = 'auto'
+}
+
+// 自動スタート
+setTimeout(startAnimation, 500)
+</script>
+</body>
+</html>

@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>チーム機能 UI デザイン案</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#1a1a2e; font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans',sans-serif; padding:40px 24px; }
+  h1 { color:#fff; text-align:center; font-size:18px; margin-bottom:8px; letter-spacing:0.5px; }
+  .subtitle { color:#aaa; text-align:center; font-size:12px; margin-bottom:48px; }
+  .designs { display:flex; gap:32px; justify-content:center; flex-wrap:wrap; }
+  .design-wrap { display:flex; flex-direction:column; align-items:center; gap:16px; }
+  .design-label { color:#fff; font-size:14px; font-weight:700; text-align:center; }
+  .design-desc { color:#888; font-size:11px; text-align:center; max-width:200px; line-height:1.5; }
+
+  /* iPhone frame */
+  .phone { width:210px; height:420px; background:#fff; border-radius:36px; overflow:hidden; border:6px solid #222; box-shadow:0 20px 60px rgba(0,0,0,0.5), inset 0 0 0 1px #333; position:relative; }
+  .phone::before { content:''; position:absolute; top:10px; left:50%; transform:translateX(-50%); width:60px; height:6px; background:#222; border-radius:3px; z-index:100; }
+  .screen { width:100%; height:100%; overflow:hidden; position:relative; padding-top:22px; }
+
+  /* === 案① Card Stripe === */
+  .a1 .header { background:#fff; padding:12px 14px 8px; border-bottom:1px solid #f0f0f0; }
+  .a1 .header-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+  .a1 .team-name { font-size:16px; font-weight:800; color:#111; }
+  .a1 .code-box { background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:3px 10px; }
+  .a1 .code-text { color:#16a34a; font-size:12px; font-weight:800; letter-spacing:2px; }
+  .a1 .coach-badge { display:inline-flex; align-items:center; gap:4px; background:#dcfce7; border-radius:6px; padding:2px 7px; }
+  .a1 .coach-text { color:#16a34a; font-size:10px; font-weight:700; }
+  .a1 .tabs { display:flex; border-bottom:1px solid #f0f0f0; background:#fff; }
+  .a1 .tab { flex:1; text-align:center; padding:8px 0; font-size:11px; font-weight:700; color:#aaa; position:relative; }
+  .a1 .tab.active { color:#16a34a; }
+  .a1 .tab.active::after { content:''; position:absolute; bottom:0; left:20%; right:20%; height:2px; background:#16a34a; border-radius:1px; }
+  .a1 .tab .badge { position:absolute; top:6px; right:12px; background:#ef4444; color:#fff; font-size:8px; font-weight:800; border-radius:8px; padding:1px 4px; }
+  .a1 .content { background:#f6f7f9; flex:1; padding:10px 12px; display:flex; flex-direction:column; gap:8px; overflow:hidden; }
+  .a1 .summary-row { display:flex; gap:6px; }
+  .a1 .sum-card { flex:1; background:#fff; border-radius:10px; padding:6px 4px; text-align:center; border:1px solid #f0f0f0; }
+  .a1 .sum-val { font-size:13px; font-weight:800; }
+  .a1 .sum-lbl { font-size:8px; color:#aaa; font-weight:600; margin-top:1px; }
+  .a1 .member-card { background:#fff; border-radius:12px; overflow:hidden; border:1px solid #f0f0f0; display:flex; align-items:center; }
+  .a1 .stripe { width:5px; height:100%; border-radius:0; }
+  .a1 .mc-body { padding:8px 10px; flex:1; }
+  .a1 .mc-name { font-size:12px; font-weight:800; color:#111; margin-bottom:3px; }
+  .a1 .mc-meta { display:flex; gap:6px; align-items:center; }
+  .a1 .mc-score { font-size:11px; font-weight:800; }
+  .a1 .mc-tag { font-size:9px; color:#888; background:#f4f4f4; border-radius:4px; padding:1px 5px; }
+  .a1 .mc-bar-wrap { flex:1; height:4px; background:#f0f0f0; border-radius:2px; margin-left:auto; width:50px; overflow:hidden; }
+  .a1 .mc-bar { height:100%; border-radius:2px; }
+
+  /* === 案② Minimal Stats === */
+  .a2 .header { background:#fff; padding:10px 14px 8px; }
+  .a2 .header-row { display:flex; justify-content:space-between; align-items:center; }
+  .a2 .team-name { font-size:15px; font-weight:800; color:#111; }
+  .a2 .code-inline { color:#16a34a; font-size:12px; font-weight:800; letter-spacing:1px; background:#f0fdf4; border-radius:6px; padding:2px 8px; }
+  .a2 .seg { display:flex; background:#f0f0f0; margin:8px 14px; border-radius:8px; padding:2px; }
+  .a2 .seg-btn { flex:1; text-align:center; padding:5px 0; font-size:11px; font-weight:700; color:#888; border-radius:7px; }
+  .a2 .seg-btn.active { background:#fff; color:#111; box-shadow:0 1px 4px rgba(0,0,0,0.12); }
+  .a2 .stats-list { padding:0 12px 8px; display:flex; flex-direction:column; gap:5px; }
+  .a2 .stat-row { display:flex; align-items:center; gap:10px; background:#f7f8fa; border-radius:11px; padding:9px 12px; border:1px solid rgba(0,0,0,0.07); }
+  .a2 .stat-emoji { font-size:15px; flex-shrink:0; }
+  .a2 .stat-lbl { flex:1; font-size:11px; font-weight:600; color:#555; }
+  .a2 .stat-num { font-size:16px; font-weight:800; }
+  .a2 .list { padding:0 12px; display:flex; flex-direction:column; gap:6px; }
+  .a2 .list-item { display:flex; align-items:center; gap:8px; background:#fff; border-radius:10px; padding:7px 10px; border:1px solid #f0f0f0; }
+  .a2 .avatar { width:28px; height:28px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; color:#fff; flex-shrink:0; }
+  .a2 .li-info { flex:1; }
+  .a2 .li-name { font-size:11px; font-weight:700; color:#111; }
+  .a2 .li-bar-wrap { height:4px; background:#f0f0f0; border-radius:2px; margin-top:3px; overflow:hidden; }
+  .a2 .li-bar { height:100%; border-radius:2px; }
+  .a2 .li-score { font-size:13px; font-weight:800; }
+
+  /* === 案③ Feed Style === */
+  .a3 .header { background:#fff; padding:10px 14px 8px; border-bottom:1px solid #f0f0f0; display:flex; justify-content:space-between; align-items:center; }
+  .a3 .team-name { font-size:15px; font-weight:800; color:#111; }
+  .a3 .header-right { display:flex; gap:6px; align-items:center; }
+  .a3 .icon-btn { width:28px; height:28px; border-radius:14px; background:#f0f0f0; display:flex; align-items:center; justify-content:center; font-size:13px; }
+  .a3 .alert-banner { background:#fff7ed; border-left:3px solid #f97316; margin:8px 10px 0; border-radius:8px; padding:7px 10px; display:flex; gap:6px; align-items:flex-start; }
+  .a3 .alert-text { font-size:10px; color:#c2410c; font-weight:700; line-height:1.4; }
+  .a3 .section-title { font-size:10px; font-weight:800; color:#aaa; padding:10px 14px 4px; letter-spacing:0.8px; text-transform:uppercase; }
+  .a3 .feed-item { margin:0 10px 6px; background:#fff; border-radius:12px; padding:10px; border:1px solid #f0f0f0; }
+  .a3 .fi-header { display:flex; align-items:center; gap:7px; margin-bottom:6px; }
+  .a3 .fi-avatar { width:26px; height:26px; border-radius:13px; display:flex; align-items:center; justify-content:center; font-size:10px; color:#fff; font-weight:800; }
+  .a3 .fi-name { font-size:12px; font-weight:700; color:#111; }
+  .a3 .fi-time { font-size:9px; color:#aaa; margin-left:auto; }
+  .a3 .fi-content { font-size:11px; color:#444; line-height:1.5; }
+  .a3 .announce-item { margin:0 10px 6px; background:#fffbeb; border-radius:12px; padding:9px 10px; border:1px solid #fde68a; }
+  .a3 .ann-author { font-size:10px; color:#d97706; font-weight:700; margin-bottom:3px; }
+  .a3 .ann-text { font-size:11px; color:#444; }
+  .a3 .fab { position:absolute; bottom:16px; right:14px; width:40px; height:40px; background:#16a34a; border-radius:20px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:20px; box-shadow:0 4px 12px rgba(22,163,74,0.4); }
+</style>
+</head>
+<body>
+
+<h1>チーム機能 UI デザイン案</h1>
+<p class="subtitle">白基調 / シンプル / 3パターン</p>
+
+<div class="designs">
+
+  <!-- 案① Card Stripe -->
+  <div class="design-wrap">
+    <div class="phone">
+      <div class="screen a1">
+        <div class="header">
+          <div class="header-top">
+            <div>
+              <div class="team-name">山の里高校</div>
+              <div style="margin-top:3px"><span class="coach-badge"><span class="coach-text">コーチ</span></span><span style="color:#888;font-size:10px;margin-left:5px">中山秀幸</span></div>
+            </div>
+            <div class="code-box"><div class="code-text">08V-2NY</div></div>
+          </div>
+        </div>
+        <div class="tabs">
+          <div class="tab active">メンバー<span class="badge">2</span></div>
+          <div class="tab">メニュー</div>
+          <div class="tab">連絡</div>
+          <div class="tab">予定</div>
+        </div>
+        <div class="content">
+          <div class="summary-row">
+            <div class="sum-card"><div class="sum-val" style="color:#ef4444">🤕 2</div><div class="sum-lbl">痛み報告</div></div>
+            <div class="sum-card"><div class="sum-val" style="color:#f97316">⚠️ 1</div><div class="sum-lbl">高リスク</div></div>
+            <div class="sum-card"><div class="sum-val" style="color:#6b7280">3人</div><div class="sum-lbl">未提出</div></div>
+            <div class="sum-card"><div class="sum-val" style="color:#16a34a">普通</div><div class="sum-lbl">チーム負荷</div></div>
+          </div>
+          <!-- members -->
+          <div class="member-card">
+            <div class="stripe" style="background:#ef4444;min-height:50px"></div>
+            <div class="mc-body">
+              <div class="mc-name">田中 翼</div>
+              <div class="mc-meta">
+                <span class="mc-score" style="color:#ef4444">82</span>
+                <span class="mc-tag" style="background:#fee2e2;color:#dc2626">🤕 痛み</span>
+                <div style="margin-left:auto;width:50px;height:4px;background:#f0f0f0;border-radius:2px;overflow:hidden"><div style="width:82%;height:100%;background:#ef4444;border-radius:2px"></div></div>
+              </div>
+            </div>
+          </div>
+          <div class="member-card">
+            <div class="stripe" style="background:#f97316;min-height:50px"></div>
+            <div class="mc-body">
+              <div class="mc-name">佐藤 光</div>
+              <div class="mc-meta">
+                <span class="mc-score" style="color:#f97316">65</span>
+                <span class="mc-tag">Lv.8</span>
+                <div style="margin-left:auto;width:50px;height:4px;background:#f0f0f0;border-radius:2px;overflow:hidden"><div style="width:65%;height:100%;background:#f97316;border-radius:2px"></div></div>
+              </div>
+            </div>
+          </div>
+          <div class="member-card">
+            <div class="stripe" style="background:#22c55e;min-height:50px"></div>
+            <div class="mc-body">
+              <div class="mc-name">鈴木 蓮</div>
+              <div class="mc-meta">
+                <span class="mc-score" style="color:#22c55e">28</span>
+                <span class="mc-tag">Lv.12</span>
+                <div style="margin-left:auto;width:50px;height:4px;background:#f0f0f0;border-radius:2px;overflow:hidden"><div style="width:28%;height:100%;background:#22c55e;border-radius:2px"></div></div>
+              </div>
+            </div>
+          </div>
+          <div class="member-card">
+            <div class="stripe" style="background:#22c55e;min-height:50px"></div>
+            <div class="mc-body">
+              <div class="mc-name">山本 大輝</div>
+              <div class="mc-meta">
+                <span class="mc-score" style="color:#22c55e">15</span>
+                <span class="mc-tag">Lv.5</span>
+                <div style="margin-left:auto;width:50px;height:4px;background:#f0f0f0;border-radius:2px;overflow:hidden"><div style="width:15%;height:100%;background:#22c55e;border-radius:2px"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="design-label">案① Card Stripe</div>
+    <div class="design-desc">左ボーダーでリスクを一目で把握。カードは白・シャドウなし。</div>
+  </div>
+
+  <!-- 案② Minimal Stats -->
+  <div class="design-wrap">
+    <div class="phone">
+      <div class="screen a2">
+        <div class="header">
+          <div class="header-row">
+            <div class="team-name">山の里高校</div>
+            <div class="code-inline">08V-2NY</div>
+          </div>
+          <div style="color:#888;font-size:10px;margin-top:2px">コーチ: 中山秀幸</div>
+        </div>
+        <!-- segment control -->
+        <div class="seg">
+          <div class="seg-btn active">メンバー</div>
+          <div class="seg-btn">メニュー</div>
+          <div class="seg-btn">連絡</div>
+          <div class="seg-btn">予定</div>
+        </div>
+        <!-- stats -->
+        <div class="stats-list">
+          <div class="stat-row" style="border-left:3px solid #ef4444;background:#fff5f5;">
+            <span class="stat-emoji">🤕</span>
+            <span class="stat-lbl">痛み報告</span>
+            <span class="stat-num" style="color:#ef4444">2件</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-emoji">⚠️</span>
+            <span class="stat-lbl">高リスク</span>
+            <span class="stat-num" style="color:#f97316">1人</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-emoji">📋</span>
+            <span class="stat-lbl">未提出</span>
+            <span class="stat-num" style="color:#6b7280">3人</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-emoji">💪</span>
+            <span class="stat-lbl">チーム負荷</span>
+            <span class="stat-num" style="color:#16a34a">普通</span>
+          </div>
+        </div>
+        <!-- list -->
+        <div class="list">
+          <div class="list-item">
+            <div class="avatar" style="background:#ef4444">田</div>
+            <div class="li-info">
+              <div class="li-name">田中 翼</div>
+              <div class="li-bar-wrap"><div class="li-bar" style="width:82%;background:#ef4444"></div></div>
+            </div>
+            <div class="li-score" style="color:#ef4444">82</div>
+          </div>
+          <div class="list-item">
+            <div class="avatar" style="background:#f97316">佐</div>
+            <div class="li-info">
+              <div class="li-name">佐藤 光</div>
+              <div class="li-bar-wrap"><div class="li-bar" style="width:65%;background:#f97316"></div></div>
+            </div>
+            <div class="li-score" style="color:#f97316">65</div>
+          </div>
+          <div class="list-item">
+            <div class="avatar" style="background:#22c55e">鈴</div>
+            <div class="li-info">
+              <div class="li-name">鈴木 蓮</div>
+              <div class="li-bar-wrap"><div class="li-bar" style="width:28%;background:#22c55e"></div></div>
+            </div>
+            <div class="li-score" style="color:#22c55e">28</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="design-label">案② Minimal Stats</div>
+    <div class="design-desc">数字ファースト。セグメントコントロールでタブ切替。</div>
+  </div>
+
+  <!-- 案③ Feed Style -->
+  <div class="design-wrap">
+    <div class="phone">
+      <div class="screen a3" style="background:#f8f8f8;">
+        <div class="header">
+          <div class="team-name">山の里高校</div>
+          <div class="header-right">
+            <div class="icon-btn">↻</div>
+            <div class="icon-btn">⋯</div>
+          </div>
+        </div>
+        <!-- alert -->
+        <div class="alert-banner">
+          <span style="font-size:14px">🤕</span>
+          <div class="alert-text">田中・佐藤が痛みを報告<br><span style="font-weight:400;color:#9a3412">タップして確認してください</span></div>
+        </div>
+        <!-- feed -->
+        <div class="section-title">今日の状態</div>
+        <div class="feed-item">
+          <div class="fi-header">
+            <div class="fi-avatar" style="background:#ef4444">田</div>
+            <div>
+              <div class="fi-name">田中 翼</div>
+              <div style="font-size:9px;color:#ef4444;font-weight:700">リスク 82 / 🤕 膝</div>
+            </div>
+            <div class="fi-time">10分前</div>
+          </div>
+          <div style="height:3px;background:#f0f0f0;border-radius:2px;overflow:hidden"><div style="width:82%;height:100%;background:#ef4444;border-radius:2px"></div></div>
+        </div>
+        <div class="feed-item">
+          <div class="fi-header">
+            <div class="fi-avatar" style="background:#22c55e">鈴</div>
+            <div>
+              <div class="fi-name">鈴木 蓮</div>
+              <div style="font-size:9px;color:#22c55e;font-weight:700">リスク 28 / 良好</div>
+            </div>
+            <div class="fi-time">15分前</div>
+          </div>
+          <div style="height:3px;background:#f0f0f0;border-radius:2px;overflow:hidden"><div style="width:28%;height:100%;background:#22c55e;border-radius:2px"></div></div>
+        </div>
+        <div class="section-title">コーチからのお知らせ</div>
+        <div class="announce-item">
+          <div class="ann-author">📣 中山コーチ · 1時間前</div>
+          <div class="ann-text">明日は400mインターバル×6本。体調確認をしっかり。</div>
+        </div>
+        <div class="fab">+</div>
+      </div>
+    </div>
+    <div class="design-label">案③ Feed Style</div>
+    <div class="design-desc">タブなしのフィード形式。要注意選手を上部にピン表示。</div>
+  </div>
+
+</div>
+
+</body>
+</html>

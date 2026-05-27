@@ -31,7 +31,6 @@ const PRO_MONTHLY_LIMITS: Partial<Record<Feature, number>> = {
 const TOTAL_KEY   = 'score_feature_total_usage'
 const DAILY_KEY   = 'score_feature_daily_usage'
 const MONTHLY_KEY = 'score_feature_monthly_usage'
-const REWARD_KEY  = 'score_feature_reward_uses'   // 広告視聴で獲得したリワード回数
 
 // ── 日付・月ヘルパー ──────────────────────────────────────────
 const todayStr    = () => new Date().toISOString().slice(0, 10)  // YYYY-MM-DD
@@ -92,32 +91,6 @@ async function saveMonthlyUsage(d: { month: string; counts: Record<string, numbe
   await AsyncStorage.setItem(MONTHLY_KEY, JSON.stringify(d)).catch(() => {})
 }
 
-// ── リワード回数管理 ──────────────────────────────────────────
-async function getRewardUses(): Promise<Record<Feature, number>> {
-  try {
-    const raw = await AsyncStorage.getItem(REWARD_KEY)
-    if (raw) return JSON.parse(raw)
-  } catch {}
-  return { ai_analysis: 0, video: 0, meal: 0, csv: 0, recovery: 0, workout: 0 }
-}
-
-/** 広告視聴でリワード1回を付与 */
-export async function grantRewardUse(feature: Feature): Promise<void> {
-  const uses = await getRewardUses()
-  uses[feature] = (uses[feature] ?? 0) + 1
-  await AsyncStorage.setItem(REWARD_KEY, JSON.stringify(uses)).catch(() => {})
-}
-
-/** リワード1回を消費（残りがあればtrue） */
-export async function consumeRewardUse(feature: Feature): Promise<boolean> {
-  const uses = await getRewardUses()
-  if ((uses[feature] ?? 0) > 0) {
-    uses[feature] -= 1
-    await AsyncStorage.setItem(REWARD_KEY, JSON.stringify(uses)).catch(() => {})
-    return true
-  }
-  return false
-}
 
 // ── メイン：利用可否チェック ──────────────────────────────────
 export async function checkAdGate(feature: Feature): Promise<{
@@ -221,4 +194,3 @@ export function shouldWarn(remaining: number): boolean {
   return remaining === 1
 }
 
-export { getDailyUsage }

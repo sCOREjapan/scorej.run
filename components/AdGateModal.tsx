@@ -9,7 +9,6 @@ import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Ale
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import type { Feature } from '../lib/adGate'
-import { grantRewardUse } from '../lib/adGate'
 import { watchAdsForReward } from '../lib/rewardedAd'
 import { trackPaywallView } from '../lib/analytics'
 
@@ -73,7 +72,6 @@ export default function AdGateModal({
     })
     setWatching(false)
     if (success) {
-      await grantRewardUse(feature)
       onAdWatched()   // 親に通知 → 解析実行
     } else {
       Alert.alert(
