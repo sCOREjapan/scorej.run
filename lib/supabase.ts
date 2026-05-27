@@ -73,17 +73,6 @@ if (IS_PLACEHOLDER) {
 // ─────────────────────────────────────────
 // トレーニング記録
 // ─────────────────────────────────────────
-export async function insertSession(session: Omit<import('../types').TrainingSession, 'id' | 'created_at'>) {
-  if (IS_PLACEHOLDER) return null
-  const { data, error } = await supabase
-    .from('training_sessions')
-    .insert(session)
-    .select()
-    .single()
-  if (error) throw error
-  return data
-}
-
 export async function getRecentSessions(userId: string, days = 30) {
   if (IS_PLACEHOLDER) return []
   const since = new Date()
@@ -108,18 +97,6 @@ export async function insertMeal(meal: Omit<import('../types').MealRecord, 'id' 
     .insert(meal)
     .select()
     .single()
-  if (error) throw error
-  return data
-}
-
-export async function getMealsForDate(userId: string, date: string) {
-  if (IS_PLACEHOLDER) return []
-  const { data, error } = await supabase
-    .from('meals')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('meal_date', date)
-    .order('created_at', { ascending: true })
   if (error) throw error
   return data
 }
