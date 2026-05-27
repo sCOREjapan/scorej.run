@@ -36,23 +36,38 @@ export function showOneRewardedAd(): Promise<boolean> {
     // EARNED_REWARD は CLOSED より前に来ることもあるのでフラグで管理
     let earnedReward = false
     let settled = false
+    let timer: ReturnType<typeof setTimeout>
+
     const done = (result: boolean) => {
-      if (!settled) { settled = true; resolve(result) }
+      if (!settled) {
+        settled = true
+        clearTimeout(timer)
+        resolve(result)
+      }
     }
 
-    ad.addAdEventListener(RewardedAdEventType.LOADED, () => {
+    // ロード開始から 15 秒でフォールバック（ロード失敗・タイムアウト対策）
+    timer = setTimeout(() => done(false), 15000)
+
+    const unsubLoaded = ad.addAdEventListener(RewardedAdEventType.LOADED, () => {
+      // ロード完了 → タイマーを視聴時間込みで延長（最大 90 秒）
+      clearTimeout(timer)
+      timer = setTimeout(() => done(false), 90000)
       ad.show().catch(() => done(false))
     })
     // リワード獲得（最後まで視聴） → フラグを立てるだけ
-    ad.addAdEventListener(RewardedAdEventType.EARNED_REWARD, () => {
+    const unsubEarned = ad.addAdEventListener(RewardedAdEventType.EARNED_REWARD, () => {
       earnedReward = true
     })
     // 広告が閉じられたタイミングで結果を確定（EARNED_REWARDより必ず後に呼ばれる）
-    ad.addAdEventListener(AdEventType.CLOSED, () => {
+    const unsubClosed = ad.addAdEventListener(AdEventType.CLOSED, () => {
+      // リスナーをクリーンアップしてから解決
+      try { unsubLoaded(); unsubEarned(); unsubClosed(); unsubError() } catch {}
       done(earnedReward)
     })
     // 読み込みエラー or 表示エラー → 失敗
-    ad.addAdEventListener(AdEventType.ERROR, () => {
+    const unsubError = ad.addAdEventListener(AdEventType.ERROR, () => {
+      try { unsubLoaded(); unsubEarned(); unsubClosed(); unsubError() } catch {}
       done(false)
     })
 
