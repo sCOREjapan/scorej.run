@@ -1100,6 +1100,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
   const [evLocation,    setEvLocation]    = useState('')
   const [evDesc,        setEvDesc]        = useState('')
   const [evType,        setEvType]        = useState<TeamEventType>('practice')
+  const [evSubmitting,  setEvSubmitting]  = useState(false)
 
   // ── メニュービルダー state ─────────────────────────────
   const [menuLibrary,    setMenuLibrary]    = useState<MenuTemplate[]>([])
@@ -1262,7 +1263,8 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
   }
 
   async function addEvent() {
-    if (!evTitle.trim()) return
+    if (!evTitle.trim() || evSubmitting) return
+    setEvSubmitting(true)
     // 状態リセット前に値をキャプチャ（resetしてから非同期処理すると値が消える）
     const title    = evTitle.trim()
     const date     = evDate.trim()
@@ -1296,6 +1298,8 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
       } else {
         Toast.show({ type: 'error', text1: '予定を追加できませんでした', text2: msg, visibilityTime: 4000 })
       }
+    } finally {
+      setEvSubmitting(false)
     }
   }
 
@@ -2318,11 +2322,13 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
 
               <HapticTouch
                 haptic="save"
-                style={[{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:BRAND,borderRadius:14,paddingVertical:15},(!evTitle.trim())&&{opacity:0.4}]}
-                onPress={addEvent} disabled={!evTitle.trim()} activeOpacity={0.85}
+                style={[{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:BRAND,borderRadius:14,paddingVertical:15},(!evTitle.trim()||evSubmitting)&&{opacity:0.4}]}
+                onPress={addEvent} disabled={!evTitle.trim()||evSubmitting} activeOpacity={0.85}
               >
-                <Ionicons name="checkmark-circle" size={20} color="#fff"/>
-                <Text style={{color:'#fff',fontSize:16,fontWeight:'800'}}>追加する</Text>
+                {evSubmitting
+                  ? <ActivityIndicator size="small" color="#fff"/>
+                  : <Ionicons name="checkmark-circle" size={20} color="#fff"/>}
+                <Text style={{color:'#fff',fontSize:16,fontWeight:'800'}}>{evSubmitting ? '追加中…' : '追加する'}</Text>
               </HapticTouch>
               </ScrollView>
             </View>
