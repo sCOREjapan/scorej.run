@@ -603,7 +603,7 @@ export default function SettingsScreen() {
                 activeOpacity={0.75}
                 onPress={async () => {
                   const doSwitch = async () => {
-                    await AsyncStorage.multiRemove([TEAM_ROLE_KEY, TEAM_SETUP_KEY, TEAM_JOINED_KEY])
+                    await AsyncStorage.multiRemove([TEAM_ROLE_KEY, TEAM_SETUP_KEY, TEAM_JOINED_KEY]).catch(() => {})
                     setTeamRole(null)
                     router.push('/(tabs)/team')
                   }
