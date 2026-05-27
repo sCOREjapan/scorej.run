@@ -4,31 +4,27 @@
 import Purchases, { LOG_LEVEL, type PurchasesPackage } from 'react-native-purchases'
 import { Platform } from 'react-native'
 // 定数を直接定義（./purchaseService への再エクスポートは循環インポートになるため）
-export const ENTITLEMENT_PRO       = 'pro'
-export const ENTITLEMENT_ELITE     = 'elite'
-export const ENTITLEMENT_COACH     = 'coach'
-export const ENTITLEMENT_COACH_PRO = 'coach_pro'
+export const ENTITLEMENT_PRO   = 'pro'
+export const ENTITLEMENT_ELITE = 'elite'
+export const ENTITLEMENT_COACH = 'coach'
 export const PRODUCT_IDS = {
-  pro_monthly:        'score_pro_monthly',
-  pro_annual:         'score_pro_annual',
-  elite_monthly:      'score_elite_monthly',
-  elite_annual:       'score_elite_annual',
-  coach_monthly:      'score_coach_monthly',
-  coach_annual:       'score_coach_annual',
-  coach_pro_monthly:  'score_coach_pro_monthly',
-  coach_pro_annual:   'score_coach_pro_annual',
+  pro_monthly:    'score_pro_monthly',
+  pro_annual:     'score_pro_annual',
+  elite_monthly:  'score_elite_monthly',
+  elite_annual:   'score_elite_annual',
+  coach_monthly:  'score_coach_monthly',
+  coach_annual:   'score_coach_annual',
 }
-export type PlanTier = 'free' | 'pro' | 'elite' | 'coach' | 'coach_pro'
+export type PlanTier = 'free' | 'pro' | 'elite' | 'coach'
 
 // ── RevenueCat API キー ─────────────────────────────────────────────
 // RevenueCat ダッシュボード → Projects → API Keys で取得して差し替え
 const RC_IOS_KEY     = 'appl_iBIPuhRoGelxcbQXFMKglAFPyMs'  // ✅ RevenueCat iOS 本番キー
 const RC_ANDROID_KEY = 'goog_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'  // ← Android用（後で設定）
 
-const ENT_PRO       = 'pro'
-const ENT_ELITE     = 'elite'
-const ENT_COACH     = 'coach'
-const ENT_COACH_PRO = 'coach_pro'
+const ENT_PRO   = 'pro'
+const ENT_ELITE = 'elite'
+const ENT_COACH = 'coach'
 
 // ── 初期化 ──────────────────────────────────────────────────────────
 export async function initPurchases(userId?: string): Promise<void> {
@@ -52,15 +48,14 @@ export async function initPurchases(userId?: string): Promise<void> {
 export async function getPremiumStatus(): Promise<{ tier: PlanTier; expiresAt?: string }> {
   try {
     const info  = await Purchases.getCustomerInfo()
-    const coach_pro = info.entitlements.active[ENT_COACH_PRO]
-    const elite     = info.entitlements.active[ENT_ELITE]
-    const pro       = info.entitlements.active[ENT_PRO]
-    const coach     = info.entitlements.active[ENT_COACH]
+    const coach = info.entitlements.active[ENT_COACH]
+    const elite = info.entitlements.active[ENT_ELITE]
+    const pro   = info.entitlements.active[ENT_PRO]
 
-    if (coach_pro) return { tier: 'coach_pro', expiresAt: coach_pro.expirationDate ?? undefined }
-    if (elite)     return { tier: 'elite',     expiresAt: elite.expirationDate     ?? undefined }
-    if (pro)       return { tier: 'pro',       expiresAt: pro.expirationDate       ?? undefined }
-    if (coach)     return { tier: 'coach',     expiresAt: coach.expirationDate     ?? undefined }
+    // coach > elite > pro > free（coachはAI含む全機能）
+    if (coach) return { tier: 'coach', expiresAt: coach.expirationDate ?? undefined }
+    if (elite) return { tier: 'elite', expiresAt: elite.expirationDate ?? undefined }
+    if (pro)   return { tier: 'pro',   expiresAt: pro.expirationDate   ?? undefined }
     return { tier: 'free' }
   } catch {
     return { tier: 'free' }
@@ -81,10 +76,9 @@ export async function getPackages(): Promise<PurchasesPackage[]> {
 export async function purchasePackage(pkg: PurchasesPackage): Promise<PlanTier | false> {
   try {
     const { customerInfo } = await Purchases.purchasePackage(pkg)
-    if (customerInfo.entitlements.active[ENT_COACH_PRO]) return 'coach_pro'
-    if (customerInfo.entitlements.active[ENT_ELITE])     return 'elite'
-    if (customerInfo.entitlements.active[ENT_PRO])       return 'pro'
-    if (customerInfo.entitlements.active[ENT_COACH])     return 'coach'
+    if (customerInfo.entitlements.active[ENT_COACH]) return 'coach'
+    if (customerInfo.entitlements.active[ENT_ELITE]) return 'elite'
+    if (customerInfo.entitlements.active[ENT_PRO])   return 'pro'
     return false
   } catch (e: any) {
     if (e?.userCancelled) return false
@@ -96,10 +90,9 @@ export async function purchasePackage(pkg: PurchasesPackage): Promise<PlanTier |
 export async function restoreAndCheck(): Promise<PlanTier | false> {
   try {
     const info = await Purchases.restorePurchases()
-    if (info.entitlements.active[ENT_COACH_PRO]) return 'coach_pro'
-    if (info.entitlements.active[ENT_ELITE])     return 'elite'
-    if (info.entitlements.active[ENT_PRO])       return 'pro'
-    if (info.entitlements.active[ENT_COACH])     return 'coach'
+    if (info.entitlements.active[ENT_COACH]) return 'coach'
+    if (info.entitlements.active[ENT_ELITE]) return 'elite'
+    if (info.entitlements.active[ENT_PRO])   return 'pro'
     return false
   } catch {
     return false

@@ -592,16 +592,15 @@ const COACH_FEATURES = [
 
 function CoachPaywallScreen({ onBack, onPurchased }: { onBack: () => void; onPurchased: () => void }) {
   const { packages, purchase, restore, tier, applyAccessCode } = usePurchase()
-  const [busy,          setBusy]          = useState(false)
-  const [busyPro,       setBusyPro]       = useState(false)
-  const [showCode,      setShowCode]      = useState(false)
+  const [busy,        setBusy]        = useState(false)
+  const [showCode,    setShowCode]    = useState(false)
   const [codeInput,     setCodeInput]     = useState('')
   const [codeError,     setCodeError]     = useState('')
   const [codeLoading,   setCodeLoading]   = useState(false)
 
-  // プラン購入後にtierがcoachまたはcoach_proになったら自動遷移
+  // プラン購入後にtierがcoachになったら自動遷移
   React.useEffect(() => {
-    if (tier === 'coach' || tier === 'coach_pro') onPurchased()
+    if (tier === 'coach') onPurchased()
   }, [tier, onPurchased])
 
   async function handleApplyCode() {
@@ -631,23 +630,6 @@ function CoachPaywallScreen({ onBack, onPurchased }: { onBack: () => void; onPur
     setBusy(true)
     const ok = await purchase(coachPkg)
     setBusy(false)
-    if (ok) onPurchased()
-  }
-
-  async function handlePurchasePro() {
-    // coach_proパッケージを探す（月額優先）
-    const coachProPkg = packages.find((p: any) =>
-      p?.product?.identifier === 'score_coach_pro_monthly' ||
-      p?.identifier === 'score_coach_pro_monthly' ||
-      p?.offeringIdentifier === 'coach_pro'
-    )
-    if (!coachProPkg) {
-      Toast.show({ type: 'error', text1: 'パッケージが見つかりません', text2: 'App Storeの接続を確認してください', visibilityTime: 3000 })
-      return
-    }
-    setBusyPro(true)
-    const ok = await purchase(coachProPkg)
-    setBusyPro(false)
     if (ok) onPurchased()
   }
 
@@ -704,10 +686,10 @@ function CoachPaywallScreen({ onBack, onPurchased }: { onBack: () => void; onPur
                 </View>
               ))}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(156,163,175,0.3)', alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name="close" size={13} color="#9ca3af" />
+                <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: COACH_GREEN + '66', alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="checkmark" size={13} color="#4ADE80" />
                 </View>
-                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, flex: 1 }}>AI機能なし</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, flex: 1, fontWeight: '700' }}>AI機能すべて完全無制限 ✨</Text>
               </View>
             </View>
 
@@ -723,55 +705,6 @@ function CoachPaywallScreen({ onBack, onPurchased }: { onBack: () => void; onPur
               }
               <Text style={{ color: '#fff', fontSize: 15, fontWeight: '900' }}>
                 {busy ? '処理中...' : 'チームプランを開始する'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* チームProプラン（¥4,980） */}
-          <View style={{ backgroundColor: 'rgba(217,119,6,0.08)', borderRadius: 18, borderWidth: 2, borderColor: '#d97706', padding: 20, gap: 12 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <View style={{ backgroundColor: '#d97706', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 3 }}>
-                <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>チームPro</Text>
-              </View>
-              <View style={{ backgroundColor: '#92400e', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 }}>
-                <Text style={{ color: '#fbbf24', fontSize: 10, fontWeight: '800' }}>おすすめ</Text>
-              </View>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 4 }}>
-              <Text style={{ color: '#fbbf24', fontSize: 36, fontWeight: '900', lineHeight: 40 }}>¥4,980</Text>
-              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginBottom: 4 }}>/月</Text>
-            </View>
-
-            {/* 機能一覧 */}
-            <View style={{ gap: 8 }}>
-              {COACH_FEATURES.map((f, i) => (
-                <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#d97706' + '66', alignItems: 'center', justifyContent: 'center' }}>
-                    <Ionicons name="checkmark" size={13} color="#fbbf24" />
-                  </View>
-                  <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, flex: 1 }}>{f}</Text>
-                </View>
-              ))}
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#d97706' + '66', alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name="checkmark" size={13} color="#fbbf24" />
-                </View>
-                <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, flex: 1, fontWeight: '700' }}>AI機能すべて完全無制限 ✨</Text>
-              </View>
-            </View>
-
-            <TouchableOpacity
-              style={[{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#d97706', borderRadius: 14, paddingVertical: 15 }, busyPro && { opacity: 0.5 }]}
-              onPress={handlePurchasePro}
-              disabled={busyPro}
-              activeOpacity={0.85}
-            >
-              {busyPro
-                ? <ActivityIndicator size="small" color="#fff" />
-                : <Ionicons name="star" size={18} color="#fff" />
-              }
-              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '900' }}>
-                {busyPro ? '処理中...' : 'チームProを開始する'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -3759,7 +3692,7 @@ export default function TeamScreen() {
           const subRaw = await AsyncStorage.getItem('trackmate_subscription').catch(() => null)
           let subTier = 'free'
           try { subTier = subRaw ? (JSON.parse(subRaw)?.plan ?? 'free') : 'free' } catch {}
-          if (subTier !== 'coach' && subTier !== 'coach_pro') {
+          if (subTier !== 'coach') {
             // プラン未購入または期限切れ → ペイウォールへ
             setState('coach-paywall')
             return
@@ -3778,8 +3711,8 @@ export default function TeamScreen() {
   // ロール選択 — コーチはplan検証あり
   async function handleSelectRole(role: Role) {
     if (role === 'coach') {
-      // コーチプラン（coach または coach_pro）を持っていなければペイウォールへ
-      if (tier !== 'coach' && tier !== 'coach_pro') {
+      // コーチプランを持っていなければペイウォールへ
+      if (tier !== 'coach') {
         setState('coach-paywall')
         return
       }

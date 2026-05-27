@@ -1,9 +1,9 @@
 // lib/adGate.ts — 機能利用制限管理
-// FREE / PRO / ELITE / COACH / COACH_PRO 制限仕様
+// FREE / PRO / ELITE / COACH 制限仕様
 //
-// 機能             FREE                    PRO            ELITE/COACH_PRO   COACH
-// AI機能全般       1日1回・広告視聴で解放  月30回         無制限            FREEと同じ制限（AIなし）
-// CSVエクスポート   累計1回（無料）         月1回          無制限            FREEと同じ制限
+// 機能             FREE                    PRO            ELITE/COACH
+// AI機能全般       1日3回・毎回広告視聴   月30回         無制限
+// CSVエクスポート   累計1回（無料）         月1回          無制限
 
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
@@ -37,14 +37,13 @@ const todayStr    = () => new Date().toISOString().slice(0, 10)  // YYYY-MM-DD
 const currentMonth = () => new Date().toISOString().slice(0, 7)  // YYYY-MM
 
 // ── Tier 取得 ─────────────────────────────────────────────────
-export async function getTier(): Promise<'free' | 'pro' | 'elite' | 'coach' | 'coach_pro'> {
+export async function getTier(): Promise<'free' | 'pro' | 'elite' | 'coach'> {
   try {
     const raw = await AsyncStorage.getItem('trackmate_subscription')
     if (!raw) return 'free'
     const p = JSON.parse(raw)
-    if (p.plan === 'coach_pro') return 'coach_pro'
-    if (p.plan === 'elite') return 'elite'
     if (p.plan === 'coach') return 'coach'
+    if (p.plan === 'elite') return 'elite'
     if (p.plan === 'pro' || p.isPremium) return 'pro'
   } catch {}
   return 'free'
@@ -130,9 +129,8 @@ export async function checkAdGate(feature: Feature): Promise<{
 }> {
   const tier = await getTier()
 
-  // ELITE / coach_pro：AI含む全機能無制限
-  // coach：チーム機能のみ・AIは FREEと同じ制限
-  if (tier === 'elite' || tier === 'coach_pro') {
+  // ELITE / COACH：AI含む全機能無制限
+  if (tier === 'elite' || tier === 'coach') {
     return { allowed: true, remaining: 999, needsAd: false, hardLimited: false, limitType: 'none', rewardUses: 0 }
   }
 
@@ -180,7 +178,7 @@ export async function checkAdGate(feature: Feature): Promise<{
 // ── 利用を記録 ─────────────────────────────────────────────────
 export async function recordUsage(feature: Feature): Promise<void> {
   const tier = await getTier()
-  if (tier === 'elite' || tier === 'coach_pro') return
+  if (tier === 'elite' || tier === 'coach') return
 
   if (tier === 'pro') {
     if (PRO_MONTHLY_LIMITS[feature] !== undefined) {
@@ -207,7 +205,7 @@ export async function recordUsage(feature: Feature): Promise<void> {
 
 // ── 残り回数ラベル ────────────────────────────────────────────
 export function remainingLabel(feature: Feature, remaining: number, tier: string): string {
-  if (tier === 'elite' || tier === 'coach_pro') return '無制限'
+  if (tier === 'elite' || tier === 'coach') return '無制限'
   if (tier === 'pro') {
     if (PRO_MONTHLY_LIMITS[feature]) return remaining >= 999 ? '無制限' : `今月残り${remaining}回`
     return '無制限'

@@ -89,7 +89,6 @@ interface PurchaseContextType {
   isPro:           boolean
   isElite:         boolean
   isCoach:         boolean
-  isCoachPro:      boolean
   expiresAt:       string | undefined
   isTrial:         boolean           // トライアル中かどうか
   packages:        any[]
@@ -104,7 +103,7 @@ interface PurchaseContextType {
 }
 
 const PurchaseContext = createContext<PurchaseContextType>({
-  tier: 'free', isPro: false, isElite: false, isCoach: false, isCoachPro: false,
+  tier: 'free', isPro: false, isElite: false, isCoach: false,
   expiresAt: undefined, isTrial: false, packages: [], loading: true,
   purchase:        async () => false,
   restore:         async () => {},
@@ -134,10 +133,9 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
   const [packages,  setPackages]  = useState<any[]>([])
   const [loading,   setLoading]   = useState(true)
 
-  const isPro      = tier === 'pro' || tier === 'elite' || tier === 'coach_pro'
-  const isElite    = tier === 'elite' || tier === 'coach_pro'
-  const isCoach    = tier === 'coach' || tier === 'coach_pro'
-  const isCoachPro = tier === 'coach_pro'
+  const isPro   = tier === 'pro'   || tier === 'elite' || tier === 'coach'
+  const isElite = tier === 'elite' || tier === 'coach'
+  const isCoach = tier === 'coach'
 
   // ── 起動時: キャッシュから即読み + RevenueCat はバックグラウンドで更新 ──────────
   useEffect(() => {
@@ -289,7 +287,7 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
       const result = await _purchasePackage(pkg)
       if (result) {
         await refreshStatus()
-        const label = result === 'coach_pro' ? 'チームPro' : result === 'elite' ? 'ELITE' : result === 'coach' ? 'COACH' : 'PRO'
+        const label = result === 'coach' ? 'COACH' : result === 'elite' ? 'ELITE' : 'PRO'
         Toast.show({
           type: 'success',
           text1: `🎉 sCORE ${label} 有効化！`,
@@ -374,7 +372,7 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <PurchaseContext.Provider value={{
-      tier, isPro, isElite, isCoach, isCoachPro, expiresAt, isTrial, packages, loading,
+      tier, isPro, isElite, isCoach, expiresAt, isTrial, packages, loading,
       purchase, restore, refreshStatus, onUserChanged, onUserSignedOut,
       applyAccessCode, applyCoupon,
     }}>

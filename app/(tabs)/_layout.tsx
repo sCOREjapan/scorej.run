@@ -266,7 +266,7 @@ export default function TabLayout() {
   const insets   = useSafeAreaInsets()
   const pathname = usePathname()
   const { tier } = usePurchase()
-  const showBanner = tier === 'free'   // free のみバナー表示（pro/elite/coach/coach_pro は非表示）
+  const showBanner = tier === 'free'   // free のみバナー表示（pro/elite/coach は非表示）
   const [bannerLoaded, setBannerLoaded] = useState(false)
   // バナー表示中はFABをその分上にずらす
   const fabBottomOffset = Math.max(insets.bottom, 16) + 56 + (bannerLoaded ? BANNER_H : 0)

@@ -1356,8 +1356,8 @@ export default function DashboardScreen() {
     insightCallRef.current = true
     try {
       const tier = await getTier()
-      // PRO / ELITE / チームPro は広告なしで直接取得（coach はAIなしプランなので FREE と同じ）
-      if (tier === 'pro' || tier === 'elite' || tier === 'coach_pro') {
+      // PRO / ELITE / COACH は広告なしで直接取得
+      if (tier === 'pro' || tier === 'elite' || tier === 'coach') {
         await markDailyInsightClaimed()
         setInsightClaimed(true)
         handleGetAIAdvice()

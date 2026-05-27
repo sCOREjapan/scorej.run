@@ -151,7 +151,7 @@ function LabeledInput({
 export default function SettingsScreen() {
   const { user, signOut, isGuest, signOutGuest } = useAuth()
   const { colors } = useTheme()
-  const { tier, isPro, isElite, isCoach, isCoachPro, expiresAt } = usePurchase()
+  const { tier, isPro, isElite, isCoach, expiresAt } = usePurchase()
   const router = useRouter()
 
   // プロフィール
@@ -431,14 +431,14 @@ export default function SettingsScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <View style={{
-                    backgroundColor: isCoachPro ? '#d9770622' : isCoach ? '#16653422' : isElite ? '#f59e0b22' : isPro ? '#16653422' : '#6b728022',
+                    backgroundColor: isCoach ? '#16653422' : isElite ? '#f59e0b22' : isPro ? '#16653422' : '#6b728022',
                     borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4,
                   }}>
                     <Text style={{
-                      color: isCoachPro ? '#d97706' : isCoach ? '#166534' : isElite ? '#f59e0b' : isPro ? '#166534' : '#6b7280',
+                      color: isCoach ? '#166534' : isElite ? '#f59e0b' : isPro ? '#166534' : '#6b7280',
                       fontSize: 13, fontWeight: '800',
                     }}>
-                      {isCoachPro ? '🏆 チームPro' : isCoach ? '📋 コーチ' : isElite ? '👑 ELITE' : isPro ? '✦ PRO' : 'FREE'}
+                      {isCoach ? '📋 コーチ' : isElite ? '👑 ELITE' : isPro ? '✦ PRO' : 'FREE'}
                     </Text>
                   </View>
                   {expiresAt && (
