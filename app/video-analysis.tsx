@@ -699,7 +699,6 @@ function NativeVideoAnalysis() {
   const [adGateVisible,     setAdGateVisible]     = useState(false)
   const [adGateRemaining,   setAdGateRemaining]   = useState(0)
   const [adGateHardLimited, setAdGateHardLimited] = useState(false)
-  const [adGateRewardUses,  setAdGateRewardUses]  = useState(0)
   const [adGateLimitType,   setAdGateLimitType]   = useState<'none'|'daily'|'monthly'|'total'>('none')
   const [remaining,         setRemaining]         = useState<number | null>(null)
   const [upsellVisible,     setUpsellVisible]     = useState(false)
@@ -755,7 +754,7 @@ function NativeVideoAnalysis() {
     // AdGateチェック（広告視聴後は skipGate=true でバイパス）
     if (!skipGate) {
       const gate = await checkAdGate('video')
-      if (!gate.allowed) { setAdGateRemaining(gate.remaining); setAdGateRewardUses(gate.rewardUses); setAdGateHardLimited(gate.hardLimited); setAdGateLimitType(gate.limitType); setAdGateVisible(true); return }
+      if (!gate.allowed) { setAdGateRemaining(gate.remaining); setAdGateHardLimited(gate.hardLimited); setAdGateLimitType(gate.limitType); setAdGateVisible(true); return }
       await recordUsage('video')
     }
     analyzingRef.current = true
@@ -1151,7 +1150,6 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
         visible={adGateVisible}
         feature="video"
         remaining={adGateRemaining}
-        rewardUses={adGateRewardUses}
         hardLimited={adGateHardLimited}
         limitType={adGateLimitType}
         isGuest={isGuest}
@@ -1299,7 +1297,6 @@ function WebPlayer({ isPremiumUser: isPremiumProp }: { isPremiumUser: boolean })
   const [adGateVisible,     setAdGateVisible]     = useState(false)
   const [adGateRemainingW,  setAdGateRemainingW]  = useState(0)
   const [adGateHardLimited, setAdGateHardLimited] = useState(false)
-  const [adGateRewardUsesW, setAdGateRewardUsesW] = useState(0)
   const [adGateLimitTypeW,  setAdGateLimitTypeW]  = useState<'none'|'daily'|'monthly'|'total'>('none')
   const isPremiumUser = isPremiumProp
 
@@ -1528,7 +1525,6 @@ ${summary}
       const gate = await checkAdGate('video')
       if (!gate.allowed) {
         setAdGateRemainingW(gate.remaining)
-        setAdGateRewardUsesW(gate.rewardUses)
         setAdGateHardLimited(gate.hardLimited)
         setAdGateLimitTypeW(gate.limitType)
         setAdGateVisible(true)
@@ -1669,7 +1665,6 @@ ${summary}
           visible={adGateVisible}
           feature="video"
           remaining={adGateRemainingW}
-          rewardUses={adGateRewardUsesW}
           hardLimited={adGateHardLimited}
           limitType={adGateLimitTypeW}
           onClose={() => setAdGateVisible(false)}

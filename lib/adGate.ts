@@ -99,13 +99,12 @@ export async function checkAdGate(feature: Feature): Promise<{
   needsAd:        boolean
   hardLimited:    boolean
   limitType:      'none' | 'daily' | 'monthly' | 'total'
-  rewardUses:     number   // 互換用（常に0）
 }> {
   const tier = await getTier()
 
   // ELITE / COACH：AI含む全機能無制限
   if (tier === 'elite' || tier === 'coach') {
-    return { allowed: true, remaining: 999, needsAd: false, hardLimited: false, limitType: 'none', rewardUses: 0 }
+    return { allowed: true, remaining: 999, needsAd: false, hardLimited: false, limitType: 'none' }
   }
 
   // PRO：月次制限
@@ -115,10 +114,10 @@ export async function checkAdGate(feature: Feature): Promise<{
       const monthly = await getMonthlyUsage()
       const used = monthly.counts[feature] ?? 0
       const remaining = Math.max(0, monthlyLimit - used)
-      if (remaining > 0) return { allowed: true, remaining, needsAd: false, hardLimited: false, limitType: 'monthly', rewardUses: 0 }
-      return { allowed: false, remaining: 0, needsAd: false, hardLimited: true, limitType: 'monthly', rewardUses: 0 }
+      if (remaining > 0) return { allowed: true, remaining, needsAd: false, hardLimited: false, limitType: 'monthly' }
+      return { allowed: false, remaining: 0, needsAd: false, hardLimited: true, limitType: 'monthly' }
     }
-    return { allowed: true, remaining: 999, needsAd: false, hardLimited: false, limitType: 'none', rewardUses: 0 }
+    return { allowed: true, remaining: 999, needsAd: false, hardLimited: false, limitType: 'none' }
   }
 
   // FREE
@@ -126,8 +125,8 @@ export async function checkAdGate(feature: Feature): Promise<{
   if (feature === 'csv') {
     const total = await getTotalUsage()
     const used = total[feature] ?? 0
-    if (used < FREE_CSV_TOTAL_LIMIT) return { allowed: true, remaining: FREE_CSV_TOTAL_LIMIT - used, needsAd: false, hardLimited: false, limitType: 'total', rewardUses: 0 }
-    return { allowed: false, remaining: 0, needsAd: false, hardLimited: true, limitType: 'total', rewardUses: 0 }
+    if (used < FREE_CSV_TOTAL_LIMIT) return { allowed: true, remaining: FREE_CSV_TOTAL_LIMIT - used, needsAd: false, hardLimited: false, limitType: 'total' }
+    return { allowed: false, remaining: 0, needsAd: false, hardLimited: true, limitType: 'total' }
   }
 
   // FREE AI機能：1回目は無料、2回目以降は広告視聴が必要（1日最大3回）
@@ -136,17 +135,17 @@ export async function checkAdGate(feature: Feature): Promise<{
     const usedToday = daily.counts[feature] ?? 0
     if (usedToday >= FREE_DAILY_AI_LIMIT) {
       // 今日の上限
-      return { allowed: false, remaining: 0, needsAd: false, hardLimited: true, limitType: 'daily', rewardUses: 0 }
+      return { allowed: false, remaining: 0, needsAd: false, hardLimited: true, limitType: 'daily' }
     }
     if (usedToday === 0) {
       // 1回目は無料（広告不要）
-      return { allowed: true, remaining: FREE_DAILY_AI_LIMIT - usedToday, needsAd: false, hardLimited: false, limitType: 'daily', rewardUses: 0 }
+      return { allowed: true, remaining: FREE_DAILY_AI_LIMIT - usedToday, needsAd: false, hardLimited: false, limitType: 'daily' }
     }
     // 2回目以降は広告視聴が必要
-    return { allowed: false, remaining: FREE_DAILY_AI_LIMIT - usedToday, needsAd: true, hardLimited: false, limitType: 'daily', rewardUses: 0 }
+    return { allowed: false, remaining: FREE_DAILY_AI_LIMIT - usedToday, needsAd: true, hardLimited: false, limitType: 'daily' }
   }
 
-  return { allowed: true, remaining: 999, needsAd: false, hardLimited: false, limitType: 'none', rewardUses: 0 }
+  return { allowed: true, remaining: 999, needsAd: false, hardLimited: false, limitType: 'none' }
 }
 
 // ── 利用を記録 ─────────────────────────────────────────────────

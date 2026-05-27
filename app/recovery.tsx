@@ -117,7 +117,6 @@ export default function RecoveryScreen() {
   const [adGateVisible,     setAdGateVisible]     = useState(false)
   const [adGateRemaining,   setAdGateRemaining]   = useState(0)
   const [adGateHardLimited, setAdGateHardLimited] = useState(false)
-  const [adGateRewardUses,  setAdGateRewardUses]  = useState(0)
   const [adGateLimitType,   setAdGateLimitType]   = useState<'none'|'daily'|'monthly'|'total'>('none')
   const fadeAnim = useRef(new Animated.Value(1)).current
   // AdGate async チェック中の二重タップ防止
@@ -205,7 +204,6 @@ export default function RecoveryScreen() {
       const gate = await checkAdGate('recovery')
       if (!gate.allowed) {
         setAdGateRemaining(gate.remaining)
-        setAdGateRewardUses(gate.rewardUses)
         setAdGateHardLimited(gate.hardLimited)
         setAdGateLimitType(gate.limitType)
         setAdGateVisible(true)
@@ -387,7 +385,6 @@ export default function RecoveryScreen() {
         visible={adGateVisible}
         feature="recovery"
         remaining={adGateRemaining}
-        rewardUses={adGateRewardUses}
         hardLimited={adGateHardLimited}
         limitType={adGateLimitType}
         isGuest={isGuest}

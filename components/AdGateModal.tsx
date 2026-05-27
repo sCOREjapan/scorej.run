@@ -31,17 +31,16 @@ interface Props {
   visible:      boolean
   feature:      Feature
   remaining?:   number   // 残り無料回数
-  rewardUses?:  number   // 広告で獲得済みの残りリワード回数
   hardLimited?: boolean
   limitType?:   'none' | 'daily' | 'monthly' | 'total'   // ← 制限種別（メッセージ分岐用）
   isGuest?:     boolean
   onClose:      () => void
-  onAdWatched:  () => void  // 「今回は使う」「リワード使用」ボタン
+  onAdWatched:  () => void  // 「今回は使う」ボタン
   onUpgrade:    () => void
 }
 
 export default function AdGateModal({
-  visible, feature, remaining = 0, rewardUses = 0, hardLimited = false,
+  visible, feature, remaining = 0, hardLimited = false,
   limitType = 'none', isGuest = false, onClose, onAdWatched, onUpgrade,
 }: Props) {
   const router = useRouter()
@@ -58,10 +57,10 @@ export default function AdGateModal({
 
   // ペイウォール表示トラッキング
   useEffect(() => {
-    if (visible && remaining === 0 && rewardUses === 0 && !isGuest) {
+    if (visible && remaining === 0 && !isGuest) {
       trackPaywallView(feature)
     }
-  }, [visible, feature, remaining, rewardUses, isGuest])
+  }, [visible, feature, remaining, isGuest])
 
   // ── 広告1本視聴 → AI機能1回解放 ─────────────────────────
   const handleWatchAds = async () => {

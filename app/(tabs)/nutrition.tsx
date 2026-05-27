@@ -110,7 +110,6 @@ export default function NutritionScreen() {
   const [adGateVisible,     setAdGateVisible]     = useState(false)
   const [adGateRemaining,   setAdGateRemaining]   = useState(0)
   const [adGateHardLimited, setAdGateHardLimited] = useState(false)
-  const [adGateRewardUses,  setAdGateRewardUses]  = useState(0)
   const [adGateLimitType,   setAdGateLimitType]   = useState<'none'|'daily'|'monthly'|'total'>('none')
   const [remaining,         setRemaining]         = useState<number | null>(null)
   const [result, setResult] = useState<MealAnalysisResult | null>(null)
@@ -234,7 +233,7 @@ export default function NutritionScreen() {
     try {
       const gate = await checkAdGate('meal')
       if (!gate.allowed) {
-        setAdGateRemaining(gate.remaining); setAdGateRewardUses(gate.rewardUses); setAdGateHardLimited(gate.hardLimited); setAdGateLimitType(gate.limitType); setAdGateVisible(true); return
+        setAdGateRemaining(gate.remaining); setAdGateHardLimited(gate.hardLimited); setAdGateLimitType(gate.limitType); setAdGateVisible(true); return
       }
       await recordUsage('meal')
       trackFeatureUse('meal')
@@ -432,7 +431,6 @@ export default function NutritionScreen() {
       visible={adGateVisible}
       feature="meal"
       remaining={adGateRemaining}
-      rewardUses={adGateRewardUses}
       hardLimited={adGateHardLimited}
       limitType={adGateLimitType}
       isGuest={isGuest}

@@ -134,7 +134,6 @@ export default function AIDiagnosisScreen() {
   const [adGateVisible,    setAdGateVisible]    = useState(false)
   const [adGateRemaining,  setAdGateRemaining]  = useState(0)
   const [adGateHardLimited,setAdGateHardLimited]= useState(false)
-  const [adGateRewardUses, setAdGateRewardUses] = useState(0)
   const [adGateLimitType,  setAdGateLimitType]  = useState<'none'|'daily'|'monthly'|'total'>('none')
   const [remaining,        setRemaining]        = useState<number | null>(null)
   const { isGuest } = useAuth()
@@ -169,7 +168,6 @@ export default function AIDiagnosisScreen() {
       const gate = await checkAdGate('ai_analysis')
       if (!gate.allowed) {
         setAdGateRemaining(gate.remaining)
-        setAdGateRewardUses(gate.rewardUses)
         setAdGateHardLimited(gate.hardLimited)
         setAdGateLimitType(gate.limitType)
         setAdGateVisible(true)
@@ -415,7 +413,6 @@ ${JSON.stringify(trainingData, null, 2)}
         visible={adGateVisible}
         feature="ai_analysis"
         remaining={adGateRemaining}
-        rewardUses={adGateRewardUses}
         hardLimited={adGateHardLimited}
         limitType={adGateLimitType}
         isGuest={isGuest}

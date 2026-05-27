@@ -198,7 +198,6 @@ export default function WorkoutMenuScreen() {
   const [adGateVisible,     setAdGateVisible]     = useState(false)
   const [adGateRemaining,   setAdGateRemaining]   = useState(0)
   const [adGateHardLimited, setAdGateHardLimited] = useState(false)
-  const [adGateRewardUses,  setAdGateRewardUses]  = useState(0)
   const [adGateLimitType,   setAdGateLimitType]   = useState<'none'|'daily'|'monthly'|'total'>('none')
   const [adGatePendingFn,   setAdGatePendingFn]   = useState<'pick' | 'intent' | null>(null)
 
@@ -410,7 +409,6 @@ ${pickIntent.trim() || '特に指定なし（コーチの判断で最適なメ�
       const gate = await checkAdGate('workout')
       if (!gate.allowed) {
         setAdGateRemaining(gate.remaining)
-        setAdGateRewardUses(gate.rewardUses)
         setAdGateHardLimited(gate.hardLimited)
         setAdGateLimitType(gate.limitType)
         setAdGatePendingFn('pick')
@@ -528,7 +526,6 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
       const gate = await checkAdGate('workout')
       if (!gate.allowed) {
         setAdGateRemaining(gate.remaining)
-        setAdGateRewardUses(gate.rewardUses)
         setAdGateHardLimited(gate.hardLimited)
         setAdGateLimitType(gate.limitType)
         setAdGatePendingFn('intent')
@@ -1102,7 +1099,6 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
         visible={adGateVisible}
         feature="workout"
         remaining={adGateRemaining}
-        rewardUses={adGateRewardUses}
         hardLimited={adGateHardLimited}
         limitType={adGateLimitType}
         isGuest={isGuest}
