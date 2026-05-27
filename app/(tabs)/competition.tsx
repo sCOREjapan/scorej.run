@@ -278,7 +278,7 @@ export default function CompetitionScreen() {
   const saveEntryStatus = useCallback(async (compId: string, status: EntryStatus) => {
     const next: EntryStatusMap = { ...entryStatusMap, [compId]: status }
     setEntryStatusMap(next)
-    await AsyncStorage.setItem(ENTRY_KEY, JSON.stringify(next))
+    await AsyncStorage.setItem(ENTRY_KEY, JSON.stringify(next)).catch(() => {})
     Sounds.tap()
     setEntryModalComp(null)
     Toast.show({ type: 'success', text1: `エントリー状態を「${status}」に変更しました` })
