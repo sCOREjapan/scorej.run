@@ -10,7 +10,7 @@ import { BG_GRADIENT, TEXT, BRAND, NEON } from '../lib/theme'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import Toast from 'react-native-toast-message'
-import { checkAdGate, recordUsage, consumeRewardUse } from '../lib/adGate'
+import { checkAdGate, recordUsage } from '../lib/adGate'
 import AdGateModal from '../components/AdGateModal'
 import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'expo-router'
@@ -417,11 +417,7 @@ ${pickIntent.trim() || '特に指定なし（コーチの判断で最適なメ�
         setAdGateVisible(true)
         return
       }
-      if (gate.remaining === 0 && gate.rewardUses > 0) {
-        await consumeRewardUse('workout')
-      } else {
-        await recordUsage('workout')
-      }
+      await recordUsage('workout')
       generateFromPickedCore()
     } finally {
       pickCallRef.current = false
@@ -539,11 +535,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
         setAdGateVisible(true)
         return
       }
-      if (gate.remaining === 0 && gate.rewardUses > 0) {
-        await consumeRewardUse('workout')
-      } else {
-        await recordUsage('workout')
-      }
+      await recordUsage('workout')
       generateCore()
     } finally {
       intentCallRef.current = false
@@ -1117,10 +1109,7 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
         onClose={() => { setAdGateVisible(false); setAdGatePendingFn(null) }}
         onAdWatched={async () => {
           setAdGateVisible(false)
-          // 使用を記録してからコア関数を直接呼ぶ（二重記録防止）
-          const g = await checkAdGate('workout')
-          if (g.rewardUses > 0) { await consumeRewardUse('workout') }
-          else { await recordUsage('workout') }
+          await recordUsage('workout')
           const pending = adGatePendingFn
           setAdGatePendingFn(null)
           if (pending === 'pick') { generateFromPickedCore() }

@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, ActivityIndicator, Animated,
 } from 'react-native'
-import { checkAdGate, recordUsage, consumeRewardUse } from '../lib/adGate'
+import { checkAdGate, recordUsage } from '../lib/adGate'
 import AdGateModal from '../components/AdGateModal'
 import { useAuth } from '../context/AuthContext'
 import Svg, {
@@ -211,11 +211,7 @@ export default function RecoveryScreen() {
         setAdGateVisible(true)
         return
       }
-      if (gate.remaining === 0 && gate.rewardUses > 0) {
-        await consumeRewardUse('recovery')
-      } else {
-        await recordUsage('recovery')
-      }
+      await recordUsage('recovery')
       await askAICore()
     } finally {
       askingRef.current = false
@@ -398,12 +394,7 @@ export default function RecoveryScreen() {
         onClose={() => setAdGateVisible(false)}
         onAdWatched={async () => {
           setAdGateVisible(false)
-          const g = await checkAdGate('recovery')
-          if (g.rewardUses > 0) {
-            await consumeRewardUse('recovery')
-          } else {
-            await recordUsage('recovery')
-          }
+          await recordUsage('recovery')
           await askAICore()
         }}
         onUpgrade={() => {

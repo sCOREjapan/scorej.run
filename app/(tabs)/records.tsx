@@ -19,7 +19,7 @@ import TrainingChart from '../../components/TrainingChart'
 import type { RaceRecord, AthleticsEvent, ChartDataPoint, TrainingSession } from '../../types'
 import type { SleepRecord } from '../../types'
 import { exportAllDataCSV, exportAllDataJSON } from '../../lib/export'
-import { checkAdGate, recordUsage, consumeRewardUse } from '../../lib/adGate'
+import { checkAdGate, recordUsage } from '../../lib/adGate'
 import AdGateModal from '../../components/AdGateModal'
 import { useAuth } from '../../context/AuthContext'
 import { trackFeatureUse } from '../../lib/analytics'
@@ -1503,13 +1503,7 @@ export default function RecordsScreen() {
                 if (isGuest) { setCsvGateRemaining(0); setCsvGateHardLimited(false); setCsvGateVisible(true); return }
                 const gate = await checkAdGate('csv')
                 if (!gate.allowed) { setCsvGateRemaining(0); setCsvGateRewardUses(gate.rewardUses); setCsvGateHardLimited(gate.hardLimited); setCsvGateLimitType(gate.limitType); setCsvGateVisible(true); return }
-                if (gate.remaining === 0 && gate.rewardUses > 0) {
-                  await consumeRewardUse('csv')
-                } else if (gate.remaining === 1) {
-                  setCsvGateRemaining(1); setCsvGateVisible(true); return
-                } else {
-                  await recordUsage('csv')
-                }
+                await recordUsage('csv')
                 trackFeatureUse('csv')
                 Alert.alert('エクスポート', '形式を選択してください', [
                   { text: 'CSV',  onPress: () => exportAllDataCSV().catch(() => Toast.show({ type: 'error', text1: 'エクスポートに失敗しました' })) },
@@ -1827,12 +1821,7 @@ export default function RecordsScreen() {
         onClose={() => setCsvGateVisible(false)}
         onAdWatched={async () => {
           setCsvGateVisible(false)
-          const g = await checkAdGate('csv')
-          if (g.rewardUses > 0) {
-            await consumeRewardUse('csv')
-          } else {
-            await recordUsage('csv')
-          }
+          await recordUsage('csv')
           trackFeatureUse('csv')
           exportAllDataCSV().catch(() => Toast.show({ type: 'error', text1: 'エクスポートに失敗しました' }))
         }}

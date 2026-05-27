@@ -6,7 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { BRAND, TEXT } from '../lib/theme'
-import { checkAdGate, recordUsage, consumeRewardUse, getTier } from '../lib/adGate'
+import { checkAdGate, recordUsage, getTier } from '../lib/adGate'
 import AdGateModal from '../components/AdGateModal'
 import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'expo-router'
@@ -756,13 +756,7 @@ function NativeVideoAnalysis() {
     if (!skipGate) {
       const gate = await checkAdGate('video')
       if (!gate.allowed) { setAdGateRemaining(gate.remaining); setAdGateRewardUses(gate.rewardUses); setAdGateHardLimited(gate.hardLimited); setAdGateLimitType(gate.limitType); setAdGateVisible(true); return }
-      if (gate.remaining === 0 && gate.rewardUses > 0) {
-        await consumeRewardUse('video')
-      } else if (gate.remaining === 1) {
-        setAdGateRemaining(1); setAdGateVisible(true); return
-      } else {
-        await recordUsage('video')
-      }
+      await recordUsage('video')
     }
     analyzingRef.current = true
     trackFeatureUse('video')
@@ -1540,11 +1534,7 @@ ${summary}
         setAdGateVisible(true)
         return
       }
-      if (gate.remaining === 0 && gate.rewardUses > 0) {
-        await consumeRewardUse('video')
-      } else {
-        await recordUsage('video')
-      }
+      await recordUsage('video')
       await startAnalysisCore()
     } finally {
       startingRef.current = false
@@ -1685,12 +1675,7 @@ ${summary}
           onClose={() => setAdGateVisible(false)}
           onAdWatched={async () => {
             setAdGateVisible(false)
-            const g = await checkAdGate('video')
-            if (g.rewardUses > 0) {
-              await consumeRewardUse('video')
-            } else {
-              await recordUsage('video')
-            }
+            await recordUsage('video')
             await startAnalysisCore()
           }}
           onUpgrade={() => {

@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   Animated, Image, Platform,
 } from 'react-native'
-import { checkAdGate, recordUsage, consumeRewardUse } from '../../lib/adGate'
+import { checkAdGate, recordUsage } from '../../lib/adGate'
 import AdGateModal from '../../components/AdGateModal'
 import { useAuth } from '../../context/AuthContext'
 import { useRouter } from 'expo-router'
@@ -236,13 +236,7 @@ export default function NutritionScreen() {
       if (!gate.allowed) {
         setAdGateRemaining(gate.remaining); setAdGateRewardUses(gate.rewardUses); setAdGateHardLimited(gate.hardLimited); setAdGateLimitType(gate.limitType); setAdGateVisible(true); return
       }
-      if (gate.remaining === 0 && gate.rewardUses > 0) {
-        await consumeRewardUse('meal')
-      } else if (gate.remaining === 1) {
-        setAdGateRemaining(1); setAdGateVisible(true); return
-      } else {
-        await recordUsage('meal')
-      }
+      await recordUsage('meal')
       trackFeatureUse('meal')
       checkAdGate('meal').then(g => { if (g.remaining < 999) setRemaining(g.remaining) }).catch(() => {})
       await handleAnalyzeCore()
@@ -445,12 +439,7 @@ export default function NutritionScreen() {
       onClose={() => setAdGateVisible(false)}
       onAdWatched={async () => {
         setAdGateVisible(false)
-        const g = await checkAdGate('meal')
-        if (g.rewardUses > 0) {
-          await consumeRewardUse('meal')
-        } else {
-          await recordUsage('meal')
-        }
+        await recordUsage('meal')
         trackFeatureUse('meal')
         checkAdGate('meal').then(g2 => { if (g2.remaining < 999) setRemaining(g2.remaining) }).catch(() => {})
         await handleAnalyzeCore()

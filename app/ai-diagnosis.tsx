@@ -10,7 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import Toast from 'react-native-toast-message'
 import { BG_GRADIENT, BRAND, TEXT, NEON } from '../lib/theme'
 import { Sounds } from '../lib/sounds'
-import { checkAdGate, recordUsage, consumeRewardUse } from '../lib/adGate'
+import { checkAdGate, recordUsage } from '../lib/adGate'
 import AdGateModal from '../components/AdGateModal'
 import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'expo-router'
@@ -172,18 +172,6 @@ export default function AIDiagnosisScreen() {
         setAdGateRewardUses(gate.rewardUses)
         setAdGateHardLimited(gate.hardLimited)
         setAdGateLimitType(gate.limitType)
-        setAdGateVisible(true)
-        return
-      }
-      // リワード使用（無料枠ゼロだが広告視聴済み）
-      if (gate.remaining === 0 && gate.rewardUses > 0) {
-        await consumeRewardUse('ai_analysis')
-        await runDiagnose()
-        return
-      }
-      // 残り1回の警告（使用は続行）
-      if (gate.remaining === 1) {
-        setAdGateRemaining(1)
         setAdGateVisible(true)
         return
       }
@@ -432,12 +420,7 @@ ${JSON.stringify(trainingData, null, 2)}
         limitType={adGateLimitType}
         isGuest={isGuest}
         onClose={() => setAdGateVisible(false)}
-        onAdWatched={async () => {
-          // 広告視聴でリワードが付与された場合はそれを消費
-          const g = await checkAdGate('ai_analysis')
-          if (g.rewardUses > 0) await consumeRewardUse('ai_analysis')
-          runDiagnose()
-        }}
+        onAdWatched={() => runDiagnose()}
         onUpgrade={() => { setAdGateVisible(false); router.push('/paywall') }}
       />
     </View>
