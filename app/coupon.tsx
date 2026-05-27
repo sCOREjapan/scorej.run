@@ -3,7 +3,7 @@
 // ・SCR-XXXXX 形式の3日間全機能トライアルコードを入力
 // ・2026年6月1日以降は一斉に無効化
 
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, KeyboardAvoidingView, Platform,
@@ -24,6 +24,10 @@ export default function CouponScreen() {
 
   const shakeAnim = useRef(new Animated.Value(0)).current
   const successAnim = useRef(new Animated.Value(0)).current
+  const navTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // アンマウント時にタイマーをクリア
+  useEffect(() => () => { if (navTimerRef.current) clearTimeout(navTimerRef.current) }, [])
 
   function shake() {
     Animated.sequence([
@@ -52,7 +56,7 @@ export default function CouponScreen() {
       if (res === 'ok') {
         celebrateSuccess()
         // 3秒後にホームへ戻る
-        setTimeout(() => router.replace('/(tabs)'), 3000)
+        navTimerRef.current = setTimeout(() => router.replace('/(tabs)'), 3000)
       } else {
         shake()
       }
