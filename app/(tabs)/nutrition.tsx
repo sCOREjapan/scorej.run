@@ -120,6 +120,8 @@ export default function NutritionScreen() {
   const { user, isGuest } = useAuth()
   const [eventCategory, setEventCategory] = useState<'sprint' | 'middle' | 'long'>('sprint')
   const router = useRouter()
+  // AdGate async チェック中の二重タップ防止
+  const analyzeCallRef = React.useRef(false)
 
   // ローカルストレージから履歴を読み込む + 残り回数取得
   useEffect(() => {
@@ -224,23 +226,29 @@ export default function NutritionScreen() {
   }, [imageUri, mealType, timing, user, eventCategory])
 
   const handleAnalyze = useCallback(async () => {
+    if (analyzeCallRef.current) return  // 二重タップ防止
     if (!imageUri) return
     // ゲストはログイン必須
     if (isGuest) { setAdGateRemaining(0); setAdGateHardLimited(false); setAdGateVisible(true); return }
-    const gate = await checkAdGate('meal')
-    if (!gate.allowed) {
-      setAdGateRemaining(gate.remaining); setAdGateRewardUses(gate.rewardUses); setAdGateHardLimited(gate.hardLimited); setAdGateLimitType(gate.limitType); setAdGateVisible(true); return
+    analyzeCallRef.current = true
+    try {
+      const gate = await checkAdGate('meal')
+      if (!gate.allowed) {
+        setAdGateRemaining(gate.remaining); setAdGateRewardUses(gate.rewardUses); setAdGateHardLimited(gate.hardLimited); setAdGateLimitType(gate.limitType); setAdGateVisible(true); return
+      }
+      if (gate.remaining === 0 && gate.rewardUses > 0) {
+        await consumeRewardUse('meal')
+      } else if (gate.remaining === 1) {
+        setAdGateRemaining(1); setAdGateVisible(true); return
+      } else {
+        await recordUsage('meal')
+      }
+      trackFeatureUse('meal')
+      checkAdGate('meal').then(g => { if (g.remaining < 999) setRemaining(g.remaining) }).catch(() => {})
+      await handleAnalyzeCore()
+    } finally {
+      analyzeCallRef.current = false
     }
-    if (gate.remaining === 0 && gate.rewardUses > 0) {
-      await consumeRewardUse('meal')
-    } else if (gate.remaining === 1) {
-      setAdGateRemaining(1); setAdGateVisible(true); return
-    } else {
-      await recordUsage('meal')
-    }
-    trackFeatureUse('meal')
-    checkAdGate('meal').then(g => { if (g.remaining < 999) setRemaining(g.remaining) }).catch(() => {})
-    await handleAnalyzeCore()
   }, [imageUri, handleAnalyzeCore, isGuest])
 
   const handleSave = useCallback(async () => {

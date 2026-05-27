@@ -50,9 +50,13 @@ export async function sendPush(
   teamCode: string,
 ): Promise<void> {
   try {
+    const appSecret = (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_APP_SECRET) ?? ''
     await fetch('/api/notify', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(appSecret ? { 'X-App-Secret': appSecret } : {}),
+      },
       body: JSON.stringify({ title, message, target, teamCode }),
     })
   } catch { /* ignore */ }

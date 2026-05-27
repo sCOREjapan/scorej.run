@@ -6,6 +6,17 @@ export default async function handler(request: Request): Promise<Response> {
     return new Response('Method not allowed', { status: 405 })
   }
 
+  // ── 共有シークレット認証（APP_SECRET が設定されている場合のみ検証） ──
+  const appSecret = process.env.APP_SECRET
+  if (appSecret) {
+    const incoming = request.headers.get('X-App-Secret') ?? ''
+    if (incoming !== appSecret) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { 'Content-Type': 'application/json' },
+      })
+    }
+  }
+
   const appId  = process.env.ONESIGNAL_APP_ID
   const apiKey = process.env.ONESIGNAL_REST_API_KEY
 

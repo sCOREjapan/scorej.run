@@ -7,6 +7,18 @@ export default async function handler(request: Request): Promise<Response> {
     return new Response('Method not allowed', { status: 405 })
   }
 
+  // ── 共有シークレット認証（APP_SECRET が設定されている場合のみ検証） ──
+  // Vercel 環境変数 APP_SECRET をセットすることで不正利用を防止する
+  const appSecret = process.env.APP_SECRET
+  if (appSecret) {
+    const incoming = request.headers.get('X-App-Secret') ?? ''
+    if (incoming !== appSecret) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { 'Content-Type': 'application/json' },
+      })
+    }
+  }
+
   const apiKey = process.env.ANTHROPIC_API_KEY ?? process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY
   if (!apiKey) {
     return new Response(JSON.stringify({ error: 'ANTHROPIC_API_KEY not configured' }), {
@@ -16,6 +28,10 @@ export default async function handler(request: Request): Promise<Response> {
 
   try {
     const body = await request.json()
+    // max_tokens を 4096 に上限設定（意図しない高コスト呼び出しを防止）
+    if (body && typeof body.max_tokens === 'number' && body.max_tokens > 4096) {
+      body.max_tokens = 4096
+    }
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {

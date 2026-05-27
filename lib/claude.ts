@@ -54,11 +54,15 @@ async function callClaude(req: MessagesRequest): Promise<string> {
     messages: req.messages,
   })
 
+  const appSecret = process.env.EXPO_PUBLIC_APP_SECRET ?? ''
   let res: Response
   try {
     res = await fetchWithTimeout(PROXY_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(appSecret ? { 'X-App-Secret': appSecret } : {}),
+      },
       body,
     }, 50000) // 50秒タイムアウト（Vercel maxDuration=60に合わせて余裕を持たせる）
   } catch (err) {

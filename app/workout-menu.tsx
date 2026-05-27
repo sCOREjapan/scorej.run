@@ -192,6 +192,9 @@ export default function WorkoutMenuScreen() {
   // AdGate
   const { isGuest } = useAuth()
   const router = useRouter()
+  // AdGate async チェック中の二重タップ防止
+  const pickCallRef   = React.useRef(false)
+  const intentCallRef = React.useRef(false)
   const [adGateVisible,     setAdGateVisible]     = useState(false)
   const [adGateRemaining,   setAdGateRemaining]   = useState(0)
   const [adGateHardLimited, setAdGateHardLimited] = useState(false)
@@ -398,25 +401,31 @@ ${pickIntent.trim() || '特に指定なし（コーチの判断で最適なメ�
   }
 
   async function handleGenerateFromPicked() {
+    if (pickCallRef.current) return  // 二重タップ防止
     if (pickedItems.length === 0) return
     // ゲストはログイン必須
     if (isGuest) { setAdGateRemaining(0); setAdGateHardLimited(false); setAdGateLimitType('none'); setAdGatePendingFn('pick'); setAdGateVisible(true); return }
-    const gate = await checkAdGate('workout')
-    if (!gate.allowed) {
-      setAdGateRemaining(gate.remaining)
-      setAdGateRewardUses(gate.rewardUses)
-      setAdGateHardLimited(gate.hardLimited)
-      setAdGateLimitType(gate.limitType)
-      setAdGatePendingFn('pick')
-      setAdGateVisible(true)
-      return
+    pickCallRef.current = true
+    try {
+      const gate = await checkAdGate('workout')
+      if (!gate.allowed) {
+        setAdGateRemaining(gate.remaining)
+        setAdGateRewardUses(gate.rewardUses)
+        setAdGateHardLimited(gate.hardLimited)
+        setAdGateLimitType(gate.limitType)
+        setAdGatePendingFn('pick')
+        setAdGateVisible(true)
+        return
+      }
+      if (gate.remaining === 0 && gate.rewardUses > 0) {
+        await consumeRewardUse('workout')
+      } else {
+        await recordUsage('workout')
+      }
+      generateFromPickedCore()
+    } finally {
+      pickCallRef.current = false
     }
-    if (gate.remaining === 0 && gate.rewardUses > 0) {
-      await consumeRewardUse('workout')
-    } else {
-      await recordUsage('workout')
-    }
-    generateFromPickedCore()
   }
 
   // ── AI生成 ────────────────────────────────────────────
@@ -514,25 +523,31 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
   }
 
   async function handleGenerate() {
+    if (intentCallRef.current) return  // 二重タップ防止
     if (!aiIntent.trim()) return
     // ゲストはログイン必須
     if (isGuest) { setAdGateRemaining(0); setAdGateHardLimited(false); setAdGateLimitType('none'); setAdGatePendingFn('intent'); setAdGateVisible(true); return }
-    const gate = await checkAdGate('workout')
-    if (!gate.allowed) {
-      setAdGateRemaining(gate.remaining)
-      setAdGateRewardUses(gate.rewardUses)
-      setAdGateHardLimited(gate.hardLimited)
-      setAdGateLimitType(gate.limitType)
-      setAdGatePendingFn('intent')
-      setAdGateVisible(true)
-      return
+    intentCallRef.current = true
+    try {
+      const gate = await checkAdGate('workout')
+      if (!gate.allowed) {
+        setAdGateRemaining(gate.remaining)
+        setAdGateRewardUses(gate.rewardUses)
+        setAdGateHardLimited(gate.hardLimited)
+        setAdGateLimitType(gate.limitType)
+        setAdGatePendingFn('intent')
+        setAdGateVisible(true)
+        return
+      }
+      if (gate.remaining === 0 && gate.rewardUses > 0) {
+        await consumeRewardUse('workout')
+      } else {
+        await recordUsage('workout')
+      }
+      generateCore()
+    } finally {
+      intentCallRef.current = false
     }
-    if (gate.remaining === 0 && gate.rewardUses > 0) {
-      await consumeRewardUse('workout')
-    } else {
-      await recordUsage('workout')
-    }
-    generateCore()
   }
 
   const todayStr = new Date().toLocaleDateString('ja-JP', { month: 'short', day: 'numeric', weekday: 'short' })

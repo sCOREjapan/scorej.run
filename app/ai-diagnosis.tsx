@@ -139,6 +139,8 @@ export default function AIDiagnosisScreen() {
   const [remaining,        setRemaining]        = useState<number | null>(null)
   const { isGuest } = useAuth()
   const router = useRouter()
+  // AdGate async チェック中の二重タップ防止
+  const diagnosingRef = React.useRef(false)
 
   useEffect(() => {
     AsyncStorage.getItem(AI_DIAGNOSES_KEY).then(raw => {
@@ -153,6 +155,7 @@ export default function AIDiagnosisScreen() {
   }, [])
 
   const handleDiagnose = useCallback(async () => {
+    if (diagnosingRef.current) return  // 二重タップ防止
     // ゲストはログイン必須
     if (isGuest) {
       setAdGateRemaining(0)
@@ -160,29 +163,34 @@ export default function AIDiagnosisScreen() {
       setAdGateVisible(true)
       return
     }
-    // AdGateチェック
-    const gate = await checkAdGate('ai_analysis')
-    if (!gate.allowed) {
-      setAdGateRemaining(gate.remaining)
-      setAdGateRewardUses(gate.rewardUses)
-      setAdGateHardLimited(gate.hardLimited)
-      setAdGateLimitType(gate.limitType)
-      setAdGateVisible(true)
-      return
-    }
-    // リワード使用（無料枠ゼロだが広告視聴済み）
-    if (gate.remaining === 0 && gate.rewardUses > 0) {
-      await consumeRewardUse('ai_analysis')
+    diagnosingRef.current = true
+    try {
+      // AdGateチェック
+      const gate = await checkAdGate('ai_analysis')
+      if (!gate.allowed) {
+        setAdGateRemaining(gate.remaining)
+        setAdGateRewardUses(gate.rewardUses)
+        setAdGateHardLimited(gate.hardLimited)
+        setAdGateLimitType(gate.limitType)
+        setAdGateVisible(true)
+        return
+      }
+      // リワード使用（無料枠ゼロだが広告視聴済み）
+      if (gate.remaining === 0 && gate.rewardUses > 0) {
+        await consumeRewardUse('ai_analysis')
+        await runDiagnose()
+        return
+      }
+      // 残り1回の警告（使用は続行）
+      if (gate.remaining === 1) {
+        setAdGateRemaining(1)
+        setAdGateVisible(true)
+        return
+      }
       await runDiagnose()
-      return
+    } finally {
+      diagnosingRef.current = false
     }
-    // 残り1回の警告（使用は続行）
-    if (gate.remaining === 1) {
-      setAdGateRemaining(1)
-      setAdGateVisible(true)
-      return
-    }
-    await runDiagnose()
   }, [isGuest])
 
   const runDiagnose = useCallback(async () => {

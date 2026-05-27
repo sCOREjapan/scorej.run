@@ -30,6 +30,18 @@ const CONTENTS: Record<string, NotifContent> = {
 }
 
 export default async function handler(request: Request): Promise<Response> {
+  // ── Vercel Cron 認証（CRON_SECRET が設定されている場合のみ検証） ──
+  // Vercel は cron 呼び出し時に Authorization: Bearer <CRON_SECRET> を自動付与する
+  const cronSecret = process.env.CRON_SECRET
+  if (cronSecret) {
+    const auth = request.headers.get('Authorization') ?? ''
+    if (auth !== `Bearer ${cronSecret}`) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { 'Content-Type': 'application/json' },
+      })
+    }
+  }
+
   const appId  = process.env.ONESIGNAL_APP_ID
   const apiKey = process.env.ONESIGNAL_REST_API_KEY
 

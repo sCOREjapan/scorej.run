@@ -705,6 +705,8 @@ function NativeVideoAnalysis() {
   const [upsellVisible,     setUpsellVisible]     = useState(false)
   const { isGuest } = useAuth()
   const router = useRouter()
+  // 連続タップによる二重起動防止（AdGate async チェック中もガード）
+  const analyzingRef = React.useRef(false)
 
   React.useEffect(() => {
     checkAdGate('video').then(g => {
@@ -746,6 +748,7 @@ function NativeVideoAnalysis() {
   }
 
   async function analyze(skipGate = false) {
+    if (analyzingRef.current) return   // 二重タップ防止
     if (!videoUri) { Alert.alert('動画を選択してください'); return }
     // ゲストはログイン必須
     if (isGuest) { setAdGateRemaining(0); setAdGateHardLimited(false); setAdGateVisible(true); return }
@@ -761,6 +764,7 @@ function NativeVideoAnalysis() {
         await recordUsage('video')
       }
     }
+    analyzingRef.current = true
     trackFeatureUse('video')
     checkAdGate('video').then(g => { if (g.remaining < 999) setRemaining(g.remaining) }).catch(() => {})
     setError(''); setResult(null); setRawText('')
@@ -888,6 +892,8 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
     } catch (e: any) {
       setError(e?.message ?? '分析に失敗しました')
       setPhase('idle')
+    } finally {
+      analyzingRef.current = false
     }
   }
 
@@ -1278,10 +1284,11 @@ function WebPlayer({ isPremiumUser: isPremiumProp }: { isPremiumUser: boolean })
   const router = useRouter()
 
   /* ── refs ── */
-  const videoRef      = useRef<HTMLVideoElement | null>(null)
-  const canvasRef     = useRef<HTMLCanvasElement | null>(null)
-  const fileRef       = useRef<HTMLInputElement | null>(null)
-  const playerDivRef  = useRef<HTMLDivElement | null>(null)  // 実際の表示コンテナ
+  const videoRef         = useRef<HTMLVideoElement | null>(null)
+  const canvasRef        = useRef<HTMLCanvasElement | null>(null)
+  const fileRef          = useRef<HTMLInputElement | null>(null)
+  const playerDivRef     = useRef<HTMLDivElement | null>(null)  // 実際の表示コンテナ
+  const startingRef      = useRef(false)  // 二重タップ防止
 
   /* ── state ── */
   const [phase, setPhase]         = useState<'upload' | 'analyzing' | 'player'>('upload')
@@ -1519,23 +1526,29 @@ ${summary}
 
   /* ── 分析スタート（アドゲートチェック付き） ── */
   const startAnalysis = async () => {
+    if (startingRef.current) return  // 二重タップ防止
     const vid = videoRef.current
     if (!vid?.src) { Alert.alert('動画を選択してください'); return }
-    const gate = await checkAdGate('video')
-    if (!gate.allowed) {
-      setAdGateRemainingW(gate.remaining)
-      setAdGateRewardUsesW(gate.rewardUses)
-      setAdGateHardLimited(gate.hardLimited)
-      setAdGateLimitTypeW(gate.limitType)
-      setAdGateVisible(true)
-      return
+    startingRef.current = true
+    try {
+      const gate = await checkAdGate('video')
+      if (!gate.allowed) {
+        setAdGateRemainingW(gate.remaining)
+        setAdGateRewardUsesW(gate.rewardUses)
+        setAdGateHardLimited(gate.hardLimited)
+        setAdGateLimitTypeW(gate.limitType)
+        setAdGateVisible(true)
+        return
+      }
+      if (gate.remaining === 0 && gate.rewardUses > 0) {
+        await consumeRewardUse('video')
+      } else {
+        await recordUsage('video')
+      }
+      await startAnalysisCore()
+    } finally {
+      startingRef.current = false
     }
-    if (gate.remaining === 0 && gate.rewardUses > 0) {
-      await consumeRewardUse('video')
-    } else {
-      await recordUsage('video')
-    }
-    await startAnalysisCore()
   }
 
   /* ── コントロール ── */

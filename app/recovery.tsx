@@ -120,6 +120,8 @@ export default function RecoveryScreen() {
   const [adGateRewardUses,  setAdGateRewardUses]  = useState(0)
   const [adGateLimitType,   setAdGateLimitType]   = useState<'none'|'daily'|'monthly'|'total'>('none')
   const fadeAnim = useRef(new Animated.Value(1)).current
+  // AdGate async チェック中の二重タップ防止
+  const askingRef = useRef(false)
 
   const fadeIn = () => {
     fadeAnim.setValue(0)
@@ -192,26 +194,32 @@ export default function RecoveryScreen() {
   }
 
   const askAI = async () => {
+    if (askingRef.current) return  // 二重タップ防止
     if (bodyParts.length === 0) { setApiError('部位をタップして選択してください（複数可）'); return }
     if (!painType) { setApiError('痛みの種類を選択してください'); return }
     if (!timing)   { setApiError('発生タイミングを選択してください'); return }
     // ゲストはログイン必須
     if (isGuest) { setAdGateRemaining(0); setAdGateHardLimited(false); setAdGateLimitType('none'); setAdGateVisible(true); return }
-    const gate = await checkAdGate('recovery')
-    if (!gate.allowed) {
-      setAdGateRemaining(gate.remaining)
-      setAdGateRewardUses(gate.rewardUses)
-      setAdGateHardLimited(gate.hardLimited)
-      setAdGateLimitType(gate.limitType)
-      setAdGateVisible(true)
-      return
+    askingRef.current = true
+    try {
+      const gate = await checkAdGate('recovery')
+      if (!gate.allowed) {
+        setAdGateRemaining(gate.remaining)
+        setAdGateRewardUses(gate.rewardUses)
+        setAdGateHardLimited(gate.hardLimited)
+        setAdGateLimitType(gate.limitType)
+        setAdGateVisible(true)
+        return
+      }
+      if (gate.remaining === 0 && gate.rewardUses > 0) {
+        await consumeRewardUse('recovery')
+      } else {
+        await recordUsage('recovery')
+      }
+      await askAICore()
+    } finally {
+      askingRef.current = false
     }
-    if (gate.remaining === 0 && gate.rewardUses > 0) {
-      await consumeRewardUse('recovery')
-    } else {
-      await recordUsage('recovery')
-    }
-    await askAICore()
   }
 
   /* ════ RENDER ════ */
