@@ -152,29 +152,3 @@ export async function getRecentSleep(userId: string, days = 14) {
   return data
 }
 
-// ─────────────────────────────────────────
-// 試合計画
-// ─────────────────────────────────────────
-export async function saveCompetitionPlan(plan: Omit<import('../types').CompetitionPlan, 'id' | 'created_at'>) {
-  if (IS_PLACEHOLDER) return null
-  const { data, error } = await supabase
-    .from('competition_plans')
-    .insert(plan)
-    .select()
-    .single()
-  if (error) throw error
-  return data
-}
-
-export async function getUpcomingCompetitions(userId: string) {
-  if (IS_PLACEHOLDER) return []
-  const today = new Date().toISOString().slice(0, 10)
-  const { data, error } = await supabase
-    .from('competition_plans')
-    .select('*')
-    .eq('user_id', userId)
-    .gte('competition_date', today)
-    .order('competition_date', { ascending: true })
-  if (error) throw error
-  return data
-}
