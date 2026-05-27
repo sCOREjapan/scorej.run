@@ -402,15 +402,10 @@ export default function SettingsScreen() {
       return
     }
     const gate = await checkAdGate('csv')
-    if (gate.remaining === 0) {
-      setCsvGateRemaining(0)
+    if (!gate.allowed) {
+      setCsvGateRemaining(gate.remaining)
       setCsvGateHardLimited(gate.hardLimited)
       setCsvGateLimitType(gate.limitType)
-      setCsvGateVisible(true)
-      return
-    }
-    if (gate.remaining === 1) {
-      setCsvGateRemaining(1)
       setCsvGateVisible(true)
       return
     }
