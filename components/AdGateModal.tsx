@@ -292,9 +292,4 @@ const st = StyleSheet.create({
   benefitTxt:    { fontSize: 12, color: 'rgba(255,255,255,0.75)', lineHeight: 18 },
   cancelBtn:     { paddingVertical: 8 },
   cancelTxt:     { fontSize: 13, color: 'rgba(255,255,255,0.4)' },
-  dotsRow:       { flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 4 },
-  dot:           { width: 12, height: 12, borderRadius: 6 },
-  dotPending:    { backgroundColor: 'rgba(255,255,255,0.15)' },
-  dotActive:     { backgroundColor: '#93c5fd' },
-  dotDone:       { backgroundColor: '#16a34a' },
 })

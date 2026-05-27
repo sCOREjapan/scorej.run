@@ -240,17 +240,6 @@ const fab = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12, shadowRadius: 8, elevation: 6,
   },
-  homeBtn: {
-    position: 'absolute',
-    left: 20,
-    width: 50, height: 50, borderRadius: 25,
-    backgroundColor: '#ffffff',
-    borderWidth: 1, borderColor: 'rgba(0,0,0,0.10)',
-    alignItems: 'center', justifyContent: 'center',
-    zIndex: 100,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12, shadowRadius: 8, elevation: 8,
-  },
   itemLabel: {
     color: '#ffffff', fontSize: 9, fontWeight: '700',
     textShadowColor: 'rgba(0,0,0,0.8)',

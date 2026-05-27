@@ -266,7 +266,7 @@ export async function initNotificationsOnFirstLaunch(): Promise<void> {
 export async function sendRiskAlertIfNeeded(riskScore: number): Promise<void> {
   if (riskScore < 80) return
   if (Platform.OS === 'web') {
-    if (!isWebNotifSupported() || !notSentToday('risk')) return
+    if (!isWebNotifSupported() || Notification.permission !== 'granted' || !notSentToday('risk')) return
     await showNow(
       'sCORE 🔴 怪我リスクが高い状態です',
       `怪我リスクスコアが${riskScore}です。今日は強度を大幅に落とすか休養しましょう。`,
@@ -288,7 +288,7 @@ export async function sendRiskAlertIfNeeded(riskScore: number): Promise<void> {
 export async function sendStretchReminderIfNeeded(riskScore: number, stretchDoneToday: boolean): Promise<void> {
   if (stretchDoneToday || riskScore < 75) return
   if (Platform.OS === 'web') {
-    if (!isWebNotifSupported() || !notSentToday('stretch')) return
+    if (!isWebNotifSupported() || Notification.permission !== 'granted' || !notSentToday('stretch')) return
     await showNow(
       'sCORE 🧘 ストレッチでリスクを下げよう',
       `怪我リスク${riskScore}。今日のストレッチで最大20ポイント改善できます！`,
@@ -367,5 +367,3 @@ export function cancelAllSchedulers(): void {
   if (_practiceTimer) { clearTimeout(_practiceTimer); _practiceTimer = null }
 }
 
-export const cancelTrainingReminder = cancelAllSchedulers
-export const scheduleMorningReminder = () => {}  // 後方互換ダミー
