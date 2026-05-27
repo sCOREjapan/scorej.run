@@ -9,8 +9,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 
 export type Feature = 'ai_analysis' | 'video' | 'meal' | 'csv' | 'recovery' | 'workout'
 
-// ── FREE：AI機能は1日3回まで・毎回広告視聴が必要 ───────────────
-// 1回目も2回目も3回目も、使用するたびに広告を視聴（needsAd: true）
+// ── FREE：AI機能は1日3回まで ──────────────────────────────────
+// 1回目：無料（広告不要）
+// 2〜3回目：広告視聴が必要（needsAd: true）
 // 3回使用後は hardLimited（当日は利用不可）
 const FREE_DAILY_AI_FEATURES: Feature[] = ['ai_analysis', 'video', 'meal', 'recovery', 'workout']
 const FREE_DAILY_AI_LIMIT    = 3

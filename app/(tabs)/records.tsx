@@ -1502,7 +1502,7 @@ export default function RecordsScreen() {
                 Sounds.whoosh()
                 if (isGuest) { setCsvGateRemaining(0); setCsvGateHardLimited(false); setCsvGateVisible(true); return }
                 const gate = await checkAdGate('csv')
-                if (!gate.allowed) { setCsvGateRemaining(0); setCsvGateRewardUses(gate.rewardUses); setCsvGateHardLimited(gate.hardLimited); setCsvGateLimitType(gate.limitType); setCsvGateVisible(true); return }
+                if (!gate.allowed) { setCsvGateRemaining(gate.remaining); setCsvGateRewardUses(gate.rewardUses); setCsvGateHardLimited(gate.hardLimited); setCsvGateLimitType(gate.limitType); setCsvGateVisible(true); return }
                 await recordUsage('csv')
                 trackFeatureUse('csv')
                 Alert.alert('エクスポート', '形式を選択してください', [
