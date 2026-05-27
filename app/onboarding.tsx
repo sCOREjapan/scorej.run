@@ -621,18 +621,4 @@ const styles = StyleSheet.create({
   },
   nextBtnText: { color: '#fff', fontSize: 17, fontWeight: '800', letterSpacing: -0.3 },
 
-  planCard: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#fff', borderRadius: 16,
-    padding: 18, borderWidth: 2, borderColor: 'rgba(0,0,0,0.08)',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
-  },
-  planCardPro: {
-    borderColor: BRAND,
-    backgroundColor: 'rgba(229,62,62,0.04)',
-  },
-  planLabel: { color: '#111827', fontSize: 15, fontWeight: '900', letterSpacing: 0.5 },
-  planPrice: { color: '#111827', fontSize: 18, fontWeight: '900' },
-  planDesc:  { color: '#6b7280', fontSize: 12, lineHeight: 17, marginTop: 2 },
 })
