@@ -206,7 +206,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Native: PKCE + in-app browser
       const redirectTo = AuthSession.makeRedirectUri({ scheme: 'score', path: 'auth-callback' })
-      console.log('[Google OAuth] redirectTo:', redirectTo)
+      if (__DEV__) console.log('[Google OAuth] redirectTo:', redirectTo)
 
       const { data, error } = await (supabase.auth as any).signInWithOAuth({
         provider: 'google',
@@ -214,14 +214,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       if (error || !data?.url) {
         const msg = error?.message ?? 'OAuth URL取得失敗'
-        console.log('[Google OAuth] Step1 error:', msg)
+        if (__DEV__) console.log('[Google OAuth] Step1 error:', msg)
         Toast.show({ type: 'error', text1: 'Googleログイン失敗 [Step1]', text2: msg, visibilityTime: 5000 })
         return
       }
-      console.log('[Google OAuth] OAuth URL取得成功')
+      if (__DEV__) console.log('[Google OAuth] OAuth URL取得成功')
 
       const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo)
-      console.log('[Google OAuth] browser result type:', result.type)
+      if (__DEV__) console.log('[Google OAuth] browser result type:', result.type)
       if (result.type !== 'success' || !result.url) {
         if (result.type === 'cancel' || result.type === 'dismiss') {
           // ユーザーがキャンセルした場合は何もしない
@@ -233,7 +233,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const { error: exchError } = await (supabase.auth as any).exchangeCodeForSession(result.url)
       if (exchError) {
-        console.log('[Google OAuth] exchangeCode error:', exchError.message)
+        if (__DEV__) console.log('[Google OAuth] exchangeCode error:', exchError.message)
         // フォールバック1: URL から code だけ抜き取って再試行（カスタムスキームの URL パース失敗対策）
         try {
           const codeMatch = result.url.match(/[?&]code=([^&\s]+)/)
@@ -241,13 +241,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (code) {
             const { error: retryError } = await (supabase.auth as any).exchangeCodeForSession(code)
             if (!retryError) {
-              console.log('[Google OAuth] exchangeCode retry success')
+              if (__DEV__) console.log('[Google OAuth] exchangeCode retry success')
               return   // 成功 → onAuthStateChange が呼ばれるのでここで終了
             }
-            console.log('[Google OAuth] retry error:', retryError.message)
+            if (__DEV__) console.log('[Google OAuth] retry error:', retryError.message)
           }
         } catch (retryEx: any) {
-          console.log('[Google OAuth] retry exception:', retryEx?.message)
+          if (__DEV__) console.log('[Google OAuth] retry exception:', retryEx?.message)
         }
         // フォールバック2: implicit flow のハッシュトークン（旧 Supabase 対応）
         try {
@@ -264,7 +264,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (e: any) {
       const msg = e?.message ?? 'エラーが発生しました'
-      console.log('[Google OAuth] catch error:', msg)
+      if (__DEV__) console.log('[Google OAuth] catch error:', msg)
       Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: msg, visibilityTime: 5000 })
     }
   }, [])
