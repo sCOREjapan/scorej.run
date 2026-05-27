@@ -32,6 +32,8 @@ export function useTrainingSessions(): UseTrainingSessionsReturn {
       const raw = await AsyncStorage.getItem(SESSIONS_KEY)
       let data: TrainingSession[] = []
       try { if (raw) data = JSON.parse(raw) } catch {}  // データ破損でも空配列で継続
+      // 最新順（session_date 降順）に正規化 — クラウド同期後に順序が乱れることがあるため
+      data.sort((a, b) => b.session_date.localeCompare(a.session_date))
       setSessions(data)
       setLoading('success')
     } catch (err) {

@@ -231,10 +231,20 @@ export async function initNotificationsOnFirstLaunch(): Promise<void> {
         shouldShowList: true,
       }),
     })
-    const { status } = await notif.getPermissionsAsync()
-    if (status === 'granted') {
+    const { status: existing } = await notif.getPermissionsAsync()
+    if (existing === 'granted') {
       startAllSchedulers()
+      return
     }
+    // まだ確認していない（undetermined）→ 2秒後にダイアログを表示
+    if (existing === 'undetermined') {
+      await new Promise(r => setTimeout(r, 2000))
+      const { status } = await notif.requestPermissionsAsync()
+      if (status === 'granted') {
+        startAllSchedulers()
+      }
+    }
+    // denied の場合は何もしない
     return
   }
   if (!isWebNotifSupported()) return
