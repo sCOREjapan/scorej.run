@@ -67,15 +67,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let mounted = true
 
+    // ── ディープリンクからコードを交換する（メール確認・OAuth コールバック） ──
+    // ネイティブでメール確認リンクや Google OAuth コールバックを受け取ったとき
+    // score://auth-callback?code=... を Supabase が自動処理しないため手動で交換する
+    const handleDeepLink = async (url: string) => {
+      if (!url) return
+      try {
+        if (url.includes('code=')) {
+          const { error } = await (supabase.auth as any).exchangeCodeForSession(url)
+          if (error) {
+            // フォールバック: URL から code だけ抽出して再試行
+            const codeMatch = url.match(/[?&]code=([^&\s]+)/)
+            const code = codeMatch ? decodeURIComponent(codeMatch[1]) : null
+            if (code) {
+              await (supabase.auth as any).exchangeCodeForSession(code).catch(() => {})
+            }
+          }
+        } else if (url.includes('access_token=')) {
+          // implicit flow（旧 Supabase）
+          const hash = url.split('#')[1] ?? ''
+          const params = new URLSearchParams(hash)
+          const accessToken = params.get('access_token')
+          const refreshToken = params.get('refresh_token')
+          if (accessToken && refreshToken) {
+            await (supabase.auth as any).setSession({ access_token: accessToken, refresh_token: refreshToken })
+          }
+        }
+      } catch (e) {
+        console.warn('[DeepLink] handleDeepLink error:', e)
+      }
+    }
+
     const init = async () => {
       try {
         // 1+2+3 を並列実行（直列だと 3 倍かかる）
-        const [ob, sessionResult, storedUserId] = await Promise.all([
+        const [ob, sessionResult, storedUserId, initialUrl] = await Promise.all([
           AsyncStorage.getItem(ONBOARDING_KEY).catch(() => null),
           (supabase.auth as any).getSession().catch(() => ({ data: null })),
           AsyncStorage.getItem('userId').catch(() => null),
+          // 起動時のディープリンク URL を取得（メール確認リンクからの起動に対応）
+          Platform.OS !== 'web' ? Linking.getInitialURL().catch(() => null) : Promise.resolve(null),
         ])
         if (!mounted) return
+
+        // アプリがメール確認リンクから起動した場合はコードを交換
+        if (initialUrl && (initialUrl.includes('code=') || initialUrl.includes('access_token='))) {
+          await handleDeepLink(initialUrl)
+        }
+
         setIsOnboarded(ob === 'true')
         const s = sessionResult?.data?.session ?? null
         setSession(s)
@@ -97,7 +136,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     init()
 
-    // 3) セッション変更監視（メール確認後の自動ログインもここで拾う）
+    // 実行中にディープリンクが来た場合（アプリが起動済みの状態でメールリンクをタップ）
+    let linkingSub: any
+    if (Platform.OS !== 'web') {
+      linkingSub = Linking.addEventListener('url', ({ url }) => {
+        if (url && (url.includes('code=') || url.includes('access_token='))) {
+          handleDeepLink(url)
+        }
+      })
+    }
+
+    // セッション変更監視（メール確認後の自動ログインもここで拾う）
     let subscription: any
     try {
       const { data } = (supabase.auth as any).onAuthStateChange(
@@ -129,6 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       mounted = false
       try { subscription?.unsubscribe() } catch (_) {}
+      try { linkingSub?.remove() } catch (_) {}
     }
   }, [])
 
@@ -136,20 +186,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithGoogle = useCallback(async () => {
     try {
       if (Platform.OS === 'web') {
-        // Web: Supabase が URL を返す → 明示的にリダイレクト
+        // Web: skipBrowserRedirect: true で URL を取得し手動リダイレクト（環境依存を排除）
         const { data, error } = await (supabase.auth as any).signInWithOAuth({
           provider: 'google',
           options: {
             redirectTo: SITE_URL,
-            skipBrowserRedirect: false,
+            skipBrowserRedirect: true,
           },
         })
-        if (error) {
-          Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: error.message })
+        if (error || !data?.url) {
+          Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: error?.message ?? 'URL取得失敗' })
           return
         }
-        // SDK が自動リダイレクトしない場合の保険
-        if (data?.url && typeof window !== 'undefined') {
+        if (typeof window !== 'undefined') {
           window.location.href = data.url
         }
         return
@@ -302,12 +351,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUpWithEmail = useCallback(
     async (email: string, password: string): Promise<'signed_in' | 'confirm_email' | false> => {
       try {
+        // ネイティブ: メール確認リンクをタップするとアプリが直接開くようにディープリンクを使用
+        // Web: そのままサイトに戻る
+        const emailRedirectTo = Platform.OS === 'web'
+          ? SITE_URL
+          : AuthSession.makeRedirectUri({ scheme: 'score', path: 'auth-callback' })
         const { data, error } = await (supabase.auth as any).signUp({
           email,
           password,
-          options: {
-            emailRedirectTo: SITE_URL,
-          },
+          options: { emailRedirectTo },
         })
         if (error) {
           const msg =
@@ -397,10 +449,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ── 確認メール再送 ────────────────────────────────────────
   const resendConfirmationEmail = useCallback(async (email: string): Promise<boolean> => {
     try {
+      const emailRedirectTo = Platform.OS === 'web'
+        ? SITE_URL
+        : AuthSession.makeRedirectUri({ scheme: 'score', path: 'auth-callback' })
       const { error } = await (supabase.auth as any).resend({
         type: 'signup',
         email,
-        options: { emailRedirectTo: SITE_URL },
+        options: { emailRedirectTo },
       })
       if (error) {
         Toast.show({ type: 'error', text1: '再送失敗', text2: error.message ?? 'しばらく待ってから再試行してください' })
