@@ -1183,6 +1183,8 @@ export default function DashboardScreen() {
   const [confirmedIds,    setConfirmedIds]    = useState<Set<string>>(new Set())
   const [notifReadIds,    setNotifReadIds]    = useState<Set<string>>(new Set())
   const [shareSession,    setShareSession]    = useState<PracticeShareData | null>(null)
+  // AdGate async チェック中の二重タップ防止
+  const insightCallRef = useRef(false)
   // ── アプリ起動トラッキング（1日1回） ──
   useEffect(() => {
     const TODAY = new Date().toISOString().slice(0, 10)
@@ -1349,26 +1351,32 @@ export default function DashboardScreen() {
 
   // ── デイリーAIインサイト（広告視聴で取得）────────────────────
   async function handleDailyInsight() {
+    if (insightCallRef.current) return  // 二重タップ防止
     if (insightClaimed === true || insightClaimed === null || insightLoading) return
-    const tier = await getTier()
-    // PRO / ELITE / チームPro は広告なしで直接取得（coach はAIなしプランなので FREE と同じ）
-    if (tier === 'pro' || tier === 'elite' || tier === 'coach_pro') {
-      await markDailyInsightClaimed()
-      setInsightClaimed(true)
-      handleGetAIAdvice()
-      return
-    }
-    // FREEは広告視聴が必要
-    setInsightLoading(true)
+    insightCallRef.current = true
     try {
-      const watched = await showRewardedAd()
-      if (watched) {
+      const tier = await getTier()
+      // PRO / ELITE / チームPro は広告なしで直接取得（coach はAIなしプランなので FREE と同じ）
+      if (tier === 'pro' || tier === 'elite' || tier === 'coach_pro') {
         await markDailyInsightClaimed()
         setInsightClaimed(true)
         handleGetAIAdvice()
+        return
+      }
+      // FREEは広告視聴が必要
+      setInsightLoading(true)
+      try {
+        const watched = await showRewardedAd()
+        if (watched) {
+          await markDailyInsightClaimed()
+          setInsightClaimed(true)
+          handleGetAIAdvice()
+        }
+      } finally {
+        setInsightLoading(false)
       }
     } finally {
-      setInsightLoading(false)
+      insightCallRef.current = false
     }
   }
 
