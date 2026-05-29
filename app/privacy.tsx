@@ -7,7 +7,7 @@ import { BG_GRADIENT, TEXT } from '../lib/theme'
 
 const LAST_UPDATED = '2026年5月23日'
 const APP_NAME     = 'sCORE'
-const CONTACT      = 'focusports.shop'
+const CONTACT      = 'team.deepwork2026@gmail.com'
 const OPERATOR     = '個人事業主（屋号：trackmate）（以下「当社」）'
 
 function Section({ num, title, children }: { num: string; title: string; children: React.ReactNode }) {
