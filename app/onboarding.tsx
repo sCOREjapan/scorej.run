@@ -70,6 +70,18 @@ const EXPERIENCE_OPTIONS = [
   { key: 10, label: 'ベテラン',     sub: '10年以上' },
 ]
 
+// ── 都道府県データ ──────────────────────────────────────────
+const PREFS_BY_REGION: { region: string; prefs: string[] }[] = [
+  { region: '北海道', prefs: ['北海道'] },
+  { region: '東北', prefs: ['青森', '岩手', '宮城', '秋田', '山形', '福島'] },
+  { region: '関東', prefs: ['茨城', '栃木', '群馬', '埼玉', '千葉', '東京', '神奈川'] },
+  { region: '中部', prefs: ['新潟', '富山', '石川', '福井', '山梨', '長野', '岐阜', '静岡', '愛知'] },
+  { region: '近畿', prefs: ['三重', '滋賀', '京都', '大阪', '兵庫', '奈良', '和歌山'] },
+  { region: '中国', prefs: ['鳥取', '島根', '岡山', '広島', '山口'] },
+  { region: '四国', prefs: ['徳島', '香川', '愛媛', '高知'] },
+  { region: '九州・沖縄', prefs: ['福岡', '佐賀', '長崎', '熊本', '大分', '宮崎', '鹿児島', '沖縄'] },
+]
+
 // ── プログレスバー ─────────────────────────────────────────
 function StepBar({ step }: { step: number }) {
   return (
@@ -136,6 +148,7 @@ export default function OnboardingScreen() {
   const [experience, setExperience] = useState<number>(-1)
   const [age,        setAge]        = useState('')
   const [pb,         setPb]         = useState('')
+  const [prefecture, setPrefecture] = useState('')
 
   // フェードアニメーション（シンプルで確実）
   const fadeAnim = useRef(new Animated.Value(1)).current
@@ -190,10 +203,28 @@ export default function OnboardingScreen() {
       experience_years: experience >= 0 ? experience : undefined,
       personal_best_ms: pb.trim() ? (parsePbToMs(pb.trim()) ?? undefined) : undefined,
       target_time_ms: undefined as number | undefined,
+      prefecture: prefecture || undefined,
       created_at: new Date().toISOString(),
     }
 
     await AsyncStorage.setItem('trackmate_my_profile', JSON.stringify(profile)).catch(() => {})
+
+    // Supabase にプロフィールを同期（ログイン済みの場合）
+    if (user?.id) {
+      try {
+        const { supabase: sb } = await import('../lib/supabase')
+        await sb.from('profiles').upsert({
+          user_id: user.id,
+          name: profile.name,
+          primary_event: profile.primary_event,
+          event_category: profile.event_category,
+          age: profile.age ?? null,
+          experience_years: profile.experience_years ?? null,
+          prefecture: prefecture || null,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' }).then(() => {})
+      } catch { /* 同期失敗はサイレント */ }
+    }
 
     if (goPaywall) {
       // ペイウォールへ先にナビゲートしてから setOnboarded を呼ぶ
@@ -359,6 +390,37 @@ export default function OnboardingScreen() {
                     />
                     <Text style={{ color: TEXT.hint, fontSize: 14 }}>歳</Text>
                   </View>
+                </View>
+
+                {/* 都道府県 */}
+                <View style={{ gap: 8 }}>
+                  <Text style={styles.sectionLabel}>地域（都道府県）</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -4 }}>
+                    <View style={{ flexDirection: 'row', flexWrap: 'nowrap', gap: 0, paddingHorizontal: 4 }}>
+                      {PREFS_BY_REGION.map(({ region, prefs }) => (
+                        <View key={region} style={{ marginRight: 14 }}>
+                          <Text style={{ fontSize: 10, color: TEXT.hint, fontWeight: '700', marginBottom: 4 }}>{region}</Text>
+                          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, maxWidth: prefs.length <= 2 ? 90 : 200 }}>
+                            {prefs.map(p => (
+                              <TouchableOpacity
+                                key={p}
+                                onPress={() => { setPrefecture(prefecture === p ? '' : p); Sounds.tap() }}
+                                style={{
+                                  paddingHorizontal: 10, paddingVertical: 5,
+                                  borderRadius: 8, borderWidth: 1.5,
+                                  borderColor: prefecture === p ? BRAND : 'rgba(0,0,0,0.12)',
+                                  backgroundColor: prefecture === p ? `${BRAND}15` : '#fff',
+                                }}
+                              >
+                                <Text style={{ fontSize: 12, fontWeight: '600', color: prefecture === p ? BRAND : TEXT.secondary }}>{p}</Text>
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  </ScrollView>
+                  <Text style={styles.inputHint}>後から設定で変更できます（スキップ可）</Text>
                 </View>
 
                 {/* 自己ベスト */}

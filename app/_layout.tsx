@@ -455,7 +455,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
     const inAuth        = segments[0] === 'auth'
     const inOnboarding  = segments[0] === 'onboarding'
-    const inPublic      = segments[0] === 'coach-landing' || segments[0] === 'guide' || segments[0] === 'privacy' || segments[0] === 'terms'
+    const inPublic      = segments[0] === 'coach-landing' || segments[0] === 'guide' || segments[0] === 'privacy' || segments[0] === 'terms' || segments[0] === 'admin'
     const inPaywall     = segments[0] === 'paywall'   // オンボーディング→ペイウォール遷移中も許可
     const authed        = !!user || isGuest
 
