@@ -1,10 +1,9 @@
 // app/auth.tsx — スライド式ログイン画面（縦スクロール対応・アニメーション付き）
 
 import React, { useRef, useState, useCallback } from 'react'
-import * as AppleAuthentication from 'expo-apple-authentication'
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  ActivityIndicator, TextInput, KeyboardAvoidingView,
+  ActivityIndicator,
   Platform, ScrollView, Dimensions, Animated, Easing,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
@@ -349,19 +348,9 @@ function Slide5({ isActive }: { isActive: boolean }) {
 }
 
 function Slide6({ isActive }: { isActive: boolean }) {
-  const { signInWithGoogle, signInWithApple, signUpWithEmail, signInWithEmail, resendConfirmationEmail, continueAsGuest } = useAuth()
+  const { signInWithGoogle, signInWithApple, continueAsGuest } = useAuth()
   const [googleLoading, setGoogleLoading] = useState(false)
   const [appleLoading,  setAppleLoading]  = useState(false)
-  const [showSignup, setShowSignup] = useState(false)
-  const [isLoginMode, setIsLoginMode] = useState(false)     // true=ログイン, false=新規登録
-  const [emailSent, setEmailSent]   = useState(false)      // 確認メール送信済み状態
-  const [sentEmail, setSentEmail]   = useState('')
-  const [resending, setResending]   = useState(false)
-  const [email, setEmail]       = useState('')
-  const [password, setPassword] = useState('')
-  const [showPass, setShowPass] = useState(false)
-  const [loading, setLoading]   = useState(false)
-  const [authError, setAuthError] = useState('')
 
   const isInAppBrowser = typeof navigator !== 'undefined' &&
     /Instagram|FBAN|FBAV|Twitter|Line|MicroMessenger|GSA/i.test(navigator.userAgent)
@@ -380,176 +369,61 @@ function Slide6({ isActive }: { isActive: boolean }) {
     setAppleLoading(true)
     signInWithApple().catch(() => {}).finally(() => setAppleLoading(false))
   }
-  const handleSubmit = async () => {
-    if (!email.trim() || password.length < 6) return
-    unlockAudio(); Sounds.pop()
-    setLoading(true); setAuthError('')
-    try {
-      if (isLoginMode) {
-        const ok = await signInWithEmail(email.trim(), password)
-        // signInWithEmail が false を返した場合（Toast表示済み）はここで何もしない
-        if (ok === false) {
-          setAuthError('メールアドレスかパスワードを確認してください')
-        }
-        // 成功 → AuthGate が自動でタブへ遷移
-      } else {
-        const result = await signUpWithEmail(email.trim(), password)
-        if (result === 'confirm_email') {
-          setSentEmail(email.trim())
-          setEmailSent(true)
-        } else if (result === false) {
-          setAuthError('登録に失敗しました。別のメールアドレスをお試しください')
-        }
-        // 'signed_in' → AuthGate が自動でタブへ遷移
-      }
-    } catch (e: any) {
-      setAuthError(e?.message ?? 'エラーが発生しました')
-    } finally { setLoading(false) }
-  }
 
-  const header  = useFadeUp(isActive, 0)
-  const google  = useFadeUp(isActive, 180)
-  const apple   = useFadeUp(isActive, 260)
-  const divider = useFadeUp(isActive, 340)
-  const emailBtn= useFadeUp(isActive, 420)
-  const guest   = useFadeUp(isActive, 520)
+  const header = useFadeUp(isActive, 0)
+  const google = useFadeUp(isActive, 180)
+  const apple  = useFadeUp(isActive, 260)
+  const guest  = useFadeUp(isActive, 360)
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={sl.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <View style={[sl.slideInner, { alignItems: 'center' }]}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={sl.scrollContent} showsVerticalScrollIndicator={false}>
+      <View style={[sl.slideInner, { alignItems: 'center' }]}>
 
-          <Animated.View style={[{ width: '100%', alignItems: 'center', marginBottom: 32 }, header]}>
-            <View style={lg.logoSmall}>
-              <Text style={lg.logoSmallS}>S</Text>
-            </View>
-            <Text style={sl.tag}>GET STARTED</Text>
-            <Text style={[sl.sectionTitle, { textAlign: 'center', fontSize: 28 }]}>無料で始める</Text>
-            <Text style={[sl.sectionSub, { textAlign: 'center' }]}>登録無料・クレジットカード不要</Text>
-          </Animated.View>
+        <Animated.View style={[{ width: '100%', alignItems: 'center', marginBottom: 32 }, header]}>
+          <View style={lg.logoSmall}>
+            <Text style={lg.logoSmallS}>S</Text>
+          </View>
+          <Text style={sl.tag}>GET STARTED</Text>
+          <Text style={[sl.sectionTitle, { textAlign: 'center', fontSize: 28 }]}>無料で始める</Text>
+          <Text style={[sl.sectionSub, { textAlign: 'center' }]}>登録無料・クレジットカード不要</Text>
+        </Animated.View>
 
-          {/* Google */}
-          <Animated.View style={[{ width: '100%' }, google]}>
-            <TouchableOpacity style={lg.googleBtn} onPress={handleGoogle} disabled={googleLoading} activeOpacity={0.85}>
-              {googleLoading ? <ActivityIndicator color="#111" size="small" /> : (
+        {/* Google */}
+        <Animated.View style={[{ width: '100%' }, google]}>
+          <TouchableOpacity style={lg.googleBtn} onPress={handleGoogle} disabled={googleLoading} activeOpacity={0.85}>
+            {googleLoading ? <ActivityIndicator color="#111" size="small" /> : (
+              <>
+                <View style={lg.gIconWrap}><Text style={lg.gIconText}>G</Text></View>
+                <Text style={lg.googleText}>Google でログイン</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </Animated.View>
+
+        {/* Apple（iOS のみ表示） */}
+        {Platform.OS === 'ios' && (
+          <Animated.View style={[{ width: '100%', marginTop: 12 }, apple]}>
+            <TouchableOpacity style={lg.appleBtn} onPress={handleApple} disabled={appleLoading} activeOpacity={0.85}>
+              {appleLoading ? <ActivityIndicator color="#fff" size="small" /> : (
                 <>
-                  <View style={lg.gIconWrap}><Text style={lg.gIconText}>G</Text></View>
-                  <Text style={lg.googleText}>Google でログイン</Text>
+                  <Ionicons name="logo-apple" size={20} color="#fff" />
+                  <Text style={lg.appleBtnText}>Apple でログイン</Text>
                 </>
               )}
             </TouchableOpacity>
           </Animated.View>
+        )}
 
-          {/* Apple（iOS のみ表示） */}
-          {Platform.OS === 'ios' && (
-            <Animated.View style={[{ width: '100%', marginTop: 12 }, apple]}>
-              <TouchableOpacity style={lg.appleBtn} onPress={handleApple} disabled={appleLoading} activeOpacity={0.85}>
-                {appleLoading ? <ActivityIndicator color="#fff" size="small" /> : (
-                  <>
-                    <Ionicons name="logo-apple" size={20} color="#fff" />
-                    <Text style={lg.appleBtnText}>Apple でログイン</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </Animated.View>
-          )}
+        <Animated.View style={[{ width: '100%' }, guest]}>
+          <TouchableOpacity style={lg.guestBtn} onPress={() => { unlockAudio(); Sounds.tap(); continueAsGuest() }} activeOpacity={0.7}>
+            <Ionicons name="person-outline" size={16} color={TEXT.hint} />
+            <Text style={lg.guestText}>ゲストとして続ける</Text>
+          </TouchableOpacity>
+          <Text style={lg.footer}>ログインすることで利用規約とプライバシーポリシーに同意したことになります</Text>
+        </Animated.View>
 
-          <Animated.View style={[lg.divRow, divider]}>
-            <View style={lg.divLine} /><Text style={lg.divText}>または</Text><View style={lg.divLine} />
-          </Animated.View>
-
-          <Animated.View style={[{ width: '100%' }, emailBtn]}>
-            {emailSent ? (
-              /* ── 確認メール送信済みUI ── */
-              <View style={lg.confirmBox}>
-                <Text style={{ fontSize: 32, marginBottom: 8 }}>✉️</Text>
-                <Text style={lg.confirmTitle}>確認メールを送信しました</Text>
-                <Text style={lg.confirmSub}>
-                  <Text style={{ color: '#111827', fontWeight: '700' }}>{sentEmail}</Text>
-                  {'\n'}に届いた認証リンクをクリックするとログインできます
-                </Text>
-                <Text style={lg.confirmNote}>迷惑メールフォルダも確認してください</Text>
-                <TouchableOpacity
-                  onPress={async () => {
-                    if (resending || !sentEmail) return
-                    setResending(true)
-                    await resendConfirmationEmail(sentEmail)
-                    setResending(false)
-                  }}
-                  style={{ marginTop: 12, paddingVertical: 10, paddingHorizontal: 20,
-                    backgroundColor: 'rgba(0,0,0,0.04)', borderRadius: 10, alignItems: 'center' }}
-                  disabled={resending}
-                >
-                  {resending
-                    ? <ActivityIndicator size="small" color={BRAND} />
-                    : <Text style={{ color: BRAND, fontSize: 13, fontWeight: '600' }}>確認メールを再送する</Text>
-                  }
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => { setEmailSent(false); setShowSignup(true); setEmail(''); setPassword('') }}
-                  style={{ marginTop: 8, paddingVertical: 8 }}>
-                  <Text style={{ color: TEXT.hint, fontSize: 12 }}>別のメールアドレスで試す</Text>
-                </TouchableOpacity>
-              </View>
-            ) : !showSignup ? (
-              <View style={{ gap: 8 }}>
-                <TouchableOpacity style={lg.emailBtn} onPress={() => { setShowSignup(true); setIsLoginMode(false); Sounds.tap() }} activeOpacity={0.7}>
-                  <Ionicons name="person-add-outline" size={17} color={BRAND} />
-                  <Text style={lg.emailBtnText}>メールで新規アカウント作成</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[lg.emailBtn, { borderColor: 'rgba(0,0,0,0.1)', backgroundColor: 'rgba(0,0,0,0.02)' }]} onPress={() => { setShowSignup(true); setIsLoginMode(true); Sounds.tap() }} activeOpacity={0.7}>
-                  <Ionicons name="log-in-outline" size={17} color={TEXT.secondary} />
-                  <Text style={[lg.emailBtnText, { color: TEXT.secondary }]}>メールでログイン</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={{ gap: 10 }}>
-                <Text style={lg.signupTitle}>{isLoginMode ? 'メールでログイン' : '新規アカウント作成'}</Text>
-                <View style={lg.inputWrap}>
-                  <Ionicons name="mail-outline" size={16} color={TEXT.hint} />
-                  <TextInput style={lg.input} placeholder="メールアドレス" placeholderTextColor={TEXT.hint} value={email} onChangeText={v => { setEmail(v); setAuthError('') }} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
-                </View>
-                <View style={lg.inputWrap}>
-                  <Ionicons name="lock-closed-outline" size={16} color={TEXT.hint} />
-                  <TextInput style={[lg.input, { flex: 1 }]} placeholder="パスワード（6文字以上）" placeholderTextColor={TEXT.hint} value={password} onChangeText={setPassword} secureTextEntry={!showPass} autoCapitalize="none" />
-                  <TouchableOpacity onPress={() => setShowPass(v => !v)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={18} color={TEXT.hint} />
-                  </TouchableOpacity>
-                </View>
-                {!!authError && (
-                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6, backgroundColor: 'rgba(229,62,62,0.08)', borderRadius: 10, padding: 10, marginBottom: 6 }}>
-                    <Ionicons name="alert-circle-outline" size={14} color={RED} style={{ marginTop: 1 }} />
-                    <Text style={{ color: RED, fontSize: 12, flex: 1, lineHeight: 18 }}>{authError}</Text>
-                  </View>
-                )}
-                <TouchableOpacity style={[lg.primaryBtn, (!email.trim() || password.length < 6) && { opacity: 0.4 }]} onPress={handleSubmit} disabled={loading || !email.trim() || password.length < 6} activeOpacity={0.85}>
-                  {loading ? <ActivityIndicator color="#fff" size="small" /> : isLoginMode
-                    ? <><Ionicons name="log-in" size={16} color="#fff" /><Text style={lg.primaryBtnText}>ログイン</Text></>
-                    : <><Ionicons name="person-add" size={16} color="#fff" /><Text style={lg.primaryBtnText}>アカウント作成</Text></>
-                  }
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setIsLoginMode(v => !v)} style={{ alignItems: 'center', paddingVertical: 4 }}>
-                  <Text style={{ color: BRAND, fontSize: 13 }}>
-                    {isLoginMode ? 'アカウントをお持ちでない方はこちら' : '既にアカウントをお持ちの方はこちら'}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => { setShowSignup(false); setEmail(''); setPassword('') }} style={{ alignItems: 'center', paddingVertical: 4 }}>
-                  <Text style={{ color: TEXT.hint, fontSize: 13 }}>キャンセル</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </Animated.View>
-
-          <Animated.View style={[{ width: '100%' }, guest]}>
-            <TouchableOpacity style={lg.guestBtn} onPress={() => { unlockAudio(); Sounds.tap(); continueAsGuest() }} activeOpacity={0.7}>
-              <Ionicons name="person-outline" size={16} color={TEXT.hint} />
-              <Text style={lg.guestText}>ゲストとして続ける</Text>
-            </TouchableOpacity>
-            <Text style={lg.footer}>ログインすることで利用規約とプライバシーポリシーに同意したことになります</Text>
-          </Animated.View>
-
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </View>
+    </ScrollView>
   )
 }
 
