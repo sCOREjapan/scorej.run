@@ -513,8 +513,8 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   return (
     <>
       {children}
-      {/* 同意モーダル — 未同意の場合すべての画面の上に表示 */}
-      {!consentAccepted && (
+      {/* 同意モーダル — 未同意の場合すべての画面の上に表示（admin は除く） */}
+      {!consentAccepted && segments[0] !== 'admin' && (
         <ConsentModal onAccept={() => setConsentAccepted(true)} />
       )}
     </>
