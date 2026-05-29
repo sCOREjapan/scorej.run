@@ -1,194 +1,609 @@
-// app/privacy.tsx — プライバシーポリシー（白基調・Web スタイル）
+// app/privacy.tsx — プライバシーポリシー（詳細版）
 import React from 'react'
-import {
-  View, Text, ScrollView, StyleSheet, TouchableOpacity, Platform,
-} from 'react-native'
+import { View, Text, ScrollView, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
-import { Ionicons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
+import { BG_GRADIENT, TEXT } from '../lib/theme'
 
-const LAST_UPDATED = '2026年5月29日'
+const LAST_UPDATED = '2026年5月23日'
 const APP_NAME     = 'sCORE'
-const OPERATOR     = 'sCORE Japan'
-const CONTACT      = 'amuletbaby.shop@gmail.com'
-const APP_URL      = 'https://scorej-run.vercel.app'
+const CONTACT      = 'focusports.shop'
+const OPERATOR     = '個人事業主（屋号：trackmate）（以下「当社」）'
 
-const isWeb = Platform.OS === 'web'
-const MAX_W = 720
-
-// ── 共通コンポーネント ──────────────────────────────────────────────────
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ num, title, children }: { num: string; title: string; children: React.ReactNode }) {
   return (
     <View style={s.section}>
-      <Text style={s.sectionTitle}>{title}</Text>
+      <Text style={s.sectionTitle}>{num}　{title}</Text>
       {children}
     </View>
   )
 }
-
-function P({ children }: { children: React.ReactNode }) {
-  return <Text style={s.body}>{children}</Text>
+function P({ children, style }: { children: React.ReactNode; style?: any }) {
+  return <Text style={[s.body, style]}>{children}</Text>
 }
-
-function Li({ children }: { children: React.ReactNode }) {
+function Li({ n, children }: { n?: string | number; children: React.ReactNode }) {
+  // React Native では <Text> 内に <View> を入れると描画バグが出るため
+  // 必ず <View> コンテナを使い、文字列だけ <Text> でラップする
+  const childArray = Array.isArray(children) ? children : [children]
   return (
     <View style={s.liRow}>
-      <Text style={s.bullet}>・</Text>
-      <Text style={[s.body, { flex: 1 }]}>{children}</Text>
+      <Text style={s.bullet}>{n ? `（${n}）` : '・'}</Text>
+      <View style={{ flex: 1 }}>
+        {childArray.map((child, i) =>
+          typeof child === 'string' || typeof child === 'number'
+            ? <Text key={i} style={s.body}>{child}</Text>
+            : <React.Fragment key={i}>{child as React.ReactNode}</React.Fragment>
+        )}
+      </View>
     </View>
   )
 }
-
-function PartnerRow({ name, purpose, link }: { name: string; purpose: string; link: string }) {
+function SubLi({ children }: { children: React.ReactNode }) {
   return (
-    <View style={s.partnerRow}>
-      <Text style={s.partnerName}>{name}</Text>
-      <Text style={s.partnerPurpose}>{purpose}</Text>
-      <Text style={s.partnerLink}>{link}</Text>
+    <View style={s.subLiRow}>
+      <Text style={s.subBullet}>―</Text>
+      <Text style={[s.body, { flex: 1, fontSize: 12 }]}>{children}</Text>
     </View>
   )
 }
-
-// ── メイン画面 ─────────────────────────────────────────────────────────
+function Table({ rows }: { rows: [string, string, string][] }) {
+  return (
+    <View style={s.table}>
+      <View style={[s.tableRow, s.tableHead]}>
+        <Text style={[s.tableCell, s.tableCellHead, { flex: 2 }]}>情報の種類</Text>
+        <Text style={[s.tableCell, s.tableCellHead, { flex: 3 }]}>内容</Text>
+        <Text style={[s.tableCell, s.tableCellHead, { flex: 2 }]}>保存場所</Text>
+      </View>
+      {rows.map(([type, content, storage], i) => (
+        <View key={i} style={[s.tableRow, i % 2 === 0 && s.tableRowAlt]}>
+          <Text style={[s.tableCell, { flex: 2 }]}>{type}</Text>
+          <Text style={[s.tableCell, { flex: 3 }]}>{content}</Text>
+          <Text style={[s.tableCell, { flex: 2 }]}>{storage}</Text>
+        </View>
+      ))}
+    </View>
+  )
+}
 
 export default function PrivacyScreen() {
-  const router = useRouter()
-
   return (
-    <View style={s.root}>
+    <View style={{ flex: 1, backgroundColor: '#0a0a0a' }}>
+      <LinearGradient colors={['#0a0a0a', '#111827', '#0a0a0a'] as const} style={StyleSheet.absoluteFill} />
       <SafeAreaView style={{ flex: 1 }}>
-        {/* ヘッダー */}
-        <View style={s.header}>
-          <TouchableOpacity
-            style={s.backBtn}
-            onPress={() => router.back()}
-            activeOpacity={0.7}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="chevron-back" size={24} color="#111827" />
-          </TouchableOpacity>
-          <Text style={s.headerLogo}>{APP_NAME}</Text>
-          <View style={{ width: 40 }} />
-        </View>
+        <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+          <Text style={s.title}>プライバシーポリシー</Text>
+          <Text style={s.meta}>{APP_NAME}　最終改訂：{LAST_UPDATED}</Text>
 
-        <ScrollView
-          contentContainerStyle={s.scroll}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={s.content}>
-            {/* タイトル */}
-            <Text style={s.pageTitle}>プライバシーポリシー</Text>
-            <Text style={s.lastUpdated}>最終更新日：{LAST_UPDATED}</Text>
+          <P>
+            {OPERATOR}は、スマートフォンアプリケーション「{APP_NAME}」（以下「本サービス」）の運営において、ユーザーの個人情報および利用者データの保護を最重要事項のひとつとして位置付けています。本プライバシーポリシー（以下「本ポリシー」）は、当社が本サービスを通じて取得・利用・管理する個人情報その他の利用者情報の取り扱いについて、個人情報の保護に関する法律（以下「個人情報保護法」）、電気通信事業法、その他関連法令および国際的なプライバシー基準に基づき定めるものです。
+          </P>
+          <P style={{ marginTop: 8 }}>
+            本サービスをご利用いただく前に、本ポリシーを十分にご確認ください。本サービスを利用した場合、本ポリシーの内容に同意したものとみなします。同意いただけない場合は、本サービスのご利用をお控えください。なお、本ポリシーは利用規約と一体として解釈されます。利用規約と本ポリシーの間に矛盾がある場合、個人情報の取り扱いに関しては本ポリシーが優先されます。
+          </P>
 
-            {/* はじめに */}
-            <Section title="1. はじめに">
-              <P>
-                {OPERATOR}（以下「当社」）は、陸上競技パフォーマンス管理アプリ「{APP_NAME}」（
-                {APP_URL}）を運営しています。本プライバシーポリシーは、当社がユーザーの個人情報をどのように収集・利用・管理するかについて定めるものです。
-              </P>
-              <P>
-                本サービスをご利用いただく前に、本ポリシーをよくお読みください。本サービスを利用した場合、本ポリシーの内容に同意したものとみなします。
-              </P>
-            </Section>
+          {/* ───────── 第1条 ───────── */}
+          <Section num="第1条" title="定義">
+            <P>本ポリシーにおいて用いる主要な用語の定義は以下のとおりとします。</P>
+            <Li n={1}>「個人情報」とは、生存する個人に関する情報であって、当該情報に含まれる氏名、生年月日その他の記述等により特定の個人を識別することができるもの（他の情報と容易に照合することができ、それにより特定の個人を識別することができることとなるものを含む）、または個人識別符号が含まれるものをいいます（個人情報保護法第2条第1項）。</Li>
+            <Li n={2}>「利用者情報」とは、個人情報のほか、ユーザーが本サービスに入力・記録したすべてのデータ（練習記録、身体データ、睡眠記録、食事データ、怪我・体調データ、タイム記録、レース記録、トレーニング目標等を含む）をいいます。本サービスにおける利用者情報の大部分は、ユーザー自身が能動的に入力するものです。</Li>
+            <Li n={3}>「端末情報」とは、ユーザーが使用するスマートフォン等の端末に関する情報（OS種別・バージョン、端末識別子、アプリバージョン、言語設定、タイムゾーン等）をいいます。</Li>
+            <Li n={4}>「サブスクリプションデータ」とは、本サービスの有料プランに関連して生成・管理される情報（プラン種別、課金状態、有効期限、復元履歴等）をいいます。</Li>
+            <Li n={5}>「匿名加工情報」とは、特定の個人を識別することができないように個人情報を加工して得られる個人に関する情報であって、当該個人情報を復元することができないようにしたものをいいます（個人情報保護法第2条第6項）。</Li>
+            <Li n={6}>「クラウドデータ」とは、ユーザーがクラウド同期機能を利用した場合に当社のデータベース（Supabase）に保存される利用者情報をいいます。</Li>
+            <Li n={7}>「ゲストユーザー」とは、メールアドレス等による登録を行わずに本サービスを利用するユーザーをいいます。ゲストユーザーのデータは端末内にのみ保存され、クラウド同期は行われません。</Li>
+          </Section>
 
-            {/* 収集する情報 */}
-            <Section title="2. 収集する情報">
-              <P>当社は、以下の情報を収集します。</P>
-              <Li>練習記録・コンディション・睡眠データ（ユーザーが入力した情報）</Li>
-              <Li>メールアドレス・Google アカウント情報（アカウント登録時）</Li>
-              <Li>デバイス情報・広告ID（広告配信・統計分析目的）</Li>
-              <Li>サブスクリプション購入情報（プラン種別・有効期限等）</Li>
-            </Section>
+          {/* ───────── 第2条 ───────── */}
+          <Section num="第2条" title="収集する情報の種類と保存場所">
+            <P>当社は、本サービスの提供にあたり、以下の情報を収集・管理します。各情報の保存場所および収集タイミングに十分ご注意ください。</P>
+            <Table rows={[
+              ['アカウント情報',      'メールアドレス・UID（ログイン時のみ）',            'Supabase Auth（クラウド）'],
+              ['プロフィール',        '氏名・競技種目・学年・所属・目標タイム（任意）',     '端末内 + Supabase（同期時）'],
+              ['練習記録',            '種別・距離・時間・疲労度・体調スコア・メモ',          '端末内 + Supabase（同期時）'],
+              ['タイム記録',          '種目・記録・日付・大会名・条件',                      '端末内 + Supabase（同期時）'],
+              ['レース記録',          '大会名・種目・タイム・順位・日付・メモ',              '端末内 + Supabase（同期時）'],
+              ['睡眠データ',          '就寝/起床時刻・品質スコア',                           '端末内のみ'],
+              ['食事データ',          'テキスト記録・写真（分析のみ・保存なし）',            '端末内（写真はAPI送信後破棄）'],
+              ['体調・怪我データ',    '痛み部位・疲労感・怪我リスクスコア',                  '端末内 + Supabase（同期時）'],
+              ['GPS軌跡データ',       '走行ルート・距離・ペース・地点（GPS練習時のみ）',     '端末内のみ'],
+              ['動画データ',          '動画ファイルURL（フォーム分析用・端末保存なし）',      '端末内（URL参照のみ）'],
+              ['サブスクリプション',  'プラン種別・課金状態・有効期限・レシートデータ',       'RevenueCat（クラウド）'],
+              ['端末情報',            'OS・アプリバージョン・端末ID（匿名）',                 '分析ツールのみ'],
+              ['通知トークン',        'プッシュ通知用デバイストークン（匿名）',               'OneSignal（クラウド）'],
+            ]} />
+            <P style={{ marginTop: 12 }}>
+              ※ 「端末内のみ」と記載された情報は、当社サーバーに送信されることはありません。ただし、AI機能を利用する際に必要な情報は、分析目的で外部APIへ送信される場合があります（第6条参照）。
+            </P>
+            <P style={{ marginTop: 8 }}>
+              ※ クラウド同期は、ユーザーがアカウント登録（メールアドレスによるサインアップまたはApple/Googleログイン）を行った場合にのみ有効になります。ゲストモードでご利用の場合、すべてのデータは端末内にのみ保存されます。
+            </P>
+          </Section>
 
-            {/* 利用目的 */}
-            <Section title="3. 情報の利用目的">
-              <P>収集した情報は、以下の目的で利用します。</P>
-              <Li>サービスの提供・改善および新機能の開発</Li>
-              <Li>AI 分析機能の提供（練習データに基づく診断・アドバイス）</Li>
-              <Li>広告の配信（Google AdMob による広告表示）</Li>
-              <Li>プッシュ通知の配信（練習リマインダー・怪我リスク警告等）</Li>
-              <Li>サブスクリプション管理および購入の検証</Li>
-              <Li>ユーザーサポートへの対応</Li>
-            </Section>
+          {/* ───────── 第3条 ───────── */}
+          <Section num="第3条" title="情報の収集方法">
+            <P>当社は、以下の方法により利用者情報を収集します。</P>
+            <Li n={1}>
+              ユーザーによる直接入力：練習記録、タイム記録、睡眠データ、食事データ、体調・怪我データ等は、ユーザーが本サービスの画面上で入力・記録した情報です。当社はユーザーの操作によらずにこれらの情報を自動収集することはありません。
+            </Li>
+            <Li n={2}>
+              アカウント登録時の取得：メールアドレスによる登録またはApple/GoogleのSSO認証を利用した際に、メールアドレス・UID等のアカウント識別情報を取得します。Appleログインにおける「メールを非表示」機能を使用した場合、AppleのリレーメールアドレスをUID代替として利用します。
+            </Li>
+            <Li n={3}>
+              アプリ動作ログ：本サービスの動作安定性向上のため、アプリのクラッシュ情報・エラーログ（個人情報を含まない形式）を自動収集する場合があります。
+            </Li>
+            <Li n={4}>
+              GPS・位置情報：GPS練習記録機能をご利用の場合、ユーザーが機能を起動した時間中のみ位置情報（緯度・経度・速度）を取得します。バックグラウンドでの位置情報取得は行いません。取得した位置情報は端末内にのみ保存され、サーバーへの送信は行いません。
+            </Li>
+            <Li n={5}>
+              カメラ・写真ライブラリ：フォーム分析機能または食事記録機能を利用する際に、ユーザーの明示的な操作に基づきカメラまたは写真ライブラリへのアクセスを行います。取得した画像は、AI分析APIへの送信後、当社のサーバーには保存されません。
+            </Li>
+            <Li n={6}>
+              サブスクリプション情報：RevenueCatを通じたアプリ内課金の処理にあたり、Apple App StoreまたはGoogle Play Storeが発行するレシートデータ、プラン種別、有効期限等の課金状態情報を取得します。クレジットカード番号等の決済情報は、当社および当社が利用するRevenueCatのいずれにも送信・保存されません。
+            </Li>
+            <Li n={7}>
+              Cookie・ローカルストレージ：Webブラウザ版（PWA）をご利用の場合、ブラウザのローカルストレージを利用してアプリの状態・設定・データを端末内に保存します。第三者の広告目的クッキーは使用しません。
+            </Li>
+          </Section>
 
-            {/* 第三者への提供 */}
-            <Section title="4. 第三者への提供">
-              <P>
-                当社は、以下のサービスプロバイダーにデータを提供します。各社のプライバシーポリシーも合わせてご確認ください。
-              </P>
-              <View style={s.partnerTable}>
-                <PartnerRow
-                  name="Supabase, Inc."
-                  purpose="ユーザー認証・データ保存"
-                  link="supabase.com/privacy"
-                />
-                <PartnerRow
-                  name="Google（AdMob）"
-                  purpose="広告配信・広告ID の利用"
-                  link="policies.google.com/privacy"
-                />
-                <PartnerRow
-                  name="RevenueCat, Inc."
-                  purpose="サブスクリプション管理・課金検証"
-                  link="revenuecat.com/privacy"
-                />
-                <PartnerRow
-                  name="OneSignal, Inc."
-                  purpose="プッシュ通知の配信"
-                  link="onesignal.com/privacy"
-                />
-                <PartnerRow
-                  name="Anthropic PBC"
-                  purpose="AI 分析機能（Claude API）"
-                  link="anthropic.com/privacy"
-                />
-              </View>
-              <P>
-                上記以外に、法令に基づく場合を除き、ユーザーの同意なく第三者に個人情報を提供することはありません。
-              </P>
-            </Section>
+          {/* ───────── 第4条 ───────── */}
+          <Section num="第4条" title="情報の利用目的">
+            <P>当社は、収集した利用者情報を以下の目的で利用します。利用目的の範囲を超えた利用は行いません。</P>
+            <Li n={1}>
+              本サービスの基本機能の提供
+              <SubLi>練習記録の表示・管理・グラフ化</SubLi>
+              <SubLi>タイム記録・レース記録の管理・集計</SubLi>
+              <SubLi>カレンダー表示・練習計画の管理</SubLi>
+              <SubLi>ウォームアップ・ストレッチガイドの提供</SubLi>
+              <SubLi>シェアカードの生成（SNSシェア用）</SubLi>
+            </Li>
+            <Li n={2}>
+              怪我予防・リカバリー支援機能の提供
+              <SubLi>練習量の増加率（10%ルール）に基づく怪我リスクスコアの算出</SubLi>
+              <SubLi>ATL（急性疲労）・CTL（慢性フィットネス）・TSBの算出</SubLi>
+              <SubLi>AIによるリカバリーアドバイスの生成（外部APIへの送信を含む）</SubLi>
+              <SubLi>怪我部位・痛み記録に基づくアドバイス</SubLi>
+            </Li>
+            <Li n={3}>
+              AI機能の提供
+              <SubLi>食事内容の栄養分析（外部AIへの画像・テキスト送信を含む）</SubLi>
+              <SubLi>練習データに基づくAI診断レポートの生成</SubLi>
+              <SubLi>怪我リスクの自動評価と警告</SubLi>
+            </Li>
+            <Li n={4}>
+              サブスクリプション管理
+              <SubLi>PRO・ELITEプランの購入・有効性検証</SubLi>
+              <SubLi>購入の復元処理</SubLi>
+              <SubLi>プラン特典（機能制限の解除等）の適用</SubLi>
+            </Li>
+            <Li n={5}>プッシュ通知の配信（練習リマインダー、怪我リスク警告、新機能のお知らせ等）</Li>
+            <Li n={6}>本サービスの品質向上・不具合修正のための匿名統計分析（個人を特定しない形式での利用に限定）</Li>
+            <Li n={7}>ユーザーサポートへの対応（お問い合わせ内容の確認・回答・記録管理）</Li>
+            <Li n={8}>不正利用・規約違反の検知・対応</Li>
+            <Li n={9}>法令に基づく義務の履行（税務・会計処理を含む）</Li>
+            <P style={{ marginTop: 10 }}>
+              当社は、上記目的の範囲を超えて利用者情報を利用しません。利用目的を変更する場合は、変更後の内容について本ポリシーを改訂のうえ告知します。新しい利用目的について同意を取得できない場合、該当する情報を新たな目的で利用することはありません。
+            </P>
+          </Section>
 
-            {/* データの保管・削除 */}
-            <Section title="5. データの保管・削除">
-              <P>
-                収集したデータは、Supabase（米国）のサーバーに保管されます。アカウントを削除した場合、クラウドに保存されたすべてのデータは原則 14 日以内に削除されます。
-              </P>
-              <P>
-                データの削除をご希望の場合は、アプリの「設定」→「アカウントを削除」から手続きを行うか、下記お問い合わせ先にご連絡ください。
-              </P>
-            </Section>
+          {/* ───────── 第5条 ───────── */}
+          <Section num="第5条" title="データの保存および管理">
+            <Li n={1}>
+              端末内データ：ユーザーが入力した練習記録、タイム、睡眠データ、GPS軌跡、食事記録等は、原則としてユーザーの端末内（AsyncStorage）にのみ保存されます。アカウント登録を行わない場合（ゲストモード）、当社のサーバーへの自動同期は一切行いません。
+            </Li>
+            <Li n={2}>
+              クラウド同期（Supabase）：アカウント登録済みユーザーが設定でクラウド同期を有効にした場合、練習記録・タイム記録・体調データ等がSupabase（米国）のデータベースに保存されます。同期されたデータはSupabase社のセキュリティポリシーに従って管理されます。
+            </Li>
+            <Li n={3}>
+              サブスクリプションデータ（RevenueCat）：アプリ内課金に関するデータは、RevenueCat Inc.（米国）のサーバーで管理されます。RevenueCatはApple App StoreおよびGoogle Play Storeのレシートを検証し、プランの有効性を当社アプリへ通知します。クレジットカード番号等の決済情報はRevenueCatおよび当社のいずれにも送信・保存されません。
+            </Li>
+            <Li n={4}>
+              セキュリティ対策：当社は、収集した情報の漏洩・滅失・毀損を防止するため、以下のセキュリティ対策を実施します。
+              <SubLi>Supabaseの行レベルセキュリティ（Row Level Security / RLS）により、各ユーザーは自身のデータのみにアクセス可能</SubLi>
+              <SubLi>通信経路のTLS暗号化（HTTPS）</SubLi>
+              <SubLi>APIキー・認証トークンのサーバーサイド管理（クライアントへの露出を最小化）</SubLi>
+              <SubLi>Supabase Authによるトークンベース認証（パスワードのハッシュ化管理）</SubLi>
+            </Li>
+            <Li n={5}>
+              データ品質の維持：当社は、利用者情報を正確かつ最新の状態に保つよう努めます。ユーザーは設定画面からプロフィール情報を随時更新できます。
+            </Li>
+            <Li n={6}>
+              データポータビリティ：ユーザーは本サービス内の「設定」→「データエクスポート」（実装予定）から、自身の練習記録・タイム記録をCSV形式でエクスポートすることができます。
+            </Li>
+          </Section>
 
-            {/* お子様のプライバシー */}
-            <Section title="6. お子様のプライバシー">
-              <P>
-                本サービスは 13 歳以上を対象としています。13 歳未満の方が本サービスを利用する場合は、保護者の同意が必要です。当社が 13 歳未満のお子様の個人情報を収集していることが判明した場合、速やかに当該情報を削除します。
-              </P>
-            </Section>
+          {/* ───────── 第6条 ───────── */}
+          <Section num="第6条" title="AI機能におけるデータの取り扱い">
+            <P>本サービスのAI機能（栄養分析・リカバリー相談・フォーム分析・AI診断）は、Anthropic社のClaude APIを利用しています。AI機能利用時のデータ取り扱いについて、以下のとおり説明します。</P>
+            <Li n={1}>
+              食事写真・テキストのAPI送信：食事AI分析機能を使用した場合、入力したテキストおよび食事写真がAnthropicのAPIサーバー（米国）へ転送されます。分析完了後、当社のサーバー上に画像・テキストの原本は保存されません。分析結果（栄養スコア・アドバイス等）のみを端末内に保存します。
+            </Li>
+            <Li n={2}>
+              リカバリー相談・AI診断：ユーザーが入力した症状・体調情報・練習量データ等をAnthropicのAPIへ送信し、AIアドバイスを生成します。氏名・住所・電話番号等の直接的な個人情報は、AI機能の入力に含めないことを推奨します。
+            </Li>
+            <Li n={3}>
+              フォーム動画分析：動画ファイルの解析は端末内で行うか、Anthropic APIに対して画像フレームを送信する方式で処理します。動画ファイルそのものが当社のサーバーに保存されることはありません。
+            </Li>
+            <Li n={4}>
+              Anthropicによるデータ利用：Anthropic社のAPIサービスに送信されたデータは、Anthropic社のプライバシーポリシー（anthropic.com/privacy）に基づいて管理されます。Anthropicはデフォルトでは送信データをモデル学習に使用しないポリシーを採用していますが、ポリシー変更の可能性があるため、最新の情報はAnthropicの公式サイトにてご確認ください。
+            </Li>
+            <Li n={5}>
+              AIの限界と免責：本サービスのAI機能が提供するアドバイスは、統計的アルゴリズムおよびAIモデルに基づくものであり、医療診断・医学的助言ではありません。怪我・疾病の診断・治療については、必ず医師・理学療法士等の専門家にご相談ください。AI機能の出力内容の正確性・完全性・適時性について、当社は一切保証しません。
+            </Li>
+            <Li n={6}>
+              利用制限（FREE/PRO/ELITE）：AIリカバリー相談は全プラン無料です。怪我リスクAI診断は1日1回無料です。AI食事分析（栄養分析）は、PRO・ELITEプランの有料機能です。FREEプランでは食事記録（テキスト）のみ利用可能であり、AI栄養分析機能はご利用いただけません。フォーム動画分析もPRO・ELITEプランの機能として提供されます。
+            </Li>
+          </Section>
 
-            {/* お問い合わせ */}
-            <Section title="7. お問い合わせ">
-              <P>個人情報の取り扱いに関するご質問・ご要望は、以下の連絡先までお送りください。</P>
-              <View style={s.contactBox}>
-                <Text style={s.contactItem}>運営者：{OPERATOR}</Text>
-                <Text style={s.contactItem}>メール：{CONTACT}</Text>
-              </View>
-            </Section>
+          {/* ───────── 第7条 ───────── */}
+          <Section num="第7条" title="サブスクリプション・課金データの取り扱い">
+            <P>本サービスは、FREE・PRO・ELITEの3プランを提供しています。課金に関連するデータの取り扱いは以下のとおりです。</P>
+            <Li n={1}>
+              プランの概要と価格
+              <SubLi>FREE（無料）：基本機能を無制限で利用可能。永続無料。</SubLi>
+              <SubLi>PRO（プロ）：¥480/月 または ¥4,800/年（税込・月あたり¥400）</SubLi>
+              <SubLi>ELITE（エリート）：¥980/月 または ¥8,820/年（税込・月あたり¥735）</SubLi>
+            </Li>
+            <Li n={2}>
+              RevenueCatによる課金管理：アプリ内課金の処理・検証はRevenueCat Inc.を通じて行われます。RevenueCatはApple App Store / Google Play Storeのレシートを受け取り、エンタイトルメント（利用権限）情報を当社アプリへ通知します。
+            </Li>
+            <Li n={3}>
+              RevenueCatが取得するデータ：課金処理にあたり、RevenueCatは以下の情報を取得します。
+              <SubLi>Appleまたは GoogleのApp Store購入レシート（署名済みデータ）</SubLi>
+              <SubLi>RevenueCat匿名ID（ユーザーを特定しない識別子）</SubLi>
+              <SubLi>ログイン後はSupabase UIDをRevenueCat AppUserIDとして連携</SubLi>
+              <SubLi>購入・キャンセル・更新の履歴タイムスタンプ</SubLi>
+            </Li>
+            <Li n={4}>
+              RevenueCatへのデータ送信：当社からRevenueCatに対して、ユーザーの識別子（SupabaseのUID）のみを送信します。氏名・メールアドレス・住所等の個人情報はRevenueCatに送信しません。
+            </Li>
+            <Li n={5}>
+              クレジットカード情報の非保持：ユーザーの決済情報（クレジットカード番号・銀行口座等）は、Apple App StoreまたはGoogle Play Storeが管理します。当社およびRevenueCatは決済情報を取得・保存しません。
+            </Li>
+            <Li n={6}>
+              サブスクリプションの管理：購入・解約・プランの変更は、ユーザーがApple App Store（iOS）またはGoogle Play Store（Android）の「サブスクリプション設定」から直接管理してください。当社はApp StoreおよびPlay Storeを通じた決済のキャンセル・返金を直接操作することはできません。
+            </Li>
+            <Li n={7}>
+              購入の復元：機種変更・アプリ再インストール等の際は、設定画面の「購入を復元」から、過去の購入を再適用することができます。復元処理はRevenueCatを通じてApp StoreまたはPlay Storeのレシートを再検証することで行われます。
+            </Li>
+          </Section>
 
-            {/* 改定 */}
-            <Section title="8. 改定">
-              <P>
-                本ポリシーは、法令の改正やサービスの変更に伴い、随時改定されることがあります。重要な変更を行う場合は、アプリ内のお知らせ機能を通じてユーザーに通知します。
-              </P>
-            </Section>
+          {/* ───────── 第8条 ───────── */}
+          <Section num="第8条" title="第三者提供・外部サービスの利用">
+            <P>当社は、以下の場合を除き、ユーザーの同意なく利用者情報を第三者に提供しません。</P>
+            <Li>法令に基づく場合</Li>
+            <Li>人の生命、身体または財産の保護のために必要がある場合であって、本人の同意を得ることが困難なとき</Li>
+            <Li>公衆衛生の向上または児童の健全な育成の推進のために特に必要がある場合であって、本人の同意を得ることが困難なとき</Li>
+            <Li>国の機関若しくは地方公共団体またはその委託を受けた者が法令の定める事務を遂行することに対して協力する必要がある場合であって、本人の同意を得ることにより当該事務の遂行に支障を及ぼすおそれがあるとき</Li>
+            <Li>運営者の事業承継・事業譲渡等に伴い、事業継続目的で個人情報が承継される場合（この場合、ユーザーに事前に告知します）</Li>
+            <P style={{ marginTop: 12, marginBottom: 8 }}>
+              本サービスは以下の外部サービスを利用します。各サービスへのデータ送信は本サービスの機能提供に必要な範囲に限定されます。
+            </P>
+            <View style={s.table}>
+              {[
+                ['Anthropic PBC',   'AI分析機能（食事・栄養・リカバリー・フォーム分析）', 'テキスト・画像（食事写真・動画フレーム）', 'anthropic.com/privacy'],
+                ['Supabase Inc.',   'クラウドデータ保存・ユーザー認証', 'アカウント情報・練習記録・タイム・体調データ', 'supabase.com/privacy'],
+                ['RevenueCat Inc.', 'サブスクリプション管理・課金検証', '購入レシート・課金状態・ユーザーID', 'revenuecat.com/privacy'],
+                ['OneSignal Inc.',  'プッシュ通知の配信', '端末トークン（匿名）', 'onesignal.com/privacy'],
+                ['Apple Inc.',      'iOS App Store決済・SSO認証', '購入レシート・AppleユーザーID', 'apple.com/legal/privacy'],
+                ['Google LLC',      'Android Play Store決済・SSO認証', '購入レシート・GoogleユーザーID', 'policies.google.com/privacy'],
+              ].map(([svc, purpose, data, policy], i) => (
+                <View key={i} style={[s.tableRow, { flexDirection: 'column', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' }]}>
+                  <Text style={[s.body, { color: '#fff', fontWeight: '700', marginBottom: 3 }]}>{svc}</Text>
+                  <Text style={[s.body, { fontSize: 12 }]}>目的：{purpose}</Text>
+                  <Text style={[s.body, { fontSize: 12 }]}>送信データ：{data}</Text>
+                  <Text style={[s.body, { fontSize: 11, color: TEXT.hint }]}>プライバシーポリシー：{policy}</Text>
+                </View>
+              ))}
+            </View>
+            <P style={{ marginTop: 10 }}>
+              上記外部サービスは、それぞれ独立したプライバシーポリシーのもとでデータを管理します。当社は各サービスのプライバシー慣行について責任を負いません。各サービスの最新のポリシーを上記URLにてご確認ください。
+            </P>
+          </Section>
 
-            {/* フッター */}
-            <View style={s.footerLine} />
-            <Text style={s.footerText}>
-              最終更新日：{LAST_UPDATED}{'\n'}
-              © 2026 {OPERATOR}. All rights reserved.
-            </Text>
-          </View>
+          {/* ───────── 第9条 ───────── */}
+          <Section num="第9条" title="GPS・位置情報の取り扱い">
+            <Li n={1}>
+              本サービスのGPS練習記録機能（以下「GPS機能」）は、ユーザーが明示的に機能を起動した場合にのみ位置情報（緯度・経度・速度・標高）を取得します。GPS機能をご利用でない場合、位置情報は一切取得しません。
+            </Li>
+            <Li n={2}>
+              バックグラウンドでの位置情報取得は行いません。GPS機能は、ユーザーが「記録を終了」するか画面を閉じた時点で位置情報の取得を停止します。
+            </Li>
+            <Li n={3}>
+              取得したGPS軌跡データ（走行ルート）は端末内にのみ保存され、当社のサーバーへ送信することはありません。ただし、将来的なチーム機能拡張等でクラウド同期対象となる場合は、事前にユーザーへ通知し同意を取得します。
+            </Li>
+            <Li n={4}>
+              GPS機能の利用には、ユーザーが端末のOS設定で位置情報のアクセス許可を「使用中のみ許可」または「常に許可」に設定する必要があります。「常に許可」設定の場合でも、当社はバックグラウンドでの取得を行いません。
+            </Li>
+            <Li n={5}>
+              位置情報のアクセス許可は、端末の「設定」→「プライバシーとセキュリティ」→「位置情報サービス」→「{APP_NAME}」から、いつでも変更・無効化することができます。
+            </Li>
+          </Section>
+
+          {/* ───────── 第10条 ───────── */}
+          <Section num="第10条" title="カメラ・写真ライブラリへのアクセス">
+            <Li n={1}>
+              本サービスは、食事記録機能およびフォーム動画分析機能のために、ユーザーの明示的な操作に基づいてカメラおよび写真ライブラリへのアクセスを行います。
+            </Li>
+            <Li n={2}>
+              カメラへのアクセス許可は、写真ライブラリへのアクセス許可とは独立して管理されます。ユーザーは端末設定から各許可を個別に管理できます。
+            </Li>
+            <Li n={3}>
+              食事写真はAI分析のためAnthropicのAPIへ送信されます。送信された写真は当社のサーバーには保存されません。分析完了後、写真データはAnthropicのサーバー上でも保持されません（Anthropicのポリシーに準拠）。
+            </Li>
+            <Li n={4}>
+              フォーム分析用の動画は、端末内でのみ処理・参照されます。動画ファイルを当社のサーバーへアップロードすることはありません。
+            </Li>
+            <Li n={5}>
+              カメラ・写真ライブラリのアクセス許可は、端末の「設定」→「プライバシーとセキュリティ」→「カメラ」または「写真」から、いつでも変更・無効化することができます。
+            </Li>
+          </Section>
+
+          {/* ───────── 第11条 ───────── */}
+          <Section num="第11条" title="プッシュ通知">
+            <Li n={1}>
+              本サービスは、OneSignal Inc.（米国）を使用してプッシュ通知を配信します。プッシュ通知の受信には、本サービスを初回起動した際に表示されるアクセス許可ダイアログ、またはWebブラウザの通知許可ダイアログでユーザーが許可する必要があります。
+            </Li>
+            <Li n={2}>
+              プッシュ通知の配信にあたり、デバイスのプッシュ通知トークン（個人を特定できない匿名の識別子）がOneSignalのサーバーに登録されます。OneSignalはこのトークン情報を使用して通知を配信しますが、当社からOneSignalへ氏名・メールアドレス等の個人情報は送信しません。
+            </Li>
+            <Li n={3}>
+              本サービスが配信する通知の種類には以下が含まれます。
+              <SubLi>練習リマインダー（設定した目標時間に基づく通知）</SubLi>
+              <SubLi>怪我リスク警告（リスクスコアが一定値を超えた場合）</SubLi>
+              <SubLi>新機能・アップデートのお知らせ</SubLi>
+              <SubLi>サブスクリプションの有効期限に関する通知</SubLi>
+            </Li>
+            <Li n={4}>
+              プッシュ通知は、以下の方法でいつでも無効にすることができます。
+              <SubLi>本サービスの「設定」→「通知設定」からの無効化</SubLi>
+              <SubLi>iOS：端末の「設定」→「通知」→「{APP_NAME}」→「通知を許可」をオフ</SubLi>
+              <SubLi>Android：端末の「設定」→「アプリ」→「{APP_NAME}」→「通知」→「すべての通知」をオフ</SubLi>
+            </Li>
+            <Li n={5}>
+              OneSignalが収集する情報についての詳細は、OneSignal社のプライバシーポリシー（onesignal.com/privacy）をご確認ください。
+            </Li>
+          </Section>
+
+          {/* ───────── 第12条 ───────── */}
+          <Section num="第12条" title="Cookieおよびローカルストレージ">
+            <Li n={1}>
+              本サービスのWebブラウザ版（PWA）は、アプリの状態・設定・データをブラウザのローカルストレージ（localStorage / IndexedDB）に保存します。これらのデータはユーザーの端末内にのみ存在し、当社のサーバーに自動送信されることはありません。
+            </Li>
+            <Li n={2}>
+              認証セッションの維持のために、Supabase Authが設定するセッションクッキーが使用される場合があります。これらのクッキーは認証トークンの管理目的に限定されます。
+            </Li>
+            <Li n={3}>
+              当社は、広告目的のサードパーティクッキーを使用しません。本サービスの無料版においても、行動ターゲティング広告のためのクッキートラッキングは行いません。
+            </Li>
+            <Li n={4}>
+              PWA版のサービスワーカーは、アプリのオフライン動作を可能にするためにリソースをキャッシュします。このキャッシュにはユーザーの個人データは含まれません。
+            </Li>
+            <Li n={5}>
+              ブラウザのローカルストレージに保存されたデータは、ブラウザの設定から「サイトデータの消去」等を実行することで削除できます。ただし、この操作により本サービスのローカルデータがすべて削除されますのでご注意ください。
+            </Li>
+          </Section>
+
+          {/* ───────── 第13条 ───────── */}
+          <Section num="第13条" title="未成年者の個人情報">
+            <Li n={1}>
+              本サービスは、中学生・高校生を含む陸上競技選手の利用を主な対象として設計されています。13歳未満の方が本サービスを利用する場合は、保護者の同意が必要です。当社は13歳未満の児童から意図的に個人情報を収集しません。
+            </Li>
+            <Li n={2}>
+              16歳未満のユーザーのデータについては、保護者または法定後見人の方が当社に対して以下を求める権利を有します。
+              <SubLi>当社が保有する当該ユーザーの個人情報の開示</SubLi>
+              <SubLi>登録された個人情報の訂正・削除</SubLi>
+              <SubLi>個人情報の利用停止</SubLi>
+            </Li>
+            <Li n={3}>
+              当社が13歳未満の児童の個人情報を収集していることが判明した場合、当社は速やかに当該情報を削除し、サービスの利用を停止します。保護者の方が不審に思われた場合は、下記お問い合わせ先までご連絡ください。
+            </Li>
+            <Li n={4}>
+              チーム機能を通じてコーチが未成年選手のデータを閲覧・管理する場合、コーチおよびチームを運営する学校・クラブ等は、関連する法令（個人情報保護法等）を遵守する責任を負います。
+            </Li>
+          </Section>
+
+          {/* ───────── 第14条 ───────── */}
+          <Section num="第14条" title="ユーザーの権利（情報主体の権利）">
+            <P>ユーザーは、自己の利用者情報について以下の権利を有します。これらの権利の行使を妨げるいかなる制限も設けません。</P>
+            <Li n={1}>
+              開示請求権：当社が保有する個人情報の種類・内容・利用目的・第三者提供状況等の開示を求めることができます。開示にあたっては、本人確認を実施します。
+            </Li>
+            <Li n={2}>
+              訂正・追加・削除請求権：登録された個人情報が事実と異なる場合、または不要となった情報の訂正・追加・削除を求めることができます。
+            </Li>
+            <Li n={3}>
+              利用停止・消去請求権：当社が個人情報を利用目的の範囲を超えて取り扱っている場合、または不正な手段により取得した場合、利用の停止・消去を求めることができます。
+            </Li>
+            <Li n={4}>
+              第三者提供の停止請求：当社が個人情報を第三者へ提供している場合（法令に基づく場合を除く）、その停止を求めることができます。
+            </Li>
+            <Li n={5}>
+              端末内データの削除：本サービスの「設定」→「データを削除」から、端末内に保存されたすべての利用者情報を削除することができます。この操作は取り消せませんのでご注意ください。
+            </Li>
+            <Li n={6}>
+              Supabase保存データの削除：アカウントの削除をご希望の場合、設定画面の「アカウントを削除」またはメールによるお問い合わせにより、クラウドに保存されたすべてのデータを削除することができます。削除完了まで最大14日間を要する場合があります。
+            </Li>
+            <Li n={7}>
+              データポータビリティ（移転の権利）：ご自身のデータを機械可読形式（JSON / CSV）で取得することができます。設定画面の「データエクスポート」（実装予定）からご利用いただけます。
+            </Li>
+            <P style={{ marginTop: 10 }}>
+              上記の権利を行使する場合は、下記お問い合わせ先へご連絡ください。本人確認のうえ、合理的な期間内（原則30日以内）に対応します。ただし、法令に基づく保存義務がある場合はこの限りではありません。対応に際して手数料が発生する場合は、事前にお知らせします。
+            </P>
+          </Section>
+
+          {/* ───────── 第15条 ───────── */}
+          <Section num="第15条" title="データ保持期間">
+            <Li n={1}>
+              端末内のデータ：ユーザーがアプリ内から削除するか、アプリをアンインストールするまで保持されます。端末の「ストレージをリセット」等のOS操作によっても削除されます。
+            </Li>
+            <Li n={2}>
+              Supabaseに保存されたクラウドデータ：アカウントが有効な期間中保持されます。アカウント削除の申請後、原則14日以内にすべてのデータを削除します。ただし、以下は例外とします。
+              <SubLi>法令により保持が義務付けられているデータ（電子商取引法上の記録等）</SubLi>
+              <SubLi>不正利用調査目的で保持が必要なデータ（最大180日）</SubLi>
+            </Li>
+            <Li n={3}>
+              RevenueCatの課金記録：購入記録は法的・会計的義務に基づき、最終取引から7年間保持されます（電子帳簿保存法等に基づく）。
+            </Li>
+            <Li n={4}>
+              プッシュ通知トークン：ユーザーが通知を無効にした時点から30日以内にOneSignalのデータベースから削除されます。
+            </Li>
+            <Li n={5}>
+              AI機能に送信された食事写真・テキスト：AnthropicのAPIへ送信後、当社のサーバーには保存されません。Anthropic社のデータ保持ポリシーについては、anthropic.com/privacyをご参照ください。
+            </Li>
+            <Li n={6}>
+              お問い合わせ記録：ユーザーサポートのためのメール等のやり取りは、最終連絡から3年間保持します。
+            </Li>
+          </Section>
+
+          {/* ───────── 第16条 ───────── */}
+          <Section num="第16条" title="越境データ移転">
+            <P>
+              本サービスは、Supabase（米国）、Anthropic（米国）、RevenueCat（米国）、OneSignal（米国）等の外部サービスを利用しています。これらのサービスへのデータ送信にあたり、日本国外（主として米国）へのデータ移転が発生します。
+            </P>
+            <P style={{ marginTop: 8 }}>
+              米国はEU一般データ保護規則（GDPR）の「十分性認定」を受けていないため、EU域内からのユーザーに対しては、標準契約条項（SCC）等の適切な保護措置が必要です。当社は各外部サービスプロバイダーとのデータ処理契約（DPA）の締結を通じて、移転先においても適切な個人情報保護水準が維持されるよう努めます。
+            </P>
+            <P style={{ marginTop: 8 }}>
+              日本国外へのデータ移転に関してご不明な点がある場合は、下記お問い合わせ先までご連絡ください。
+            </P>
+          </Section>
+
+          {/* ───────── 第17条 ───────── */}
+          <Section num="第17条" title="匿名加工情報・統計データの利用">
+            <Li n={1}>
+              当社は、サービス改善・新機能開発・研究目的のために、利用者情報を匿名加工し、特定の個人を識別できない形式の統計データとして利用する場合があります。
+            </Li>
+            <Li n={2}>
+              匿名加工情報として利用するデータの例：
+              <SubLi>競技別・年代別の平均練習量・負荷指標</SubLi>
+              <SubLi>怪我リスクスコアの分布データ</SubLi>
+              <SubLi>機能の利用頻度・利用パターン</SubLi>
+              <SubLi>サブスクリプションプランの利用傾向</SubLi>
+            </Li>
+            <Li n={3}>
+              匿名加工情報は、個人を再識別できない形式に加工されます。当社は、匿名加工情報の作成にあたり個人情報保護法の定める基準に従った適切な加工を施します。
+            </Li>
+            <Li n={4}>
+              匿名加工情報は、第三者（研究機関・スポーツ科学分野等）へ提供する場合があります。提供にあたっては、提供先・提供する情報の内容を公表します。
+            </Li>
+          </Section>
+
+          {/* ───────── 第18条 ───────── */}
+          <Section num="第18条" title="セキュリティインシデント対応">
+            <Li n={1}>
+              当社は、個人情報の漏洩・滅失・毀損その他のセキュリティインシデントが発生した場合または発生のおそれがある場合、以下の対応を行います。
+              <SubLi>原因の特定・被害範囲の確認</SubLi>
+              <SubLi>被害拡大を防ぐための緊急措置</SubLi>
+              <SubLi>個人情報保護委員会への報告（個人情報保護法第26条が定める規模の場合）</SubLi>
+              <SubLi>影響を受けたユーザーへの通知（原則72時間以内）</SubLi>
+            </Li>
+            <Li n={2}>
+              ユーザーへの通知は、メールアドレスが登録されている場合はメールで、そうでない場合はアプリ内のお知らせ機能で行います。
+            </Li>
+            <Li n={3}>
+              セキュリティ上の脆弱性を発見した場合は、不正に悪用する前に下記お問い合わせ先（件名：セキュリティ報告）までご報告ください。報告いただいた内容は責任を持って対応します。
+            </Li>
+          </Section>
+
+          {/* ───────── 第19条 ───────── */}
+          <Section num="第19条" title="自動化された意思決定・プロファイリング">
+            <Li n={1}>
+              本サービスは、ユーザーの練習データに基づいて怪我リスクスコアや疲労指標を自動算出します。これらのスコアはユーザーへのアドバイス表示に使用されますが、ユーザーに対して法的効果や重大な影響を及ぼす決定（保険の査定・採用選考等）に使用されることはありません。
+            </Li>
+            <Li n={2}>
+              自動算出されたスコアの根拠（使用したアルゴリズム・入力データ）について説明を求める場合は、下記お問い合わせ先までご連絡ください。
+            </Li>
+            <Li n={3}>
+              サブスクリプションプランの機能制限（利用回数の上限等）は、RevenueCatが管理する課金状態データに基づいて自動的に適用されます。これはサービス契約の履行のためのものであり、個人の特性に基づくプロファイリングではありません。
+            </Li>
+          </Section>
+
+          {/* ───────── 第20条 ───────── */}
+          <Section num="第20条" title="本ポリシーの変更">
+            <Li n={1}>
+              当社は、法令の変更、サービスの改善、外部サービスの変更その他合理的な理由に基づき、本ポリシーを随時改訂することがあります。
+            </Li>
+            <Li n={2}>
+              ユーザーの権利を実質的に制限する変更や、個人情報の利用目的を変更する場合は、変更の少なくとも7日前に、以下のいずれかの方法でユーザーへ告知します。
+              <SubLi>アプリ内のお知らせ機能による表示</SubLi>
+              <SubLi>登録メールアドレスへのメール送信</SubLi>
+              <SubLi>プッシュ通知</SubLi>
+            </Li>
+            <Li n={3}>
+              軽微な変更（誤字・脱字の修正、表現の明確化等）については、事前告知なく変更する場合があります。
+            </Li>
+            <Li n={4}>
+              変更後のポリシーは、アプリ内の「設定」→「プライバシーポリシー」および公式サイト上に掲載します。告知後に本サービスを継続利用した場合、変更後のポリシーに同意したものとみなします。
+            </Li>
+            <Li n={5}>
+              変更後のポリシーにご同意いただけない場合は、本サービスのご利用を停止し、アカウントの削除（設定画面から可能）をお申し出ください。
+            </Li>
+          </Section>
+
+          {/* ───────── 第21条 ───────── */}
+          <Section num="第21条" title="分析ツール・クラッシュレポート">
+            <Li n={1}>
+              本サービスは、サービスの安定性向上のために、クラッシュレポート収集ツールを使用する場合があります。クラッシュレポートには、エラーが発生した時点のアプリの状態・スタックトレース・端末情報（OS・バージョン）が含まれますが、ユーザーの練習データ・個人情報は含まれません。
+            </Li>
+            <Li n={2}>
+              アプリの利用状況把握のためにアナリティクスツールを導入する場合があります。収集される情報は匿名化・集計化された形式であり、特定の個人を識別するものではありません。
+            </Li>
+            <Li n={3}>
+              アナリティクスの対象となる情報の例：
+              <SubLi>各画面の閲覧回数（個人は特定しない集計）</SubLi>
+              <SubLi>機能の利用頻度・滞在時間（匿名）</SubLi>
+              <SubLi>アプリのバージョン分布</SubLi>
+              <SubLi>OS・端末種別の分布</SubLi>
+            </Li>
+          </Section>
+
+          {/* ───────── 第22条 ───────── */}
+          <Section num="第22条" title="お客様によるデータ入力の責任">
+            <Li n={1}>
+              本サービスに入力するデータの正確性については、ユーザー自身が責任を負います。誤ったデータを入力した場合、AIが生成するアドバイスや怪我リスクスコアの精度が低下する可能性があります。
+            </Li>
+            <Li n={2}>
+              他人の個人情報（チームメンバーの情報等）を本サービスに入力する場合、当該情報の入力について対象者の同意を得ることはユーザーの責任とします。
+            </Li>
+            <Li n={3}>
+              本サービスに入力するデータに、氏名・住所・電話番号・マイナンバーなど直接的に個人を識別できる情報（会員番号や内部記録番号等を除く）の入力は、原則として不要です。そのような情報の入力はお控えください。
+            </Li>
+          </Section>
+
+          {/* ───────── 第23条 ───────── */}
+          <Section num="第23条" title="準拠法・管轄裁判所">
+            <Li n={1}>
+              本ポリシーは、日本国法に準拠して解釈されます。
+            </Li>
+            <Li n={2}>
+              本ポリシーに関する紛争については、東京地方裁判所を第一審の専属的合意管轄裁判所とします。
+            </Li>
+            <Li n={3}>
+              本ポリシーは日本語を正文とします。他言語への翻訳版が提供される場合でも、日本語版が優先されます。
+            </Li>
+          </Section>
+
+          {/* ───────── 第24条 ───────── */}
+          <Section num="第24条" title="個人情報保護管理者および苦情・相談窓口">
+            <P>個人情報の取り扱いに関するご質問・開示等の請求・苦情・ご相談は、以下の窓口にお問い合わせください。誠実かつ迅速に対応します。</P>
+            <View style={s.contactBox}>
+              <Text style={s.contactItem}>個人情報保護管理者：{OPERATOR} 代表</Text>
+              <Text style={s.contactItem}>メールアドレス：{CONTACT}</Text>
+              <Text style={s.contactItem}>受付時間：平日10:00〜18:00（土日祝・年末年始を除く）</Text>
+              <Text style={s.contactItem}>回答期限：受領後30日以内（やむを得ない事情がある場合は延長の可能性あり）</Text>
+            </View>
+            <P style={{ marginTop: 10 }}>
+              当社の対応にご不満がある場合、または個人情報の取り扱いに関してご不満がある場合は、個人情報保護委員会（https://www.ppc.go.jp）に苦情を申し立てることができます。EU・EEA域内の居住者の方は、お住まいの国のデータ保護監督機関（DPA）に対して苦情を申し立てる権利を有します。
+            </P>
+          </Section>
+
+          <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginVertical: 24 }} />
+          <Text style={[s.body, { textAlign: 'center', fontSize: 11 }]}>
+            {APP_NAME}　プライバシーポリシー　{LAST_UPDATED} 施行{'\n'}
+            本ポリシーは日本語を正文とします。{'\n'}
+            © 2026 trackmate. All rights reserved.
+          </Text>
+
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -196,128 +611,23 @@ export default function PrivacyScreen() {
 }
 
 const s = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-    backgroundColor: '#ffffff',
-    ...(isWeb ? { maxWidth: MAX_W, alignSelf: 'center' as const, width: '100%' as any } : {}),
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerLogo: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#111827',
-    letterSpacing: 0.5,
-  },
-  scroll: {
-    paddingBottom: 60,
-  },
-  content: {
-    paddingHorizontal: 24,
-    paddingTop: 32,
-    paddingBottom: 40,
-    ...(isWeb ? { maxWidth: MAX_W, alignSelf: 'center' as const, width: '100%' as any } : {}),
-  },
-  pageTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#111827',
-    marginBottom: 6,
-  },
-  lastUpdated: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginBottom: 32,
-  },
-  section: {
-    marginBottom: 32,
-    gap: 10,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 8,
-  },
-  body: {
-    fontSize: 14,
-    color: '#374151',
-    lineHeight: 24,
-  },
-  liRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 4,
-  },
-  bullet: {
-    fontSize: 14,
-    color: '#6b7280',
-    lineHeight: 24,
-  },
-  partnerTable: {
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginTop: 4,
-    marginBottom: 4,
-  },
-  partnerRow: {
-    padding: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-    gap: 2,
-  },
-  partnerName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  partnerPurpose: {
-    fontSize: 13,
-    color: '#374151',
-    lineHeight: 20,
-  },
-  partnerLink: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
-  contactBox: {
-    backgroundColor: '#f9fafb',
-    borderRadius: 12,
-    padding: 16,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  contactItem: {
-    fontSize: 14,
-    color: '#374151',
-    lineHeight: 22,
-  },
-  footerLine: {
-    height: 1,
-    backgroundColor: '#e5e7eb',
-    marginVertical: 24,
-  },
-  footerText: {
-    fontSize: 12,
-    color: '#9ca3af',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
+  scroll:       { padding: 20, paddingBottom: 60, gap: 4 },
+  title:        { color: '#fff', fontSize: 22, fontWeight: '800', marginBottom: 4 },
+  meta:         { color: TEXT.hint, fontSize: 12, marginBottom: 16 },
+  section:      { marginBottom: 28 },
+  sectionTitle: { color: '#fff', fontSize: 14, fontWeight: '800', marginBottom: 10,
+                  borderLeftWidth: 3, borderLeftColor: '#E53935', paddingLeft: 10 },
+  body:         { color: TEXT.secondary, fontSize: 13, lineHeight: 22 },
+  liRow:        { flexDirection: 'row', marginTop: 5, alignItems: 'flex-start' },
+  bullet:       { color: '#E53935', fontSize: 12, fontWeight: '700', marginRight: 4, marginTop: 1, minWidth: 28 },
+  subLiRow:     { flexDirection: 'row', marginTop: 3, marginLeft: 28, alignItems: 'flex-start' },
+  subBullet:    { color: TEXT.hint, fontSize: 11, marginRight: 4, marginTop: 2, minWidth: 14 },
+  table:        { borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', borderRadius: 10, overflow: 'hidden', marginTop: 10 },
+  tableRow:     { flexDirection: 'row', paddingVertical: 8, paddingHorizontal: 10 },
+  tableRowAlt:  { backgroundColor: 'rgba(255,255,255,0.03)' },
+  tableHead:    { backgroundColor: 'rgba(229,57,53,0.12)' },
+  tableCell:    { color: TEXT.secondary, fontSize: 11, lineHeight: 17 },
+  tableCellHead:{ color: '#fff', fontWeight: '700', fontSize: 11 },
+  contactBox:   { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: 14, marginTop: 10, gap: 6 },
+  contactItem:  { color: TEXT.secondary, fontSize: 13, lineHeight: 20 },
 })
