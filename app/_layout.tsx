@@ -455,7 +455,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
     const inAuth        = segments[0] === 'auth'
     const inOnboarding  = segments[0] === 'onboarding'
-    const inPublic      = segments[0] === 'coach-landing' || segments[0] === 'guide' || segments[0] === 'privacy' || segments[0] === 'terms' || segments[0] === 'admin'
+    const inPublic      = segments[0] === 'coach-landing' || segments[0] === 'guide' || segments[0] === 'support' || segments[0] === 'privacy' || segments[0] === 'terms' || segments[0] === 'admin'
     const inPaywall     = segments[0] === 'paywall'   // オンボーディング→ペイウォール遷移中も許可
     const authed        = !!user || isGuest
 
@@ -662,6 +662,7 @@ function RootLayoutNav() {
           <Stack.Screen name="coupon"           options={{ headerShown: false }} />
           <Stack.Screen name="coach-landing"    options={{ headerShown: false }} />
           <Stack.Screen name="guide"            options={{ headerShown: false }} />
+          <Stack.Screen name="support"          options={{ headerShown: false }} />
           <Stack.Screen name="manual-log"       options={{ headerShown: false }} />
           <Stack.Screen name="notifications"    options={{ headerShown: false }} />
           <Stack.Screen name="practice-input"   options={{ headerShown: false }} />
