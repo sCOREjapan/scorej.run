@@ -52,7 +52,9 @@ class AppErrorBoundary extends Component<{ children: React.ReactNode }, EBState>
     this.state = { hasError: false, errorMsg: '' }
   }
   static getDerivedStateFromError(error: any): EBState {
-    return { hasError: true, errorMsg: String(error?.message ?? error) }
+    const msg = String(error?.message ?? error)
+    const stack = String(error?.stack ?? '').slice(0, 300)
+    return { hasError: true, errorMsg: msg + '\n\n' + stack }
   }
   componentDidCatch(error: any, info: any) {
     console.error('[AppErrorBoundary] Uncaught error:', error, info?.componentStack ?? '')
@@ -67,11 +69,9 @@ class AppErrorBoundary extends Component<{ children: React.ReactNode }, EBState>
           <Text style={{ color: '#6b7280', fontSize: 14, textAlign: 'center', lineHeight: 22 }}>
             エラーが発生しました。アプリを再起動してください。
           </Text>
-          {__DEV__ && (
-            <Text style={{ color: '#ef4444', fontSize: 11, textAlign: 'center', marginTop: 16 }}>
-              {this.state.errorMsg}
-            </Text>
-          )}
+          <Text style={{ color: '#ef4444', fontSize: 12, textAlign: 'center', marginTop: 16, paddingHorizontal: 16 }}>
+            {this.state.errorMsg}
+          </Text>
         </View>
       )
     }
@@ -532,7 +532,7 @@ function RootLayoutNav() {
           localStorage.setItem('score_push_asked', '1')
           requestPushPermission()
         }
-      })
+      }).catch(() => {})
     }
   }, [])
 
