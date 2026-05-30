@@ -20,7 +20,7 @@
     "production": {
       "autoIncrement": true,
       "ios": { "buildConfiguration": "Release" },
-      "android": { "buildType": "aab" }
+      "android": { "buildType": "app-bundle" }
     }
   },
   "submit": {
