@@ -330,6 +330,17 @@ export default function CoachLandingPage() {
         <View style={s.footer}>
           <Text style={s.footerLogo}>sCORE</Text>
           <Text style={s.footerCopy}>© 2026 sCORE Japan. All rights reserved.</Text>
+          {/* サポート・お問い合わせ */}
+          <View style={{ marginVertical: 8, alignItems: 'center', gap: 4 }}>
+            <Text style={[s.footerCopy, { fontWeight: '600' }]}>サポート・お問い合わせ</Text>
+            <TouchableOpacity onPress={() => Linking.openURL('mailto:team.deepwork2026@gmail.com')}>
+              <Text style={[s.footerLink, { color: GREEN, textDecorationLine: 'underline' }]}>
+                team.deepwork2026@gmail.com
+              </Text>
+            </TouchableOpacity>
+            <Text style={s.footerCopy}>お問い合わせはメールにてご連絡ください。</Text>
+            <Text style={s.footerCopy}>通常1〜3営業日以内にご返信いたします。</Text>
+          </View>
           <View style={{ flexDirection: 'row', gap: 16 }}>
             <TouchableOpacity onPress={() => router.push('/privacy' as any)}>
               <Text style={s.footerLink}>プライバシーポリシー</Text>

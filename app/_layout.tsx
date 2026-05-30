@@ -536,15 +536,18 @@ function RootLayoutNav() {
     }
   }, [])
 
-  // AdMob SDK 初期化
+  // AdMob SDK 初期化（起動クラッシュ防止のため3秒遅延）
   useEffect(() => {
-    initAdmob().catch(() => {})
+    const t = setTimeout(() => { initAdmob().catch(() => {}) }, 3000)
+    return () => clearTimeout(t)
   }, [])
 
 
-  const [fontsLoaded] = Font.useFonts({
-    'Ionicons': require('../node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf'),
-  })
+  // @expo/vector-icons はビルド時に自動バンドルされるためここでのロードは不要
+  // ただし旧来との互換性のため残す（エラーを抑制）
+  let _ioniconsFontSrc: Font.FontSource
+  try { _ioniconsFontSrc = require('../node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf') } catch { _ioniconsFontSrc = '' }
+  const [fontsLoaded] = Font.useFonts({ 'Ionicons': _ioniconsFontSrc })
   const [splashDone,  setSplashDone]  = useState(false)
   const [minTimeDone, setMinTimeDone] = useState(false)
 

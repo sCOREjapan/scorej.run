@@ -13,7 +13,8 @@ import * as AuthSession from 'expo-auth-session'
 import * as AppleAuthentication from 'expo-apple-authentication'
 
 // expo-web-browser の結果を Supabase が処理できるよう登録
-WebBrowser.maybeCompleteAuthSession()
+// iOS 26 で稀に throw するため try-catch で保護
+try { WebBrowser.maybeCompleteAuthSession() } catch {}
 
 const ONBOARDING_KEY = 'tm_onboarded'
 
