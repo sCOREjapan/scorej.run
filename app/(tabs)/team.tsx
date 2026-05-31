@@ -928,6 +928,9 @@ function PlayerJoinScreen({ onJoined, onBack }: { onJoined:(j:JoinedTeam)=>void;
           } catch {
             Toast.show({type:'error',text1:'保存データが破損しています。再度お試しください'}); setBusy(false); return
           }
+        } else {
+          // ローカルにもチーム情報がない = 無効なコード
+          Toast.show({type:'error',text1:'チームが見つかりません。コードを確認してください'}); setBusy(false); return
         }
       }
       const j: JoinedTeam = { code:cleaned, teamName, coachName, playerName:playerName.trim(), joinedAt:new Date().toISOString() }
@@ -1118,6 +1121,12 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
   const [aiSuggestion,   setAiSuggestion]   = useState<string>('')
   const [aiSuggItems,    setAiSuggItems]    = useState<Partial<MenuTemplate>[]>([])
 
+  const mountedRef = useRef(true)
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
+
   const load = useCallback(async () => {
     try {
       const [msgs, vids, mems, rpts, teamSessions, evts, pStats] = await Promise.all([
@@ -1129,6 +1138,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
         fetchTeamEvents(setup.code),
         fetchPlayerStats(setup.code),
       ])
+      if (!mountedRef.current) return
       setMessages(msgs)
       setVideos(vids)
       setMembers(mems)
@@ -1157,12 +1167,11 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
     } catch (e) {
       console.error('[CoachDashboard] load error:', e)
     } finally {
-      setLoading(false)
+      if (mountedRef.current) setLoading(false)
     }
   }, [setup.code])
 
-  useEffect(() => { load() }, [load])
-  // タブに戻るたびに再ロード（Realtimeの補完）
+  // タブに戻るたびに再ロード（Realtimeの補完）— useEffect は不要、useFocusEffect で初回も走る
   useFocusEffect(useCallback(() => { load() }, [load]))
   // 3分ごとに自動ポーリング（Realtime遅延の補完 / Disk IO節約）
   useEffect(() => {
@@ -2742,6 +2751,12 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
   const [absenceSaving,     setAbsenceSaving]     = useState(false)
   const { addSession: addAbsenceSession } = useTrainingSessions()
 
+  const plMountedRef = useRef(true)
+  useEffect(() => {
+    plMountedRef.current = true
+    return () => { plMountedRef.current = false }
+  }, [])
+
   const load = useCallback(async () => {
     try {
     const [sr, sleepRaw, condRaw, recovRaw, stretchRaw, msgs, mems, rpts, stats, teamSessions, evts, confirmedRaw, iconRaw] = await Promise.all([
@@ -2759,6 +2774,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
       AsyncStorage.getItem(EVENT_CONFIRMED_KEY),
       AsyncStorage.getItem(PLAYER_ICON_KEY),
     ])
+    if (!plMountedRef.current) return
     let loadedSessions: TrainingSession[] = []
     try { if (sr) loadedSessions = JSON.parse(sr) } catch {}
     setSessions(loadedSessions)
@@ -2826,11 +2842,11 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
     } catch (e) {
       console.error('[PlayerDashboard] load error:', e)
     } finally {
-      setPlLoading(false)
+      if (plMountedRef.current) setPlLoading(false)
     }
   }, [joined.code, joined.playerName])
 
-  useEffect(() => { load() }, [load])
+  // useFocusEffect handles initial load too — no separate useEffect needed
   useFocusEffect(useCallback(() => { load() }, [load]))
   // 3分ごとに自動ポーリング（Realtime遅延の補完 / Disk IO節約）
   useEffect(() => {
