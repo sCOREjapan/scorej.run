@@ -364,14 +364,16 @@ function CoachSendMode() {
     setSending(true)
     try {
       const raw = await AsyncStorage.getItem(COACH_REQ_KEY)
-      const list: CoachVideoRequest[] = raw ? JSON.parse(raw) : []
+      let list: CoachVideoRequest[] = []
+      try { if (raw) list = JSON.parse(raw) } catch {}
       list.unshift({ id: Date.now().toString(), videoUri, thumbnailUri: thumbUri ?? '', message, event, sentAt: new Date().toISOString() })
       await AsyncStorage.setItem(COACH_REQ_KEY, JSON.stringify(list.slice(0, 30)))
       // コーチに通知 + Supabase team_videos にレコード作成（別デバイスのコーチが動画タブで確認できるように）
       try {
         const joinedRaw = await AsyncStorage.getItem(JOINED_KEY_VA)
         if (joinedRaw) {
-          const joined = JSON.parse(joinedRaw)
+          let joined: any
+          try { joined = JSON.parse(joinedRaw) } catch {}
           if (joined?.code && joined?.playerName) {
             const desc = [event, message].filter(Boolean).join(' / ') || 'フォーム分析を送りました'
             await Promise.all([
