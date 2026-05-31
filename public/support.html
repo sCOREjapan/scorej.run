@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>sCORE - サポート・お問い合わせ</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f9fafb; color: #111827; }
+    .header { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+    .logo { font-size: 20px; font-weight: 900; color: #166534; letter-spacing: 1px; text-decoration: none; }
+    .back { font-size: 14px; color: #166534; text-decoration: none; }
+    .container { max-width: 720px; margin: 0 auto; padding: 32px 24px 64px; }
+    h1 { font-size: 28px; font-weight: 800; margin-bottom: 4px; }
+    .subtitle { color: #6b7280; font-size: 14px; margin-bottom: 32px; }
+    .card { background: #fff; border-radius: 16px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .card-title { font-size: 17px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .card-body { font-size: 14px; color: #6b7280; line-height: 1.7; margin-bottom: 16px; }
+    .email-btn { display: inline-flex; align-items: center; gap: 8px; background: #166534; color: #fff; text-decoration: none; padding: 12px 20px; border-radius: 12px; font-size: 14px; font-weight: 700; }
+    .faq-item { border-top: 1px solid #f3f4f6; padding: 14px 0; }
+    .faq-q { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+    .faq-a { font-size: 14px; color: #6b7280; line-height: 1.6; }
+    .info-row { font-size: 13px; color: #6b7280; margin-bottom: 6px; }
+    .links { display: flex; gap: 16px; margin-top: 12px; }
+    .links a { font-size: 13px; color: #166534; }
+    footer { text-align: center; font-size: 11px; color: #9ca3af; padding: 24px; }
+    @media (prefers-color-scheme: dark) {
+      body { background: #111; color: #f3f4f6; }
+      .header, .card { background: #1f2937; border-color: #374151; }
+      .faq-item { border-color: #374151; }
+      .faq-a, .card-body, .info-row { color: #9ca3af; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <a href="https://scorej-run.vercel.app/coach-landing" class="logo">sCORE</a>
+  <a href="https://scorej-run.vercel.app/coach-landing" class="back">← ホームに戻る</a>
+</div>
+
+<div class="container">
+  <h1>サポート・お問い合わせ</h1>
+  <p class="subtitle">Support / Contact Us</p>
+
+  <div class="card">
+    <div class="card-title">📧 メールでのお問い合わせ</div>
+    <p class="card-body">
+      ご質問・ご要望・不具合報告はメールにてお気軽にご連絡ください。<br>
+      通常 <strong>1〜3営業日以内</strong>にご返信いたします。
+    </p>
+    <a href="mailto:team.deepwork2026@gmail.com?subject=sCORE サポートについて" class="email-btn">
+      ✉️ team.deepwork2026@gmail.com
+    </a>
+  </div>
+
+  <div class="card">
+    <div class="card-title">❓ よくあるご質問</div>
+
+    <div class="faq-item">
+      <div class="faq-q">Q. アカウントを削除するには？</div>
+      <div class="faq-a">アプリ内「マイページ」→「設定」→「アカウント削除」から削除できます。</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Q. パスワードを忘れました</div>
+      <div class="faq-a">ログイン画面の「パスワードをお忘れですか？」からリセットできます。Google / Apple ログインをご利用の場合は不要です。</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Q. 購入を復元するには？</div>
+      <div class="faq-a">アプリ内「マイページ」→「設定」→「購入を復元」をタップしてください。</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Q. チームへの参加方法は？</div>
+      <div class="faq-a">コーチから6桁の参加コードを受け取り、チーム画面から入力してください。</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Q. サブスクリプションを解約するには？</div>
+      <div class="faq-a">iOS: 設定アプリ → Apple ID → サブスクリプションから解約できます。</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">ℹ️ アプリ情報</div>
+    <p class="info-row">アプリ名：sCORE - 陸上競技パフォーマンス管理</p>
+    <p class="info-row">開発者：sCORE Japan</p>
+    <p class="info-row">Bundle ID：com.scorejapan.score</p>
+    <p class="info-row">お問い合わせ：team.deepwork2026@gmail.com</p>
+    <div class="links">
+      <a href="https://scorej-run.vercel.app/privacy">プライバシーポリシー</a>
+      <a href="https://scorej-run.vercel.app/terms">利用規約</a>
+    </div>
+  </div>
+</div>
+
+<footer>© 2026 sCORE Japan. All rights reserved.</footer>
+
+</body>
+</html>
