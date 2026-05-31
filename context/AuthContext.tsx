@@ -141,6 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let linkingSub: any
     if (Platform.OS !== 'web') {
       linkingSub = Linking.addEventListener('url', ({ url }) => {
+        if (!mounted) return
         if (url && (url.includes('code=') || url.includes('access_token='))) {
           handleDeepLink(url)
         }
