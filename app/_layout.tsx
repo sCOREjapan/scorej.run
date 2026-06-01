@@ -416,8 +416,9 @@ if (Platform.OS === 'web' && typeof navigator !== 'undefined' && 'serviceWorker'
           // Google OAuth はクロスオリジンリダイレクトで sessionStorage がクリアされるため
           // リロードすると PKCE コード交換が中断される
           const isOAuth = typeof window !== 'undefined' &&
-            (window.location.search.includes('code=') ||
-             window.location.hash.includes('access_token='))
+            window.location != null &&
+            (window.location.search?.includes('code=') ||
+             window.location.hash?.includes('access_token='))
           if (isOAuth) return
           // 新バージョン検知 → セッション内で1回だけリロード（連続デプロイによる無限ループ防止）
           if (typeof sessionStorage !== 'undefined' && !sessionStorage.getItem('_sw_reloaded')) {
@@ -469,7 +470,8 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     // Web OAuth コールバック中（?code= / #access_token=）は Supabase がコード交換を完了するまで待つ
     // loading=false になった後でも交換が進行中の場合があるため、/auth へのリダイレクトをブロック
     const hasOAuthParams = typeof window !== 'undefined' &&
-      (window.location.search.includes('code=') || window.location.hash.includes('access_token='))
+      window.location != null &&
+      (window.location.search?.includes('code=') || window.location.hash?.includes('access_token='))
     if (!authed && hasOAuthParams) return
 
     // 未認証 → /auth へ（公開ページは除く）
