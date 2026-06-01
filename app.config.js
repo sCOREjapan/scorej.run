@@ -65,5 +65,9 @@ module.exports = {
     ],
     scheme: 'score',
     web: { bundler: 'metro', output: 'static', favicon: './assets/icon.png' },
+    // expo-modules-autolinking: react-native-purchases を config plugin 自動検出から除外
+    autolinking: {
+      exclude: ['react-native-purchases'],
+    },
   },
 }
