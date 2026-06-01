@@ -61,8 +61,7 @@ module.exports = {
         savePhotosPermission: 'シェアカードをカメラロールに保存するために写真ライブラリへのアクセスが必要です',
         isAccessMediaLocationEnabled: false,
       }],
-      // react-native-purchases: EAS (native) ビルド時のみ追加（web export では不要）
-      ...(IS_EAS ? [['react-native-purchases', {}]] : []),
+      // react-native-purchases: config plugin 不要（ios/Podfile で直接リンク済み）
     ],
     scheme: 'score',
     web: { bundler: 'metro', output: 'static', favicon: './assets/icon.png' },
