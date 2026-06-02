@@ -52,31 +52,31 @@ export default function PracticeInputScreen() {
             <Ionicons name="chevron-forward" size={20} color={colors.textHint} />
           </TouchableOpacity>
 
-          {/* AI入力 */}
+          {/* 自由入力 */}
           <TouchableOpacity
-            style={[s.card, s.cardAI, { backgroundColor: colors.surface, borderColor: 'rgba(229,57,53,0.4)' }]}
+            style={[s.card, s.cardAI, { backgroundColor: colors.surface, borderColor: 'rgba(90,200,250,0.4)' }]}
             activeOpacity={0.85}
             onPress={() => { unlockAudio(); Sounds.whoosh(); setShowAI(true) }}
           >
-            <View style={[s.iconWrap, { backgroundColor: 'rgba(229,57,53,0.15)' }]}>
-              <Text style={{ fontSize: 28 }}>🤖</Text>
+            <View style={[s.iconWrap, { backgroundColor: 'rgba(90,200,250,0.15)' }]}>
+              <Text style={{ fontSize: 28 }}>✏️</Text>
             </View>
             <View style={s.cardBody}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={[s.cardTitle, { color: colors.text }]}>AI入力</Text>
-                <View style={s.aiBadge}>
-                  <Text style={s.aiBadgeText}>おすすめ</Text>
+                <Text style={[s.cardTitle, { color: colors.text }]}>自由入力</Text>
+                <View style={[s.aiBadge, { backgroundColor: '#5AC8FA' }]}>
+                  <Text style={s.aiBadgeText}>かんたん</Text>
                 </View>
               </View>
               <Text style={[s.cardDesc, { color: colors.textHint }]}>
-                練習内容を自由に文章で書くと{'\n'}AIが自動で整理・分類してくれる
+                練習内容を自由に文章で書くだけ{'\n'}自動で種目・タイムを読み取る
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.textHint} />
           </TouchableOpacity>
 
           <Text style={[s.hint, { color: colors.textHint }]}>
-            💡 AI入力は「400m×5本 レスト3分 68秒 疲労7」のように自由に書くだけでOK
+            💡「400m×5本 レスト3分 68秒 疲労7」のように書くだけでOK
           </Text>
         </View>
 

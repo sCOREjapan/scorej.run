@@ -234,57 +234,10 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
     const textDate = parseDateFromText(freeText)
     const sessionDate = textDate || selectedDate
 
-    // ── Step 1: まず正規表現でフォールバック解析（必ず結果あり） ─
-    let parsed: Record<string, any> = fallbackParse(freeText, sessionDate)
+    // 正規表現でテキストを解析（AI不使用・即時保存）
+    const parsed: Record<string, any> = fallbackParse(freeText, sessionDate)
 
-    // ── Step 2: Vercelプロキシ経由でAI解析（成功すればフォールバックを上書き） ─
-    try {
-      const _apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
-      const _endpoint = `${_apiBase}/api/analyze`
-      const res = await fetchWithTimeout(_endpoint, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 500,
-          messages: [{
-            role: 'user',
-            content: `陸上競技の練習記録テキストを正確にJSONに変換してください。今日の日付は${today}、記録対象日は${sessionDate}です。
-
-入力テキスト:
-"${freeText}"
-
-ルール:
-- session_date: 「昨日」「5月10日」等の表記があればその日付、なければ${sessionDate}
-- session_type: interval(本数+レスト), tempo(ペース走), easy(ジョグ/LSD), long(30分以上の長距離), sprint(全力短距離), drill(ドリル), strength(ウェイト/筋トレ), race(試合/大会), rest(休養)
-- time_ms: タイムをミリ秒の整数に変換。「46秒80」→46800, 「1:28.50」→88500, 「11"25」→11250。タイムの記載がなければnull
-- distance_m: 距離をメートルの整数に変換。「10km」→10000, 「400m」→400。記載がなければnull
-- reps: 本数（「5本」「×5」→5）。記載がなければnull
-- fatigue_level: 疲労度1〜10。「疲労7」→7。明記なければ雰囲気から推定（きつそうなら7〜8, 普通なら5〜6）
-- condition_level: 体調1〜10。明記なければ6
-- event: 記録した種目（100m, 200m, 400m, 800m, 1500m, 3000m, 5000m, 10000m, 110mH, 100mH, 400mH, 3000mSC のいずれか、なければnull）
-
-必ずJSONのみを返してください（説明・前後の文章は不要）:
-{"session_date":"YYYY-MM-DD","session_type":"...","event":"...orNull","time_ms":数値orNull,"distance_m":数値orNull,"reps":数値orNull,"fatigue_level":1〜10の整数,"condition_level":1〜10の整数}`,
-          }],
-        }),
-      }, 30000)
-      if (res.ok) {
-        const data = await res.json()
-        const rawText = data.content?.[0]?.text ?? ''
-        // JSONブロックを抽出（余計なテキストが前後についても対応）
-        const jsonMatch = rawText.match(/\{[\s\S]*\}/)
-        if (jsonMatch) {
-          const aiParsed = JSON.parse(jsonMatch[0])
-          // AI結果で上書き（nullでないフィールドのみ）
-          parsed = { ...parsed, ...aiParsed }
-        }
-      }
-    } catch {
-      // AI解析失敗 → fallbackParse の結果をそのまま使う
-    }
-
-    // ── Step 3: 必ず保存 ──────────────────────────────────
+    // ── 保存 ──────────────────────────────────
     const toNum = (v: any) => (v !== null && v !== undefined && v !== 'null' && !isNaN(Number(v)) && Number(v) > 0) ? Number(v) : undefined
     try {
       const existing = await AsyncStorage.getItem(SESSIONS_KEY)
@@ -363,7 +316,7 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
         <Animated.View style={[st.sheet, { transform: [{ translateY: slideAnim }] }]}>
           <View style={st.handle} />
           <View style={st.header}>
-            <Text style={st.title}>練習を記録</Text>
+            <Text style={st.title}>✏️ 自由入力で記録</Text>
             <TouchableOpacity onPress={handleClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Ionicons name="close" size={22} color={TEXT.secondary} />
             </TouchableOpacity>

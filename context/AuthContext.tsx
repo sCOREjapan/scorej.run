@@ -211,10 +211,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Native: PKCE + in-app browser
-      const redirectTo = AuthSession.makeRedirectUri({ scheme: 'score', path: 'auth-callback' })
-      if (__DEV__) console.log('[Google OAuth] redirectTo:', redirectTo)
+      // score://auth-callback は Supabase の Redirect URLs に登録が必要
+      const redirectTo = 'score://auth-callback'
+      console.log('[Google OAuth] redirectTo:', redirectTo)
 
-      // iOS でブラウザセッションを事前ウォームアップ（タブが開かない問題の対策）
+      // iOS でブラウザセッションを事前ウォームアップ
       try { await WebBrowser.warmUpAsync() } catch {}
 
       const { data, error } = await (supabase.auth as any).signInWithOAuth({
@@ -223,11 +224,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       if (error || !data?.url) {
         const msg = error?.message ?? 'OAuth URL取得失敗'
-        if (__DEV__) console.log('[Google OAuth] Step1 error:', msg)
-        Toast.show({ type: 'error', text1: 'Googleログイン失敗 [Step1]', text2: msg, visibilityTime: 5000 })
+        console.log('[Google OAuth] Step1 error:', msg)
+        Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: msg, visibilityTime: 5000 })
         try { await WebBrowser.coolDownAsync() } catch {}
         return
       }
+      console.log('[Google OAuth] URL取得成功, ブラウザを開きます')
       if (__DEV__) console.log('[Google OAuth] OAuth URL取得成功')
 
       const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo)
