@@ -228,7 +228,7 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
     unlockAudio()
     setParsing(true)
 
-    const today = new Date().toISOString().slice(0, 10)
+    const today = localDateStr(new Date())  // UTC ではなくローカル日付を使用
 
     // テキスト内の日付を優先、なければボタンで選択した日付
     const textDate = parseDateFromText(freeText)

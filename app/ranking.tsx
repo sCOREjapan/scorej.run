@@ -144,13 +144,16 @@ function generateMockRanking(event: AthleticsEvent): RankingEntry[] {
 // ─── Supabase からのランキング取得 ────────────────────────────────────
 async function fetchRankingFromSupabase(event: AthleticsEvent): Promise<RankingEntry[] | null> {
   try {
-    const { data, error } = await supabase
+    const isFieldEvent = FIELD_EVENTS.includes(event)
+    const baseQuery = supabase
       .from('race_records')
       .select('id, user_id, result_display, result_ms, result_cm, race_date, profiles(name)')
       .eq('event', event)
       .eq('is_pb', true)
-      .order('result_ms', { ascending: true })
-      // フィールド種目はresult_cm降順
+    // フィールド種目はresult_cm降順（距離が大きい方が上位）、トラック種目はresult_ms昇順
+    const { data, error } = isFieldEvent
+      ? await baseQuery.order('result_cm', { ascending: false })
+      : await baseQuery.order('result_ms', { ascending: true })
     if (error || !data || (data as unknown[]).length === 0) return null
 
     const myRaw = await AsyncStorage.getItem(RECORDS_KEY)

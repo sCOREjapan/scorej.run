@@ -198,7 +198,8 @@ export default function GpsRunScreen() {
           text: 'キャンセル',
           style: 'cancel',
           onPress: () => {
-            // 一時停止状態のまま残す
+            // stopTimer()で経過時間をaccumulatedMsRefに退避済みのため
+            // pauseTimerと同等の状態になっている。タイマー・GPSは停止中。
             setRunState('paused')
           },
         },
@@ -237,12 +238,14 @@ export default function GpsRunScreen() {
       autoSyncTeam(saved, { force: true }).catch(() => {})
       Toast.show({ type: 'success', text1: '練習を保存しました', text2: `${(distM / 1000).toFixed(2)} km / ${formatElapsed(ms)}` })
 
-      // フリープランのみ：2回に1回インタースティシャル広告を表示
-      const tier = await getTier()
-      if (tier === 'free') {
-        const showAd = await shouldShowInterstitial()
-        if (showAd) await showInterstitialAd()
-      }
+      // フリープランのみ：2回に1回インタースティシャル広告を表示（広告エラーは無視）
+      try {
+        const tier = await getTier()
+        if (tier === 'free') {
+          const showAd = await shouldShowInterstitial()
+          if (showAd) await showInterstitialAd()
+        }
+      } catch {}
 
       resetAll()
       router.back()

@@ -46,7 +46,8 @@ async function syncTable(
 
     // ② ローカルから取得
     const raw = await AsyncStorage.getItem(storageKey)
-    const localData: any[] = raw ? JSON.parse(raw) : []
+    let localData: any[] = []
+    try { localData = raw ? JSON.parse(raw) : [] } catch { localData = [] }
 
     // ③ マージ
     const cloudIds  = new Set(cloudData.map((r) => r.id))

@@ -416,7 +416,8 @@ export default function ShareCardScreen() {
         Toast.show({ type: 'error', text1: '写真ライブラリへのアクセスを許可してください' })
         return
       }
-      const uri = await captureRef(previewRef, { format: 'png', quality: 1, transparent: true } as any)
+      // transparent: true はiOSで黒画像になるため削除。カードのデザイン自体に背景色あり
+      const uri = await captureRef(previewRef, { format: 'png', quality: 1 })
       await MediaLibrary.saveToLibraryAsync(uri)
       Toast.show({ type: 'success', text1: 'カメラロールに保存しました 📸', visibilityTime: 2000 })
     } catch {

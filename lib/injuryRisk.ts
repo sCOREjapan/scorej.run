@@ -117,7 +117,7 @@ export function calcInjuryRisk(
     .filter(r => now - new Date(r.sleep_date).getTime() <= 4 * MS_DAY)
     .slice(0, 4)
   const avgSleepQ = recentSleep.length
-    ? recentSleep.reduce((a, r) => a + r.quality_score, 0) / recentSleep.length
+    ? recentSleep.reduce((a, r) => a + (r.quality_score ?? 5), 0) / recentSleep.length
     : 7
 
   const sleepWithDur = recentSleep.filter(r => r.duration_min && r.duration_min > 0)

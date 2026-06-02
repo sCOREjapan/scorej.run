@@ -1283,6 +1283,7 @@ function PremiumGate() {
 /* ─── Web専用プレーヤー ──────────────────────────── */
 function WebPlayer({ isPremiumUser: isPremiumProp }: { isPremiumUser: boolean }) {
   const router = useRouter()
+  const { isGuest: isGuestWeb } = useAuth()
 
   /* ── refs ── */
   const videoRef         = useRef<HTMLVideoElement | null>(null)
@@ -1676,6 +1677,7 @@ ${summary}
           remaining={adGateRemainingW}
           hardLimited={adGateHardLimited}
           limitType={adGateLimitTypeW}
+          isGuest={isGuestWeb}
           onClose={() => setAdGateVisible(false)}
           onAdWatched={async () => {
             setAdGateVisible(false)

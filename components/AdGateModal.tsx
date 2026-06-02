@@ -201,7 +201,7 @@ export default function AdGateModal({
   // 広告視聴中UI
   if (watching) {
     return (
-      <Modal visible={visible} transparent animationType="slide">
+      <Modal visible={visible} transparent animationType="slide" onRequestClose={() => {}}>
         <View style={st.overlay}>
           <View style={st.card}>
             <View style={st.handle} />

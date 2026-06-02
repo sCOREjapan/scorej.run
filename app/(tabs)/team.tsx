@@ -3608,6 +3608,11 @@ function TeamMenuSheet({ visible, role, canSwitch, onSwitchRole, onDangerAction,
   // iOSでは2つのModalを同時に表示できないため、
   // メニューModalを先に閉じてから確認ダイアログを開く
   const [showConfirm, setShowConfirm] = useState(false)
+  const mountedRef = useRef(true)
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
 
   const dangerLabel   = role === 'coach' ? 'チームを削除' : 'チームを脱退'
   const dangerMessage = role === 'coach'
@@ -3617,8 +3622,8 @@ function TeamMenuSheet({ visible, role, canSwitch, onSwitchRole, onDangerAction,
   function handleDangerPress() {
     // ① まずメニューを閉じる
     onClose()
-    // ② Modalの閉じアニメーション（300ms）完了後に確認ダイアログを開く
-    setTimeout(() => setShowConfirm(true), 350)
+    // ② Modalの閉じアニメーション（300ms）完了後に確認ダイアログを開く（アンマウント後は無視）
+    setTimeout(() => { if (mountedRef.current) setShowConfirm(true) }, 350)
   }
 
   return (
