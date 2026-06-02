@@ -459,19 +459,6 @@ export default function SettingsScreen() {
                   コーチ・チーム管理はコーチプラン（¥2,980〜）
                 </Text>
               )}
-              {/* クーポンコード入力 */}
-              {!isPro && (
-                <TouchableOpacity
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 }}
-                  onPress={() => router.push('/coupon')}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="ticket-outline" size={14} color="#9ca3af" />
-                  <Text style={{ color: '#9ca3af', fontSize: 12, textDecorationLine: 'underline' }}>
-                    クーポンコードをお持ちの方はこちら
-                  </Text>
-                </TouchableOpacity>
-              )}
             </View>
           </AnimatedSection>
 
