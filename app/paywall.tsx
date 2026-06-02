@@ -82,7 +82,8 @@ export default function PaywallScreen() {
 
   // ── 購入処理 ─────────────────────────────────────────────────────
   const handlePurchase = async () => {
-    const plan   = PLANS.find(p => p.id === selectedPlan)!
+    const plan = PLANS.find(p => p.id === selectedPlan)
+    if (!plan) return  // planが見つからない場合は何もしない（クラッシュ防止）
     const prodId = period === 'annual' ? plan.productAnnual : plan.productMonthly
 
     const pkg = packages.find(p =>
