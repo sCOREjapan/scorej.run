@@ -247,13 +247,28 @@ async function playNativeSound(key: string) {
   }
 }
 
-// アプリ起動時に呼び出して全サウンドをプリロード
+// サウンドをキャッシュに登録するだけ（再生しない）
+async function cacheNativeSound(key: string) {
+  try {
+    if (!_audioReady) await initNativeAudio()
+    if (!_Audio || !_FS) return
+    const def = NATIVE_SOUND_DEFS[key]
+    if (!def || _soundCache.has(key)) return
+    const wav = buildWAV(def)
+    const path = (_FS as any).cacheDirectory + `score_sfx_${key}.wav`
+    await (_FS as any).writeAsStringAsync(path, uint8ToBase64(wav), { encoding: 'base64' })
+    const { sound } = await _Audio.Sound.createAsync({ uri: path }, { shouldPlay: false })
+    _soundCache.set(key, sound)
+  } catch {}
+}
+
+// アプリ起動時に呼び出して全サウンドをプリロード（再生はしない）
 export async function preloadNativeSounds() {
   if (Platform.OS === 'web') return
   await initNativeAudio()
-  // よく使うサウンドを事前生成してキャッシュ
+  // よく使うサウンドを事前生成してキャッシュ（再生なし）
   for (const key of ['tap', 'pop', 'whoosh', 'save', 'delete', 'tabSwitch', 'toggleOn', 'toggleOff', 'ding']) {
-    await playNativeSound(key).catch(() => {})
+    await cacheNativeSound(key).catch(() => {})
     await new Promise(r => setTimeout(r, 10))  // 負荷分散
   }
 }

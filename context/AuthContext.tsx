@@ -159,6 +159,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (newSession) setIsGuest(false)
 
           if (event === 'SIGNED_IN' || event === 'EMAIL_CONFIRMED') {
+            // ログイン直後に isOnboarded を再取得してナビゲーションが正しく動くようにする
+            const ob = await AsyncStorage.getItem(ONBOARDING_KEY).catch(() => null)
+            if (mounted) setIsOnboarded(ob === 'true')
             setLoading(false)
             // ログイン直後: クラウドとローカルを双方向マージ同期
             // （ゲストで使ったデータをクラウドへ移行 + 他デバイスのデータを取得）

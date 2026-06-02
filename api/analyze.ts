@@ -1,5 +1,6 @@
-// api/analyze.ts — Anthropic API proxy (Vercel Serverless Function / Fluid Compute)
-// Node.js ランタイム（デフォルト）を使用: Edge より互換性が高く maxDuration=60 が有効
+// api/analyze.ts — Anthropic API proxy (Vercel Edge Function)
+// Edge ランタイムを使用: グローバル分散・低レイテンシ・fetch/Request/Response がネイティブ利用可
+export const config = { runtime: 'edge' }
 export const maxDuration = 60
 
 export default async function handler(request: Request): Promise<Response> {
