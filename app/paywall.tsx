@@ -297,6 +297,11 @@ export default function PaywallScreen() {
                 : <Text style={st.subLinkText}>購入を復元する</Text>
               }
             </TouchableOpacity>
+            <Text style={st.subLinkDot}>·</Text>
+            <TouchableOpacity onPress={() => router.push('/coupon')} style={st.couponLink}>
+              <Ionicons name="ticket-outline" size={13} color="rgba(255,255,255,0.4)" />
+              <Text style={st.subLinkText}>クーポン</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
