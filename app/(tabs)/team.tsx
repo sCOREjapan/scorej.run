@@ -1261,12 +1261,17 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
 
   async function ackPain(playerName: string) {
     try {
-      const { error } = await supabase.from('team_body_reports')
+      const { data, error } = await supabase.from('team_body_reports')
         .update({ acked_by_coach: true })
         .eq('team_code', setup.code)
         .eq('player_name', playerName)
+        .select()  // 更新された行を返す（0件 = RLSブロック or 行なし）
       if (error) throw new Error(error.message)
-      // ローカル即時更新（Realtimeが来ても acked_by_coach:true を維持）
+      if (!data || data.length === 0) {
+        // RLSサイレントブロック or 行が存在しない
+        Toast.show({ type: 'error', text1: '確認できませんでした', text2: 'ログインしてから再試行してください', visibilityTime: 4000 })
+        return
+      }
       setBodyReports(prev => prev.map(r =>
         r.player_name === playerName ? { ...r, acked_by_coach: true } : r,
       ))

@@ -176,6 +176,7 @@ create table if not exists team_members (
   team_code   text not null references teams(code) on delete cascade,
   player_name text not null,
   event       text not null default '',
+  icon        text not null default '',
   joined_at   timestamptz default now()
 );
 
@@ -211,10 +212,12 @@ create index if not exists idx_team_videos_code
 
 -- 痛み報告（選手 → コーチ）
 create table if not exists team_body_reports (
-  team_code   text not null references teams(code) on delete cascade,
-  player_name text not null,
-  parts       text[] not null default '{}',
-  updated_at  timestamptz default now(),
+  team_code      text not null references teams(code) on delete cascade,
+  player_name    text not null,
+  parts          text[] not null default '{}',
+  detail         text not null default '',
+  acked_by_coach boolean not null default false,
+  updated_at     timestamptz default now(),
   primary key (team_code, player_name)
 );
 
@@ -241,12 +244,18 @@ create policy "body_reports_public" on team_body_reports for all using (true) wi
 
 -- 選手プロフィール（自己ベスト・レベル）
 create table if not exists team_player_stats (
-  team_code   text not null references teams(code) on delete cascade,
-  player_name text not null,
-  event       text not null default '',      -- 種目（例: 100m）
-  pb_display  text not null default '',      -- 自己ベスト表示用（例: 10.83）
-  level       integer not null default 1,    -- sCOREレベル
-  updated_at  timestamptz default now(),
+  team_code        text not null references teams(code) on delete cascade,
+  player_name      text not null,
+  event            text not null default '',      -- 種目（例: 100m）
+  pb_display       text not null default '',      -- 自己ベスト表示用（例: 10.83）
+  level            integer not null default 1,    -- sCOREレベル
+  last_condition   integer not null default 7,
+  last_fatigue     integer not null default 5,
+  last_session_date text not null default '',
+  sessions_30d     integer not null default 0,
+  goal             text not null default '',
+  streak           integer not null default 0,
+  updated_at       timestamptz default now(),
   primary key (team_code, player_name)
 );
 
@@ -277,9 +286,8 @@ create index if not exists idx_team_sessions_code on team_sessions(team_code, pl
 alter table team_sessions enable row level security;
 create policy "team_sessions_public" on team_sessions for all using (true) with check (true);
 
--- 痛み詳細カラム（既存テーブルに追加）
+-- 後方互換用（既存DBにカラムがない場合の追加）
 alter table team_body_reports add column if not exists detail text not null default '';
--- コーチ確認フラグ（既存テーブルに追加）
 alter table team_body_reports add column if not exists acked_by_coach boolean not null default false;
 
 -- ─────────────────────────────────────────
@@ -303,15 +311,11 @@ create index if not exists idx_team_events_code on team_events(team_code, event_
 alter table team_events enable row level security;
 create policy "team_events_public" on team_events for all using (true) with check (true);
 
--- 選手スタッツ追加カラム（コーチが最新体調を参照できるように）
+-- 後方互換用（既存DBにカラムがない場合の追加）
 alter table team_player_stats add column if not exists last_condition integer not null default 7;
 alter table team_player_stats add column if not exists last_fatigue integer not null default 5;
 alter table team_player_stats add column if not exists last_session_date text not null default '';
 alter table team_player_stats add column if not exists sessions_30d integer not null default 0;
-
--- 選手目標・連続記録日数
 alter table team_player_stats add column if not exists goal text not null default '';
 alter table team_player_stats add column if not exists streak integer not null default 0;
-
--- 選手プロフィールアイコン（絵文字）
 alter table team_members add column if not exists icon text not null default '';

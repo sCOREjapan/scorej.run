@@ -170,10 +170,11 @@ export async function upsertBodyReport(
 
 export async function ackBodyReport(teamCode: string, playerName: string): Promise<void> {
   if (!isConfigured) return
-  await supabase.from('team_body_reports')
+  const { error } = await supabase.from('team_body_reports')
     .update({ acked_by_coach: true })
     .eq('team_code', teamCode)
     .eq('player_name', playerName)
+  if (error) throw new Error(error.message)
 }
 
 // ── 選手セッション共有（コーチが選手記録を閲覧）────────────
