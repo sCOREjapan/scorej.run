@@ -1179,18 +1179,23 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
     return () => clearInterval(t)
   }, [load])
 
-  // Supabase Realtime — チームデータをリアルタイム同期
+  // Supabase Realtime — チームデータをリアルタイム同期（デバウンス2秒で過剰ロード防止）
   useEffect(() => {
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null
+    const debouncedLoad = () => {
+      if (debounceTimer) clearTimeout(debounceTimer)
+      debounceTimer = setTimeout(() => { load() }, 2000)
+    }
     const ch = supabase.channel(`coach:${setup.code}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_messages',     filter: `team_code=eq.${setup.code}` }, () => load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members',      filter: `team_code=eq.${setup.code}` }, () => load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_body_reports', filter: `team_code=eq.${setup.code}` }, () => load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_videos',       filter: `team_code=eq.${setup.code}` }, () => load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_sessions',     filter: `team_code=eq.${setup.code}` }, () => load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_player_stats', filter: `team_code=eq.${setup.code}` }, () => load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_events',       filter: `team_code=eq.${setup.code}` }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_messages',     filter: `team_code=eq.${setup.code}` }, debouncedLoad)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members',      filter: `team_code=eq.${setup.code}` }, debouncedLoad)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_body_reports', filter: `team_code=eq.${setup.code}` }, debouncedLoad)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_videos',       filter: `team_code=eq.${setup.code}` }, debouncedLoad)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_sessions',     filter: `team_code=eq.${setup.code}` }, debouncedLoad)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_player_stats', filter: `team_code=eq.${setup.code}` }, debouncedLoad)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_events',       filter: `team_code=eq.${setup.code}` }, debouncedLoad)
       .subscribe()
-    return () => { supabase.removeChannel(ch) }
+    return () => { if (debounceTimer) clearTimeout(debounceTimer); supabase.removeChannel(ch) }
   }, [setup.code, load])
 
   // 通知許可 + タグ登録
@@ -1214,9 +1219,12 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
       await sendPush(`📣 ${setup.teamName}`, content, 'players', setup.code)
       await load()
       Toast.show({type:'success',text1:'送信しました',visibilityTime:1400})
-    } catch {
+    } catch (e: any) {
       setMsgText(content)  // 失敗したら元に戻す
-      Toast.show({type:'error',text1:'送信できませんでした',visibilityTime:2000})
+      const errMsg = e?.message ?? String(e)
+      const detail = errMsg.includes('row-level security') || errMsg.includes('permission')
+        ? 'ログインが必要です' : errMsg.slice(0, 60)
+      Toast.show({type:'error', text1:'送信できませんでした', text2: detail, visibilityTime:3000})
     } finally {
       setMsgSending(false)
     }
@@ -1297,11 +1305,9 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
       console.error('[addEvent]', e)
       const msg = e?.message ?? String(e)
       if (msg.includes('does not exist') || msg.includes('未設定')) {
-        Alert.alert(
-          '⚠️ テーブルが見つかりません',
-          'Supabaseダッシュボードの SQL エディタで schema.sql を実行してください。\n\ncreate table if not exists team_events (...)',
-          [{ text: 'OK' }],
-        )
+        Alert.alert('⚠️ DBテーブル未設定', 'Supabase SQL エディタで schema.sql を実行してください', [{ text: 'OK' }])
+      } else if (msg.includes('row-level security') || msg.includes('RLS') || msg.includes('permission')) {
+        Toast.show({ type: 'error', text1: '権限エラー', text2: 'ログインしてから再試行してください', visibilityTime: 4000 })
       } else if (msg.includes('violates check constraint')) {
         Toast.show({ type: 'error', text1: '種別の値が無効です', text2: msg, visibilityTime: 4000 })
       } else {
@@ -2822,10 +2828,8 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
     if (myReport) { setBodyParts(myReport.parts); setBodyDetail(myReport.detail ?? '') }
     // myStat は後続の upsertPlayerStats で参照するためだけに宣言（editは変更しない）
     const myStat = stats.find(s => s.player_name === joined.playerName)
-    // 自分のセッションをチームに同期（コーチ・チームメイトが見れるように）
-    try {
-      await syncTeamSessions(joined.code, joined.playerName, loadedSessions)
-    } catch (e) { console.error('[load] syncTeamSessions:', e) }
+    // 自分のセッションをチームに同期（バックグラウンド実行 — 失敗してもUIに影響しない）
+    syncTeamSessions(joined.code, joined.playerName, loadedSessions).catch(() => {})
     // レベル + 最新コンディションを自動同期
     const lvInfo = calcLevelInfo(loadedSessions.length)
     const cutoff30 = new Date(Date.now() - 30*24*60*60*1000).toISOString().slice(0,10)
@@ -2881,17 +2885,22 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
     })
   }, [])
 
-  // Supabase Realtime — コーチのアナウンス・チームメイト情報をリアルタイムで受信
+  // Supabase Realtime — コーチのアナウンス・チームメイト情報をリアルタイムで受信（デバウンス）
   useEffect(() => {
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null
+    const debouncedLoad = () => {
+      if (debounceTimer) clearTimeout(debounceTimer)
+      debounceTimer = setTimeout(() => { load() }, 2000)
+    }
     const ch = supabase.channel(`player:${joined.code}:${joined.playerName}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_messages',    filter: `team_code=eq.${joined.code}` }, () => load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members',     filter: `team_code=eq.${joined.code}` }, () => load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_player_stats',filter: `team_code=eq.${joined.code}` }, () => load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_sessions',    filter: `team_code=eq.${joined.code}` }, () => load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_body_reports',filter: `team_code=eq.${joined.code}` }, () => load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_events',      filter: `team_code=eq.${joined.code}` }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_messages',    filter: `team_code=eq.${joined.code}` }, debouncedLoad)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members',     filter: `team_code=eq.${joined.code}` }, debouncedLoad)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_player_stats',filter: `team_code=eq.${joined.code}` }, debouncedLoad)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_sessions',    filter: `team_code=eq.${joined.code}` }, debouncedLoad)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_body_reports',filter: `team_code=eq.${joined.code}` }, debouncedLoad)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_events',      filter: `team_code=eq.${joined.code}` }, debouncedLoad)
       .subscribe()
-    return () => { supabase.removeChannel(ch) }
+    return () => { if (debounceTimer) clearTimeout(debounceTimer); supabase.removeChannel(ch) }
   }, [joined.code, joined.playerName, load])
 
   // 天気ボーナス — キャッシュ付き取得（同ウィンドウ内はAPIを叩かない）

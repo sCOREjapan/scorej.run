@@ -9,8 +9,8 @@ interface Props {
 }
 
 export default function BannerAdView({ onLoaded, onFailed }: Props) {
-  // Web環境ではgoogle-mobile-adsが存在しないため何も表示しない
-  if (Platform.OS === 'web') return null
+  // Web/開発環境ではAdMob ネイティブモジュールが存在しないためスキップ
+  if (Platform.OS === 'web' || __DEV__) return null
 
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
