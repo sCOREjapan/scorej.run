@@ -213,6 +213,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const redirectTo = AuthSession.makeRedirectUri({ scheme: 'score', path: 'auth-callback' })
       if (__DEV__) console.log('[Google OAuth] redirectTo:', redirectTo)
 
+      // iOS でブラウザセッションを事前ウォームアップ（タブが開かない問題の対策）
+      try { await WebBrowser.warmUpAsync() } catch {}
+
       const { data, error } = await (supabase.auth as any).signInWithOAuth({
         provider: 'google',
         options:  { redirectTo, skipBrowserRedirect: true },
@@ -221,6 +224,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const msg = error?.message ?? 'OAuth URL取得失敗'
         if (__DEV__) console.log('[Google OAuth] Step1 error:', msg)
         Toast.show({ type: 'error', text1: 'Googleログイン失敗 [Step1]', text2: msg, visibilityTime: 5000 })
+        try { await WebBrowser.coolDownAsync() } catch {}
         return
       }
       if (__DEV__) console.log('[Google OAuth] OAuth URL取得成功')
@@ -230,11 +234,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (result.type !== 'success' || !result.url) {
         if (result.type === 'cancel' || result.type === 'dismiss') {
           // ユーザーがキャンセルした場合は何もしない
+          try { await WebBrowser.coolDownAsync() } catch {}
           return
         }
         Toast.show({ type: 'error', text1: 'Googleログイン失敗 [Step2]', text2: `ブラウザ結果: ${result.type}`, visibilityTime: 5000 })
+        try { await WebBrowser.coolDownAsync() } catch {}
         return
       }
+      try { await WebBrowser.coolDownAsync() } catch {}
 
       const { error: exchError } = await (supabase.auth as any).exchangeCodeForSession(result.url)
       if (exchError) {

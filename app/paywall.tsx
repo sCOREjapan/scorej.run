@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import { usePurchase } from '../context/PurchaseContext'
 import { trackPaywallView, trackUpgrade } from '../lib/analytics'
+import Toast from 'react-native-toast-message'
 
 const BRAND     = '#16a34a'   // green-600
 const BRAND_MID = '#4ade80'   // green-400
@@ -90,7 +91,15 @@ export default function PaywallScreen() {
       (period === 'monthly' && (p.packageType === 'MONTHLY' || p.product?.productIdentifier?.includes('monthly')))
     )
     const target = pkg ?? (packages.length > 0 ? packages[0] : null)
-    if (!target) return
+    if (!target) {
+      Toast.show({
+        type: 'error',
+        text1: '購入プランを読み込み中',
+        text2: '少し待ってから再試行してください',
+        visibilityTime: 3000,
+      })
+      return
+    }
 
     setPurchasing(true)
     try {
