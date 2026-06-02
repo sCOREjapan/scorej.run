@@ -159,6 +159,7 @@ export default function NotificationsScreen() {
   useEffect(() => { load() }, [load])
 
   // 画面を開いた時点で全通知を既読にする
+  // loading が false になった後 + teamEvents が揃った後に実行する
   useEffect(() => {
     if (loading) return
     const newIds = new Set([
@@ -169,7 +170,7 @@ export default function NotificationsScreen() {
     setReadIds(newIds)
     AsyncStorage.setItem(READ_KEY, JSON.stringify(Array.from(newIds))).catch(() => {})
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading])
+  }, [loading, teamEvents])
 
   const onRefresh = useCallback(() => {
     setRefreshing(true)

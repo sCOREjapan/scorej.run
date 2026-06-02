@@ -22,6 +22,7 @@ module.exports = {
       supportsTablet: false,
       bundleIdentifier: 'com.scorejapan.score',
       usesAppleSignIn: true,
+      buildNumber: '54',
       infoPlist: {
         CFBundleURLTypes: [
           {

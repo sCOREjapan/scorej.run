@@ -502,7 +502,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     if (authed && isOnboarded && inOnboarding && !inPaywall) {
       router.replace('/(tabs)')
     }
-  }, [user, loading, isGuest, isOnboarded, segments, consentAccepted])
+  }, [user, loading, isGuest, isOnboarded, segments, consentAccepted, router])
 
   if (loading || consentAccepted === null) {
     return (

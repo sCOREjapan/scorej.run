@@ -670,7 +670,7 @@ export default function SettingsScreen() {
                     </Text>
                   </View>
                 </View>
-                {notifPerm !== 'granted' && notifPerm !== 'loading' && (
+                {notifPerm !== 'granted' && notifPerm !== 'loading' && notifPerm !== 'unsupported' && (
                   <TouchableOpacity
                     style={[styles.permBtn, notifPerm === 'denied' && { backgroundColor: '#f0f2f5' }]}
                     onPress={handleRequestNotifPerm}

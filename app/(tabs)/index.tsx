@@ -161,7 +161,9 @@ function AnimatedEntry({ children, delay = 0 }: { children: React.ReactNode; del
 // ────────────────────────────────────────────────────────
 // WeekDateBar — 7日間横スクロール日付バー
 // ────────────────────────────────────────────────────────
-const TODAY_ISO = new Date().toISOString().slice(0, 10)
+// モジュール定数ではなく関数にして日付またぎに対応
+function getTodayISO() { return new Date().toISOString().slice(0, 10) }
+const TODAY_ISO = getTodayISO()
 
 function WeekDateBar({
   selected, onChange, conditionMap = {},
@@ -1400,7 +1402,7 @@ export default function DashboardScreen() {
         ? `${riskResult.riskScore}/100（${riskResult.label}）`
         : '未計算'
 
-      const conditionLabel = ['きつい','','しんどい','','ふつう','','いい感じ','','絶好調',''][conditionLevel - 1] ?? 'ふつう'
+      const conditionLabel = ['きつい','きつめ','しんどい','やや重い','ふつう','まあまあ','いい感じ','好調','絶好調','最高'][conditionLevel - 1] ?? 'ふつう'
 
       const sessionsText = recentSessions.length > 0
         ? recentSessions.map(s =>

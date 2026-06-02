@@ -134,7 +134,9 @@ export async function showRewardedAd(): Promise<boolean> {
         try { await rewarded.show() } catch (e) { settle(false) }
       })
       const unsubEarned  = rewarded.addAdEventListener(RewardedAdEventType.EARNED_REWARD, () => { earned = true })
-      const unsubClosed  = rewarded.addAdEventListener(AdEventType.CLOSED,  () => settle(earned))
+      // EARNED_REWARD と CLOSED がほぼ同時に発火する場合、CLOSED が先に来ると earned=false のまま
+      // resolve されてしまう。setTimeout(0) で EARNED_REWARD ハンドラーを先に処理させる。
+      const unsubClosed  = rewarded.addAdEventListener(AdEventType.CLOSED, () => { setTimeout(() => settle(earned), 50) })
       const unsubError   = rewarded.addAdEventListener(AdEventType.ERROR, (e: Error) => {
         console.warn('[admob] rewarded error:', e)
         settle(false)

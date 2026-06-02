@@ -707,9 +707,15 @@ function TodayWorkoutCard({ competition }: { competition: CompetitionPlan }) {
   const today = new Date()
   const compDate = new Date(competition.competition_date)
   const daysUntil = Math.max(0, Math.ceil((compDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)))
-  const weeksLeft = Math.max(1, Math.ceil(daysUntil / 7))
 
-  const currentWeek = competition.phases.find(p => p.week_number === weeksLeft)
+  // phases は week_number=1 が「一番最初の週」（試合から最も遠い）。
+  // 試合が近づくほど week_number が大きい（最終週）。
+  // 現在が何週目かは phases.length から逆算する。
+  const totalWeeks = competition.phases.length
+  const weeksLeft = Math.max(1, Math.ceil(daysUntil / 7))
+  const currentWeekNum = Math.max(1, totalWeeks - weeksLeft + 1)
+  const currentWeek = competition.phases.find(p => p.week_number === currentWeekNum)
+    ?? competition.phases[competition.phases.length - 1]
   if (!currentWeek) return null
 
   const todayDow    = DOW_FULL[today.getDay()]

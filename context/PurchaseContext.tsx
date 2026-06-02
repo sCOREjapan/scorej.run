@@ -35,10 +35,9 @@ const ACCESS_CODE_MAP: Record<string, PlanTier> = {
 }
 
 // ── マーケティング用 3日間トライアルクーポン ──────────────────────
-// キャンペーン期間: 2026年6月1日 00:00 JST まで有効
+// キャンペーン期間: 2026年12月31日 まで有効
 // 各コードは1デバイス1回のみ使用可能
-// 6月になると isTrialCampaignActive() が false を返し一斉無効化
-const TRIAL_CAMPAIGN_EXPIRY = new Date('2026-06-01T00:00:00+09:00')  // JST 6/1 0:00
+const TRIAL_CAMPAIGN_EXPIRY = new Date('2026-12-31T23:59:59+09:00')  // JST 12/31 23:59
 const TRIAL_DAYS            = 3
 
 export function isTrialCampaignActive(): boolean {

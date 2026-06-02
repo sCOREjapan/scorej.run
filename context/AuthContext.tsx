@@ -162,7 +162,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // ログイン直後に isOnboarded を再取得してナビゲーションが正しく動くようにする
             const ob = await AsyncStorage.getItem(ONBOARDING_KEY).catch(() => null)
             if (mounted) setIsOnboarded(ob === 'true')
-            setLoading(false)
+            // setLoading(false) は init() の finally で確実に呼ばれるため、ここでは不要
+            // （早期に呼ぶと init() 完了前に AuthGate が動いて不正リダイレクトが起きる）
             // ログイン直後: クラウドとローカルを双方向マージ同期
             // （ゲストで使ったデータをクラウドへ移行 + 他デバイスのデータを取得）
             if (newSession?.user?.id) {

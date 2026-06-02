@@ -274,7 +274,7 @@ export default function NutritionScreen() {
     } finally {
       setSaving(false)
     }
-  }, [result, mealType, timing, today, history])
+  }, [result, mealType, timing, today, history, recordDate, user])
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f6f6f8' }}>

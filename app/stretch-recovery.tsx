@@ -363,8 +363,8 @@ function StretchScreen({
       }
     }
 
-    // 残り5秒カウントダウン音
-    if (secondsLeft <= 5) {
+    // 残り5秒カウントダウン音（1〜5のときのみ）
+    if (secondsLeft > 0 && secondsLeft <= 5) {
       Sounds.tap()
     }
     const timer = setInterval(() => setSecondsLeft(s => s - 1), 1000)

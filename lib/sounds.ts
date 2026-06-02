@@ -128,10 +128,9 @@ function buildWAV(def: NativeSoundDef): Uint8Array {
 
 function uint8ToBase64(buf: Uint8Array): string {
   let s = ''
-  // チャンク処理でスタックオーバーフロー防止
-  const CHUNK = 8192
-  for (let i = 0; i < buf.length; i += CHUNK) {
-    s += String.fromCharCode(...buf.subarray(i, i + CHUNK))
+  // スプレッド演算子は引数が多いとHermesでスタックオーバーフローするため1文字ずつ連結
+  for (let i = 0; i < buf.length; i++) {
+    s += String.fromCharCode(buf[i])
   }
   return (globalThis as any).btoa(s)
 }

@@ -150,7 +150,14 @@ function VideoAnnotationPlayer({
   }
 
   const seekToFrame = (idx: number) => {
-    player.currentTime = FRAME_TIMESTAMPS[idx] / 1000
+    // expo-video では currentTime への直接代入は非対応。seekTo() を使用する
+    try {
+      if (typeof (player as any).seekTo === 'function') {
+        (player as any).seekTo(FRAME_TIMESTAMPS[idx] / 1000)
+      } else {
+        (player as any).currentTime = FRAME_TIMESTAMPS[idx] / 1000
+      }
+    } catch {}
   }
 
   const activeNote = activeFrame >= 0
@@ -183,7 +190,7 @@ function VideoAnnotationPlayer({
 
       {/* プログレスバー */}
       <View style={{ height: 3, backgroundColor: 'rgba(255,255,255,0.12)', marginHorizontal: 0 }}>
-        <View style={{ height: 3, backgroundColor: '#34C759', width: `${progress * 100}%` }} />
+        <View style={{ height: 3, backgroundColor: '#34C759', width: `${progress * 100}%` as any }} />
       </View>
 
       {/* コントロール */}
@@ -788,7 +795,7 @@ function NativeVideoAnalysis() {
             uri, [{ resize: { width: 400 } }],
             { compress: 0.70, format: ImageManipulator.SaveFormat.JPEG }
           )
-          const b64 = await FileSystem.readAsStringAsync(resized.uri, { encoding: 'base64' as any })
+          const b64 = await FileSystem.readAsStringAsync(resized.uri, { encoding: FileSystem.EncodingType.Base64 })
           base64Frames.push(b64)
           thumbUris.push(resized.uri)
         } catch { /* スキップ */ }
