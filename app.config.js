@@ -22,7 +22,7 @@ module.exports = {
       supportsTablet: false,
       bundleIdentifier: 'com.scorejapan.score',
       usesAppleSignIn: true,
-      buildNumber: '55',
+      buildNumber: '56',
       infoPlist: {
         CFBundleURLTypes: [
           {
@@ -62,8 +62,6 @@ module.exports = {
         savePhotosPermission: 'シェアカードをカメラロールに保存するために写真ライブラリへのアクセスが必要です',
         isAccessMediaLocationEnabled: false,
       }],
-      // ATT (App Tracking Transparency) — iOS 14+ での広告トラッキング許可
-      'expo-tracking-transparency',
       // react-native-purchases: config plugin 不要（ios/Podfile で直接リンク済み）
     ],
     scheme: 'score',

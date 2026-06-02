@@ -16,7 +16,7 @@ import { PurchaseProvider } from '../context/PurchaseContext'
 import SplashAnimation from '../components/SplashAnimation'
 import { initOneSignal, requestPushPermission } from '../lib/notify'
 import { initAdmob } from '../lib/admob'
-import { requestTrackingPermissionsAsync, getTrackingPermissionsAsync } from 'expo-tracking-transparency'
+// expo-tracking-transparency: 動的インポートでバージョン非互換クラッシュを防ぐ
 
 // ── iOS 26 beta Hermes 0.81.5 クラッシュ回避 ───────────────────────
 // Hermes の String.fromCodePoint ネイティブ実装にスタックバッファオーバー
@@ -540,21 +540,21 @@ function RootLayoutNav() {
   }, [])
 
   // ATT (App Tracking Transparency) 許可 → AdMob SDK 初期化
-  // iOS 14+ では広告表示前にトラッキング許可を求める必要がある
+  // 動的インポートでバージョン非互換によるクラッシュを防ぐ
   useEffect(() => {
-    if (Platform.OS !== 'ios') {
-      // Android は ATT 不要。3秒後に直接初期化
-      const t = setTimeout(() => { initAdmob().catch(() => {}) }, 3000)
-      return () => clearTimeout(t)
-    }
-    // iOS: ATT ダイアログを表示してから AdMob を初期化
     const t = setTimeout(async () => {
-      try {
-        const { status } = await getTrackingPermissionsAsync()
-        if (status === 'undetermined') {
-          await requestTrackingPermissionsAsync()
-        }
-      } catch {}
+      if (Platform.OS === 'ios') {
+        try {
+          // 動的インポート: モジュールが存在しない/非互換でもクラッシュしない
+          const att = await import('expo-tracking-transparency').catch(() => null)
+          if (att) {
+            const { status } = await att.getTrackingPermissionsAsync().catch(() => ({ status: 'unavailable' }))
+            if (status === 'undetermined') {
+              await att.requestTrackingPermissionsAsync().catch(() => {})
+            }
+          }
+        } catch {}
+      }
       initAdmob().catch(() => {})
     }, 3000)
     return () => clearTimeout(t)
