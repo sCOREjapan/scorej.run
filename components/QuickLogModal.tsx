@@ -19,16 +19,6 @@ import PracticeShareCard, { PracticeShareData } from './PracticeShareCard'
 const SESSIONS_KEY = 'trackmate_sessions'
 const TASKS_KEY    = 'trackmate_tasks'
 
-// Hermesの AbortSignal.timeout 非対応に対応したタイムアウト付きfetch
-function fetchWithTimeout(url: string, options: RequestInit, ms: number): Promise<Response> {
-  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
-    return fetch(url, { ...options, signal: AbortSignal.timeout(ms) })
-  }
-  const controller = new AbortController()
-  const id = setTimeout(() => controller.abort(), ms)
-  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(id))
-}
-
 // ── 日付ヘルパー ─────────────────────────────────────────────────
 /** ローカル日付を YYYY-MM-DD 文字列に変換（toISOStringはUTCになるのでNG） */
 function localDateStr(d: Date): string {

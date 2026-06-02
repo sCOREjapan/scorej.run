@@ -12,9 +12,8 @@ import { usePurchase } from '../context/PurchaseContext'
 import { trackPaywallView, trackUpgrade } from '../lib/analytics'
 import Toast from 'react-native-toast-message'
 
-const BRAND     = '#16a34a'   // green-600
-const BRAND_MID = '#4ade80'   // green-400
-const BG        = '#1a1a2e'   // dark navy
+const BRAND = '#16a34a'   // green-600
+const BG    = '#1a1a2e'   // dark navy
 
 // ── プラン定義 ──────────────────────────────────────────────────────
 const PLANS = [

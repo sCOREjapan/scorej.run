@@ -8,7 +8,7 @@ import {
 import * as Clipboard from 'expo-clipboard'
 const SCREEN_H = Dimensions.get('window').height
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter, useFocusEffect } from 'expo-router'
+import { useFocusEffect } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import Toast from 'react-native-toast-message'
@@ -40,7 +40,6 @@ import {
   initOneSignal, requestPushPermission, registerUserTags, sendPush,
 } from '../../lib/notify'
 import PulseView from '../../components/PulseView'
-import { streakMilestone } from '../../lib/haptics'
 
 // ── 練習メニュービルダー 型定義 ──────────────────────────
 type MenuCategory = 'warm_up' | 'sprint' | 'interval' | 'tempo' | 'drill' | 'strength' | 'cool_down' | 'other'
@@ -1078,7 +1077,6 @@ function MiniCalendar({ value, onChange }: { value: string; onChange: (d: string
 function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
   setup: TeamSetup; onSwitchRole: () => void; onDeleteTeam: () => void; canSwitchRole?: boolean
 }) {
-  const router = useRouter()
   const [loading,     setLoading]     = useState(true)
   const [messages,    setMessages]    = useState<TeamMessage[]>([])
   const [videos,      setVideos]      = useState<VideoEntry[]>([])
