@@ -119,11 +119,13 @@ export async function showRewardedAd(): Promise<boolean> {
       let earned = false
       let settled = false
       let timer: ReturnType<typeof setTimeout>
+      let closeTimer: ReturnType<typeof setTimeout>  // CLOSEDの50msタイマーを保持
       const settle = (val: boolean) => {
         if (settled) return
         settled = true
         clearTimeout(timer)
-        unsubLoaded(); unsubEarned(); unsubClosed(); unsubError()
+        clearTimeout(closeTimer)  // CLOSEDタイマーもキャンセル
+        try { unsubLoaded(); unsubEarned(); unsubClosed(); unsubError() } catch {}
         resolve(val)
       }
 
@@ -135,8 +137,8 @@ export async function showRewardedAd(): Promise<boolean> {
       })
       const unsubEarned  = rewarded.addAdEventListener(RewardedAdEventType.EARNED_REWARD, () => { earned = true })
       // EARNED_REWARD と CLOSED がほぼ同時に発火する場合、CLOSED が先に来ると earned=false のまま
-      // resolve されてしまう。setTimeout(0) で EARNED_REWARD ハンドラーを先に処理させる。
-      const unsubClosed  = rewarded.addAdEventListener(AdEventType.CLOSED, () => { setTimeout(() => settle(earned), 50) })
+      // 50ms 待って EARNED_REWARD ハンドラーを先に処理させる。タイマーIDを保持してキャンセル可能に。
+      const unsubClosed  = rewarded.addAdEventListener(AdEventType.CLOSED, () => { closeTimer = setTimeout(() => settle(earned), 50) })
       const unsubError   = rewarded.addAdEventListener(AdEventType.ERROR, (e: Error) => {
         console.warn('[admob] rewarded error:', e)
         settle(false)

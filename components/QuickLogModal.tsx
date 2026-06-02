@@ -220,6 +220,7 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
 
   function handleClose() {
     setFreeText('')
+    setShowShare(false)  // ゾンビModal防止
     onClose()
   }
 

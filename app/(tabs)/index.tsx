@@ -161,9 +161,8 @@ function AnimatedEntry({ children, delay = 0 }: { children: React.ReactNode; del
 // ────────────────────────────────────────────────────────
 // WeekDateBar — 7日間横スクロール日付バー
 // ────────────────────────────────────────────────────────
-// モジュール定数ではなく関数にして日付またぎに対応
+// 今日の日付を毎回生成（モジュール定数にすると日付またぎで古いまま）
 function getTodayISO() { return new Date().toISOString().slice(0, 10) }
-const TODAY_ISO = getTodayISO()
 
 function WeekDateBar({
   selected, onChange, conditionMap = {},
@@ -172,6 +171,7 @@ function WeekDateBar({
   onChange: (d: string) => void
   conditionMap?: Record<string, number>
 }) {
+  const todayISO = getTodayISO()  // レンダー時に毎回生成（日付またぎ対応）
   const days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date()
     d.setDate(d.getDate() - 3 + i)
@@ -192,7 +192,7 @@ function WeekDateBar({
     >
       {days.map(d => {
         const iso     = d.toISOString().slice(0, 10)
-        const isToday = iso === TODAY_ISO
+        const isToday = iso === todayISO
         const isSel   = iso === selected
         const cond    = conditionMap[iso]
         const dayName = DAY_NAMES[d.getDay()]
@@ -1153,7 +1153,7 @@ export default function DashboardScreen() {
   const { tier: purchaseTier } = usePurchase()
   const { sessions, loading, fetchSessions } = useTrainingSessions()
   const [appOpenCount,     setAppOpenCount]     = useState(0)
-  const [selectedDate,    setSelectedDate]    = useState(TODAY_ISO)
+  const [selectedDate,    setSelectedDate]    = useState(getTodayISO())
   const [showQuickLog,    setShowQuickLog]    = useState(false)
   const [conditionMap,    setConditionMap]    = useState<Record<string,number>>({})
   const conditionLevel = conditionMap[selectedDate] ?? 6
@@ -1214,7 +1214,7 @@ export default function DashboardScreen() {
       if (mapStr) {
         try { setConditionMap(JSON.parse(mapStr)) } catch {}
       } else if (oldVal) {
-        const migrated = { [TODAY_ISO]: Number(oldVal) }
+        const migrated = { [getTodayISO()]: Number(oldVal) }
         setConditionMap(migrated)
         AsyncStorage.setItem(CONDITION_MAP_KEY, JSON.stringify(migrated)).catch(() => {})
       }
@@ -1689,7 +1689,7 @@ ${sleepText || 'データなし'}
               <ConditionRow
                 value={conditionLevel}
                 onChange={handleConditionChange}
-                dateLabel={selectedDate === TODAY_ISO ? '今日の体調' : `${selectedDate.slice(5).replace('-', '/')} の体調`}
+                dateLabel={selectedDate === getTodayISO() ? '今日の体調' : `${selectedDate.slice(5).replace('-', '/')} の体調`}
               />
             </GlassCard>
           </AnimatedEntry>

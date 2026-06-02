@@ -83,7 +83,7 @@ export async function fetchMessages(teamCode: string): Promise<TeamMessageRow[]>
 }
 
 export async function postMessage(teamCode: string, content: string, authorName: string): Promise<TeamMessageRow | null> {
-  if (!isConfigured) throw new Error('Supabase未設定')
+  if (!isConfigured) return null  // 未設定時はサイレント（他の関数と統一）
   const { data, error } = await supabase
     .from('team_messages')
     .insert({ team_code: teamCode, content, author_name: authorName, is_pinned: false })
