@@ -233,9 +233,12 @@ export default function CoachViewScreen() {
       try {
         if (rawSessions) {
           const all: TrainingSession[] = JSON.parse(rawSessions)
+          // UTC混在を避けるため日付文字列同士で比較
           const cutoff = new Date()
           cutoff.setDate(cutoff.getDate() - 7)
-          const week = all.filter(s => new Date(s.session_date) >= cutoff)
+          cutoff.setHours(0, 0, 0, 0)
+          const cutoffStr = cutoff.toISOString().slice(0, 10)
+          const week = all.filter(s => s.session_date.slice(0, 10) >= cutoffStr)
           setRecentSessions(week)
           setSessionCount(week.length)
           if (week.length > 0) {

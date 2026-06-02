@@ -231,9 +231,9 @@ export default function AIDiagnosisScreen() {
           rpe: b.fatigue,
         })),
         sleepRecords: sleepRecords.map(s => ({
-          date: s.date,
-          hours: s.hours,
-          quality: s.quality,
+          date: s.sleep_date,
+          hours: s.duration_min ? Math.round(s.duration_min / 60 * 10) / 10 : undefined,
+          quality: s.quality_score,
         })),
       }
 

@@ -94,7 +94,8 @@ export async function exportAllDataCSV(): Promise<void> {
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    // Safari でダウンロード開始前にURLが解放されることを防ぐため遅延解放
+    setTimeout(() => URL.revokeObjectURL(url), 100)
   } else {
     await shareFileNative('\uFEFF' + csv, filename, 'text/csv')
   }
@@ -145,7 +146,8 @@ export async function exportAllDataJSON(): Promise<void> {
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    // Safari でダウンロード開始前にURLが解放されることを防ぐため遅延解放
+    setTimeout(() => URL.revokeObjectURL(url), 100)
   } else {
     await shareFileNative(json, filename, 'application/json')
   }

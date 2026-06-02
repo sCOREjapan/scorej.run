@@ -82,7 +82,16 @@ const MealCamera: React.FC<Props> = ({ onAnalyze, isAnalyzing = false }) => {
     }
   }
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
+    if (!imageBase64 && imageUri) {
+      // expo-image-picker が base64 を返さなかった場合、FileSystem で再取得
+      try {
+        const FS = await import('expo-file-system/legacy') as any
+        const b64 = await FS.readAsStringAsync(imageUri, { encoding: FS.EncodingType.Base64 })
+        if (b64) { setImageBase64(b64); onAnalyze(b64) }
+        return
+      } catch {}
+    }
     if (imageBase64) {
       onAnalyze(imageBase64)
     }

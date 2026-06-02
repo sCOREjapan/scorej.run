@@ -56,7 +56,8 @@ function CalendarPicker({ value, onChange }: { value: string; onChange: (d: stri
 
   const firstDay = new Date(viewYear, viewMonth, 1).getDay()
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
-  const todayStr = today.toISOString().slice(0, 10)
+  // toISOString() はUTC日付のため、深夜はローカル日付とずれる → ローカル日付で生成
+  const todayStr = [today.getFullYear(), String(today.getMonth()+1).padStart(2,'0'), String(today.getDate()).padStart(2,'0')].join('-')
 
   function prevMonth() {
     if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1) }

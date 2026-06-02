@@ -1780,7 +1780,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
 
                         {/* 削除ボタン */}
                         <TouchableOpacity
-                          onPress={e => { e.stopPropagation(); removeMember(m.id, m.name, m.id.startsWith('demo-')) }}
+                          onPress={e => { e.stopPropagation?.(); removeMember(m.id, m.name, m.id.startsWith('demo-')) }}
                           hitSlop={{top:12,bottom:12,left:12,right:12}}
                           style={{padding:4}}
                         >

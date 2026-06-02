@@ -31,7 +31,7 @@ function calcDuration(start: string, end: string): number | null {
   const endMin = timeToMinutes(end)
   if (startMin === null || endMin === null) return null
   let diff = endMin - startMin
-  if (diff <= 0) diff += 24 * 60 // overnight
+  if (diff < 0) diff += 24 * 60 // overnight（diff===0は同時刻=0分睡眠なのでそのまま）
   return diff
 }
 
