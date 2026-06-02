@@ -1,7 +1,7 @@
 // app/coupon.tsx — マーケティングクーポン入力画面
 // SNS動画コメント欄でのクーポン配布キャンペーン専用
 // ・SCR-XXXXX 形式の3日間全機能トライアルコードを入力
-// ・2026年6月1日以降は一斉に無効化
+// ・2026年12月31日以降は一斉に無効化
 
 import React, { useState, useRef, useEffect } from 'react'
 import {
@@ -126,7 +126,7 @@ export default function CouponScreen() {
             <View style={styles.campaignBanner}>
               <Ionicons name="gift-outline" size={16} color="#166534" />
               <Text style={styles.campaignText}>
-                キャンペーン中 — 2026年5月末まで有効
+                キャンペーン中 — 2026年12月末まで有効
               </Text>
             </View>
           ) : (
@@ -205,7 +205,7 @@ export default function CouponScreen() {
           <Text style={styles.note}>
             ・コードは1デバイスにつき1回のみ使用可能{'\n'}
             ・3日間の体験後は自動的に無料プランに戻ります{'\n'}
-            ・コードは2026年6月1日をもって一斉に無効化されます
+            ・コードは2026年12月31日をもって一斉に無効化されます
           </Text>
         </View>
       </KeyboardAvoidingView>
