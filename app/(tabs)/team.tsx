@@ -590,30 +590,13 @@ const COACH_FEATURES = [
 ]
 
 function CoachPaywallScreen({ onBack, onPurchased }: { onBack: () => void; onPurchased: () => void }) {
-  const { packages, purchase, restore, tier, applyAccessCode } = usePurchase()
+  const { packages, purchase, restore, tier } = usePurchase()
   const [busy,        setBusy]        = useState(false)
-  const [showCode,    setShowCode]    = useState(false)
-  const [codeInput,     setCodeInput]     = useState('')
-  const [codeError,     setCodeError]     = useState('')
-  const [codeLoading,   setCodeLoading]   = useState(false)
 
   // プラン購入後にtierがcoachになったら自動遷移
   React.useEffect(() => {
     if (tier === 'coach') onPurchased()
   }, [tier, onPurchased])
-
-  async function handleApplyCode() {
-    if (!codeInput.trim()) return
-    setCodeLoading(true)
-    setCodeError('')
-    const ok = await applyAccessCode(codeInput.trim())
-    setCodeLoading(false)
-    if (ok) {
-      // tier更新でuseEffectが自動遷移
-    } else {
-      setCodeError('コードが無効です。もう一度確認してください。')
-    }
-  }
 
   async function handlePurchase() {
     // coachパッケージを探す（月額優先）
@@ -712,61 +695,6 @@ function CoachPaywallScreen({ onBack, onPurchased }: { onBack: () => void; onPur
           <TouchableOpacity onPress={handleRestore} disabled={busy} style={{ alignItems: 'center', paddingVertical: 8 }} activeOpacity={0.7}>
             <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12 }}>以前の購入を復元する</Text>
           </TouchableOpacity>
-
-          {/* アクセスコード入力 */}
-          {!showCode ? (
-            <TouchableOpacity
-              onPress={() => setShowCode(true)}
-              style={{ alignItems: 'center', paddingVertical: 8 }}
-              activeOpacity={0.7}
-            >
-              <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12 }}>
-                🔑 アクセスコードをお持ちの方
-              </Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', padding: 16, gap: 12 }}>
-              <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '700' }}>🔑 アクセスコードで認証</Text>
-              <TextInput
-                style={{
-                  backgroundColor: 'rgba(255,255,255,0.1)',
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: codeError ? '#EF4444' : 'rgba(255,255,255,0.2)',
-                  color: '#fff',
-                  fontSize: 16,
-                  fontWeight: '700',
-                  letterSpacing: 2,
-                  paddingHorizontal: 16,
-                  paddingVertical: 14,
-                  textAlign: 'center',
-                  textTransform: 'uppercase',
-                  ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}),
-                }}
-                value={codeInput}
-                onChangeText={t => { setCodeInput(t); setCodeError('') }}
-                placeholder="XXXX-XXXX-XXXX"
-                placeholderTextColor="rgba(255,255,255,0.3)"
-                autoCapitalize="characters"
-                autoCorrect={false}
-                autoComplete="off"
-              />
-              {codeError ? (
-                <Text style={{ color: '#EF4444', fontSize: 12, textAlign: 'center' }}>{codeError}</Text>
-              ) : null}
-              <TouchableOpacity
-                style={[{ backgroundColor: '#166534', borderRadius: 12, paddingVertical: 14, alignItems: 'center' }, (codeLoading || !codeInput.trim()) && { opacity: 0.5 }]}
-                onPress={handleApplyCode}
-                disabled={codeLoading || !codeInput.trim()}
-                activeOpacity={0.85}
-              >
-                {codeLoading
-                  ? <ActivityIndicator size="small" color="#fff" />
-                  : <Text style={{ color: '#fff', fontSize: 15, fontWeight: '800' }}>コードを適用する</Text>
-                }
-              </TouchableOpacity>
-            </View>
-          )}
 
           {/* 注意書き */}
           <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10, textAlign: 'center', lineHeight: 16 }}>

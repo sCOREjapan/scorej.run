@@ -516,7 +516,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const guestId = `guest_${Date.now()}`
     AsyncStorage.setItem('userId', guestId).catch(() => {})
     // アクセスコード・サブスクキャッシュをクリア（前ユーザーの課金状態を引き継がせない）
-    AsyncStorage.multiRemove(['score_access_code', 'trackmate_subscription', 'score_trial_coupon']).catch(() => {})
+    AsyncStorage.multiRemove(['trackmate_subscription']).catch(() => {})
   }, [])
 
   // ── ゲスト解除（設定画面の「ログイン」ボタン用） ─────────
