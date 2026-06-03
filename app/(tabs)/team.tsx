@@ -1603,6 +1603,8 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
     : 0
   const unackedPainCount = displayMembers.filter(m => (m.painParts?.length ?? 0) > 0 && !m.ackedByCoach).length
   const newVideos        = videos.filter(v => !v.watched).length
+  // 欠席報告: team_messages の [ABSENCE] プレフィックスのもの（未確認 = まだ削除されていない）
+  const absenceMessages  = messages.filter(m => m.author_name === '__system__' && m.content.startsWith('[ABSENCE]'))
 
   return (
     <View style={{flex:1,backgroundColor:'#f6f6f8'}}>
@@ -1637,7 +1639,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
         <View style={co.tabsWrapper}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={co.tabs}>
           {([
-            { key:'members',  label:'メンバー',  badge: unackedPainCount + highRiskMembers.length },
+            { key:'members',  label:'メンバー',  badge: unackedPainCount + highRiskMembers.length + absenceMessages.length },
             { key:'menu',     label:'📋 メニュー', badge: 0 },
             { key:'messages', label:'アナウンス', badge: 0 },
             { key:'videos',   label:'動画',      badge: newVideos },
@@ -1676,6 +1678,47 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
                   </View>
                 </View>
               )}
+              {/* ─ 欠席報告セクション ─ */}
+              {absenceMessages.length > 0 && (
+                <View style={{gap:8}}>
+                  <View style={{flexDirection:'row',alignItems:'center',gap:8,backgroundColor:'rgba(255,149,0,0.08)',borderRadius:12,borderWidth:1,borderColor:'rgba(255,149,0,0.3)',borderLeftWidth:4,borderLeftColor:'#FF9500',padding:12}}>
+                    <Text style={{fontSize:16}}>🙏</Text>
+                    <View style={{flex:1}}>
+                      <Text style={{color:'#FF9500',fontSize:13,fontWeight:'800',marginBottom:2}}>
+                        {absenceMessages.length}件の欠席報告があります
+                      </Text>
+                      <Text style={{color:'#888',fontSize:11}}>確認後「確認済み」を押すと一覧から消えます</Text>
+                    </View>
+                  </View>
+                  {absenceMessages.map(msg => {
+                    // "[ABSENCE] 田中が休みを報告しました（体調不良）" → 本文を抽出
+                    const body = msg.content.replace(/^\[ABSENCE\]\s*/, '')
+                    return (
+                      <View key={msg.id} style={{backgroundColor:'#fff',borderRadius:14,borderWidth:1,borderColor:'rgba(255,149,0,0.25)',padding:14,flexDirection:'row',alignItems:'flex-start',gap:10,shadowColor:'#000',shadowOffset:{width:0,height:1},shadowOpacity:0.04,shadowRadius:4,elevation:1}}>
+                        <View style={{width:36,height:36,borderRadius:10,backgroundColor:'rgba(255,149,0,0.12)',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                          <Text style={{fontSize:18}}>🙏</Text>
+                        </View>
+                        <View style={{flex:1,gap:6}}>
+                          <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
+                            <Text style={{color:'#FF9500',fontSize:11,fontWeight:'800'}}>欠席報告</Text>
+                            <Text style={{color:'#999',fontSize:11}}>{timeAgo(msg.created_at)}</Text>
+                          </View>
+                          <Text style={{color:TEXT.primary,fontSize:13,lineHeight:20,fontWeight:'600'}}>{body}</Text>
+                          <TouchableOpacity
+                            onPress={() => deleteMsg(msg.id)}
+                            style={{alignSelf:'flex-start',flexDirection:'row',alignItems:'center',gap:5,backgroundColor:'#FF9500',borderRadius:8,paddingHorizontal:12,paddingVertical:7,marginTop:2}}
+                            activeOpacity={0.8}
+                          >
+                            <Ionicons name="checkmark-circle" size={14} color="#fff"/>
+                            <Text style={{color:'#fff',fontSize:12,fontWeight:'800'}}>確認済み</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    )
+                  })}
+                </View>
+              )}
+
               {/* 要注意バナー：未確認の痛み報告 */}
               {unackedPainCount > 0 && (
                 <TouchableOpacity
@@ -1716,6 +1759,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
               {/* サマリー横長カード */}
               <View style={{gap:6}}>
                 {([
+                  { emoji:'🙏', label:'欠席報告', value:`${absenceMessages.length}件`,                  color: absenceMessages.length>0?'#FF9500':'#34C759',                         filter:'all' as const },
                   { emoji:'🤕', label:'痛み報告', value:`${unackedPainCount}件`,                        color: unackedPainCount>0?'#EF4444':'#34C759',                              filter:'pain' as const },
                   { emoji:'⚠️', label:'高リスク', value:`${highRiskMembers.length}人`,                 color: highRiskMembers.length>0?'#E53935':'#34C759',                         filter:'danger' as const },
                   { emoji:'💪', label:'チーム負荷', value: LOAD_CFG[loadCfgKey(avgLoad)].label,        color: LOAD_CFG[loadCfgKey(avgLoad)].color,                                  filter:'all' as const },
