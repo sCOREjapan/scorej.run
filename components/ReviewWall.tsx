@@ -161,14 +161,6 @@ export default function ReviewWall({ visible, onClose }: Props) {
           </Text>
         )}
 
-        {/* 特典メッセージ */}
-        <View style={s.benefitBox}>
-          <Text style={s.benefitTxt}>
-            ⭐  レビューを書いてくれた方に、次回アップデートで{'\n'}
-            クーポンコード対応予定です（近日公開）
-          </Text>
-        </View>
-
         {/* CTAボタン */}
         <TouchableOpacity style={s.primaryBtn} onPress={openStore} activeOpacity={0.85}>
           <Ionicons name="star" size={18} color="#fff" />
@@ -235,14 +227,6 @@ const s = StyleSheet.create({
   starLabel: {
     color: '#FBBF24', fontSize: 13, textAlign: 'center',
     fontWeight: '600', marginTop: -8,
-  },
-  benefitBox: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 14, padding: 14,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
-  },
-  benefitTxt: {
-    color: 'rgba(255,255,255,0.65)', fontSize: 13, lineHeight: 20,
   },
   primaryBtn: {
     backgroundColor: '#166534',
