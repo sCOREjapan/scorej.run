@@ -640,8 +640,10 @@ const lg = StyleSheet.create({
   primaryBtnText:{ color: '#fff', fontSize: 15, fontWeight: '800', letterSpacing: -0.3 },
 
   guestBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    paddingVertical: 18 },
-  guestText:   { color: '#9ca3af', fontSize: 14 },
+    paddingVertical: 16, marginTop: 8, borderRadius: 14,
+    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.25)',
+    backgroundColor: 'rgba(255,255,255,0.06)' },
+  guestText:   { color: '#e5e7eb', fontSize: 15, fontWeight: '700' },
   footer:      { color: '#9ca3af', fontSize: 10, textAlign: 'center', lineHeight: 16, paddingBottom: 8 },
 
   confirmBox:  { alignItems: 'center', padding: 20, backgroundColor: '#f0f2f5',

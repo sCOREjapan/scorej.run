@@ -269,9 +269,11 @@ export default function PaywallScreen() {
 
         {/* ── 固定フッター ── */}
         <View style={st.footer}>
-          {loading ? (
-            <View style={[st.ctaBtn, { justifyContent: 'center' }]}>
+          {(loading || packages.length === 0) ? (
+            // プラン未ロード中（IAP取得待ち）はローディング表示。タップでエラーを出さない
+            <View style={[st.ctaBtn, { justifyContent: 'center', opacity: 0.7 }]}>
               <ActivityIndicator color="#fff" />
+              <Text style={[st.ctaBtnText, { marginLeft: 10 }]}>プランを準備中...</Text>
             </View>
           ) : (
             <TouchableOpacity
