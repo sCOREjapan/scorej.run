@@ -38,7 +38,8 @@ const CARD_THEMES = [
   { id: 'midnight', label: 'ミッドナイト', colors: ['#0a0a0a', '#1a1a2e', '#16213e'] as const, dot: '#a0a8c0' },
   { id: 'clear',    label: '透明',         colors: ['#1a1a1a', '#1a1a1a', '#1a1a1a'] as const, dot: '#ffffff' },
 ] as const
-type ThemeId = typeof CARD_THEMES[number]['id']
+type ThemeId    = typeof CARD_THEMES[number]['id']
+type CardVariant = 'card' | 'glass' | 'transparent'
 
 // ── 共通 Canvas ユーティリティ ─────────────────────────────────────────────
 function rrPath(
@@ -252,54 +253,90 @@ function exportSpinVideo(record: RaceRecord, themeId: ThemeId): Promise<{ transp
 }
 
 // ── プレビューコンポーネント ───────────────────────────────────────────────
-function OverlayPreview({ record, themeId }: { record: RaceRecord; themeId: ThemeId }) {
+function CardContent({ record }: { record: RaceRecord }) {
+  return (
+    <>
+      <Text style={pv.event}>{record.event}</Text>
+      <Text style={pv.result} adjustsFontSizeToFit numberOfLines={1}>
+        {record.result_display}
+      </Text>
+      <View style={pv.badgeRow}>
+        {record.is_pb && (
+          <View style={[pv.badge, { backgroundColor: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.6)' }]}>
+            <Ionicons name="trophy" size={12} color="#ffffff" />
+            <Text style={[pv.badgeTxt, { color: '#ffffff' }]}>自己ベスト！</Text>
+          </View>
+        )}
+        {record.is_sb && !record.is_pb && (
+          <View style={[pv.badge, { backgroundColor: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.6)' }]}>
+            <Ionicons name="star" size={12} color="#ffffff" />
+            <Text style={[pv.badgeTxt, { color: '#ffffff' }]}>シーズンベスト！</Text>
+          </View>
+        )}
+      </View>
+      <View style={pv.divider} />
+      <View style={pv.metaList}>
+        <View style={pv.metaRow}>
+          <Ionicons name="calendar-outline" size={12} color="rgba(255,255,255,0.5)" />
+          <Text style={pv.metaTxt}>{formatDateJP(record.race_date)}</Text>
+        </View>
+        {record.competition_name != null && (
+          <View style={pv.metaRow}>
+            <Ionicons name="flag-outline" size={12} color="rgba(255,255,255,0.5)" />
+            <Text style={pv.metaTxt} numberOfLines={1}>{record.competition_name}</Text>
+          </View>
+        )}
+        {record.wind_ms !== undefined && (
+          <View style={pv.metaRow}>
+            <Ionicons name="cloud-outline" size={12} color="rgba(255,255,255,0.5)" />
+            <Text style={pv.metaTxt}>
+              {record.wind_ms >= 0 ? '+' : ''}{record.wind_ms} m/s
+            </Text>
+          </View>
+        )}
+      </View>
+      <Text style={pv.wmScore}>sCORE</Text>
+    </>
+  )
+}
+
+function OverlayPreview({ record, themeId, variant }: {
+  record: RaceRecord; themeId: ThemeId; variant: CardVariant
+}) {
   const theme = CARD_THEMES.find(t => t.id === themeId) ?? CARD_THEMES[0]
+
+  // ── バリアント: 完全透明（カード枠なし・テキストのみ）
+  if (variant === 'transparent') {
+    return (
+      <View style={[pv.container, { padding: 20 }]}>
+        <CardContent record={record} />
+      </View>
+    )
+  }
+
+  // ── バリアント: グラスカード（白い半透明枠）
+  if (variant === 'glass') {
+    return (
+      <View style={pv.container}>
+        <View style={[pv.glass, {
+          backgroundColor: 'rgba(255,255,255,0.08)',
+          borderColor:     'rgba(255,255,255,0.35)',
+          borderWidth: 1.5,
+        }]}>
+          <CardContent record={record} />
+        </View>
+      </View>
+    )
+  }
+
+  // ── バリアント: カード（テーマカラー・デフォルト）
   return (
     <View style={pv.container}>
       <View style={[pv.glass, {
         backgroundColor: theme.dot + '20',
         borderColor:     theme.dot + '60',
       }]}>
-        <Text style={pv.event}>{record.event}</Text>
-        <Text style={pv.result} adjustsFontSizeToFit numberOfLines={1}>
-          {record.result_display}
-        </Text>
-        <View style={pv.badgeRow}>
-          {record.is_pb && (
-            <View style={[pv.badge, { backgroundColor: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.6)' }]}>
-              <Ionicons name="trophy" size={12} color="#ffffff" />
-              <Text style={[pv.badgeTxt, { color: '#ffffff' }]}>自己ベスト！</Text>
-            </View>
-          )}
-          {record.is_sb && !record.is_pb && (
-            <View style={[pv.badge, { backgroundColor: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.6)' }]}>
-              <Ionicons name="star" size={12} color="#ffffff" />
-              <Text style={[pv.badgeTxt, { color: '#ffffff' }]}>シーズンベスト！</Text>
-            </View>
-          )}
-        </View>
-        <View style={pv.divider} />
-        <View style={pv.metaList}>
-          <View style={pv.metaRow}>
-            <Ionicons name="calendar-outline" size={12} color="rgba(255,255,255,0.5)" />
-            <Text style={pv.metaTxt}>{formatDateJP(record.race_date)}</Text>
-          </View>
-          {record.competition_name != null && (
-            <View style={pv.metaRow}>
-              <Ionicons name="flag-outline" size={12} color="rgba(255,255,255,0.5)" />
-              <Text style={pv.metaTxt} numberOfLines={1}>{record.competition_name}</Text>
-            </View>
-          )}
-          {record.wind_ms !== undefined && (
-            <View style={pv.metaRow}>
-              <Ionicons name="cloud-outline" size={12} color="rgba(255,255,255,0.5)" />
-              <Text style={pv.metaTxt}>
-                {record.wind_ms >= 0 ? '+' : ''}{record.wind_ms} m/s
-              </Text>
-            </View>
-          )}
-        </View>
-        <Text style={pv.wmScore}>sCORE</Text>
+        <CardContent record={record} />
       </View>
     </View>
   )
@@ -310,12 +347,13 @@ export default function ShareCardScreen() {
   const router = useRouter()
   const { recordId } = useLocalSearchParams<{ recordId?: string }>()
 
-  const [records,    setRecords]    = useState<RaceRecord[]>([])
-  const [selected,   setSelected]   = useState<RaceRecord | null>(null)
-  const [loading,    setLoading]    = useState(true)
-  const [exporting,  setExporting]  = useState(false)
-  const [themeId,    setThemeId]    = useState<ThemeId>('ocean')
-  const [exportMode, setExportMode] = useState<'png' | 'video'>('png')
+  const [records,     setRecords]     = useState<RaceRecord[]>([])
+  const [selected,    setSelected]    = useState<RaceRecord | null>(null)
+  const [loading,     setLoading]     = useState(true)
+  const [exporting,   setExporting]   = useState(false)
+  const [themeId,     setThemeId]     = useState<ThemeId>('ocean')
+  const [exportMode,  setExportMode]  = useState<'png' | 'video'>('png')
+  const [cardVariant, setCardVariant] = useState<CardVariant>('card')
   const previewRef = useRef<View>(null)
 
   // 動画録画の対応確認（VP9透過 → VP8 → WebM → MP4 いずれか使えればOK）
@@ -416,16 +454,24 @@ export default function ShareCardScreen() {
         Toast.show({ type: 'error', text1: '写真ライブラリへのアクセスを許可してください' })
         return
       }
-      // transparent: true はiOSで黒画像になるため削除。カードのデザイン自体に背景色あり
-      const uri = await captureRef(previewRef, { format: 'png', quality: 1 })
+      // グラス・透明バリアントは transparent:true で背景透過PNG を保存
+      const isTransparentVariant = cardVariant === 'glass' || cardVariant === 'transparent'
+      const uri = await captureRef(previewRef, {
+        format: 'png',
+        quality: 1,
+        ...(isTransparentVariant ? { transparent: true } as any : {}),
+      })
       await MediaLibrary.saveToLibraryAsync(uri)
-      Toast.show({ type: 'success', text1: 'カメラロールに保存しました 📸', visibilityTime: 2000 })
+      const msg = isTransparentVariant
+        ? '背景透過PNGを保存しました 📸'
+        : 'カメラロールに保存しました 📸'
+      Toast.show({ type: 'success', text1: msg, visibilityTime: 2000 })
     } catch {
       Toast.show({ type: 'error', text1: '保存に失敗しました' })
     } finally {
       setExporting(false)
     }
-  }, [])
+  }, [cardVariant])
 
   const isVideo = exportMode === 'video'
 
@@ -501,14 +547,47 @@ export default function ShareCardScreen() {
               </Text>
             </View>
 
+            {/* カードスタイル選択 */}
+            <View style={{ gap: 8 }}>
+              <Text style={s.selectorLabel}>カードスタイル</Text>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {([
+                  { id: 'card',        label: 'カード',   icon: 'color-palette-outline',  desc: 'テーマカラー' },
+                  { id: 'glass',       label: 'グラス',   icon: 'square-outline',          desc: '透明ガラス' },
+                  { id: 'transparent', label: '完全透明', icon: 'contrast-outline',        desc: 'テキストのみ' },
+                ] as const).map(v => {
+                  const active = cardVariant === v.id
+                  return (
+                    <TouchableOpacity
+                      key={v.id}
+                      onPress={() => setCardVariant(v.id)}
+                      activeOpacity={0.8}
+                      style={{
+                        flex: 1, alignItems: 'center', gap: 4,
+                        paddingVertical: 10, borderRadius: 12,
+                        borderWidth: active ? 1.5 : 1,
+                        borderColor: active ? BRAND : 'rgba(255,255,255,0.1)',
+                        backgroundColor: active ? BRAND + '22' : 'rgba(255,255,255,0.05)',
+                      }}
+                    >
+                      <Ionicons name={v.icon} size={18} color={active ? BRAND : 'rgba(255,255,255,0.4)'} />
+                      <Text style={{ color: active ? BRAND : 'rgba(255,255,255,0.45)', fontSize: 10, fontWeight: active ? '800' : '500' }}>{v.label}</Text>
+                      <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 9 }}>{v.desc}</Text>
+                    </TouchableOpacity>
+                  )
+                })}
+              </View>
+            </View>
+
             {/* カードプレビュー */}
             {selected != null && (
               <View style={s.previewWrap} ref={previewRef} collapsable={false}>
-                <OverlayPreview record={selected} themeId={themeId} />
+                <OverlayPreview record={selected} themeId={themeId} variant={cardVariant} />
               </View>
             )}
 
-            {/* テーマ選択 */}
+            {/* テーマ選択（カードスタイルのみ表示） */}
+            {cardVariant === 'card' && (
             <View style={{ gap: 8 }}>
               <Text style={s.selectorLabel}>背景テーマ</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 2 }}>
@@ -541,6 +620,7 @@ export default function ShareCardScreen() {
                 })}
               </ScrollView>
             </View>
+            )}
 
             {/* アクションボタン */}
             <View style={s.actions}>
