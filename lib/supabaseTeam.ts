@@ -224,7 +224,7 @@ export async function syncTeamSessions(
     sets: s.sets ?? null,
   }))
   const { error } = await supabase.from('team_sessions').upsert(rows, { onConflict: 'id' })
-  if (error) console.error('[syncTeamSessions]', error.message)
+  if (error && __DEV__) console.warn('[syncTeamSessions]', error.message)
 }
 
 export async function fetchTeamSessions(teamCode: string): Promise<TeamSessionRow[]> {

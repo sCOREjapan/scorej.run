@@ -935,10 +935,10 @@ function PlayerJoinScreen({ onJoined, onBack }: { onJoined:(j:JoinedTeam)=>void;
       }
       const j: JoinedTeam = { code:cleaned, teamName, coachName, playerName:playerName.trim(), joinedAt:new Date().toISOString() }
       await AsyncStorage.setItem(JOINED_KEY, JSON.stringify(j))
-      // Supabaseにメンバー登録
-      await registerMember(cleaned, playerName.trim(), '')
-      // コーチに通知
-      await sendPush(`👋 新メンバー`, `${playerName.trim()} がチームに参加しました`, 'coaches', cleaned)
+      // Supabaseにメンバー登録（失敗してもUIは進める。load() で自己修復される）
+      await registerMember(cleaned, playerName.trim(), '').catch(() => {})
+      // コーチに通知（失敗しても参加自体は成功）
+      sendPush(`👋 新メンバー`, `${playerName.trim()} がチームに参加しました`, 'coaches', cleaned).catch(() => {})
       Toast.show({type:'success',text1:`${teamName} に参加しました！`,visibilityTime:2000})
       onJoined(j)
     } catch {
@@ -1167,7 +1167,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
       }
       setTeamSessionsMap(map)
     } catch (e) {
-      console.error('[CoachDashboard] load error:', e)
+      if (__DEV__) console.warn('[CoachDashboard] load error:', e)
     } finally {
       if (mountedRef.current) setLoading(false)
     }
@@ -2883,6 +2883,9 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
     if (myReport) { setBodyParts(myReport.parts); setBodyDetail(myReport.detail ?? '') }
     // myStat は後続の upsertPlayerStats で参照するためだけに宣言（editは変更しない）
     const myStat = stats.find(s => s.player_name === joined.playerName)
+    // 自分を team_members に再登録（参加時に登録失敗していてもコーチ一覧に出るよう自己修復）
+    const myMember = mems.find(m => m.player_name === joined.playerName)
+    registerMember(joined.code, joined.playerName, myMember?.event ?? '', iconRaw ?? '').catch(() => {})
     // 自分のセッションをチームに同期（バックグラウンド実行 — 失敗してもUIに影響しない）
     syncTeamSessions(joined.code, joined.playerName, loadedSessions).catch(() => {})
     // レベル + 最新コンディションを自動同期
@@ -2899,7 +2902,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
       )
     } catch { /* DB列未追加時もサイレントに無視 */ }
     } catch (e) {
-      console.error('[PlayerDashboard] load error:', e)
+      if (__DEV__) console.warn('[PlayerDashboard] load error:', e)
     } finally {
       if (plMountedRef.current) setPlLoading(false)
     }
@@ -2989,7 +2992,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
         lastSess?.session_date ?? '', recent30.length, editGoal.trim(), calcStreak(sessions),
       )
       setShowStatsEdit(false)
-      load().catch(console.error)
+      load().catch(() => {})
       Toast.show({ type: 'success', text1: 'プロフィールを更新しました ✓', visibilityTime: 1600 })
     } catch (e) {
       Toast.show({ type: 'error', text1: '保存できませんでした', text2: String(e), visibilityTime: 2500 })
@@ -3773,9 +3776,15 @@ export default function TeamScreen() {
           AsyncStorage.getItem(JOINED_KEY),
         ])
         const role = roleRaw as Role|null
-        // 保存済みデータは常にメモリにロード（壊れていてもクラッシュしない）
-        try { if (setupRaw)  setSetup(JSON.parse(setupRaw)) } catch {}
-        try { if (joinedRaw) setJoined(JSON.parse(joinedRaw)) } catch {}
+        // 保存済みデータをパース（壊れていたら null 扱い＝セットアップ画面へ戻す）
+        // ※ raw の有無ではなくパース成功を基準にしないと、壊れたデータで
+        //   state だけ 'coach'/'player' になり setup/joined が null → 真っ黒画面になる
+        let parsedSetup:  TeamSetup  | null = null
+        let parsedJoined: JoinedTeam | null = null
+        try { if (setupRaw)  parsedSetup  = JSON.parse(setupRaw) } catch {}
+        try { if (joinedRaw) parsedJoined = JSON.parse(joinedRaw) } catch {}
+        if (parsedSetup)  setSetup(parsedSetup)
+        if (parsedJoined) setJoined(parsedJoined)
 
         if (!role) { setState('select-role'); return }
         if (role === 'coach') {
@@ -3788,9 +3797,9 @@ export default function TeamScreen() {
             setState('coach-paywall')
             return
           }
-          setState(setupRaw ? 'coach' : 'coach-setup')
+          setState(parsedSetup ? 'coach' : 'coach-setup')
         } else {
-          setState(joinedRaw ? 'player' : 'player-join')
+          setState(parsedJoined ? 'player' : 'player-join')
         }
       } catch {
         setState('select-role')
@@ -3841,9 +3850,13 @@ export default function TeamScreen() {
   if (state==='loading')          return <View style={{flex:1,backgroundColor:'#0a0a0a'}}/>
   if (state==='select-role')      return <Animated.View style={fadeStyle}><RoleSelectionScreen onSelect={handleSelectRole}/></Animated.View>
   if (state==='coach-paywall')    return <Animated.View style={fadeStyle}><CoachPaywallScreen onBack={() => setState('select-role')} onPurchased={async () => { await AsyncStorage.setItem(ROLE_KEY, 'coach').catch(() => {}); setState(setup ? 'coach' : 'coach-setup') }}/></Animated.View>
-  if (state==='coach-setup')      return <Animated.View style={fadeStyle}><CoachSetupScreen onCreated={handleCoachCreated} onBack={() => setState('select-role')}/></Animated.View>
+  // coach 状態で setup が無い（壊れたデータ）→ セットアップ画面へフォールバック
+  if (state==='coach-setup' || (state==='coach' && !setup))
+                                  return <Animated.View style={fadeStyle}><CoachSetupScreen onCreated={handleCoachCreated} onBack={() => setState('select-role')}/></Animated.View>
   if (state==='coach' && setup)   return <Animated.View style={fadeStyle}><CoachDashboard  setup={setup}   onSwitchRole={handleSwitchRole} onDeleteTeam={handleDeleteTeam}  canSwitchRole={true}/></Animated.View>
-  if (state==='player-join')      return <Animated.View style={fadeStyle}><PlayerJoinScreen onJoined={handlePlayerJoined} onBack={() => setState('select-role')}/></Animated.View>
+  // player 状態で joined が無い（壊れたデータ）→ 参加画面へフォールバック
+  if (state==='player-join' || (state==='player' && !joined))
+                                  return <Animated.View style={fadeStyle}><PlayerJoinScreen onJoined={handlePlayerJoined} onBack={() => setState('select-role')}/></Animated.View>
   if (state==='player' && joined) return <Animated.View style={fadeStyle}><PlayerDashboard joined={joined} onSwitchRole={handleSwitchRole} onLeaveTeam={handleLeaveTeam}  canSwitchRole={true}/></Animated.View>
-  return <View style={{flex:1,backgroundColor:'#0a0a0a'}}/>
+  return <Animated.View style={fadeStyle}><RoleSelectionScreen onSelect={handleSelectRole}/></Animated.View>
 }
