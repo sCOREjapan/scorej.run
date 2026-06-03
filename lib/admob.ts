@@ -59,7 +59,9 @@ let _isExpoGo = false
 try {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const Constants = require('expo-constants').default
+  // appOwnership: 'expo' / executionEnvironment: 'storeClient' のどちらかが Expo Go
   _isExpoGo = Constants?.appOwnership === 'expo'
+    || Constants?.executionEnvironment === 'storeClient'
 } catch {}
 
 // ── ライブラリ取得（Web/Expo Go では null）─────────────────────

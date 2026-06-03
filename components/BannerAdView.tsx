@@ -14,6 +14,7 @@ try {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const Constants = require('expo-constants').default
   _isExpoGo = Constants?.appOwnership === 'expo'
+    || Constants?.executionEnvironment === 'storeClient'
 } catch {}
 
 export default function BannerAdView({ onLoaded, onFailed }: Props) {

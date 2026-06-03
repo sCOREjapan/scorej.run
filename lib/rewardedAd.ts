@@ -30,6 +30,7 @@ let _isExpoGo = false
 try {
   const Constants = require('expo-constants').default
   _isExpoGo = Constants?.appOwnership === 'expo'
+    || Constants?.executionEnvironment === 'storeClient'
 } catch {}
 
 // ── ライブラリ安全取得 ────────────────────────────────────────

@@ -442,15 +442,15 @@ export default function SettingsScreen() {
                     </Text>
                   )}
                 </View>
-                {!isPro && (
-                  <TouchableOpacity
-                    style={{ backgroundColor: '#166534', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 }}
-                    onPress={() => router.push('/paywall')}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={{ color: '#fff', fontSize: 13, fontWeight: '800' }}>アップグレード</Text>
-                  </TouchableOpacity>
-                )}
+                <TouchableOpacity
+                  style={{ backgroundColor: '#166534', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 }}
+                  onPress={() => router.push('/paywall')}
+                  activeOpacity={0.85}
+                >
+                  <Text style={{ color: '#fff', fontSize: 13, fontWeight: '800' }}>
+                    {isPro ? 'プラン変更' : 'アップグレード'}
+                  </Text>
+                </TouchableOpacity>
               </View>
               {!isPro && (
                 <Text style={{ color: '#9ca3af', fontSize: 12, marginTop: 10, lineHeight: 18 }}>
