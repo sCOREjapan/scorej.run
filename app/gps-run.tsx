@@ -20,6 +20,7 @@ import { BRAND, TEXT, SURFACE, SURFACE2, DIVIDER } from '../lib/theme'
 import type { TrainingSession } from '../types'
 import { autoSyncTeam } from '../lib/teamAutoSync'
 import { getTier } from '../lib/adGate'
+import { todayLocalISO } from '../lib/dateLocal'
 import { shouldShowInterstitial, showInterstitialAd } from '../lib/admob'
 
 // ─── 定数 ──────────────────────────────────────────────────────────────
@@ -225,7 +226,7 @@ export default function GpsRunScreen() {
       const newSession: TrainingSession = {
         id: `gps_${Date.now()}`,
         user_id: (await AsyncStorage.getItem('userId').catch(() => null)) ?? 'local',
-        session_date: new Date().toISOString().slice(0, 10),
+        session_date: todayLocalISO(),  // ローカル日付（UTCだと深夜に前日扱いになる）
         session_type: 'easy',
         distance_m: Math.round(distM),
         time_ms: Math.round(ms),

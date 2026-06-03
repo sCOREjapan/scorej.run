@@ -17,6 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import Toast from 'react-native-toast-message'
 import { Ionicons } from '@expo/vector-icons'
 import { BRAND, TEXT, SURFACE, SURFACE2, DIVIDER } from '../lib/theme'
+import { todayLocalISO } from '../lib/dateLocal'
 import type { AthleticsEvent, TrainingSession } from '../types'
 import { autoSyncTeam } from '../lib/teamAutoSync'
 import { getTier } from '../lib/adGate'
@@ -159,7 +160,7 @@ export default function TimerScreen() {
       const firstSplit = splits.find(s => s.lap === 1)
       const resultMs = firstSplit ? firstSplit.lapMs : displayMs
 
-      const today = new Date().toISOString().slice(0, 10)
+      const today = todayLocalISO()  // ローカル日付（UTCだと深夜に前日扱いになる）
       const raw = await AsyncStorage.getItem(SESSIONS_KEY)
       let existing: TrainingSession[] = []
       try { if (raw) existing = JSON.parse(raw) } catch {}  // データ破損でも新規保存を継続
