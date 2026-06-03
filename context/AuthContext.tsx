@@ -23,6 +23,41 @@ const SITE_URL = typeof window !== 'undefined' && window.location?.origin
   ? window.location.origin
   : 'https://scorej-run.vercel.app'
 
+// ── PKCE コード交換の重複排除 ────────────────────────────────────
+// signInWithGoogle の openAuthSessionAsync 結果と、Linking のディープリンク
+// リスナーが同じ code で同時に exchangeCodeForSession を呼ぶと、PKCE の
+// code verifier が片方で消費され、もう片方が「no valid flow state found」で
+// 失敗する。code 単位で1回だけ交換するようにロックする。
+let _exchangePromise: Promise<{ error: any }> | null = null
+let _exchangeCode: string | null = null
+const _doneCodes = new Set<string>()
+
+async function exchangeCodeOnce(urlOrCode: string): Promise<{ error: any }> {
+  const m = urlOrCode.match(/[?&]code=([^&\s]+)/)
+  const code = m ? decodeURIComponent(m[1]) : urlOrCode
+  // 既に成功済みの code → 成功扱いでスキップ
+  if (_doneCodes.has(code)) return { error: null }
+  // 同じ code が交換中 → その Promise を待つ（二重呼び出しを1本化）
+  if (_exchangeCode === code && _exchangePromise) return _exchangePromise
+  _exchangeCode = code
+  _exchangePromise = (async () => {
+    try {
+      // まず URL 形式で試し、ダメなら code だけで再試行
+      let { error } = await (supabase.auth as any).exchangeCodeForSession(urlOrCode)
+      if (error) {
+        const r = await (supabase.auth as any).exchangeCodeForSession(code)
+        error = r.error
+      }
+      if (!error) _doneCodes.add(code)
+      return { error }
+    } finally {
+      _exchangePromise = null
+      _exchangeCode = null
+    }
+  })()
+  return _exchangePromise
+}
+
 interface AuthContextType {
   user:                    User    | null
   session:                 Session | null
@@ -75,15 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!url) return
       try {
         if (url.includes('code=')) {
-          const { error } = await (supabase.auth as any).exchangeCodeForSession(url)
-          if (error) {
-            // フォールバック: URL から code だけ抽出して再試行
-            const codeMatch = url.match(/[?&]code=([^&\s]+)/)
-            const code = codeMatch ? decodeURIComponent(codeMatch[1]) : null
-            if (code) {
-              await (supabase.auth as any).exchangeCodeForSession(code).catch(() => {})
-            }
-          }
+          await exchangeCodeOnce(url)   // 重複排除付き（二重交換を防ぐ）
         } else if (url.includes('access_token=')) {
           // implicit flow（旧 Supabase）
           const hash = url.split('#')[1] ?? ''
@@ -246,25 +273,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       try { await WebBrowser.coolDownAsync() } catch {}
 
-      const { error: exchError } = await (supabase.auth as any).exchangeCodeForSession(result.url)
+      // 重複排除付きで交換（Linking リスナーと競合しても安全）
+      const { error: exchError } = await exchangeCodeOnce(result.url)
       if (exchError) {
         if (__DEV__) console.log('[Google OAuth] exchangeCode error:', exchError.message)
-        // フォールバック1: URL から code だけ抜き取って再試行（カスタムスキームの URL パース失敗対策）
-        try {
-          const codeMatch = result.url.match(/[?&]code=([^&\s]+)/)
-          const code = codeMatch ? decodeURIComponent(codeMatch[1]) : null
-          if (code) {
-            const { error: retryError } = await (supabase.auth as any).exchangeCodeForSession(code)
-            if (!retryError) {
-              if (__DEV__) console.log('[Google OAuth] exchangeCode retry success')
-              return   // 成功 → onAuthStateChange が呼ばれるのでここで終了
-            }
-            if (__DEV__) console.log('[Google OAuth] retry error:', retryError.message)
-          }
-        } catch (retryEx: any) {
-          if (__DEV__) console.log('[Google OAuth] retry exception:', retryEx?.message)
-        }
-        // フォールバック2: implicit flow のハッシュトークン（旧 Supabase 対応）
+        // フォールバック: implicit flow のハッシュトークン（旧 Supabase 対応）
         try {
           const hash = result.url.split('#')[1] ?? ''
           const params = new URLSearchParams(hash)
