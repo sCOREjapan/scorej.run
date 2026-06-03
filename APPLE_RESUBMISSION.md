@@ -1,96 +1,91 @@
-# sCORE — Apple 再提出 連絡文書（Build 57）
+# sCORE — Apple 再提出 連絡文書（Build 58）
 
-App Store Connect の各欄に貼り付けてください。
+前回（build 57）のリジェクト 2件への対応版。
+
+- Guideline 3.1.1（クーポンで有料機能を解放）→ **クーポン/アクセスコード機能を完全削除**
+- Guideline 2.1（プラン購入ボタンのエラー / ログインエラー）→ 対応済み
 
 ---
 
-## 1. App Review Information → Notes（審査メモ）に貼る文章【英語・必須】
+## ⚠️ 提出前に必ずやること（App Store Connect・最重要）
+
+**App内課金プロダクトが「メタデータが不足」のままだと、審査でプランが読み込めず
+また 2.1 で落ちます。** 提出前に必ず：
+
+1. App Store Connect →「アプリ内課金」/「サブスクリプション」で、6つのプロダクト
+   （`score_pro_monthly` / `score_pro_annual` / `score_elite_monthly` /
+   `score_elite_annual` / `score_coach_monthly` / `score_coach_annual`）の
+   **メタデータ（表示名・説明・価格・スクショ）を全て埋めて「審査準備完了」にする**
+2. バージョン提出画面で、**これらのサブスクリプションをこのバージョンと一緒に提出**
+   （新規アプリは初回IAPを binary と同時に審査に出す必要があります）
+3. Sandbox テスト用アカウントを1つ作成
+   （ユーザとアクセス →「Sandbox」→ テスター を追加）
+
+これをやらないと「プランを選ぶ」が読み込み中のままになります。
+
+---
+
+## 1. App Review → Notes（審査メモ）に貼る文章【英語・必須】
 
 ```
 Hello App Review Team,
 
-Thank you for reviewing sCORE (build 57). We have fixed all issues found in the
-previous review. Below is the information needed to test every feature.
+Thank you for the detailed feedback on build 57. We have resolved both issues in
+build 58.
 
-■ HOW TO UNLOCK ALL PREMIUM FEATURES (no payment needed)
-sCORE has a built-in reviewer access code that unlocks every paid feature
-(PRO + ELITE + COACH tiers) without any purchase.
+■ Guideline 3.1.1 (Coupon codes) — FIXED
+We have completely removed the coupon-code and access-code features that unlocked
+paid functionality. All premium tiers (PRO / ELITE / COACH) are now unlocked
+exclusively through In-App Purchase via the App Store. There is no longer any
+non-IAP unlock mechanism anywhere in the app.
 
-  Access Code:  SCOREJAPAN2026
+■ Guideline 2.1 (Bugs) — FIXED
+1. "Select a plan" button error: this happened because our subscription products
+   were still in "Missing Metadata" state and could not load. We have completed
+   all subscription metadata and submitted the products together with this build.
+   The paywall now also shows a clear loading state instead of an error while
+   products are being fetched.
+2. Sign-in errors: we hardened the Apple and Google sign-in flows. In addition,
+   the app is FULLY usable WITHOUT signing in — please use "Continue as Guest".
 
-Steps:
-  1. Open the app and complete the short onboarding (or tap "Continue as Guest").
-  2. Tap the "Team" (チーム) tab at the bottom.
-  3. Tap the "Coach" (コーチ) role.
-  4. On the plan screen, tap the small link "🔑 I have an access code"
-     (🔑 アクセスコードをお持ちの方) to reveal the input field.
-  5. Enter:  SCOREJAPAN2026
-  6. Tap the green "Authenticate" button.
-  7. All premium features (AI analysis, video form analysis, team management,
-     CSV export, ad-free, etc.) are now fully unlocked across the whole app.
+■ HOW TO REVIEW (no account or payment required)
+  1. Launch the app and finish the short onboarding.
+  2. On the sign-in screen, tap "Continue as Guest" (the bordered button at the
+     bottom). This gives full access to the entire app — no account needed.
+  3. To verify In-App Purchases, open any premium feature (e.g. the paywall) and
+     purchase using your Sandbox tester account (sandbox purchases are free).
+  4. "Restore Purchases" is available on the paywall.
 
-■ SIGN IN
-- "Continue as Guest" is available — no account is required to use the app.
-- Google Sign-In and Apple Sign-In are both supported if you prefer.
+■ PERMISSIONS (all optional)
+- Camera / Photos: meal photos and running-form video analysis.
+- Location: GPS run tracking and local weather-based injury-risk.
+- Tracking (ATT): personalized ads only; declining is fully supported.
+The core app works without granting any of these.
 
-■ IN-APP PURCHASES
-- Subscriptions are managed through RevenueCat + StoreKit.
-- All 6 subscription products are configured in App Store Connect.
-- The reviewer access code above bypasses payment so you can verify all
-  premium functionality without being charged.
-
-■ NOTES ON PERMISSIONS
-- Camera / Photos: used for meal photos and running-form video analysis.
-- Location: used for GPS run tracking and local weather-based injury risk.
-- Tracking (ATT): used only for personalized ads; declining is fully supported.
-- All permissions are optional — the core app works without granting them.
-
-If you need anything else, please let us know. Thank you very much.
+Thank you very much for your time. Please let us know if anything else is needed.
 
 — sCORE Japan
 ```
 
 ---
 
-## 2. 同じ内容の日本語版（控え／社内用）
+## 2. Resolution Center への返信文【英語・任意だが推奨】
+
+Apple のメッセージスレッドにそのまま返信すると、レビュアーに直接届きます。
 
 ```
-App Review チーム ご担当者様
+Thank you for the feedback. Build 58 addresses both points:
 
-sCORE（build 57）のご審査ありがとうございます。
-前回ご指摘いただいた問題はすべて修正いたしました。
-全機能をテストいただくための情報を以下に記載します。
+- Guideline 3.1.1: We removed ALL coupon/access-code unlocks. Premium features
+  are now unlocked only through In-App Purchase. No non-IAP unlock remains.
 
-■ 全プレミアム機能の解放方法（課金不要）
-レビュアー用のアクセスコードで、すべての有料機能（PRO + ELITE + COACH）を
-購入なしで解放できます。
+- Guideline 2.1: The "Select a plan" error was caused by subscription products
+  in "Missing Metadata" state; we have completed the metadata and are submitting
+  the IAPs together with this build, and the paywall now shows a loading state
+  instead of an error. For sign-in, the app is fully usable via "Continue as
+  Guest" (no account needed), and we hardened the Apple/Google flows.
 
-  アクセスコード：SCOREJAPAN2026
-
-手順：
-  1. アプリを開きオンボーディングを完了（または「ゲストとして続ける」をタップ）
-  2. 下部の「チーム」タブをタップ
-  3. 「コーチ」ロールを選択
-  4. プラン画面で「🔑 アクセスコードをお持ちの方」のリンクをタップして入力欄を開く
-  5. SCOREJAPAN2026 を入力
-  6. 緑の「認証」ボタンをタップ
-  7. AI分析・動画フォーム分析・チーム管理・CSV出力・広告非表示など
-     全機能がアプリ全体で解放されます
-
-■ ログイン
-- 「ゲストとして続ける」が利用可能（アカウント不要）
-- Google / Apple サインインも対応
-
-■ アプリ内課金
-- RevenueCat + StoreKit で管理
-- 6つのサブスク商品を App Store Connect に登録済み
-- 上記アクセスコードで課金なしに全機能を検証可能
-
-■ 権限について
-- カメラ/写真：食事写真・フォーム動画分析に使用
-- 位置情報：GPSラン記録・天気ベースの怪我リスク計算に使用
-- トラッキング(ATT)：パーソナライズ広告のみ。拒否しても全機能利用可
-- すべて任意（許可しなくてもコア機能は動作）
+We would appreciate another review. Thank you.
 ```
 
 ---
@@ -99,33 +94,21 @@ sCORE（build 57）のご審査ありがとうございます。
 
 | 項目 | 入力値 |
 |------|--------|
-| Sign-in required? | **No**（ゲスト利用可のため） |
-| First name / Last name | （担当者名） |
-| Phone number | （連絡先電話番号） |
+| サインインが必要ですか? | **いいえ（No）** — ゲストで全機能利用可 |
+| First / Last name | （担当者名） |
+| Phone number | （連絡先電話） |
 | Email | amuletbaby.shop@gmail.com |
-| Notes | 上記「1.」の英語文章を貼り付け |
-
-※ Demo Account（Username/Password）は **不要**（ゲスト利用 + アクセスコードで全機能テスト可能なため）。
-　もし「デモアカウントを入力せよ」と求められた場合のみ、Apple/Google でログインできる
-　テスト用アカウントを別途用意してください。
+| Notes | 上記「1.」の英語文章 |
+| Demo Account | **不要**（ゲスト利用のため空欄でOK） |
 
 ---
 
-## 4. 「このバージョンで修正した点」— Resolution Center 返信用（任意）
+## 4. 今回 build 58 で直した点（社内メモ）
 
-前回リジェクトの Resolution Center に返信する場合の文例：
-
-```
-Thank you for your feedback. In build 57 we have addressed all the points raised:
-
-- Fixed the issues that prevented full functionality during review.
-- Added a reviewer access code (SCOREJAPAN2026) that unlocks ALL premium
-  features without payment — see the App Review notes for step-by-step
-  instructions.
-- Verified Sign in with Apple, Google Sign-In, and Guest mode all work.
-- Confirmed all in-app subscriptions load and the restore-purchases flow works.
-
-We would appreciate another review. Thank you.
-```
-```
-```
+- **3.1.1**：`PurchaseContext` から applyCoupon / applyAccessCode / ACCESS_CODE_MAP /
+  TRIAL_COUPON_SET / isTrial 等を全削除。coupon.tsx は無効化。設定・ペイウォール・
+  コーチペイウォールのコード入力UIを削除。→ 課金は IAP のみ。
+- **2.1 バグ1**：ペイウォールのCTAを、プラン未ロード時は「プランを準備中...」の
+  ローディング表示にして、タップでエラーが出ないようにした。
+- **2.1 バグ2**：「ゲストとして続ける」を枠付きの目立つボタンに変更。
+  Apple/Google ログインは前ビルドで dedupe 修正済み。
