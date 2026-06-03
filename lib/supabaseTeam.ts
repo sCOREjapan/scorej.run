@@ -52,7 +52,8 @@ export async function registerMember(teamCode: string, playerName: string, event
 
 export async function deleteMember(id: string): Promise<void> {
   if (!isConfigured) return
-  await supabase.from('team_members').delete().eq('id', id)
+  const { error } = await supabase.from('team_members').delete().eq('id', id)
+  if (error) throw new Error(error.message)
 }
 
 export async function fetchMembers(teamCode: string): Promise<TeamMemberRow[]> {

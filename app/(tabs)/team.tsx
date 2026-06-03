@@ -1253,14 +1253,19 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
   async function execDelete() {
     if (!pendingDelete) return
     const { id, name, isDemo } = pendingDelete
-    if (isDemo) {
-      setHiddenDemoIds(prev => [...prev, id])
-    } else {
-      await deleteMember(id)
-      setMembers(prev => prev.filter(m => m.id !== id))
+    setPendingDelete(null)  // 確認ダイアログを即閉じる（閉じ忘れ防止）
+    try {
+      if (isDemo) {
+        setHiddenDemoIds(prev => [...prev, id])
+      } else {
+        await deleteMember(id)
+        setMembers(prev => prev.filter(m => m.id !== id))
+      }
+      if (detailMember?.id === id) setDetailMember(null)
+      Toast.show({ type: 'success', text1: `${name} を削除しました`, visibilityTime: 1600 })
+    } catch (e: any) {
+      Toast.show({ type: 'error', text1: '削除に失敗しました', text2: e?.message ?? '', visibilityTime: 3000 })
     }
-    if (detailMember?.id === id) setDetailMember(null)
-    Toast.show({ type: 'success', text1: `${name} を削除しました`, visibilityTime: 1600 })
   }
 
   async function ackPain(playerName: string) {
