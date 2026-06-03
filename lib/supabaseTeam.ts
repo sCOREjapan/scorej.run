@@ -16,10 +16,11 @@ export interface TeamRow {
 
 export async function createTeam(code: string, teamName: string, coachName: string): Promise<void> {
   if (!isConfigured) return
-  await supabase.from('teams').upsert(
+  const { error } = await supabase.from('teams').upsert(
     { code, team_name: teamName, coach_name: coachName },
     { onConflict: 'code' },
   )
+  if (error) throw new Error(error.message)
 }
 
 export async function fetchTeamByCode(code: string): Promise<TeamRow | null> {

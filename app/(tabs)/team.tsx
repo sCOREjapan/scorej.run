@@ -841,8 +841,9 @@ function CoachSetupScreen({ onCreated, onBack }: { onCreated:(s:TeamSetup)=>void
     try {
       const s: TeamSetup = { teamName:teamName.trim(), coachName:coachName.trim(), code:generateCode(), createdAt:new Date().toISOString() }
       await AsyncStorage.setItem(SETUP_KEY, JSON.stringify(s))
-      // Supabase にチームを登録（他デバイスからの参加コード検証に使用）
-      await createTeam(s.code, s.teamName, s.coachName)
+      // Supabase にチームを登録（失敗してもローカル作成は進める。
+      // ダッシュボードの load() で再登録され自己修復するため）
+      await createTeam(s.code, s.teamName, s.coachName).catch(() => {})
       onCreated(s)
     } catch {
       Toast.show({type:'error',text1:'チームの作成に失敗しました。再度お試しください'})
@@ -1127,6 +1128,9 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
 
   const load = useCallback(async () => {
     try {
+      // チームを teams テーブルに再登録（GRANT前に作成して未登録のチームを自己修復）
+      // これがないと予定追加・アナウンスが外部キー制約違反で失敗する
+      createTeam(setup.code, setup.teamName, setup.coachName).catch(() => {})
       const [msgs, vids, mems, rpts, teamSessions, evts, pStats] = await Promise.all([
         fetchMessages(setup.code),
         fetchVideos(setup.code),
@@ -1293,6 +1297,8 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
     const desc     = evDesc.trim()
     const type     = evType
     try {
+      // チームが teams テーブルに存在することを保証（外部キー制約違反を防ぐ）
+      await createTeam(setup.code, setup.teamName, setup.coachName)
       const result = await addTeamEvent(setup.code, title, date, time, location, desc, type, setup.coachName)
       if (!result) throw new Error('イベントデータが取得できませんでした')
       // モーダルを先に閉じてからフォームをリセット
@@ -1302,13 +1308,15 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
       setTeamEvents(prev => [...prev, result].sort((a, b) => a.event_date.localeCompare(b.event_date)))
       Toast.show({ type: 'success', text1: '予定を追加しました ✓', visibilityTime: 1800 })
       // バックグラウンドでリロード & 通知（失敗してもUIに影響しない）
-      load().catch(console.error)
+      load().catch(() => {})
       sendPush(`📅 ${setup.teamName}`, `新しい予定：${title}（${date}）`, 'players', setup.code)
     } catch (e: any) {
-      console.error('[addEvent]', e)
+      if (__DEV__) console.warn('[addEvent]', e)  // warnにして赤画面を防ぐ
       const msg = e?.message ?? String(e)
       if (msg.includes('does not exist') || msg.includes('未設定')) {
         Alert.alert('⚠️ DBテーブル未設定', 'Supabase SQL エディタで schema.sql を実行してください', [{ text: 'OK' }])
+      } else if (msg.includes('foreign key') || msg.includes('team_code_fkey')) {
+        Toast.show({ type: 'error', text1: 'チーム情報の同期中', text2: 'もう一度お試しください', visibilityTime: 4000 })
       } else if (msg.includes('row-level security') || msg.includes('RLS') || msg.includes('permission')) {
         Toast.show({ type: 'error', text1: '権限エラー', text2: 'ログインしてから再試行してください', visibilityTime: 4000 })
       } else if (msg.includes('violates check constraint')) {
