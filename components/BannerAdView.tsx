@@ -8,9 +8,17 @@ interface Props {
   onFailed?:  () => void
 }
 
+// Expo Go 判定（ネイティブモジュール不在環境）
+let _isExpoGo = false
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const Constants = require('expo-constants').default
+  _isExpoGo = Constants?.appOwnership === 'expo'
+} catch {}
+
 export default function BannerAdView({ onLoaded, onFailed }: Props) {
-  // Web/開発環境ではAdMob ネイティブモジュールが存在しないためスキップ
-  if (Platform.OS === 'web' || __DEV__) return null
+  // Web/Expo Go ではAdMob ネイティブモジュールが存在しないためスキップ
+  if (Platform.OS === 'web' || _isExpoGo) return null
 
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires

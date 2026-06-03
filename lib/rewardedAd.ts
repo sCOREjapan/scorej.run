@@ -25,9 +25,16 @@ export const BANNER_AD_UNIT_ID = __DEV__
   ? TEST_BANNER_ID
   : (Platform.select({ ios: AD_UNIT_IDS.ios.banner, android: AD_UNIT_IDS.android.banner }) ?? TEST_BANNER_ID)
 
+// ── Expo Go 判定（ネイティブモジュール不在環境）─────────────────
+let _isExpoGo = false
+try {
+  const Constants = require('expo-constants').default
+  _isExpoGo = Constants?.appOwnership === 'expo'
+} catch {}
+
 // ── ライブラリ安全取得 ────────────────────────────────────────
 function getAdLib() {
-  if (Platform.OS === 'web') return null
+  if (Platform.OS === 'web' || _isExpoGo) return null
   try { return require('react-native-google-mobile-ads') } catch { return null }
 }
 

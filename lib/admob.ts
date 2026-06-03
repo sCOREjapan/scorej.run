@@ -51,12 +51,26 @@ const AD_UNIT_IDS = {
   },
 }
 
+// ── Expo Go 判定（ネイティブAdMobモジュールが存在しない環境）──────
+// Expo Go では appOwnership === 'expo'。この環境で require すると
+// TurboModuleRegistry が Invariant Violation を投げて赤画面になるため
+// require 自体を実行しない。
+let _isExpoGo = false
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const Constants = require('expo-constants').default
+  _isExpoGo = Constants?.appOwnership === 'expo'
+} catch {}
+
 // ── ライブラリ取得（Web/Expo Go では null）─────────────────────
+let _admobCache: any = null
 function getAdmob() {
-  if (Platform.OS === 'web') return null
+  if (Platform.OS === 'web' || _isExpoGo) return null
+  if (_admobCache) return _admobCache
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    return require('react-native-google-mobile-ads')
+    _admobCache = require('react-native-google-mobile-ads')
+    return _admobCache
   } catch {
     return null
   }
