@@ -46,10 +46,12 @@ export async function autoSyncTeam(
     const joined: JoinedTeam = JSON.parse(raw)
     if (!joined?.code || !joined?.playerName) return
 
-    // ── 30分スロットル（force=true でもバイパスしない） ──
+    // ── 30分スロットル ──
+    // force=true（練習記録直後の意図的な保存）はバイパスして即同期する。
+    // → コーチ側に記録がすぐ反映される。バックグラウンドの自動同期のみ制限。
     {
       const lastRaw = await AsyncStorage.getItem(LAST_SYNC_KEY)
-      if (lastRaw) {
+      if (!force && lastRaw) {
         const lastSync = parseInt(lastRaw, 10)
         if (!isNaN(lastSync) && Date.now() - lastSync < THROTTLE_MS) return
       }
