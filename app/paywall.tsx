@@ -163,6 +163,13 @@ export default function PaywallScreen() {
               <Text style={st.heroSub}>
                 まずは無料で試せます。いつでも解約可能。
               </Text>
+              {currentTier !== 'free' && (
+                <View style={st.currentPlanBadge}>
+                  <Text style={st.currentPlanText}>
+                    現在 {currentTier === 'coach' ? 'コーチ' : currentTier === 'elite' ? 'ELITE' : 'PRO'} をご利用中
+                  </Text>
+                </View>
+              )}
             </View>
 
             {/* ── プラン切替タブ ── */}
@@ -313,6 +320,14 @@ export default function PaywallScreen() {
 // ── スタイル ──────────────────────────────────────────────────────
 const st = StyleSheet.create({
   root: { flex: 1, backgroundColor: BG },
+
+  currentPlanBadge: {
+    marginTop: 12, alignSelf: 'center',
+    backgroundColor: 'rgba(22,101,52,0.25)',
+    borderWidth: 1, borderColor: 'rgba(34,197,94,0.5)',
+    borderRadius: 999, paddingHorizontal: 14, paddingVertical: 6,
+  },
+  currentPlanText: { color: '#4ade80', fontSize: 12, fontWeight: '800' },
 
   closeCircle: {
     position:  'absolute', top: 14, right: 20, zIndex: 10,
