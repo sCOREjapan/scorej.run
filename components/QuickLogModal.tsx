@@ -34,25 +34,6 @@ function dateOffset(days: number): string {
   return localDateStr(d)
 }
 
-/** テキストから日付を抽出（昨日/一昨日/MM月DD日/MM/DD） */
-function parseDateFromText(text: string): string | null {
-  if (/一昨日|おととい/.test(text)) return dateOffset(2)
-  if (/昨日/.test(text))           return dateOffset(1)
-  const mmdd = text.match(/(\d{1,2})月(\d{1,2})日/)
-  if (mmdd) {
-    const now = new Date()
-    const d = new Date(now.getFullYear(), parseInt(mmdd[1]) - 1, parseInt(mmdd[2]))
-    if (d <= now) return localDateStr(d)
-  }
-  const slash = text.match(/(\d{1,2})\/(\d{1,2})/)
-  if (slash) {
-    const now = new Date()
-    const d = new Date(now.getFullYear(), parseInt(slash[1]) - 1, parseInt(slash[2]))
-    if (d <= now) return localDateStr(d)
-  }
-  return null
-}
-
 /** YYYY-MM-DD → 表示文字列 */
 function formatDateLabel(iso: string): string {
   const d = new Date(iso + 'T12:00:00')
@@ -221,9 +202,8 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
 
     const today = localDateStr(new Date())  // UTC ではなくローカル日付を使用
 
-    // テキスト内の日付を優先、なければボタンで選択した日付
-    const textDate = parseDateFromText(freeText)
-    const sessionDate = textDate || selectedDate
+    // 日付は上のボタン（今日/昨日/一昨日）で選択したものを使用
+    const sessionDate = selectedDate
 
     // 正規表現でテキストを解析（AI不使用・即時保存）
     const parsed: Record<string, any> = fallbackParse(freeText, sessionDate)
@@ -338,7 +318,7 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
           </View>
 
           <Text style={st.hint}>
-            自由に入力 — 「昨日」「5月10日」と書いても反映されます
+            練習内容を自由に入力してください（日付は上のボタンで選択）
           </Text>
 
           <TextInput
@@ -363,8 +343,8 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
               <ActivityIndicator color="#fff" size="small" />
             ) : (
               <>
-                <Ionicons name="sparkles" size={18} color="#fff" />
-                <Text style={st.saveBtnText}>AIで記録する</Text>
+                <Ionicons name="checkmark-circle" size={18} color="#fff" />
+                <Text style={st.saveBtnText}>記録する</Text>
               </>
             )}
           </HapticTouch>

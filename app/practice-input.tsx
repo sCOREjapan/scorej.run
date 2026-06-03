@@ -80,7 +80,7 @@ export default function PracticeInputScreen() {
           </Text>
         </View>
 
-        {/* AI入力モーダル */}
+        {/* 自由入力モーダル */}
         <QuickLogModal
           visible={showAI}
           onClose={() => { setShowAI(false); router.back() }}
