@@ -11,6 +11,7 @@ import * as WebBrowser from 'expo-web-browser'
 import * as Linking from 'expo-linking'
 import * as AuthSession from 'expo-auth-session'
 import * as AppleAuthentication from 'expo-apple-authentication'
+import * as Crypto from 'expo-crypto'
 
 // expo-web-browser の結果を Supabase が処理できるよう登録
 // iOS 26 で稀に throw するため try-catch で保護
@@ -306,11 +307,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try { nativeAvailable = await AppleAuthentication.isAvailableAsync() } catch {}
 
         if (nativeAvailable) {
+          // nonce: raw を Supabase に、SHA256(raw) を Apple に渡す（Supabase推奨フロー）
+          const rawNonce = Crypto.randomUUID()
+          const hashedNonce = await Crypto.digestStringAsync(
+            Crypto.CryptoDigestAlgorithm.SHA256,
+            rawNonce,
+          )
           const credential = await AppleAuthentication.signInAsync({
             requestedScopes: [
               AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
               AppleAuthentication.AppleAuthenticationScope.EMAIL,
             ],
+            nonce: hashedNonce,
           })
           if (!credential.identityToken) {
             Toast.show({ type: 'error', text1: 'Appleログイン失敗', text2: 'トークンを取得できませんでした' })
@@ -319,6 +327,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const { error } = await (supabase.auth as any).signInWithIdToken({
             provider: 'apple',
             token:    credential.identityToken,
+            nonce:    rawNonce,
           })
           if (error) Toast.show({ type: 'error', text1: 'Appleログイン失敗', text2: error.message })
         } else {

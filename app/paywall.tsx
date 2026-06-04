@@ -62,12 +62,16 @@ export default function PaywallScreen() {
   const [period,       setPeriod]       = useState<PeriodType>('annual')
   const [purchasing,   setPurchasing]   = useState(false)
   const [restoring,    setRestoring]    = useState(false)
+  const [loadTimedOut, setLoadTimedOut] = useState(false)  // プラン取得が一定時間で来ない場合
 
   const fadeAnim = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
     trackPaywallView('paywall_screen')
     Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start()
+    // 10秒経ってもプランが取得できなければ「無限ロード」を避けて案内を出す
+    const t = setTimeout(() => setLoadTimedOut(true), 10000)
+    return () => clearTimeout(t)
   }, [])
 
   // プラン切替時のフェード
@@ -270,11 +274,23 @@ export default function PaywallScreen() {
         {/* ── 固定フッター ── */}
         <View style={st.footer}>
           {(loading || packages.length === 0) ? (
-            // プラン未ロード中（IAP取得待ち）はローディング表示。タップでエラーを出さない
-            <View style={[st.ctaBtn, { justifyContent: 'center', opacity: 0.7 }]}>
-              <ActivityIndicator color="#fff" />
-              <Text style={[st.ctaBtnText, { marginLeft: 10 }]}>プランを準備中...</Text>
-            </View>
+            loadTimedOut ? (
+              // 10秒待っても取得できない → 無限ロードを避けて案内＋復元導線
+              <View style={{ gap: 8 }}>
+                <TouchableOpacity style={[st.ctaBtn, { backgroundColor: 'rgba(255,255,255,0.12)' }]} onPress={handleRestore} activeOpacity={0.85}>
+                  <Text style={st.ctaBtnText}>購入を復元する</Text>
+                </TouchableOpacity>
+                <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, textAlign: 'center', lineHeight: 18 }}>
+                  現在プラン情報を取得できません。{'\n'}通信環境をご確認のうえ、時間をおいてお試しください。
+                </Text>
+              </View>
+            ) : (
+              // プラン未ロード中（IAP取得待ち）はローディング表示。タップでエラーを出さない
+              <View style={[st.ctaBtn, { justifyContent: 'center', opacity: 0.7 }]}>
+                <ActivityIndicator color="#fff" />
+                <Text style={[st.ctaBtnText, { marginLeft: 10 }]}>プランを準備中...</Text>
+              </View>
+            )
           ) : (
             <TouchableOpacity
               style={st.ctaBtn}

@@ -281,7 +281,7 @@ export default function OnboardingScreen() {
               <View style={{ gap: 24 }}>
                 <View style={styles.titleArea}>
                   <Text style={styles.emoji}>👋</Text>
-                  <Text style={styles.title}>はじめに{'\n'}教えてください</Text>
+                  <Text style={styles.title}>はじめに教えてください</Text>
                   <Text style={styles.sub}>あなたの名前またはニックネームを入力してください</Text>
                 </View>
                 <View style={styles.inputWrap}>
@@ -307,7 +307,7 @@ export default function OnboardingScreen() {
               <View style={{ gap: 20 }}>
                 <View style={styles.titleArea}>
                   <Text style={styles.emoji}>🏃</Text>
-                  <Text style={styles.title}>競技カテゴリを{'\n'}選んでください</Text>
+                  <Text style={styles.title}>競技カテゴリを選んでください</Text>
                   <Text style={styles.sub}>メインで取り組んでいる種目のカテゴリ</Text>
                 </View>
                 <View style={{ gap: 10 }}>
@@ -330,7 +330,7 @@ export default function OnboardingScreen() {
               <View style={{ gap: 20 }}>
                 <View style={styles.titleArea}>
                   <Text style={styles.emoji}>🎯</Text>
-                  <Text style={styles.title}>メイン種目を{'\n'}選んでください</Text>
+                  <Text style={styles.title}>メイン種目を選んでください</Text>
                   <Text style={styles.sub}>複数ある場合は最も力を入れている種目を選んで</Text>
                 </View>
                 <View style={{ gap: 8 }}>
@@ -351,7 +351,7 @@ export default function OnboardingScreen() {
               <View style={{ gap: 24 }}>
                 <View style={styles.titleArea}>
                   <Text style={styles.emoji}>📊</Text>
-                  <Text style={styles.title}>競技歴と記録{'\n'}（任意）</Text>
+                  <Text style={styles.title}>競技歴と記録（任意）</Text>
                   <Text style={styles.sub}>入力するとAIのアドバイスが精度アップします</Text>
                 </View>
 
@@ -635,11 +635,12 @@ const styles = StyleSheet.create({
   skipBtn:   { width: 60, alignItems: 'flex-end', paddingVertical: 4 },
   skipText:  { color: TEXT.hint, fontSize: 13, fontWeight: '600' },
 
-  content:    { padding: 24, paddingBottom: 20 },
+  content:    { padding: 24, paddingBottom: 40, flexGrow: 1 },
   titleArea:  { gap: 10, marginBottom: 4 },
-  emoji:      { fontSize: 42 },
-  title:      { color: '#111827', fontSize: 28, fontWeight: '900', letterSpacing: -0.8, lineHeight: 36 },
-  sub:        { color: TEXT.secondary, fontSize: 14, lineHeight: 20 },
+  emoji:      { fontSize: 42, lineHeight: 52 },
+  // lineHeight に余裕を持たせて iPad で日本語太字の下が見切れないようにする
+  title:      { color: '#111827', fontSize: 26, fontWeight: '900', letterSpacing: -0.5, lineHeight: 38 },
+  sub:        { color: TEXT.secondary, fontSize: 14, lineHeight: 22 },
   sectionLabel: { color: TEXT.hint, fontSize: 11, fontWeight: '700', letterSpacing: 1.2 },
 
   chip: {
