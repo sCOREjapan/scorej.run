@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
   Modal,
+  Alert,
   Animated,
   KeyboardAvoidingView,
   Platform,
@@ -38,11 +39,15 @@ const PROFILE_KEY = 'trackmate_my_profile'
 const EVENTS: AthleticsEvent[] = [
   // トラック
   '100m', '200m', '400m', '110mH', '100mH', '400mH',
-  '800m', '1500m', '3000m', '5000m', '10000m', '3000mSC', '競歩',
+  '800m', '1500m', '3000m', '5000m', '10000m', 'half_marathon', 'marathon', '3000mSC', '競歩',
   // フィールド・跳躍
   '走幅跳', '三段跳', '走高跳', '棒高跳',
   // 投擲
   '砲丸投', 'やり投', '円盤投', 'ハンマー投',
+  // 混成（得点制）
+  '十種競技', '七種競技', '八種競技',
+  // リレー
+  '4×100mR', '4×400mR',
 ]
 
 const INTENSITY_COLORS: Record<string, string> = {
@@ -85,7 +90,7 @@ function SkeletonRect({ height = 16, width = '100%' as number | string, radius =
   }, [opacity])
   return (
     <Animated.View
-      style={{ height, width: width as number, borderRadius: radius, backgroundColor: '#e8eaed', opacity }}
+      style={{ height, width: width as any, borderRadius: radius, backgroundColor: '#e8eaed', opacity }}
     />
   )
 }
@@ -284,6 +289,30 @@ export default function CompetitionScreen() {
     Toast.show({ type: 'success', text1: `エントリー状態を「${status}」に変更しました` })
   }, [entryStatusMap])
 
+  // ── 試合計画削除 ────────────────────────────────────────────────
+  const handleDeleteComp = useCallback((comp: CompetitionPlan) => {
+    Alert.alert(
+      '試合計画を削除',
+      `「${comp.competition_name}」を削除しますか？`,
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '削除',
+          style: 'destructive',
+          onPress: () => {
+            setCompetitions(prev => {
+              const next = prev.filter(c => c.id !== comp.id)
+              AsyncStorage.setItem(COMP_KEY, JSON.stringify(next)).catch(() => {})
+              return next
+            })
+            if (selectedComp?.id === comp.id) setSelectedComp(null)
+            Toast.show({ type: 'success', text1: '試合計画を削除しました' })
+          },
+        },
+      ]
+    )
+  }, [selectedComp])
+
   // ── フィルター適用 ─────────────────────────────────────────────
   const filteredCompetitions = activeFilter === '全て'
     ? competitions
@@ -464,18 +493,27 @@ export default function CompetitionScreen() {
         ) : (
           <>
             {filteredCompetitions.map(c => (
-              <HapticTouch
-                key={c.id}
-                haptic="tap"
-                onPress={() => setSelectedComp(prev => prev?.id === c.id ? null : c)}
-                activeOpacity={0.85}
-              >
-                <CountdownCard
-                  competition={c}
-                  entryStatus={entryStatusMap[c.id] ?? '未確認'}
-                  onEntryPress={() => { Sounds.pop(); setEntryModalComp(c) }}
-                />
-              </HapticTouch>
+              <View key={c.id}>
+                <HapticTouch
+                  haptic="tap"
+                  onPress={() => setSelectedComp(prev => prev?.id === c.id ? null : c)}
+                  activeOpacity={0.85}
+                >
+                  <CountdownCard
+                    competition={c}
+                    entryStatus={entryStatusMap[c.id] ?? '未確認'}
+                    onEntryPress={() => { Sounds.pop(); setEntryModalComp(c) }}
+                  />
+                </HapticTouch>
+                <TouchableOpacity
+                  style={styles.deleteBtn}
+                  onPress={() => handleDeleteComp(c)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="trash-outline" size={14} color={TEXT.hint} />
+                  <Text style={styles.deleteBtnText}>削除</Text>
+                </TouchableOpacity>
+              </View>
             ))}
 
             {/* 選択中の試合の週別計画 */}
@@ -532,6 +570,27 @@ export default function CompetitionScreen() {
               />
 
               <Text style={styles.label}>試合日</Text>
+              {Platform.OS === 'web' ? (
+                // Web版はブラウザネイティブの日付入力を使う（Apple仕様のピッカーは非表示）
+                React.createElement('input', {
+                  type: 'date',
+                  value: compDate || '',
+                  min: new Date().toISOString().slice(0, 10),
+                  onChange: (e: any) => setCompDate(e.target.value),
+                  style: {
+                    backgroundColor: '#f8f8fa',
+                    borderRadius: 10,
+                    padding: '12px 14px',
+                    color: TEXT.primary,
+                    fontSize: 15,
+                    border: '1px solid rgba(59,130,246,0.25)',
+                    marginBottom: 14,
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    fontFamily: 'inherit',
+                  },
+                })
+              ) : (
               <TouchableOpacity
                 style={[styles.input, { justifyContent: 'center' }]}
                 onPress={() => setShowDatePicker(true)}
@@ -541,7 +600,8 @@ export default function CompetitionScreen() {
                   {compDate || '日付を選択'}
                 </Text>
               </TouchableOpacity>
-              {showDatePicker && (
+              )}
+              {Platform.OS !== 'web' && showDatePicker && (
                 <>
                   <DateTimePicker
                     value={compDate ? new Date(compDate) : new Date()}
@@ -904,6 +964,8 @@ const styles = StyleSheet.create({
   emptyText: { color: TEXT.hint, fontSize: 13, textAlign: 'center', lineHeight: 20 },
   emptyBtn: { backgroundColor: BRAND, borderRadius: 14, paddingHorizontal: 28, paddingVertical: 14 },
   emptyBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15 },
+  deleteBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-end', paddingVertical: 4, paddingHorizontal: 8, marginTop: -4, marginBottom: 4 },
+  deleteBtnText: { fontSize: 12, color: TEXT.hint },
 
   // モーダル
   modalSafe: { flex: 1, backgroundColor: '#f6f6f8' },

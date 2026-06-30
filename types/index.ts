@@ -19,7 +19,14 @@ export type FieldEvent =
   | '走幅跳' | '三段跳' | '走高跳' | '棒高跳'
   | '砲丸投' | 'やり投' | '円盤投' | 'ハンマー投'
 
-export type AthleticsEvent = TrackEvent | FieldEvent
+// 混成競技（得点制）
+export type CombinedEvent =
+  | '十種競技' | '七種競技' | '八種競技'
+
+// リレー種目
+export type RelayEvent = '4×100mR' | '4×400mR'
+
+export type AthleticsEvent = TrackEvent | FieldEvent | CombinedEvent | RelayEvent
 export type TrackEvent = SprintEvent | MiddleLongEvent
 
 // ─────────────────────────────────────────

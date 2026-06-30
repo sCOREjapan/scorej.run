@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import Toast from 'react-native-toast-message'
+import { showInterstitialAd } from '../../lib/admob'
 import { BG_GRADIENT, BRAND, TEXT, NEON } from '../../lib/theme'
 import { Sounds, unlockAudio } from '../../lib/sounds'
 import HapticTouch from '../../components/HapticTouch'
@@ -21,6 +22,7 @@ import type { SleepRecord } from '../../types'
 import { exportAllDataCSV, exportAllDataJSON } from '../../lib/export'
 import { checkAdGate, recordUsage } from '../../lib/adGate'
 import AdGateModal from '../../components/AdGateModal'
+import QuickLogModal from '../../components/QuickLogModal'
 import { useAuth } from '../../context/AuthContext'
 import { trackFeatureUse } from '../../lib/analytics'
 import ConfettiEffect from '../../components/ConfettiEffect'
@@ -41,6 +43,7 @@ const TRACK_EVENTS: AthleticsEvent[] = [
   '100m','200m','400m','800m','1500m','3000m',
   '5000m','10000m','110mH','100mH','400mH','3000mSC',
   'half_marathon','marathon','競歩',
+  '4×100mR','4×400mR',
 ]
 const FIELD_EVENTS: AthleticsEvent[] = [
   '走幅跳','三段跳','走高跳','棒高跳',
@@ -105,7 +108,7 @@ function Badge({ label, color }: { label: string; color: string }) {
 }
 
 // ── 記録カード ────────────────────────────────────────────────────
-function RecordCard({ record, onDelete }: { record: RaceRecord; onDelete: () => void }) {
+function RecordCard({ record, onDelete, onEdit }: { record: RaceRecord; onDelete: () => void; onEdit: () => void }) {
   const router = useRouter()
   return (
     <View style={[styles.recordCard, record.is_pb && styles.recordCardPB]}>
@@ -145,6 +148,9 @@ function RecordCard({ record, onDelete }: { record: RaceRecord; onDelete: () => 
           >
             <Ionicons name="share-social-outline" size={13} color="#fff" />
             <Text style={styles.shareBtnTxt}>シェア</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onEdit} style={{ padding: 4 }}>
+            <Ionicons name="pencil-outline" size={14} color={BRAND} />
           </TouchableOpacity>
           <TouchableOpacity onPress={onDelete} style={{ padding: 4 }}>
             <Ionicons name="trash-outline" size={14} color={TEXT.hint} />
@@ -348,10 +354,11 @@ function Heatmap({ sessions }: { sessions: TrainingSession[] }) {
 }
 
 // ── セッション詳細シート ────────────────────────────────────────────
-function SessionDetailSheet({ session, onClose, onDelete }: {
+function SessionDetailSheet({ session, onClose, onDelete, onEdit }: {
   session: TrainingSession
   onClose: () => void
   onDelete: (id: string) => void
+  onEdit: (session: TrainingSession) => void
 }) {
   const color = TYPE_COLORS[session.session_type] ?? '#888'
   const label = TYPE_LABELS[session.session_type] ?? session.session_type
@@ -378,7 +385,7 @@ function SessionDetailSheet({ session, onClose, onDelete }: {
   ]
 
   return (
-    <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end', zIndex: 999 }]}>
+    <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       <View style={{ backgroundColor: '#ffffff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
         padding: 20, paddingBottom: 48, borderTopWidth: 1, borderColor: 'rgba(0,0,0,0.08)' }}>
@@ -421,17 +428,29 @@ function SessionDetailSheet({ session, onClose, onDelete }: {
             <Text style={{ color: TEXT.secondary, fontSize: 13, lineHeight: 22 }}>{session.notes}</Text>
           </View>
         ) : null}
-        {/* 削除ボタン */}
-        <TouchableOpacity
-          onPress={() => { onDelete(session.id); onClose() }}
-          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-            paddingVertical: 13, borderRadius: 12, borderWidth: 1,
-            borderColor: 'rgba(255,59,48,0.35)', backgroundColor: 'rgba(255,59,48,0.08)' }}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="trash-outline" size={16} color="#FF3B30" />
-          <Text style={{ color: '#FF3B30', fontWeight: '700', fontSize: 14 }}>この記録を削除</Text>
-        </TouchableOpacity>
+        {/* 編集・削除ボタン */}
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <TouchableOpacity
+            onPress={() => onEdit(session)}
+            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+              paddingVertical: 13, borderRadius: 12,
+              backgroundColor: '#166534' }}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="create-outline" size={16} color="#fff" />
+            <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>編集する</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => { onDelete(session.id); onClose() }}
+            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+              paddingVertical: 13, paddingHorizontal: 18, borderRadius: 12, borderWidth: 1,
+              borderColor: 'rgba(255,59,48,0.35)', backgroundColor: 'rgba(255,59,48,0.08)' }}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="trash-outline" size={16} color="#FF3B30" />
+            <Text style={{ color: '#FF3B30', fontWeight: '700', fontSize: 14 }}>削除</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   )
@@ -449,7 +468,11 @@ function getIntensityBg(fatigue: number | null | undefined): string {
   return '#FECACA'
 }
 
-function GlowCalendar({ sessions }: { sessions: TrainingSession[] }) {
+function GlowCalendar({ sessions, selectedDate, onSelectDate }: {
+  sessions: TrainingSession[]
+  selectedDate?: string | null
+  onSelectDate?: (d: string) => void
+}) {
   const now = new Date()
   const [viewYear, setViewYear]   = useState(now.getFullYear())
   const [viewMonth, setViewMonth] = useState(now.getMonth())
@@ -526,6 +549,7 @@ function GlowCalendar({ sessions }: { sessions: TrainingSession[] }) {
             const dd      = String(day).padStart(2, '0')
             const dateStr = `${viewYear}-${mm}-${dd}`
             const isToday = dateStr === today
+            const isSelected = dateStr === selectedDate
             const fat     = fatigueMap[dateStr]
             const bgColor = isToday ? '#3B82F6' : getIntensityBg(fat)
             const textColor = isToday ? '#fff'
@@ -534,20 +558,26 @@ function GlowCalendar({ sessions }: { sessions: TrainingSession[] }) {
               : TEXT.primary
 
             return (
-              <View key={day} style={{
-                flex: 1, aspectRatio: 1,
-                margin: 1.5,
-                borderRadius: 6,
-                backgroundColor: bgColor,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
+              <TouchableOpacity
+                key={day}
+                activeOpacity={0.7}
+                onPress={() => { Sounds.tap(); onSelectDate?.(dateStr) }}
+                style={{
+                  flex: 1, aspectRatio: 1,
+                  margin: 1.5,
+                  borderRadius: 6,
+                  backgroundColor: bgColor,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderWidth: isSelected ? 2 : 0,
+                  borderColor: isSelected ? '#166534' : 'transparent',
+                }}>
                 <Text style={{
                   fontSize: 12,
-                  fontWeight: isToday ? '900' : fat ? '700' : '400',
+                  fontWeight: isToday || isSelected ? '900' : fat ? '700' : '400',
                   color: textColor,
                 }}>{day}</Text>
-              </View>
+              </TouchableOpacity>
             )
           })}
         </View>
@@ -664,17 +694,30 @@ function DateHeader({ dateStr }: { dateStr: string }) {
   )
 }
 
-function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWeight, onDeleteSession }: {
+function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWeight, onDeleteSession, onReload }: {
   sessions: TrainingSession[]
   loading: boolean
   weightRecords: WeightRecord[]
   onAddWeight: (kg: number, date: string) => void
   onDeleteWeight: (id: string) => void
   onDeleteSession: (id: string) => void
+  onReload: () => void
 }) {
   const router = useRouter()
   const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null)
   const [shareSession,    setShareSession]    = useState<PracticeShareData | null>(null)
+  const [selectedDate,    setSelectedDate]    = useState<string | null>(null)
+  const [freeEditSession, setFreeEditSession] = useState<TrainingSession | null>(null)
+
+  // 編集ルーティング: 自由入力(ql_)は自由入力モーダル、手動入力(manual_)はフォーム画面
+  const handleEdit = (s: TrainingSession) => {
+    setSelectedSession(null)
+    if (s.id.startsWith('ql_')) {
+      setFreeEditSession(s)
+    } else {
+      router.push(`/manual-log?id=${s.id}` as any)
+    }
+  }
   if (loading) return <View style={{ gap: 10 }}>{[1,2,3].map(i => <SkeletonRect key={i} h={80} />)}</View>
 
   const totalKm     = sessions.reduce((a,s) => a+(s.distance_m??0), 0) / 1000
@@ -753,8 +796,8 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
           activeOpacity={0.8}
           onPress={() => { unlockAudio(); Sounds.whoosh(); router.push('/practice-input' as any) }}
         >
-          <Text style={{ fontSize: 18 }}>🤖</Text>
-          <Text style={[styles.inputShortcutText, { color: BRAND }]}>AI入力</Text>
+          <Text style={{ fontSize: 18 }}>✏️</Text>
+          <Text style={[styles.inputShortcutText, { color: BRAND }]}>自由入力</Text>
         </TouchableOpacity>
       </View>
       </AnimatedSection>
@@ -804,8 +847,44 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
         <View style={styles.cardHeader}>
           <Text style={{ fontSize: 14 }}>📅</Text>
           <Text style={styles.cardTitle}>練習カレンダー</Text>
+          {selectedDate && (
+            <TouchableOpacity onPress={() => setSelectedDate(null)} style={{ marginLeft: 'auto' as any }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={{ color: TEXT.hint, fontSize: 12 }}>選択解除 ✕</Text>
+            </TouchableOpacity>
+          )}
         </View>
-        <GlowCalendar sessions={sessions} />
+        <GlowCalendar
+          sessions={sessions}
+          selectedDate={selectedDate}
+          onSelectDate={d => setSelectedDate(prev => prev === d ? null : d)}
+        />
+
+        {/* 選択した日の練習内容 */}
+        {selectedDate && (
+          <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.06)' }}>
+            <Text style={{ color: TEXT.primary, fontSize: 13, fontWeight: '800', marginBottom: 6 }}>
+              {(() => {
+                const dt = new Date(selectedDate + 'T00:00:00')
+                const w = ['日','月','火','水','木','金','土'][dt.getDay()]
+                return `${dt.getMonth()+1}月${dt.getDate()}日（${w}）の練習`
+              })()}
+            </Text>
+            {(byDate[selectedDate] ?? []).length === 0 ? (
+              <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+                <Text style={{ color: TEXT.hint, fontSize: 12 }}>この日の練習記録はありません</Text>
+              </View>
+            ) : (
+              byDate[selectedDate].map(s => (
+                <SessionTimelineCard
+                  key={s.id}
+                  session={s}
+                  onTap={() => setSelectedSession(s)}
+                  onShare={() => setShareSession(buildShare(s))}
+                />
+              ))
+            )}
+          </View>
+        )}
       </View>
       </AnimatedSection>
 
@@ -883,9 +962,25 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
   {/* 体重 */}
   <WeightSection records={weightRecords} onAdd={onAddWeight} onDelete={onDeleteWeight} />
 
-  {selectedSession && (
-    <SessionDetailSheet session={selectedSession} onClose={() => setSelectedSession(null)} onDelete={onDeleteSession} />
-  )}
+  <Modal visible={!!selectedSession} transparent animationType="slide" onRequestClose={() => setSelectedSession(null)}>
+    {selectedSession ? (
+      <SessionDetailSheet
+        session={selectedSession}
+        onClose={() => setSelectedSession(null)}
+        onDelete={onDeleteSession}
+        onEdit={handleEdit}
+      />
+    ) : <View />}
+  </Modal>
+
+  {/* 自由入力の編集（ql_ レコード） */}
+  <QuickLogModal
+    visible={!!freeEditSession}
+    editSession={freeEditSession}
+    onClose={() => setFreeEditSession(null)}
+    onSaved={() => { setFreeEditSession(null); onReload() }}
+  />
+
   <Modal visible={!!shareSession} transparent animationType="fade" onRequestClose={() => setShareSession(null)}>
     {shareSession ? (
       <PracticeShareCard data={shareSession} visible={true} onClose={() => setShareSession(null)} />
@@ -1340,7 +1435,7 @@ export default function RecordsScreen() {
   const [csvGateVisible,     setCsvGateVisible]     = useState(false)
   const [csvGateRemaining,   setCsvGateRemaining]   = useState(0)
   const [csvGateHardLimited, setCsvGateHardLimited] = useState(false)
-  const [csvGateLimitType,   setCsvGateLimitType]   = useState<'none'|'daily'|'monthly'|'total'>('none')
+  const [csvGateLimitType,   setCsvGateLimitType]   = useState<'none'|'daily'|'monthly'|'total'|'window'>('none')
   const [records, setRecords] = useState<RaceRecord[]>([])
   const [sessions, setSessions] = useState<TrainingSession[]>([])
   const [conditionMap, setConditionMap] = useState<Record<string,number>>({})
@@ -1350,6 +1445,8 @@ export default function RecordsScreen() {
   const [modalVisible, setModalVisible] = useState(false)
   const [filterEvent, setFilterEvent] = useState<AthleticsEvent | '全種目'>('全種目')
   const [chartEvent, setChartEvent] = useState<AthleticsEvent | null>(null)
+  const [sortOrder, setSortOrder] = useState<'date_desc' | 'date_asc' | 'result'>('date_desc')
+  const [editId, setEditId] = useState<string | null>(null)
 
   // フォーム状態
   const [fEvent, setFEvent]   = useState<AthleticsEvent>('100m')
@@ -1413,9 +1510,36 @@ export default function RecordsScreen() {
   }, [sessions])
 
   function resetForm() {
+    setEditId(null)
     setFEvent('100m'); setFDate(new Date().toISOString().slice(0, 10))
     setFMin(''); setFSec(''); setFMeter(''); setFCm(''); setFWind(''); setFWindPos(true)
     setFVenue(''); setFComp(''); setFIsPB(false); setFIsSB(false); setFNotes('')
+  }
+
+  function openEdit(r: RaceRecord) {
+    setEditId(r.id)
+    setFEvent(r.event)
+    setFDate(r.race_date)
+    if (isField(r.event)) {
+      const totalCm = r.result_cm ?? 0
+      setFMeter(String(Math.floor(totalCm / 100)))
+      setFCm(String(totalCm % 100))
+      setFMin(''); setFSec('')
+    } else {
+      const totalSec = (r.result_ms ?? 0) / 1000
+      const m = Math.floor(totalSec / 60)
+      setFMin(m > 0 ? String(m) : '')
+      setFSec((totalSec % 60).toFixed(2))
+      setFMeter(''); setFCm('')
+    }
+    setFWind(r.wind_ms !== undefined ? String(Math.abs(r.wind_ms)) : '')
+    setFWindPos((r.wind_ms ?? 1) >= 0)
+    setFVenue(r.venue ?? '')
+    setFComp(r.competition_name ?? '')
+    setFIsPB(r.is_pb ?? false)
+    setFIsSB(r.is_sb ?? false)
+    setFNotes(r.notes ?? '')
+    setModalVisible(true)
   }
 
   const handleSave = useCallback(async () => {
@@ -1435,9 +1559,10 @@ export default function RecordsScreen() {
 
     setSaving(true)
     try {
-      const newRec: RaceRecord = {
-        id: `rec_${Date.now()}`,
-        user_id: (await AsyncStorage.getItem('userId').catch(() => null)) ?? 'local',
+      const userId = (await AsyncStorage.getItem('userId').catch(() => null)) ?? 'local'
+      const rec: RaceRecord = {
+        id: editId ?? `rec_${Date.now()}`,
+        user_id: userId,
         event: fEvent,
         result_display: display,
         result_ms,
@@ -1449,13 +1574,16 @@ export default function RecordsScreen() {
         is_pb: fIsPB,
         is_sb: fIsSB,
         notes: fNotes || undefined,
-        created_at: new Date().toISOString(),
+        created_at: editId ? (records.find(r => r.id === editId)?.created_at ?? new Date().toISOString()) : new Date().toISOString(),
       }
-      const updated = [newRec, ...records].sort((a, b) => b.race_date.localeCompare(a.race_date))
+      const updated = editId
+        ? records.map(r => r.id === editId ? rec : r).sort((a, b) => b.race_date.localeCompare(a.race_date))
+        : [rec, ...records].sort((a, b) => b.race_date.localeCompare(a.race_date))
       await AsyncStorage.setItem(RECORDS_KEY, JSON.stringify(updated))
       setRecords(updated)
-      if (fIsPB) { Sounds.pb(); pbCelebration(); setShowConfetti(true); setTimeout(() => setShowConfetti(false), 3000) } else { Sounds.save() }
-      Toast.show({ type: 'success', text1: `✅ ${fEvent}  ${display}${fIsPB ? '  🏆 PB！' : ''}` })
+      if (fIsPB && !editId) { Sounds.pb(); pbCelebration(); setShowConfetti(true); setTimeout(() => setShowConfetti(false), 3000) } else { Sounds.save() }
+      Toast.show({ type: 'success', text1: `✅ ${fEvent}  ${display}${fIsPB && !editId ? '  🏆 PB！' : ''}` })
+      if (!editId) showInterstitialAd().catch(() => {})
       resetForm(); setModalVisible(false)
     } catch {
       Sounds.error()
@@ -1470,21 +1598,33 @@ export default function RecordsScreen() {
     await AsyncStorage.setItem(RECORDS_KEY, JSON.stringify(updated)).catch(() => {})
   }, [records])
 
-  // フィルター適用
-  const filtered = filterEvent === '全種目'
-    ? records
-    : records.filter(r => r.event === filterEvent)
-
   // 記録のある種目リスト
   const usedEvents = Array.from(new Set(records.map(r => r.event)))
 
-  // グラフデータ（選択種目のタイム推移）
-  const targetEvent = chartEvent ?? (usedEvents.find(e => !isField(e)) ?? null)
+  // フィルター＋ソート適用
+  const filtered = (() => {
+    const base = filterEvent === '全種目' ? records : records.filter(r => r.event === filterEvent)
+    if (sortOrder === 'date_asc') return [...base].sort((a, b) => a.race_date.localeCompare(b.race_date))
+    if (sortOrder === 'result') {
+      return [...base].sort((a, b) => {
+        if (a.result_ms !== undefined && b.result_ms !== undefined) return a.result_ms - b.result_ms
+        if (a.result_cm !== undefined && b.result_cm !== undefined) return b.result_cm - a.result_cm
+        return 0
+      })
+    }
+    return base // date_desc（デフォルト）
+  })()
+
+  // グラフデータ（フィルター種目 or 最初のトラック/フィールド種目）
+  const targetEvent = filterEvent !== '全種目'
+    ? filterEvent
+    : (chartEvent ?? usedEvents.find(e => !isField(e)) ?? usedEvents[0] ?? null)
+  const isFieldChart = targetEvent ? isField(targetEvent) : false
   const chartData: ChartDataPoint[] = targetEvent
     ? records
-        .filter(r => r.event === targetEvent && r.result_ms)
+        .filter(r => r.event === targetEvent && (isFieldChart ? r.result_cm : r.result_ms))
         .slice(0, 8).reverse()
-        .map(r => ({ date: r.race_date, value: r.result_ms! / 1000 }))
+        .map(r => ({ date: r.race_date, value: isFieldChart ? (r.result_cm! / 100) : (r.result_ms! / 1000) }))
     : []
 
   return (
@@ -1548,7 +1688,7 @@ export default function RecordsScreen() {
 
           {/* ════ 練習履歴タブ ════ */}
           {activeTab === 'practice' && (
-            <PracticeTab sessions={sessions} loading={loading} weightRecords={weightRecords} onAddWeight={handleAddWeight} onDeleteWeight={handleDeleteWeight} onDeleteSession={handleDeleteSession} />
+            <PracticeTab sessions={sessions} loading={loading} weightRecords={weightRecords} onAddWeight={handleAddWeight} onDeleteWeight={handleDeleteWeight} onDeleteSession={handleDeleteSession} onReload={loadData} />
           )}
 
           {/* ════ タイム記録タブ ════ */}
@@ -1577,13 +1717,14 @@ export default function RecordsScreen() {
           </AnimatedSection>
 
           {/* ── タイム推移グラフ ── */}
-          {!loading && chartData.length >= 2 && (
+          {!loading && chartData.length >= 1 && (
             <AnimatedSection delay={80} type="fade-up">
             <View style={styles.card}>
               {/* 種目切替 */}
+              {filterEvent === '全種目' && (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
                 <View style={{ flexDirection: 'row', gap: 6 }}>
-                  {usedEvents.filter(e => !isField(e)).map(e => (
+                  {usedEvents.map(e => (
                     <HapticTouch
                       key={e}
                       haptic="toggleOn"
@@ -1595,11 +1736,12 @@ export default function RecordsScreen() {
                   ))}
                 </View>
               </ScrollView>
+              )}
               <TrainingChart
                 data={chartData}
-                title={`${targetEvent} タイム推移`}
+                title={`${targetEvent}${isFieldChart ? ' 記録推移' : ' タイム推移'}`}
                 color={BRAND}
-                unit="秒"
+                unit={isFieldChart ? 'm' : '秒'}
                 isLoading={false}
               />
             </View>
@@ -1635,6 +1777,21 @@ export default function RecordsScreen() {
               <Text style={styles.countText}>{filtered.length}件</Text>
             </View>
 
+            {/* ソート */}
+            {!loading && filtered.length > 0 && (
+              <View style={{ flexDirection: 'row', gap: 6, marginBottom: 4 }}>
+                {([['date_desc','新しい順'],['date_asc','古い順'],['result','記録順']] as const).map(([v,l]) => (
+                  <TouchableOpacity
+                    key={v}
+                    style={[styles.filterChip, sortOrder === v && styles.filterChipActive, { paddingHorizontal: 10, paddingVertical: 4 }]}
+                    onPress={() => setSortOrder(v)}
+                  >
+                    <Text style={[styles.filterChipText, sortOrder === v && styles.filterChipTextActive, { fontSize: 11 }]}>{l}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
             {loading ? (
               <View style={{ gap: 8 }}>
                 {[1,2,3].map(i => <SkeletonRect key={i} h={64} />)}
@@ -1650,7 +1807,7 @@ export default function RecordsScreen() {
             ) : (
               <View style={{ gap: 8 }}>
                 {filtered.map(r => (
-                  <RecordCard key={r.id} record={r} onDelete={() => handleDelete(r.id)} />
+                  <RecordCard key={r.id} record={r} onDelete={() => handleDelete(r.id)} onEdit={() => openEdit(r)} />
                 ))}
               </View>
             )}
@@ -1677,7 +1834,7 @@ export default function RecordsScreen() {
                   <TouchableOpacity onPress={() => { resetForm(); setModalVisible(false) }}>
                     <Text style={styles.cancelText}>キャンセル</Text>
                   </TouchableOpacity>
-                  <Text style={styles.modalTitle}>記録を追加</Text>
+                  <Text style={styles.modalTitle}>{editId ? '記録を編集' : '記録を追加'}</Text>
                   <TouchableOpacity onPress={handleSave} disabled={saving}>
                     <Text style={[styles.saveText, saving && { opacity: 0.4 }]}>{saving ? '保存中...' : '保存'}</Text>
                   </TouchableOpacity>
@@ -1717,14 +1874,18 @@ export default function RecordsScreen() {
                     <View style={styles.timeRow}>
                       <View style={styles.timeCol}>
                         <Text style={styles.timeUnit}>m</Text>
-                        <TextInput style={styles.timeNumInput} value={fMeter} onChangeText={setFMeter}
-                          keyboardType="number-pad" placeholder="7" placeholderTextColor="#445577" textAlign="center" />
+                        <TextInput style={styles.timeNumInput} value={fMeter}
+                          onChangeText={t => setFMeter(t.replace(/[^0-9]/g, '').slice(0, 2))}
+                          editable keyboardType="number-pad" returnKeyType="done" maxLength={2}
+                          placeholder="7" placeholderTextColor="#445577" textAlign="center" />
                       </View>
                       <Text style={styles.timeSep}>.</Text>
                       <View style={styles.timeCol}>
                         <Text style={styles.timeUnit}>cm</Text>
-                        <TextInput style={styles.timeNumInput} value={fCm} onChangeText={setFCm}
-                          keyboardType="number-pad" placeholder="32" placeholderTextColor="#445577" maxLength={2} textAlign="center" />
+                        <TextInput style={styles.timeNumInput} value={fCm}
+                          onChangeText={t => setFCm(t.replace(/[^0-9]/g, '').slice(0, 2))}
+                          editable keyboardType="number-pad" returnKeyType="done" maxLength={2}
+                          placeholder="32" placeholderTextColor="#445577" textAlign="center" />
                       </View>
                     </View>
                   </>

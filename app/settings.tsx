@@ -13,11 +13,13 @@ import * as FileSystem from 'expo-file-system/legacy'
 import * as Sharing from 'expo-sharing'
 
 import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
 import { useTheme } from '../context/ThemeContext'
 import { usePurchase } from '../context/PurchaseContext'
 import AnimatedSection from '../components/AnimatedSection'
 import { requestPermission, getPermission, startAllSchedulers } from '../lib/notifications'
 import { checkAdGate, recordUsage } from '../lib/adGate'
+import { Sounds, isSoundEnabled, isHapticsEnabled, setSoundEnabled, setHapticsEnabled, loadSoundPrefs } from '../lib/sounds'
 import AdGateModal from '../components/AdGateModal'
 import { trackFeatureUse } from '../lib/analytics'
 
@@ -31,6 +33,8 @@ const EVENTS = [
   '100m', '200m', '400m', '800m', '1500m', '5000m', '10000m',
   'ハーフ', 'マラソン', '走幅跳', '三段跳', '棒高跳', '走高跳',
   '砲丸投', '円盤投', 'やり投', 'ハンマー投', '400mH', '110mH', '100mH', '3000mSC', '競歩',
+  '十種競技', '七種競技', '八種競技',
+  '4×100mR', '4×400mR',
 ]
 
 interface Profile {
@@ -161,7 +165,7 @@ export default function SettingsScreen() {
   const [csvGateVisible,     setCsvGateVisible]     = useState(false)
   const [csvGateRemaining,   setCsvGateRemaining]   = useState(0)
   const [csvGateHardLimited, setCsvGateHardLimited] = useState(false)
-  const [csvGateLimitType,   setCsvGateLimitType]   = useState<'none'|'daily'|'monthly'|'total'>('none')
+  const [csvGateLimitType,   setCsvGateLimitType]   = useState<'none'|'daily'|'monthly'|'total'|'window'>('none')
 
   // チームロール
   const [teamRole, setTeamRole] = useState<string | null>(null)
@@ -210,6 +214,21 @@ export default function SettingsScreen() {
     AsyncStorage.setItem(NOTIF_KEY, JSON.stringify(next)).catch(() => {})
   }
 
+  // 効果音・バイブ トグル
+  const [soundOn,  setSoundOn]  = useState(true)
+  const [hapticOn, setHapticOn] = useState(true)
+  useEffect(() => {
+    loadSoundPrefs().then(() => { setSoundOn(isSoundEnabled()); setHapticOn(isHapticsEnabled()) }).catch(() => {})
+  }, [])
+  const toggleSound = (v: boolean) => {
+    setSoundOn(v); setSoundEnabled(v).catch(() => {})
+    if (v) Sounds.toggleOn()   // ON にした瞬間だけ確認音
+  }
+  const toggleHaptic = (v: boolean) => {
+    setHapticOn(v); setHapticsEnabled(v).catch(() => {})
+    if (v) Sounds.tap()        // ON にした瞬間だけ確認の振動
+  }
+
   // ログアウト
   const handleSignOut = () => {
     const doSignOut = async () => {
@@ -221,7 +240,7 @@ export default function SettingsScreen() {
         try { router.replace('/auth') } catch {}
       }
     }
-    if (typeof window !== 'undefined') {
+    if (Platform.OS === 'web') {
       if (window.confirm('ログアウトしますか？')) {
         doSignOut()
       }
@@ -235,6 +254,51 @@ export default function SettingsScreen() {
         ]
       )
     }
+  }
+
+  // アカウント削除
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'アカウントを削除',
+      'アカウントとすべてのデータを完全に削除しますか？この操作は取り消せません。',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '削除する',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              '本当に削除しますか？',
+              '練習記録・コンディションデータ・設定がすべて削除されます。',
+              [
+                { text: 'キャンセル', style: 'cancel' },
+                {
+                  text: '完全に削除する',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      // Supabase からユーザーデータを削除
+                      const userId = user?.id
+                      if (userId) {
+                        try { await supabase.from('training_sessions').delete().eq('user_id', userId) } catch {}
+                        try { await supabase.from('meal_records').delete().eq('user_id', userId) } catch {}
+                        try { await supabase.from('profiles').delete().eq('id', userId) } catch {}
+                      }
+                      // ローカルデータを全削除
+                      await AsyncStorage.clear().catch(() => {})
+                      // サインアウト
+                      await signOut().catch(() => {})
+                    } catch (_) {
+                      try { await signOut() } catch {}
+                    }
+                  },
+                },
+              ]
+            )
+          },
+        },
+      ]
+    )
   }
 
   // ── 通知・位置情報の許可状態 ──────────────────────────────
@@ -419,48 +483,7 @@ export default function SettingsScreen() {
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
-          {/* ── プラン ────────────────────────────────────────── */}
-          <AnimatedSection delay={0}>
-            <View style={[styles.card, isPro ? { borderWidth: 1.5, borderColor: '#166534' } : {}]}>
-              <Text style={styles.cardTitle}>プラン</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <View style={{
-                    backgroundColor: isCoach ? '#16653422' : isElite ? '#f59e0b22' : isPro ? '#16653422' : '#6b728022',
-                    borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4,
-                  }}>
-                    <Text style={{
-                      color: isCoach ? '#166534' : isElite ? '#f59e0b' : isPro ? '#166534' : '#6b7280',
-                      fontSize: 13, fontWeight: '800',
-                    }}>
-                      {isCoach ? '📋 コーチ' : isElite ? '👑 ELITE' : isPro ? '✦ PRO' : 'FREE'}
-                    </Text>
-                  </View>
-                  {expiresAt && (
-                    <Text style={{ color: '#9ca3af', fontSize: 11 }}>
-                      {new Date(expiresAt).toLocaleDateString('ja-JP')}まで
-                    </Text>
-                  )}
-                </View>
-                <TouchableOpacity
-                  style={{ backgroundColor: '#166534', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 }}
-                  onPress={() => router.push('/paywall')}
-                  activeOpacity={0.85}
-                >
-                  <Text style={{ color: '#fff', fontSize: 13, fontWeight: '800' }}>
-                    {isPro ? 'プラン変更' : 'アップグレード'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              {!isPro && (
-                <Text style={{ color: '#9ca3af', fontSize: 12, marginTop: 10, lineHeight: 18 }}>
-                  PRO（¥480/月）でAI練習分析・動画フォーム分析が月30回{'\n'}
-                  ELITE（¥980/月）でAI機能完全無制限{'\n'}
-                  コーチ・チーム管理はコーチプラン（¥2,980〜）
-                </Text>
-              )}
-            </View>
-          </AnimatedSection>
+          {/* ── プラン: v1.0 IAP無効化中は非表示 ── */}
 
           {/* ── プロフィール ───────────────────────────────────── */}
           <AnimatedSection delay={40}>
@@ -473,18 +496,23 @@ export default function SettingsScreen() {
               />
               <View style={styles.divider} />
 
-              {/* 種目タグ */}
+              {/* 種目タグ（複数選択可・カンマ区切りで保持） */}
               <View style={styles.fieldRow}>
-                <Text style={styles.fieldLabel}>種目</Text>
+                <Text style={styles.fieldLabel}>種目（複数選択可）</Text>
               </View>
               <View style={styles.tagWrap}>
                 {EVENTS.map(ev => {
-                  const active = profile.event === ev
+                  const selected = profile.event ? profile.event.split(',').filter(Boolean) : []
+                  const active = selected.includes(ev)
                   return (
                     <TouchableOpacity
                       key={ev}
                       style={[styles.tag, active ? styles.tagActive : styles.tagInactive]}
-                      onPress={() => setProfile(p => ({ ...p, event: p.event === ev ? '' : ev }))}
+                      onPress={() => setProfile(p => {
+                        const cur = p.event ? p.event.split(',').filter(Boolean) : []
+                        const next = cur.includes(ev) ? cur.filter(e => e !== ev) : [...cur, ev]
+                        return { ...p, event: next.join(',') }
+                      })}
                       activeOpacity={0.75}
                     >
                       <Text style={[styles.tagText, active && { color: '#fff' }]}>{ev}</Text>
@@ -554,6 +582,11 @@ export default function SettingsScreen() {
                   <TouchableOpacity style={styles.dangerRow} onPress={handleSignOut} activeOpacity={0.75}>
                     <Ionicons name="log-out-outline" size={18} color="#E53935" />
                     <Text style={styles.dangerText}>ログアウト</Text>
+                  </TouchableOpacity>
+                  <View style={styles.divider} />
+                  <TouchableOpacity style={styles.dangerRow} onPress={handleDeleteAccount} activeOpacity={0.75}>
+                    <Ionicons name="trash-outline" size={18} color="#E53935" />
+                    <Text style={styles.dangerText}>アカウントを削除する</Text>
                   </TouchableOpacity>
                 </>
               )}
@@ -714,6 +747,33 @@ export default function SettingsScreen() {
             </SectionCard>
           </AnimatedSection>
 
+          {/* ── 効果音・バイブレーション ───────────────────────── */}
+          <AnimatedSection delay={230}>
+            <SectionCard title="効果音・バイブレーション">
+              <View style={styles.switchRow}>
+                <Text style={styles.switchLabel}>効果音</Text>
+                <Switch
+                  value={soundOn}
+                  onValueChange={toggleSound}
+                  trackColor={{ false: '#e5e7eb', true: '#166534' }}
+                  thumbColor="#fff"
+                  ios_backgroundColor="#e5e7eb"
+                />
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.switchRow}>
+                <Text style={styles.switchLabel}>バイブレーション</Text>
+                <Switch
+                  value={hapticOn}
+                  onValueChange={toggleHaptic}
+                  trackColor={{ false: '#e5e7eb', true: '#166534' }}
+                  thumbColor="#fff"
+                  ios_backgroundColor="#e5e7eb"
+                />
+              </View>
+            </SectionCard>
+          </AnimatedSection>
+
           {/* ── データ ───────────────────────────────────────── */}
           <AnimatedSection delay={240}>
             <SectionCard title="データ">
@@ -744,8 +804,18 @@ export default function SettingsScreen() {
             <SectionCard title="アプリ情報">
               <View style={styles.fieldRow}>
                 <Text style={styles.fieldLabel}>バージョン</Text>
-                <Text style={styles.fieldValue}>1.0.0</Text>
+                <Text style={styles.fieldValue}>1.6.1</Text>
               </View>
+              <View style={styles.divider} />
+              <TouchableOpacity
+                style={styles.actionRow}
+                onPress={() => router.push('/support')}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="help-circle-outline" size={18} color="#6b7280" />
+                <Text style={styles.actionText}>お問い合わせ・サポート</Text>
+                <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+              </TouchableOpacity>
               <View style={styles.divider} />
               <TouchableOpacity
                 style={styles.actionRow}

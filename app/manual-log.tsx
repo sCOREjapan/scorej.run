@@ -1,12 +1,12 @@
 // app/manual-log.tsx — 手動練習入力画面
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
-  View, Text, StyleSheet, TouchableOpacity,
+  View, Text, StyleSheet, TouchableOpacity, Alert,
   TextInput, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native'
 import HapticTouch from '../components/HapticTouch'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+import { useRouter, useLocalSearchParams } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import Toast from 'react-native-toast-message'
@@ -19,7 +19,10 @@ import { shouldShowInterstitial, showInterstitialAd } from '../lib/admob'
 
 const SESSIONS_KEY      = 'trackmate_sessions'
 const CONDITION_MAP_KEY = 'trackmate_condition_map'
+const MENU_TEMPLATES_KEY = 'trackmate_menu_templates'
 const BRAND             = '#E53935'
+
+type MenuTemplate = { id: string; name: string; content: string }
 
 // ── 種目定義 ──────────────────────────────────────────────
 const SESSION_TYPES = [
@@ -36,8 +39,11 @@ const SESSION_TYPES = [
 
 const EVENTS: AthleticsEvent[] = [
   '100m','200m','400m','800m','1500m','3000m','5000m','10000m',
+  'half_marathon','marathon',
   '110mH','100mH','400mH','3000mSC','競歩',
   '走幅跳','三段跳','走高跳','棒高跳','砲丸投','やり投','円盤投',
+  '十種競技','七種競技','八種競技',
+  '4×100mR','4×400mR',
 ]
 
 const FATIGUE = [
@@ -157,9 +163,23 @@ function toMs(min: string, sec: string, cs: string) {
   return (m * 60 + s) * 1000 + c * 10
 }
 
+// ── タイム逆変換: ms → mm/ss/cs（編集時のフォーム復元用） ──
+function fromMs(ms: number): { min: string; sec: string; cs: string } {
+  const m = Math.floor(ms / 60000)
+  const s = Math.floor((ms % 60000) / 1000)
+  const c = Math.round((ms % 1000) / 10)
+  return {
+    min: m ? String(m) : '',
+    sec: String(s),
+    cs:  String(c).padStart(2, '0'),
+  }
+}
+
 export default function ManualLogScreen() {
   const router = useRouter()
   const { colors } = useTheme()
+  const { id: editId } = useLocalSearchParams<{ id?: string }>()
+  const isEdit = !!editId
   const today = new Date().toISOString().slice(0, 10)
 
   // ── フォーム状態 ──────────────────────────────────────
@@ -175,8 +195,48 @@ export default function ManualLogScreen() {
   const [notes,         setNotes]         = useState('')
   const [condLevel,     setCondLevel]     = useState(6)
   const [saving,        setSaving]        = useState(false)
+  const [menuTemplates, setMenuTemplates] = useState<MenuTemplate[]>([])
 
   useEffect(() => {
+    AsyncStorage.getItem(MENU_TEMPLATES_KEY).then(r => {
+      if (!r) return
+      try { setMenuTemplates(JSON.parse(r)) } catch {}
+    }).catch(() => {})
+  }, [])
+
+  const saveTemplate = useCallback(async () => {
+    const trimmed = notes.trim()
+    if (!trimmed) return
+    Alert.prompt(
+      'テンプレートとして保存',
+      'テンプレート名を入力してください',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '保存',
+          onPress: (name?: string) => {
+            if (!name?.trim()) return
+            const t: MenuTemplate = { id: `tpl_${Date.now()}`, name: name.trim(), content: trimmed }
+            const next = [t, ...menuTemplates]
+            setMenuTemplates(next)
+            AsyncStorage.setItem(MENU_TEMPLATES_KEY, JSON.stringify(next)).catch(() => {})
+            Toast.show({ type: 'success', text1: `「${name.trim()}」を保存しました` })
+          },
+        },
+      ],
+      'plain-text'
+    )
+  }, [notes, menuTemplates])
+
+  const deleteTemplate = useCallback((id: string) => {
+    const next = menuTemplates.filter(t => t.id !== id)
+    setMenuTemplates(next)
+    AsyncStorage.setItem(MENU_TEMPLATES_KEY, JSON.stringify(next)).catch(() => {})
+  }, [menuTemplates])
+
+  useEffect(() => {
+    // 編集時は既存記録の体調を優先するため、今日の体調マップは読み込まない
+    if (isEdit) return
     AsyncStorage.getItem(CONDITION_MAP_KEY).then(r => {
       if (!r) return
       try {
@@ -184,7 +244,32 @@ export default function ManualLogScreen() {
         if (map[today]) setCondLevel(map[today])
       } catch {}
     }).catch(() => {})
-  }, [])
+  }, [isEdit])
+
+  // ── 編集モード: 既存記録をフォームに復元 ──
+  useEffect(() => {
+    if (!editId) return
+    AsyncStorage.getItem(SESSIONS_KEY).then(raw => {
+      if (!raw) return
+      try {
+        const list: TrainingSession[] = JSON.parse(raw)
+        const sess = list.find(x => x.id === editId)
+        if (!sess) return
+        setSessionType(sess.session_type as typeof SESSION_TYPES[number]['key'])
+        setSelectedEvent((sess.event as AthleticsEvent) ?? null)
+        setDate(sess.session_date)
+        if (sess.time_ms) {
+          const t = fromMs(sess.time_ms)
+          setTimeMin(t.min); setTimeSec(t.sec); setTimeCs(t.cs)
+        }
+        setDistanceM(sess.distance_m != null ? String(sess.distance_m) : '')
+        setRepsStr(sess.reps != null ? String(sess.reps) : '')
+        setFatigue(sess.fatigue_level ?? 6)
+        setCondLevel(sess.condition_level ?? 6)
+        setNotes(sess.notes ?? '')
+      } catch {}
+    }).catch(() => {})
+  }, [editId])
 
   const typeInfo = SESSION_TYPES.find(t => t.key === sessionType)!
   const hasTime  = sessionType !== 'rest' && sessionType !== 'strength'
@@ -199,30 +284,45 @@ export default function ManualLogScreen() {
         ? toMs(timeMin, timeSec, timeCs)
         : undefined
 
+      const raw = await AsyncStorage.getItem(SESSIONS_KEY)
+      let sessions: TrainingSession[] = []
+      try { if (raw) sessions = JSON.parse(raw) } catch {}  // データ破損でも保存を継続
+
+      const fields = {
+        session_date:    date,
+        session_type:    sessionType,
+        event:           selectedEvent ?? undefined,
+        time_ms:         time_ms,
+        distance_m:      distanceM ? Number(distanceM) : undefined,
+        reps:            repsStr   ? Number(repsStr)   : undefined,
+        fatigue_level:   fatigue,
+        condition_level: condLevel,
+        notes:           notes.trim() || undefined,
+      }
+
+      if (isEdit && editId) {
+        // ── 既存記録を上書き（id・created_at は保持） ──
+        sessions = sessions.map(sx => (sx.id === editId ? { ...sx, ...fields } : sx))
+        await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions))
+        autoSyncTeam(sessions, { force: true }).catch(() => {})
+        Toast.show({ type: 'success', text1: '練習を更新しました ✓', visibilityTime: 1500 })
+        setTimeout(() => router.back(), 400)
+        return
+      }
+
       const newSession: TrainingSession = {
         id:             `manual-${Date.now()}`,
         user_id:        (await AsyncStorage.getItem('userId').catch(() => null)) ?? 'local',
         created_at:     new Date().toISOString(),
-        session_date:   date,
-        session_type:   sessionType,
-        event:          selectedEvent ?? undefined,
-        time_ms:        time_ms,
-        distance_m:     distanceM ? Number(distanceM) : undefined,
-        reps:           repsStr   ? Number(repsStr)   : undefined,
-        fatigue_level:  fatigue,
-        condition_level: condLevel,
-        notes:          notes.trim() || undefined,
+        ...fields,
       }
 
-      const raw = await AsyncStorage.getItem(SESSIONS_KEY)
-      let sessions: TrainingSession[] = []
-      try { if (raw) sessions = JSON.parse(raw) } catch {}  // データ破損でも新規保存を継続
       sessions.unshift(newSession)
       await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions))
       autoSyncTeam(sessions, { force: true }).catch(() => {})
       Toast.show({ type: 'success', text1: '練習を記録しました ✓', visibilityTime: 1500 })
 
-      // フリープランのみ：2回に1回インタースティシャル広告を表示
+      // フリープランのみ：2回に1回インタースティシャル広告を表示（新規記録時のみ）
       const tier = await getTier()
       if (tier === 'free') {
         const showAd = await shouldShowInterstitial()
@@ -246,13 +346,13 @@ export default function ManualLogScreen() {
             <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
               <Ionicons name="chevron-back" size={24} color={colors.text} />
             </TouchableOpacity>
-            <Text style={[s.headerTitle, { color: colors.text }]}>手動入力</Text>
+            <Text style={[s.headerTitle, { color: colors.text }]}>{isEdit ? '記録を編集' : '手動入力'}</Text>
             <TouchableOpacity
               onPress={handleSave}
               disabled={saving}
               style={[s.saveBtn, { backgroundColor: '#1c1c1e', opacity: saving ? 0.6 : 1 }]}
             >
-              <Text style={s.saveBtnText}>{saving ? '保存中...' : '保存'}</Text>
+              <Text style={s.saveBtnText}>{saving ? '保存中...' : isEdit ? '更新' : '保存'}</Text>
             </TouchableOpacity>
           </View>
 
@@ -371,17 +471,46 @@ export default function ManualLogScreen() {
               </View>
             </Section>
 
-            {/* ── メモ ── */}
-            <Section title="メモ（任意）">
+            {/* ── 練習メニュー ── */}
+            <Section title="練習メニュー・メモ（任意）">
+              {menuTemplates.length > 0 && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={{ marginBottom: 8 }}
+                  contentContainerStyle={{ gap: 8, paddingHorizontal: 2 }}
+                >
+                  {menuTemplates.map(t => (
+                    <TouchableOpacity
+                      key={t.id}
+                      style={[s.tplChip, { backgroundColor: colors.surface2, borderColor: colors.border }]}
+                      onPress={() => setNotes(t.content)}
+                      onLongPress={() => Alert.alert('削除', `「${t.name}」を削除しますか？`, [
+                        { text: 'キャンセル', style: 'cancel' },
+                        { text: '削除', style: 'destructive', onPress: () => deleteTemplate(t.id) },
+                      ])}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[s.tplChipText, { color: colors.text }]} numberOfLines={1}>{t.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
               <TextInput
                 value={notes}
                 onChangeText={setNotes}
-                placeholder="練習の感想、気づきなど..."
+                placeholder="アップ→ドリル→メイン練習→ダウン..."
                 placeholderTextColor={colors.textHint}
                 multiline
-                numberOfLines={3}
+                numberOfLines={4}
                 style={[s.notesInput, { backgroundColor: colors.surface2, color: colors.text }]}
               />
+              {notes.trim().length > 0 && (
+                <TouchableOpacity style={s.saveTplBtn} onPress={saveTemplate} activeOpacity={0.8}>
+                  <Ionicons name="bookmark-outline" size={14} color={BRAND} />
+                  <Text style={s.saveTplBtnText}>テンプレートとして保存</Text>
+                </TouchableOpacity>
+              )}
             </Section>
 
             <View style={{ height: 40 }} />
@@ -487,4 +616,16 @@ const s = StyleSheet.create({
     borderRadius: 10, padding: 12,
     fontSize: 13, minHeight: 80, textAlignVertical: 'top',
   },
+  tplChip: {
+    paddingHorizontal: 12, paddingVertical: 7,
+    borderRadius: 20, borderWidth: 1,
+    maxWidth: 160,
+  },
+  tplChipText: { fontSize: 13 },
+  saveTplBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    marginTop: 8, alignSelf: 'flex-start',
+    paddingVertical: 4, paddingHorizontal: 2,
+  },
+  saveTplBtnText: { fontSize: 12, color: BRAND },
 })
