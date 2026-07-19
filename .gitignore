@@ -11,3 +11,5 @@ dist/
 .DS_Store
 **/.DS_Store
 *.ipa
+build/
+*.xcarchive
