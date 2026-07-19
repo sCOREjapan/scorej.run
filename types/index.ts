@@ -6,8 +6,8 @@
 export type EventCategory = 'sprint' | 'middle' | 'long'
 
 export type SprintEvent =
-  | '100m' | '200m' | '400m'
-  | '110mH' | '100mH' | '400mH'
+  | '100m' | '200m' | '300m' | '400m'
+  | '110mH' | '100mH' | '300mH' | '400mH'
 
 export type MiddleLongEvent =
   | '800m' | '1500m' | '3000m'
@@ -43,6 +43,7 @@ export interface RaceRecord {
   venue?: string
   competition_name?: string
   wind_ms?: number         // 風速（短距離・跳躍）
+  hurdle_height_cm?: number // ハードルの高さ（ハードル種目のみ）
   is_pb: boolean
   is_sb: boolean
   notes?: string
@@ -82,6 +83,7 @@ export interface TrainingSession {
   session_date: string         // ISO 8601 date
   session_type: SessionType
   event?: AthleticsEvent
+  hurdle_height_cm?: number    // ハードルの高さ（ハードル種目のみ）
   time_ms?: number             // メインタイム（ミリ秒）
   distance_m?: number          // 距離（メートル）
   reps?: number                // 本数
@@ -268,3 +270,42 @@ export interface ChartDataPoint {
 }
 
 export type LoadingState = 'idle' | 'loading' | 'success' | 'error'
+
+// ─────────────────────────────────────────
+// 怪我復帰機能
+// ─────────────────────────────────────────
+export interface InjuryExercise {
+  name: string
+  detail: string
+}
+
+export interface InjuryDayPlan {
+  day: number
+  phase: string
+  exercises: InjuryExercise[]
+  avoid: string[]
+  advice: string
+}
+
+// 治療（通院・施術等）に行った記録
+export interface TreatmentLogEntry {
+  date: string     // YYYY-MM-DD
+  note?: string     // 任意メモ（例: 「整形外科でリハビリ」）
+}
+
+export interface InjuryRecord {
+  id: string
+  side: string
+  parts: string[]
+  injuryType: string
+  description: string
+  painLevel: number
+  hasSwelling: boolean
+  totalDays: number
+  startDate: string
+  plans: InjuryDayPlan[]
+  coachShare: boolean
+  status: 'active' | 'completed'
+  createdAt: string
+  treatmentLog?: TreatmentLogEntry[]
+}

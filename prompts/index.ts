@@ -42,25 +42,46 @@ ${timingNote}
 }
 
 // prompts/competition.ts
-import type { TrackEvent, UserProfile } from '../types'
+import type { AthleticsEvent, TrackEvent, UserProfile } from '../types'
+
+const SPRINT_EVENTS: AthleticsEvent[]   = ['100m', '200m', '300m', '400m', '110mH', '100mH', '300mH', '400mH']
+const JUMP_EVENTS: AthleticsEvent[]     = ['走幅跳', '三段跳', '走高跳', '棒高跳']
+const THROW_EVENTS: AthleticsEvent[]    = ['砲丸投', 'やり投', '円盤投', 'ハンマー投']
+const COMBINED_EVENTS: AthleticsEvent[] = ['十種競技', '七種競技', '八種競技']
+const RELAY_EVENTS: AthleticsEvent[]    = ['4×100mR', '4×400mR']
 
 export function getCompetitionPlanPrompt(
   daysLeft: number,
   profile: UserProfile,
-  competitionName: string
+  competitionName: string,
+  event: AthleticsEvent,
 ): string {
   const weeksLeft = Math.min(Math.ceil(daysLeft / 7), 8) // 最大8週
-  const category = profile.event_category === 'sprint' ? '短距離' : '中長距離'
 
-  const pbInfo = profile.personal_best_ms
+  // 試合計画で実際に選ばれた種目（event）を基準にコーチの専門分野を決める。
+  // 以前は profile.event_category（ユーザーの登録種目カテゴリ、短距離/中長距離のみ）を
+  // 見ていたため、跳躍・投擲種目を選んでも短距離または中長距離のメニューしか
+  // 生成されないバグがあった。
+  const category =
+    SPRINT_EVENTS.includes(event)   ? '短距離' :
+    JUMP_EVENTS.includes(event)     ? '跳躍' :
+    THROW_EVENTS.includes(event)    ? '投擲' :
+    COMBINED_EVENTS.includes(event) ? '混成競技' :
+    RELAY_EVENTS.includes(event)    ? 'リレー' :
+    '中長距離'
+
+  // 跳躍・投擲・混成はタイムで測る種目ではないため、時間形式のPB表示を出さない
+  const isTrackEvent = !JUMP_EVENTS.includes(event) && !THROW_EVENTS.includes(event) && !COMBINED_EVENTS.includes(event)
+  const pbInfo = profile.personal_best_ms && isTrackEvent
     ? `PB:${formatTime(profile.personal_best_ms, profile.primary_event)}`
     : 'PB未設定'
 
-  const targetInfo = profile.target_time_ms
+  const targetInfo = profile.target_time_ms && isTrackEvent
     ? ` 目標:${formatTime(profile.target_time_ms, profile.primary_event)}`
     : ''
 
-  return `${category}専門コーチ。${profile.primary_event}選手(${pbInfo}${targetInfo}, 経験${profile.experience_years ?? '?'}年)の「${competitionName}」まで${weeksLeft}週間の計画をJSONのみで返せ。
+  return `${category}専門コーチ。${event}選手(${pbInfo}${targetInfo}, 経験${profile.experience_years ?? '?'}年)の「${competitionName}」まで${weeksLeft}週間の計画をJSONのみで返せ。
+種目「${event}」に特化した専門的な練習内容（${category === '跳躍' ? '助走・踏切・空中動作・着地の技術練習、補強、スピード養成' : category === '投擲' ? '投てき動作・フォーム練習、専門補強、パワー養成' : category === '混成競技' ? '各種目のバランス練習と苦手種目の補強' : '通常のランニング練習'}）を組み込むこと。
 
 必須ルール:
 - phases配列は必ず${weeksLeft}要素（多くも少なくもNG）

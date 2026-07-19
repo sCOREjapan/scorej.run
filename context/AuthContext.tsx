@@ -5,13 +5,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Platform } from 'react-native'
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
-import { syncAll } from '../lib/cloudSync'
+import { syncAll, syncProfileToCloud } from '../lib/cloudSync'
 import Toast from 'react-native-toast-message'
 import * as WebBrowser from 'expo-web-browser'
 import * as Linking from 'expo-linking'
 import * as AuthSession from 'expo-auth-session'
 import * as AppleAuthentication from 'expo-apple-authentication'
 import * as Crypto from 'expo-crypto'
+import { GoogleSignin, statusCodes as GoogleStatusCodes } from '@react-native-google-signin/google-signin'
 
 // expo-web-browser の結果を Supabase が処理できるよう登録
 // iOS 26 で稀に throw するため try-catch で保護
@@ -152,6 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (s?.user?.id) {
           AsyncStorage.setItem('userId', s.user.id).catch(() => {})
           syncAll(s.user.id).catch(() => {})
+          syncProfileToCloud(s.user.id).catch(() => {})
         } else if (storedUserId?.startsWith('guest_') || storedUserId === 'guest') {
           // ゲストとして続けていたユーザーを再認識（アプリ再起動でもゲスト状態を維持）
           setIsGuest(true)
@@ -198,6 +200,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               // userId をローカルにキャッシュ（各画面の user_id フィールド設定で使用）
               AsyncStorage.setItem('userId', newSession.user.id).catch(() => {})
               syncAll(newSession.user.id).catch(() => {})
+              syncProfileToCloud(newSession.user.id).catch(() => {})
             }
           }
           // セッション終了時はキャッシュをクリア
@@ -216,84 +219,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // ── Google OAuth ──────────────────────────────────────────
+  // ── Google Sign In（ネイティブ idToken 方式・Apple と同じパターン） ──
   const signInWithGoogle = useCallback(async () => {
     try {
       if (Platform.OS === 'web') {
-        // Web: skipBrowserRedirect: true で URL を取得し手動リダイレクト（環境依存を排除）
+        // Web: OAuth リダイレクト方式
         const { data, error } = await (supabase.auth as any).signInWithOAuth({
           provider: 'google',
-          options: {
-            redirectTo: SITE_URL,
-            skipBrowserRedirect: true,
-          },
+          options: { redirectTo: SITE_URL, skipBrowserRedirect: true },
         })
         if (error || !data?.url) {
           Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: error?.message ?? 'URL取得失敗' })
           return
         }
-        if (typeof window !== 'undefined') {
-          window.location.href = data.url
-        }
+        if (typeof window !== 'undefined') window.location.href = data.url
         return
       }
 
-      // Native: PKCE + in-app browser
-      // score://auth-callback は Supabase の Redirect URLs に登録が必要
-      const redirectTo = 'score://auth-callback'
-      console.log('[Google OAuth] redirectTo:', redirectTo)
-
-      // iOS でブラウザセッションを事前ウォームアップ
-      try { await WebBrowser.warmUpAsync() } catch {}
-
-      const { data, error } = await (supabase.auth as any).signInWithOAuth({
-        provider: 'google',
-        options:  { redirectTo, skipBrowserRedirect: true },
+      // Native: Google Sign-In SDK → idToken → Supabase（PKCEブラウザフロー不使用）
+      GoogleSignin.configure({
+        webClientId:  '918711129795-hskjq09k6e8gumt71ptmgkjepskmktf2.apps.googleusercontent.com',
+        iosClientId:  '918711129795-5lt5a8v4ud03iu2lg35olfits8rc78dg.apps.googleusercontent.com',
+        offlineAccess: false,
       })
-      if (error || !data?.url) {
-        const msg = error?.message ?? 'OAuth URL取得失敗'
-        console.log('[Google OAuth] Step1 error:', msg)
-        Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: msg, visibilityTime: 5000 })
-        try { await WebBrowser.coolDownAsync() } catch {}
+
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: false })
+      await GoogleSignin.signIn()
+      const { idToken } = await GoogleSignin.getTokens()
+
+      if (!idToken) {
+        Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: 'IDトークンを取得できませんでした' })
         return
       }
-      console.log('[Google OAuth] URL取得成功, ブラウザを開きます')
-      if (__DEV__) console.log('[Google OAuth] OAuth URL取得成功')
 
-      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo)
-      if (__DEV__) console.log('[Google OAuth] browser result type:', result.type)
-      if (result.type !== 'success' || !result.url) {
-        if (result.type === 'cancel' || result.type === 'dismiss') {
-          // ユーザーがキャンセルした場合は何もしない
-          try { await WebBrowser.coolDownAsync() } catch {}
-          return
-        }
-        Toast.show({ type: 'error', text1: 'Googleログイン失敗 [Step2]', text2: `ブラウザ結果: ${result.type}`, visibilityTime: 5000 })
-        try { await WebBrowser.coolDownAsync() } catch {}
-        return
-      }
-      try { await WebBrowser.coolDownAsync() } catch {}
-
-      // 重複排除付きで交換（Linking リスナーと競合しても安全）
-      const { error: exchError } = await exchangeCodeOnce(result.url)
-      if (exchError) {
-        if (__DEV__) console.log('[Google OAuth] exchangeCode error:', exchError.message)
-        // フォールバック: implicit flow のハッシュトークン（旧 Supabase 対応）
-        try {
-          const hash = result.url.split('#')[1] ?? ''
-          const params = new URLSearchParams(hash)
-          const accessToken = params.get('access_token')
-          const refreshToken = params.get('refresh_token')
-          if (accessToken && refreshToken) {
-            await (supabase.auth as any).setSession({ access_token: accessToken, refresh_token: refreshToken })
-            return
-          }
-        } catch {}
-        Toast.show({ type: 'error', text1: 'Googleログイン失敗 [Step3]', text2: exchError.message, visibilityTime: 5000 })
+      const { error } = await supabase.auth.signInWithIdToken({
+        provider: 'google',
+        token: idToken,
+      })
+      if (error) {
+        Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: error.message, visibilityTime: 5000 })
       }
     } catch (e: any) {
+      if (e?.code === GoogleStatusCodes.SIGN_IN_CANCELLED) return  // ユーザーキャンセル
+      if (e?.code === GoogleStatusCodes.IN_PROGRESS) return        // 既に処理中
       const msg = e?.message ?? 'エラーが発生しました'
-      if (__DEV__) console.log('[Google OAuth] catch error:', msg)
       Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: msg, visibilityTime: 5000 })
     }
   }, [])

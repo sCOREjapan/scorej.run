@@ -30,6 +30,13 @@ export default function SplashAnimation({ onFinish }: Props) {
       setTimeout(() => Sounds.splashBoom(), 80)
     }
 
+    // 安全策: Web(React Native Web)ではuseNativeDriverを含むAnimated.sequenceの
+    // 完了コールバックが発火しないことがあり、その場合アプリ本体が永久にスプラッシュの
+    // 裏に隠れたままになる。一定時間で強制的に onFinish を呼ぶフォールバックを設ける。
+    let finished = false
+    const finish = () => { if (!finished) { finished = true; onFinish() } }
+    const safety = Platform.OS === 'web' ? setTimeout(finish, 2500) : null
+
     Animated.sequence([
       // 1. ロゴマーク出現（スプリング）
       Animated.parallel([
@@ -80,7 +87,12 @@ export default function SplashAnimation({ onFinish }: Props) {
         toValue: 0, duration: 380,
         easing: Easing.in(Easing.cubic), useNativeDriver: true,
       }),
-    ]).start(() => onFinish())
+    ]).start(() => {
+      if (safety) clearTimeout(safety)
+      finish()
+    })
+
+    return () => { if (safety) clearTimeout(safety) }
   }, [])
 
   const dotDots = [dotScale1, dotScale2, dotScale3]

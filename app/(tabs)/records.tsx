@@ -21,6 +21,7 @@ import type { RaceRecord, AthleticsEvent, ChartDataPoint, TrainingSession } from
 import type { SleepRecord } from '../../types'
 import { exportAllDataCSV, exportAllDataJSON } from '../../lib/export'
 import { checkAdGate, recordUsage } from '../../lib/adGate'
+import { localDateStr, todayLocalISO } from '../../lib/dateLocal'
 import AdGateModal from '../../components/AdGateModal'
 import QuickLogModal from '../../components/QuickLogModal'
 import { useAuth } from '../../context/AuthContext'
@@ -29,6 +30,9 @@ import ConfettiEffect from '../../components/ConfettiEffect'
 import { pbCelebration } from '../../lib/haptics'
 import PracticeShareCard, { PracticeShareData } from '../../components/PracticeShareCard'
 import { calcLevelInfo } from '../../lib/gamification'
+import TutorialSpot from '../../components/TutorialSpot'
+import { STANDARD_HURDLE_HEIGHTS, isHurdleEvent } from '../../lib/hurdleHeights'
+import { usePurchase } from '../../context/PurchaseContext'
 
 const RECORDS_KEY       = 'trackmate_race_records'
 const SESSIONS_KEY      = 'trackmate_sessions'
@@ -56,6 +60,7 @@ const FIELD_EVENT_SET = new Set<AthleticsEvent>(FIELD_EVENTS)
 
 function isField(e: AthleticsEvent) { return FIELD_EVENT_SET.has(e) }
 function hasWind(e: AthleticsEvent)  { return WIND_EVENTS.includes(e) }
+
 
 // ── フォーマット ──────────────────────────────────────────────────
 function msToDisplay(ms: number, event: AthleticsEvent): string {
@@ -131,6 +136,9 @@ function RecordCard({ record, onDelete, onEdit }: { record: RaceRecord; onDelete
             {record.wind_ms >= 0 ? `+${record.wind_ms}` : record.wind_ms}m/s
           </Text>
         )}
+        {record.hurdle_height_cm !== undefined && (
+          <Text style={styles.windText}>H{record.hurdle_height_cm}cm</Text>
+        )}
         {record.competition_name
           ? <Text style={styles.recordVenue} numberOfLines={1}>{record.competition_name}</Text>
           : record.venue
@@ -141,6 +149,7 @@ function RecordCard({ record, onDelete, onEdit }: { record: RaceRecord; onDelete
       <View style={styles.recordRight}>
         <Text style={styles.recordDate}>{record.race_date}</Text>
         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+          <TutorialSpot spotKey="records_share_btn">
           <TouchableOpacity
             onPress={() => router.push({ pathname: '/share-card', params: { recordId: record.id } })}
             style={styles.shareBtn}
@@ -149,6 +158,7 @@ function RecordCard({ record, onDelete, onEdit }: { record: RaceRecord; onDelete
             <Ionicons name="share-social-outline" size={13} color="#fff" />
             <Text style={styles.shareBtnTxt}>シェア</Text>
           </TouchableOpacity>
+          </TutorialSpot>
           <TouchableOpacity onPress={onEdit} style={{ padding: 4 }}>
             <Ionicons name="pencil-outline" size={14} color={BRAND} />
           </TouchableOpacity>
@@ -205,23 +215,11 @@ const TYPE_EMOJIS: Record<string,string> = {
 }
 const FATIGUE_EMOJI = (v: number) => v >= 9 ? '🥵' : v >= 7 ? '😰' : v >= 5 ? '😐' : v >= 3 ? '🙂' : '😊'
 
-// マイルストーン定義
-const MILESTONES = [
-  { key:'first',   label:'初練習',  emoji:'🎉', check: (s: TrainingSession[]) => s.length >= 1    },
-  { key:'5th',     label:'5回達成', emoji:'✨', check: (s: TrainingSession[]) => s.length >= 5    },
-  { key:'10th',    label:'10回！',  emoji:'🔥', check: (s: TrainingSession[]) => s.length >= 10   },
-  { key:'30th',    label:'30回',    emoji:'💪', check: (s: TrainingSession[]) => s.length >= 30   },
-  { key:'100th',   label:'100回',   emoji:'🏅', check: (s: TrainingSession[]) => s.length >= 100  },
-  { key:'km10',    label:'10km',    emoji:'👟', check: (s: TrainingSession[]) => s.reduce((a,x)=>a+(x.distance_m??0),0) >= 10000 },
-  { key:'km100',   label:'100km',   emoji:'🗺️', check: (s: TrainingSession[]) => s.reduce((a,x)=>a+(x.distance_m??0),0) >= 100000 },
-  { key:'km500',   label:'500km',   emoji:'🌏', check: (s: TrainingSession[]) => s.reduce((a,x)=>a+(x.distance_m??0),0) >= 500000 },
-]
-
 // ヒートマップ: 全練習記録を横スクロールで表示（週ごとの列、今日が右端）
 function Heatmap({ sessions }: { sessions: TrainingSession[] }) {
   const scrollRef = useRef<any>(null)
   const today = new Date()
-  const todayStr = today.toISOString().slice(0, 10)
+  const todayStr = localDateStr(today)
   const countByDay: Record<string,number> = {}
   const typeByDay: Record<string,string> = {}
   sessions.forEach(s => {
@@ -249,7 +247,7 @@ function Heatmap({ sessions }: { sessions: TrainingSession[] }) {
   const days: (string | null)[] = []
   for (let i = numDays - 1; i >= 0; i--) {
     const d = new Date(today); d.setDate(today.getDate() - i)
-    days.push(d.toISOString().slice(0, 10))
+    days.push(localDateStr(d))
   }
   for (let i = 0; i < trailingPad; i++) days.push(null)
 
@@ -499,7 +497,7 @@ function GlowCalendar({ sessions, selectedDate, onSelectDate }: {
 
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
   const firstDow    = new Date(viewYear, viewMonth, 1).getDay()
-  const today       = now.toISOString().slice(0, 10)
+  const today       = localDateStr(now)
   const canNext     = viewYear < now.getFullYear() || (viewYear === now.getFullYear() && viewMonth < now.getMonth())
 
   // 週ごとの行を構築
@@ -728,11 +726,11 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
 
   // 連続練習日数
   let streak = 0
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayLocalISO()
   const dateSet = new Set(sessions.map(s => s.session_date))
   for (let i = 0; i < 365; i++) {
     const d = new Date(); d.setDate(d.getDate() - i)
-    const dStr = d.toISOString().slice(0, 10)
+    const dStr = localDateStr(d)
     if (dateSet.has(dStr)) streak++
     else if (i > 0) break  // streak ends (today OK to be 0)
   }
@@ -773,8 +771,6 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
     byDate[s.session_date].push(s)
   })
   const sortedDates = Object.keys(byDate).sort((a, b) => b.localeCompare(a)).slice(0, 60)
-
-  const unlockedCount = MILESTONES.filter(m => m.check(sessions)).length
 
   return (
     <>
@@ -835,8 +831,6 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
           <Text style={{ color: TEXT.primary, fontSize: 11, fontWeight: '700' }}>
             {sessions.filter(s => new Date(s.session_date).getMonth() === new Date().getMonth()).length}回
           </Text>
-          <View style={{ flex: 1 }} />
-          <Text style={{ color: TEXT.hint, fontSize: 11 }}>🏅 {unlockedCount}/{MILESTONES.length}</Text>
         </View>
       </View>
       </AnimatedSection>
@@ -926,34 +920,6 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
             )}
           </ScrollView>
         )}
-      </View>
-      </AnimatedSection>
-
-      {/* ── マイルストーン ── */}
-      <AnimatedSection delay={180} type="fade-up">
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Text style={{ fontSize: 14 }}>🎯</Text>
-          <Text style={styles.cardTitle}>マイルストーン</Text>
-        </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            {MILESTONES.map(m => {
-              const unlocked = m.check(sessions)
-              return (
-                <View key={m.key} style={{
-                  alignItems: 'center', gap: 5, padding: 12, borderRadius: 12,
-                  backgroundColor: unlocked ? 'rgba(229,57,53,0.1)' : '#f0f2f5',
-                  borderWidth: 1, borderColor: unlocked ? BRAND + '40' : 'rgba(0,0,0,0.06)',
-                  minWidth: 68, opacity: unlocked ? 1 : 0.45,
-                }}>
-                  <Text style={{ fontSize: 22 }}>{m.emoji}</Text>
-                  <Text style={{ color: unlocked ? BRAND : TEXT.secondary, fontSize: 11, fontWeight: '800' }}>{m.label}</Text>
-                </View>
-              )
-            })}
-          </View>
-        </ScrollView>
       </View>
       </AnimatedSection>
 
@@ -1110,14 +1076,14 @@ function WeightSection({
   onAdd: (kg: number, date: string) => void
   onDelete: (id: string) => void
 }) {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayLocalISO()
   const [input, setInput] = useState('')
   const [selectedDate, setSelectedDate] = useState(today)
 
   // ±7日の日付リスト
   const dateRange = Array.from({ length: 15 }, (_, i) => {
     const d = new Date(); d.setDate(d.getDate() - 7 + i)
-    return d.toISOString().slice(0, 10)
+    return localDateStr(d)
   })
 
   const sorted = [...records].sort((a, b) => a.date.localeCompare(b.date))
@@ -1431,6 +1397,7 @@ function HealthTab({ conditionMap, sleepRecords, weightRecords, onAddWeight, onD
 export default function RecordsScreen() {
   const router = useRouter()
   const { isGuest } = useAuth()
+  const { isNoad } = usePurchase()
   const [activeTab, setActiveTab] = useState<'practice'|'records'|'health'>('practice')
   const [csvGateVisible,     setCsvGateVisible]     = useState(false)
   const [csvGateRemaining,   setCsvGateRemaining]   = useState(0)
@@ -1450,13 +1417,14 @@ export default function RecordsScreen() {
 
   // フォーム状態
   const [fEvent, setFEvent]   = useState<AthleticsEvent>('100m')
-  const [fDate, setFDate]     = useState(new Date().toISOString().slice(0, 10))
+  const [fDate, setFDate]     = useState(todayLocalISO())
   const [fMin, setFMin]       = useState('')
   const [fSec, setFSec]       = useState('')
   const [fMeter, setFMeter]   = useState('')
   const [fCm, setFCm]         = useState('')
   const [fWind, setFWind]     = useState('')
   const [fWindPos, setFWindPos] = useState(true)   // true=+ / false=-
+  const [fHurdleHeight, setFHurdleHeight] = useState<number | null>(null)
   const [fVenue, setFVenue]   = useState('')
   const [fComp, setFComp]     = useState('')
   const [fIsPB, setFIsPB]     = useState(false)
@@ -1511,9 +1479,10 @@ export default function RecordsScreen() {
 
   function resetForm() {
     setEditId(null)
-    setFEvent('100m'); setFDate(new Date().toISOString().slice(0, 10))
+    setFEvent('100m'); setFDate(todayLocalISO())
     setFMin(''); setFSec(''); setFMeter(''); setFCm(''); setFWind(''); setFWindPos(true)
     setFVenue(''); setFComp(''); setFIsPB(false); setFIsSB(false); setFNotes('')
+    setFHurdleHeight(null)
   }
 
   function openEdit(r: RaceRecord) {
@@ -1539,6 +1508,7 @@ export default function RecordsScreen() {
     setFIsPB(r.is_pb ?? false)
     setFIsSB(r.is_sb ?? false)
     setFNotes(r.notes ?? '')
+    setFHurdleHeight(r.hurdle_height_cm ?? null)
     setModalVisible(true)
   }
 
@@ -1571,6 +1541,7 @@ export default function RecordsScreen() {
         venue: fVenue || undefined,
         competition_name: fComp || undefined,
         wind_ms: fWind !== '' ? parseFloat(fWind) * (fWindPos ? 1 : -1) : undefined,
+        hurdle_height_cm: isHurdleEvent(fEvent) ? fHurdleHeight ?? undefined : undefined,
         is_pb: fIsPB,
         is_sb: fIsSB,
         notes: fNotes || undefined,
@@ -1589,7 +1560,7 @@ export default function RecordsScreen() {
       Sounds.error()
       Toast.show({ type: 'error', text1: '保存に失敗しました' })
     } finally { setSaving(false) }
-  }, [fEvent, fDate, fMin, fSec, fMeter, fCm, fWind, fVenue, fComp, fIsPB, fIsSB, fNotes, records])
+  }, [fEvent, fDate, fMin, fSec, fMeter, fCm, fWind, fHurdleHeight, fVenue, fComp, fIsPB, fIsSB, fNotes, records])
 
   const handleDelete = useCallback(async (id: string) => {
     Sounds.delete()
@@ -1745,6 +1716,31 @@ export default function RecordsScreen() {
                 isLoading={false}
               />
             </View>
+            </AnimatedSection>
+          )}
+
+          {/* ── 成長レポート 導線カード ── */}
+          {!loading && records.length > 0 && (
+            <AnimatedSection delay={120} type="fade-up">
+            <HapticTouch
+              haptic="tap"
+              style={growthReportSt.card}
+              onPress={() => router.push('/growth-report')}
+            >
+              <View style={growthReportSt.iconWrap}>
+                <Ionicons name="trending-up" size={20} color="#d97706" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={growthReportSt.title}>もっと成長を実感する</Text>
+                <Text style={growthReportSt.sub}>自己ベストや怪我のなりやすさが、これまでの記録からまとめて見られます</Text>
+              </View>
+              {!isNoad && (
+                <View style={growthReportSt.badge}>
+                  <Text style={growthReportSt.badgeText}>PRO</Text>
+                </View>
+              )}
+              <Ionicons name="chevron-forward" size={18} color="#9ca3af" />
+            </HapticTouch>
             </AnimatedSection>
           )}
 
@@ -1936,6 +1932,20 @@ export default function RecordsScreen() {
                   </>
                 )}
 
+                {/* ハードルの高さ */}
+                {isHurdleEvent(fEvent) && (
+                  <>
+                    <Text style={styles.label}>ハードルの高さ</Text>
+                    <View style={[styles.chipRow, { flexWrap: 'wrap', marginBottom: 14 }]}>
+                      {STANDARD_HURDLE_HEIGHTS.map(h => (
+                        <HapticTouch key={h.cm} haptic="toggleOn" style={[styles.chip, fHurdleHeight === h.cm && styles.chipActive]} onPress={() => setFHurdleHeight(h.cm)}>
+                          <Text style={[styles.chipText, fHurdleHeight === h.cm && styles.chipTextActive]}>{h.label}</Text>
+                        </HapticTouch>
+                      ))}
+                    </View>
+                  </>
+                )}
+
                 {/* PB / SB トグル */}
                 <View style={styles.toggleRow}>
                   <TouchableOpacity style={[styles.toggleBtn, fIsPB && styles.toggleBtnPB]} onPress={() => { fIsPB ? Sounds.toggleOff() : Sounds.toggleOn(); setFIsPB(v => !v); if (!fIsPB) setFIsSB(false) }}>
@@ -1991,6 +2001,29 @@ export default function RecordsScreen() {
   )
 }
 
+// ── 成長レポート導線カードのスタイル ─────────────────────────────
+const growthReportSt = StyleSheet.create({
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#fffbeb',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(217,119,6,0.25)',
+  },
+  iconWrap: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: 'rgba(217,119,6,0.12)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  title: { color: '#111827', fontSize: 14, fontWeight: '800' },
+  sub:   { color: '#6b7280', fontSize: 11.5, marginTop: 2, lineHeight: 16 },
+  badge: { backgroundColor: '#d97706', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  badgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+})
+
 // ── スタイル ──────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   safe:    { flex: 1, backgroundColor: 'transparent' },
@@ -2001,20 +2034,20 @@ const styles = StyleSheet.create({
   addBtn:  { width: 36, height: 36, borderRadius: 18, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center' },
   iconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#f0f2f5', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', alignItems: 'center', justifyContent: 'center' },
 
-  card:    { backgroundColor: '#ffffff', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 16, gap: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
+  card:    { backgroundColor: '#ffffff', borderRadius: 21, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 16, gap: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 2 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   cardTitle:  { color: TEXT.primary, fontSize: 15, fontWeight: '700', flex: 1 },
   countText:  { color: TEXT.hint, fontSize: 13 },
 
   // PBサマリー
   pbGrid:  { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  pbItem:  { backgroundColor: 'rgba(34,197,94,0.08)', borderRadius: 10, borderWidth: 1, borderColor: 'rgba(34,197,94,0.25)', padding: 10, minWidth: 90, alignItems: 'center' },
+  pbItem:  { backgroundColor: 'rgba(34,197,94,0.08)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(34,197,94,0.25)', padding: 10, minWidth: 90, alignItems: 'center' },
   pbEvent: { color: TEXT.secondary, fontSize: 11, fontWeight: '600', marginBottom: 2 },
-  pbResult:{ color: NEON.green, fontSize: 16, fontWeight: '800' },
+  pbResult:{ color: NEON.green, fontSize: 16, fontWeight: '800', fontVariant: ['tabular-nums'] },
   pbDate:  { color: TEXT.hint, fontSize: 10, marginTop: 2 },
 
   // 記録カード
-  recordCard:   { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8f8fa', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)', padding: 12, gap: 10 },
+  recordCard:   { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8f8fa', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)', padding: 12, gap: 10 },
   recordCardPB: { borderColor: 'rgba(34,197,94,0.4)', backgroundColor: 'rgba(34,197,94,0.04)' },
   recordLeft:   { width: 62, gap: 4 },
   eventBadgeWrap: { backgroundColor: `${BRAND}15`, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 3 },
@@ -2022,10 +2055,10 @@ const styles = StyleSheet.create({
   badge:        { borderRadius: 4, borderWidth: 1, paddingHorizontal: 5, paddingVertical: 1 },
   badgeText:    { fontSize: 10, fontWeight: '800' },
   recordMid:    { flex: 1, gap: 2 },
-  recordResult: { color: TEXT.primary, fontSize: 22, fontWeight: '800' },
+  recordResult: { color: TEXT.primary, fontSize: 22, fontWeight: '800', fontVariant: ['tabular-nums'] },
   windText:     { color: TEXT.hint, fontSize: 11 },
   windRow:      { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  windSignBtn:  { width: 44, height: 44, borderRadius: 10, backgroundColor: '#f0f2f5', borderWidth: 1, borderColor: 'rgba(0,0,0,0.1)', alignItems: 'center', justifyContent: 'center' },
+  windSignBtn:  { width: 44, height: 44, borderRadius: 14, backgroundColor: '#f0f2f5', borderWidth: 1, borderColor: 'rgba(0,0,0,0.1)', alignItems: 'center', justifyContent: 'center' },
   windSignBtnMinus: { backgroundColor: '#fee2e2', borderColor: '#fca5a5' },
   windSignTxt:  { fontSize: 22, fontWeight: '700', color: '#374151', lineHeight: 26 },
   windInput:    { flex: 1, marginTop: 0 },
@@ -2037,7 +2070,7 @@ const styles = StyleSheet.create({
   recordDate:   { color: TEXT.hint, fontSize: 11 },
 
   // フィルター
-  filterChip:       { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#f0f2f5', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
+  filterChip:       { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#f0f2f5', borderRadius: 21, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
   filterChipActive: { backgroundColor: BRAND, borderColor: BRAND },
   filterChipText:   { color: TEXT.secondary, fontSize: 12, fontWeight: '600' },
   filterChipTextActive: { color: '#FFFFFF' },
@@ -2045,15 +2078,15 @@ const styles = StyleSheet.create({
   // 空状態
   empty:      { alignItems: 'center', paddingVertical: 32, gap: 10 },
   emptyText:  { color: TEXT.hint, fontSize: 14 },
-  emptyBtn:   { backgroundColor: BRAND, borderRadius: 10, paddingHorizontal: 20, paddingVertical: 10 },
+  emptyBtn:   { backgroundColor: BRAND, borderRadius: 21, paddingHorizontal: 20, paddingVertical: 10 },
   emptyBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
 
   // 体重入力
-  weightInput:   { flex: 1, backgroundColor: '#f8f8fa', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11, color: TEXT.primary, fontSize: 15, borderWidth: 1, borderColor: 'rgba(59,130,246,0.3)' },
-  weightAddBtn:  { backgroundColor: NEON.blue, borderRadius: 10, paddingHorizontal: 18, paddingVertical: 11, justifyContent: 'center' },
+  weightInput:   { flex: 1, backgroundColor: '#f8f8fa', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 11, color: TEXT.primary, fontSize: 15, borderWidth: 1, borderColor: 'rgba(59,130,246,0.3)' },
+  weightAddBtn:  { backgroundColor: NEON.blue, borderRadius: 14, paddingHorizontal: 18, paddingVertical: 11, justifyContent: 'center' },
 
   // 入力ショートカット
-  inputShortcut:     { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#f0f2f5', borderRadius: 14, paddingVertical: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
+  inputShortcut:     { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#f0f2f5', borderRadius: 18, paddingVertical: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
   inputShortcutText: { fontSize: 14, fontWeight: '800' },
 
   // モーダル
@@ -2066,23 +2099,23 @@ const styles = StyleSheet.create({
 
   label:    { color: TEXT.secondary, fontSize: 13, fontWeight: '600', marginBottom: 6 },
   subLabel: { color: TEXT.hint, fontSize: 11, fontWeight: '600', marginBottom: 4 },
-  input:    { backgroundColor: '#f8f8fa', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, color: TEXT.primary, fontSize: 15, borderWidth: 1, borderColor: 'rgba(59,130,246,0.25)', marginBottom: 14 },
+  input:    { backgroundColor: '#f8f8fa', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, color: TEXT.primary, fontSize: 15, borderWidth: 1, borderColor: 'rgba(59,130,246,0.25)', marginBottom: 14 },
   textArea: { height: 80, textAlignVertical: 'top' },
 
   chipRow:      { flexDirection: 'row', gap: 8 },
-  chip:         { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', backgroundColor: '#f0f2f5' },
+  chip:         { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 21, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', backgroundColor: '#f0f2f5' },
   chipActive:   { backgroundColor: BRAND, borderColor: BRAND },
   chipText:     { color: TEXT.secondary, fontSize: 13, fontWeight: '600' },
   chipTextActive: { color: '#FFFFFF' },
 
   timeRow:     { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 14 },
   timeCol:     { flex: 1, gap: 4 },
-  timeNumInput:{ backgroundColor: '#f8f8fa', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, color: TEXT.primary, fontSize: 20, fontWeight: '700', borderWidth: 1, borderColor: 'rgba(59,130,246,0.25)' },
+  timeNumInput:{ backgroundColor: '#f8f8fa', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, color: TEXT.primary, fontSize: 20, fontWeight: '700', borderWidth: 1, borderColor: 'rgba(59,130,246,0.25)', fontVariant: ['tabular-nums'] },
   timeUnit:    { color: TEXT.secondary, fontSize: 12, fontWeight: '600', textAlign: 'center' },
   timeSep:     { color: TEXT.secondary, fontSize: 24, fontWeight: '300', paddingBottom: 10 },
 
   toggleRow:   { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  toggleBtn:   { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, backgroundColor: '#f0f2f5', borderRadius: 10, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
+  toggleBtn:   { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, backgroundColor: '#f0f2f5', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
   toggleBtnPB: { backgroundColor: 'rgba(34,197,94,0.08)', borderColor: NEON.green },
   toggleBtnSB: { backgroundColor: 'rgba(59,130,246,0.08)', borderColor: NEON.blue },
   toggleText:  { color: TEXT.secondary, fontSize: 12, fontWeight: '600' },
@@ -2090,10 +2123,10 @@ const styles = StyleSheet.create({
   // タイム入力大ボタン
   bigAddBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: BRAND, borderRadius: 16,
+    backgroundColor: BRAND, borderRadius: 21,
     paddingVertical: 18, paddingHorizontal: 20,
     shadowColor: BRAND, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35, shadowRadius: 12, elevation: 8,
+    shadowOpacity: 0.25, shadowRadius: 12, elevation: 8,
   },
   bigAddBtnText: { color: '#fff', fontSize: 16, fontWeight: '800', flex: 1 },
 

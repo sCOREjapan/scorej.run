@@ -73,6 +73,29 @@ async function syncTable(
   }
 }
 
+// ── プロフィールをクラウドに同期（オンボーディング→ログインの順でも必ず送る） ──
+// オンボーディング完了時点ではまだ未ログインのケースがあるため、
+// ログイン成功のたびにローカルの trackmate_my_profile を profiles テーブルへ upsert する
+export async function syncProfileToCloud(userId: string): Promise<void> {
+  try {
+    const raw = await AsyncStorage.getItem('trackmate_my_profile')
+    if (!raw) return
+    const profile = JSON.parse(raw)
+    await supabase.from('profiles').upsert({
+      user_id: userId,
+      name: profile.name ?? null,
+      primary_event: profile.primary_event ?? null,
+      event_category: profile.event_category ?? null,
+      age: profile.age ?? null,
+      experience_years: profile.experience_years ?? null,
+      prefecture: profile.prefecture ?? null,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id' }).then(() => {})
+  } catch {
+    // 同期失敗はサイレント（アプリを壊さない）
+  }
+}
+
 // ── 単一アイテムをリアルタイムでクラウドに保存 ─────────────────────────────
 // 各画面の save 処理の後に呼ぶことでリアルタイム同期が可能
 export async function saveItem(

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react'
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, ActivityIndicator, Animated,
+  TextInput, ActivityIndicator, Animated, Alert,
 } from 'react-native'
 import { checkAdGate, recordUsage } from '../lib/adGate'
 import AdGateModal from '../components/AdGateModal'
@@ -97,6 +97,7 @@ const DURATION_OPTIONS=[{id:'today',label:'今日初めて'},{id:'3days',label:'
 const SEVERITY_COLOR = { mild:'#34C759', moderate:'#FF9500', severe:'#FF3B30' }
 const SEVERITY_LABEL = { mild:'軽度', moderate:'中程度', severe:'重度' }
 const STORAGE_KEY = 'trackmate_recovery_records'
+const RECOVERY_CACHE_KEY = 'trackmate_recovery_ai_cache_v1'
 
 /* ════════════════════════════════════════════ */
 export default function RecoveryScreen() {
@@ -117,7 +118,7 @@ export default function RecoveryScreen() {
   const [adGateVisible,     setAdGateVisible]     = useState(false)
   const [adGateRemaining,   setAdGateRemaining]   = useState(0)
   const [adGateHardLimited, setAdGateHardLimited] = useState(false)
-  const [adGateLimitType,   setAdGateLimitType]   = useState<'none'|'daily'|'monthly'|'total'>('none')
+  const [adGateLimitType,   setAdGateLimitType]   = useState<'none'|'daily'|'monthly'|'total'|'window'>('none')
   const fadeAnim = useRef(new Animated.Value(1)).current
   // AdGate async チェック中の二重タップ防止
   const askingRef = useRef(false)
@@ -147,12 +148,28 @@ export default function RecoveryScreen() {
     const _apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
     const _endpoint = `${_apiBase}/api/analyze`
 
+    // ── 結果キャッシュ: 同一入力なら API を再呼び出しせず保存済み結果を返す（コスト削減） ──
+    const _cacheSig = JSON.stringify([[...bodyParts].sort(), painLevel, painType, timing, duration, (notes||'').trim()])
+    try {
+      const _raw = await AsyncStorage.getItem(RECOVERY_CACHE_KEY)
+      if (_raw) {
+        const _cache: Array<{ sig: string; result: RecoveryResult }> = JSON.parse(_raw)
+        const _hit = _cache.find(c => c.sig === _cacheSig)
+        if (_hit) {
+          setResult(_hit.result)
+          setTab('result'); fadeIn()
+          setLoading(false)
+          return
+        }
+      }
+    } catch {}
+
     try {
       const res = await fetchWithTimeout(_endpoint, {
         method:'POST',
         headers:{ 'content-type':'application/json' },
         body: JSON.stringify({
-          model:'claude-haiku-4-5-20251001', max_tokens:4096,
+          model:'claude-haiku-4-5-20251001', max_tokens:2500,
           messages:[{ role:'user', content:
 `あなたは陸上競技に詳しいスポーツトレーナーです。選手の症状をもとに、ケアと回復のアドバイスをしてください。医療診断ではなく、参考情報として提供してください。
 
@@ -186,10 +203,31 @@ export default function RecoveryScreen() {
       const upd = [rec,...history].slice(0,20)
       setHistory(upd)
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(upd))
+      // 結果をキャッシュに保存（同一入力の再分析でAPIコストを発生させない）
+      try {
+        const _raw = await AsyncStorage.getItem(RECOVERY_CACHE_KEY)
+        const _cache: Array<{ sig: string; result: RecoveryResult }> = _raw ? JSON.parse(_raw) : []
+        const _next = [{ sig: _cacheSig, result: parsed }, ..._cache.filter(c => c.sig !== _cacheSig)].slice(0, 30)
+        await AsyncStorage.setItem(RECOVERY_CACHE_KEY, JSON.stringify(_next))
+      } catch {}
       setTab('result'); fadeIn()
     } catch(e: unknown) {
       setApiError(`エラー: ${e instanceof Error ? e.message : String(e)}`)
     } finally { setLoading(false) }
+  }
+
+  const deleteRecord = (id: string) => {
+    Alert.alert('この記録を削除しますか？', 'この操作は取り消せません。', [
+      { text: 'キャンセル', style: 'cancel' },
+      {
+        text: '削除する', style: 'destructive',
+        onPress: async () => {
+          const upd = history.filter(r => r.id !== id)
+          setHistory(upd)
+          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(upd)).catch(() => {})
+        },
+      },
+    ])
   }
 
   const askAI = async () => {
@@ -369,7 +407,15 @@ export default function RecoveryScreen() {
                   onPress={()=>{setResult(rec.result);setTab('result');fadeIn()}}>
                   <View style={{flexDirection:'row',justifyContent:'space-between',marginBottom:4}}>
                     <Text style={s.histDate}>{rec.date}</Text>
-                    <SevBadge severity={rec.result.severity}/>
+                    <View style={{flexDirection:'row',alignItems:'center',gap:10}}>
+                      <SevBadge severity={rec.result.severity}/>
+                      <TouchableOpacity
+                        onPress={(e)=>{e.stopPropagation();deleteRecord(rec.id)}}
+                        hitSlop={{top:8,bottom:8,left:8,right:8}}
+                      >
+                        <Ionicons name="trash-outline" size={18} color="#ef4444"/>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                   <Text style={s.histPart}>📍 {rec.bodyParts.map(id=>ZONES.find(z=>z.id===id)?.label??id).join(' / ')}　Lv.{rec.painLevel}</Text>
                   <Text style={s.histDiag}>{rec.result.suspected_condition}</Text>
@@ -704,7 +750,7 @@ const s = StyleSheet.create({
   chipTxt:          {color:'#555',fontSize:13},
   chipTxtActive:    {color:'#14532d',fontWeight:'700'},
 
-  notesInput:       {backgroundColor:'#fff',borderRadius:12,padding:14,color:'#111827',
+  notesInput:       {backgroundColor:'#fff',borderRadius:14,padding:14,color:'#111827',
                       fontSize:14,minHeight:72,textAlignVertical:'top',
                       borderWidth:1,borderColor:'rgba(0,0,0,0.12)'},
   errorBox:         {flexDirection:'row',alignItems:'flex-start',gap:6,marginTop:12,padding:12,
@@ -723,11 +769,11 @@ const s = StyleSheet.create({
                       shadowOpacity:0.18,shadowRadius:12,elevation:5},
   submitTxt:        {color:'#fff',fontSize:16,fontWeight:'800',letterSpacing:-0.3},
 
-  diagCard:         {backgroundColor:'#fff',borderRadius:14,padding:16,borderLeftWidth:4,marginBottom:12,
-                      shadowColor:'#000',shadowOffset:{width:0,height:2},shadowOpacity:0.06,shadowRadius:8,elevation:2},
-  sevBadge:         {paddingHorizontal:10,paddingVertical:3,borderRadius:20},
+  diagCard:         {backgroundColor:'#fff',borderRadius:21,padding:16,borderLeftWidth:4,marginBottom:12,
+                      shadowColor:'#000',shadowOffset:{width:0,height:4},shadowOpacity:0.04,shadowRadius:12,elevation:2},
+  sevBadge:         {paddingHorizontal:10,paddingVertical:3,borderRadius:21},
   sevTxt:           {fontSize:11,fontWeight:'800'},
-  sec:              {backgroundColor:'#fff',borderRadius:14,padding:14,marginBottom:10,borderLeftWidth:3,
+  sec:              {backgroundColor:'#fff',borderRadius:18,padding:14,marginBottom:10,borderLeftWidth:3,
                       shadowColor:'#000',shadowOffset:{width:0,height:1},shadowOpacity:0.05,shadowRadius:4,elevation:1},
   secHead:          {flexDirection:'row',alignItems:'center',gap:6,marginBottom:10},
   secHeadTxt:       {fontSize:13,fontWeight:'800'},
@@ -741,8 +787,8 @@ const s = StyleSheet.create({
   tlDot:            {width:10,height:10,borderRadius:5,marginTop:4},
   reBtn:            {flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6,padding:16},
   reBtnTxt:         {color:'#6b7280',fontSize:13},
-  histCard:         {backgroundColor:'#fff',borderRadius:14,padding:14,marginBottom:10,
-                      shadowColor:'#000',shadowOffset:{width:0,height:2},shadowOpacity:0.06,shadowRadius:8,elevation:2},
+  histCard:         {backgroundColor:'#fff',borderRadius:18,padding:14,marginBottom:10,
+                      shadowColor:'#000',shadowOffset:{width:0,height:4},shadowOpacity:0.04,shadowRadius:12,elevation:2},
   histDate:         {color:'#6b7280',fontSize:11},
   histPart:         {color:'#9ca3af',fontSize:12,marginBottom:4},
   histDiag:         {color:'#111827',fontSize:15,fontWeight:'700',paddingRight:24},

@@ -33,7 +33,7 @@ const SkeletonRect: React.FC<{ height?: number; width?: number | string }> = ({
     pulse.start()
     return () => pulse.stop()
   }, [opacity])
-  return <Animated.View style={[styles.skeleton, { height, width: width as number, opacity }]} />
+  return <Animated.View style={[styles.skeleton, { height, width: width as any, opacity }]} />
 }
 
 // ─── Detail Row ───────────────────────────────────────────────────────

@@ -436,7 +436,7 @@ const s = StyleSheet.create({
 
   sectionLabel:   { fontSize: 12, fontWeight: '600', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 10 },
 
-  card:           { flexDirection: 'row', borderRadius: 14, borderWidth: 1, marginBottom: 10, overflow: 'hidden' },
+  card:           { flexDirection: 'row', borderRadius: 18, borderWidth: 1, marginBottom: 10, overflow: 'hidden' },
   cardBar:        { width: 4 },
   cardTitle:      { fontSize: 14, fontWeight: '700', lineHeight: 20 },
   cardBody:       { fontSize: 13, lineHeight: 19, marginTop: 6 },

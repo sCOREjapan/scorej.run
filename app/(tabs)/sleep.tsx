@@ -13,6 +13,7 @@ import { Sounds } from '../../lib/sounds'
 import HapticTouch from '../../components/HapticTouch'
 import AnimatedSection from '../../components/AnimatedSection'
 import type { SleepRecord } from '../../types'
+import { localDateStr, todayLocalISO } from '../../lib/dateLocal'
 
 const SLEEP_KEY = 'trackmate_sleep'
 const SCREEN_W = Dimensions.get('window').width
@@ -20,7 +21,7 @@ const SCREEN_W = Dimensions.get('window').width
 function qualityColor(q: number) {
   if (q >= 8) return '#34C759'
   if (q >= 5) return '#FF9500'
-  return BRAND
+  return '#FF3B30'
 }
 
 function fmtDuration(min?: number) {
@@ -39,7 +40,7 @@ function SkeletonRect({ height = 16, width = '100%' as number | string }) {
     ]))
     a.start(); return () => a.stop()
   }, [opacity])
-  return <Animated.View style={{ height, width: width as number, borderRadius: 8, backgroundColor: '#e8eaed', opacity }} />
+  return <Animated.View style={{ height, width: width as any, borderRadius: 8, backgroundColor: '#e8eaed', opacity }} />
 }
 
 // ── +/- ボタン式時刻ピッカー ──────────────────────────────────
@@ -95,8 +96,8 @@ function TimePicker({ label, hour, minute, onChangeHour, onChangeMinte, color }:
 
 const tp = StyleSheet.create({
   btn:  { width: 32, height: 26, alignItems: 'center', justifyContent: 'center' },
-  box:  { width: 46, height: 44, borderRadius: 10, borderWidth: 1.5, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 1 },
-  val:  { fontSize: 22, fontWeight: '800', letterSpacing: 0.5 },
+  box:  { width: 46, height: 44, borderRadius: 14, borderWidth: 1.5, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
+  val:  { fontSize: 22, fontWeight: '800', letterSpacing: 0.5, fontVariant: ['tabular-nums'] },
 })
 
 // ── 睡眠時間の折れ線グラフ ────────────────────────────────────
@@ -231,7 +232,7 @@ function SleepCard({ record, onEdit, onDelete }: {
 
 // ── メイン ─────────────────────────────────────────────────
 export default function SleepScreen() {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayLocalISO()
   const [records, setRecords] = useState<SleepRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -249,7 +250,7 @@ export default function SleepScreen() {
   // ±7日の日付リスト
   const dateRange = Array.from({ length: 15 }, (_, i) => {
     const d = new Date(); d.setDate(d.getDate() - 7 + i)
-    return d.toISOString().slice(0, 10)
+    return localDateStr(d)
   })
 
   // 睡眠時間計算
@@ -576,30 +577,30 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   content: { padding: 16, gap: 14, paddingBottom: 100 },
   card: {
-    backgroundColor: '#ffffff', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
+    backgroundColor: '#ffffff', borderRadius: 21, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
     padding: 16, gap: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 2,
   },
 
   summaryRow: { flexDirection: 'row', gap: 12 },
   summaryCard: {
     flex: 1, backgroundColor: '#ffffff', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
-    borderRadius: 16, padding: 16, alignItems: 'center', gap: 4,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
+    borderRadius: 21, padding: 16, alignItems: 'center', gap: 4,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 2,
   },
-  summaryValue: { color: TEXT.primary, fontSize: 24, fontWeight: '800' },
+  summaryValue: { color: TEXT.primary, fontSize: 24, fontWeight: '800', fontVariant: ['tabular-nums'] },
   summaryLabel: { color: TEXT.secondary, fontSize: 12 },
 
   formCard: {
-    backgroundColor: '#ffffff', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
+    backgroundColor: '#ffffff', borderRadius: 21, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
     padding: 20, gap: 18,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 2,
   },
   formTitle: { color: TEXT.primary, fontSize: 16, fontWeight: '700', textAlign: 'center' },
 
   noteInput: {
     backgroundColor: '#f8f8fa',
-    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10,
+    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10,
     color: TEXT.primary, fontSize: 14,
     borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
     height: 60, textAlignVertical: 'top',
@@ -619,7 +620,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: '#f8f8fa',
     borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)',
-    borderRadius: 12, padding: 12, gap: 10,
+    borderRadius: 16, padding: 12, gap: 10,
   },
   sleepLeft: { flex: 1, gap: 2 },
   sleepDate: { color: TEXT.primary, fontSize: 14, fontWeight: '600' },

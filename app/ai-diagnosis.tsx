@@ -15,6 +15,7 @@ import AdGateModal from '../components/AdGateModal'
 import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'expo-router'
 import { trackFeatureUse } from '../lib/analytics'
+import { localDateStr } from '../lib/dateLocal'
 
 const AI_DIAGNOSES_KEY = 'trackmate_ai_diagnoses'
 
@@ -134,7 +135,7 @@ export default function AIDiagnosisScreen() {
   const [adGateVisible,    setAdGateVisible]    = useState(false)
   const [adGateRemaining,  setAdGateRemaining]  = useState(0)
   const [adGateHardLimited,setAdGateHardLimited]= useState(false)
-  const [adGateLimitType,  setAdGateLimitType]  = useState<'none'|'daily'|'monthly'|'total'>('none')
+  const [adGateLimitType,  setAdGateLimitType]  = useState<'none'|'daily'|'monthly'|'total'|'window'>('none')
   const [remaining,        setRemaining]        = useState<number | null>(null)
   const { isGuest } = useAuth()
   const router = useRouter()
@@ -201,7 +202,7 @@ export default function AIDiagnosisScreen() {
       ])
 
       const now = new Date()
-      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+      const weekAgo = localDateStr(new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000))
 
       const sessions = sessionsRaw ? (JSON.parse(sessionsRaw) as any[]).filter(s => s.session_date >= weekAgo) : []
       const records = recordsRaw ? (JSON.parse(recordsRaw) as any[]).slice(0, 5) : []
@@ -209,7 +210,7 @@ export default function AIDiagnosisScreen() {
       const sleepRecords = sleepRaw ? (JSON.parse(sleepRaw) as any[]).filter(s => s.date >= weekAgo) : []
 
       const trainingData = {
-        period: `${weekAgo} 〜 ${now.toISOString().slice(0, 10)}`,
+        period: `${weekAgo} 〜 ${localDateStr(now)}`,
         sessions: sessions.map(s => ({
           date: s.session_date,
           type: s.session_type,

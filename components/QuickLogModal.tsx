@@ -14,7 +14,9 @@ import Toast from 'react-native-toast-message'
 import { autoSyncTeam } from '../lib/teamAutoSync'
 import { trackSessionRecord } from '../lib/analytics'
 import { successNotify } from '../lib/haptics'
+import { parseDistanceAndReps } from '../lib/parseWorkoutDistance'
 import PracticeShareCard, { PracticeShareData } from './PracticeShareCard'
+import type { TrainingSession } from '../types'
 
 const SESSIONS_KEY = 'trackmate_sessions'
 const TASKS_KEY    = 'trackmate_tasks'
@@ -45,17 +47,21 @@ function formatDateLabel(iso: string): string {
 function fallbackParse(text: string, today: string): Record<string, any> {
   const t = text
 
-  // 種目判定
+  // 種目判定（practice-input.tsx の fallbackParse と同じ判定基準に統一 — 別々に実装すると
+  // 同じ文章でも入力画面によって分類結果が食い違うバグの原因になるため）
   let session_type = 'easy'
   if (/インターバル|interval|本.*レスト|レスト.*本/i.test(t)) session_type = 'interval'
-  else if (/テンポ|ペース走/i.test(t)) session_type = 'tempo'
-  else if (/スプリント|全力|100m.*走|ダッシュ/i.test(t)) session_type = 'sprint'
+  else if (/テンポ|ペース走|ビルドアップ/i.test(t)) session_type = 'tempo'
+  else if (/スプリント|全力|100m.*走|ダッシュ|坂道|流し|タイムトライアル|\bTT\b/i.test(t)) session_type = 'sprint'
   else if (/ロング|長距離|LSD/i.test(t)) session_type = 'long'
   else if (/ドリル|ハードル|ABCドリル/i.test(t)) session_type = 'drill'
   else if (/ウェイト|筋トレ|ジム|スクワット|デッド/i.test(t)) session_type = 'strength'
   else if (/試合|大会|記録会|レース/i.test(t)) session_type = 'race'
-  else if (/休養|オフ|休み/i.test(t)) session_type = 'rest'
+  else if (/休養|オフ|休み|レスト|\brest\b/i.test(t)) session_type = 'rest'
   else if (/ジョグ|jog|easy/i.test(t)) session_type = 'easy'
+  // 「ポイント練習」単体では種類が特定できないため、上記のどれにも一致しなかった場合のみ
+  // インターバル系（質の高い練習の代表）として扱う。他のキーワードが既にあれば、そちらを優先する。
+  else if (/ポイント練習|ポイント練/i.test(t)) session_type = 'interval'
 
   // 種目（event）
   const eventMatch = t.match(/\b(100m|200m|400m|800m|1500m|3000m|5000m|10000m|110mH|100mH|400mH|3000mSC)\b/i)
@@ -75,16 +81,8 @@ function fallbackParse(text: string, today: string): Record<string, any> {
     time_ms = time_ms ? Math.round(time_ms) : null
   }
 
-  // 距離
-  let distance_m: number | null = null
-  const kmMatch  = t.match(/(\d+(?:\.\d+)?)\s*km/i)
-  const mMatch   = t.match(/(\d+)\s*m(?!H|SC)\b/)
-  if (kmMatch) distance_m = Math.round(parseFloat(kmMatch[1]) * 1000)
-  else if (mMatch && parseInt(mMatch[1]) > 50) distance_m = parseInt(mMatch[1])
-
-  // 本数
-  const repsMatch = t.match(/(\d+)\s*(本|set|本セット|×)/)
-  const reps = repsMatch ? parseInt(repsMatch[1]) : null
+  // 距離・本数（「300×6」等の掛け算表記は合計距離として計算される）
+  const { distance_m, reps } = parseDistanceAndReps(t)
 
   // 疲労度
   const fatMatch = t.match(/疲労\s*[：:=]?\s*(\d+)|疲[れ労]\s*(\d+)/)
@@ -148,6 +146,8 @@ interface Props {
   visible: boolean
   onClose: () => void
   onSaved?: () => void
+  /** 指定すると編集モード（既存の自由入力レコードを上書き） */
+  editSession?: TrainingSession | null
 }
 
 // セッションタイプを日本語に変換
@@ -171,7 +171,8 @@ function formatTimeMs(ms: number): string {
   return `${totalSec.toFixed(2)}"`
 }
 
-export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
+export default function QuickLogModal({ visible, onClose, onSaved, editSession }: Props) {
+  const isEdit = !!editSession
   const [freeText, setFreeText]         = useState('')
   const [parsing, setParsing]           = useState(false)
   const [showShare, setShowShare]       = useState(false)
@@ -182,12 +183,18 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
 
   React.useEffect(() => {
     if (visible) {
-      setSelectedDate(dateOffset(0))  // モーダルを開くたびに「今日」にリセット
+      // 編集時は元レコードの内容・日付を復元、新規時は「今日」にリセット
+      if (editSession) {
+        setFreeText(editSession.notes ?? '')
+        setSelectedDate(editSession.session_date)
+      } else {
+        setSelectedDate(dateOffset(0))
+      }
       Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 10, useNativeDriver: Platform.OS !== 'web' }).start()
     } else {
       slideAnim.setValue(300)
     }
-  }, [visible])
+  }, [visible, editSession])
 
   function handleClose() {
     setFreeText('')
@@ -213,11 +220,9 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
     try {
       const existing = await AsyncStorage.getItem(SESSIONS_KEY)
       let sessions: any[] = []
-      try { if (existing) sessions = JSON.parse(existing) } catch {}  // データ破損でも新規保存を継続
+      try { if (existing) sessions = JSON.parse(existing) } catch {}  // データ破損でも保存を継続
 
-      sessions.unshift({
-        id:              `ql_${Date.now()}`,
-        user_id:         (await AsyncStorage.getItem('userId').catch(() => null)) ?? 'local',
+      const parsedFields = {
         session_date:    parsed.session_date    || today,
         session_type:    parsed.session_type    || 'easy',
         event:           parsed.event && parsed.event !== 'null' && parsed.event !== null ? String(parsed.event) : undefined,
@@ -227,7 +232,27 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
         fatigue_level:   toNum(parsed.fatigue_level) ?? 5,
         condition_level: toNum(parsed.condition_level) ?? 7,
         notes:           freeText,
+      }
+
+      if (editSession) {
+        // ── 既存の自由入力レコードを上書き（id・created_at は保持） ──
+        sessions = sessions.map(sx => (sx.id === editSession.id ? { ...sx, ...parsedFields } : sx))
+        await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions))
+        autoSyncTeam(sessions, { force: true }).catch(() => {})
+        Sounds.save()
+        successNotify()
+        Toast.show({ type: 'success', text1: '練習を更新しました ✓', visibilityTime: 1500 })
+        setFreeText('')
+        onSaved?.()
+        onClose()
+        return
+      }
+
+      sessions.unshift({
+        id:              `ql_${Date.now()}`,
+        user_id:         (await AsyncStorage.getItem('userId').catch(() => null)) ?? 'local',
         created_at:      new Date().toISOString(),
+        ...parsedFields,
       })
 
       await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions))
@@ -287,13 +312,22 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
         <Animated.View style={[st.sheet, { transform: [{ translateY: slideAnim }] }]}>
           <View style={st.handle} />
           <View style={st.header}>
-            <Text style={st.title}>✏️ 自由入力で記録</Text>
+            <Text style={st.title}>{isEdit ? '✏️ 自由入力を編集' : '✏️ 自由入力で記録'}</Text>
             <TouchableOpacity onPress={handleClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Ionicons name="close" size={22} color={TEXT.secondary} />
             </TouchableOpacity>
           </View>
 
           {/* 日付セレクター */}
+          {/* 編集中のレコードが3日以上前の場合、クイックボタン(今日/昨日/一昨日)はどれも
+              ハイライトされない。選択中の日付が見えないまま誤ってボタンを押すと元の記録日を
+              上書きしてしまうため、その場合は実際の選択日をボタン上部に明示する */}
+          {isEdit && !([0, 1, 2] as const).some(o => dateOffset(o) === selectedDate) && (
+            <View style={st.editDateNotice}>
+              <Ionicons name="calendar-outline" size={13} color={TEXT.secondary} />
+              <Text style={st.editDateNoticeTxt}>編集中の日付: {selectedDate}（下のボタンを押すと変更されます）</Text>
+            </View>
+          )}
           <View style={st.dateRow}>
             {([0, 1, 2] as const).map(offset => {
               const d = dateOffset(offset)
@@ -327,6 +361,8 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
             onChangeText={setFreeText}
             multiline
             autoFocus
+            autoCorrect={false}
+            spellCheck={false}
             placeholder={'例:\n400m × 5本 レスト3分 68秒\n疲労7 脚が重かった\n\n「ジョグ10km」だけでもOK'}
             placeholderTextColor={TEXT.hint}
             textAlignVertical="top"
@@ -344,7 +380,7 @@ export default function QuickLogModal({ visible, onClose, onSaved }: Props) {
             ) : (
               <>
                 <Ionicons name="checkmark-circle" size={18} color="#fff" />
-                <Text style={st.saveBtnText}>記録する</Text>
+                <Text style={st.saveBtnText}>{isEdit ? '更新する' : '記録する'}</Text>
               </>
             )}
           </HapticTouch>
@@ -398,6 +434,8 @@ const st = StyleSheet.create({
   saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
   // 日付セレクター
+  editDateNotice: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  editDateNoticeTxt: { color: TEXT.secondary, fontSize: 12 },
   dateRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   dateBtn: {
     flex: 1, alignItems: 'center', justifyContent: 'center',

@@ -37,7 +37,7 @@ const SkeletonBlock: React.FC<{ height: number; width?: string | number }> = ({
 
   return (
     <Animated.View
-      style={[styles.skeleton, { height, width: width as number, opacity }]}
+      style={[styles.skeleton, { height, width: width as any, opacity }]}
     />
   )
 }

@@ -13,8 +13,11 @@ import { useTheme } from '../../context/ThemeContext'
 import { Sounds, unlockAudio } from '../../lib/sounds'
 import HapticTouch from '../../components/HapticTouch'
 import { useRouter } from 'expo-router'
+import { showInterstitialAd } from '../../lib/admob'
 import { useFocusEffect } from '@react-navigation/native'
+import { parseDistanceAndReps } from '../../lib/parseWorkoutDistance'
 import type { TrainingSession } from '../../types'
+import { localDateStr, todayLocalISO } from '../../lib/dateLocal'
 
 const SESSIONS_KEY    = 'trackmate_sessions'
 const TASKS_KEY       = 'trackmate_tasks'
@@ -40,7 +43,7 @@ function fallbackParse(text: string, today: string): Record<string, any> {
   else if (/ドリル|ABCドリル/i.test(t)) session_type = 'drill'
   else if (/ウェイト|筋トレ|ジム|スクワット/i.test(t)) session_type = 'strength'
   else if (/試合|大会|記録会|レース/i.test(t)) session_type = 'race'
-  else if (/休養|オフ|休み/i.test(t)) session_type = 'rest'
+  else if (/休養|オフ|休み|レスト|\brest\b/i.test(t)) session_type = 'rest'
 
   const eventMatch = t.match(/\b(100m|200m|400m|800m|1500m|3000m|5000m|10000m|110mH|100mH|400mH|3000mSC)\b/i)
   const event = eventMatch ? eventMatch[1] : null
@@ -53,14 +56,7 @@ function fallbackParse(text: string, today: string): Record<string, any> {
     else if (timeMatch[7]) time_ms = Math.round((parseInt(timeMatch[7]) + parseInt(timeMatch[8]||'0')/100)*1000)
   }
 
-  let distance_m: number | null = null
-  const kmMatch = t.match(/(\d+(?:\.\d+)?)\s*km/i)
-  const mMatch  = t.match(/(\d+)\s*m(?!H|SC)\b/)
-  if (kmMatch) distance_m = Math.round(parseFloat(kmMatch[1]) * 1000)
-  else if (mMatch && parseInt(mMatch[1]) > 50) distance_m = parseInt(mMatch[1])
-
-  const repsMatch = t.match(/(\d+)\s*(本|×)/)
-  const reps = repsMatch ? parseInt(repsMatch[1]) : null
+  const { distance_m, reps } = parseDistanceAndReps(t)
 
   const fatMatch = t.match(/疲労\s*[：:=]?\s*(\d+)|疲[れ労]\s*(\d+)/)
   const fatigue_level = fatMatch ? parseInt(fatMatch[1] ?? fatMatch[2]) : 5
@@ -160,7 +156,7 @@ function MiniCalendar({ sessions, onDayPress }: {
 
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
   const firstDow    = new Date(viewYear, viewMonth, 1).getDay()
-  const today       = now.toISOString().slice(0, 10)
+  const today       = localDateStr(now)
   const canNext     = viewYear < now.getFullYear() || (viewYear === now.getFullYear() && viewMonth < now.getMonth())
 
   return (
@@ -324,8 +320,8 @@ export default function NotebookScreen() {
   // 他画面から戻ってきた時にもリロード（manual-log等から保存後）
   useFocusEffect(useCallback(() => { load() }, [load]))
 
-  const weekAgo   = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)
-  const monthAgo  = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
+  const weekAgo   = localDateStr(new Date(Date.now() - 7 * 86400000))
+  const monthAgo  = localDateStr(new Date(Date.now() - 30 * 86400000))
   const thisWeek  = sessions.filter(s => s.session_date >= weekAgo)
   const thisMonth = sessions.filter(s => s.session_date >= monthAgo)
   const avgFatigue = thisWeek.length > 0
@@ -337,10 +333,13 @@ export default function NotebookScreen() {
     if (!freeText.trim()) return
     setParsing(true)
 
-    const today = new Date().toISOString().slice(0, 10)
+    const today = todayLocalISO()
 
     // ── Step 1: まず正規表現でフォールバック解析 ──────────
     let parsed: Record<string, any> = fallbackParse(freeText, today)
+    // 「300×6」のような明示的な掛け算表記は正規表現側の計算の方が確実なため、
+    // AIの解析結果で誤って上書きされないよう控えておく
+    const explicitMult = parseDistanceAndReps(freeText)
 
     // ── Step 2: AIでより正確に解析（成功すればフォールバックを上書き） ─
     try {
@@ -351,7 +350,7 @@ export default function NotebookScreen() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           model: 'claude-haiku-4-5-20251001', max_tokens: 500,
-          messages: [{ role: 'user', content: `陸上競技の練習記録テキストを正確にJSONに変換してください。今日の日付は${today}です。\n\n入力テキスト:\n"${freeText}"\n\nルール:\n- session_type: interval(本数+レスト), tempo(ペース走), easy(ジョグ/LSD), long(長距離), sprint(全力短距離), drill(ドリル), strength(ウェイト/筋トレ), race(試合/大会), rest(休養)\n- time_ms: タイムをミリ秒整数に変換。「46秒80」→46800, 「1:28.50」→88500。なければnull\n- distance_m: 距離をメートル整数に変換。「10km」→10000。なければnull\n- reps: 本数の整数。なければnull\n- fatigue_level: 疲労度1〜10の整数（明記なければ雰囲気から推定）\n- condition_level: 体調1〜10の整数（明記なければ6）\n- event: 100m/200m/400m/800m/1500m/3000m/5000m/10000m/110mH/100mH/400mH/3000mSC/競歩/走幅跳/三段跳/走高跳/棒高跳/砲丸投/やり投/円盤投/ハンマー投 のいずれか、なければnull\n\nJSONのみ返答:\n{"session_date":"${today}","session_type":"...","event":"...orNull","time_ms":数値orNull,"distance_m":数値orNull,"reps":数値orNull,"fatigue_level":整数,"condition_level":整数}` }],
+          messages: [{ role: 'user', content: `陸上競技の練習記録テキストを正確にJSONに変換してください。今日の日付は${today}です。\n\n入力テキスト:\n"${freeText}"\n\nルール:\n- session_type: interval(本数+レスト), tempo(ペース走), easy(ジョグ/LSD), long(長距離), sprint(全力短距離), drill(ドリル), strength(ウェイト/筋トレ), race(試合/大会), rest(休養)\n- time_ms: タイムをミリ秒整数に変換。「46秒80」→46800, 「1:28.50」→88500。なければnull\n- distance_m: 合計距離をメートル整数に変換。本数(reps)がある場合は「1本あたりの距離 × 本数」の合計値を入れること。例:「300m×6本」「300×6」→ distance_m=1800（300ではない）。「10km」→ distance_m=10000。なければnull\n- reps: 本数の整数。なければnull\n- fatigue_level: 疲労度1〜10の整数（明記なければ雰囲気から推定）\n- condition_level: 体調1〜10の整数（明記なければ6）\n- event: 100m/200m/400m/800m/1500m/3000m/5000m/10000m/110mH/100mH/400mH/3000mSC/競歩/走幅跳/三段跳/走高跳/棒高跳/砲丸投/やり投/円盤投/ハンマー投 のいずれか、なければnull\n\nJSONのみ返答:\n{"session_date":"${today}","session_type":"...","event":"...orNull","time_ms":数値orNull,"distance_m":数値orNull,"reps":数値orNull,"fatigue_level":整数,"condition_level":整数}` }],
         }),
       }, 30000)
       if (res.ok) {
@@ -365,6 +364,11 @@ export default function NotebookScreen() {
       }
     } catch {
       // AI解析失敗 → fallbackParse の結果をそのまま使う
+    }
+    // 明示的な「距離×本数」表記があった場合は、AIの解釈に関わらず計算済みの合計距離を優先する
+    if (explicitMult.multiplied) {
+      parsed.distance_m = explicitMult.distance_m
+      parsed.reps = explicitMult.reps
     }
 
     // ── Step 3: 必ず保存 ──────────────────────────────────
@@ -395,6 +399,7 @@ export default function NotebookScreen() {
       Sounds.save()
       setFreeText(''); setModal(false)
       Toast.show({ type: 'success', text1: '練習を記録しました ✓', visibilityTime: 1500 })
+      showInterstitialAd().catch(() => {})
     } catch {
       Toast.show({ type: 'error', text1: '保存に失敗しました' })
     } finally { setParsing(false) }
@@ -511,6 +516,8 @@ export default function NotebookScreen() {
                   value={freeText}
                   onChangeText={setFreeText}
                   multiline autoFocus
+                  autoCorrect={false}
+                  spellCheck={false}
                   placeholder={'例:\n400m × 5本 レスト3分 68秒\n疲労7 脚が重かった\n\n「ジョグ10km」だけでもOK'}
                   placeholderTextColor={colors.textHint}
                   textAlignVertical="top"
@@ -541,17 +548,17 @@ const st = StyleSheet.create({
   headerActions: { flexDirection: 'row', gap: 8 },
   iconBtn:       { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   scroll:        { padding: 16, gap: 14, paddingBottom: 48 },
-  statsRow:      { flexDirection: 'row', borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
+  statsRow:      { flexDirection: 'row', borderRadius: 21, borderWidth: 1, overflow: 'hidden' },
   statBox:       { flex: 1, alignItems: 'center', paddingVertical: 14, gap: 3 },
-  statNum:       { fontSize: 18, fontWeight: '800' },
+  statNum:       { fontSize: 18, fontWeight: '800', fontVariant: ['tabular-nums'] },
   statLabel:     { fontSize: 10, fontWeight: '600' },
-  recordBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: BRAND, borderRadius: 14, paddingVertical: 16 },
+  recordBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: BRAND, borderRadius: 21, paddingVertical: 16 },
   recordBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
-  card:          { borderRadius: 16, borderWidth: 1, padding: 16, gap: 12 },
+  card:          { borderRadius: 21, borderWidth: 1, padding: 16, gap: 12 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionTitle:  { fontSize: 15, fontWeight: '800' },
   sectionCount:  { fontSize: 13 },
-  sessionCard:   { flexDirection: 'row', borderRadius: 12, overflow: 'hidden', borderWidth: 1 },
+  sessionCard:   { flexDirection: 'row', borderRadius: 16, overflow: 'hidden', borderWidth: 1 },
   typeBar:       { width: 4 },
   sessionBody:   { flex: 1, padding: 12, gap: 5 },
   sessionRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
@@ -570,7 +577,7 @@ const st = StyleSheet.create({
   modalContent:  { flex: 1, padding: 20 },
   modalHeader:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
   modalTitle:    { fontSize: 17, fontWeight: '800' },
-  textInput:     { flex: 1, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, lineHeight: 26, borderWidth: 1, marginBottom: 16 },
-  saveBtn:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: BRAND, borderRadius: 14, paddingVertical: 16 },
+  textInput:     { flex: 1, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, lineHeight: 26, borderWidth: 1, marginBottom: 16 },
+  saveBtn:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: BRAND, borderRadius: 21, paddingVertical: 16 },
   saveBtnText:   { color: '#fff', fontSize: 16, fontWeight: '700' },
 })

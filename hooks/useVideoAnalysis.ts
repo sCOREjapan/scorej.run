@@ -13,7 +13,7 @@ interface UseVideoAnalysisReturn {
   result: VideoAnalysisResult | null
   error: string | null
   progress: number  // 0–100
-  analyzeFromVideo: (videoUri: string, event: AthleticsEvent) => Promise<VideoAnalysisResult | null>
+  analyzeFromVideo: (videoUri: string, event: AthleticsEvent, durationMs?: number) => Promise<VideoAnalysisResult | null>
   clearResult: () => void
 }
 
@@ -29,7 +29,8 @@ export function useVideoAnalysis(): UseVideoAnalysisReturn {
   const analyzeFromVideo = useCallback(
     async (
       videoUri: string,
-      event: AthleticsEvent
+      event: AthleticsEvent,
+      durationMs?: number
     ): Promise<VideoAnalysisResult | null> => {
       setAnalyzing(true)
       setError(null)
@@ -39,7 +40,7 @@ export function useVideoAnalysis(): UseVideoAnalysisReturn {
       try {
         // ステップ 1: フレーム抽出（0 → 40%）
         setProgress(10)
-        const frames = await extractVideoFrames(videoUri, 4)
+        const frames = await extractVideoFrames(videoUri, 4, durationMs)
         setProgress(40)
 
         if (!frames || frames.length === 0) {

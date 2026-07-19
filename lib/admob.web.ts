@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 const DAILY_INSIGHT_KEY = 'score_daily_insight_claimed'
 const todayStr = () => new Date().toISOString().slice(0, 10)
 
+export function setAdSuppressed(_value: boolean): void {}
 export async function shouldShowInterstitial(): Promise<boolean> { return false }
 export async function initAdmob(): Promise<void> {}
 export async function showRewardedAd(): Promise<boolean> { return true }  // web開発時は成功扱い

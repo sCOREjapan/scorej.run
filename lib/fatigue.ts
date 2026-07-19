@@ -1,6 +1,7 @@
 // lib/fatigue.ts — 疲労・リカバリースコア計算
 
 import type { TrainingSession, SleepRecord, RecoveryStatus } from '../types'
+import { localDateStr } from './dateLocal'
 
 // ── ユーティリティ ───────────────────────────────────────
 function clamp(v: number, min = 0, max = 100) {
@@ -96,7 +97,7 @@ export function getFatigueTrend(sessions: TrainingSession[]): DailyFatigue[] {
   for (let i = 6; i >= 0; i--) {
     const d = new Date()
     d.setDate(d.getDate() - i)
-    const dateStr = d.toISOString().slice(0, 10)
+    const dateStr = localDateStr(d)
     const s = sessions.find(ss => ss.session_date === dateStr)
     trend.push({
       date: dateStr,

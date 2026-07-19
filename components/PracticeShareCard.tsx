@@ -1,5 +1,5 @@
 // components/PracticeShareCard.tsx
-// 練習記録シェアカード（背景完全透過PNG — ミニマルデザイン）
+// 練習記録シェアカード（背景完全透過PNG — ATHLETE HUD デザイン）
 import React, { useRef } from 'react'
 import {
   View, Text, StyleSheet, TouchableOpacity,
@@ -10,6 +10,8 @@ import * as MediaLibrary from 'expo-media-library'
 import { Ionicons } from '@expo/vector-icons'
 
 const W = Math.min(Dimensions.get('window').width - 32, 360)
+const ORANGE = '#FF6B35'
+const GREEN  = '#166534'
 
 export interface PracticeShareData {
   date: string
@@ -47,6 +49,48 @@ const SHADOW: any = {
   textShadowRadius: 5,
 }
 
+// ── HUDフレームの四隅コーナー装飾 ────────────────────────────────
+function CornerBrackets({ color = ORANGE, size = 14, thickness = 2 }: { color?: string; size?: number; thickness?: number }) {
+  const barH = { width: size, height: thickness, backgroundColor: color }
+  const barV = { width: thickness, height: size, backgroundColor: color }
+  return (
+    <>
+      <View style={{ position: 'absolute', top: 0, left: 0 }}>
+        <View style={[barH, { position: 'absolute', top: 0, left: 0 }]} />
+        <View style={[barV, { position: 'absolute', top: 0, left: 0 }]} />
+      </View>
+      <View style={{ position: 'absolute', top: 0, right: 0 }}>
+        <View style={[barH, { position: 'absolute', top: 0, right: 0 }]} />
+        <View style={[barV, { position: 'absolute', top: 0, right: 0 }]} />
+      </View>
+      <View style={{ position: 'absolute', bottom: 0, left: 0 }}>
+        <View style={[barH, { position: 'absolute', bottom: 0, left: 0 }]} />
+        <View style={[barV, { position: 'absolute', bottom: 0, left: 0 }]} />
+      </View>
+      <View style={{ position: 'absolute', bottom: 0, right: 0 }}>
+        <View style={[barH, { position: 'absolute', bottom: 0, right: 0 }]} />
+        <View style={[barV, { position: 'absolute', bottom: 0, right: 0 }]} />
+      </View>
+    </>
+  )
+}
+
+// ── メイン数値見出しの合成（例: "400m×10本" "6'05\"×10本" "12.6km"） ──
+// data.distance はセッション「合計」距離(km)。本数で割って1本あたりの距離に戻してから表示する
+function buildHeadline(data: PracticeShareData): string | null {
+  const repsTxt = data.sets != null ? `${data.sets}本` : null
+  if (data.distance != null && data.sets) {
+    const totalMeters  = Math.round(data.distance * 1000)
+    const perRepMeters = Math.round(totalMeters / data.sets)
+    return `${perRepMeters}m×${repsTxt}`
+  }
+  if (data.time && repsTxt) return `${data.time}×${repsTxt}`
+  if (data.distance != null) return `${data.distance.toFixed(1)}km`
+  if (repsTxt) return repsTxt
+  if (data.time) return data.time
+  return null
+}
+
 export default function PracticeShareCard({ data, visible = true, onClose }: Props) {
   const cardRef = useRef<any>(null)
 
@@ -76,6 +120,11 @@ export default function PracticeShareCard({ data, visible = true, onClose }: Pro
 
   const hasStats = data.condition != null || data.fatigue != null || data.distance != null || data.sets != null || data.time != null
 
+  const headline = buildHeadline(data)
+  // 見出しに使う数値が無ければ、種目名(title)自体を見出しとして大きく見せる
+  const mainText = headline ?? data.title ?? '練習'
+  const captionText = headline ? data.title : null
+
   return (
     <View style={st.overlay}>
       {onClose ? (
@@ -97,53 +146,74 @@ export default function PracticeShareCard({ data, visible = true, onClose }: Pro
           style={{ backgroundColor: 'transparent' }}>
           <View style={st.card}>
 
-            {/* sCORE ロゴ（大きく） */}
+            {/* sCORE ロゴ + 日付/連続日数 */}
             <Text style={st.logo}>sCORE</Text>
 
-            {/* 日付 + 連続日数 */}
             <View style={st.metaRow}>
-              <Text style={st.dateText}>{data.date}</Text>
+              <View style={st.metaPill}>
+                <Ionicons name="calendar-outline" size={11} color="rgba(255,255,255,0.75)" />
+                <Text style={st.dateText}>{data.date}</Text>
+              </View>
               {data.streak != null ? (
-                <Text style={st.streakText}>🔥 {data.streak}日連続</Text>
+                <View style={st.metaPill}>
+                  <Ionicons name="flame" size={12} color={ORANGE} />
+                  <Text style={st.streakText}>{data.streak}日連続</Text>
+                </View>
               ) : null}
             </View>
 
-            {/* 練習タイトル */}
-            {data.title ? <Text style={st.titleText}>{data.title}</Text> : null}
+            {/* ── HUDフレーム（メイン練習内容） ── */}
+            <View style={st.hudBox}>
+              <CornerBrackets />
+              <View style={st.hudInner}>
+                {captionText ? <Text style={st.hudCaption}>{captionText.toUpperCase()}</Text> : null}
+                <Text style={st.hudMain} numberOfLines={2} adjustsFontSizeToFit>{mainText}</Text>
 
-            {/* セパレーター */}
-            {allLines.length > 0 ? <View style={st.divider} /> : null}
-
-            {/* 練習内容（menu + drills 統合・枠なし） */}
-            {allLines.map((line, i) => (
-              <Text key={i} style={st.practiceItem}>・{line.trim()}</Text>
-            ))}
-
-            {/* セパレーター */}
-            {hasStats ? <View style={st.divider} /> : null}
+                {allLines.length > 0 && (
+                  <>
+                    <View style={st.hudDivider} />
+                    {allLines.map((line, i) => (
+                      <View key={i} style={st.bulletRow}>
+                        <View style={st.bulletDot} />
+                        <Text style={st.practiceItem}>{line.trim()}</Text>
+                      </View>
+                    ))}
+                  </>
+                )}
+              </View>
+            </View>
 
             {/* コンディション・疲労度・距離 */}
             {hasStats ? (
               <View style={st.statsRow}>
                 {data.condition != null ? (
                   <View style={st.statItem}>
-                    <Text style={st.statLabel}>コンディション</Text>
+                    <View style={st.statLabelRow}>
+                      <Ionicons name="heart" size={10} color="rgba(255,255,255,0.55)" />
+                      <Text style={st.statLabel}>コンディション</Text>
+                    </View>
                     <Text style={[st.statValue, { color: condColor(data.condition) }]}>
-                      {data.condition}<Text style={st.statUnit}>/10</Text>
+                      {data.condition}<Text style={st.statUnit}>/100</Text>
                     </Text>
                   </View>
                 ) : null}
                 {data.fatigue != null ? (
                   <View style={st.statItem}>
-                    <Text style={st.statLabel}>疲労度</Text>
+                    <View style={st.statLabelRow}>
+                      <Ionicons name="flash" size={10} color="rgba(255,255,255,0.55)" />
+                      <Text style={st.statLabel}>疲労度</Text>
+                    </View>
                     <Text style={[st.statValue, { color: fatigueColor(data.fatigue) }]}>
-                      {data.fatigue}<Text style={st.statUnit}>/10</Text>
+                      {data.fatigue}<Text style={st.statUnit}>/100</Text>
                     </Text>
                   </View>
                 ) : null}
                 {data.distance != null ? (
                   <View style={st.statItem}>
-                    <Text style={st.statLabel}>DISTANCE</Text>
+                    <View style={st.statLabelRow}>
+                      <Ionicons name="location" size={10} color="rgba(255,255,255,0.55)" />
+                      <Text style={st.statLabel}>走行距離</Text>
+                    </View>
                     <Text style={[st.statValue, { color: '#fff' }]}>
                       {data.distance.toFixed(1)}<Text style={st.statUnit}>km</Text>
                     </Text>
@@ -151,7 +221,10 @@ export default function PracticeShareCard({ data, visible = true, onClose }: Pro
                 ) : null}
                 {data.sets != null && data.distance == null ? (
                   <View style={st.statItem}>
-                    <Text style={st.statLabel}>REPS</Text>
+                    <View style={st.statLabelRow}>
+                      <Ionicons name="repeat" size={10} color="rgba(255,255,255,0.55)" />
+                      <Text style={st.statLabel}>REPS</Text>
+                    </View>
                     <Text style={[st.statValue, { color: '#fff' }]}>
                       {data.sets}<Text style={st.statUnit}>本</Text>
                     </Text>
@@ -159,18 +232,22 @@ export default function PracticeShareCard({ data, visible = true, onClose }: Pro
                 ) : null}
                 {data.time ? (
                   <View style={st.statItem}>
-                    <Text style={st.statLabel}>TIME</Text>
+                    <View style={st.statLabelRow}>
+                      <Ionicons name="stopwatch-outline" size={10} color="rgba(255,255,255,0.55)" />
+                      <Text style={st.statLabel}>TIME</Text>
+                    </View>
                     <Text style={[st.statValue, { color: '#fff' }]}>{data.time}</Text>
                   </View>
                 ) : null}
               </View>
             ) : null}
 
-            {/* 下セパレーター */}
-            <View style={st.divider} />
-
             {/* フッター */}
-            <Text style={st.downloadText}>sCORE 無料ダウンロード中 📲</Text>
+            <View style={st.footerRow}>
+              <View style={st.footerTick} />
+              <Text style={st.downloadText}>sCORE 無料ダウンロード中</Text>
+              <View style={st.footerTick} />
+            </View>
 
           </View>
         </ViewShot>
@@ -216,11 +293,11 @@ const st = StyleSheet.create({
 
   // ── sCORE ロゴ ──────────────────────────────────────────────
   logo: {
-    fontSize: 56,
+    fontSize: 44,
     fontWeight: '900',
-    color: '#FF6B35',
-    letterSpacing: -1.5,
-    lineHeight: 60,
+    color: ORANGE,
+    letterSpacing: -1,
+    lineHeight: 48,
     ...SHADOW,
   },
 
@@ -228,46 +305,79 @@ const st = StyleSheet.create({
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginTop: 6,
-    marginBottom: 4,
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  metaPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
   },
   dateText: {
-    fontSize: 13,
+    fontSize: 12,
     color: 'rgba(255,255,255,0.80)',
     fontWeight: '600',
     ...SHADOW,
   },
   streakText: {
-    fontSize: 13,
-    color: '#FF6B35',
+    fontSize: 12,
+    color: ORANGE,
     fontWeight: '800',
     ...SHADOW,
   },
 
-  // ── 練習タイトル ────────────────────────────────────────────
-  titleText: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#fff',
-    letterSpacing: -0.5,
-    marginTop: 4,
+  // ── HUDフレーム ─────────────────────────────────────────────
+  hudBox: {
+    position: 'relative',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 16,
+  },
+  hudInner: {
+    borderLeftWidth: 2,
+    borderLeftColor: ORANGE,
+    paddingLeft: 12,
+  },
+  hudCaption: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: ORANGE,
+    letterSpacing: 2,
+    marginBottom: 4,
     ...SHADOW,
   },
-
-  // ── セパレーター ────────────────────────────────────────────
-  divider: {
+  hudMain: {
+    fontSize: 40,
+    fontWeight: '900',
+    color: '#fff',
+    letterSpacing: -1,
+    lineHeight: 44,
+    ...SHADOW,
+  },
+  hudDivider: {
     height: 0.5,
     backgroundColor: 'rgba(255,255,255,0.22)',
-    marginVertical: 14,
+    marginVertical: 12,
   },
 
   // ── 練習内容リスト ──────────────────────────────────────────
+  bulletRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  bulletDot: {
+    width: 5, height: 5, borderRadius: 2.5,
+    backgroundColor: ORANGE,
+  },
   practiceItem: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#fff',
-    fontWeight: '700',
-    lineHeight: 28,
+    fontWeight: '600',
+    lineHeight: 20,
+    flex: 1,
     ...SHADOW,
   },
 
@@ -275,18 +385,27 @@ const st = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    columnGap: 28,
-    rowGap: 8,
+    columnGap: 24,
+    rowGap: 10,
+    borderTopWidth: 0.5,
+    borderTopColor: 'rgba(255,255,255,0.22)',
+    paddingTop: 14,
+    marginBottom: 14,
   },
   statItem: {
     alignItems: 'flex-start',
+  },
+  statLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginBottom: 2,
   },
   statLabel: {
     fontSize: 9,
     color: 'rgba(255,255,255,0.50)',
     fontWeight: '700',
     letterSpacing: 0.6,
-    marginBottom: 1,
     ...SHADOW,
   },
   statValue: {
@@ -301,7 +420,17 @@ const st = StyleSheet.create({
     color: 'rgba(255,255,255,0.65)',
   },
 
-  // ── ダウンロード文字 ────────────────────────────────────────
+  // ── フッター ────────────────────────────────────────────────
+  footerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  footerTick: {
+    width: 16, height: 1,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+  },
   downloadText: {
     fontSize: 11,
     color: 'rgba(255,255,255,0.45)',
@@ -318,7 +447,7 @@ const st = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)',
   },
   shareBtn: {
-    flex: 1, backgroundColor: '#FF6B35', borderRadius: 14, paddingVertical: 14,
+    flex: 1, backgroundColor: ORANGE, borderRadius: 14, paddingVertical: 14,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
   },
   btnText: { color: '#fff', fontSize: 15, fontWeight: '700' },

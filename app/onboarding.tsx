@@ -14,12 +14,13 @@ import Toast from 'react-native-toast-message'
 
 import { useAuth } from '../context/AuthContext'
 import { BRAND, TEXT } from '../lib/theme'
+import { useTutorial } from '../lib/tutorialContext'
 import { Sounds, unlockAudio } from '../lib/sounds'
 import type { AthleticsEvent, EventCategory } from '../types'
 
 const SURFACE  = '#ffffff'
 const SURFACE2 = '#f0f2f5'
-const TOTAL_STEPS = 5
+const TOTAL_STEPS = 4
 
 // ── 種目データ ─────────────────────────────────────────────
 const CATEGORIES = [
@@ -124,7 +125,7 @@ function Chip({
       >
         {icon && <Text style={{ fontSize: 22 }}>{icon}</Text>}
         <View style={{ flex: 1 }}>
-          <Text style={[styles.chipLabel, selected && { color: '#fff' }]}>{label}</Text>
+          <Text style={[styles.chipLabel, selected && { color: BRAND }]}>{label}</Text>
           {sub ? <Text style={styles.chipSub}>{sub}</Text> : null}
         </View>
         {selected
@@ -139,13 +140,15 @@ function Chip({
 // ── メイン ─────────────────────────────────────────────────
 export default function OnboardingScreen() {
   const router  = useRouter()
-  const { user, setOnboarded } = useAuth()
+  const { startTutorial } = useTutorial()
+  const { user, isGuest, setOnboarded } = useAuth()
 
   const [step,       setStep]       = useState(1)
   const [name,       setName]       = useState('')
-  const [category,   setCategory]   = useState<string>('')
-  const [event,      setEvent]      = useState<AthleticsEvent | ''>('')
-  const [experience, setExperience] = useState<number>(-1)
+  // スマートデフォルト: 最も一般的な選択肢をあらかじめ選んでおく（後から変更可能）
+  const [category,   setCategory]   = useState<string>('sprint')
+  const [event,      setEvent]      = useState<AthleticsEvent | ''>('100m')
+  const [experience, setExperience] = useState<number>(2)
   const [age,        setAge]        = useState('')
   const [pb,         setPb]         = useState('')
   const [prefecture, setPrefecture] = useState('')
@@ -190,7 +193,7 @@ export default function OnboardingScreen() {
     }
   }, [category])
 
-  const handleFinish = useCallback(async (skipNav = false, goPaywall = false) => {
+  const handleFinish = useCallback(async (skipNav = false, goPaywall = false, paywallPlan: 'noad' | 'coach' = 'noad') => {
     unlockAudio(); Sounds.save()
 
     const profile = {
@@ -226,19 +229,25 @@ export default function OnboardingScreen() {
       } catch { /* 同期失敗はサイレント */ }
     }
 
+    const authed = !!user?.id || isGuest
+
     if (goPaywall) {
       // ペイウォールへ先にナビゲートしてから setOnboarded を呼ぶ
       // → AuthGate が /(tabs) に上書きする前に segments が変わるのでレース条件を回避
-      router.replace('/paywall')
+      router.replace(`/paywall?plan=${paywallPlan}` as any)
       await setOnboarded()
     } else {
       await setOnboarded()
-      Toast.show({
-        type: 'success',
-        text1: `ようこそ、${profile.name}さん！`,
-        text2: '一緒に記録を伸ばしていこう 🏃',
-      })
-      if (!skipNav) router.replace('/(tabs)')
+      if (!skipNav) {
+        if (!authed) {
+          // 未認証（サインアップより先にオンボーディングを完了したケース）→ アカウント作成へ
+          router.replace('/auth')
+        } else {
+          router.replace('/(tabs)')
+          // ホーム画面に遷移してからチュートリアルを起動（レイアウト確定後）
+          setTimeout(() => startTutorial(), 800)
+        }
+      }
     }
   }, [name, event, category, experience, age, pb, user, setOnboarded, router])
 
@@ -248,6 +257,7 @@ export default function OnboardingScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: step === 5 ? '#1a1a2e' : '#f6f6f8' }}>
+      <View style={{ flex: 1, maxWidth: 600, alignSelf: 'center', width: '100%' }}>
       {/* ヘッダー */}
       <SafeAreaView>
         <StepBar step={step} />
@@ -367,8 +377,8 @@ export default function OnboardingScreen() {
                         onPress={() => { setExperience(opt.key); Sounds.tap() }}
                         activeOpacity={0.75}
                       >
-                        <Text style={[styles.expLabel, experience === opt.key && { color: '#fff' }]}>{opt.label}</Text>
-                        <Text style={[styles.expSub, experience === opt.key && { color: 'rgba(255,255,255,0.65)' }]}>{opt.sub}</Text>
+                        <Text style={[styles.expLabel, experience === opt.key && { color: BRAND }]}>{opt.label}</Text>
+                        <Text style={[styles.expSub, experience === opt.key && { color: BRAND }]}>{opt.sub}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -450,132 +460,6 @@ export default function OnboardingScreen() {
                 </View>
               </View>
             )}
-            {step === 5 && (
-              <View style={{ gap: 14 }}>
-                <View style={styles.titleArea}>
-                  <Text style={styles.emoji}>🚀</Text>
-                  <Text style={[styles.title, { color: '#fff' }]}>プランを選んで{'\n'}始めよう</Text>
-                  <Text style={[styles.sub, { color: 'rgba(255,255,255,0.6)' }]}>いつでも変更・解約できます</Text>
-                </View>
-
-                {/* ── PRO おすすめ（最上段・一番目立つ） ── */}
-                <TouchableOpacity
-                  onPress={() => handleFinish(false, true)}
-                  activeOpacity={0.88}
-                  style={{
-                    backgroundColor: 'rgba(255,255,255,0.07)',
-                    borderRadius: 20,
-                    borderWidth: 2,
-                    borderColor: BRAND,
-                    padding: 20,
-                    shadowColor: BRAND,
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.3,
-                    shadowRadius: 16,
-                    elevation: 6,
-                  }}
-                >
-                  {/* ヘッダー行 */}
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <View style={{ backgroundColor: BRAND, borderRadius: 8, paddingHorizontal: 11, paddingVertical: 5 }}>
-                        <Text style={{ color: '#fff', fontSize: 14, fontWeight: '900', letterSpacing: 0.5 }}>✦ PRO</Text>
-                      </View>
-                      <View style={{ backgroundColor: '#fef9c3', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
-                        <Text style={{ color: '#ca8a04', fontSize: 10, fontWeight: '800' }}>⭐ おすすめ</Text>
-                      </View>
-                    </View>
-                    <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={{ fontSize: 26, fontWeight: '900', color: BRAND, letterSpacing: -0.5 }}>¥480</Text>
-                      <Text style={{ fontSize: 11, color: '#9ca3af', marginTop: -2 }}>/月</Text>
-                    </View>
-                  </View>
-                  {/* 機能リスト */}
-                  <View style={{ gap: 7 }}>
-                    {[
-                      { icon: 'ban-outline', text: '広告・バナー 完全非表示' },
-                      { icon: 'sparkles-outline', text: 'AI練習分析・動画分析 月30回' },
-                      { icon: 'document-text-outline', text: 'CSVエクスポート・全機能解放' },
-                    ].map(f => (
-                      <View key={f.text} style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
-                        <Ionicons name={f.icon as any} size={15} color={BRAND} />
-                        <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '600' }}>{f.text}</Text>
-                      </View>
-                    ))}
-                  </View>
-                  <View style={{ backgroundColor: BRAND, borderRadius: 12, paddingVertical: 12, marginTop: 16, alignItems: 'center' }}>
-                    <Text style={{ color: '#fff', fontSize: 15, fontWeight: '800' }}>PROプランで始める →</Text>
-                  </View>
-                </TouchableOpacity>
-
-                {/* ── ELITE ── */}
-                <TouchableOpacity
-                  onPress={() => handleFinish(false, true)}
-                  activeOpacity={0.88}
-                  style={{
-                    backgroundColor: 'rgba(255,255,255,0.05)',
-                    borderRadius: 20,
-                    borderWidth: 1.5,
-                    borderColor: '#d97706',
-                    padding: 20,
-                    shadowColor: '#d97706',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.2,
-                    shadowRadius: 8,
-                    elevation: 3,
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                    <View style={{ backgroundColor: '#fef3c7', borderRadius: 8, paddingHorizontal: 11, paddingVertical: 5 }}>
-                      <Text style={{ color: '#d97706', fontSize: 14, fontWeight: '900', letterSpacing: 0.5 }}>👑 ELITE</Text>
-                    </View>
-                    <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={{ fontSize: 26, fontWeight: '900', color: '#d97706', letterSpacing: -0.5 }}>¥980</Text>
-                      <Text style={{ fontSize: 11, color: '#9ca3af', marginTop: -2 }}>/月</Text>
-                    </View>
-                  </View>
-                  <View style={{ gap: 7 }}>
-                    {[
-                      { icon: 'infinite-outline', text: 'AI全機能 完全無制限 ∞' },
-                      { icon: 'ban-outline', text: '広告・バナー 完全非表示' },
-                      { icon: 'videocam-outline', text: '動画フォーム分析 無制限' },
-                    ].map(f => (
-                      <View key={f.text} style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
-                        <Ionicons name={f.icon as any} size={15} color="#d97706" />
-                        <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '600' }}>{f.text}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </TouchableOpacity>
-
-                {/* ── FREE（テキストリンク風・目立たせない） ── */}
-                <TouchableOpacity
-                  onPress={() => handleFinish()}
-                  activeOpacity={0.7}
-                  style={{
-                    backgroundColor: 'rgba(255,255,255,0.04)',
-                    borderRadius: 16,
-                    borderWidth: 1,
-                    borderColor: 'rgba(255,255,255,0.12)',
-                    paddingVertical: 14,
-                    paddingHorizontal: 20,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    <View style={{ backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 7, paddingHorizontal: 9, paddingVertical: 4 }}>
-                      <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: '800' }}>FREE</Text>
-                    </View>
-                    <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13 }}>まず無料で始める</Text>
-                  </View>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={{ fontSize: 16, fontWeight: '800', color: 'rgba(255,255,255,0.35)' }}>¥0</Text>
-                  </View>
-                </TouchableOpacity>
-              </View>
-            )}
           </ScrollView>
         </Animated.View>
       </KeyboardAvoidingView>
@@ -602,11 +486,18 @@ export default function OnboardingScreen() {
               <Ionicons name="arrow-forward" size={18} color="#fff" />
             </TouchableOpacity>
           ) : (
-            // Step 5: プラン選択 — カード内にFREEボタンを含めているのでフッターは非表示
-            <View style={{ paddingVertical: 8 }} />
+            <TouchableOpacity
+              style={styles.nextBtn}
+              onPress={() => handleFinish()}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.nextBtnText}>sCORE を始める</Text>
+              <Ionicons name="arrow-forward" size={18} color="#fff" />
+            </TouchableOpacity>
           )}
         </View>
       </SafeAreaView>
+      </View>
     </View>
   )
 }
@@ -645,12 +536,13 @@ const styles = StyleSheet.create({
 
   chip: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
-    backgroundColor: SURFACE, borderRadius: 14,
-    paddingHorizontal: 16, paddingVertical: 14,
-    borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
+    backgroundColor: SURFACE, borderRadius: 18,
+    paddingHorizontal: 18, paddingVertical: 16,
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 1,
   },
   chipSelected: {
-    backgroundColor: 'rgba(229,62,62,0.1)',
+    backgroundColor: 'rgba(22,101,52,0.1)',
     borderColor: BRAND,
   },
   chipLabel: { color: '#111827', fontSize: 15, fontWeight: '700' },
@@ -658,19 +550,20 @@ const styles = StyleSheet.create({
 
   expBtn: {
     flex: 1, minWidth: '45%', alignItems: 'center',
-    backgroundColor: SURFACE, borderRadius: 12,
-    padding: 14, borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.08)', gap: 3,
+    backgroundColor: SURFACE, borderRadius: 16,
+    padding: 16, borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.06)', gap: 3,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 1,
   },
-  expBtnActive:  { backgroundColor: 'rgba(229,62,62,0.12)', borderColor: BRAND },
+  expBtnActive:  { backgroundColor: 'rgba(22,101,52,0.12)', borderColor: BRAND },
   expLabel:      { color: '#111827', fontSize: 14, fontWeight: '700' },
   expSub:        { color: TEXT.hint, fontSize: 11 },
 
   inputWrap: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: SURFACE2, borderRadius: 14,
-    paddingHorizontal: 16, paddingVertical: 14,
-    borderWidth: 1, borderColor: 'rgba(0,0,0,0.1)',
+    backgroundColor: SURFACE2, borderRadius: 16,
+    paddingHorizontal: 16, paddingVertical: 15,
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
   },
   input:     { flex: 1, color: '#111827', fontSize: 16, outlineStyle: 'none' as any },
   inputHint: { color: TEXT.hint, fontSize: 11, paddingLeft: 4 },

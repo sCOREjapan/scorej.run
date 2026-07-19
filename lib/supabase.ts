@@ -41,9 +41,10 @@ function makeDummyClient(): SupabaseClient {
     auth: {
       getSession: () => Promise.resolve({ data: { session: null }, error: null }),
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-      signInWithPassword: () => Promise.resolve({ data: null, error: { message: 'dummy' } }),
-      signUp: () => Promise.resolve({ data: null, error: { message: 'dummy' } }),
-      signInWithOAuth: () => Promise.resolve({ data: null, error: { message: 'dummy' } }),
+      signInWithPassword: () => Promise.resolve({ data: null, error: { message: 'Supabase未設定（環境変数が読み込まれていません）' } }),
+      signUp: () => Promise.resolve({ data: null, error: { message: 'Supabase未設定（環境変数が読み込まれていません）' } }),
+      signInWithOAuth: () => Promise.resolve({ data: null, error: { message: 'Supabase未設定（環境変数が読み込まれていません）' } }),
+      signInWithIdToken: () => Promise.resolve({ data: null, error: { message: 'Supabase未設定（環境変数が読み込まれていません）' } }),
       signOut: () => Promise.resolve({ error: null }),
     },
   } as unknown as SupabaseClient

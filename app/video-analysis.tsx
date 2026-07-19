@@ -7,7 +7,9 @@ import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { BRAND, TEXT } from '../lib/theme'
 import { checkAdGate, recordUsage, getTier } from '../lib/adGate'
+import { showInterstitialAd } from '../lib/admob'
 import AdGateModal from '../components/AdGateModal'
+import BannerAdView from '../components/BannerAdView'
 import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'expo-router'
 import { trackFeatureUse } from '../lib/analytics'
@@ -21,10 +23,18 @@ import { VideoView, useVideoPlayer } from 'expo-video'
 const JOINED_KEY_VA = 'trackmate_team_joined'
 
 /* ─── 型定義 ─────────────────────────────────── */
+// 改善点の詳細構造（issue=何が問題か / reason=なぜ起きるか / fix=どう直すか）
+type ImprovementDetail = {
+  issue: string
+  reason: string
+  fix: string
+}
+
 type FrameAdvice = {
   overall: string
   positives: string[]
   improvements: string[]
+  improvementDetails?: ImprovementDetail[]
   injuryRisk?: string
 }
 type Annotation = {
@@ -69,11 +79,53 @@ type AnalysisResult = {
   overall: string
   positives: string[]
   improvements: string[]
+  improvementDetails?: ImprovementDetail[]  // 構造化された改善点（issue/reason/fix）
   menu: { name: string; detail: string }[]
   frameNotes?: Array<{ f: number; note: string }>
 }
 
-const FRAME_TIMESTAMPS = [100, 1000, 2500, 4000, 6000, 8000, 10000, 13000]
+// フレームタイムスタンプ: 動画の実際の長さが取得できない場合のみ使うフォールバック値
+// （3〜15秒の動画を想定した固定値。取得できる場合は下の computeFrameTimestamps で
+//  動画の長さに応じて均等割りする）
+const FRAME_TIMESTAMPS = [400, 1800, 3200, 4800, 6500, 9500]
+const FRAME_COUNT = FRAME_TIMESTAMPS.length
+
+// 動画の実際の長さ(ms)から、フレーム抽出タイムスタンプを均等割りで計算する。
+// 先頭・末尾の黒コマ/読み込み中フレームを避けるため、両端に少しマージンを取る。
+function computeFrameTimestamps(durationMs: number | null): number[] {
+  if (!durationMs || durationMs <= 0) return FRAME_TIMESTAMPS
+  const marginMs = Math.min(400, durationMs * 0.08)
+  const usableMs = Math.max(durationMs - marginMs * 2, 100)
+  return Array.from({ length: FRAME_COUNT }, (_, i) =>
+    Math.round(marginMs + (i / Math.max(FRAME_COUNT - 1, 1)) * usableMs)
+  )
+}
+
+// ── 分析結果キャッシュ（同じ動画の再分析コストをゼロに） ────────────
+function _simpleHash(s: string): string {
+  let h = 0
+  for (let i = 0; i < Math.min(s.length, 120); i++) { h = Math.imul(31, h) + s.charCodeAt(i) | 0 }
+  return Math.abs(h).toString(36)
+}
+const ANALYSIS_CACHE_PREFIX = 'score_va_cache_v2_'  // v2: 旧壊れキャッシュを無効化
+const ANALYSIS_CACHE_TTL    = 86400_000  // 24時間
+
+async function getAnalysisCache(videoUri: string, event: string): Promise<AnalysisResult | null> {
+  try {
+    const key  = ANALYSIS_CACHE_PREFIX + _simpleHash(videoUri + event)
+    const raw  = await AsyncStorage.getItem(key)
+    if (!raw) return null
+    const { result, ts } = JSON.parse(raw)
+    if (Date.now() - ts > ANALYSIS_CACHE_TTL) return null
+    return result as AnalysisResult
+  } catch { return null }
+}
+async function setAnalysisCache(videoUri: string, event: string, result: AnalysisResult) {
+  try {
+    const key = ANALYSIS_CACHE_PREFIX + _simpleHash(videoUri + event)
+    await AsyncStorage.setItem(key, JSON.stringify({ result, ts: Date.now() }))
+  } catch {}
+}
 
 // Hermesの AbortSignal.timeout 非対応に対応したタイムアウト付きfetch
 function fetchWithTimeout(url: string, options: RequestInit, ms: number): Promise<Response> {
@@ -95,11 +147,14 @@ function VideoAnnotationPlayer({
   videoUri,
   frames,
   frameNotes,
+  frameTimestamps,
 }: {
   videoUri: string
   frames: string[]
   frameNotes?: Array<{ f: number; note: string }>
+  frameTimestamps?: number[]
 }) {
+  const timestamps = frameTimestamps && frameTimestamps.length > 0 ? frameTimestamps : FRAME_TIMESTAMPS
   const [speed, setSpeed]           = useState<1 | 0.5 | 0.25>(1)
   const [activeFrame, setActiveFrame] = useState<number>(-1)
   const [isPlaying, setIsPlaying]   = useState(false)
@@ -129,7 +184,7 @@ function VideoAnnotationPlayer({
         // 最も近いフレームを探す
         let best = -1
         let bestDist = Infinity
-        FRAME_TIMESTAMPS.forEach((ts, idx) => {
+        timestamps.forEach((ts, idx) => {
           const dist = Math.abs(ts - ms)
           if (dist < bestDist) { bestDist = dist; best = idx }
         })
@@ -153,9 +208,9 @@ function VideoAnnotationPlayer({
     // expo-video では currentTime への直接代入は非対応。seekTo() を使用する
     try {
       if (typeof (player as any).seekTo === 'function') {
-        (player as any).seekTo(FRAME_TIMESTAMPS[idx] / 1000)
+        (player as any).seekTo(timestamps[idx] / 1000)
       } else {
-        (player as any).currentTime = FRAME_TIMESTAMPS[idx] / 1000
+        (player as any).currentTime = timestamps[idx] / 1000
       }
     } catch {}
   }
@@ -220,7 +275,7 @@ function VideoAnnotationPlayer({
           フレームタイムライン（タップでシーク）
         </Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
-          {FRAME_TIMESTAMPS.map((ts, idx) => {
+          {timestamps.map((ts, idx) => {
             const hasNote = frameNotes?.some(n => n.f === idx)
             const isActive = activeFrame === idx
             const thumb = frames[idx]
@@ -262,7 +317,7 @@ function VideoAnnotationPlayer({
                   backgroundColor: 'rgba(255,149,0,0.08)', borderRadius: 8,
                   paddingHorizontal: 10, paddingVertical: 6, borderLeftWidth: 2, borderLeftColor: '#FF9500' }}>
                 <Text style={{ color: '#FF9500', fontSize: 10, fontWeight: '800', width: 40 }}>
-                  {formatMs(FRAME_TIMESTAMPS[n.f] ?? 0)}
+                  {formatMs(timestamps[n.f] ?? 0)}
                 </Text>
                 <Text style={{ color: '#e2e8f0', fontSize: 12, flex: 1 }}>{n.note}</Text>
                 <Ionicons name="play-circle-outline" size={14} color="#FF9500" />
@@ -322,6 +377,58 @@ function ResultSection({ title, color, icon, items }: {
           ))}
         </View>
       )}
+    </View>
+  )
+}
+
+// 改善点詳細カード（issue / reason / fix の3階層で表示）
+function ImprovementDetailSection({ items }: { items: ImprovementDetail[] }) {
+  const [openIndex, setOpenIndex] = useState<number | null>(null)
+  return (
+    <View style={{ backgroundColor: '#fff7ed', borderRadius: 16, borderWidth: 1, borderColor: '#fed7aa', overflow: 'hidden' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderBottomWidth: items.length > 0 ? 1 : 0, borderBottomColor: '#fed7aa' }}>
+        <Text style={{ fontSize: 18 }}>🔍</Text>
+        <Text style={{ flex: 1, color: '#c2410c', fontSize: 14, fontWeight: '800' }}>改善点の詳細分析</Text>
+        <Text style={{ fontSize: 16, color: '#c2410c' }}>{items.length}</Text>
+      </View>
+      <View style={{ padding: 12, gap: 10 }}>
+        {items.map((item, i) => (
+          <TouchableOpacity
+            key={i}
+            onPress={() => setOpenIndex(openIndex === i ? null : i)}
+            activeOpacity={0.85}
+            style={{ backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#f97316' + '40', overflow: 'hidden' }}
+          >
+            {/* 問題ヘッダー */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, backgroundColor: '#fff7ed' }}>
+              <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#ea580c',
+                alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Text style={{ color: '#fff', fontSize: 10, fontWeight: '900' }}>{i + 1}</Text>
+              </View>
+              <Text style={{ flex: 1, color: '#9a3412', fontSize: 13, fontWeight: '800', lineHeight: 18 }}>{item.issue}</Text>
+              <Ionicons name={openIndex === i ? 'chevron-up' : 'chevron-down'} size={14} color="#c2410c" />
+            </View>
+            {/* 展開: 原因 + 改善方法 */}
+            {openIndex === i && (
+              <View style={{ padding: 12, gap: 10 }}>
+                <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
+                  <View style={{ backgroundColor: '#fef3c7', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3, flexShrink: 0 }}>
+                    <Text style={{ color: '#92400e', fontSize: 10, fontWeight: '800' }}>なぜ</Text>
+                  </View>
+                  <Text style={{ flex: 1, color: '#374151', fontSize: 13, lineHeight: 20 }}>{item.reason}</Text>
+                </View>
+                <View style={{ height: 1, backgroundColor: '#f3f4f6' }} />
+                <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
+                  <View style={{ backgroundColor: '#dcfce7', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3, flexShrink: 0 }}>
+                    <Text style={{ color: '#166534', fontSize: 10, fontWeight: '800' }}>改善</Text>
+                  </View>
+                  <Text style={{ flex: 1, color: '#374151', fontSize: 13, lineHeight: 20 }}>{item.fix}</Text>
+                </View>
+              </View>
+            )}
+          </TouchableOpacity>
+        ))}
+      </View>
     </View>
   )
 }
@@ -650,7 +757,7 @@ const cst = StyleSheet.create({
   stepLabel:       { fontSize: 11, color: '#9ca3af' },
 
   // 大カード（Step 1）
-  bigCard:         { backgroundColor: '#fff', borderRadius: 18, padding: 24, alignItems: 'center', gap: 10, borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.08)' },
+  bigCard:         { backgroundColor: '#fff', borderRadius: 21, padding: 24, alignItems: 'center', gap: 10, borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.08)' },
   bigCardIcon:     { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   bigCardTitle:    { fontSize: 18, fontWeight: '800', color: '#111827' },
   bigCardSub:      { fontSize: 13, color: '#6b7280', textAlign: 'center' },
@@ -670,18 +777,18 @@ const cst = StyleSheet.create({
   textarea:        { backgroundColor: '#fff', borderRadius: 14, borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.10)', padding: 14, fontSize: 14, color: '#111827', minHeight: 80, textAlignVertical: 'top' },
 
   // 確認カード
-  confirmCard:     { backgroundColor: '#fff', borderRadius: 18, padding: 18, marginBottom: 20, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
+  confirmCard:     { backgroundColor: '#fff', borderRadius: 21, padding: 18, marginBottom: 20, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
   confirmRow:      { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingVertical: 8, gap: 12 },
   confirmLabel:    { fontSize: 12, color: '#9ca3af', fontWeight: '600', paddingTop: 2 },
   confirmValue:    { fontSize: 14, color: '#111827', fontWeight: '600' },
   divider:         { height: 1, backgroundColor: 'rgba(0,0,0,0.07)' },
 
   // ボタン
-  primaryBtn:      { backgroundColor: '#111827', borderRadius: 14, paddingVertical: 16, alignItems: 'center', justifyContent: 'center' },
+  primaryBtn:      { backgroundColor: '#111827', borderRadius: 21, paddingVertical: 16, alignItems: 'center', justifyContent: 'center' },
   primaryBtnText:  { color: '#fff', fontSize: 16, fontWeight: '800' },
-  secondaryBtn:    { backgroundColor: '#f3f4f6', borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginTop: 10 },
+  secondaryBtn:    { backgroundColor: '#f3f4f6', borderRadius: 21, paddingVertical: 14, alignItems: 'center', marginTop: 10 },
   secondaryBtnText:{ color: '#374151', fontSize: 15, fontWeight: '700' },
-  sendBtn:         { backgroundColor: '#16a34a', borderRadius: 14, paddingVertical: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 12, shadowColor: '#16a34a', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12 },
+  sendBtn:         { backgroundColor: '#16a34a', borderRadius: 21, paddingVertical: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 12, shadowColor: '#16a34a', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12 },
   sendBtnText:     { color: '#fff', fontSize: 18, fontWeight: '900' },
   noteText:        { fontSize: 12, color: '#9ca3af', textAlign: 'center', lineHeight: 18, marginTop: 8 },
 
@@ -696,8 +803,10 @@ const cst = StyleSheet.create({
 function NativeVideoAnalysis() {
   const [phase, setPhase]             = useState<AnalysisPhase>('idle')
   const [videoUri, setVideoUri]       = useState<string | null>(null)
+  const [videoDurationMs, setVideoDurationMs] = useState<number | null>(null)
   const [localVideoUri, setLocalVideoUri] = useState<string | null>(null)
   const [frames, setFrames]           = useState<string[]>([])
+  const [frameTimestampsUsed, setFrameTimestampsUsed] = useState<number[]>(FRAME_TIMESTAMPS)
   const [event, setEvent]             = useState('')
   const [clothingColor, setClothingColor] = useState('')
   const [shoeColor,     setShoeColor]     = useState('')
@@ -708,13 +817,15 @@ function NativeVideoAnalysis() {
   const [adGateVisible,     setAdGateVisible]     = useState(false)
   const [adGateRemaining,   setAdGateRemaining]   = useState(0)
   const [adGateHardLimited, setAdGateHardLimited] = useState(false)
-  const [adGateLimitType,   setAdGateLimitType]   = useState<'none'|'daily'|'monthly'|'total'>('none')
+  const [adGateLimitType,   setAdGateLimitType]   = useState<'none'|'daily'|'monthly'|'total'|'window'>('none')
   const [remaining,         setRemaining]         = useState<number | null>(null)
   const [upsellVisible,     setUpsellVisible]     = useState(false)
   const { isGuest } = useAuth()
   const router = useRouter()
   // 連続タップによる二重起動防止（AdGate async チェック中もガード）
   const analyzingRef = React.useRef(false)
+  // 広告視聴済みクレジット（分析失敗時のリトライも広告なしで通す）
+  const adCreditRef = React.useRef(false)
 
   React.useEffect(() => {
     checkAdGate('video').then(g => {
@@ -722,20 +833,10 @@ function NativeVideoAnalysis() {
     }).catch(() => {})
   }, [])
 
-  // 分析結果が出たら5秒後にフリープランのみアップセルシートを表示
+  // 分析結果表示後にインタースティシャル広告を表示
   React.useEffect(() => {
     if (phase !== 'result') return
-    let cancelled = false
-    let timerId: ReturnType<typeof setTimeout> | null = null
-    getTier().then(tier => {
-      if (tier === 'free' && !cancelled) {
-        timerId = setTimeout(() => setUpsellVisible(true), 5000)
-      }
-    }).catch(() => {})
-    return () => {
-      cancelled = true
-      if (timerId !== null) clearTimeout(timerId)
-    }
+    showInterstitialAd().catch(() => {})
   }, [phase])
 
   async function pickVideo() {
@@ -748,6 +849,12 @@ function NativeVideoAnalysis() {
       })
       if (!res.canceled && res.assets[0]) {
         setVideoUri(res.assets[0].uri)
+        // expo-image-picker は動画アセットの再生時間を「ミリ秒」で返す（秒ではない）。
+        // これが取れないと、動画の長さに関わらず固定タイムスタンプで
+        // フレーム抽出することになり、短い動画では黒コマ、長い動画では
+        // 一部区間しか分析されない不具合が起きるため、必ず実測値を使う。
+        const durMs = (res.assets[0] as any).duration
+        setVideoDurationMs(typeof durMs === 'number' && durMs > 0 ? durMs : null)
         setLocalVideoUri(null)
         setResult(null); setRawText(''); setError(''); setFrames([])
         setPhase('idle')
@@ -755,11 +862,14 @@ function NativeVideoAnalysis() {
     } catch (e: any) { Alert.alert('エラー', e?.message ?? '動画の選択に失敗しました') }
   }
 
-  async function analyze(skipGate = false) {
+  async function analyze(skipGate = false, forceRefresh = false) {
     if (analyzingRef.current) return   // 二重タップ防止
     if (!videoUri) { Alert.alert('動画を選択してください'); return }
     // ゲストはログイン必須
     if (isGuest) { setAdGateRemaining(0); setAdGateHardLimited(false); setAdGateVisible(true); return }
+    // 広告視聴済みクレジットがあればゲートをスキップ（分析失敗時のリトライも許可）
+    const usedAdCredit = adCreditRef.current
+    if (adCreditRef.current) { skipGate = true }
     // AdGateチェック（広告視聴後は skipGate=true でバイパス）
     if (!skipGate) {
       const gate = await checkAdGate('video')
@@ -772,6 +882,14 @@ function NativeVideoAnalysis() {
     setError(''); setResult(null); setRawText('')
 
     try {
+      // ── キャッシュチェック（forceRefresh=true のときはスキップ） ──
+      if (!forceRefresh) {
+        const cached = await getAnalysisCache(videoUri, event)
+        if (cached) {
+          setResult(cached); setPhase('result'); analyzingRef.current = false; return
+        }
+      }
+
       // ── Step 1: フレーム抽出 ──
       setPhase('extracting')
       setStepLabel('動画からフレームを抽出中...')
@@ -779,34 +897,43 @@ function NativeVideoAnalysis() {
       let localUri = videoUri
       if (videoUri.startsWith('ph://') || !videoUri.startsWith('file://')) {
         const dest = (FileSystem as any).cacheDirectory + `score_video_${Date.now()}.mp4`
-        await FileSystem.copyAsync({ from: videoUri, to: dest })
+        try {
+          await FileSystem.copyAsync({ from: videoUri, to: dest })
+        } catch {
+          // iCloudにのみ保存されている動画は端末への同期が必要（PHPhotosErrorDomain等）
+          throw new Error('動画の読み込みに失敗しました。iCloudにのみ保存されている場合は、写真アプリで一度動画を開いて端末にダウンロードしてから再度お試しください。')
+        }
         localUri = dest
       }
       setLocalVideoUri(localUri)
 
-      const timestamps = FRAME_TIMESTAMPS
       const base64Frames: string[] = []
       const thumbUris: string[] = []
 
-      for (const t of timestamps) {
+      // 動画の実際の長さに応じてタイムスタンプを均等割り（取得できない場合は固定値にフォールバック）
+      const timestampsForThisVideo = computeFrameTimestamps(videoDurationMs)
+      setFrameTimestampsUsed(timestampsForThisVideo)
+
+      // 320px / compress 0.45 → 画像トークン数を ~50% 削減
+      for (const t of timestampsForThisVideo) {
         try {
-          const { uri } = await VideoThumbnails.getThumbnailAsync(localUri, { time: t, quality: 0.75 })
+          const { uri } = await VideoThumbnails.getThumbnailAsync(localUri, { time: t, quality: 0.8 })
           const resized = await ImageManipulator.manipulateAsync(
-            uri, [{ resize: { width: 400 } }],
-            { compress: 0.70, format: ImageManipulator.SaveFormat.JPEG }
+            uri, [{ resize: { width: 440 } }],  // 480→440: フレーム5→6枚化に伴い1枚あたりのトークンを微減して総量を維持
+            { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
           )
           const b64 = await FileSystem.readAsStringAsync(resized.uri, { encoding: FileSystem.EncodingType.Base64 })
           base64Frames.push(b64)
           thumbUris.push(resized.uri)
-        } catch { /* スキップ */ }
+        } catch { /* 動画長より後のタイムスタンプはスキップ */ }
       }
 
       // フォールバック: 最初の1フレーム
       if (base64Frames.length === 0) {
         const { uri } = await VideoThumbnails.getThumbnailAsync(localUri, { time: 0 })
         const resized = await ImageManipulator.manipulateAsync(
-          uri, [{ resize: { width: 400 } }],
-          { compress: 0.70, format: ImageManipulator.SaveFormat.JPEG }
+          uri, [{ resize: { width: 480 } }],
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
         )
         const b64 = await FileSystem.readAsStringAsync(resized.uri, { encoding: 'base64' as any })
         base64Frames.push(b64); thumbUris.push(resized.uri)
@@ -819,8 +946,11 @@ function NativeVideoAnalysis() {
       setPhase('analyzing')
       setStepLabel(`${base64Frames.length}フレームをAIで分析中...`)
 
-      // API送信は最大6フレームに制限（コスト削減）
-      const imageBlocks = base64Frames.slice(0, 6).map(b64 => ({
+      // 抽出したフレーム(最大FRAME_COUNT枚)を全て使用。
+      // 以前は4枚に制限していたが、computeFrameTimestampsが動画終盤まで
+      // 均等割りで抽出しているのに末尾のフレームだけ切り捨てられ、
+      // 終盤の動きが分析に反映されない不具合があったため撤廃。
+      const imageBlocks = base64Frames.slice(0, FRAME_COUNT).map(b64 => ({
         type: 'image' as const,
         source: { type: 'base64' as const, media_type: 'image/jpeg' as const, data: b64 },
       }))
@@ -831,11 +961,20 @@ function NativeVideoAnalysis() {
         shoeColor     ? `靴の色：${shoeColor}` : '',
       ].filter(Boolean).join('、')
 
-      const prompt = `あなたは陸上競技の専門コーチです。${event ? `種目：${event}。` : ''}${personHint ? `分析対象の選手は${personHint}の人物です。複数人映っている場合はその選手に集中して分析してください。` : ''}選手のフォーム動画から抽出した${base64Frames.length}フレーム（フレーム番号0〜${base64Frames.length - 1}）を分析してください。
+      // 採点の基準点を明示し、モデルが無難な中間点に逃げるのを防ぐ
+      const nF = imageBlocks.length
+      const prompt = `陸上${event ? `(${event})` : ''}フォーム分析。${personHint ? `対象:${personHint}。` : ''}${nF}フレーム(0〜${nF-1})を、実際に写っている姿勢・関節角度・接地位置から具体的に評価せよ。画像から判断できない項目は無理に指摘せず、見えている範囲だけで評価すること。
 
-必ずJSON形式のみで返答してください：
-{"score":整数,"overall":"50文字以内の総評","positives":["良い点1","良い点2","良い点3"],"improvements":["改善点1","改善点2","改善点3"],"menu":[{"name":"練習名","detail":"詳細30文字以内"}],"frameNotes":[{"f":フレーム番号(0〜${base64Frames.length - 1}),"note":"20文字以内の指摘"}]}
-frameNotesは最大5件、改善点が顕著なフレームのみ記載してください。`
+採点基準（0-100、必ず画像の内容に応じて差をつけること。迷っても中間の点数に逃げない）:
+- 90-100: トップ選手レベル。重心の真下での接地、無駄のない腕振り、上下動が少ない
+- 70-89: 実業団・大学レベル。フォームの大枠は良いが細部に改善点がある
+- 50-69: 一般的な部活生レベル。基本はできているが明確な改善点が複数ある
+- 30-49: フォームに大きな崩れがある（過度な後傾、ブレーキ動作、腕の振りすぎ等）
+- 0-29: 画像が不鮮明、または陸上競技のフォームと判断できない
+
+コードブロック不使用・生のJSONのみで回答:
+{"score":0-100,"overall":"総評50字","positives":["良い点(部位明記)","良い点2","良い点3"],"improvements":["改善要約1","改善要約2","改善要約3"],"improvementDetails":[{"issue":"問題(部位と動作)","reason":"原因","fix":"改善方法"}],"menu":[{"name":"ドリル","detail":"方法・セット数"}],"frameNotes":[{"f":番号,"note":"指摘20字"}]}
+improvementDetails:3件、issue/reason/fix必須。menu:2件。frameNotes:最大2件。`
 
       // Vercel proxy経由でAnthropicを呼び出し（APIキーをクライアントに持たせない）
       const apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
@@ -845,8 +984,8 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 1200,
+          model: 'claude-sonnet-5',
+          max_tokens: 1500,  // 1100だと項目が多いJSONが途中で切れてパース失敗し常に60点フォールバックになっていたため増量（コスト配慮で2000より抑制）
           messages: [{ role: 'user', content: [...imageBlocks, { type: 'text', text: prompt }] }],
         }),
       }, 45000)
@@ -856,14 +995,15 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
         throw new Error(`APIエラー (${res.status}): ${errBody.slice(0, 120)}`)
       }
       const json = await res.json()
-      const text = json?.content?.[0]?.text ?? ''
+      // Sonnet 5 は thinking ブロックが content[0] に入るため、text ブロックを探して取得する
+      const text = json?.content?.find((b: any) => b.type === 'text')?.text ?? ''
       setRawText(text)
 
       // JSONパース（複数の方法で試みる）
       let parsed: AnalysisResult | null = null
-      // 方法1: コードブロック内のJSON
-      const codeMatch = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/)
-      // 方法2: 生のJSON
+      // 方法1: コードブロック内のJSON（greedyで完全なJSONを取得）
+      const codeMatch = text.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/)
+      // 方法2: 生のJSON（コードブロックなし）
       const rawMatch = text.match(/\{[\s\S]*\}/)
       const jsonStr = codeMatch?.[1] ?? rawMatch?.[0] ?? null
       if (jsonStr) {
@@ -871,19 +1011,27 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
           const p = JSON.parse(jsonStr) as any
           parsed = {
             score: typeof p.score === 'number' ? p.score : 60,
-            overall: p.overall ?? text.slice(0, 50),
+            overall: p.overall ?? '分析完了',
             positives: Array.isArray(p.positives) ? p.positives : [],
             improvements: Array.isArray(p.improvements) ? p.improvements : [],
+            improvementDetails: Array.isArray(p.improvementDetails)
+              ? p.improvementDetails.filter((d: any) => d?.issue && d?.reason && d?.fix)
+              : undefined,
             menu: Array.isArray(p.menu) ? p.menu : [],
             frameNotes: Array.isArray(p.frameNotes) ? p.frameNotes : undefined,
           }
         } catch { parsed = null }
       }
       // 方法3: JSONが取れなければテキストから最低限の結果を生成
+      // コードブロック行・空行・記号のみの行を除外して有効なテキストを探す
       if (!parsed && text.trim().length > 0) {
+        const validLine = text.split('\n').find((l: string) => {
+          const t = l.trim()
+          return t.length > 5 && !t.startsWith('`') && !t.startsWith('{') && !t.startsWith('[')
+        })
         parsed = {
           score: 60,
-          overall: text.split('\n').find((l: string) => l.trim().length > 5)?.slice(0, 80) ?? '分析完了',
+          overall: validLine?.slice(0, 80) ?? '分析完了',
           positives: [],
           improvements: [],
           menu: [],
@@ -891,9 +1039,15 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
       }
       setResult(parsed)
       setPhase('result')
+      adCreditRef.current = false  // 分析成功でクレジット消費
+      // 広告視聴後の分析が完了したら、広告なしプランへのアップセルを提示
+      if (usedAdCredit) setUpsellVisible(true)
+      // キャッシュに保存（同じ動画の再分析コストをゼロに）
+      if (parsed) setAnalysisCache(videoUri, event, parsed).catch(() => {})
     } catch (e: any) {
       setError(e?.message ?? '分析に失敗しました')
       setPhase('idle')
+      // 分析失敗時はクレジットを残す（リトライを広告なしで許可）
     } finally {
       analyzingRef.current = false
     }
@@ -1060,7 +1214,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
               </View>
             )}
             <TouchableOpacity
-              onPress={() => analyze()}
+              onPress={() => analyze(false, phase === 'result')}
               disabled={!videoUri}
               activeOpacity={0.85}
               style={{
@@ -1088,6 +1242,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
                 videoUri={localVideoUri}
                 frames={frames}
                 frameNotes={result.frameNotes}
+                frameTimestamps={frameTimestampsUsed}
               />
             )}
 
@@ -1108,10 +1263,12 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
               <ResultSection title="良い点" color="#16a34a" icon="✅" items={result.positives} />
             )}
 
-            {/* 改善点 */}
-            {result.improvements?.length > 0 && (
+            {/* 改善点（詳細あれば詳細カード、なければ従来表示） */}
+            {result.improvementDetails && result.improvementDetails.length > 0 ? (
+              <ImprovementDetailSection items={result.improvementDetails} />
+            ) : result.improvements?.length > 0 ? (
               <ResultSection title="改善点" color="#d97706" icon="⚠️" items={result.improvements} />
-            )}
+            ) : null}
 
             {/* 練習メニュー */}
             {result.menu?.length > 0 && (
@@ -1137,7 +1294,7 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
 
             {/* 再分析ボタン */}
             <TouchableOpacity
-              onPress={() => analyze()}
+              onPress={() => analyze(false, true)}
               activeOpacity={0.85}
               style={{ borderRadius: 16, padding: 16, alignItems: 'center',
                 backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb' }}
@@ -1155,6 +1312,8 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
         )}
       </ScrollView>
 
+      <BannerAdView />
+
       <AdGateModal
         visible={adGateVisible}
         feature="video"
@@ -1165,17 +1324,17 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
         onClose={() => setAdGateVisible(false)}
         onAdWatched={async () => {
           setAdGateVisible(false)
-          // 使用回数を記録してからゲートチェックをスキップして直接分析へ
           await recordUsage('video')
           trackFeatureUse('video')
           checkAdGate('video').then(g2 => { if (g2.remaining < 999) setRemaining(g2.remaining) }).catch(() => {})
+          adCreditRef.current = true  // 広告視聴済みクレジット付与（失敗時リトライも許可）
           setError(''); setResult(null); setRawText('')
-          analyze(true)
+          analyze(true, true)  // forceRefresh=true で必ず新規分析を実行
         }}
         onUpgrade={() => { setAdGateVisible(false); router.push('/paywall') }}
       />
 
-      {/* ── 分析結果後アップセルシート（フリープラン・5秒後表示） ── */}
+      {/* ── 分析結果後アップセルシート（広告視聴で分析した直後に表示） ── */}
       <Modal visible={upsellVisible} transparent animationType="slide" onRequestClose={() => setUpsellVisible(false)}>
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={() => setUpsellVisible(false)}>
           <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}>
@@ -1183,34 +1342,34 @@ frameNotesは最大5件、改善点が顕著なフレームのみ記載してく
               <View style={{ backgroundColor: '#1a1a2e', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, gap: 16 }}>
                 <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)', alignSelf: 'center', marginBottom: 4 }} />
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <Ionicons name="star" size={24} color="#d97706" />
-                  <Text style={{ color: '#fff', fontSize: 17, fontWeight: '800' }}>毎回使うなら Pro がお得</Text>
+                  <Ionicons name="star" size={24} color="#16a34a" />
+                  <Text style={{ color: '#fff', fontSize: 17, fontWeight: '800' }}>広告なしプランにしませんか？</Text>
                 </View>
                 <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, lineHeight: 20 }}>
-                  動画フォーム分析は毎日1回（広告1本）で使えます。{'\n'}
-                  Pro プランなら月30回・広告なしで使い放題。
+                  無料枠を使い切ると広告視聴が必要になります。{'\n'}
+                  広告なしプランなら、フォーム分析も食事分析も広告なしで使い放題です。
                 </Text>
                 <View style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 14, gap: 8 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>FREE（今のプラン）</Text>
-                    <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>毎日1回・広告あり</Text>
+                    <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>無料枠超過後は広告視聴</Text>
                   </View>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <View style={{ backgroundColor: '#166534', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
-                        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800' }}>PRO</Text>
+                        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800' }}>広告なし</Text>
                       </View>
-                      <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>¥480/月</Text>
+                      <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>¥980/月</Text>
                     </View>
-                    <Text style={{ color: '#4ade80', fontSize: 12, fontWeight: '700' }}>月30回・広告なし</Text>
+                    <Text style={{ color: '#4ade80', fontSize: 12, fontWeight: '700' }}>広告一切なし</Text>
                   </View>
                 </View>
                 <TouchableOpacity
                   style={{ backgroundColor: '#166534', borderRadius: 14, paddingVertical: 15, alignItems: 'center' }}
-                  onPress={() => { setUpsellVisible(false); router.push('/paywall') }}
+                  onPress={() => { setUpsellVisible(false); router.push('/paywall?plan=noad' as any) }}
                   activeOpacity={0.85}
                 >
-                  <Text style={{ color: '#fff', fontSize: 15, fontWeight: '800' }}>Pro プランを見る ¥480/月〜</Text>
+                  <Text style={{ color: '#fff', fontSize: 15, fontWeight: '800' }}>広告なしプランを見る ¥980/月〜</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={{ alignItems: 'center', paddingVertical: 4 }} onPress={() => setUpsellVisible(false)} activeOpacity={0.7}>
                   <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>今はしない</Text>
@@ -1307,7 +1466,7 @@ function WebPlayer({ isPremiumUser: isPremiumProp }: { isPremiumUser: boolean })
   const [adGateVisible,     setAdGateVisible]     = useState(false)
   const [adGateRemainingW,  setAdGateRemainingW]  = useState(0)
   const [adGateHardLimited, setAdGateHardLimited] = useState(false)
-  const [adGateLimitTypeW,  setAdGateLimitTypeW]  = useState<'none'|'daily'|'monthly'|'total'>('none')
+  const [adGateLimitTypeW,  setAdGateLimitTypeW]  = useState<'none'|'daily'|'monthly'|'total'|'window'>('none')
   const isPremiumUser = isPremiumProp
 
   // 種目・選手指定
@@ -1420,7 +1579,7 @@ function WebPlayer({ isPremiumUser: isPremiumProp }: { isPremiumUser: boolean })
         tmp.width  = THUMB_W
         tmp.height = Math.round(THUMB_W * (vid.videoHeight || 9) / (vid.videoWidth || 16))
         tmp.getContext('2d')!.drawImage(vid, 0, 0, tmp.width, tmp.height)
-        resolve(tmp.toDataURL('image/jpeg', 0.65))
+        resolve(tmp.toDataURL('image/jpeg', 0.42))  // 0.65→0.42: 画像トークン削減
       }
       vid.addEventListener('seeked', onSeeked)
     })
@@ -1434,20 +1593,29 @@ function WebPlayer({ isPremiumUser: isPremiumProp }: { isPremiumUser: boolean })
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        model, max_tokens: 512,
+        model, max_tokens: 320,  // 512→320: フレーム分析出力削減
         messages: [{ role: 'user', content: [
           { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: dataUrl.split(',')[1] } },
-          { type: 'text', text: `陸上競技バイオメカニクスコーチとして${formatTime(t)}地点のフォームを分析。${selectedEvent ? `\n種目: ${selectedEvent}` : ''}${athleteColor ? `\n分析対象選手: ${athleteColor}の服装・シューズの選手に集中して分析してください。` : ''}
-怪我リスクについても評価すること（膝・足首・腰・ハムストリングの負担など）。
-JSON形式のみで回答:
-{"overall":"評価(20字以内)","positives":["良い点1（部位を明記）","良い点2"],"improvements":["改善点1(部位・角度・回数など具体的に)","改善点2"],"injuryRisk":"怪我リスクの箇所と理由(30字以内、リスク低ければ「リスク低」)"}` }
+          { type: 'text', text: `陸上${selectedEvent ? `(${selectedEvent})` : ''}${athleteColor ? ` 対象:${athleteColor}` : ''} ${formatTime(t)}地点。JSON形式のみ:
+{"overall":"評価20字","positives":["良い点(部位)","良い点2"],"improvements":["要約1","要約2"],"improvementDetails":[{"issue":"問題(部位)","reason":"原因(根拠)","fix":"改善方法"}],"injuryRisk":"リスク30字(低ければ「リスク低」)"}` }
         ]}]
       }),
     }, 30000)
     const data = await res.json()
-    const text  = data.content?.[0]?.text ?? '{}'
+    const text  = data.content?.find((b: any) => b.type === 'text')?.text ?? '{}'
     const match = text.match(/\{[\s\S]*\}/)
-    try { return match ? JSON.parse(match[0]) : { overall: text.slice(0, 30), positives: [], improvements: [] } }
+    try {
+      if (match) {
+        const p = JSON.parse(match[0])
+        return {
+          ...p,
+          improvementDetails: Array.isArray(p.improvementDetails)
+            ? p.improvementDetails.filter((d: any) => d?.issue && d?.reason && d?.fix)
+            : undefined,
+        }
+      }
+      return { overall: text.slice(0, 30), positives: [], improvements: [] }
+    }
     catch { return { overall: text.slice(0, 30), positives: [], improvements: [] } }
   }
 
@@ -1466,7 +1634,7 @@ JSON形式のみで回答:
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           model: 'claude-haiku-4-5-20251001', max_tokens: 1024,
-          messages: [{ role: 'user', content: `陸上競技バイオメカニクスコーチとして、以下のフレーム分析結果を元に総合評価・トレーニングメニュー・怪我予防アドバイスを作成してください。${selectedEvent ? `\n種目: ${selectedEvent}に特化したアドバイスをしてください。` : ''}
+          messages: [{ role: 'user', content: `陸上競技バイオメカニクスコーチとして、以下のフレーム分析結果を元に総合評価・トレーニングメニュー・怪我リスクの傾向に関する参考アドバイスを作成してください。断定的な予防・治療効果の表現は避け、あくまで参考情報として提示すること。${selectedEvent ? `\n種目: ${selectedEvent}に特化したアドバイスをしてください。` : ''}
 アドバイスは読みやすく簡潔に（1項目30字以内）、かつ部位・角度・回数・距離など具体的な数値を含めること。
 
 【フレーム分析結果】
@@ -1481,14 +1649,14 @@ ${summary}
     {"name": "ドリル名", "detail": "具体的な方法・セット数・距離（例: 20m×5本）"},
     {"name": "ドリル名2", "detail": "内容"},
     {"name": "ドリル名3", "detail": "内容"},
-    {"name": "ドリル名4（怪我予防ドリル）", "detail": "弱点部位を補強する種目"}
+    {"name": "ドリル名4（弱点補強ドリル）", "detail": "弱点部位を補強する種目"}
   ],
   "nextSteps": ["次の練習で意識すること1（具体的な動作・角度・タイミング）", "意識すること2", "意識すること3"]
 }` }]
         }),
       }, 45000)
       const data  = await res.json()
-      const text  = data.content?.[0]?.text ?? '{}'
+      const text  = data.content?.find((b: any) => b.type === 'text')?.text ?? '{}'
       const match = text.match(/\{[\s\S]*\}/)
       if (match) { try { setComprehensive(JSON.parse(match[0])) } catch {} }
     } catch (e) { console.warn('comprehensive fail', e) }
@@ -1776,10 +1944,23 @@ ${summary}
               <Text style={s.sectionLabel}>✅ 良い点</Text>
               {activeAnn.advice.positives.map((p, i) => <Text key={i} style={s.adviceItem}>• {p}</Text>)}
             </>}
-            {activeAnn.advice.improvements.length > 0 && <>
-              <Text style={s.sectionLabel}>⚠️ 改善点</Text>
-              {activeAnn.advice.improvements.map((p, i) => <Text key={i} style={s.adviceItem}>• {p}</Text>)}
-            </>}
+            {activeAnn.advice.improvementDetails && activeAnn.advice.improvementDetails.length > 0 ? (
+              <>
+                <Text style={s.sectionLabel}>🔍 改善点（原因・対策）</Text>
+                {activeAnn.advice.improvementDetails.map((d, i) => (
+                  <View key={i} style={{ backgroundColor: '#fff7ed', borderRadius: 8, padding: 8, marginBottom: 6, borderLeftWidth: 3, borderLeftColor: '#f97316' }}>
+                    <Text style={{ color: '#9a3412', fontSize: 12, fontWeight: '800', marginBottom: 4 }}>⚠️ {d.issue}</Text>
+                    <Text style={{ color: '#92400e', fontSize: 11, marginBottom: 3 }}>📍 なぜ: {d.reason}</Text>
+                    <Text style={{ color: '#166534', fontSize: 11 }}>✅ 改善: {d.fix}</Text>
+                  </View>
+                ))}
+              </>
+            ) : activeAnn.advice.improvements.length > 0 ? (
+              <>
+                <Text style={s.sectionLabel}>⚠️ 改善点</Text>
+                {activeAnn.advice.improvements.map((p, i) => <Text key={i} style={s.adviceItem}>• {p}</Text>)}
+              </>
+            ) : null}
             {activeAnn.advice.injuryRisk && activeAnn.advice.injuryRisk !== 'リスク低' && (
               <View style={{ marginTop: 8, backgroundColor: '#FFF1F2', borderRadius: 8, padding: 8, borderLeftWidth: 3, borderLeftColor: '#F43F5E' }}>
                 <Text style={{ color: '#BE123C', fontSize: 11, fontWeight: '700', marginBottom: 2 }}>🚨 怪我リスク</Text>
@@ -1842,7 +2023,7 @@ ${summary}
               </>}
               {comprehensive.injuryWarnings && comprehensive.injuryWarnings.length > 0 && (
                 <View style={{ marginTop: 10, backgroundColor: '#FFF1F2', borderRadius: 10, padding: 10, borderLeftWidth: 3, borderLeftColor: '#F43F5E' }}>
-                  <Text style={{ color: '#BE123C', fontSize: 12, fontWeight: '800', marginBottom: 6 }}>🚨 怪我予防アドバイス</Text>
+                  <Text style={{ color: '#BE123C', fontSize: 12, fontWeight: '800', marginBottom: 6 }}>🚨 フォームからみるリスク傾向</Text>
                   {comprehensive.injuryWarnings.map((w, i) => (
                     <Text key={i} style={{ color: '#9F1239', fontSize: 12, lineHeight: 20 }}>• {w}</Text>
                   ))}
@@ -1933,7 +2114,7 @@ const s = StyleSheet.create({
   fileTagText:    { color: '#4CAF50', fontSize: 13, maxWidth: 220 },
   uploadBtn:      { flexDirection: 'row', alignItems: 'center', gap: 8,
                     backgroundColor: '#f0f2f5', paddingHorizontal: 28,
-                    paddingVertical: 14, borderRadius: 12, marginBottom: 12 },
+                    paddingVertical: 14, borderRadius: 21, marginBottom: 12 },
   uploadBtnText:  { color: '#111827', fontSize: 16, fontWeight: '700' },
   analyzeBtn:     { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#1c1c1e',
                     paddingHorizontal: 36, paddingVertical: 18, borderRadius: 50, marginBottom: 20,
@@ -1943,13 +2124,13 @@ const s = StyleSheet.create({
   privacyNote:    { color: '#333', fontSize: 11, textAlign: 'center', lineHeight: 18 },
 
   /* setting cards before analysis */
-  settingCard:    { width: '100%', maxWidth: 340, backgroundColor: '#ffffff', borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
+  settingCard:    { width: '100%', maxWidth: 340, backgroundColor: '#ffffff', borderRadius: 21, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 2 },
   settingTitle:   { color: '#111827', fontSize: 13, fontWeight: '800', marginBottom: 2 },
   settingDesc:    { color: '#666', fontSize: 11, lineHeight: 16 },
   evChip:         { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#f0f2f5', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
   evChipActive:   { backgroundColor: BRAND, borderColor: BRAND },
   evChipText:     { color: '#aaa', fontSize: 12, fontWeight: '700' },
-  colorInput:     { marginTop: 10, backgroundColor: '#f0f2f5', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: '#111827', fontSize: 13, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', minHeight: 50 },
+  colorInput:     { marginTop: 10, backgroundColor: '#f0f2f5', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10, color: '#111827', fontSize: 13, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', minHeight: 50 },
   planBannerFree: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 10,
     backgroundColor: '#f0f2f5', borderRadius: 12,
@@ -1972,7 +2153,7 @@ const s = StyleSheet.create({
                     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
                     shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 },
   analyzeTitle:   { color: '#111827', fontSize: 18, fontWeight: '800', marginTop: 16 },
-  analyzeCount:   { color: '#166534', fontSize: 28, fontWeight: '800', marginTop: 8 },
+  analyzeCount:   { color: '#166534', fontSize: 28, fontWeight: '800', marginTop: 8, fontVariant: ['tabular-nums'] },
   barTrack:       { width: '100%', height: 6, backgroundColor: 'rgba(0,0,0,0.08)',
                     borderRadius: 3, marginTop: 16, overflow: 'hidden' },
   barFill:        { height: 6, backgroundColor: BRAND, borderRadius: 3 },

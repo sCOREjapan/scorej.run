@@ -2,6 +2,7 @@
 // ATL/CTL/TSB (EWMA) + 10%ルール + 体調 + 睡眠 + 連続高負荷 + 休養なし
 
 import type { TrainingSession, SleepRecord } from '../types'
+import { localDateStr } from './dateLocal'
 
 export type RiskLevel = 'low' | 'moderate' | 'high'
 
@@ -28,6 +29,7 @@ export interface InjuryRiskResult {
   atl: number
   ctl: number
   tsb: number
+  recoveryApplied: number
 }
 
 // ── セッションTSS（改良版） ────────────────────────────────────
@@ -69,6 +71,9 @@ export interface RiskInputExtra {
   mealQualityScore?: number
   screenTimeMinutes?: number
   restDaysThisWeek?: number
+  // ストレッチ・リカバリーで獲得した本日の軽減ポイント。
+  // 疲労蓄積(TSB)・直近疲労度のスコアを直接減らすことで、内訳画面にも効果が見えるようにする。
+  recoveryReductionPts?: number
 }
 
 export function calcInjuryRisk(
@@ -77,14 +82,17 @@ export function calcInjuryRisk(
   conditionLevel: number,
   hasRecentSymptom = false,
   extra: RiskInputExtra = {},
+  asOfMs?: number,
 ): InjuryRiskResult {
-  const now = Date.now()
+  // asOfMs を渡すと「その時点を今として」計算する（日付バーで過去の日を見る時に使用）
+  const now = asOfMs ?? Date.now()
   const MS_DAY = 86_400_000
 
   // ── 週間km（10%ルール） ────────────────────────────────────
-  const thisWeek = sessions.filter(s =>
-    now - new Date(s.session_date).getTime() <= 7 * MS_DAY
-  )
+  const thisWeek = sessions.filter(s => {
+    const age = now - new Date(s.session_date).getTime()
+    return age >= 0 && age <= 7 * MS_DAY
+  })
   const prevWeek = sessions.filter(s => {
     const age = now - new Date(s.session_date).getTime()
     return age > 7 * MS_DAY && age <= 14 * MS_DAY
@@ -105,7 +113,7 @@ export function calcInjuryRisk(
     dailyTSS[d] = (dailyTSS[d] ?? 0) + sessionTSS(s)
   })
   for (let i = 41; i >= 0; i--) {
-    const d = new Date(now - i * MS_DAY).toISOString().slice(0, 10)
+    const d = localDateStr(new Date(now - i * MS_DAY))
     const tss = dailyTSS[d] ?? 0
     atl = atl + α7  * (tss - atl)
     ctl = ctl + α42 * (tss - ctl)
@@ -114,7 +122,10 @@ export function calcInjuryRisk(
 
   // ── 睡眠（品質 + 時間） ────────────────────────────────────
   const recentSleep = sleepRecords
-    .filter(r => now - new Date(r.sleep_date).getTime() <= 4 * MS_DAY)
+    .filter(r => {
+      const age = now - new Date(r.sleep_date).getTime()
+      return age >= 0 && age <= 4 * MS_DAY
+    })
     .slice(0, 4)
   const avgSleepQ = recentSleep.length
     ? recentSleep.reduce((a, r) => a + (r.quality_score ?? 5), 0) / recentSleep.length
@@ -135,7 +146,10 @@ export function calcInjuryRisk(
   // 最近N日でfatigue >= 7の日が連続しているか（日付ベース、重複除去）
   const sortedDates = [...new Set(
     sessions
-      .filter(s => now - new Date(s.session_date).getTime() <= 14 * MS_DAY)
+      .filter(s => {
+        const age = now - new Date(s.session_date).getTime()
+        return age >= 0 && age <= 14 * MS_DAY
+      })
       .sort((a, b) => b.session_date.localeCompare(a.session_date))
       .map(s => s.session_date.slice(0, 10))
   )]
@@ -229,6 +243,14 @@ export function calcInjuryRisk(
   // 違和感・痛み（max 20）
   const symptomScore = hasRecentSymptom ? 20 : 0
 
+  // ── ストレッチ・リカバリーによる軽減（疲労蓄積・直近疲労度に直接反映）───
+  const recoveryRequested = Math.max(0, extra.recoveryReductionPts ?? 0)
+  const tsbReduction = Math.min(tsbScore, recoveryRequested)
+  tsbScore -= tsbReduction
+  const fatigueReduction = Math.min(fatigueScore, recoveryRequested - tsbReduction)
+  fatigueScore -= fatigueReduction
+  const recoveryApplied = tsbReduction + fatigueReduction
+
   // 合計（上限100）
   let score = loadScore + tsbScore + condScore + sleepQScore + sleepDurScore
             + fatigueScore + consecutiveScore + noRestScore
@@ -272,7 +294,8 @@ export function calcInjuryRisk(
       emoji: '⚡',
       score: Math.round((tsbScore / 25) * 100),
       maxScore: 25,
-      description: `TSB ${tsb > 0 ? '+' : ''}${tsb} · 直近疲労 ${avgRecentFatigue.toFixed(1)}/10`,
+      description: `TSB ${tsb > 0 ? '+' : ''}${tsb} · 直近疲労 ${avgRecentFatigue.toFixed(1)}/10`
+        + (tsbReduction > 0 ? `（ストレッチで-${tsbReduction}）` : ''),
     },
     {
       key: 'consecutive',
@@ -290,7 +313,7 @@ export function calcInjuryRisk(
       emoji: '💪',
       score: Math.round((condScore / 20) * 100),
       maxScore: 20,
-      description: `体調スコア ${conditionLevel}/10`,
+      description: `体調スコア ${conditionLevel.toFixed(1)}/10`,
     },
     {
       key: 'sleep',
@@ -310,9 +333,10 @@ export function calcInjuryRisk(
       emoji: '🔋',
       score: Math.round((fatigueScore / 15) * 100),
       maxScore: 15,
-      description: recentFatigue.length
+      description: (recentFatigue.length
         ? `直近${recentFatigue.length}回平均 ${avgRecentFatigue.toFixed(1)}/10`
-        : '記録なし',
+        : '記録なし')
+        + (fatigueReduction > 0 ? `（ストレッチで-${fatigueReduction}）` : ''),
     },
     {
       key: 'meal',
@@ -349,5 +373,6 @@ export function calcInjuryRisk(
     prevWeeklyKm: Math.round(prevWeeklyKm * 10) / 10,
     loadIncreasePct,
     atl: Math.round(atl), ctl: Math.round(ctl), tsb,
+    recoveryApplied,
   }
 }

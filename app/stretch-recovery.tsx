@@ -1,10 +1,11 @@
 // app/stretch-recovery.tsx — ストレッチリカバリー機能
 // フロー: 部位選択 → ストレッチ実施 → 完了
+// シンプル・ユニバーサルデザイン方針: イラスト/説明文なし、大きな文字、少ない要素
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
   View, Text, TouchableOpacity, ScrollView,
-  StyleSheet, Animated, Easing,
+  StyleSheet, TextInput, KeyboardAvoidingView, Platform, PanResponder,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
@@ -13,69 +14,38 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import Svg, { Circle } from 'react-native-svg'
 import * as Haptics from 'expo-haptics'
 import { Sounds, unlockAudio } from '../lib/sounds'
+import { todayLocalISO } from '../lib/dateLocal'
 
 const STRETCH_RESULT_KEY   = 'trackmate_stretch_result'
+const CUSTOM_PARTS_KEY     = 'trackmate_stretch_custom_parts'
+const PART_ORDER_KEY       = 'trackmate_stretch_part_order'
+const HIDDEN_PARTS_KEY     = 'trackmate_stretch_hidden_parts'
 const MAX_DAILY_REDUCTION  = 20
 
 // ── 部位データ ───────────────────────────────────────────────
 const BODY_PARTS = [
-  {
-    id:            'shoulder_neck',
-    name:          '肩・首',
-    icon:          '🙆',
-    muscle:        '僧帽筋・胸鎖乳突筋',
-    desc:          '首をゆっくり傾け、反対の手で軽く押さえる。肩の力を抜いて10秒キープ。',
-    illustration:  '🧘',
-    bilateral:     true,
-  },
-  {
-    id:            'lower_back',
-    name:          '腰・背中',
-    icon:          '🔙',
-    muscle:        '脊柱起立筋・腰方形筋',
-    desc:          '仰向けに寝て両膝を曲げ、左右にゆっくり倒す。腰の緊張をほぐす。',
-    illustration:  '🛌',
-    bilateral:     false,
-  },
-  {
-    id:            'hip',
-    name:          '股関節',
-    icon:          '🔄',
-    muscle:        '鼠蹊部・腸腰筋',
-    desc:          '片膝を前に出し、もう片方の膝を床につける。骨盤を前に押し出してキープ。',
-    illustration:  '🧎',
-    bilateral:     true,
-  },
-  {
-    id:            'hamstring',
-    name:          'ハムストリング',
-    icon:          '🦵',
-    muscle:        '太もも裏',
-    desc:          '床に座り片足を伸ばして前屈。膝を曲げずに太もも裏を伸ばす。',
-    illustration:  '🤸',
-    bilateral:     true,
-  },
-  {
-    id:            'calf_achilles',
-    name:          'ふくらはぎ',
-    icon:          '👟',
-    muscle:        '腓腹筋・アキレス腱',
-    desc:          '壁に手をつき片足を後ろに引いてかかとを床につける。ふくらはぎを伸ばす。',
-    illustration:  '🏃',
-    bilateral:     true,
-  },
-  {
-    id:            'ankle',
-    name:          '足首',
-    icon:          '🦶',
-    muscle:        '前脛骨筋・足底筋膜',
-    desc:          '足首をゆっくり大きく回す。内回し・外回しを各方向10回ずつ。',
-    illustration:  '🦵',
-    bilateral:     true,
-  },
+  { id: 'shoulder_neck',  name: '肩・首',         icon: '🙆', bilateral: true  },
+  { id: 'chest_scapula',  name: '胸・肩甲骨',     icon: '🫁', bilateral: true  },
+  { id: 'lower_back',     name: '腰・背中',       icon: '🔙', bilateral: false },
+  { id: 'core',           name: '体幹・腹斜筋',   icon: '🧘', bilateral: true  },
+  { id: 'hip',            name: '股関節',         icon: '🔄', bilateral: true  },
+  { id: 'glutes',         name: 'お尻',           icon: '🍑', bilateral: true  },
+  { id: 'adductor',       name: '内転筋',         icon: '🦵', bilateral: true  },
+  { id: 'quad',           name: '太もも前面',     icon: '🦿', bilateral: true  },
+  { id: 'hamstring',      name: 'ハムストリング', icon: '🦵', bilateral: true  },
+  { id: 'calf_achilles',  name: 'ふくらはぎ',     icon: '👟', bilateral: true  },
+  { id: 'ankle',          name: '足首',           icon: '🦶', bilateral: true  },
+  { id: 'wrist_forearm',  name: '手首・前腕',     icon: '💪', bilateral: true  },
 ] as const
 
-type PartId = typeof BODY_PARTS[number]['id']
+interface BodyPart {
+  id: string
+  name: string
+  icon: string
+  bilateral: boolean
+}
+
+type PartId = string
 type Side   = 'left' | 'right' | null
 
 // ── ロジック ─────────────────────────────────────────────────
@@ -85,12 +55,9 @@ function getRecommendedParts(riskScore: number): PartId[] {
   return []
 }
 
+// 実際に伸ばした秒数に比例して減少量を決める（15秒につき1pt、最低2pt、1日上限20pt）
 function calcRecoveryReduction(totalSeconds: number, skippedCount: number): number {
-  let base = 3
-  if      (totalSeconds >= 300) base = 15
-  else if (totalSeconds >= 180) base = 12
-  else if (totalSeconds >= 120) base = 9
-  else if (totalSeconds >= 60)  base = 6
+  const base = Math.max(2, Math.min(MAX_DAILY_REDUCTION, Math.round(totalSeconds / 15)))
   return Math.max(base - skippedCount, 1)
 }
 
@@ -100,24 +67,28 @@ function fmtTime(sec: number): string {
   return m > 0 ? `${m}分${s}秒` : `${s}秒`
 }
 
-async function saveResult(reduction: number, lastReduction: number) {
-  const today = new Date().toISOString().slice(0, 10)
+// 1日の上限を考慮して実際に適用される減少量を返す
+async function saveResult(reduction: number): Promise<{ applied: number; capped: boolean }> {
+  const today = todayLocalISO()
   try {
     const existing = await AsyncStorage.getItem(STRETCH_RESULT_KEY)
-    let total = reduction
+    let prevTotal = 0
     if (existing) {
       const parsed = JSON.parse(existing)
-      if (parsed.date === today) {
-        total = Math.min(MAX_DAILY_REDUCTION, parsed.reduction + reduction)
-      }
+      if (parsed.date === today) prevTotal = parsed.reduction ?? 0
     }
+    const newTotal = Math.min(MAX_DAILY_REDUCTION, prevTotal + reduction)
+    const applied  = newTotal - prevTotal
     await AsyncStorage.setItem(STRETCH_RESULT_KEY, JSON.stringify({
       date: today,
-      reduction: total,
-      showBanner: true,
-      lastReduction,
+      reduction: newTotal,
+      showBanner: applied > 0,
+      lastReduction: applied,
     }))
-  } catch {}
+    return { applied, capped: applied < reduction }
+  } catch {
+    return { applied: 0, capped: false }
+  }
 }
 
 // ── 円形タイマー ──────────────────────────────────────────────
@@ -126,80 +97,236 @@ function CircularTimer({ progress, seconds, color }: {
   seconds: number
   color:    string
 }) {
-  const r             = 68
+  const r             = 78
   const circumference = 2 * Math.PI * r
   const dashOffset    = circumference * (1 - progress)
 
   return (
-    <View style={{ width: 160, height: 160, alignItems: 'center', justifyContent: 'center' }}>
-      <Svg width={160} height={160} viewBox="0 0 160 160" style={{ position: 'absolute' }}>
-        <Circle cx={80} cy={80} r={r} fill="none" stroke="#e5e7eb" strokeWidth={8} />
+    <View style={{ width: 180, height: 180, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={180} height={180} viewBox="0 0 180 180" style={{ position: 'absolute' }}>
+        <Circle cx={90} cy={90} r={r} fill="none" stroke="#e5e7eb" strokeWidth={10} />
         <Circle
-          cx={80} cy={80} r={r}
+          cx={90} cy={90} r={r}
           fill="none"
           stroke={color}
-          strokeWidth={8}
+          strokeWidth={10}
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={dashOffset}
           rotation={-90}
-          origin="80, 80"
+          origin="90, 90"
         />
       </Svg>
-      <Text style={{ color: '#111827', fontSize: 56, fontWeight: '900', lineHeight: 60 }}>
+      <Text style={{ color: '#111827', fontSize: 60, fontWeight: '900', lineHeight: 64 }}>
         {seconds.toString().padStart(2, '0')}
       </Text>
     </View>
   )
 }
 
-// ── イラストアニメーション ────────────────────────────────────
-function PartIllustration({ illustration, isActive }: { illustration: string; isActive: boolean }) {
-  const scale = useRef(new Animated.Value(1)).current
+// ── 並び替え可能リスト（ドラッグ&ドロップ・削除） ──────────────────
+const REORDER_ROW_H = 60
 
-  useEffect(() => {
-    if (!isActive) { scale.setValue(1); return }
-    const loop = Animated.loop(Animated.sequence([
-      Animated.timing(scale, { toValue: 1.2, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      Animated.timing(scale, { toValue: 0.9, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-    ]))
-    loop.start()
-    return () => loop.stop()
-  }, [isActive])
+function ReorderRow({
+  part, translateY, active, onDragStart, onDragMove, onDragEnd, onDelete,
+}: {
+  part:        BodyPart
+  translateY:  number
+  active:      boolean
+  onDragStart: () => void
+  onDragMove:  (dy: number) => void
+  onDragEnd:   () => void
+  onDelete:    () => void
+}) {
+  const onDragStartRef = useRef(onDragStart)
+  const onDragMoveRef  = useRef(onDragMove)
+  const onDragEndRef   = useRef(onDragEnd)
+  onDragStartRef.current = onDragStart
+  onDragMoveRef.current  = onDragMove
+  onDragEndRef.current   = onDragEnd
+
+  const responder = React.useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponderCapture: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponderCapture: () => true,
+      onPanResponderGrant: () => onDragStartRef.current(),
+      onPanResponderMove: (_, g) => onDragMoveRef.current(g.dy),
+      onPanResponderRelease: () => onDragEndRef.current(),
+      onPanResponderTerminate: () => onDragEndRef.current(),
+    })
+  ).current
 
   return (
-    <Animated.View style={[il.wrap, { transform: [{ scale }] }]}>
-      <Text style={{ fontSize: 72 }}>{illustration}</Text>
-    </Animated.View>
+    <View
+      style={[
+        rl.row,
+        active && rl.rowActive,
+        { transform: [{ translateY }], zIndex: active ? 10 : 1 },
+      ]}
+    >
+      <View {...responder.panHandlers} style={rl.handle} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <Ionicons name="reorder-three" size={22} color="#bbb" />
+      </View>
+      <Text style={{ fontSize: 22, marginRight: 10 }}>{part.icon}</Text>
+      <Text style={rl.rowName}>{part.name}</Text>
+      <TouchableOpacity onPress={onDelete} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <Ionicons name="trash-outline" size={18} color="#C8102E" />
+      </TouchableOpacity>
+    </View>
   )
 }
-const il = StyleSheet.create({
-  wrap: { width: 120, height: 120, alignItems: 'center', justifyContent: 'center' },
+
+function ReorderableList({
+  parts, onReorder, onDelete, onDragActiveChange,
+}: {
+  parts:              BodyPart[]
+  onReorder:          (ids: string[]) => void
+  onDelete:           (id: string) => void
+  onDragActiveChange?: (active: boolean) => void
+}) {
+  const [order, setOrder] = useState<string[]>(parts.map(p => p.id))
+  const orderRef = useRef(order)
+  orderRef.current = order
+  const byId = Object.fromEntries(parts.map(p => [p.id, p]))
+  const partsKey = parts.map(p => p.id).join(',')
+
+  useEffect(() => {
+    setOrder(prev => {
+      const ids = parts.map(p => p.id)
+      const kept  = prev.filter(id => ids.includes(id))
+      const added = ids.filter(id => !kept.includes(id))
+      return [...kept, ...added]
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [partsKey])
+
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [dragDy, setDragDy] = useState(0)
+  const startIndexRef = useRef(0)
+  const committedRef   = useRef(0)
+
+  function startDrag(id: string) {
+    setDragId(id)
+    setDragDy(0)
+    startIndexRef.current = orderRef.current.indexOf(id)
+    committedRef.current = 0
+    onDragActiveChange?.(true)
+  }
+
+  function moveDrag(id: string, dy: number) {
+    setDragDy(dy)
+    const rawTarget = startIndexRef.current + Math.round(dy / REORDER_ROW_H)
+    const target = Math.max(0, Math.min(orderRef.current.length - 1, rawTarget))
+    const committed = target - startIndexRef.current
+    if (committed !== committedRef.current) {
+      const cur = [...orderRef.current]
+      const from = cur.indexOf(id)
+      cur.splice(from, 1)
+      cur.splice(target, 0, id)
+      committedRef.current = committed
+      setOrder(cur)
+    }
+  }
+
+  function endDrag() {
+    setDragId(null)
+    setDragDy(0)
+    onDragActiveChange?.(false)
+    onReorder(orderRef.current)
+  }
+
+  return (
+    <View style={{ marginBottom: 20 }}>
+      {order.map(id => {
+        const part = byId[id]
+        if (!part) return null
+        const isDragging = dragId === id
+        const liveOffset  = isDragging ? dragDy - committedRef.current * REORDER_ROW_H : 0
+        return (
+          <ReorderRow
+            key={id}
+            part={part}
+            translateY={liveOffset}
+            active={isDragging}
+            onDragStart={() => startDrag(id)}
+            onDragMove={(dy) => moveDrag(id, dy)}
+            onDragEnd={endDrag}
+            onDelete={() => onDelete(id)}
+          />
+        )
+      })}
+    </View>
+  )
+}
+
+const rl = StyleSheet.create({
+  row: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    height: REORDER_ROW_H, paddingHorizontal: 14,
+    backgroundColor: '#fff', borderRadius: 14,
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)',
+    marginBottom: 8,
+  },
+  rowActive: {
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15, shadowRadius: 10, elevation: 6,
+  },
+  handle:  { padding: 4 },
+  rowName: { flex: 1, fontSize: 15, fontWeight: '700', color: '#111827' },
 })
 
 // ══════════════════════════════════════════════════════════════
 // 画面1: 部位選択
 // ══════════════════════════════════════════════════════════════
 function PartSelectScreen({
-  riskScore,
   selected,
   recommended,
+  parts,
   onToggle,
   onStart,
+  onAddCustom,
+  onReorder,
+  onDeletePart,
 }: {
-  riskScore:   number
-  selected:    Set<PartId>
-  recommended: PartId[]
-  onToggle:    (id: PartId) => void
-  onStart:     () => void
+  selected:     Set<PartId>
+  recommended:  PartId[]
+  parts:        BodyPart[]
+  onToggle:     (id: PartId) => void
+  onStart:      () => void
+  onAddCustom:  (name: string) => void
+  onReorder:    (ids: string[]) => void
+  onDeletePart: (id: string) => void
 }) {
-  return (
-    <ScrollView contentContainerStyle={ps.content} showsVerticalScrollIndicator={false}>
-      <Text style={ps.title}>どこをストレッチしますか？</Text>
-      <Text style={ps.sub}>気になる部位を複数選んでください</Text>
+  const [adding, setAdding]         = useState(false)
+  const [customName, setCustomName] = useState('')
+  const [editMode, setEditMode]     = useState(false)
+  const [dragging, setDragging]     = useState(false)
+  const allParts = parts
 
+  const submitCustom = () => {
+    if (!customName.trim()) return
+    onAddCustom(customName.trim())
+    setCustomName('')
+    setAdding(false)
+  }
+
+  return (
+    <ScrollView contentContainerStyle={ps.content} showsVerticalScrollIndicator={false} scrollEnabled={!dragging}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+        <Text style={[ps.title, { marginBottom: 0 }]}>どこを伸ばしますか？</Text>
+        <TouchableOpacity onPress={() => setEditMode(v => !v)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <Ionicons name={editMode ? 'checkmark' : 'swap-vertical'} size={16} color="#666" />
+          <Text style={{ fontSize: 13, fontWeight: '700', color: '#666' }}>{editMode ? '完了' : '並び替え'}</Text>
+        </TouchableOpacity>
+      </View>
+
+      {editMode ? (
+        <ReorderableList parts={allParts} onReorder={onReorder} onDelete={onDeletePart} onDragActiveChange={setDragging} />
+      ) : (
       <View style={ps.grid}>
-        {BODY_PARTS.map(part => {
+        {allParts.map(part => {
           const isSelected  = selected.has(part.id)
           const isRecommend = recommended.includes(part.id)
           return (
@@ -211,21 +338,47 @@ function PartSelectScreen({
             >
               {isRecommend && (
                 <View style={ps.badge}>
-                  <Text style={ps.badgeText}>推奨</Text>
+                  <Text style={ps.badgeText}>おすすめ</Text>
                 </View>
               )}
-              {part.bilateral && (
-                <View style={ps.bilateralBadge}>
-                  <Text style={ps.bilateralBadgeText}>左右</Text>
-                </View>
-              )}
-              <Text style={{ fontSize: 36, marginBottom: 6 }}>{part.icon}</Text>
+              <Text style={{ fontSize: 32, marginBottom: 8 }}>{part.icon}</Text>
               <Text style={[ps.partName, isSelected && { color: '#C8102E' }]}>{part.name}</Text>
-              <Text style={[ps.partMuscle, isSelected && { color: 'rgba(200,16,46,0.6)' }]}>{part.muscle}</Text>
             </TouchableOpacity>
           )
         })}
+
+        {adding ? (
+          <View style={[ps.card, { paddingVertical: 14, justifyContent: 'center' }]}>
+            <TextInput
+              value={customName}
+              onChangeText={setCustomName}
+              placeholder="部位名を入力"
+              placeholderTextColor="#ccc"
+              autoFocus
+              onSubmitEditing={submitCustom}
+              style={{ fontSize: 15, fontWeight: '700', color: '#111827', textAlign: 'center', paddingVertical: 4 }}
+            />
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, justifyContent: 'center' }}>
+              <TouchableOpacity onPress={() => { setAdding(false); setCustomName('') }}>
+                <Text style={{ color: '#999', fontWeight: '700', fontSize: 13 }}>キャンセル</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={submitCustom}>
+                <Text style={{ color: '#C8102E', fontWeight: '800', fontSize: 13 }}>追加</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={[ps.card, { borderStyle: 'dashed', justifyContent: 'center' }]}
+            onPress={() => setAdding(true)}
+            activeOpacity={0.75}
+          >
+            <Ionicons name="add-circle-outline" size={28} color="#999" style={{ marginBottom: 8 }} />
+            <Text style={[ps.partName, { color: '#999' }]}>自分で追加</Text>
+          </TouchableOpacity>
+        )}
       </View>
+      )}
 
       <TouchableOpacity
         style={[ps.startBtn, selected.size === 0 && { opacity: 0.35 }]}
@@ -233,8 +386,8 @@ function PartSelectScreen({
         disabled={selected.size === 0}
         activeOpacity={0.85}
       >
-        <Text style={ps.startBtnText}>ストレッチを開始する（{selected.size}部位）</Text>
-        <Ionicons name="arrow-forward" size={18} color="#fff" />
+        <Text style={ps.startBtnText}>{selected.size}部位を始める</Text>
+        <Ionicons name="arrow-forward" size={20} color="#fff" />
       </TouchableOpacity>
     </ScrollView>
   )
@@ -242,41 +395,29 @@ function PartSelectScreen({
 
 const ps = StyleSheet.create({
   content:       { padding: 20, paddingBottom: 40 },
-  title:         { color: '#111827', fontSize: 22, fontWeight: '900', marginBottom: 6 },
-  sub:           { color: '#6b7280', fontSize: 13, marginBottom: 22 },
-  grid:          { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
+  title:         { color: '#111827', fontSize: 24, fontWeight: '900', marginBottom: 24 },
+  grid:          { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 28 },
   card:          {
     width: '47%', backgroundColor: '#ffffff',
-    borderRadius: 16, borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.08)',
-    padding: 16, alignItems: 'center', gap: 4, position: 'relative',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
+    borderRadius: 18, borderWidth: 2, borderColor: 'rgba(0,0,0,0.08)',
+    paddingVertical: 22, alignItems: 'center', position: 'relative',
   },
   cardSelected: {
     borderColor: '#C8102E',
-    backgroundColor: 'rgba(229,57,53,0.05)',
+    backgroundColor: 'rgba(200,16,46,0.05)',
   },
   badge:         {
-    position: 'absolute', top: 8, right: 8,
-    backgroundColor: '#f59e0b', borderRadius: 6,
-    paddingHorizontal: 6, paddingVertical: 2,
+    position: 'absolute', top: 10, right: 10,
+    backgroundColor: '#f59e0b', borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 3,
   },
-  badgeText:     { color: '#fff', fontSize: 9, fontWeight: '900' },
-  bilateralBadge: {
-    position: 'absolute', top: 8, left: 8,
-    backgroundColor: 'rgba(37,99,235,0.12)', borderRadius: 6,
-    paddingHorizontal: 5, paddingVertical: 2,
-  },
-  bilateralBadgeText: { color: '#2563eb', fontSize: 9, fontWeight: '900' },
-  partName:      { color: '#111827', fontSize: 13, fontWeight: '800', textAlign: 'center' },
-  partMuscle:    { color: '#9ca3af', fontSize: 10, textAlign: 'center' },
+  badgeText:     { color: '#fff', fontSize: 10, fontWeight: '900' },
+  partName:      { color: '#111827', fontSize: 16, fontWeight: '800', textAlign: 'center' },
   startBtn:      {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, backgroundColor: '#1c1c1e', borderRadius: 50, paddingVertical: 17,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18, shadowRadius: 12, elevation: 5,
+    gap: 8, backgroundColor: '#C8102E', borderRadius: 50, paddingVertical: 19,
   },
-  startBtnText:  { color: '#fff', fontSize: 15, fontWeight: '900', letterSpacing: -0.3 },
+  startBtnText:  { color: '#fff', fontSize: 17, fontWeight: '900' },
 })
 
 // ══════════════════════════════════════════════════════════════
@@ -292,7 +433,7 @@ function StretchScreen({
   onBack,
   onChangeSeconds,
 }: {
-  parts:             typeof BODY_PARTS[number][]
+  parts:             BodyPart[]
   secondsPerStretch: number
   onComplete:        (totalSec: number, skipped: number) => void
   onSkip:            (partId: PartId) => void
@@ -313,6 +454,9 @@ function StretchScreen({
   const isLast   = currentIndex === parts.length - 1
   const isManual = secondsPerStretch === 0
 
+  // 手動モード用: 現在の部位/サイドに入った時刻（実際に伸ばした時間を計測するため）
+  const manualEnterRef = useRef<number>(Date.now())
+
   // ── 部位変更時リセット ─────────────────────────────────────
   useEffect(() => {
     const p = parts[currentIndex]
@@ -321,6 +465,7 @@ function StretchScreen({
     setSecondsLeft(secondsPerStretch > 0 ? secondsPerStretch : 0)
     setIsStarted(false)
     setIsPaused(false)
+    manualEnterRef.current = Date.now()
   }, [currentIndex])
 
   // ── 秒数変更時リセット ────────────────────────────────────
@@ -337,6 +482,7 @@ function StretchScreen({
       setSecondsLeft(secondsPerStretch > 0 ? secondsPerStretch : 0)
       setIsStarted(false)
       setIsPaused(false)
+      manualEnterRef.current = Date.now()
     }
     prevSideRef.current = side
   }, [side])
@@ -363,7 +509,6 @@ function StretchScreen({
       }
     }
 
-    // 残り5秒カウントダウン音（1〜5のときのみ）
     if (secondsLeft > 0 && secondsLeft <= 5) {
       Sounds.tap()
     }
@@ -371,6 +516,11 @@ function StretchScreen({
     return () => clearInterval(timer)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [secondsLeft, isPaused, isStarted, side, isManual])
+
+  // 手動モードで実際に経過した秒数
+  function manualElapsedSeconds(): number {
+    return Math.max(0, Math.round((Date.now() - manualEnterRef.current) / 1000))
+  }
 
   // ── 次の部位へ進む ────────────────────────────────────────
   function advanceNext(wasSkipped: boolean, overrideElapsed?: number) {
@@ -399,14 +549,14 @@ function StretchScreen({
     if (side === 'left') {
       // 左側完了 → 右側へ切り替え
       Sounds.ding()
-      const elapsed = isManual ? 0 : secondsPerStretch - secondsLeft
+      const elapsed = isManual ? manualElapsedSeconds() : secondsPerStretch - secondsLeft
       setLeftElapsed(elapsed)
       setSide('right')
     } else {
       // 右側 or 片側完了
       Sounds.save()
       const elapsed = isManual
-        ? 0
+        ? leftElapsed + manualElapsedSeconds()
         : side === 'right'
           ? leftElapsed + (secondsPerStretch - secondsLeft)
           : secondsPerStretch - secondsLeft
@@ -429,18 +579,20 @@ function StretchScreen({
 
   const completeLabel = side === 'left' ? '左完了 →' : '完了'
 
+  if (!part) return null
+
   return (
     <View style={{ flex: 1 }}>
       {/* 進捗 */}
       <View style={ss.progressRow}>
-        <Text style={ss.progressText}>{currentIndex + 1}/{parts.length} 部位</Text>
+        <Text style={ss.progressText}>{currentIndex + 1}/{parts.length}</Text>
         <TouchableOpacity
           style={ss.timeBadge}
           onPress={() => setShowTimePicker(v => !v)}
           activeOpacity={0.7}
         >
           <Text style={ss.timeBadgeText}>
-            {isManual ? '⏱ 手動' : `⏱ ${secondsPerStretch}秒`}
+            {isManual ? '⏱ 自由' : `⏱ ${secondsPerStretch}秒`}
           </Text>
         </TouchableOpacity>
       </View>
@@ -456,7 +608,7 @@ function StretchScreen({
               activeOpacity={0.7}
             >
               <Text style={[ss.timeOptText, t === secondsPerStretch && { color: '#C8102E' }]}>
-                {t === 0 ? '手動' : `${t}秒`}
+                {t === 0 ? '自由' : `${t}秒`}
               </Text>
             </TouchableOpacity>
           ))}
@@ -464,16 +616,9 @@ function StretchScreen({
       )}
 
       <ScrollView contentContainerStyle={ss.content} showsVerticalScrollIndicator={false}>
-        {/* イラスト */}
-        <View style={{ alignItems: 'center', marginBottom: 12 }}>
-          <PartIllustration
-            illustration={part.illustration}
-            isActive={isManual ? true : (!isPaused && isStarted)}
-          />
-        </View>
-
         {/* 部位名 */}
-        <Text style={ss.partName}>{part.icon} {part.name}</Text>
+        <Text style={ss.partIcon}>{part.icon}</Text>
+        <Text style={ss.partName}>{part.name}</Text>
 
         {/* 左右インジケーター（bilateral のみ） */}
         {side !== null && (
@@ -488,12 +633,9 @@ function StretchScreen({
           </View>
         )}
 
-        <Text style={ss.muscle}>{part.muscle}</Text>
-        <Text style={ss.desc}>{part.desc}</Text>
-
-        {/* タイマー or 手動スペース */}
+        {/* タイマー or 手動表示 */}
         {!isManual ? (
-          <View style={{ alignItems: 'center', marginVertical: 24 }}>
+          <View style={{ alignItems: 'center', marginVertical: 28 }}>
             <CircularTimer
               progress={progress}
               seconds={secondsLeft}
@@ -501,15 +643,17 @@ function StretchScreen({
             />
           </View>
         ) : (
-          <View style={{ height: 32 }} />
+          <View style={{ alignItems: 'center', marginVertical: 28 }}>
+            <Ionicons name="timer-outline" size={64} color="#d1d5db" />
+            <Text style={ss.manualHint}>終わったら「完了」を押してください</Text>
+          </View>
         )}
 
         {/* ── スタート前（タイマーモード）── */}
         {!isStarted && !isManual && (
           <View style={ss.btnRow}>
             <TouchableOpacity style={ss.subBtn} onPress={handleBack} activeOpacity={0.7}>
-              <Ionicons name="arrow-back" size={18} color="#9ca3af" />
-              <Text style={ss.subBtnText}>戻る</Text>
+              <Ionicons name="arrow-back" size={20} color="#9ca3af" />
             </TouchableOpacity>
             <TouchableOpacity
               style={[ss.mainBtn, { backgroundColor: '#C8102E' }]}
@@ -519,14 +663,13 @@ function StretchScreen({
               }}
               activeOpacity={0.85}
             >
-              <Ionicons name="play" size={18} color="#fff" />
+              <Ionicons name="play" size={20} color="#fff" />
               <Text style={ss.mainBtnText}>
                 {side === 'left' ? '左スタート' : side === 'right' ? '右スタート' : 'スタート'}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity style={ss.subBtn} onPress={() => advanceNext(true)} activeOpacity={0.7}>
-              <Text style={ss.subBtnText}>スキップ</Text>
-              <Ionicons name="arrow-forward" size={18} color="#9ca3af" />
+              <Text style={ss.skipText}>スキップ</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -535,58 +678,44 @@ function StretchScreen({
         {isManual && (
           <View style={ss.btnRow}>
             <TouchableOpacity style={ss.subBtn} onPress={handleBack} activeOpacity={0.7}>
-              <Ionicons name="arrow-back" size={18} color="#9ca3af" />
-              <Text style={ss.subBtnText}>戻る</Text>
+              <Ionicons name="arrow-back" size={20} color="#9ca3af" />
             </TouchableOpacity>
             <TouchableOpacity
               style={[ss.mainBtn, { backgroundColor: '#C8102E' }]}
               onPress={handleComplete}
               activeOpacity={0.85}
             >
-              <Ionicons name={side === 'left' ? 'arrow-forward' : 'checkmark'} size={18} color="#fff" />
+              <Ionicons name={side === 'left' ? 'arrow-forward' : 'checkmark'} size={20} color="#fff" />
               <Text style={ss.mainBtnText}>{completeLabel}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={ss.subBtn} onPress={() => advanceNext(true)} activeOpacity={0.7}>
-              <Text style={ss.subBtnText}>スキップ</Text>
-              <Ionicons name="arrow-forward" size={18} color="#9ca3af" />
+              <Text style={ss.skipText}>スキップ</Text>
             </TouchableOpacity>
           </View>
         )}
 
         {/* ── 実施中（タイマーモード）── */}
         {isStarted && !isManual && (
-          <>
-            <View style={ss.btnRow}>
-              <TouchableOpacity style={ss.subBtn} onPress={handleBack} activeOpacity={0.7}>
-                <Ionicons name="arrow-back" size={18} color="#9ca3af" />
-                <Text style={ss.subBtnText}>戻る</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[ss.mainBtn, isPaused ? { backgroundColor: '#34C759' } : { backgroundColor: '#555' }]}
-                onPress={() => setIsPaused(v => !v)}
-                activeOpacity={0.85}
-              >
-                <Ionicons name={isPaused ? 'play' : 'pause'} size={16} color="#fff" />
-                <Text style={ss.mainBtnText}>{isPaused ? '再開' : '一時停止'}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[ss.mainBtn, { backgroundColor: '#C8102E' }]}
-                onPress={handleComplete}
-                activeOpacity={0.85}
-              >
-                <Ionicons name={side === 'left' ? 'arrow-forward' : 'checkmark'} size={18} color="#fff" />
-                <Text style={ss.mainBtnText}>{completeLabel}</Text>
-              </TouchableOpacity>
-            </View>
-            <TouchableOpacity
-              style={[ss.subBtn, { alignSelf: 'flex-end', marginTop: 6, paddingHorizontal: 16 }]}
-              onPress={() => advanceNext(true)}
-              activeOpacity={0.7}
-            >
-              <Text style={ss.subBtnText}>スキップ</Text>
-              <Ionicons name="arrow-forward" size={16} color="#9ca3af" />
+          <View style={ss.btnRow}>
+            <TouchableOpacity style={ss.subBtn} onPress={handleBack} activeOpacity={0.7}>
+              <Ionicons name="arrow-back" size={20} color="#9ca3af" />
             </TouchableOpacity>
-          </>
+            <TouchableOpacity
+              style={[ss.mainBtn, isPaused ? { backgroundColor: '#34C759' } : { backgroundColor: '#555' }]}
+              onPress={() => setIsPaused(v => !v)}
+              activeOpacity={0.85}
+            >
+              <Ionicons name={isPaused ? 'play' : 'pause'} size={18} color="#fff" />
+              <Text style={ss.mainBtnText}>{isPaused ? '再開' : '一時停止'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[ss.subBtn2, { backgroundColor: '#C8102E' }]}
+              onPress={handleComplete}
+              activeOpacity={0.85}
+            >
+              <Ionicons name={side === 'left' ? 'arrow-forward' : 'checkmark'} size={20} color="#fff" />
+            </TouchableOpacity>
+          </View>
         )}
       </ScrollView>
     </View>
@@ -598,36 +727,34 @@ const ss = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12,
   },
-  progressText:  { color: '#6b7280', fontSize: 13, fontWeight: '700' },
+  progressText:  { color: '#6b7280', fontSize: 14, fontWeight: '700' },
   timeBadge:     {
     backgroundColor: '#f0f2f5', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
-    paddingHorizontal: 10, paddingVertical: 4,
+    paddingHorizontal: 10, paddingVertical: 5,
   },
-  timeBadgeText: { color: '#6b7280', fontSize: 12, fontWeight: '700' },
+  timeBadgeText: { color: '#6b7280', fontSize: 13, fontWeight: '700' },
   timePicker:    {
     flexDirection: 'row', justifyContent: 'center', gap: 8,
     paddingHorizontal: 20, paddingBottom: 10,
   },
   timeOpt:       {
     flex: 1, backgroundColor: '#ffffff',
-    borderRadius: 10, paddingVertical: 10, alignItems: 'center',
+    borderRadius: 10, paddingVertical: 12, alignItems: 'center',
     borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
   },
-  timeOptActive: { backgroundColor: 'rgba(22,101,52,0.08)', borderWidth: 1.5, borderColor: '#166534' },
-  timeOptText:   { color: '#6b7280', fontSize: 13, fontWeight: '700' },
+  timeOptActive: { backgroundColor: 'rgba(200,16,46,0.06)', borderWidth: 1.5, borderColor: '#C8102E' },
+  timeOptText:   { color: '#6b7280', fontSize: 14, fontWeight: '700' },
   content:       { padding: 20, paddingBottom: 40, alignItems: 'center' },
-  partName:      { color: '#111827', fontSize: 22, fontWeight: '900', marginBottom: 6, textAlign: 'center' },
-  muscle:        { color: '#6b7280', fontSize: 12, marginBottom: 10, textAlign: 'center' },
-  desc:          { color: '#6b7280', fontSize: 13, lineHeight: 20, textAlign: 'center', paddingHorizontal: 10 },
+  partIcon:      { fontSize: 48, marginBottom: 8 },
+  partName:      { color: '#111827', fontSize: 26, fontWeight: '900', textAlign: 'center' },
+  manualHint:    { color: '#9ca3af', fontSize: 14, fontWeight: '600', marginTop: 12, textAlign: 'center' },
   // 左右インジケーター
   sideIndicator: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    marginBottom: 8, marginTop: 2,
+    marginTop: 14,
   },
   sideStep: {
-    width: 34, height: 34, borderRadius: 17,
+    width: 38, height: 38, borderRadius: 19,
     backgroundColor: 'rgba(0,0,0,0.06)',
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.10)',
@@ -637,26 +764,28 @@ const ss = StyleSheet.create({
     borderColor: '#C8102E',
   },
   sideStepText: {
-    color: '#9ca3af', fontSize: 13, fontWeight: '900',
+    color: '#9ca3af', fontSize: 14, fontWeight: '900',
   },
   // ボタン
   btnRow:        {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
     width: '100%', marginTop: 8,
   },
   mainBtn:       {
-    flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, backgroundColor: '#f0f2f5', borderRadius: 14, paddingVertical: 14,
-    borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
-  },
-  mainBtnText:   { color: '#111827', fontSize: 14, fontWeight: '800' },
-  subBtn:        {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 4, borderWidth: 1, borderColor: 'rgba(0,0,0,0.10)',
-    borderRadius: 14, paddingVertical: 14,
-    backgroundColor: '#ffffff',
+    gap: 8, borderRadius: 16, paddingVertical: 18,
   },
-  subBtnText:    { color: '#9ca3af', fontSize: 12, fontWeight: '700' },
+  mainBtnText:   { color: '#fff', fontSize: 16, fontWeight: '900' },
+  subBtn:        {
+    width: 52, height: 52, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.10)',
+    borderRadius: 16, backgroundColor: '#ffffff',
+  },
+  subBtn2:       {
+    width: 52, height: 52, alignItems: 'center', justifyContent: 'center',
+    borderRadius: 16,
+  },
+  skipText:      { color: '#9ca3af', fontSize: 10, fontWeight: '700' },
 })
 
 // ══════════════════════════════════════════════════════════════
@@ -664,34 +793,26 @@ const ss = StyleSheet.create({
 // ══════════════════════════════════════════════════════════════
 function CompleteScreen({
   riskBefore,
-  reduction,
+  applied,
+  capped,
   completedParts,
   totalSeconds,
   onHome,
 }: {
   riskBefore:     number
-  reduction:      number
+  applied:        number
+  capped:         boolean
   completedParts: number
   totalSeconds:   number
   onHome:         () => void
 }) {
-  const riskAfter = Math.max(0, riskBefore - reduction)
-
-  const scale = useRef(new Animated.Value(0.7)).current
-  const opacity = useRef(new Animated.Value(0)).current
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.spring(scale, { toValue: 1, tension: 60, friction: 8, useNativeDriver: true }),
-      Animated.timing(opacity, { toValue: 1, duration: 400, useNativeDriver: true }),
-    ]).start()
-  }, [])
+  const riskAfter = Math.max(0, riskBefore - applied)
 
   return (
     <ScrollView contentContainerStyle={cs.content} showsVerticalScrollIndicator={false}>
-      <Animated.View style={[cs.card, { transform: [{ scale }], opacity }]}>
-        <Text style={{ fontSize: 56, marginBottom: 8 }}>🎉</Text>
-        <Text style={cs.title}>ストレッチ完了！</Text>
+      <View style={cs.card}>
+        <Ionicons name="checkmark-circle" size={56} color="#34C759" style={{ marginBottom: 8 }} />
+        <Text style={cs.title}>お疲れさまでした</Text>
 
         <View style={cs.statsRow}>
           <View style={cs.stat}>
@@ -708,14 +829,20 @@ function CompleteScreen({
         <Text style={cs.riskLabel}>怪我リスクスコア</Text>
         <View style={cs.riskRow}>
           <Text style={cs.riskBefore}>{riskBefore}</Text>
-          <Ionicons name="arrow-forward" size={20} color="#888" style={{ marginHorizontal: 8 }} />
+          <Ionicons name="arrow-forward" size={22} color="#888" style={{ marginHorizontal: 10 }} />
           <Text style={cs.riskAfter}>{riskAfter}</Text>
         </View>
-        <Text style={cs.riskDelta}>(-{reduction}ポイント)</Text>
-      </Animated.View>
+        {applied > 0 ? (
+          <Text style={cs.riskDelta}>-{applied}ポイント</Text>
+        ) : (
+          <Text style={cs.riskCapped}>本日の減少上限に達しています</Text>
+        )}
+        {applied > 0 && capped && (
+          <Text style={cs.riskCapped}>(本日の上限に近づいています)</Text>
+        )}
+      </View>
 
       <TouchableOpacity style={cs.homeBtn} onPress={onHome} activeOpacity={0.85}>
-        <Ionicons name="home" size={18} color="#fff" />
         <Text style={cs.homeBtnText}>ホームに戻る</Text>
       </TouchableOpacity>
     </ScrollView>
@@ -728,8 +855,6 @@ const cs = StyleSheet.create({
     width: '100%', backgroundColor: '#ffffff',
     borderRadius: 20, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
     padding: 28, alignItems: 'center', marginBottom: 24,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08, shadowRadius: 16, elevation: 4,
   },
   title:      { color: '#111827', fontSize: 22, fontWeight: '900', marginBottom: 20 },
   statsRow:   { flexDirection: 'row', alignItems: 'center', marginBottom: 24, gap: 20 },
@@ -739,17 +864,16 @@ const cs = StyleSheet.create({
   divider:    { width: 1, height: 36, backgroundColor: 'rgba(0,0,0,0.08)' },
   riskLabel:  { color: '#9ca3af', fontSize: 11, fontWeight: '700', marginBottom: 8, letterSpacing: 1 },
   riskRow:    { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  riskBefore: { color: '#ef4444', fontSize: 36, fontWeight: '900' },
-  riskAfter:  { color: '#22c55e', fontSize: 36, fontWeight: '900' },
-  riskDelta:  { color: '#22c55e', fontSize: 14, fontWeight: '700' },
+  riskBefore: { color: '#ef4444', fontSize: 40, fontWeight: '900' },
+  riskAfter:  { color: '#22c55e', fontSize: 40, fontWeight: '900' },
+  riskDelta:  { color: '#22c55e', fontSize: 15, fontWeight: '800' },
+  riskCapped: { color: '#9ca3af', fontSize: 12, fontWeight: '600', marginTop: 2 },
   homeBtn:    {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 8, backgroundColor: '#1c1c1e', borderRadius: 50,
-    paddingVertical: 17, width: '100%',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18, shadowRadius: 12, elevation: 5,
+    paddingVertical: 18, width: '100%',
   },
-  homeBtnText:{ color: '#fff', fontSize: 15, fontWeight: '900', letterSpacing: -0.3 },
+  homeBtnText:{ color: '#fff', fontSize: 16, fontWeight: '900' },
 })
 
 // ══════════════════════════════════════════════════════════════
@@ -767,9 +891,82 @@ export default function StretchRecoveryScreen() {
   const [phase, setPhase]       = useState<Phase>('select')
   const [secondsPerStretch, setSecondsPerStretch] = useState(30)
   const [skippedParts, setSkippedParts] = useState<PartId[]>([])
-  const [result, setResult] = useState<{ totalSec: number; reduction: number } | null>(null)
+  const [result, setResult] = useState<{ totalSec: number; applied: number; capped: boolean } | null>(null)
+  const [customParts, setCustomParts] = useState<BodyPart[]>([])
+  const [hiddenIds,   setHiddenIds]   = useState<Set<string>>(new Set())
+  const [partOrder,   setPartOrder]   = useState<string[]>(BODY_PARTS.map(p => p.id))
 
-  const selectedParts = BODY_PARTS.filter(p => selected.has(p.id))
+  useEffect(() => {
+    (async () => {
+      try {
+        const [customRaw, hiddenRaw, orderRaw] = await Promise.all([
+          AsyncStorage.getItem(CUSTOM_PARTS_KEY),
+          AsyncStorage.getItem(HIDDEN_PARTS_KEY),
+          AsyncStorage.getItem(PART_ORDER_KEY),
+        ])
+        const custom = customRaw ? JSON.parse(customRaw) as BodyPart[] : []
+        const hidden = hiddenRaw ? new Set<string>(JSON.parse(hiddenRaw)) : new Set<string>()
+        setCustomParts(custom)
+        setHiddenIds(hidden)
+        const allIds = [...BODY_PARTS.map(p => p.id), ...custom.map(p => p.id)]
+        if (orderRaw) {
+          const saved = JSON.parse(orderRaw) as string[]
+          const kept  = saved.filter(id => allIds.includes(id))
+          const added = allIds.filter(id => !kept.includes(id))
+          setPartOrder([...kept, ...added])
+        } else {
+          setPartOrder(allIds)
+        }
+      } catch {}
+    })()
+  }, [])
+
+  const partsById: Record<string, BodyPart> = Object.fromEntries(
+    [...BODY_PARTS, ...customParts].map(p => [p.id, p])
+  )
+  const visibleParts = partOrder.filter(id => !hiddenIds.has(id)).map(id => partsById[id]).filter(Boolean)
+
+  function addCustomPart(name: string) {
+    const part: BodyPart = { id: `custom_${Date.now()}`, name, icon: '✨', bilateral: false }
+    const next = [...customParts, part]
+    setCustomParts(next)
+    AsyncStorage.setItem(CUSTOM_PARTS_KEY, JSON.stringify(next)).catch(() => {})
+    const nextOrder = [...partOrder, part.id]
+    setPartOrder(nextOrder)
+    AsyncStorage.setItem(PART_ORDER_KEY, JSON.stringify(nextOrder)).catch(() => {})
+  }
+
+  function reorderParts(ids: string[]) {
+    // 非表示分を末尾に維持しつつ、可視部位の並びだけ更新
+    const hiddenTail = partOrder.filter(id => hiddenIds.has(id))
+    const next = [...ids, ...hiddenTail]
+    setPartOrder(next)
+    AsyncStorage.setItem(PART_ORDER_KEY, JSON.stringify(next)).catch(() => {})
+  }
+
+  function deletePart(id: string) {
+    const isCustom = customParts.some(p => p.id === id)
+    if (isCustom) {
+      const nextCustom = customParts.filter(p => p.id !== id)
+      setCustomParts(nextCustom)
+      AsyncStorage.setItem(CUSTOM_PARTS_KEY, JSON.stringify(nextCustom)).catch(() => {})
+      const nextOrder = partOrder.filter(pid => pid !== id)
+      setPartOrder(nextOrder)
+      AsyncStorage.setItem(PART_ORDER_KEY, JSON.stringify(nextOrder)).catch(() => {})
+    } else {
+      const nextHidden = new Set(hiddenIds)
+      nextHidden.add(id)
+      setHiddenIds(nextHidden)
+      AsyncStorage.setItem(HIDDEN_PARTS_KEY, JSON.stringify([...nextHidden])).catch(() => {})
+    }
+    setSelected(prev => {
+      const n = new Set(prev)
+      n.delete(id)
+      return n
+    })
+  }
+
+  const selectedParts = visibleParts.filter(p => selected.has(p.id))
 
   function togglePart(id: PartId) {
     setSelected(prev => {
@@ -785,10 +982,10 @@ export default function StretchRecoveryScreen() {
     setPhase('stretch')
   }
 
-  function handleStretchComplete(totalSec: number, skippedCount: number) {
+  async function handleStretchComplete(totalSec: number, skippedCount: number) {
     const reduction = calcRecoveryReduction(totalSec, skippedCount)
-    setResult({ totalSec, reduction })
-    saveResult(reduction, reduction)
+    const { applied, capped } = await saveResult(reduction)
+    setResult({ totalSec, applied, capped })
     setPhase('complete')
   }
 
@@ -821,11 +1018,14 @@ export default function StretchRecoveryScreen() {
         {/* コンテンツ */}
         {phase === 'select' && (
           <PartSelectScreen
-            riskScore={riskScore}
             selected={selected}
             recommended={recommended}
+            parts={visibleParts}
             onToggle={togglePart}
             onStart={handleStart}
+            onAddCustom={addCustomPart}
+            onReorder={reorderParts}
+            onDeletePart={deletePart}
           />
         )}
 
@@ -843,7 +1043,8 @@ export default function StretchRecoveryScreen() {
         {phase === 'complete' && result && (
           <CompleteScreen
             riskBefore={riskScore}
-            reduction={result.reduction}
+            applied={result.applied}
+            capped={result.capped}
             completedParts={selectedParts.length - skippedParts.length}
             totalSeconds={result.totalSec}
             onHome={handleHome}

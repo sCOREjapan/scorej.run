@@ -24,6 +24,7 @@ import {
   type CoachNotifType,
 } from '../lib/supabaseTeam'
 import { supabase } from '../lib/supabase'
+import { localDateStr } from '../lib/dateLocal'
 
 const JOINED_KEY_CV = 'trackmate_team_joined'
 
@@ -237,7 +238,7 @@ export default function CoachViewScreen() {
           const cutoff = new Date()
           cutoff.setDate(cutoff.getDate() - 7)
           cutoff.setHours(0, 0, 0, 0)
-          const cutoffStr = cutoff.toISOString().slice(0, 10)
+          const cutoffStr = localDateStr(cutoff)
           const week = all.filter(s => s.session_date.slice(0, 10) >= cutoffStr)
           setRecentSessions(week)
           setSessionCount(week.length)

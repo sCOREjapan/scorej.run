@@ -10,6 +10,7 @@ import type {
   SleepRecord,
   TrainingSession,
   AthleticsEvent,
+  InjuryDayPlan,
 } from '../types'
 import { getVideoAnalysisPrompt } from '../prompts/video'
 import { getMealAnalysisPrompt, getCompetitionPlanPrompt, getSleepAdvicePrompt } from '../prompts/index'
@@ -99,15 +100,22 @@ function detectMediaType(base64: string): 'image/jpeg' | 'image/png' | 'image/gi
 // JSONパース（安全版）
 // ─────────────────────────────────────────
 function safeParseJSON<T>(text: string): T {
-  // コードブロック除去後、JSON抽出（AIが余計なテキストを返す場合に対応）
   const cleaned = text.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim()
-  // JSON オブジェクトの先頭・末尾を特定して取り出す
+  const arrStart = cleaned.indexOf('[')
+  const objStart = cleaned.indexOf('{')
+  // 配列とオブジェクトのどちらが先に現れるかで分岐
+  const isArray = arrStart !== -1 && (objStart === -1 || arrStart < objStart)
+  if (isArray) {
+    const end = cleaned.lastIndexOf(']')
+    if (end === -1) throw new Error('AIの応答にJSONが含まれていません')
+    try { return JSON.parse(cleaned.slice(arrStart, end + 1)) as T } catch {
+      throw new Error('AIの応答の解析に失敗しました。もう一度お試しください。')
+    }
+  }
   const start = cleaned.indexOf('{')
   const end   = cleaned.lastIndexOf('}')
   if (start === -1 || end === -1) throw new Error('AIの応答にJSONが含まれていません')
-  try {
-    return JSON.parse(cleaned.slice(start, end + 1)) as T
-  } catch {
+  try { return JSON.parse(cleaned.slice(start, end + 1)) as T } catch {
     throw new Error('AIの応答の解析に失敗しました。もう一度お試しください。')
   }
 }
@@ -157,7 +165,7 @@ export async function analyzeMeal(
 
   const text = await callClaude({
     model: MODEL,
-    max_tokens: 2048,
+    max_tokens: 1100,
     system: systemPrompt,
     messages: [
       {
@@ -179,14 +187,15 @@ export async function analyzeMeal(
 export async function generateCompetitionPlan(
   competitionDate: Date,
   competitionName: string,
-  profile: UserProfile
+  profile: UserProfile,
+  event: AthleticsEvent
 ): Promise<CompetitionPlan['phases'] & { peak_week: number; taper_start_week: number; key_advice: string }> {
   const daysLeft = Math.ceil((competitionDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
   if (daysLeft < 1) throw new Error('試合日が過去です')
 
   // 週数を最大8週に丸める（トークン超過防止）
   const cappedDays = Math.min(daysLeft, 56)
-  const systemPrompt = getCompetitionPlanPrompt(cappedDays, profile, competitionName)
+  const systemPrompt = getCompetitionPlanPrompt(cappedDays, profile, competitionName, event)
 
   const text = await callClaude({
     model: MODEL,
@@ -260,6 +269,50 @@ export async function getWeeklySummary(
     ],
   })
 
+  return safeParseJSON(text)
+}
+
+// ─────────────────────────────────────────
+// 5. 怪我復帰プラン生成
+// ─────────────────────────────────────────
+export async function generateInjuryRecoveryPlan(params: {
+  side: string
+  parts: string[]
+  injuryType: string
+  description: string
+  painLevel: number
+  hasSwelling: boolean
+  totalDays: number
+}): Promise<InjuryDayPlan[]> {
+  const { side, parts, injuryType, description, painLevel, hasSwelling, totalDays } = params
+
+  const system = `あなたはスポーツ医学の専門家です。選手の怪我情報をもとに、日数分の回復プランをJSON配列で返してください。
+
+返却形式（${totalDays}要素の配列）:
+[{"day":1,"phase":"急性期","exercises":[{"name":"アイシング","detail":"15分×3回"}],"avoid":["走ること"],"advice":"安静を保ちましょう"},...]
+
+ルール:
+- 必ずday=1からday=${totalDays}まで全日分出力すること
+- phaseは「急性期」「亜急性期」「リハビリ期」「復帰準備期」から段階的に割り当てること
+- exercisesは具体的な動作名と回数・時間を含めること
+- avoidには絶対NGな動作を列挙すること
+- JSON以外は一切出力しないこと`
+
+  const user = `部位: ${side}${parts.join('・')}
+種類: ${injuryType}
+痛み: ${painLevel}/10
+腫れ: ${hasSwelling ? 'あり' : 'なし'}
+状況: ${description || 'なし'}
+回復日数: ${totalDays}日`
+
+  const text = await callClaude({
+    model: MODEL,
+    max_tokens: 6000,
+    system,
+    messages: [{ role: 'user', content: user }],
+  })
+
+  if (!text) throw new Error('AIからの応答が空でした')
   return safeParseJSON(text)
 }
 

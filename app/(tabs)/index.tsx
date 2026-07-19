@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useFocusEffect } from '@react-navigation/native'
 import {
-  ActivityIndicator, Animated, Easing, KeyboardAvoidingView, Modal, Platform,
+  ActivityIndicator, Alert, Animated, Easing, KeyboardAvoidingView, Linking, Modal, Platform,
   ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -12,7 +12,6 @@ import { Ionicons } from '@expo/vector-icons'
 import { useTheme } from '../../context/ThemeContext'
 import { useTrainingSessions } from '../../hooks/useTrainingSessions'
 import { calcInjuryRisk } from '../../lib/injuryRisk'
-import { calcRecoveryStatus } from '../../lib/fatigue'
 import { calcLevelInfo } from '../../lib/gamification'
 import GlassCard from '../../components/GlassCard'
 import PressableScale from '../../components/PressableScale'
@@ -22,6 +21,7 @@ import HapticTouch from '../../components/HapticTouch'
 import Logo from '../../components/Logo'
 import PWAInstallPrompt from '../../components/PWAInstallPrompt'
 import QuickLogModal from '../../components/QuickLogModal'
+import QuickConditionModal from '../../components/QuickConditionModal'
 import PracticeShareCard, { PracticeShareData } from '../../components/PracticeShareCard'
 import StretchHoldButton from '../../components/StretchHoldButton'
 import { registerHomeScroll, unregisterHomeScroll } from '../../lib/homeScroll'
@@ -31,12 +31,16 @@ import { calcWeatherRiskBonus, getWeatherRiskText } from '../../lib/weatherRisk'
 import { autoSyncTeam } from '../../lib/teamAutoSync'
 import { trackAppOpen, trackPaywallView } from '../../lib/analytics'
 import { usePurchase } from '../../context/PurchaseContext'
-import { sendRiskAlertIfNeeded, sendStretchReminderIfNeeded, scheduleCompetitionReminder } from '../../lib/notifications'
+import TutorialSpot from '../../components/TutorialSpot'
+import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg'
+import { useTutorial, isTutorialDone } from '../../lib/tutorialContext'
+import { sendRiskAlertIfNeeded, sendStretchReminderIfNeeded, scheduleCompetitionReminder, scheduleStreakReminder } from '../../lib/notifications'
 import { fetchTeamEvents, sendCoachNotification, type TeamEventRow } from '../../lib/supabaseTeam'
 import type { SleepRecord } from '../../types'
 import ReviewWall, { shouldShowReviewWall } from '../../components/ReviewWall'
-import { showRewardedAd, showAppOpenAd, hasDailyInsightClaimed, markDailyInsightClaimed } from '../../lib/admob'
-import { getTier } from '../../lib/adGate'
+import NoadUpsellModal, { shouldShowNoadUpsell } from '../../components/NoadUpsellModal'
+import { showRewardedAd, hasDailyInsightClaimed, markDailyInsightClaimed, showInterstitialAd, isAppOpenAdShowing } from '../../lib/admob'
+import { todayLocalISO, localDateStr } from '../../lib/dateLocal'
 
 // Hermesの AbortSignal.timeout 非対応に対応したタイムアウト付きfetch
 function fetchWithTimeout(url: string, options: RequestInit, ms: number): Promise<Response> {
@@ -162,7 +166,9 @@ function AnimatedEntry({ children, delay = 0 }: { children: React.ReactNode; del
 // WeekDateBar — 7日間横スクロール日付バー
 // ────────────────────────────────────────────────────────
 // 今日の日付を毎回生成（モジュール定数にすると日付またぎで古いまま）
-function getTodayISO() { return new Date().toISOString().slice(0, 10) }
+// UTC基準の toISOString() だと JST 深夜0〜9時に前日扱いになるため、
+// ローカルタイムゾーンで正しく「今日」を返す共通ヘルパーを使う
+function getTodayISO() { return todayLocalISO() }
 
 function WeekDateBar({
   selected, onChange, conditionMap = {},
@@ -172,26 +178,37 @@ function WeekDateBar({
   conditionMap?: Record<string, number>
 }) {
   const todayISO = getTodayISO()  // レンダー時に毎回生成（日付またぎ対応）
-  const days = Array.from({ length: 7 }, (_, i) => {
+  // 過去10日〜未来3日まで表示（左にスクロールすると過去の日付も見える）
+  const PAST_DAYS = 10
+  const FUTURE_DAYS = 3
+  const CELL_W = 56  // paddingHorizontal(10*2) + numCircle(32) + gap(4) の概算
+  const days = Array.from({ length: PAST_DAYS + FUTURE_DAYS + 1 }, (_, i) => {
     const d = new Date()
-    d.setDate(d.getDate() - 3 + i)
+    d.setDate(d.getDate() - PAST_DAYS + i)
     return d
   })
   const DAY_NAMES = ['日', '月', '火', '水', '木', '金', '土']
   const AMBER = '#F5A623'
+  const scrollRef = useRef<ScrollView>(null)
+
+  // 初回表示時は「今日の3日前」が先頭に来る位置までスクロール（従来の見え方を維持）
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ x: (PAST_DAYS - 3) * CELL_W, animated: false })
+  }, [])
 
   // 体調値に応じた色
   const conditionColor = (v: number) => v >= 8 ? '#34C759' : v >= 6 ? AMBER : '#FF6B6B'
 
   return (
     <ScrollView
+      ref={scrollRef}
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={{ paddingHorizontal: 8, gap: 4 }}
       style={{ marginBottom: 4 }}
     >
       {days.map(d => {
-        const iso     = d.toISOString().slice(0, 10)
+        const iso     = localDateStr(d)
         const isToday = iso === todayISO
         const isSel   = iso === selected
         const cond    = conditionMap[iso]
@@ -271,10 +288,69 @@ const RISK_CFG = [
   { max: 100, color: ALERT,     label: '高リスク',   phrase: '今日は休養が必要' },
 ]
 
+// hexカラーを明るく/暗くする（グラデーション用）
+function shadeColor(hex: string, percent: number): string {
+  const n = parseInt(hex.replace('#', ''), 16)
+  const r = Math.min(255, Math.max(0, ((n >> 16) & 0xff) + Math.round(255 * percent)))
+  const g = Math.min(255, Math.max(0, ((n >> 8) & 0xff) + Math.round(255 * percent)))
+  const b = Math.min(255, Math.max(0, (n & 0xff) + Math.round(255 * percent)))
+  return `rgb(${r}, ${g}, ${b})`
+}
+
+// リング型ゲージ（中央に数値）
+function RiskRing({ score, color, trackColor, size = 132 }: { score: number; color: string; trackColor: string; size?: number }) {
+  const strokeWidth = 18
+  const gradId = `riskRingGrad-${color.replace('#', '')}`
+  const r = (size - strokeWidth) / 2
+  const circumference = 2 * Math.PI * r
+  const pct = Math.min(100, Math.max(0, score)) / 100
+  const dashOffset = circumference * (1 - pct)
+
+  // 外周の目盛りドット（12個）
+  const tickCount  = 12
+  const tickRadius = size / 2 - 2
+  const ticks = Array.from({ length: tickCount }, (_, i) => {
+    const angle = (i / tickCount) * 2 * Math.PI - Math.PI / 2
+    return {
+      cx: size / 2 + tickRadius * Math.cos(angle),
+      cy: size / 2 + tickRadius * Math.sin(angle),
+    }
+  })
+
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ position: 'absolute' }}>
+        <Defs>
+          <LinearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
+            <Stop offset="0%" stopColor={shadeColor(color, 0.18)} />
+            <Stop offset="100%" stopColor={shadeColor(color, -0.12)} />
+          </LinearGradient>
+        </Defs>
+        {ticks.map((t, i) => (
+          <Circle key={i} cx={t.cx} cy={t.cy} r={1.4} fill={trackColor} />
+        ))}
+        <Circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={trackColor} strokeWidth={strokeWidth} />
+        <Circle
+          cx={size / 2} cy={size / 2} r={r}
+          fill="none"
+          stroke={`url(#${gradId})`}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={dashOffset}
+          rotation={-90}
+          origin={`${size / 2}, ${size / 2}`}
+        />
+      </Svg>
+      <Text style={[so.scoreNum, { fontSize: 44, lineHeight: 48 }]}>{score}</Text>
+    </View>
+  )
+}
+
 function ScoreOverviewCard({
   sessions, sleepRecords, conditionLevel, riskResult,
   effectiveRiskScore, weatherBonus, onStretchStart,
-  onRefreshWeather, weatherLoading,
+  onRefreshWeather, weatherLoading, onPressBreakdown,
 }: {
   sessions: import('../../types').TrainingSession[]
   sleepRecords: import('../../types').SleepRecord[]
@@ -285,151 +361,96 @@ function ScoreOverviewCard({
   onStretchStart?: () => void
   onRefreshWeather?: () => void
   weatherLoading?: boolean
+  onPressBreakdown?: () => void
 }) {
   const { colors } = useTheme()
-  const status = calcRecoveryStatus(sessions, sleepRecords, conditionLevel)
-  const riskScore = effectiveRiskScore ?? (riskResult ? riskResult.riskScore : Math.round(100 - status.overall))
+  const riskScore = effectiveRiskScore ?? (riskResult ? riskResult.riskScore : 0)
   const cfg = RISK_CFG.find(c => riskScore <= c.max) ?? RISK_CFG[3]
-
-  // 4ステータスカード用データ
-  const fatigueVal  = Math.min(5, Math.round(status.fatigue_score / 20))
-  const condVal     = Math.min(5, Math.round(conditionLevel / 2))
-  const latestSleep = sleepRecords[0]
-  const sleepHours  = latestSleep?.duration_min ? Math.round(latestSleep.duration_min / 60) : null
-  const wBonus      = weatherBonus ?? 0
-
-  const statCards = [
-    {
-      emoji: '⚡', label: '疲労',
-      value: sessions.length > 0 ? `${fatigueVal}/5` : '—',
-      color: fatigueVal >= 4 ? ALERT : fatigueVal >= 3 ? '#f59e0b' : BRAND,
-    },
-    {
-      emoji: '😴', label: '睡眠',
-      value: sleepHours != null ? `${sleepHours}h` : '—',
-      color: sleepHours == null ? '#9ca3af' : sleepHours >= 7 ? BRAND : sleepHours >= 6 ? '#f59e0b' : ALERT,
-    },
-    {
-      emoji: '💪', label: '体調',
-      value: `${condVal}/5`,
-      color: condVal >= 4 ? BRAND : condVal >= 3 ? '#f59e0b' : ALERT,
-    },
-    {
-      emoji: '☁️', label: '天気',
-      value: wBonus !== 0 ? `${wBonus > 0 ? '+' : ''}${wBonus}` : '—',
-      color: wBonus > 0 ? ALERT : wBonus < 0 ? BRAND : '#9ca3af',
-    },
-  ]
 
   return (
     <>
-      {/* ── INJURY RISK SCORE カード ── */}
-      <View style={[so.card, { backgroundColor: colors.surface }]}>
-        {/* ヘッダー行 */}
-        <View style={so.cardHeader}>
-          <Text style={so.riskLabel}>今日の怪我リスク</Text>
-          <View style={[so.riskBadge, { backgroundColor: cfg.color + '18', borderColor: cfg.color + '40' }]}>
-            <View style={[so.riskDot, { backgroundColor: cfg.color }]} />
-            <Text style={[so.riskBadgeText, { color: cfg.color }]}>{cfg.label}</Text>
+      {/* ── INJURY RISK SCORE カード（タップで内訳） ── */}
+      <TutorialSpot spotKey="home_risk_card">
+      <TouchableOpacity
+        activeOpacity={onPressBreakdown ? 0.8 : 1}
+        onPress={onPressBreakdown}
+        disabled={!onPressBreakdown}
+        style={[so.card, { backgroundColor: colors.surface }]}
+      >
+        {/* スコア行：リング＋（見出し・内訳リンク／バッジ・フレーズ／天気） */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18 }}>
+          <RiskRing score={riskScore} color={cfg.color} trackColor={colors.surface2} />
+          <View style={{ gap: 8, flex: 1 }}>
+            <Text style={so.riskLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>今日の怪我リスク</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+              <View style={[so.riskBadge, { backgroundColor: cfg.color + '18', borderColor: cfg.color + '40' }]}>
+                <View style={[so.riskDot, { backgroundColor: cfg.color }]} />
+                <Text style={[so.riskBadgeText, { color: cfg.color }]}>{cfg.label}</Text>
+              </View>
+              <Text style={[so.phrase, { color: cfg.color }]}>{cfg.phrase}</Text>
+            </View>
+            {!!weatherBonus && (
+              <Text style={so.weatherPt}>天気 {weatherBonus > 0 ? '+' : ''}{weatherBonus}</Text>
+            )}
           </View>
         </View>
+      </TouchableOpacity>
+      </TutorialSpot>
 
-        {/* スコア数字 */}
-        <Text style={so.scoreNum}>{riskScore}</Text>
-
-        {/* フレーズ + 天気 */}
-        <View style={so.phraseRow}>
-          <Text style={[so.phrase, { color: cfg.color }]}>{cfg.phrase}</Text>
-          {wBonus !== 0 && (
-            <Text style={so.weatherPt}>天気 {wBonus > 0 ? '+' : ''}{wBonus}pt</Text>
-          )}
-        </View>
-
-        {/* リスクバー */}
-        <View style={[so.barTrack, { backgroundColor: colors.surface2 }]}>
-          <View style={[so.barFill, { width: `${riskScore}%` as any, backgroundColor: cfg.color }]} />
-        </View>
-      </View>
-
-      {/* ── 4ステータスカード行 ── */}
-      <View style={so.statRow}>
-        {statCards.map(sc => (
-          sc.label === '天気' && onRefreshWeather ? (
-            <TouchableOpacity
-              key={sc.label}
-              style={[so.statCard, { backgroundColor: colors.surface }]}
-              onPress={onRefreshWeather}
-              activeOpacity={0.75}
-            >
-              <Text style={{ fontSize: 18 }}>{weatherLoading ? '🔄' : sc.emoji}</Text>
-              <Text style={[so.statVal, { color: sc.color }]}>{sc.value}</Text>
-              <Text style={[so.statLabel, { color: colors.textHint }]}>{sc.label}</Text>
-            </TouchableOpacity>
-          ) : (
-            <View key={sc.label} style={[so.statCard, { backgroundColor: colors.surface }]}>
-              <Text style={{ fontSize: 18 }}>{sc.emoji}</Text>
-              <Text style={[so.statVal, { color: sc.color }]}>{sc.value}</Text>
-              <Text style={[so.statLabel, { color: colors.textHint }]}>{sc.label}</Text>
-            </View>
-          )
-        ))}
-      </View>
-
-      {/* ── ストレッチバナー（リスク40以上） ── */}
-      {riskScore >= 40 && onStretchStart && (
+      {/* ── ストレッチバナー（リスク40以上 or チュートリアル中は常時表示） ── */}
+      {(riskScore >= 40 || !!onStretchStart) && onStretchStart && (
+        <TutorialSpot spotKey="home_stretch_banner">
         <HapticTouch
           haptic="whoosh"
           onPress={onStretchStart}
           activeOpacity={0.85}
           style={[so.stretchBanner, { backgroundColor: colors.surface }]}
         >
-          <Text style={[so.stretchText, { color: colors.text }]}>🏃 ストレッチでリスクを下げる</Text>
+          <Text style={[so.stretchText, { color: colors.text }]}>🏃 ストレッチでコンディションを整える</Text>
           <View style={[so.stretchBtn, { backgroundColor: BRAND }]}>
             <Text style={so.stretchBtnText}>開始 →</Text>
           </View>
         </HapticTouch>
+        </TutorialSpot>
       )}
     </>
   )
 }
 
 const so = StyleSheet.create({
-  // メインカード — 案A ソフト浮き上がり
+  // メインカード — Apple UI Skills準拠（21pxスケール角丸・1pxボーダー・淡い影）
   card: {
-    borderRadius: 18, padding: 18,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.10, shadowRadius: 20, elevation: 6,
+    borderRadius: 21, padding: 20,
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04, shadowRadius: 12, elevation: 2,
   },
-  cardHeader:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  riskLabel:     { fontSize: 11, fontWeight: '700', letterSpacing: 0.3, color: '#9ca3af' },
-  riskBadge:     { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
+  cardHeader:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  riskLabel:     { fontSize: 22, fontWeight: '700', letterSpacing: 0.2, color: '#111827' },
+  riskBadge:     { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 21, paddingHorizontal: 12, paddingVertical: 4 },
   riskDot:       { width: 7, height: 7, borderRadius: 4 },
   riskBadgeText: { fontSize: 11, fontWeight: '700' },
-  scoreNum:      { fontSize: 72, fontWeight: '900', letterSpacing: -3, color: '#111827', lineHeight: 80, marginVertical: 2 },
-  phraseRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
-  phrase:        { fontSize: 15, fontWeight: '800' },
-  weatherPt:     { fontSize: 11, color: '#9ca3af', fontWeight: '600' },
-  barTrack:      { height: 5, borderRadius: 3, overflow: 'hidden' },
-  barFill:       { height: 5, borderRadius: 3 },
-  // 4ステータスカード
-  statRow:       { flexDirection: 'row', gap: 8, marginTop: 10 },
-  statCard:      {
-    flex: 1, borderRadius: 14, padding: 12, alignItems: 'center', gap: 4,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.09, shadowRadius: 16, elevation: 5,
-  },
-  statVal:       { fontSize: 20, fontWeight: '900', letterSpacing: -0.5 },
-  statLabel:     { fontSize: 10, fontWeight: '700' },
-  // ストレッチバナー
+  scoreNum:      { fontSize: 72, fontWeight: '700', letterSpacing: -3, color: '#111827', lineHeight: 80, marginVertical: 2, fontVariant: ['tabular-nums'] },
+  phraseRow:     { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
+  phrase:        { fontSize: 16, fontWeight: '500' },
+  weatherPt:     { fontSize: 12, color: '#808080', fontWeight: '400' },
+  barTrack:      { height: 4, borderRadius: 2, overflow: 'hidden' },
+  barFill:       { height: 4, borderRadius: 2 },
+  // 4ステータス（カード内埋め込み 2×2）
+  statInline:      { width: 64, borderRadius: 16, paddingVertical: 8, paddingHorizontal: 4, alignItems: 'center', gap: 4, backgroundColor: '#fff', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
+  statInlineVal:   { fontSize: 16, fontWeight: '700', letterSpacing: -0.5, color: '#111827', fontVariant: ['tabular-nums'] },
+  statInlineLabel: { fontSize: 9, fontWeight: '400', color: '#808080' },
+  // ストレッチバナー（ピル型CTA）
   stretchBanner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, marginTop: 10,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.09, shadowRadius: 16, elevation: 5,
+    borderRadius: 21, paddingHorizontal: 20, paddingVertical: 12, marginTop: 8,
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03, shadowRadius: 8, elevation: 1,
   },
-  stretchText:   { fontSize: 14, fontWeight: '700', flex: 1 },
-  stretchBtn:    { borderRadius: 10, paddingHorizontal: 16, paddingVertical: 8 },
-  stretchBtnText:{ color: '#fff', fontSize: 13, fontWeight: '800' },
+  stretchText:   { fontSize: 14, fontWeight: '500', flex: 1 },
+  stretchBtn:    { borderRadius: 21, paddingHorizontal: 20, paddingVertical: 8 },
+  stretchBtnText:{ color: '#fff', fontSize: 13, fontWeight: '700' },
 })
 
 
@@ -581,7 +602,7 @@ function DeadlinePicker({ value, onChange }: { value: string; onChange: (v: stri
             const iso = toISO(day)
             const isSelected = iso === selectedISO
             const isPast = new Date(iso + 'T00:00:00') < today
-            const isToday = iso === today.toISOString().slice(0, 10)
+            const isToday = iso === localDateStr(today)
             const isSun = col === 0, isSat = col === 6
             return (
               <TouchableOpacity
@@ -1119,11 +1140,11 @@ function GoalCard({
 }
 
 const gc = StyleSheet.create({
-  card:          { borderRadius: 18, borderWidth: 1, padding: 14, gap: 10 },
+  card:          { borderRadius: 18, borderWidth: 1, padding: 12, gap: 6 },
   header:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title:         { fontSize: 13, fontWeight: '800', letterSpacing: 0.5 },
   emptyRow:      { paddingVertical: 14, alignItems: 'center' },
-  goalBlock:     { paddingVertical: 10, gap: 0 },
+  goalBlock:     { paddingVertical: 6, gap: 0 },
   goalText:      { fontSize: 15, fontWeight: '700', flex: 1, lineHeight: 22 },
   barBg:         { height: 6, borderRadius: 3, overflow: 'hidden' },
   barFill:       { height: 6, borderRadius: 3 },
@@ -1150,24 +1171,51 @@ const APP_OPEN_COUNT_KEY = 'score_app_open_count'
 export default function DashboardScreen() {
   const router = useRouter()
   const { colors } = useTheme()
-  const { tier: purchaseTier } = usePurchase()
+  const { tier: purchaseTier, isNoad: purchaseIsNoad } = usePurchase()
+  const { active: tutorialActive, stepId: tutStepId, nextStep: tutNext, onConditionModalClose, startTutorial } = useTutorial()
   const { sessions, loading, fetchSessions } = useTrainingSessions()
   const [appOpenCount,     setAppOpenCount]     = useState(0)
   const [selectedDate,    setSelectedDate]    = useState(getTodayISO())
   const [showQuickLog,    setShowQuickLog]    = useState(false)
+  const [showQuickCondition, setShowQuickCondition] = useState(false)
+  const [showRiskBreakdown, setShowRiskBreakdown] = useState(false)
   const [conditionMap,    setConditionMap]    = useState<Record<string,number>>({})
   const conditionLevel = conditionMap[selectedDate] ?? 6
-  // 直近7日の平均体調（リスク計算用）
+  // 今日以外の日付を見ているか（過去/未来の日付タップ時は表示を絞る）
+  const isViewingToday = selectedDate === getTodayISO()
+  useEffect(() => { setDoneBannerDismissed(false) }, [selectedDate])
+  // 選択中の日付を基準にした、直近7日の平均体調（リスク計算用）
+  // 日付バーで別の日をタップすると、その日を基準に7日分を遡って計算し直す
   const avgConditionLevel = useMemo(() => {
-    const today = new Date()
+    const asOf = new Date(selectedDate + 'T12:00:00')
     const vals = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(today); d.setDate(d.getDate() - i)
-      return conditionMap[d.toISOString().slice(0, 10)]
+      const d = new Date(asOf); d.setDate(d.getDate() - i)
+      return conditionMap[localDateStr(d)]
     }).filter((v): v is number => v !== undefined)
     return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : conditionLevel
-  }, [conditionMap, conditionLevel])
+  }, [conditionMap, selectedDate, conditionLevel])
   const [sleepRecords,    setSleepRecords]    = useState<SleepRecord[]>([])
-  const [hasSymptom,      setHasSymptom]      = useState(false)
+  const [recoveryRecords, setRecoveryRecords] = useState<Array<{ date: string }>>([])
+  // 選択中の日付を基準に、直近7日以内の違和感・痛み記録があるかを判定
+  const hasSymptom = useMemo(() => {
+    const sevenDaysAgo = localDateStr(new Date(new Date(selectedDate + 'T12:00:00').getTime() - 7 * 86400000))
+    return recoveryRecords.some(r => r.date >= sevenDaysAgo && r.date <= selectedDate)
+  }, [recoveryRecords, selectedDate])
+  // 今日まだ入力していない項目（ホーム画面トップのCTA用）
+  const todayUnfilled = useMemo(() => {
+    const today = getTodayISO()
+    const items: { key: string; icon: string; label: string; onPress: () => void }[] = []
+    if (conditionMap[today] === undefined) {
+      items.push({ key: 'condition', icon: '🙂', label: '今日の体調を記録しよう', onPress: () => setShowQuickCondition(true) })
+    }
+    if (!sleepRecords.some(r => r.sleep_date === today)) {
+      items.push({ key: 'sleep', icon: '😴', label: '睡眠記録を入力しよう', onPress: () => setShowQuickCondition(true) })
+    }
+    if (!sessions.some(sess => sess.session_date === today)) {
+      items.push({ key: 'practice', icon: '🏃', label: '今日の練習を記録しよう', onPress: () => setShowQuickLog(true) })
+    }
+    return items
+  }, [conditionMap, sleepRecords, sessions])
   const [tasks,           setTasks]           = useState<ImprovementTask[]>([])
   const [goals,           setGoals]           = useState<Goal[]>([])
   const [showAIAdvice,    setShowAIAdvice]    = useState(false)
@@ -1182,14 +1230,36 @@ export default function DashboardScreen() {
   const [recoveryBanner,  setRecoveryBanner]  = useState<{ reduction: number } | null>(null)
   const [teamNotifs,      setTeamNotifs]      = useState<TeamEventRow[]>([])
   const [reviewWallVisible, setReviewWallVisible] = useState(false)
+  const [noadUpsellVisible, setNoadUpsellVisible] = useState(false)
   const [confirmedIds,    setConfirmedIds]    = useState<Set<string>>(new Set())
   const [notifReadIds,    setNotifReadIds]    = useState<Set<string>>(new Set())
   const [shareSession,    setShareSession]    = useState<PracticeShareData | null>(null)
+  const [injuryDaysLeft,     setInjuryDaysLeft]     = useState<number | null>(null)
+  const [injuryFreeDays,     setInjuryFreeDays]     = useState<number>(0)
+  const [compDaysLeft,       setCompDaysLeft]       = useState<{ name: string; days: number } | null>(null)
+  const [showCountdownModal, setShowCountdownModal] = useState(false)
+  const [igBannerVisible, setIgBannerVisible] = useState(false)
+  const [doneBannerDismissed, setDoneBannerDismissed] = useState(false)
+
   // AdGate async チェック中の二重タップ防止
   const insightCallRef = useRef(false)
   // ── アプリ起動トラッキング（1日1回） ──
+  // 初回起動時（チュートリアル未完了）にチュートリアルを起動
   useEffect(() => {
-    const TODAY = new Date().toISOString().slice(0, 10)
+    isTutorialDone().then(done => {
+      if (!done) setTimeout(() => startTutorial(), 600)
+    })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Instagramバナー：閉じたことがなければ表示
+  useEffect(() => {
+    AsyncStorage.getItem('score_ig_banner_dismissed').then(v => {
+      if (!v) setIgBannerVisible(true)
+    }).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    const TODAY = todayLocalISO()
     AsyncStorage.getItem('score_last_open_tracked').then(last => {
       if (last !== TODAY) {
         trackAppOpen()
@@ -1208,7 +1278,8 @@ export default function DashboardScreen() {
     }).catch(() => {})
   }, [])
 
-  // ── 永続データ読み込み（旧フォーマットマイグレーションのみ / 他は useFocusEffect の reloadAll に任せる）──
+  // カウントダウンデータは reloadAll（useFocusEffect）で取得するため個別useEffectは不要
+
   useEffect(() => {
     AsyncStorage.multiGet([CONDITION_MAP_KEY, CONDITION_KEY]).then(([[, mapStr], [, oldVal]]) => {
       if (mapStr) {
@@ -1248,16 +1319,35 @@ export default function DashboardScreen() {
     return () => clearTimeout(t)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // レビューウォール：起動5回目以降に表示（3秒後に）
+  // レビューウォール：起動5回目以降に表示（4秒後に）
+  // チュートリアル中・App Open広告表示中は表示しない（複数の Modal/native広告が
+  // 同時に present されると、片方を閉じてももう片方の presentation が残って
+  // 画面全体がタップ無反応になることがあるため、必ず1つずつ表示する）
   useEffect(() => {
+    if (tutorialActive) return
     const t = setTimeout(async () => {
       try {
+        if (tutorialActive || isAppOpenAdShowing()) return
         const show = await shouldShowReviewWall()
         if (show) setReviewWallVisible(true)
       } catch {}
-    }, 3000)
+    }, 4000)
     return () => clearTimeout(t)
-  }, [])
+  }, [tutorialActive])
+
+  // 広告なしプランの案内：FREEユーザーのみ、週1回程度
+  // （チュートリアル中・レビューウォール表示中・App Open広告表示中は重ならないよう見送る）
+  useEffect(() => {
+    if (purchaseTier !== 'free' || tutorialActive || reviewWallVisible) return
+    const t = setTimeout(async () => {
+      try {
+        if (tutorialActive || reviewWallVisible || isAppOpenAdShowing()) return
+        const show = await shouldShowNoadUpsell()
+        if (show) setNoadUpsellVisible(true)
+      } catch {}
+    }, 6000)
+    return () => clearTimeout(t)
+  }, [purchaseTier, tutorialActive, reviewWallVisible])
 
   function handleGoalsUpdate(next: Goal[]) {
     setGoals(next)
@@ -1265,9 +1355,43 @@ export default function DashboardScreen() {
   }
 
   const reloadAll = useCallback(() => {
+    // カウントダウンデータ（怪我・試合）
+    const todayMs = (() => { const d = new Date(); d.setHours(0,0,0,0); return d })()
+    AsyncStorage.getItem('trackmate_injury_records').then(raw => {
+      if (!raw) { setInjuryDaysLeft(null); setInjuryFreeDays(0); return }
+      try {
+        const recs = JSON.parse(raw) as Array<{ status: string; startDate: string; totalDays: number; createdAt?: string }>
+        const active = recs.find(r => r.status === 'active')
+        if (active) {
+          const start = new Date(active.startDate); start.setHours(0,0,0,0)
+          const elapsed = Math.floor((todayMs.getTime() - start.getTime()) / 86400000)
+          setInjuryDaysLeft(Math.max(0, active.totalDays - elapsed))
+          setInjuryFreeDays(0)
+        } else {
+          setInjuryDaysLeft(null)
+          const completed = recs.filter(r => r.status === 'completed')
+          if (completed.length > 0) {
+            const last = completed.sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''))[0]
+            const endDate = new Date(last.startDate); endDate.setDate(endDate.getDate() + last.totalDays); endDate.setHours(0,0,0,0)
+            setInjuryFreeDays(Math.max(0, Math.floor((todayMs.getTime() - endDate.getTime()) / 86400000)))
+          } else { setInjuryFreeDays(0) }
+        }
+      } catch { setInjuryDaysLeft(null); setInjuryFreeDays(0) }
+    }).catch(() => { setInjuryDaysLeft(null); setInjuryFreeDays(0) })
+    AsyncStorage.getItem('trackmate_competitions').then(raw => {
+      if (!raw) { setCompDaysLeft(null); return }
+      try {
+        const all = JSON.parse(raw) as Array<{ competition_name: string; competition_date: string }>
+        const todayStr = localDateStr(todayMs)
+        const upcoming = all.filter(c => c.competition_date >= todayStr).sort((a,b) => a.competition_date.localeCompare(b.competition_date))[0]
+        if (!upcoming) { setCompDaysLeft(null); return }
+        const compDate = new Date(upcoming.competition_date); compDate.setHours(0,0,0,0)
+        setCompDaysLeft({ name: upcoming.competition_name, days: Math.ceil((compDate.getTime() - todayMs.getTime()) / 86400000) })
+      } catch { setCompDaysLeft(null) }
+    }).catch(() => { setCompDaysLeft(null) })
     fetchSessions('')
     // ストレッチ結果読み込み
-    const today = new Date().toISOString().slice(0, 10)
+    const today = todayLocalISO()
     AsyncStorage.getItem(STRETCH_RESULT_KEY).then(raw => {
       if (!raw) return
       let parsed: any
@@ -1287,23 +1411,14 @@ export default function DashboardScreen() {
         if (goalsStr) { try { setGoals(JSON.parse(goalsStr)) }         catch {} }
         if (recovStr) {
           try {
-            const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)
             const recs = JSON.parse(recovStr) as Array<{ date: string }>
-            setHasSymptom(recs.some(r => r.date >= sevenDaysAgo))
+            setRecoveryRecords(recs)
           } catch {}
         }
       }
     ).catch(() => {})
   }, [fetchSessions])
-  // App Open Ad — ホーム画面初回表示時（認証後）に1日1回
-  const appOpenShownRef = useRef(false)
-  useEffect(() => {
-    if (appOpenShownRef.current) return
-    appOpenShownRef.current = true
-    // 1秒後に表示（ホーム画面のレンダリングが落ち着いてから）
-    const t = setTimeout(() => showAppOpenAd().catch(() => {}), 1000)
-    return () => clearTimeout(t)
-  }, [])
+  // App Open Ad — 離脱率が高くなるため無効化
 
   useFocusEffect(useCallback(() => {
     reloadAll()
@@ -1357,9 +1472,8 @@ export default function DashboardScreen() {
     if (insightClaimed === true || insightClaimed === null || insightLoading) return
     insightCallRef.current = true
     try {
-      const tier = await getTier()
-      // PRO / ELITE / COACH は広告なしで直接取得
-      if (tier === 'pro' || tier === 'elite' || tier === 'coach') {
+      // 広告なしプラン以上は広告視聴不要で直接取得
+      if (purchaseIsNoad) {
         await markDailyInsightClaimed()
         setInsightClaimed(true)
         handleGetAIAdvice()
@@ -1373,6 +1487,13 @@ export default function DashboardScreen() {
           await markDailyInsightClaimed()
           setInsightClaimed(true)
           handleGetAIAdvice()
+        } else {
+          // 広告が読み込めなかった場合（審査環境・圏外など）はフォールバックUIを表示
+          Alert.alert(
+            '広告を読み込めませんでした',
+            '通信環境をご確認のうえ、しばらく後にお試しください。',
+            [{ text: 'OK', style: 'cancel' }]
+          )
         }
       } finally {
         setInsightLoading(false)
@@ -1382,16 +1503,31 @@ export default function DashboardScreen() {
     }
   }
 
+  const AI_ADVICE_CACHE_KEY = 'score_ai_advice_daily_cache'
+
   // ── AIコーチアドバイス ──────────────────────────────────
   async function handleGetAIAdvice() {
     setLoadingAI(true)
     setShowAIAdvice(true)
     setAiAdvice('')
     try {
-      const today  = new Date().toISOString().slice(0, 10)
+      const today  = todayLocalISO()
+
+      // 日次キャッシュチェック（同日は API を呼ばない）
+      try {
+        const cached = await AsyncStorage.getItem(AI_ADVICE_CACHE_KEY)
+        if (cached) {
+          const { date, advice } = JSON.parse(cached)
+          if (date === today && advice) {
+            setAiAdvice(advice)
+            setLoadingAI(false)
+            return
+          }
+        }
+      } catch {}
 
       // 直近7日の練習データ
-      const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)
+      const sevenDaysAgo = localDateStr(new Date(Date.now() - 7 * 86400000))
       const recentSessions = sessions.filter(s => s.session_date >= sevenDaysAgo).slice(0, 10)
 
       // 睡眠データ
@@ -1477,7 +1613,11 @@ ${sleepText || 'データなし'}
         if (res.ok) {
           const data = await res.json()
           const txt = data.content?.[0]?.text
-          setAiAdvice(txt && txt.trim().length > 0 ? txt : 'アドバイスを取得できませんでした。練習・体調データを記録してから再試行してください。')
+          const advice = txt && txt.trim().length > 0 ? txt : 'アドバイスを取得できませんでした。練習・体調データを記録してから再試行してください。'
+          setAiAdvice(advice)
+          // 当日分をキャッシュ保存（次回から API 不要）
+          AsyncStorage.setItem(AI_ADVICE_CACHE_KEY, JSON.stringify({ date: today, advice })).catch(() => {})
+          showInterstitialAd().catch(() => {})
         } else {
           const errBody = await res.text().catch(() => '')
           setAiAdvice(`⚠️ APIエラー (${res.status})。しばらくしてから再試行してください。\n${errBody.slice(0,80)}`)
@@ -1498,17 +1638,23 @@ ${sleepText || 'データなし'}
     })
   }, [selectedDate])
 
-  // ── 怪我リスク計算 ──
+  // ── 怪我リスク計算（選択中の日付を基準に、それ以降の記録は無視して計算） ──
+  // ストレッチ・リカバリーの軽減分は、疲労蓄積(TSB)・直近疲労度のスコアに直接反映する
   const riskResult = useMemo(() => {
     if (loading === 'loading' || loading === 'idle') return null
-    return calcInjuryRisk(sessions, sleepRecords, avgConditionLevel, hasSymptom)
-  }, [sessions, sleepRecords, avgConditionLevel, hasSymptom, loading])
+    const asOfMs = new Date(selectedDate + 'T23:59:59').getTime()
+    const filteredSessions = isViewingToday ? sessions : sessions.filter(s => s.session_date.slice(0, 10) <= selectedDate)
+    const filteredSleep    = isViewingToday ? sleepRecords : sleepRecords.filter(s => s.sleep_date.slice(0, 10) <= selectedDate)
+    const recoveryReductionPts = isViewingToday ? stretchReduction : 0
+    return calcInjuryRisk(filteredSessions, filteredSleep, avgConditionLevel, hasSymptom, { recoveryReductionPts }, asOfMs)
+  }, [sessions, sleepRecords, avgConditionLevel, hasSymptom, loading, selectedDate, isViewingToday, stretchReduction])
 
-  // 天気ボーナス + ストレッチ減算を反映した有効リスクスコア
+  // 天気ボーナスを反映した有効リスクスコア（ストレッチ軽減はriskResult内で計算済み）
   const effectiveRiskScore = useMemo(() => {
     if (!riskResult) return null
-    return Math.min(100, Math.max(0, riskResult.riskScore + weatherBonus - stretchReduction))
-  }, [riskResult, weatherBonus, stretchReduction])
+    const bonus = isViewingToday ? weatherBonus : 0
+    return Math.min(100, Math.max(0, riskResult.riskScore + bonus))
+  }, [riskResult, weatherBonus, isViewingToday])
 
   // 怪我リスクが高い場合に通知を送る（初回マウント + スコアが閾値を超えた時のみ）
   const prevRiskRef = useRef<number | null>(null)
@@ -1539,6 +1685,20 @@ ${sleepText || 'データなし'}
     if (crossedStretch) sendStretchReminderIfNeeded(effectiveRiskScore, stretchReduction > 0)
   }, [effectiveRiskScore, stretchReduction])
 
+  // 連続記録ストリーク通知：今日未記録で連続中なら今夜21:00に予約（記録すれば自動キャンセル）
+  useEffect(() => {
+    const ds = new Set(sessions.map(s => s.session_date))
+    const today = todayLocalISO()
+    const recordedToday = ds.has(today)
+    let streak = 0
+    for (let i = 0; i < 365; i++) {
+      const d = new Date(); d.setDate(d.getDate() - i)
+      if (ds.has(localDateStr(d))) streak++
+      else if (i > 0) break
+    }
+    scheduleStreakReminder(streak, recordedToday).catch(() => {})
+  }, [sessions])
+
   const handleStretchStart = useCallback(() => {
     router.push({ pathname: '/stretch-recovery', params: { riskScore: (effectiveRiskScore ?? 50).toString() } } as any)
   }, [effectiveRiskScore])
@@ -1561,65 +1721,113 @@ ${sleepText || 'データなし'}
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView ref={scrollRef} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
 
-          {/* ── ヘッダー（W3スタイル） ── */}
-          <AnimatedEntry delay={0}>
-            <View style={s.header}>
-              {/* ssCORE ブラックピルバッジ */}
-              <HapticTouch
-                haptic="whoosh"
-                onPress={() => { unlockAudio(); router.push('/level-roadmap') }}
-                activeOpacity={0.8}
-              >
-                <View style={s.scorePill}>
-                  <Text style={s.scorePillText}>sCORE</Text>
-                </View>
-              </HapticTouch>
-              {/* 右アイコン群 */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                {/* 通知ベル → 通知・連絡ボックスへ */}
-                <HapticTouch
-                  style={[s.iconBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                  haptic="whoosh"
-                  onPress={() => { unlockAudio(); router.push('/notifications') }}
-                  activeOpacity={0.8}
-                >
-                  <View>
-                    <Ionicons name="notifications-outline" size={18} color={colors.textSec} />
-                    {(() => {
-                      // チーム連絡の未読 or アプリお知らせの未読があればバッジ表示
-                      const teamUnread = teamNotifs.some(e => isNewTeamEvent(e.created_at) && !notifReadIds.has(e.id))
-                      const appUnread  = APP_NOTICE_IDS.some(id => {
-                        const d = APP_NOTICE_DATES[id]
-                        return d && Date.now() - new Date(d + 'T00:00:00').getTime() < 3 * 24 * 60 * 60 * 1000 && !notifReadIds.has(id)
-                      })
-                      return (teamUnread || appUnread) ? (
-                        <View style={{
-                          position: 'absolute', top: -3, right: -3,
-                          width: 8, height: 8, borderRadius: 4,
-                          backgroundColor: '#FF3B30',
-                          borderWidth: 1.5, borderColor: colors.surface,
-                        }} />
-                      ) : null
-                    })()}
-                  </View>
-                </HapticTouch>
-                {/* プロフィール → マイページへ */}
-                <HapticTouch
-                  style={[s.iconBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                  haptic="whoosh"
-                  onPress={() => { unlockAudio(); router.push('/(tabs)/mypage') }}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="person-circle-outline" size={18} color={colors.textSec} />
-                </HapticTouch>
-              </View>
-            </View>
-          </AnimatedEntry>
-
           {/* ── 週間日付バー ── */}
           <AnimatedEntry delay={30}>
             <WeekDateBar selected={selectedDate} onChange={setSelectedDate} conditionMap={conditionMap} />
           </AnimatedEntry>
+
+          {/* ── ここから：今日を見ている時だけ表示するセクション群 ── */}
+          {isViewingToday && (<>
+          {/* ── 今日まだ入力していないことCTA（未入力があれば最優先で表示） ── */}
+          {todayUnfilled.length > 0 ? (
+            <AnimatedEntry delay={35}>
+              <View style={{
+                backgroundColor: colors.surface,
+                borderRadius: 14,
+                borderWidth: 1.5,
+                borderColor: BRAND + '55',
+                overflow: 'hidden',
+                marginBottom: 10,
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 6 }}>
+                  <Ionicons name="alert-circle" size={16} color={BRAND} />
+                  <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>今日まだ入力していないこと</Text>
+                </View>
+                {todayUnfilled.map((item, i) => (
+                  <TouchableOpacity
+                    key={item.key}
+                    activeOpacity={0.75}
+                    onPress={() => { unlockAudio(); item.onPress() }}
+                    style={{
+                      flexDirection: 'row', alignItems: 'center', gap: 10,
+                      paddingHorizontal: 14, paddingVertical: 12,
+                      borderTopWidth: i === 0 ? 0 : 1, borderTopColor: colors.border,
+                    }}
+                  >
+                    <Text style={{ fontSize: 18 }}>{item.icon}</Text>
+                    <Text style={{ flex: 1, color: colors.text, fontSize: 14, fontWeight: '700' }}>{item.label}</Text>
+                    <Ionicons name="chevron-forward" size={16} color={colors.textHint} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </AnimatedEntry>
+          ) : !doneBannerDismissed && (
+            <AnimatedEntry delay={35}>
+              <View style={{
+                flexDirection: 'row', alignItems: 'center', gap: 8,
+                backgroundColor: BRAND + '15', borderRadius: 14, borderWidth: 1, borderColor: BRAND + '40',
+                paddingHorizontal: 14, paddingVertical: 12, marginBottom: 10,
+              }}>
+                <Ionicons name="checkmark-circle" size={18} color={BRAND} />
+                <Text style={{ flex: 1, color: colors.text, fontSize: 13, fontWeight: '700' }}>今日の記録は完了！お疲れさまでした 🎉</Text>
+                <TouchableOpacity onPress={() => setDoneBannerDismissed(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Ionicons name="close" size={18} color={colors.textHint} />
+                </TouchableOpacity>
+              </View>
+            </AnimatedEntry>
+          )}
+          {/* ── Instagram フォロー促進バナー ── */}
+          {igBannerVisible && (
+            <AnimatedEntry delay={40}>
+              <TouchableOpacity
+                activeOpacity={0.88}
+                onPress={() => Linking.openURL('https://www.instagram.com/score.app.japan/')}
+                style={{
+                  marginHorizontal: 0, marginBottom: 10,
+                  borderRadius: 14,
+                  overflow: 'hidden',
+                  backgroundColor: '#1a1a1a',
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,255,255,0.1)',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingHorizontal: 14,
+                  paddingVertical: 12,
+                  gap: 12,
+                }}
+              >
+                {/* Instagramグラデーションアイコン */}
+                <View style={{
+                  width: 40, height: 40, borderRadius: 12,
+                  alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: '#E1306C22',
+                }}>
+                  <Text style={{ fontSize: 22 }}>📸</Text>
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: '#fff', fontSize: 13, fontWeight: '800', marginBottom: 2 }}>
+                    @score.app.japan フォローしてますか？
+                  </Text>
+                  <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, lineHeight: 15 }}>
+                    Monthly Challenge 開催中🎯 参加してベストを更新しよう
+                  </Text>
+                </View>
+
+                {/* 閉じるボタン */}
+                <TouchableOpacity
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  onPress={(e) => {
+                    e.stopPropagation()
+                    setIgBannerVisible(false)
+                    AsyncStorage.setItem('score_ig_banner_dismissed', '1').catch(() => {})
+                  }}
+                >
+                  <Ionicons name="close" size={18} color="rgba(255,255,255,0.35)" />
+                </TouchableOpacity>
+              </TouchableOpacity>
+            </AnimatedEntry>
+          )}
 
           {/* ── チーム通知バナー ── */}
           {teamNotifs.length > 0 && (() => {
@@ -1682,19 +1890,10 @@ ${sleepText || 'データなし'}
               </AnimatedEntry>
             )
           })()}
+          </>)}
+          {/* ── ここまで：今日限定セクション ── */}
 
-          {/* ── 体調入力 ── */}
-          <AnimatedEntry delay={60}>
-            <GlassCard>
-              <ConditionRow
-                value={conditionLevel}
-                onChange={handleConditionChange}
-                dateLabel={selectedDate === getTodayISO() ? '今日の体調' : `${selectedDate.slice(5).replace('-', '/')} の体調`}
-              />
-            </GlassCard>
-          </AnimatedEntry>
-
-          {/* ── INJURY RISK SCORE + ステータスカード ── */}
+          {/* ── INJURY RISK SCORE ── */}
           <AnimatedEntry delay={90}>
             <ScoreOverviewCard
               sessions={sessions}
@@ -1706,12 +1905,165 @@ ${sleepText || 'データなし'}
               onStretchStart={handleStretchStart}
               onRefreshWeather={() => fetchWeather(true)}
               weatherLoading={weatherLoading}
+              onPressBreakdown={() => setShowRiskBreakdown(true)}
             />
           </AnimatedEntry>
 
+          {/* ── 選択中の日（今日以外）の記録内容 ── */}
+          {!isViewingToday && (
+            <AnimatedEntry delay={100}>
+              <GlassCard>
+                <View style={s.sectionRow}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="calendar-outline" size={14} color={BRAND} />
+                    <Text style={[s.sectionLabel, { color: colors.text }]}>
+                      {selectedDate.slice(5).replace('-', '/')} の記録
+                    </Text>
+                  </View>
+                </View>
+                {(() => {
+                  const daySessions = sessions.filter(sess => sess.session_date === selectedDate)
+                  if (daySessions.length === 0) {
+                    return (
+                      <View style={{ alignItems: 'center', gap: 6, paddingVertical: 20 }}>
+                        <Ionicons name="barbell-outline" size={28} color={colors.textHint} />
+                        <Text style={{ color: colors.textHint, fontSize: 13 }}>この日の記録はありません</Text>
+                      </View>
+                    )
+                  }
+                  const SESSION_TYPE_MAP: Record<string, { color: string; label: string }> = {
+                    interval: { color: '#F5A623', label: 'インターバル' },
+                    tempo:    { color: '#FF9500', label: 'テンポ走' },
+                    easy:     { color: '#4ECDC4', label: 'ジョグ' },
+                    long:     { color: '#5AC8FA', label: 'ロング走' },
+                    sprint:   { color: '#FF6B6B', label: 'スプリント' },
+                    drill:    { color: '#AF52DE', label: 'ドリル' },
+                    strength: { color: '#FF6B35', label: 'ウェイト' },
+                    race:     { color: '#FFD700', label: '試合' },
+                    rest:     { color: '#888',    label: '休養' },
+                  }
+                  const fmtTime = (ms: number) => {
+                    const sec = ms / 1000
+                    if (sec < 60) return `${sec.toFixed(2)}"`
+                    return `${Math.floor(sec/60)}'${(sec%60).toFixed(2).padStart(5,'0')}"`
+                  }
+                  return daySessions.map((sess, idx) => {
+                    const typeInfo = SESSION_TYPE_MAP[sess.session_type] ?? { color: '#888', label: sess.session_type }
+                    const fat = sess.fatigue_level ?? 5
+                    const fatColor = fat >= 8 ? '#FF6B6B' : fat >= 6 ? '#FF9500' : '#4ECDC4'
+                    return (
+                      <View key={sess.id} style={[s.sessRow, idx > 0 && { borderTopWidth: 1, borderTopColor: DIVIDER }]}>
+                        <View style={[s.typeBar, { backgroundColor: typeInfo.color }]} />
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={[s.sessType, { color: colors.text }]}>{typeInfo.label}</Text>
+                            {sess.event ? <Text style={{ color: colors.textHint, fontSize: 11 }}>{sess.event}</Text> : null}
+                          </View>
+                          {sess.notes ? (
+                            <Text style={[s.sessDate, { color: colors.textHint }]} numberOfLines={2}>{sess.notes}</Text>
+                          ) : sess.distance_m ? (
+                            <Text style={[s.sessDate, { color: colors.textHint }]}>
+                              {sess.distance_m >= 1000 ? `${(sess.distance_m/1000).toFixed(1)}km` : `${sess.distance_m}m`}
+                            </Text>
+                          ) : null}
+                        </View>
+                        {sess.time_ms ? (
+                          <Text style={[s.sessStat, { color: colors.textSec }]}>{fmtTime(sess.time_ms)}</Text>
+                        ) : null}
+                        <View style={[s.fatiguePill, { backgroundColor: fatColor + '22' }]}>
+                          <Text style={{ fontSize: 10, fontWeight: '800', color: fatColor }}>疲労{fat}</Text>
+                        </View>
+                      </View>
+                    )
+                  })
+                })()}
+              </GlassCard>
+            </AnimatedEntry>
+          )}
+
+          {/* ── ここから：今日を見ている時だけ表示するセクション群 ── */}
+          {isViewingToday && (<>
           {/* ── 目標 ── */}
+          <AnimatedEntry delay={100}>
+            <TutorialSpot spotKey="home_goal_section">
+              <GoalCard goals={goals} onUpdate={handleGoalsUpdate} />
+            </TutorialSpot>
+          </AnimatedEntry>
+
+          {/* ── サクッと入力 ＋ カウントダウン ── */}
           <AnimatedEntry delay={120}>
-            <GoalCard goals={goals} onUpdate={handleGoalsUpdate} />
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              {/* サクッと入力（常時・緑背景） */}
+              <TutorialSpot spotKey="home_quick_input" style={{ flex: 1 }}>
+              <TouchableOpacity
+                style={[s.halfCard, { flex: 1, flexDirection: 'row', backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 8 }]}
+                onPress={() => { unlockAudio(); setShowQuickCondition(true); if (tutStepId === 'quick_input') tutNext() }}
+                activeOpacity={0.78}
+              >
+                <Ionicons name="flash" size={18} color="#fff" />
+                <Text style={{ fontSize: 13, fontWeight: '900', color: '#fff' }}>サクッと入力</Text>
+              </TouchableOpacity>
+              </TutorialSpot>
+
+              {/* カウントダウンカード */}
+              <TouchableOpacity
+                style={[s.halfCard, { flex: 1, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', paddingVertical: 8 }]}
+                onPress={() => setShowCountdownModal(true)}
+                activeOpacity={0.78}
+              >
+                {injuryDaysLeft !== null ? (
+                  <>
+                    <Text style={{ fontSize: 12, fontWeight: '800', color: '#FF6B6B' }}>怪我復帰まで</Text>
+                    <Text style={{ fontSize: 26, fontWeight: '900', color: '#FF6B6B', letterSpacing: -1 }}>
+                      {injuryDaysLeft}<Text style={{ fontSize: 14 }}> 日</Text>
+                    </Text>
+                  </>
+                ) : compDaysLeft !== null ? (
+                  <>
+                    <Text style={{ fontSize: 12, fontWeight: '800', color: BRAND }} numberOfLines={1}>{compDaysLeft.name}</Text>
+                    <Text style={{ fontSize: 26, fontWeight: '900', color: BRAND, letterSpacing: -1 }}>
+                      {compDaysLeft.days}<Text style={{ fontSize: 14 }}> 日</Text>
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="timer-outline" size={18} color={colors.textHint} />
+                    <Text style={{ fontSize: 12, fontWeight: '800', color: colors.textHint }}>カウントダウン</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </AnimatedEntry>
+
+          {/* ── 動画分析 ＋ メニュー ＋ カレンダー ── */}
+          <AnimatedEntry delay={160}>
+            <View style={{ backgroundColor: 'rgba(163,230,53,0.16)', borderRadius: 20, padding: 8 }}>
+              <View style={s.quickLinks}>
+                {[
+                  { icon: '📹', label: '動画分析', route: '/video-analysis',  spotKey: undefined },
+                  { icon: '📋', label: 'メニュー', route: '/workout-menu',    spotKey: 'notebook_menu_link' as const },
+                  { icon: '📅', label: 'カレンダー', route: '/(tabs)/calendar', spotKey: undefined },
+                ].map(item => {
+                  const btn = (
+                    <PressableScale
+                      key={item.label}
+                      haptic="light"
+                      scaleAmount={0.94}
+                      onPress={() => { unlockAudio(); Sounds.tap(); router.push(item.route as any) }}
+                      style={{ flex: 1 }}
+                    >
+                      <View style={[s.quickLink, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                        <Text style={{ fontSize: 20 }}>{item.icon}</Text>
+                        <Text style={[s.quickLinkLabel, { color: colors.textSec }]}>{item.label}</Text>
+                      </View>
+                    </PressableScale>
+                  )
+                  return item.spotKey
+                    ? <TutorialSpot key={item.label} spotKey={item.spotKey} style={{ flex: 1 }}>{btn}</TutorialSpot>
+                    : btn
+                })}
+              </View>
+            </View>
           </AnimatedEntry>
 
           {/* ── 改善タスク（ある場合のみ表示） ── */}
@@ -1719,89 +2071,34 @@ ${sleepText || 'データなし'}
             <TasksCard tasks={tasks} onToggle={toggleTask} />
           </AnimatedEntry>
 
-          {/* ── クイックリンク ── */}
+          {/* ── クイックリンク（食事分析・試合計画） ── */}
           <AnimatedEntry delay={240}>
             <View style={s.quickLinks}>
               {[
-                { icon: '📹', label: '動画分析',     route: '/video-analysis' },
-                { icon: '📋', label: 'メニュー',     route: '/workout-menu' },
-                { icon: '🏆', label: '試合計画',     route: '/(tabs)/competition' },
-                { icon: '📅', label: 'カレンダー',   route: '/(tabs)/calendar' },
-              ].map(item => (
-                <PressableScale
-                  key={item.label}
-                  haptic="light"
-                  scaleAmount={0.94}
-                  onPress={() => { unlockAudio(); Sounds.tap(); router.push(item.route as any) }}
-                  style={{ flex: 1 }}
-                >
-                  <View style={[s.quickLink, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <Text style={{ fontSize: 20 }}>{item.icon}</Text>
-                    <Text style={[s.quickLinkLabel, { color: colors.textSec }]}>{item.label}</Text>
-                  </View>
-                </PressableScale>
-              ))}
+                { icon: '🍽️', label: '食事分析',  route: '/(tabs)/nutrition',   spotKey: undefined },
+                { icon: '🏆', label: '試合計画',  route: '/(tabs)/competition', spotKey: 'competition_tab' as const },
+              ].map(item => {
+                const btn = (
+                  <PressableScale
+                    key={item.label}
+                    haptic="light"
+                    scaleAmount={0.94}
+                    onPress={() => { unlockAudio(); Sounds.tap(); router.push(item.route as any) }}
+                    style={{ flex: 1 }}
+                  >
+                    <View style={[s.quickLink, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                      <Text style={{ fontSize: 20 }}>{item.icon}</Text>
+                      <Text style={[s.quickLinkLabel, { color: colors.textSec }]}>{item.label}</Text>
+                    </View>
+                  </PressableScale>
+                )
+                return item.spotKey
+                  ? <TutorialSpot key={item.label} spotKey={item.spotKey} style={{ flex: 1 }}>{btn}</TutorialSpot>
+                  : btn
+              })}
             </View>
           </AnimatedEntry>
 
-          {/* ── AIコーチカード（W3スタイル） ── */}
-          <AnimatedEntry delay={300}>
-            <HapticTouch
-              style={[s.aiCoachCard, { backgroundColor: colors.surface }]}
-              haptic="whoosh"
-              activeOpacity={0.85}
-              onPress={() => { unlockAudio(); aiAdvice ? setShowAIAdvice(true) : handleDailyInsight() }}
-            >
-              <View style={s.aiCoachDarkIcon}>
-                <Text style={{ fontSize: 20 }}>🤖</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.aiCoachLabel}>AI COACH</Text>
-                <Text style={[s.aiCoachSub, { color: colors.textSec }]}>
-                  {aiAdvice
-                    ? aiAdvice.replace(/\*\*/g, '').split('\n')[0].slice(0, 50)
-                    : '体調・練習・睡眠データから総合分析。タップで取得。'}
-                </Text>
-              </View>
-            </HapticTouch>
-          </AnimatedEntry>
-
-          {/* ── デイリーAIインサイト（広告視聴で取得） ── */}
-          {insightClaimed !== null && (
-          <AnimatedEntry delay={330}>
-            <HapticTouch
-              style={[s.aiCoachCard, {
-                backgroundColor: insightClaimed ? (colors.surface) : '#166534',
-                opacity: insightLoading ? 0.7 : 1,
-              }]}
-              haptic="whoosh"
-              activeOpacity={0.85}
-              onPress={handleDailyInsight}
-              disabled={insightClaimed === true || insightLoading}
-            >
-              <View style={[s.aiCoachDarkIcon, { backgroundColor: insightClaimed ? colors.surface : 'rgba(255,255,255,0.15)' }]}>
-                <Text style={{ fontSize: 20 }}>{insightClaimed ? '✅' : insightLoading ? '⏳' : '🎁'}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[s.aiCoachLabel, { color: insightClaimed ? colors.text : '#fff' }]}>
-                  {insightClaimed ? '今日のインサイト取得済み' : '今日のAIインサイトを取得'}
-                </Text>
-                <Text style={{ fontSize: 12, color: insightClaimed ? colors.textSec : 'rgba(255,255,255,0.75)', lineHeight: 17 }}>
-                  {insightClaimed
-                    ? '明日またリセットされます'
-                    : insightLoading
-                    ? '広告を読み込み中...'
-                    : '📺 広告を見てAIコーチのアドバイスを取得（無料）'}
-                </Text>
-              </View>
-              {!insightClaimed && !insightLoading && (
-                <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }}>
-                  <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>FREE</Text>
-                </View>
-              )}
-            </HapticTouch>
-          </AnimatedEntry>
-          )}
 
           {/* ── 練習一覧（全件・スクロール形式） ── */}
           <AnimatedEntry delay={360}>
@@ -1867,7 +2164,7 @@ ${sleepText || 'データなし'}
                       fatigue:   sess.fatigue_level,
                       condition: sess.condition_level,
                       weather:   sess.weather ?? undefined,
-                      streak:    (() => { let sk=0; const ds=new Set(sessions.map(s=>s.session_date)); for(let i=0;i<365;i++){const d=new Date();d.setDate(d.getDate()-i);if(ds.has(d.toISOString().slice(0,10)))sk++;else if(i>0)break}; return sk })(),
+                      streak:    (() => { let sk=0; const ds=new Set(sessions.map(s=>s.session_date)); for(let i=0;i<365;i++){const d=new Date();d.setDate(d.getDate()-i);if(ds.has(localDateStr(d)))sk++;else if(i>0)break}; return sk })(),
                       rank:      `${calcLevelInfo(sessions.length).emoji} ${calcLevelInfo(sessions.length).title}`,
                     })
                   }
@@ -1912,8 +2209,8 @@ ${sleepText || 'データなし'}
             </GlassCard>
           </AnimatedEntry>
 
-          {/* ── チームアップセルカード（Pro ユーザー・3回目以降起動時のみ） ── */}
-          {purchaseTier === 'pro' && appOpenCount >= 3 && (
+          {/* ── チームアップセルカード（v1.0: チーム機能は近日公開のため非表示） ── */}
+          {false && purchaseTier === 'noad' && appOpenCount >= 3 && (
             <AnimatedEntry delay={410}>
               <TouchableOpacity
                 style={{
@@ -1941,27 +2238,8 @@ ${sleepText || 'データなし'}
               </TouchableOpacity>
             </AnimatedEntry>
           )}
-
-          {/* ── リカバリー ── */}
-          <AnimatedEntry delay={420}>
-            <HapticTouch
-              style={[s.recoveryBtn, { backgroundColor: colors.surface, borderColor: 'rgba(34,197,94,0.3)' }]}
-              haptic="whoosh"
-              activeOpacity={0.85}
-              onPress={() => { unlockAudio(); router.push('/recovery' as any) }}
-            >
-              <View style={s.recoveryInner}>
-                <View style={[s.recoveryIcon, { backgroundColor: 'rgba(34,197,94,0.10)' }]}>
-                  <Text style={{ fontSize: 22 }}>🩹</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[s.recoveryTitle, { color: colors.text }]}>リカバリー記録</Text>
-                  <Text style={[s.recoverySub, { color: colors.textHint }]}>痛み・違和感・アイシングなどを記録</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={colors.textHint} />
-              </View>
-            </HapticTouch>
-          </AnimatedEntry>
+          </>)}
+          {/* ── ここまで：今日限定セクション ── */}
 
         </ScrollView>
       </SafeAreaView>
@@ -1988,6 +2266,98 @@ ${sleepText || 'データなし'}
           loadTasks()
         }}
       />
+
+      <QuickConditionModal
+        visible={showQuickCondition}
+        date={selectedDate}
+        onClose={() => { setShowQuickCondition(false); onConditionModalClose() }}
+        onSaved={() => reloadAll()}
+      />
+
+      {/* ── 怪我リスク内訳モーダル ── */}
+      <Modal visible={showRiskBreakdown} transparent animationType="slide" onRequestClose={() => setShowRiskBreakdown(false)}>
+        <View style={s.modalOverlay}>
+          <View style={[s.modalSheet, { backgroundColor: colors.surface }]}>
+            <View style={s.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={{ fontSize: 20 }}>📊</Text>
+                <Text style={[s.modalTitle, { color: colors.text }]}>怪我リスクの内訳</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowRiskBreakdown(false)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                <Ionicons name="close" size={22} color={colors.textSec} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ maxHeight: '80%' }} showsVerticalScrollIndicator={false}>
+              {riskResult && (
+                <View style={{
+                  flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginBottom: 16,
+                  padding: 14, borderRadius: 14, backgroundColor: colors.surface2,
+                }}>
+                  <Text style={{ fontSize: 13, color: colors.textSec }}>
+                    基礎 {riskResult.riskScore + riskResult.recoveryApplied}
+                  </Text>
+                  {isViewingToday && riskResult.recoveryApplied > 0 && (
+                    <Text style={{ fontSize: 13, color: BRAND, fontWeight: '700' }}>
+                      − ストレッチ{riskResult.recoveryApplied}
+                    </Text>
+                  )}
+                  {!!weatherBonus && (
+                    <Text style={{ fontSize: 13, color: colors.textSec }}>
+                      {weatherBonus > 0 ? '+' : ''}天気{weatherBonus}
+                    </Text>
+                  )}
+                  <Text style={{ fontSize: 13, color: colors.text, fontWeight: '800', marginLeft: 'auto' }}>
+                    現在 {effectiveRiskScore ?? riskResult.riskScore}
+                  </Text>
+                </View>
+              )}
+              {riskResult?.reasons && riskResult.reasons.length > 0 && (
+                <View style={{ marginBottom: 16 }}>
+                  {riskResult.reasons.map((r, i) => (
+                    <View key={i} style={{ flexDirection: 'row', gap: 6, marginBottom: 6 }}>
+                      <Text style={{ fontSize: 13, color: colors.textSec }}>・</Text>
+                      <Text style={{ fontSize: 13, color: colors.textSec, flex: 1, lineHeight: 19 }}>{r}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+              {isViewingToday && riskResult && riskResult.recoveryApplied > 0 && (
+                <Text style={{ fontSize: 11, color: colors.textHint, marginBottom: 10, lineHeight: 16 }}>
+                  ※ ストレッチの軽減分は「疲労蓄積」「直近疲労度」の内訳にも反映されています。
+                </Text>
+              )}
+              {riskResult?.factors.map(f => {
+                // 未記録(-1)は棒を出さない。0以上は最低でも視認できる幅を確保する。
+                const pct = f.score < 0 ? null : Math.max(3, Math.min(100, f.score))
+                const barColor = pct === null ? colors.textHint
+                  : f.score >= 60 ? ALERT : f.score >= 30 ? '#f59e0b' : BRAND
+                return (
+                  <View key={f.key} style={{
+                    marginBottom: 10, padding: 12, borderRadius: 14,
+                    backgroundColor: colors.surface2,
+                  }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>{f.emoji} {f.name}</Text>
+                      {pct !== null && (
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: barColor }}>{f.score}%</Text>
+                      )}
+                    </View>
+                    <Text style={{ fontSize: 12, color: colors.textSec, marginBottom: 8, lineHeight: 17 }}>{f.description}</Text>
+                    <View style={{ height: 6, backgroundColor: colors.border ?? 'rgba(128,128,128,0.2)', borderRadius: 3, overflow: 'hidden' }}>
+                      {pct !== null && (
+                        <View style={{
+                          width: `${pct}%` as any, height: '100%', borderRadius: 3,
+                          backgroundColor: barColor,
+                        }} />
+                      )}
+                    </View>
+                  </View>
+                )
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {/* ── AIコーチ アドバイスモーダル ── */}
       <Modal visible={showAIAdvice} transparent animationType="slide" onRequestClose={() => setShowAIAdvice(false)}>
@@ -2055,6 +2425,91 @@ ${sleepText || 'データなし'}
         ) : <View />}
       </Modal>
 
+      {/* ── カウントダウン選択モーダル ── */}
+      <Modal visible={showCountdownModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowCountdownModal(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#f6f6f8' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 16 }}>
+            <Text style={{ fontSize: 20, fontWeight: '900', color: '#111' }}>カウントダウン</Text>
+            <TouchableOpacity onPress={() => setShowCountdownModal(false)} style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#e8eaed', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="close" size={18} color="#555" />
+            </TouchableOpacity>
+          </View>
+
+          <Text style={{ fontSize: 13, color: '#888', paddingHorizontal: 20, marginBottom: 20 }}>プランを選択してください</Text>
+
+          <View style={{ paddingHorizontal: 16, gap: 14 }}>
+            {/* 試合計画カード */}
+            <TouchableOpacity
+              activeOpacity={0.82}
+              onPress={() => { setShowCountdownModal(false); router.push({ pathname: '/(tabs)/competition', params: { tab: 'race' } }) }}
+              style={{ backgroundColor: '#fff', borderRadius: 20, padding: 20, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.07, shadowRadius: 12, elevation: 3 }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                <View style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: BRAND + '18', alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 26 }}>🏁</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 16, fontWeight: '800', color: '#111' }}>試合計画</Text>
+                  {compDaysLeft !== null ? (
+                    <>
+                      <Text style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{compDaysLeft.name}</Text>
+                      <Text style={{ fontSize: 24, fontWeight: '900', color: BRAND, letterSpacing: -1, marginTop: 4 }}>
+                        あと {compDaysLeft.days} 日
+                      </Text>
+                    </>
+                  ) : (
+                    <Text style={{ fontSize: 13, color: '#aaa', marginTop: 4 }}>試合を登録してカウントダウンを開始</Text>
+                  )}
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#ccc" />
+              </View>
+              {compDaysLeft === null && (
+                <View style={{ marginTop: 14, backgroundColor: BRAND, borderRadius: 12, paddingVertical: 11, alignItems: 'center' }}>
+                  <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>試合を登録する</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+
+            {/* 怪我復帰計画カード */}
+            <TouchableOpacity
+              activeOpacity={0.82}
+              onPress={() => { setShowCountdownModal(false); router.push({ pathname: '/(tabs)/competition', params: { tab: 'injury' } }) }}
+              style={{ backgroundColor: '#fff', borderRadius: 20, padding: 20, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.07, shadowRadius: 12, elevation: 3 }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                <View style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: '#FF6B6B18', alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 26 }}>🩹</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 16, fontWeight: '800', color: '#111' }}>怪我復帰計画</Text>
+                  {injuryDaysLeft !== null ? (
+                    <>
+                      <Text style={{ fontSize: 12, color: '#888', marginTop: 2 }}>回復プラン進行中</Text>
+                      <Text style={{ fontSize: 24, fontWeight: '900', color: '#FF6B6B', letterSpacing: -1, marginTop: 4 }}>
+                        あと {injuryDaysLeft} 日
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={{ fontSize: 13, color: '#aaa', marginTop: 2 }}>怪我なし継続</Text>
+                      <Text style={{ fontSize: 22, fontWeight: '900', color: '#34C759', letterSpacing: -1, marginTop: 2 }}>
+                        {injuryFreeDays} 日
+                      </Text>
+                    </>
+                  )}
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#ccc" />
+              </View>
+              {injuryDaysLeft === null && (
+                <View style={{ marginTop: 14, backgroundColor: '#FF6B6B', borderRadius: 12, paddingVertical: 11, alignItems: 'center' }}>
+                  <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>怪我を記録する</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
+
       <PWAInstallPrompt />
 
       {/* レビューウォール */}
@@ -2062,13 +2517,20 @@ ${sleepText || 'データなし'}
         visible={reviewWallVisible}
         onClose={() => setReviewWallVisible(false)}
       />
+
+      {/* 広告なしプラン案内（週1回程度・FREEユーザーのみ） */}
+      <NoadUpsellModal
+        visible={noadUpsellVisible}
+        onClose={() => setNoadUpsellVisible(false)}
+        onUpgrade={() => router.push('/paywall')}
+      />
     </View>
   )
 }
 
 // ── Styles ──────────────────────────────────────────────
 const s = StyleSheet.create({
-  content:   { padding: 16, gap: 10, paddingBottom: 110 },
+  content:   { paddingHorizontal: 16, paddingTop: 4, gap: 6, paddingBottom: 110 },
 
   header:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 },
   scorePill:    { backgroundColor: '#111827', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 8 },
@@ -2085,10 +2547,10 @@ const s = StyleSheet.create({
   sessStat:   { fontSize: 12, fontWeight: '600' },
   fatiguePill:{ paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
 
-  quickLinks: { flexDirection: 'row', gap: 8 },
-  quickLink:  { borderRadius: 12, borderWidth: 1, paddingVertical: 12, alignItems: 'center', gap: 5,
-               shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.07, shadowRadius: 12, elevation: 4 },
-  quickLinkLabel: { fontSize: 10, fontWeight: '700', textAlign: 'center' },
+  quickLinks: { flexDirection: 'row', gap: 10 },
+  quickLink:  { borderRadius: 16, borderWidth: 0, paddingVertical: 12, alignItems: 'center', gap: 5,
+               shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.09, shadowRadius: 16, elevation: 5 },
+  quickLinkLabel: { fontSize: 11, fontWeight: '700', textAlign: 'center' },
 
   // PRバッジ
   prBadge: {
@@ -2104,6 +2566,12 @@ const s = StyleSheet.create({
   recoveryTitle: { fontSize: 14, fontWeight: '800' },
   recoverySub:   { fontSize: 11, marginTop: 2 },
 
+  halfCard: {
+    flex: 1, borderRadius: 16, paddingVertical: 12, paddingHorizontal: 14,
+    alignItems: 'center', gap: 5,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.09, shadowRadius: 16, elevation: 5,
+  },
   // AIコーチカード（W3スタイル）— 案A ソフト浮き上がり
   aiCoachCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,

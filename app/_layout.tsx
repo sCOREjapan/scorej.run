@@ -14,8 +14,10 @@ import { AuthProvider, useAuth } from '../context/AuthContext'
 import { ThemeProvider } from '../context/ThemeContext'
 import { PurchaseProvider } from '../context/PurchaseContext'
 import SplashAnimation from '../components/SplashAnimation'
+import { TutorialProvider } from '../lib/tutorialContext'
+import TutorialSlides from '../components/TutorialSlides'
 import { initOneSignal, requestPushPermission } from '../lib/notify'
-import { initAdmob } from '../lib/admob'
+import { initAdmob, showAppOpenAd } from '../lib/admob'
 // expo-tracking-transparency: 動的インポートでバージョン非互換クラッシュを防ぐ
 
 // ── iOS 26 beta Hermes 0.81.5 クラッシュ回避 ───────────────────────
@@ -475,8 +477,18 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       (window.location.search?.includes('code=') || window.location.hash?.includes('access_token='))
     if (!authed && hasOAuthParams) return
 
-    // 未認証 → /auth へ（公開ページは除く）
-    if (!authed && !inAuth && !inPublic) {
+    // 未認証 かつ オンボーディング未完了 → まず /onboarding へ
+    // （サインアップの壁を見せる前に、種目選択などで価値を体験してもらう）
+    if (!authed && !isOnboarded && !inOnboarding && !inPublic) {
+      router.replace('/onboarding')
+      return
+    }
+
+    // 未認証（オンボーディング済みだが未認証） → /auth へ（公開ページ・オンボーディング中は除く）
+    // ※ inOnboarding を除外しないと、上の「未認証→/onboarding」チェックと互いを
+    //   無限に呼び合うリダイレクトループになり、新規ユーザーがアプリを開けなくなる。
+    //   /onboarding からの明示的な /auth 遷移は onboarding.tsx の handleFinish が行う。
+    if (!authed && !inAuth && !inPublic && !inOnboarding) {
       router.replace('/auth')
       return
     }
@@ -555,7 +567,9 @@ function RootLayoutNav() {
           }
         } catch {}
       }
-      initAdmob().catch(() => {})
+      await initAdmob().catch(() => {})
+      // 初期化完了後にApp Open広告（1日1回）
+      showAppOpenAd().catch(() => {})
     }, 3000)
     return () => clearTimeout(t)
   }, [])
@@ -586,6 +600,8 @@ function RootLayoutNav() {
 
   return (
     <SafeAreaProvider>
+      <TutorialProvider>
+      <TutorialSlides />
       <AuthGate>
         <Stack
           screenOptions={{
@@ -692,6 +708,7 @@ function RootLayoutNav() {
       </AuthGate>
       <Toast />
       {showSplash && <SplashAnimation onFinish={() => setSplashDone(true)} />}
+      </TutorialProvider>
     </SafeAreaProvider>
   )
 }

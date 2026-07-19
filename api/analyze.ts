@@ -29,9 +29,9 @@ export default async function handler(request: Request): Promise<Response> {
 
   try {
     const body = await request.json()
-    // max_tokens を 4096 に上限設定（意図しない高コスト呼び出しを防止）
-    if (body && typeof body.max_tokens === 'number' && body.max_tokens > 4096) {
-      body.max_tokens = 4096
+    // max_tokens を 3000 に上限設定（意図しない高コスト呼び出しを防止／出力は入力の5倍高いため上限を絞る）
+    if (body && typeof body.max_tokens === 'number' && body.max_tokens > 3000) {
+      body.max_tokens = 3000
     }
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',

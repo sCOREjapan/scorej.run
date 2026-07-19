@@ -12,6 +12,7 @@ import { BRAND, TEXT, SURFACE2 } from '../../lib/theme'
 import { useTheme } from '../../context/ThemeContext'
 import { Sounds, unlockAudio } from '../../lib/sounds'
 import HapticTouch from '../../components/HapticTouch'
+import { localDateStr } from '../../lib/dateLocal'
 
 const PROFILE_KEY = 'trackmate_my_profile'
 
@@ -98,8 +99,8 @@ export default function MyPageScreen() {
           <View style={[s.statsRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             {[
               { label: '総練習', value: `${sessions.length}回` },
-              { label: '今週', value: `${sessions.filter(s => s.session_date >= new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)).length}回` },
-              { label: '今月距離', value: (() => { const km = sessions.filter(s => s.session_date >= new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)).reduce((a, s) => a + (s.distance_m ?? 0), 0) / 1000; return km > 0 ? `${km.toFixed(0)}km` : '—' })() },
+              { label: '今週', value: `${sessions.filter(s => s.session_date >= localDateStr(new Date(Date.now() - 7 * 86400000))).length}回` },
+              { label: '今月距離', value: (() => { const km = sessions.filter(s => s.session_date >= localDateStr(new Date(Date.now() - 30 * 86400000))).reduce((a, s) => a + (s.distance_m ?? 0), 0) / 1000; return km > 0 ? `${km.toFixed(0)}km` : '—' })() },
             ].map((item, i) => (
               <View key={i} style={[s.statCell, i > 0 && { borderLeftWidth: 1, borderLeftColor: colors.border }]}>
                 <Text style={[s.statValue, { color: colors.text }]}>{item.value}</Text>
@@ -107,6 +108,18 @@ export default function MyPageScreen() {
               </View>
             ))}
           </View>
+
+          {/* ── お知らせボタン ── */}
+          <HapticTouch
+            haptic="whoosh"
+            style={[s.settingsBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            onPress={() => { unlockAudio(); router.push('/notifications') }}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="notifications-outline" size={20} color={colors.textSec} />
+            <Text style={[s.settingsBtnText, { color: colors.text }]}>お知らせ</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.textHint} style={{ marginLeft: 'auto' as any }} />
+          </HapticTouch>
 
           {/* ── 設定ボタン ── */}
           <HapticTouch
@@ -120,7 +133,7 @@ export default function MyPageScreen() {
             <Ionicons name="chevron-forward" size={16} color={colors.textHint} style={{ marginLeft: 'auto' as any }} />
           </HapticTouch>
 
-          <Text style={[s.version, { color: colors.textHint }]}>sCORE v1.0.0</Text>
+          <Text style={[s.version, { color: colors.textHint }]}>sCORE v1.6.1</Text>
         </ScrollView>
       </SafeAreaView>
     </Animated.View>
@@ -138,24 +151,24 @@ const s = StyleSheet.create({
   avatar:      { width: 72, height: 72, borderRadius: 36, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center' },
   avatarText:  { color: '#fff', fontSize: 26, fontWeight: '900' },
   name:        { fontSize: 22, fontWeight: '900' },
-  eventBadge:  { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 4 },
+  eventBadge:  { borderRadius: 14, paddingHorizontal: 12, paddingVertical: 4 },
   eventText:   { fontSize: 13, fontWeight: '700' },
   grade:       { fontSize: 13 },
 
-  levelCard:   { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 16, borderWidth: 1, padding: 16 },
+  levelCard:   { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 21, borderWidth: 1, padding: 16 },
   levelEmoji:  { fontSize: 32 },
-  levelNum:    { fontSize: 22, fontWeight: '900' },
+  levelNum:    { fontSize: 22, fontWeight: '900', fontVariant: ['tabular-nums'] },
   levelTitle:  { fontSize: 14, fontWeight: '700' },
   barBg:       { height: 6, borderRadius: 3, overflow: 'hidden' },
   barFill:     { height: 6, backgroundColor: BRAND, borderRadius: 3 },
   levelSub:    { fontSize: 11 },
 
-  statsRow:    { flexDirection: 'row', borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
+  statsRow:    { flexDirection: 'row', borderRadius: 21, borderWidth: 1, overflow: 'hidden' },
   statCell:    { flex: 1, alignItems: 'center', paddingVertical: 14, gap: 3 },
-  statValue:   { fontSize: 18, fontWeight: '800' },
+  statValue:   { fontSize: 18, fontWeight: '800', fontVariant: ['tabular-nums'] },
   statLabel:   { fontSize: 10, fontWeight: '600' },
 
-  settingsBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, borderWidth: 1, padding: 16 },
+  settingsBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 21, borderWidth: 1, padding: 16 },
   settingsBtnText: { fontSize: 15, fontWeight: '700' },
 
   version:     { textAlign: 'center', fontSize: 12, paddingTop: 4 },

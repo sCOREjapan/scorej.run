@@ -16,6 +16,7 @@ import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import { useTheme } from '../context/ThemeContext'
 import { usePurchase } from '../context/PurchaseContext'
+import { useTutorial } from '../lib/tutorialContext'
 import AnimatedSection from '../components/AnimatedSection'
 import { requestPermission, getPermission, startAllSchedulers } from '../lib/notifications'
 import { checkAdGate, recordUsage } from '../lib/adGate'
@@ -29,13 +30,17 @@ const TEAM_ROLE_KEY = 'trackmate_team_role'
 const TEAM_SETUP_KEY   = 'trackmate_team_setup'
 const TEAM_JOINED_KEY  = 'trackmate_team_joined'
 
-const EVENTS = [
-  '100m', '200m', '400m', '800m', '1500m', '5000m', '10000m',
-  'ハーフ', 'マラソン', '走幅跳', '三段跳', '棒高跳', '走高跳',
-  '砲丸投', '円盤投', 'やり投', 'ハンマー投', '400mH', '110mH', '100mH', '3000mSC', '競歩',
-  '十種競技', '七種競技', '八種競技',
-  '4×100mR', '4×400mR',
-]
+const EVENT_CATEGORIES = [
+  { label: 'スプリント', events: ['100m', '200m', '300m', '400m', '300mH'] },
+  { label: '中距離',    events: ['800m', '1500m'] },
+  { label: '長距離',    events: ['5000m', '10000m', 'ハーフ', 'マラソン', '競歩'] },
+  { label: 'ハードル',  events: ['100mH', '110mH', '400mH'] },
+  { label: '障害',      events: ['3000mSC'] },
+  { label: '跳躍',      events: ['走幅跳', '三段跳', '棒高跳', '走高跳'] },
+  { label: '投擲',      events: ['砲丸投', '円盤投', 'やり投', 'ハンマー投'] },
+  { label: '混成',      events: ['十種競技', '七種競技', '八種競技'] },
+  { label: 'リレー',    events: ['4×100mR', '4×400mR'] },
+] as const
 
 interface Profile {
   name: string
@@ -155,7 +160,8 @@ function LabeledInput({
 export default function SettingsScreen() {
   const { user, signOut, isGuest, signOutGuest } = useAuth()
   const { colors } = useTheme()
-  const { tier, isPro, isElite, isCoach, expiresAt } = usePurchase()
+  const { tier, isNoad, isCoach, expiresAt, restore } = usePurchase()
+  const { startTutorial } = useTutorial()
   const router = useRouter()
 
   // プロフィール
@@ -483,7 +489,51 @@ export default function SettingsScreen() {
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
-          {/* ── プラン: v1.0 IAP無効化中は非表示 ── */}
+          {/* ── 現在のプラン ──────────────────────────────────── */}
+          <AnimatedSection delay={0}>
+            <SectionCard title="現在のプラン">
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 }}>
+                <View>
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
+                    {tier === 'coach' ? '🏆 コーチプラン' : tier === 'noad' ? '🚫 広告なしプラン' : '🆓 無料プラン'}
+                  </Text>
+                  {expiresAt && (
+                    <Text style={{ fontSize: 12, color: colors.textSec, marginTop: 2 }}>
+                      {new Date(expiresAt).toLocaleDateString('ja-JP')} まで有効
+                    </Text>
+                  )}
+                  {tier === 'free' && (
+                    <Text style={{ fontSize: 12, color: colors.textSec, marginTop: 2 }}>広告が表示されます</Text>
+                  )}
+                </View>
+                {tier === 'free' ? (
+                  <TouchableOpacity
+                    onPress={() => router.push('/paywall' as any)}
+                    style={{ backgroundColor: '#16a34a', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 }}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff' }}>プランを見る</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    onPress={() => Linking.openURL('https://apps.apple.com/account/subscriptions')}
+                    style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: colors.border }}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={{ fontSize: 12, color: colors.textSec }}>管理する</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              {tier === 'free' && (
+                <TouchableOpacity
+                  onPress={() => restore()}
+                  style={{ marginTop: 10, alignItems: 'center' }}
+                >
+                  <Text style={{ fontSize: 13, color: colors.textSec }}>購入を復元する</Text>
+                </TouchableOpacity>
+              )}
+            </SectionCard>
+          </AnimatedSection>
 
           {/* ── プロフィール ───────────────────────────────────── */}
           <AnimatedSection delay={40}>
@@ -500,26 +550,31 @@ export default function SettingsScreen() {
               <View style={styles.fieldRow}>
                 <Text style={styles.fieldLabel}>種目（複数選択可）</Text>
               </View>
-              <View style={styles.tagWrap}>
-                {EVENTS.map(ev => {
-                  const selected = profile.event ? profile.event.split(',').filter(Boolean) : []
-                  const active = selected.includes(ev)
-                  return (
-                    <TouchableOpacity
-                      key={ev}
-                      style={[styles.tag, active ? styles.tagActive : styles.tagInactive]}
-                      onPress={() => setProfile(p => {
-                        const cur = p.event ? p.event.split(',').filter(Boolean) : []
-                        const next = cur.includes(ev) ? cur.filter(e => e !== ev) : [...cur, ev]
-                        return { ...p, event: next.join(',') }
-                      })}
-                      activeOpacity={0.75}
-                    >
-                      <Text style={[styles.tagText, active && { color: '#fff' }]}>{ev}</Text>
-                    </TouchableOpacity>
-                  )
-                })}
-              </View>
+              {EVENT_CATEGORIES.map(cat => (
+                <View key={cat.label} style={{ marginBottom: 10 }}>
+                  <Text style={styles.eventCategoryLabel}>{cat.label}</Text>
+                  <View style={styles.tagWrap}>
+                    {cat.events.map(ev => {
+                      const selected = profile.event ? profile.event.split(',').filter(Boolean) : []
+                      const active = selected.includes(ev)
+                      return (
+                        <TouchableOpacity
+                          key={ev}
+                          style={[styles.tag, active ? styles.tagActive : styles.tagInactive]}
+                          onPress={() => setProfile(p => {
+                            const cur = p.event ? p.event.split(',').filter(Boolean) : []
+                            const next = cur.includes(ev) ? cur.filter(e => e !== ev) : [...cur, ev]
+                            return { ...p, event: next.join(',') }
+                          })}
+                          activeOpacity={0.75}
+                        >
+                          <Text style={[styles.tagText, active && { color: '#fff' }]}>{ev}</Text>
+                        </TouchableOpacity>
+                      )
+                    })}
+                  </View>
+                </View>
+              ))}
 
               <View style={styles.divider} />
               <LabeledInput
@@ -837,6 +892,20 @@ export default function SettingsScreen() {
                 <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
               </TouchableOpacity>
               <View style={styles.divider} />
+              <TouchableOpacity
+                style={styles.actionRow}
+                onPress={async () => {
+                  await AsyncStorage.removeItem('trackmate_tutorial_done').catch(() => {})
+                  startTutorial()
+                  router.replace('/(tabs)' as any)
+                }}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="play-circle-outline" size={18} color="#6b7280" />
+                <Text style={styles.actionText}>チュートリアルをもう一度見る</Text>
+                <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+              </TouchableOpacity>
+              <View style={styles.divider} />
               <View style={[styles.fieldRow, { paddingBottom: 4 }]}>
                 <Text style={{ color: '#555', fontSize: 12, textAlign: 'center', flex: 1 }}>
                   Made with ❤️ for athletes
@@ -877,15 +946,15 @@ const styles = StyleSheet.create({
   // カードセクション
   card: {
     backgroundColor: '#ffffff',
-    borderRadius: 16,
+    borderRadius: 21,
     margin: 16,
     padding: 16,
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.08)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.10,
-    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
     elevation: 6,
   },
   cardTitle: {
@@ -901,10 +970,10 @@ const styles = StyleSheet.create({
 
   // アクセス許可行
   permRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingVertical: 4 },
-  permIcon:    { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  permIcon:    { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   permTitle:   { color: '#111827', fontSize: 14, fontWeight: '700' },
   permSub:     { color: '#6b7280', fontSize: 11, marginTop: 2 },
-  permBtn:     { backgroundColor: '#166534', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
+  permBtn:     { backgroundColor: '#166534', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 8 },
   permBtnText: { color: '#fff', fontSize: 12, fontWeight: '800' },
 
   // フィールド行
@@ -917,10 +986,11 @@ const styles = StyleSheet.create({
   },
 
   // 種目タグ
+  eventCategoryLabel: { fontSize: 11, fontWeight: '700', color: '#9ca3af', marginBottom: 4 },
   tagWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6, marginBottom: 6 },
   tag: {
     paddingHorizontal: 10, paddingVertical: 5,
-    borderRadius: 20, borderWidth: 1,
+    borderRadius: 21, borderWidth: 1,
   },
   tagActive:   { backgroundColor: '#166534', borderColor: '#166534' },
   tagInactive: { backgroundColor: 'transparent', borderColor: 'rgba(22,101,52,0.4)' },

@@ -1,7 +1,9 @@
 // components/BannerAdView.tsx
 // Webでは何も表示しない。ネイティブのみBannerAdをレンダリングする。
+// 広告なしプラン（isNoad）以上は広告を非表示にする。
 import React from 'react'
 import { Platform, View } from 'react-native'
+import { usePurchase } from '../context/PurchaseContext'
 
 interface Props {
   onLoaded?:  () => void
@@ -18,6 +20,11 @@ try {
 } catch {}
 
 export default function BannerAdView({ onLoaded, onFailed }: Props) {
+  const { isNoad } = usePurchase()
+
+  // 広告なしプラン以上は表示しない
+  if (isNoad) return null
+
   // Web/Expo Go ではAdMob ネイティブモジュールが存在しないためスキップ
   if (Platform.OS === 'web' || _isExpoGo) return null
 

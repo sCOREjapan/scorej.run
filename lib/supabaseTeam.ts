@@ -228,6 +228,29 @@ export async function syncTeamSessions(
   if (error && __DEV__) console.warn('[syncTeamSessions]', error.message)
 }
 
+export async function deletePlayerTeamSessions(teamCode: string, playerName: string): Promise<void> {
+  if (!isConfigured) return
+  const { error } = await supabase.from('team_sessions')
+    .delete()
+    .eq('team_code', teamCode)
+    .eq('player_name', playerName)
+  if (error && __DEV__) console.warn('[deletePlayerTeamSessions]', error.message)
+}
+
+// 非公開設定時: セッション削除 + player_stats のセッション関連フィールドをリセット
+export async function clearPlayerPrivateData(teamCode: string, playerName: string): Promise<void> {
+  if (!isConfigured) return
+  await supabase.from('team_sessions')
+    .delete()
+    .eq('team_code', teamCode)
+    .eq('player_name', playerName)
+  // last_session_date を空にしてコーチ側で「未同期」扱いにする
+  await supabase.from('team_player_stats')
+    .update({ last_session_date: '', sessions_30d: 0, last_condition: 0, last_fatigue: 0, updated_at: new Date().toISOString() })
+    .eq('team_code', teamCode)
+    .eq('player_name', playerName)
+}
+
 export async function fetchTeamSessions(teamCode: string): Promise<TeamSessionRow[]> {
   if (!isConfigured) return []
   const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)

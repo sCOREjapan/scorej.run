@@ -1,15 +1,17 @@
 import React, { useRef, useState, useEffect } from 'react'
-import { Animated, TouchableOpacity, Platform, View, Text, StyleSheet, Pressable, useWindowDimensions } from 'react-native'
+import { Animated, TouchableOpacity, Platform, View, Text, StyleSheet, Pressable, useWindowDimensions, Modal, Linking } from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import BannerAdView from '../../components/BannerAdView'
 import { usePurchase } from '../../context/PurchaseContext'
 import { Tabs, useRouter, usePathname } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Sounds, unlockAudio, preloadNativeSounds } from '../../lib/sounds'
+import { Sounds, unlockAudio, preloadNativeSounds, loadSoundPrefs } from '../../lib/sounds'
 import { triggerHomeScroll } from '../../lib/homeScroll'
 import { BRAND } from '../../lib/theme'
 import { triggerQuickLog } from '../../lib/quickLogEvent'
 import { initNotificationsOnFirstLaunch } from '../../lib/notifications'
+import { todayLocalISO } from '../../lib/dateLocal'
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name']
 
@@ -48,7 +50,7 @@ const RADIAL_ITEMS = [
   { icon: '🏃', label: '練習記録', angle: -150, route: '/practice-input', action: 'practice' },
   { icon: '⏱️', label: 'タイム記録', angle: -110, route: '/timer',          action: 'timer'    },
   { icon: '😴', label: '睡眠記録', angle: -70,  route: '/(tabs)/sleep',    action: 'sleep'    },
-  { icon: '🍽️', label: '食事記録', angle: -30,  route: '/(tabs)/nutrition',action: 'nutrition'},
+  { icon: '🩹', label: 'リカバリー', angle: -30,  route: '/recovery',        action: 'recovery' },
 ] as const
 
 const RADIUS = 110   // アイテム円の重なりを防ぐ十分な半径
@@ -223,9 +225,10 @@ const fab = StyleSheet.create({
     position: 'absolute',
     width: 54, height: 54, borderRadius: 27,
     backgroundColor: BRAND,
+    borderWidth: 3, borderColor: '#ffffff',
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: BRAND, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4, shadowRadius: 12, elevation: 10,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25, shadowRadius: 10, elevation: 12,
   },
   itemWrap: {
     position: 'absolute',
@@ -248,23 +251,49 @@ const fab = StyleSheet.create({
   },
 })
 
-const BANNER_H = 50   // バナー広告の高さ見込み
+const BANNER_H = 72   // バナー広告の高さ見込み（適応バナー高さ+余白。FABが広告に重ならないようクリアランス確保）
 
 // ── メインレイアウト ─────────────────────────────────────
 export default function TabLayout() {
   const insets   = useSafeAreaInsets()
   const pathname = usePathname()
-  const { tier } = usePurchase()
-  const showBanner = tier === 'free'   // free のみバナー表示（pro/elite/coach は非表示）
+  const { isNoad } = usePurchase()
+  const showBanner = !isNoad   // 広告なしプラン以上はバナー非表示
   const [bannerLoaded, setBannerLoaded] = useState(false)
   // バナー表示中はFABをその分上にずらす
-  const fabBottomOffset = Math.max(insets.bottom, 16) + 56 + (bannerLoaded ? BANNER_H : 0)
+  // バナー表示中は常にその分FABを上にずらす（読み込み状態に依存させない＝広告に重ねない）
+  const fabBottomOffset = Math.max(insets.bottom, 16) + 56 + (showBanner ? BANNER_H : 0)
   const hideFab  = pathname === '/team' || pathname === '/(tabs)/team'
+
+  // ── アップデート案内モーダル（週1回表示・App Storeへ誘導） ──
+  const UPDATE_PROMO_KEY = 'score_update_promo_last_shown'
+  const UPDATE_PROMO_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000
+  const APP_STORE_URL = 'https://apps.apple.com/jp/app/score/id6766394981'
+  const [showUpdate, setShowUpdate] = useState(false)
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return  // App Store誘導はiOSのみ
+    AsyncStorage.getItem(UPDATE_PROMO_KEY)
+      .then(v => {
+        if (!v) { setShowUpdate(true); return }
+        const last = new Date(v + 'T00:00:00').getTime()
+        if (Date.now() - last >= UPDATE_PROMO_INTERVAL_MS) setShowUpdate(true)
+      })
+      .catch(() => {})
+  }, [])
+  const dismissUpdate = () => {
+    AsyncStorage.setItem(UPDATE_PROMO_KEY, todayLocalISO()).catch(() => {})
+    setShowUpdate(false)
+  }
+  const openAppStore = () => {
+    Linking.openURL(APP_STORE_URL).catch(() => {})
+    dismissUpdate()
+  }
 
   // 初回起動時に通知 → 位置情報の順で許可ダイアログを表示
   useEffect(() => {
     const run = async () => {
-      // 0) ネイティブ効果音を事前生成・キャッシュ（バックグラウンドで実行）
+      // 0) 効果音/バイブのON-OFF設定を読み込み → ネイティブ効果音を事前生成
+      await loadSoundPrefs().catch(() => {})
       preloadNativeSounds().catch(() => {})
 
       // 1) 通知許可（2秒後に表示）
@@ -333,6 +362,37 @@ export default function TabLayout() {
 
       {/* ── ラジアルFAB（チーム画面では非表示） ── */}
       {!hideFab && <RadialFAB bottomOffset={fabBottomOffset} />}
+
+      {/* ── アップデート案内モーダル（1回だけ） ── */}
+      <Modal visible={showUpdate} transparent animationType="fade" onRequestClose={dismissUpdate}>
+        <View style={upd.overlay}>
+          <View style={upd.card}>
+            <Text style={upd.emoji}>🎉</Text>
+            <Text style={upd.title}>アップデートがあります！</Text>
+            <Text style={upd.body}>
+              新機能・改善が追加されました。{'\n'}App Storeで最新版に更新してください。
+            </Text>
+            <TouchableOpacity style={upd.primaryBtn} onPress={openAppStore} activeOpacity={0.85}>
+              <Text style={upd.primaryTxt}>App Storeを開く</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={upd.laterBtn} onPress={dismissUpdate} activeOpacity={0.7}>
+              <Text style={upd.laterTxt}>あとで</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   )
 }
+
+const upd = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: 32 },
+  card:    { width: '100%', maxWidth: 340, backgroundColor: '#fff', borderRadius: 20, padding: 28, alignItems: 'center' },
+  emoji:   { fontSize: 40, marginBottom: 8 },
+  title:   { fontSize: 19, fontWeight: '800', color: '#111827', marginBottom: 10, textAlign: 'center' },
+  body:    { fontSize: 14, color: '#6b7280', lineHeight: 21, textAlign: 'center', marginBottom: 22 },
+  primaryBtn: { backgroundColor: BRAND, borderRadius: 14, paddingVertical: 14, alignItems: 'center', alignSelf: 'stretch' },
+  primaryTxt: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  laterBtn:   { paddingVertical: 12, alignItems: 'center', alignSelf: 'stretch', marginTop: 4 },
+  laterTxt:   { color: '#9ca3af', fontSize: 14, fontWeight: '600' },
+})

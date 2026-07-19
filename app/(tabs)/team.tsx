@@ -41,6 +41,7 @@ import {
 } from '../../lib/notify'
 import { showNow } from '../../lib/notifications'
 import PulseView from '../../components/PulseView'
+import { localDateStr, todayLocalISO } from '../../lib/dateLocal'
 
 // ── 練習メニュービルダー 型定義 ──────────────────────────
 type MenuCategory = 'warm_up' | 'sprint' | 'interval' | 'tempo' | 'drill' | 'strength' | 'cool_down' | 'other'
@@ -233,11 +234,9 @@ function calcWeeklyLoad(sessions: TrainingSession[]): number {
   const week = sessions.filter(s => now - new Date(s.session_date).getTime() <= 7 * 86_400_000)
   return Math.round(week.reduce((sum, s) => {
     const w = SESSION_LOAD_BASE[s.session_type] ?? 0
-    if (s.session_type === 'sprint' || s.session_type === 'interval') {
-      // distance_m をkmに統一してから計算（repsは本数ではなく距離の補助情報として扱う）
-      return sum + (s.distance_m ? (s.distance_m / 1000) * (s.reps ?? 1) * w : w)
-    }
-    if (s.session_type === 'tempo' || s.session_type === 'easy' || s.session_type === 'long') {
+    // distance_m は本数分を含む合計距離として保存されている（例: 300m×6本 → 1800）ため、
+    // ここで reps を掛けると二重計算になる。km換算のみ行う。
+    if (s.session_type === 'sprint' || s.session_type === 'interval' || s.session_type === 'tempo' || s.session_type === 'easy' || s.session_type === 'long') {
       return sum + (s.distance_m ? (s.distance_m / 1000) * w : w)
     }
     return sum + w
@@ -260,12 +259,12 @@ function riskCfgKey(score: number): RiskCfgKey {
 function calcStreak(sessions: { session_date: string }[]): number {
   if (!sessions.length) return 0
   const dates = [...new Set(sessions.map(s => s.session_date))].sort((a, b) => b.localeCompare(a))
-  const today = new Date().toISOString().slice(0, 10)
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
+  const today = todayLocalISO()
+  const yesterday = localDateStr(new Date(Date.now() - 86400000))
   if (dates[0] !== today && dates[0] !== yesterday) return 0
   let streak = 1
   for (let i = 1; i < dates.length; i++) {
-    const expected = new Date(new Date(dates[i-1] + 'T00:00:00').getTime() - 86400000).toISOString().slice(0, 10)
+    const expected = localDateStr(new Date(new Date(dates[i-1] + 'T00:00:00').getTime() - 86400000))
     if (dates[i] === expected) streak++
     else break
   }
@@ -608,18 +607,14 @@ const COACH_FEATURES = [
 ]
 
 function CoachPaywallScreen({ onBack, onPurchased }: { onBack: () => void; onPurchased: () => void }) {
-  const { packages, purchase, restore, tier, loading: pkgLoading } = usePurchase()
+  const { packages, packagesDiagnostic, purchase, restore, tier, loading: pkgLoading } = usePurchase()
   const [busy,        setBusy]        = useState(false)
   const [loadTimedOut, setLoadTimedOut] = useState(false)
 
-  // coachパッケージを探す（月額優先、年額フォールバック）
+  // coachパッケージを探す（月額のみ販売中）
   const coachPkg = packages.find((p: any) =>
-    p?.product?.identifier === 'score_coach_monthly' ||
-    p?.identifier === 'score_coach_monthly'
-  ) ?? packages.find((p: any) =>
-    p?.product?.identifier === 'score_coach_annual' ||
-    p?.identifier === 'score_coach_annual' ||
-    p?.offeringIdentifier === 'coach'
+    p?.product?.identifier === 'score_coach_monthly_v2' ||
+    p?.identifier === 'score_coach_monthly_v2'
   )
 
   // 10秒待ってもパッケージが見つからない場合はタイムアウト
@@ -636,7 +631,12 @@ function CoachPaywallScreen({ onBack, onPurchased }: { onBack: () => void; onPur
 
   async function handlePurchase() {
     if (!coachPkg) {
-      Toast.show({ type: 'error', text1: 'パッケージが見つかりません', text2: 'App Storeの接続を確認してください', visibilityTime: 3000 })
+      Toast.show({
+        type: 'error',
+        text1: 'パッケージが見つかりません',
+        text2: packagesDiagnostic ?? 'App Storeの接続を確認してください',
+        visibilityTime: 6000,
+      })
       return
     }
     setBusy(true)
@@ -685,8 +685,6 @@ function CoachPaywallScreen({ onBack, onPurchased }: { onBack: () => void; onPur
               <Text style={{ color: '#4ADE80', fontSize: 36, fontWeight: '900', lineHeight: 40 }}>¥2,980</Text>
               <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginBottom: 4 }}>/月</Text>
             </View>
-            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>年払い ¥29,800/年（¥2,483/月）</Text>
-
             {/* 機能一覧 */}
             <View style={{ gap: 8 }}>
               {COACH_FEATURES.map((f, i) => (
@@ -748,10 +746,36 @@ function CoachPaywallScreen({ onBack, onPurchased }: { onBack: () => void; onPur
             <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12 }}>以前の購入を復元する</Text>
           </TouchableOpacity>
 
-          {/* 注意書き */}
+          {/* DEV専用スキップ */}
+          {__DEV__ && (
+            <TouchableOpacity
+              style={{ alignSelf: 'center', padding: 10 }}
+              onPress={async () => {
+                await AsyncStorage.setItem('trackmate_subscription', JSON.stringify({
+                  isPremium: true, plan: 'coach', expiresAt: '2099-12-31T00:00:00.000Z',
+                }))
+                Toast.show({ type: 'success', text1: '[DEV] coach を擬似有効化しました' })
+                onPurchased()
+              }}
+            >
+              <Text style={{ color: '#f59e0b', fontSize: 12, fontWeight: '700' }}>
+                [DEV] 購入をスキップ（開発用）
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {/* 法的必須テキスト（Apple審査要件 3.1.2） */}
           <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10, textAlign: 'center', lineHeight: 16 }}>
-            ※ App Storeアカウントに課金されます。サブスクリプションは設定→Apple ID→サブスクリプションからいつでも解約できます。
+            {'• サブスクリプションは月ごとに自動更新されます。\n• 更新の24時間前までにキャンセルしない限り、同額で自動更新されます。\n• キャンセルは「設定」→「Apple ID」→「サブスクリプション」から行えます。'}
           </Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 8 }}>
+            <TouchableOpacity onPress={() => Linking.openURL('https://scorej-run.vercel.app/privacy')}>
+              <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11, textDecorationLine: 'underline' }}>プライバシーポリシー</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => Linking.openURL('https://scorej-run.vercel.app/terms')}>
+              <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11, textDecorationLine: 'underline' }}>利用規約</Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -801,8 +825,8 @@ function RoleSelectionScreen({ onSelect }: { onSelect: (role: Role) => void }) {
   )
 }
 const role_s = StyleSheet.create({
-  card:  { flexDirection:'row', alignItems:'center', gap:14, borderRadius:16, borderWidth:1, padding:18 },
-  icon:  { width:52, height:52, borderRadius:14, alignItems:'center', justifyContent:'center' },
+  card:  { flexDirection:'row', alignItems:'center', gap:14, borderRadius:21, borderWidth:1, padding:18 },
+  icon:  { width:52, height:52, borderRadius:16, alignItems:'center', justifyContent:'center' },
   title: { fontSize:16, fontWeight:'800' },
   desc:  { fontSize:12, lineHeight:17 },
 })
@@ -869,8 +893,8 @@ function CoachSetupScreen({ onCreated, onBack }: { onCreated:(s:TeamSetup)=>void
 }
 const su = StyleSheet.create({
   label:{ color:TEXT.hint, fontSize:11, fontWeight:'700', letterSpacing:0.8 },
-  input:{ backgroundColor:'#f8f8fa', borderRadius:12, borderWidth:1, borderColor:'rgba(0,0,0,0.10)', color:TEXT.primary, fontSize:15, paddingHorizontal:14, paddingVertical:12 },
-  btn:  { flexDirection:'row', alignItems:'center', justifyContent:'center', gap:8, backgroundColor:BRAND, borderRadius:14, paddingVertical:15, marginTop:4 },
+  input:{ backgroundColor:'#f8f8fa', borderRadius:14, borderWidth:1, borderColor:'rgba(0,0,0,0.10)', color:TEXT.primary, fontSize:15, paddingHorizontal:14, paddingVertical:12 },
+  btn:  { flexDirection:'row', alignItems:'center', justifyContent:'center', gap:8, backgroundColor:BRAND, borderRadius:21, paddingVertical:15, marginTop:4 },
 })
 
 // ─────────────────────────────────────────────────────────
@@ -1077,7 +1101,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
   const [pendingDelete, setPendingDelete] = useState<{id:string;name:string;isDemo:boolean}|null>(null)
   const [showEventModal, setShowEventModal] = useState(false)
   const [evTitle,       setEvTitle]       = useState('')
-  const [evDate,        setEvDate]        = useState(new Date().toISOString().slice(0,10))
+  const [evDate,        setEvDate]        = useState(todayLocalISO())
   const [evTime,        setEvTime]        = useState('')
   const [evLocation,    setEvLocation]    = useState('')
   const [evDesc,        setEvDesc]        = useState('')
@@ -1318,7 +1342,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
       if (!result) throw new Error('イベントデータが取得できませんでした')
       // モーダルを先に閉じてからフォームをリセット
       setShowEventModal(false)
-      setEvTitle(''); setEvDate(new Date().toISOString().slice(0,10)); setEvTime(''); setEvLocation(''); setEvDesc(''); setEvType('practice')
+      setEvTitle(''); setEvDate(todayLocalISO()); setEvTime(''); setEvLocation(''); setEvDesc(''); setEvType('practice')
       // 表示を即時更新
       setTeamEvents(prev => [...prev, result].sort((a, b) => a.event_date.localeCompare(b.event_date)))
       Toast.show({ type: 'success', text1: '予定を追加しました ✓', visibilityTime: 1800 })
@@ -1368,7 +1392,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
         const p: TodayPlan = JSON.parse(planRaw)
         setTodayPlan(p)
         // 今日の日付と一致する場合のみ復元
-        if (p.date === new Date().toISOString().slice(0,10)) {
+        if (p.date === todayLocalISO()) {
           setPlanTitle(p.title)
           setPlanNote(p.note)
           setPlanItems(p.items)
@@ -1484,7 +1508,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
     }
     const plan: TodayPlan = {
       id: Date.now().toString(),
-      date: new Date().toISOString().slice(0, 10),
+      date: todayLocalISO(),
       title: planTitle.trim(),
       items: planItems,
       note: planNote.trim(),
@@ -1538,7 +1562,7 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
     const todayForCalc = new Date()
     const recentCondLevels = Array.from({length: 7}, (_, i) => {
       const d = new Date(todayForCalc); d.setDate(d.getDate() - i)
-      const key = d.toISOString().slice(0, 10)
+      const key = localDateStr(d)
       return m.sessions.find(s => s.session_date === key)?.condition_level
     }).filter((v): v is number => v !== undefined)
     const condLevel  = recentCondLevels.length > 0
@@ -2942,13 +2966,13 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
     try { setShareLevel((shareLvRaw ? Number(shareLvRaw) : 2) as ShareLevel) } catch { setShareLevel(2) }
     // ホーム画面と完全一致の hasSymptom 計算：回復記録のみ（痛み報告は含めない）
     try {
-      const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)
+      const sevenDaysAgo = localDateStr(new Date(Date.now() - 7 * 86400000))
       const recovRecs = recovRaw ? (JSON.parse(recovRaw) as Array<{ date: string }>) : []
       setHasSymptom(recovRecs.some(r => r.date >= sevenDaysAgo))
     } catch { setHasSymptom(false) }
     // ホーム画面と同じストレッチ補正（今日分のみ）
     try {
-      const today = new Date().toISOString().slice(0, 10)
+      const today = todayLocalISO()
       if (stretchRaw) {
         const parsed = JSON.parse(stretchRaw)
         setStretchReduction(parsed.date === today ? (parsed.reduction ?? 0) : 0)
@@ -2995,7 +3019,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
     // shareLv === 0 は同期しない
     // レベル + 最新コンディションを自動同期
     const lvInfo = calcLevelInfo(loadedSessions.length)
-    const cutoff30 = new Date(Date.now() - 30*24*60*60*1000).toISOString().slice(0,10)
+    const cutoff30 = localDateStr(new Date(Date.now() - 30*24*60*60*1000))
     const recent30 = loadedSessions.filter(s => s.session_date >= cutoff30)
     const lastSess = loadedSessions[0]
     try {
@@ -3119,7 +3143,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
   async function saveStats() {
     const lvInfo = calcLevelInfo(sessions.length)
     const lastSess = sessions[0]
-    const cutoff30 = new Date(Date.now() - 30*24*60*60*1000).toISOString().slice(0,10)
+    const cutoff30 = localDateStr(new Date(Date.now() - 30*24*60*60*1000))
     const recent30 = sessions.filter(s => s.session_date >= cutoff30)
     try {
       await upsertPlayerStats(
@@ -3156,12 +3180,12 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
   const fat     = last ? fatigueInfo(last.fatigue_level) : null
   // ホーム画面と完全一致の計算式（fallback も index.tsx と同じ conditionMap[today] ?? 6）
   const avgCondLv = useMemo(() => {
-    const todayISO = new Date().toISOString().slice(0, 10)
+    const todayISO = todayLocalISO()
     const conditionLevel = conditionMap[todayISO] ?? 6
     const today = new Date()
     const vals = Array.from({ length: 7 }, (_, i) => {
       const d = new Date(today); d.setDate(d.getDate() - i)
-      return conditionMap[d.toISOString().slice(0, 10)]
+      return conditionMap[localDateStr(d)]
     }).filter((v): v is number => v !== undefined)
     return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : conditionLevel
   }, [conditionMap])
@@ -3508,7 +3532,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                         const _absenceUserId = (await AsyncStorage.getItem('userId').catch(() => null)) ?? 'local'
                         await addAbsenceSession({
                           user_id: _absenceUserId,
-                          session_date: new Date().toISOString().slice(0, 10),
+                          session_date: todayLocalISO(),
                           session_type: 'rest',
                           fatigue_level: 1,
                           condition_level: 5,
@@ -3818,25 +3842,25 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
 const co = StyleSheet.create({
   header:      { flexDirection:'row', alignItems:'center', justifyContent:'space-between', paddingHorizontal:16, paddingTop:14, paddingBottom:12, backgroundColor:'#fff', borderBottomWidth:1, borderBottomColor:'rgba(0,0,0,0.06)' },
   title:       { color:TEXT.primary, fontSize:19, fontWeight:'800' },
-  codeBox:     { backgroundColor:BRAND+'0d', borderRadius:12, borderWidth:1.5, borderColor:BRAND+'35', paddingHorizontal:12, paddingVertical:7, alignItems:'center', gap:1 },
-  switchBtn:   { width:36, height:36, borderRadius:11, backgroundColor:'#f5f6f8', borderWidth:1, borderColor:'rgba(0,0,0,0.07)', alignItems:'center', justifyContent:'center' },
+  codeBox:     { backgroundColor:BRAND+'0d', borderRadius:14, borderWidth:1.5, borderColor:BRAND+'35', paddingHorizontal:12, paddingVertical:7, alignItems:'center', gap:1 },
+  switchBtn:   { width:36, height:36, borderRadius:14, backgroundColor:'#f5f6f8', borderWidth:1, borderColor:'rgba(0,0,0,0.07)', alignItems:'center', justifyContent:'center' },
   tabsWrapper: { backgroundColor:'#fff', borderBottomWidth:1, borderBottomColor:'rgba(0,0,0,0.07)', paddingVertical:8, paddingHorizontal:12 },
   tabs:        { flexDirection:'row', gap:4 },
-  tab:         { flexDirection:'row', alignItems:'center', justifyContent:'center', gap:5, paddingVertical:7, paddingHorizontal:13, borderRadius:20 },
+  tab:         { flexDirection:'row', alignItems:'center', justifyContent:'center', gap:5, paddingVertical:7, paddingHorizontal:13, borderRadius:21 },
   tabActive:   { backgroundColor: BRAND+'15' },
   tabLabel:    { fontSize:13, fontWeight:'700' },
   badge:       { minWidth:16, height:16, borderRadius:8, backgroundColor:'#ef4444', alignItems:'center', justifyContent:'center', paddingHorizontal:3 },
-  alertChip:   { flexDirection:'row', alignItems:'center', gap:5, backgroundColor:'rgba(239,68,68,0.07)', borderRadius:10, borderWidth:1, borderColor:'rgba(239,68,68,0.25)', paddingHorizontal:10, paddingVertical:6 },
-  memberCard:  { backgroundColor:'#ffffff', borderRadius:14, borderWidth:1, borderColor:'rgba(0,0,0,0.06)', padding:12, shadowColor:'#000', shadowOffset:{width:0,height:1}, shadowOpacity:0.05, shadowRadius:4, elevation:2 },
-  composeBox:  { flexDirection:'row', gap:10, alignItems:'flex-end', backgroundColor:'#ffffff', borderRadius:16, borderWidth:1, borderColor:'rgba(0,0,0,0.09)', padding:12 },
+  alertChip:   { flexDirection:'row', alignItems:'center', gap:5, backgroundColor:'rgba(239,68,68,0.07)', borderRadius:14, borderWidth:1, borderColor:'rgba(239,68,68,0.25)', paddingHorizontal:10, paddingVertical:6 },
+  memberCard:  { backgroundColor:'#ffffff', borderRadius:18, borderWidth:1, borderColor:'rgba(0,0,0,0.06)', padding:12, shadowColor:'#000', shadowOffset:{width:0,height:4}, shadowOpacity:0.04, shadowRadius:12, elevation:2 },
+  composeBox:  { flexDirection:'row', gap:10, alignItems:'flex-end', backgroundColor:'#ffffff', borderRadius:21, borderWidth:1, borderColor:'rgba(0,0,0,0.09)', padding:12 },
   composeInput:{ flex:1, color:TEXT.primary, fontSize:14, minHeight:40, maxHeight:100 },
-  sendBtn:     { width:44, height:44, borderRadius:13, backgroundColor:BRAND, alignItems:'center', justifyContent:'center' },
-  msgCard:     { backgroundColor:'#ffffff', borderRadius:14, borderWidth:1, borderColor:'rgba(0,0,0,0.07)', padding:14, shadowColor:'#000', shadowOffset:{width:0,height:1}, shadowOpacity:0.05, shadowRadius:5, elevation:2 },
-  videoCard:   { backgroundColor:'#ffffff', borderRadius:14, borderWidth:1, borderColor:'rgba(0,0,0,0.07)', padding:14, shadowColor:'#000', shadowOffset:{width:0,height:1}, shadowOpacity:0.05, shadowRadius:5, elevation:2 },
+  sendBtn:     { width:44, height:44, borderRadius:16, backgroundColor:BRAND, alignItems:'center', justifyContent:'center' },
+  msgCard:     { backgroundColor:'#ffffff', borderRadius:18, borderWidth:1, borderColor:'rgba(0,0,0,0.07)', padding:14, shadowColor:'#000', shadowOffset:{width:0,height:4}, shadowOpacity:0.04, shadowRadius:12, elevation:2 },
+  videoCard:   { backgroundColor:'#ffffff', borderRadius:18, borderWidth:1, borderColor:'rgba(0,0,0,0.07)', padding:14, shadowColor:'#000', shadowOffset:{width:0,height:4}, shadowOpacity:0.04, shadowRadius:12, elevation:2 },
 })
 const pl = StyleSheet.create({
   sectionTitle: { color:TEXT.hint, fontSize:11, fontWeight:'700', letterSpacing:1, marginTop:4 },
-  actionBtn:    { flex:1, flexDirection:'row', alignItems:'center', gap:10, backgroundColor:'#f5f6f8', borderRadius:14, borderWidth:1, borderColor:'rgba(0,0,0,0.07)', paddingVertical:12, paddingHorizontal:12 },
+  actionBtn:    { flex:1, flexDirection:'row', alignItems:'center', gap:10, backgroundColor:'#f5f6f8', borderRadius:18, borderWidth:1, borderColor:'rgba(0,0,0,0.07)', paddingVertical:12, paddingHorizontal:12 },
 })
 
 // ─────────────────────────────────────────────────────────
@@ -4023,11 +4047,12 @@ function TeamMenuSheet({ visible, role, canSwitch, onSwitchRole, onDangerAction,
 // TeamScreen（エントリーポイント）
 // ─────────────────────────────────────────────────────────
 export default function TeamScreen() {
-  type State = 'loading'|'select-role'|'coach-setup'|'coach'|'player-join'|'player'
+  type State = 'loading'|'select-role'|'coach-paywall'|'coach-setup'|'coach'|'player-join'|'player'
   const [state,  setState]  = useState<State>('loading')
   const [setup,  setSetup]  = useState<TeamSetup|null>(null)
   const [joined, setJoined] = useState<JoinedTeam|null>(null)
   const fadeY = useRef(new Animated.Value(0)).current
+  const { isCoach, loading: purchaseLoading } = usePurchase()
 
   useFocusEffect(useCallback(() => {
     fadeY.setValue(0)
@@ -4060,6 +4085,8 @@ export default function TeamScreen() {
 
         if (!role) { setState('select-role'); return }
         if (role === 'coach') {
+          // サブスク有効確認は PurchaseContext が非同期で完了するため
+          // ここでは保存ロールを信頼して遷移し、CoachDashboard 側で isCoach を再確認
           setState(parsedSetup ? 'coach' : 'coach-setup')
         } else {
           setState(parsedJoined ? 'player' : 'player-join')
@@ -4071,10 +4098,28 @@ export default function TeamScreen() {
     init()
   }, [])
 
+  // 保存済みロールが 'coach' でも、サブスクが無効/失効している場合は
+  // コーチ機能を使わせない（PurchaseContext の読み込み完了を待って再検証）。
+  // これが無いと、一度でもコーチロールが保存された端末は永久に無課金で
+  // チーム機能を使えてしまう。
+  useEffect(() => {
+    if (purchaseLoading) return
+    if ((state === 'coach' || state === 'coach-setup') && !isCoach) {
+      AsyncStorage.removeItem(ROLE_KEY).catch(() => {})
+      setState('coach-paywall')
+    }
+  }, [purchaseLoading, isCoach, state])
+
   async function handleSelectRole(role: Role) {
-    await AsyncStorage.setItem(ROLE_KEY, role).catch(() => {})
-    if (role === 'coach')  { setState(setup  ? 'coach'  : 'coach-setup')  }
-    else                   { setState(joined ? 'player' : 'player-join') }
+    if (role === 'coach') {
+      // コーチプラン未加入 → ペイウォールを表示
+      if (!isCoach) { setState('coach-paywall'); return }
+      await AsyncStorage.setItem(ROLE_KEY, role).catch(() => {})
+      setState(setup ? 'coach' : 'coach-setup')
+    } else {
+      await AsyncStorage.setItem(ROLE_KEY, role).catch(() => {})
+      setState(joined ? 'player' : 'player-join')
+    }
   }
 
   function handleCoachCreated(s: TeamSetup)  { setSetup(s);  setState('coach')  }
@@ -4108,6 +4153,17 @@ export default function TeamScreen() {
 
   if (state==='loading')          return <View style={{flex:1,backgroundColor:'#0a0a0a'}}/>
   if (state==='select-role')      return <Animated.View style={fadeStyle}><RoleSelectionScreen onSelect={handleSelectRole}/></Animated.View>
+  if (state==='coach-paywall')    return (
+    <Animated.View style={fadeStyle}>
+      <CoachPaywallScreen
+        onBack={() => setState('select-role')}
+        onPurchased={async () => {
+          await AsyncStorage.setItem(ROLE_KEY, 'coach').catch(() => {})
+          setState(setup ? 'coach' : 'coach-setup')
+        }}
+      />
+    </Animated.View>
+  )
   // coach 状態で setup が無い（壊れたデータ）→ セットアップ画面へフォールバック
   if (state==='coach-setup' || (state==='coach' && !setup))
                                   return <Animated.View style={fadeStyle}><CoachSetupScreen onCreated={handleCoachCreated} onBack={() => setState('select-role')}/></Animated.View>

@@ -10,11 +10,12 @@ import {
 } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Ionicons } from '@expo/vector-icons'
+import { todayLocalISO } from '../lib/dateLocal'
 
 // ── ストア URL ────────────────────────────────────────────────
 // itms-apps:// + ?action=write-review → App Storeのレビュー入力画面に直接飛ぶ（iOS専用）
-const APP_STORE_REVIEW_URL  = 'itms-apps://itunes.apple.com/app/id6738321803?action=write-review'
-const APP_STORE_WEB_URL     = 'https://apps.apple.com/jp/app/score/id6738321803?action=write-review'
+const APP_STORE_REVIEW_URL  = 'itms-apps://apps.apple.com/app/id6766394981?action=write-review'
+const APP_STORE_WEB_URL     = 'https://apps.apple.com/jp/app/score/id6766394981?action=write-review'
 const PLAY_STORE_URL        = 'https://play.google.com/store/apps/details?id=com.scorejapan.score&reviewId=0'
 
 // ── AsyncStorage キー ─────────────────────────────────────────
@@ -86,7 +87,7 @@ export default function ReviewWall({ visible, onClose }: Props) {
       Animated.timing(slideY,    { toValue: 500, useNativeDriver: true, duration: 220 }),
       Animated.timing(bgOpacity, { toValue: 0,   useNativeDriver: true, duration: 220 }),
     ]).start(() => {
-      const today = new Date().toISOString().slice(0, 10)
+      const today = todayLocalISO()
       const state: ReviewWallState = {
         neverShow:  type === 'never',
         lastShown:  today,

@@ -19,6 +19,10 @@
     },
     "production": {
       "autoIncrement": false,
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://ccsejnxtvgnukzylnxdd.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNjc2Vqbnh0dmdudWt6eWxueGRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5Mjc1MTMsImV4cCI6MjA5NDUwMzUxM30.bsBy7l3KAP_F3WBhRfrQj2p_rFJKHBbVgPL-VcdR8KY"
+      },
       "ios": { "buildConfiguration": "Release" },
       "android": { "buildType": "app-bundle" }
     }

@@ -102,7 +102,7 @@ const PERSONAS = [
   { emoji: '🎓', label: '大学陸上部員', desc: 'チーム全体のコンディション管理と大会記録の一元管理をしたい' },
 ]
 
-// ── 料金プラン ───────────────────────────────────────────────────────
+// ── 料金プラン（実際に販売中の2プランのみ。app/paywall.tsx の PLANS と一致させること） ──────
 const PLANS = [
   {
     name: 'FREE',
@@ -110,41 +110,24 @@ const PLANS = [
     period: '',
     color: GRAY,
     bg: OFF2,
-    features: ['練習記録（無制限）', 'コンディション管理', '自己ベスト管理', 'AI機能（1日1〜3回・広告視聴）'],
+    features: ['練習記録（無制限）', 'コンディション管理', '自己ベスト管理', 'AI機能（1日1〜3回・広告視聴で解放）'],
   },
   {
-    name: 'PRO',
-    price: '¥480',
+    name: '広告なしプラン',
+    price: '¥980',
     period: '/月',
     color: GREEN,
     bg: GREEN_L,
-    features: ['練習記録（無制限）', 'AIコーチアドバイス', 'シェアカード生成', 'データグラフ・分析'],
+    features: ['全ての機能がそのまま使える', 'バナー・動画広告が完全に消える', 'AI機能・動画分析・CSV出力が無制限', '機能制限は一切なし'],
     badge: '人気',
   },
   {
-    name: 'ELITE',
-    price: '¥980',
-    period: '/月',
-    color: '#d97706',
-    bg: '#fffbeb',
-    features: ['PRO全機能', 'AI全機能 完全無制限 ∞', '動画フォーム分析 無制限', 'CSVエクスポート 無制限'],
-  },
-  {
-    name: 'COACH',
+    name: 'コーチプラン',
     price: '¥2,980',
     period: '/月',
     color: '#3b82f6',
     bg: '#eff6ff',
-    features: ['チーム作成・選手招待', 'コーチダッシュボード', '選手コンディション一括確認', 'チームイベント管理'],
-  },
-  {
-    name: 'チームPro',
-    price: '¥4,980',
-    period: '/月',
-    color: '#7c3aed',
-    bg: '#f5f3ff',
-    features: ['COACHプラン全機能', 'AI全機能 完全無制限 ∞', '広告完全非表示', 'コーチ向け最上位プラン'],
-    badge: '最強',
+    features: ['広告なしプランの全機能', 'チーム作成・選手招待', 'チーム全体の怪我リスクダッシュボード', 'コーチノート・チーム内共有機能'],
   },
 ]
 
@@ -193,7 +176,7 @@ export default function GuidePage() {
 
   const handleDownload = (store: 'apple' | 'google') => {
     if (store === 'apple') {
-      Linking.openURL('https://apps.apple.com/jp/app/score/id6738321803')
+      Linking.openURL('https://apps.apple.com/jp/app/score/id6766394981')
     } else {
       Linking.openURL('https://play.google.com/store/apps/details?id=com.scorejapan.score')
     }
@@ -239,7 +222,7 @@ export default function GuidePage() {
             </View>
             <Text style={g.articleTitle}>
               sCORE の使い方完全ガイド{'\n'}
-              — 練習記録から怪我予防まで
+              — 練習記録からコンディション管理まで
             </Text>
             <Text style={g.articleMeta}>2026年4月更新　sCORE Japan 編集部</Text>
           </Animated.View>
@@ -270,7 +253,7 @@ export default function GuidePage() {
             <Text style={g.sectionLabel}>ABOUT</Text>
             <Text style={g.sectionTitle}>sCORE とは何か</Text>
             <Text style={g.body}>
-              sCORE（スコア）は、陸上競技者のための練習記録・コンディション管理・怪我予防アプリです。2024年にローンチし、中学生から社会人アスリートまで幅広いユーザーに使用されています。
+              sCORE（スコア）は、陸上競技者のための練習記録・コンディション管理を通じて怪我予防をサポートするアプリです。2024年にローンチし、中学生から社会人アスリートまで幅広いユーザーに使用されています。
             </Text>
             <Text style={[g.body, { marginTop: 12 }]}>
               「毎日の練習を記録したい」「怪我を減らしたい」「コーチとして選手を管理したい」——そんな悩みをひとつのアプリで解決します。

@@ -59,8 +59,18 @@ const FOLDER_COLORS = [
   '#9C27B0', '#00BCD4', '#FF5722', '#607D8B',
 ]
 const FOLDER_ICONS = [
-  'flash', 'walk', 'body', 'barbell',
-  'fitness', 'bicycle', 'stopwatch', 'heart',
+  'flash',     // スプリント
+  'sync',      // インターバル
+  'walk',      // テンポ走
+  'leaf',      // ジョグ
+  'map',       // ロング走
+  'construct', // ドリル
+  'barbell',   // ウェイト
+  'trophy',    // 試合
+  'moon',      // 休養
+  'fitness',   // その他
+  'heart',     // その他
+  'stopwatch', // その他
 ]
 
 // ── uid ──────────────────────────────────────────────────
@@ -86,16 +96,16 @@ function FolderCard({
         <Text style={fc.count}>{folder.items.length}種目</Text>
       </View>
       <TouchableOpacity onPress={onEdit} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-        <Ionicons name="ellipsis-horizontal" size={18} color="#555" />
+        <Ionicons name="ellipsis-horizontal" size={18} color={TEXT.secondary} />
       </TouchableOpacity>
     </HapticTouch>
   )
 }
 const fc = StyleSheet.create({
-  card:     { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#ffffff', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
-  iconWrap: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  card:     { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#ffffff', borderRadius: 21, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
+  iconWrap: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   name:     { color: TEXT.primary, fontSize: 15, fontWeight: '700' },
-  count:    { color: TEXT.secondary, fontSize: 12, marginTop: 2 },
+  count:    { color: TEXT.secondary, fontSize: 12, marginTop: 2, fontVariant: ['tabular-nums'] },
 })
 
 // ── ItemRow ──────────────────────────────────────────────
@@ -124,7 +134,7 @@ function ItemRow({
           hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           style={[ir.sortBtn, index === 0 && { opacity: 0.2 }]}
         >
-          <Ionicons name="chevron-up" size={14} color="#aaa" />
+          <Ionicons name="chevron-up" size={14} color={TEXT.secondary} />
         </TouchableOpacity>
         <TouchableOpacity
           onPress={onMoveDown}
@@ -132,7 +142,7 @@ function ItemRow({
           hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           style={[ir.sortBtn, index === total - 1 && { opacity: 0.2 }]}
         >
-          <Ionicons name="chevron-down" size={14} color="#aaa" />
+          <Ionicons name="chevron-down" size={14} color={TEXT.secondary} />
         </TouchableOpacity>
       </View>
       <View style={ir.dot} />
@@ -198,7 +208,7 @@ export default function WorkoutMenuScreen() {
   const [adGateVisible,     setAdGateVisible]     = useState(false)
   const [adGateRemaining,   setAdGateRemaining]   = useState(0)
   const [adGateHardLimited, setAdGateHardLimited] = useState(false)
-  const [adGateLimitType,   setAdGateLimitType]   = useState<'none'|'daily'|'monthly'|'total'>('none')
+  const [adGateLimitType,   setAdGateLimitType]   = useState<'none'|'daily'|'monthly'|'total'|'window'>('none')
   const [adGatePendingFn,   setAdGatePendingFn]   = useState<'pick' | 'intent' | null>(null)
 
   const load = useCallback(async () => {
@@ -1124,28 +1134,28 @@ ${libraryText || '（まだライブラリに種目が登録されていませ�
 // ── スタイル ──────────────────────────────────────────────
 const s = StyleSheet.create({
   safe:       { flex: 1, backgroundColor: 'transparent' },
-  tabBar:     { flexDirection: 'row', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 6, gap: 8 },
-  tabBtn:     { flex: 1, paddingVertical: 9, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', backgroundColor: '#f0f2f5', alignItems: 'center' },
+  tabBar:     { flexDirection: 'row', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, gap: 8 },
+  tabBtn:     { flex: 1, paddingVertical: 10, borderRadius: 21, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', backgroundColor: '#ffffff', alignItems: 'center' },
   tabBtnActive:{ backgroundColor: BRAND, borderColor: BRAND },
-  tabText:    { color: TEXT.secondary, fontSize: 13, fontWeight: '700' },
+  tabText:    { color: TEXT.primary, fontSize: 13, fontWeight: '700' },
   tabTextActive:{ color: '#fff' },
   content:    { padding: 16, gap: 12, paddingBottom: 60 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
-  sectionTitle:  { color: TEXT.primary, fontSize: 14, fontWeight: '800', letterSpacing: 0.5 },
-  addFolderBtn:  { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: BRAND, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 },
-  emptyCard:  { backgroundColor: '#f0f2f5', borderRadius: 16, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', borderStyle: 'dashed' },
-  manualBtn:      { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(52,199,89,0.08)', borderRadius: 16, borderWidth: 1.5, borderColor: 'rgba(52,199,89,0.3)', padding: 16 },
+  sectionTitle:  { color: TEXT.primary, fontSize: 16, fontWeight: '700', letterSpacing: 0.2 },
+  addFolderBtn:  { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: BRAND, borderRadius: 21, paddingHorizontal: 12, paddingVertical: 6 },
+  emptyCard:  { backgroundColor: '#ffffff', borderRadius: 21, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', borderStyle: 'dashed' },
+  manualBtn:      { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(52,199,89,0.08)', borderRadius: 21, borderWidth: 1, borderColor: 'rgba(52,199,89,0.3)', padding: 16 },
   manualBtnIcon:  { width: 48, height: 48, borderRadius: 14, backgroundColor: 'rgba(52,199,89,0.12)', alignItems: 'center', justifyContent: 'center' },
-  manualBtnTitle: { color: TEXT.primary, fontSize: 15, fontWeight: '800' },
-  manualBtnSub:   { color: '#34C759', fontSize: 12, marginTop: 2 },
-  aiBtn:      { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(90,200,250,0.08)', borderRadius: 16, borderWidth: 1.5, borderColor: 'rgba(90,200,250,0.3)', padding: 16 },
+  manualBtnTitle: { color: TEXT.primary, fontSize: 15, fontWeight: '700' },
+  manualBtnSub:   { color: '#248A44', fontSize: 12, marginTop: 2 },
+  aiBtn:      { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(90,200,250,0.08)', borderRadius: 21, borderWidth: 1, borderColor: 'rgba(90,200,250,0.3)', padding: 16 },
   aiBtnIcon:  { width: 48, height: 48, borderRadius: 14, backgroundColor: 'rgba(90,200,250,0.12)', alignItems: 'center', justifyContent: 'center' },
-  aiBtnTitle: { color: TEXT.primary, fontSize: 15, fontWeight: '800' },
-  aiBtnSub:   { color: '#5AC8FA', fontSize: 12, marginTop: 2 },
-  histCard:   { backgroundColor: '#ffffff', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 14, gap: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
-  histDate:   { color: TEXT.hint, fontSize: 11 },
-  histIntent: { color: TEXT.secondary, fontSize: 13, fontStyle: 'italic' },
-  histPreview:{ color: TEXT.hint, fontSize: 12 },
+  aiBtnTitle: { color: TEXT.primary, fontSize: 15, fontWeight: '700' },
+  aiBtnSub:   { color: '#2E8CBF', fontSize: 12, marginTop: 2 },
+  histCard:   { backgroundColor: '#ffffff', borderRadius: 21, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 16, gap: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
+  histDate:   { color: TEXT.secondary, fontSize: 11 },
+  histIntent: { color: TEXT.primary, fontSize: 13, fontStyle: 'italic' },
+  histPreview:{ color: TEXT.secondary, fontSize: 12 },
 })
 
 const m = StyleSheet.create({

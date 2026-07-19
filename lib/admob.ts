@@ -51,6 +51,11 @@ const AD_UNIT_IDS = {
   },
 }
 
+// ── 広告抑制フラグ（noad / coach プランは全広告を非表示）─────────
+let _isNoad = false
+/** PurchaseContext から呼ぶ。isNoad が true の間、全広告関数はノーオペになる */
+export function setAdSuppressed(value: boolean) { _isNoad = value }
+
 // ── Expo Go 判定（ネイティブAdMobモジュールが存在しない環境）──────
 // Expo Go では appOwnership === 'expo'。この環境で require すると
 // TurboModuleRegistry が Invariant Violation を投げて赤画面になるため
@@ -102,6 +107,7 @@ export async function initAdmob(): Promise<void> {
 /** 練習保存のたびに呼ぶ。2回に1回 true を返す */
 export async function shouldShowInterstitial(): Promise<boolean> {
   if (Platform.OS === 'web') return false
+  if (_isNoad) return false
   try {
     const raw = await AsyncStorage.getItem(SAVE_COUNT_KEY)
     const count = raw ? parseInt(raw, 10) : 0
@@ -117,6 +123,7 @@ export async function shouldShowInterstitial(): Promise<boolean> {
  * @returns true = 動画を最後まで視聴した（報酬付与OK）
  */
 export async function showRewardedAd(): Promise<boolean> {
+  if (_isNoad) return true   // 有料プランはリワード不要 → 即付与
   if (Platform.OS === 'web') {
     if (__DEV__) { console.log('[admob] web: reward skipped (dev mode)'); return true }
     return false
@@ -160,8 +167,8 @@ export async function showRewardedAd(): Promise<boolean> {
         settle(false)
       })
 
-      // ロード開始から15秒でフォールバック（ロード失敗時）
-      timer = setTimeout(() => settle(false), 15000)
+      // ロード開始から5秒でフォールバック（ロード失敗時 / 審査環境対応）
+      timer = setTimeout(() => settle(false), 5000)
       rewarded.load()
     })
   } catch (e) {
@@ -182,6 +189,7 @@ export function getBannerUnitId(): string {
  * @returns 表示完了で true、スキップ or エラーで false
  */
 export async function showInterstitialAd(): Promise<boolean> {
+  if (_isNoad) return false
   if (Platform.OS === 'web') return false
 
   const lib = getAdmob()
@@ -231,7 +239,13 @@ export async function showInterstitialAd(): Promise<boolean> {
  * アプリ起動時に1日1回 App Open 広告を表示する。
  * 初回起動・すでに今日表示済みの場合はスキップ。
  */
+// App Open広告のロード〜表示〜クローズの間、他のポップアップ（レビュー依頼・
+// 広告なしプラン案内など）が同時に present されて画面が反応しなくなるのを防ぐためのフラグ。
+let _appOpenAdShowing = false
+export function isAppOpenAdShowing() { return _appOpenAdShowing }
+
 export async function showAppOpenAd(): Promise<void> {
+  if (_isNoad) return
   if (Platform.OS === 'web') return
 
   const lib = getAdmob()
@@ -245,6 +259,7 @@ export async function showAppOpenAd(): Promise<void> {
 
   const unitId = Platform.OS === 'ios' ? AD_UNIT_IDS.appOpen.ios : AD_UNIT_IDS.appOpen.android
 
+  _appOpenAdShowing = true
   try {
     const { AppOpenAd, AdEventType } = lib
     const appOpen = AppOpenAd.createForAdRequest(unitId, { requestNonPersonalizedAdsOnly: true })
@@ -294,6 +309,8 @@ export async function showAppOpenAd(): Promise<void> {
     }
   } catch (e) {
     console.warn('[admob] showAppOpenAd exception:', e)
+  } finally {
+    _appOpenAdShowing = false
   }
 }
 

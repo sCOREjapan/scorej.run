@@ -9,6 +9,10 @@ interface Props {
   color?: string
   unit?: string
   isLoading?: boolean
+  /** 表示する最大データ点数（既定7）。全期間表示など、より長い期間を見せたい画面用 */
+  maxPoints?: number
+  /** X軸ラベルに年を含める（複数年をまたぐ全期間表示向け） */
+  showYear?: boolean
 }
 
 const SCREEN_WIDTH = Dimensions.get('window').width
@@ -35,8 +39,9 @@ function SkeletonRect() {
 }
 
 // ─── 日付フォーマット ──────────────────────────────────────────────────
-function fmtDate(dateStr: string): string {
+function fmtDate(dateStr: string, showYear = false): string {
   const d = new Date(dateStr)
+  if (showYear) return `${d.getFullYear()}/${d.getMonth() + 1}`
   return `${d.getMonth() + 1}/${String(d.getDate()).padStart(2, '0')}`
 }
 
@@ -92,8 +97,10 @@ const TrainingChart: React.FC<Props> = ({
   color = '#E53E3E',
   unit = '',
   isLoading = false,
+  maxPoints = 7,
+  showYear = false,
 }) => {
-  const chartData = data.slice(-7)
+  const chartData = data.slice(-maxPoints)
 
   const values = chartData.map(p => p.value)
   const minVal = Math.min(...values)
@@ -157,7 +164,7 @@ const TrainingChart: React.FC<Props> = ({
                   x={px} y={INNER_H + 18}
                   fontSize={10} fill="#666" textAnchor="middle"
                 >
-                  {fmtDate(p.date)}
+                  {fmtDate(p.date, showYear)}
                 </SvgText>
               )
             })}

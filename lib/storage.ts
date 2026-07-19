@@ -144,13 +144,20 @@ async function extractVideoFramesWeb(videoUri: string, count: number): Promise<s
 }
 
 /** ネイティブ: expo-video-thumbnails でフレーム抽出 */
-async function extractVideoFramesNative(videoUri: string, count: number): Promise<string[]> {
+async function extractVideoFramesNative(videoUri: string, count: number, knownDurationMs?: number): Promise<string[]> {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const VideoThumbnails = require('expo-video-thumbnails')
   const fileInfo = await FileSystem.getInfoAsync(videoUri)
   if (!fileInfo.exists) throw new Error('動画ファイルが見つかりません')
 
-  const durationMs = (fileInfo as { duration?: number }).duration ?? 10000
+  // FileSystem.getInfoAsync は動画の長さ(duration)を返さない。
+  // 呼び出し元が実際の再生時間を渡してこなければ、動画の長さを取得できず
+  // フレーム抽出位置が正しく計算できないため、明示的にエラーにする
+  // （固定値10秒を仮定すると、10秒より長い/短い動画で誤ったフレームを抽出してしまうため）。
+  if (!knownDurationMs || knownDurationMs <= 0) {
+    throw new Error('動画の長さを取得できませんでした。動画を選び直してもう一度お試しください。')
+  }
+  const durationMs = knownDurationMs
   const positions = Array.from({ length: count }, (_, i) =>
     Math.floor((i / Math.max(count - 1, 1)) * durationMs)
   )
@@ -172,10 +179,11 @@ async function extractVideoFramesNative(videoUri: string, count: number): Promis
  */
 export async function extractVideoFrames(
   videoUri: string,
-  count: number = 4
+  count: number = 4,
+  durationMs?: number
 ): Promise<string[]> {
   if (Platform.OS === 'web') {
     return extractVideoFramesWeb(videoUri, count)
   }
-  return extractVideoFramesNative(videoUri, count)
+  return extractVideoFramesNative(videoUri, count, durationMs)
 }

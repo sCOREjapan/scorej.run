@@ -1,18 +1,19 @@
 // app/auth.tsx — スライド式ログイン画面（縦スクロール対応・アニメーション付き）
 
-import React, { useRef, useState, useCallback } from 'react'
+import React, { useRef, useState, useCallback, useEffect } from 'react'
 import {
   View, Text, TouchableOpacity, StyleSheet,
   ActivityIndicator,
-  Platform, ScrollView, Dimensions, Animated, Easing,
+  Platform, ScrollView, Dimensions, Animated, Easing, PanResponder,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { router } from 'expo-router'
 import { useAuth } from '../context/AuthContext'
 import { BRAND, TEXT } from '../lib/theme'
 import { Sounds, unlockAudio } from '../lib/sounds'
 
 const { width: SW } = Dimensions.get('window')
-const RED   = '#E53E3E'
+const RED   = BRAND   // アプリ全体のグリーンに統一（旧: 赤 #E53E3E）
 const BLUE  = '#5AC8FA'
 const GREEN = '#34C759'
 const AMBER = '#FF9500'
@@ -206,7 +207,7 @@ function Slide2({ isActive }: { isActive: boolean }) {
         </Animated.View>
         <View style={{ gap: 12, marginTop: 24 }}>
           {features.map((f, i) => (
-            <Animated.View key={f.title} style={[ft.card, { borderLeftColor: f.color, borderColor: f.color + '28' }, cards[i]]}>
+            <Animated.View key={f.title} style={[ft.card, cards[i]]}>
               <View style={[ft.iconWrap, { backgroundColor: f.color + '16' }]}>
                 <Text style={{ fontSize: 24 }}>{f.icon}</Text>
               </View>
@@ -419,7 +420,13 @@ function Slide6({ isActive }: { isActive: boolean }) {
             <Ionicons name="person-outline" size={16} color={TEXT.hint} />
             <Text style={lg.guestText}>ゲストとして続ける</Text>
           </TouchableOpacity>
-          <Text style={lg.footer}>ログインすることで利用規約とプライバシーポリシーに同意したことになります</Text>
+          <Text style={lg.footer}>
+            {'ログインすることで '}
+            <Text style={{ textDecorationLine: 'underline' }} onPress={() => router.push('/terms' as any)}>利用規約</Text>
+            {' と '}
+            <Text style={{ textDecorationLine: 'underline' }} onPress={() => router.push('/privacy' as any)}>プライバシーポリシー</Text>
+            {'に同意したことになります'}
+          </Text>
         </Animated.View>
 
       </View>
@@ -437,8 +444,9 @@ const TOTAL = SLIDES.length
 
 export default function AuthScreen() {
   const [page, setPage] = useState(0)
-  const translateX = useRef(new Animated.Value(0)).current
-  const touchStartX = useRef(0)
+  const pageRef     = useRef(0)          // PanResponder から参照（stale closure 対策）
+  const goToRef     = useRef<(n: number) => void>(() => {})
+  const translateX  = useRef(new Animated.Value(0)).current
 
   const goTo = useCallback((idx: number) => {
     const target = Math.max(0, Math.min(TOTAL - 1, idx))
@@ -447,26 +455,34 @@ export default function AuthScreen() {
       tension: 80, friction: 16,
       useNativeDriver: true,
     }).start()
+    pageRef.current = target
     setPage(target)
   }, [])
 
-  const handleTouchStart = (e: any) => {
-    touchStartX.current = e.nativeEvent.pageX
-  }
-  const handleTouchEnd = (e: any) => {
-    const diff = touchStartX.current - e.nativeEvent.pageX
-    if (diff > 50 && page < TOTAL - 1) goTo(page + 1)
-    else if (diff < -50 && page > 0)    goTo(page - 1)
-  }
+  // goToRef を常に最新の goTo に向ける
+  useEffect(() => { goToRef.current = goTo }, [goTo])
+
+  // ── スワイプ検出: 水平移動のみキャプチャ → ScrollView の縦スクロールを妨げない
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, { dx, dy }) =>
+        Math.abs(dx) > Math.abs(dy) + 5 && Math.abs(dx) > 10,
+      onMoveShouldSetPanResponderCapture: (_, { dx, dy }) =>
+        Math.abs(dx) > Math.abs(dy) + 5 && Math.abs(dx) > 10,
+      onPanResponderRelease: (_, { dx }) => {
+        if (dx < -50 && pageRef.current < TOTAL - 1) goToRef.current(pageRef.current + 1)
+        else if (dx > 50 && pageRef.current > 0)     goToRef.current(pageRef.current - 1)
+      },
+    })
+  ).current
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f6f6f8' }}>
-      {/* スライドコンテナ（overflow:hidden） */}
+      {/* スライドコンテナ（overflow:hidden）
+          panResponder は水平スワイプのみキャプチャ → 縦スクロールは ScrollView に委譲 */}
       <View
         style={{ flex: 1, overflow: 'hidden' }}
-        onStartShouldSetResponder={() => true}
-        onResponderGrant={handleTouchStart}
-        onResponderRelease={handleTouchEnd}
+        {...panResponder.panHandlers}
       >
         <Animated.View style={{
           flexDirection: 'row',
@@ -525,7 +541,7 @@ export default function AuthScreen() {
 const sl = StyleSheet.create({
   scrollContent: { flexGrow: 1, minHeight: '100%' as any },
   heroContent:   { flex: 1, padding: 28, paddingTop: 80, paddingBottom: 16, justifyContent: 'flex-end' },
-  slideInner:    { padding: 26, paddingTop: 64, paddingBottom: 24 },
+  slideInner:    { padding: 26, paddingTop: 64, paddingBottom: 48 },
 
   gridLine:   { position: 'absolute', top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(0,0,0,0.03)' },
 
@@ -553,23 +569,25 @@ const sl = StyleSheet.create({
 
 const ft = StyleSheet.create({
   card:    { flexDirection: 'row', alignItems: 'flex-start', gap: 14, backgroundColor: '#ffffff',
-    borderRadius: 16, borderWidth: 1, borderLeftWidth: 3, padding: 16 },
-  iconWrap:{ width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+    borderRadius: 20, padding: 18,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 2 },
+  iconWrap:{ width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   title:   { fontSize: 13, fontWeight: '800', marginBottom: 5 },
   desc:    { color: '#6b7280', fontSize: 12, lineHeight: 18 },
 })
 
 const ck = StyleSheet.create({
   row:       { flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#ffffff', borderRadius: 14, borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.07)', padding: 16 },
-  rowActive: { borderColor: RED + '50', backgroundColor: 'rgba(229,62,62,0.06)' },
-  box:       { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: '#ccc',
+    backgroundColor: '#ffffff', borderRadius: 18, borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.06)', padding: 16,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 1 },
+  rowActive: { borderColor: RED + '50', backgroundColor: 'rgba(22,101,52,0.06)' },
+  box:       { width: 22, height: 22, borderRadius: 8, borderWidth: 1.5, borderColor: '#ccc',
     alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   boxActive: { backgroundColor: RED, borderColor: RED },
   text:      { flex: 1, color: '#6b7280', fontSize: 14, lineHeight: 20 },
   resultCard:{ flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 18,
-    backgroundColor: 'rgba(229,62,62,0.08)', borderRadius: 16, borderWidth: 1,
+    backgroundColor: 'rgba(22,101,52,0.08)', borderRadius: 20, borderWidth: 1,
     borderColor: RED + '40', padding: 18 },
   resultNum: { fontSize: 48, fontWeight: '900', color: RED, lineHeight: 52 },
   resultTitle:{ color: '#111827', fontSize: 16, fontWeight: '800', marginBottom: 4 },
@@ -578,12 +596,13 @@ const ck = StyleSheet.create({
 
 const cp = StyleSheet.create({
   wrap:     { flexDirection: 'row', gap: 10 },
-  col:      { flex: 1, backgroundColor: '#ffffff', borderRadius: 16, borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.08)', overflow: 'hidden' },
-  colGood:  { borderColor: RED + '40', backgroundColor: 'rgba(229,62,62,0.04)' },
+  col:      { flex: 1, backgroundColor: '#ffffff', borderRadius: 20, borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.07)', overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 1 },
+  colGood:  { borderColor: RED + '40', backgroundColor: 'rgba(22,101,52,0.04)' },
   head:     { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 12,
     backgroundColor: '#f0f2f5', justifyContent: 'center' },
-  headGood: { backgroundColor: 'rgba(229,62,62,0.1)' },
+  headGood: { backgroundColor: 'rgba(22,101,52,0.1)' },
   headLabel:{ color: '#6b7280', fontSize: 12, fontWeight: '800' },
   row:      { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 10 },
   rowBorder:{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(0,0,0,0.06)' },
@@ -595,7 +614,8 @@ const cp = StyleSheet.create({
 
 const dv = StyleSheet.create({
   card:     { flexDirection: 'row', gap: 16, backgroundColor: '#ffffff',
-    borderRadius: 20, borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)', padding: 22, marginTop: 20 },
+    borderRadius: 24, borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)', padding: 22, marginTop: 20,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 12, elevation: 2 },
   accent:   { width: 3, borderRadius: 2, backgroundColor: RED, flexShrink: 0 },
   openQuote:{ color: RED, fontSize: 52, fontWeight: '900', lineHeight: 44, marginBottom: 8 },
   msg:      { color: '#6b7280', fontSize: 14, lineHeight: 26 },
@@ -641,9 +661,9 @@ const lg = StyleSheet.create({
 
   guestBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     paddingVertical: 16, marginTop: 8, borderRadius: 14,
-    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.25)',
-    backgroundColor: 'rgba(255,255,255,0.06)' },
-  guestText:   { color: '#e5e7eb', fontSize: 15, fontWeight: '700' },
+    borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.12)',
+    backgroundColor: 'rgba(0,0,0,0.04)' },
+  guestText:   { color: '#374151', fontSize: 15, fontWeight: '700' },
   footer:      { color: '#9ca3af', fontSize: 10, textAlign: 'center', lineHeight: 16, paddingBottom: 8 },
 
   confirmBox:  { alignItems: 'center', padding: 20, backgroundColor: '#f0f2f5',
@@ -661,10 +681,10 @@ const nav = StyleSheet.create({
   dot:      { width: 6, height: 6, borderRadius: 3, backgroundColor: '#d1d5db' },
   dotActive:{ backgroundColor: RED, width: 22 },
   btnRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  backBtn:  { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 10, paddingHorizontal: 12,
-    borderRadius: 12, borderWidth: 1, borderColor: 'rgba(0,0,0,0.12)' },
+  backBtn:  { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 10, paddingHorizontal: 14,
+    borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.1)' },
   backText: { color: 'rgba(0,0,0,0.4)', fontSize: 13, fontWeight: '600' },
   nextBtn:  { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: RED,
-    borderRadius: 14, paddingVertical: 14, paddingHorizontal: 24 },
+    borderRadius: 50, paddingVertical: 14, paddingHorizontal: 24 },
   nextText: { color: '#fff', fontWeight: '900', fontSize: 14 },
 })

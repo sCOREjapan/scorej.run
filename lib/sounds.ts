@@ -1,6 +1,35 @@
 // lib/sounds.ts — サウンドエンジン（Web: Web Audio API / Native: expo-av + WAV合成）
 import { Platform } from 'react-native'
 import * as Haptics from 'expo-haptics'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+
+// ── 効果音 / バイブレーション ON-OFF 設定 ─────────────────────────
+const SOUND_PREF_KEY   = 'score_sound_enabled'
+const HAPTIC_PREF_KEY  = 'score_haptics_enabled'
+let _soundEnabled  = true
+let _hapticsEnabled = true
+
+/** アプリ起動時に1回呼ぶ。保存済みの設定を読み込む */
+export async function loadSoundPrefs(): Promise<void> {
+  try {
+    const [s, h] = await Promise.all([
+      AsyncStorage.getItem(SOUND_PREF_KEY),
+      AsyncStorage.getItem(HAPTIC_PREF_KEY),
+    ])
+    _soundEnabled   = s === null ? true : s === '1'
+    _hapticsEnabled = h === null ? true : h === '1'
+  } catch {}
+}
+export function isSoundEnabled():   boolean { return _soundEnabled }
+export function isHapticsEnabled(): boolean { return _hapticsEnabled }
+export async function setSoundEnabled(v: boolean): Promise<void> {
+  _soundEnabled = v
+  await AsyncStorage.setItem(SOUND_PREF_KEY, v ? '1' : '0').catch(() => {})
+}
+export async function setHapticsEnabled(v: boolean): Promise<void> {
+  _hapticsEnabled = v
+  await AsyncStorage.setItem(HAPTIC_PREF_KEY, v ? '1' : '0').catch(() => {})
+}
 
 // ── Web Audio API（Web のみ） ──────────────────────────────────────
 let audioCtx: AudioContext | null = null
@@ -22,6 +51,7 @@ export function unlockAudio() {
 }
 
 function ping(freq: number, dur: number, vol = 0.45, delay = 0, freqEnd?: number) {
+  if (!_soundEnabled) return
   const c = getCtx()
   if (!c || !unlocked) return
   const t = c.currentTime + delay
@@ -40,6 +70,7 @@ function ping(freq: number, dur: number, vol = 0.45, delay = 0, freqEnd?: number
 }
 
 function click(vol = 0.30, delay = 0, hiFreq = 3500) {
+  if (!_soundEnabled) return
   const c = getCtx()
   if (!c || !unlocked) return
   const t = c.currentTime + delay
@@ -55,6 +86,7 @@ function click(vol = 0.30, delay = 0, hiFreq = 3500) {
 }
 
 function swoosh(dur: number, vol = 0.18, delay = 0, cutoff = 800) {
+  if (!_soundEnabled) return
   const c = getCtx()
   if (!c || !unlocked) return
   const t = c.currentTime + delay
@@ -225,6 +257,7 @@ async function initNativeAudio() {
 const _soundCache = new Map<string, import('expo-av').Audio.Sound>()
 
 async function playNativeSound(key: string) {
+  if (!_soundEnabled) return
   try {
     if (!_audioReady) await initNativeAudio()
     if (!_Audio || !_FS) return
@@ -261,115 +294,47 @@ async function cacheNativeSound(key: string) {
   } catch {}
 }
 
-// アプリ起動時に呼び出して全サウンドをプリロード（再生はしない）
+// アプリ起動時に呼び出してサウンドをプリロード（再生はしない）
+// 全効果音が tabSwitch 音に統一されているため、これだけ事前生成すればよい
 export async function preloadNativeSounds() {
   if (Platform.OS === 'web') return
   await initNativeAudio()
-  // よく使うサウンドを事前生成してキャッシュ（再生なし）
-  for (const key of ['tap', 'pop', 'whoosh', 'save', 'delete', 'tabSwitch', 'toggleOn', 'toggleOff', 'ding']) {
-    await cacheNativeSound(key).catch(() => {})
-    await new Promise(r => setTimeout(r, 10))  // 負荷分散
-  }
+  await cacheNativeSound('tabSwitch').catch(() => {})
 }
 
 // ── ハプティクスショートカット ──────────────────────────────────
 const H = {
-  light:   () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}),
-  medium:  () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}),
-  heavy:   () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {}),
-  select:  () => Haptics.selectionAsync().catch(() => {}),
-  success: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}),
-  warning: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {}),
-  error:   () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {}),
+  light:   () => { if (!_hapticsEnabled) return; Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}) },
+  medium:  () => { if (!_hapticsEnabled) return; Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}) },
+  heavy:   () => { if (!_hapticsEnabled) return; Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {}) },
+  select:  () => { if (!_hapticsEnabled) return; Haptics.selectionAsync().catch(() => {}) },
+  success: () => { if (!_hapticsEnabled) return; Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}) },
+  warning: () => { if (!_hapticsEnabled) return; Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {}) },
+  error:   () => { if (!_hapticsEnabled) return; Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {}) },
+}
+
+// タブ切り替え音そのもの（全効果音の共通実体）
+function playTabSwitchTone() {
+  if (Platform.OS !== 'web') { playNativeSound('tabSwitch'); return }
+  click(0.22, 0, 5000); ping(900, 0.09, 0.28)
 }
 
 // ── サウンドライブラリ ────────────────────────────────────────────
+// 全アクションの効果音を「タブ切り替え音」に統一。ハプティクス（振動）だけは
+// アクションごとの意味を残すため従来どおり出し分ける。
 export const Sounds = {
 
-  tap: () => {
-    if (Platform.OS !== 'web') { H.select(); playNativeSound('tap'); return }
-    click(0.32, 0, 4000); ping(720, 0.13, 0.38)
-  },
-
-  pop: () => {
-    if (Platform.OS !== 'web') { H.light(); playNativeSound('pop'); return }
-    click(0.28, 0, 3200); ping(600, 0.18, 0.42, 0, 260)
-  },
-
-  whoosh: () => {
-    if (Platform.OS !== 'web') { H.medium(); playNativeSound('whoosh'); return }
-    swoosh(0.22, 0.22, 0, 600); ping(520, 0.20, 0.35, 0.04, 780)
-  },
-
-  save: () => {
-    if (Platform.OS !== 'web') { H.success(); playNativeSound('save'); return }
-    click(0.20, 0.00, 4500); ping(523, 0.30, 0.48, 0.00); ping(659, 0.28, 0.44, 0.10); ping(784, 0.38, 0.50, 0.20)
-  },
-
-  delete: () => {
-    if (Platform.OS !== 'web') { H.warning(); playNativeSound('delete'); return }
-    click(0.25, 0, 2800); ping(500, 0.25, 0.40, 0, 200)
-  },
-
-  error: () => {
-    if (Platform.OS !== 'web') { H.error(); playNativeSound('error'); return }
-    ping(320, 0.10, 0.38, 0.00); ping(300, 0.12, 0.35, 0.05); ping(280, 0.14, 0.30, 0.12)
-  },
-
-  pb: () => {
-    if (Platform.OS !== 'web') { H.success(); playNativeSound('pb'); return }
-    const notes = [523, 659, 784, 1047, 1319]
-    notes.forEach((f, i) => { click(0.18, i * 0.10, 4000 + i * 200); ping(f, 0.40, 0.44 + i * 0.02, i * 0.10) })
-  },
-
-  tabSwitch: () => {
-    if (Platform.OS !== 'web') { H.select(); playNativeSound('tabSwitch'); return }
-    click(0.22, 0, 5000); ping(900, 0.09, 0.28)
-  },
-
-  toggleOn: () => {
-    if (Platform.OS !== 'web') { H.light(); playNativeSound('toggleOn'); return }
-    click(0.24, 0, 3800); ping(440, 0.16, 0.40, 0, 660)
-  },
-
-  toggleOff: () => {
-    if (Platform.OS !== 'web') { H.light(); playNativeSound('toggleOff'); return }
-    click(0.20, 0, 3200); ping(660, 0.16, 0.38, 0, 380)
-  },
-
-  shutter: () => {
-    if (Platform.OS !== 'web') { H.medium(); playNativeSound('pop'); return }
-    click(0.40, 0, 6000); swoosh(0.06, 0.30, 0.001, 1200); ping(400, 0.15, 0.28, 0.01, 180)
-  },
-
-  ding: () => {
-    if (Platform.OS !== 'web') { H.success(); playNativeSound('ding'); return }
-    click(0.20, 0, 5500); ping(880, 0.50, 0.52); ping(1760, 0.35, 0.22, 0.01)
-  },
-
-  splashBoom: () => {
-    if (Platform.OS !== 'web') { H.heavy(); return }
-    const c = getCtx()
-    if (!c) return
-    const play = () => {
-      const now = c.currentTime
-      const o1 = c.createOscillator(), g1 = c.createGain()
-      o1.type = 'sine'; o1.frequency.setValueAtTime(80, now); o1.frequency.exponentialRampToValueAtTime(26, now + 0.75)
-      g1.gain.setValueAtTime(0, now); g1.gain.linearRampToValueAtTime(0.90, now + 0.025); g1.gain.exponentialRampToValueAtTime(0.001, now + 0.90)
-      o1.connect(g1); g1.connect(c.destination); o1.start(now); o1.stop(now + 0.95)
-      const o2 = c.createOscillator(), g2 = c.createGain()
-      o2.type = 'sine'; o2.frequency.setValueAtTime(160, now); o2.frequency.exponentialRampToValueAtTime(55, now + 0.50)
-      g2.gain.setValueAtTime(0, now); g2.gain.linearRampToValueAtTime(0.38, now + 0.02); g2.gain.exponentialRampToValueAtTime(0.001, now + 0.62)
-      o2.connect(g2); g2.connect(c.destination); o2.start(now); o2.stop(now + 0.65)
-      const bufSize = Math.floor(c.sampleRate * 0.04)
-      const buf = c.createBuffer(1, bufSize, c.sampleRate)
-      const data = buf.getChannelData(0)
-      for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufSize)
-      const src = c.createBufferSource(); src.buffer = buf
-      const filt = c.createBiquadFilter(); filt.type = 'lowpass'; filt.frequency.value = 200
-      const gn = c.createGain(); gn.gain.setValueAtTime(0.55, now); gn.gain.exponentialRampToValueAtTime(0.001, now + 0.04)
-      src.connect(filt); filt.connect(gn); gn.connect(c.destination); src.start(now); src.stop(now + 0.06)
-    }
-    if (c.state === 'suspended') { c.resume().then(play).catch(() => {}) } else { play() }
-  },
+  tap:        () => { H.select();  playTabSwitchTone() },
+  pop:        () => { H.light();   playTabSwitchTone() },
+  whoosh:     () => { H.medium();  playTabSwitchTone() },
+  save:       () => { H.success(); playTabSwitchTone() },
+  delete:     () => { H.warning(); playTabSwitchTone() },
+  error:      () => { H.error();   playTabSwitchTone() },
+  pb:         () => { H.success(); playTabSwitchTone() },
+  tabSwitch:  () => { H.select();  playTabSwitchTone() },
+  toggleOn:   () => { H.light();   playTabSwitchTone() },
+  toggleOff:  () => { H.light();   playTabSwitchTone() },
+  shutter:    () => { H.medium();  playTabSwitchTone() },
+  ding:       () => { H.success(); playTabSwitchTone() },
+  splashBoom: () => { H.heavy();   playTabSwitchTone() },
 }

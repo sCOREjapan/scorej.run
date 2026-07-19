@@ -11,7 +11,7 @@ import {
   Alert,
   StatusBar,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import Toast from 'react-native-toast-message'
@@ -73,6 +73,7 @@ const SplitRow: React.FC<{ split: Split; highlight: boolean }> = ({ split, highl
 // ─── メイン ─────────────────────────────────────────────────────────────
 export default function TimerScreen() {
   const router = useRouter()
+  const insets = useSafeAreaInsets()
 
   const [timerState, setTimerState] = useState<TimerState>('idle')
   const [displayMs, setDisplayMs]   = useState(0)
@@ -192,6 +193,7 @@ export default function TimerScreen() {
       })
       setSaveModalVisible(false)
       handleReset()
+      router.back()
 
       // フリープランのみ：2回に1回インタースティシャル広告を表示
       const tier = await getTier()
@@ -212,11 +214,11 @@ export default function TimerScreen() {
 
   // ─── UI ───────────────────────────────────────────────────────
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <StatusBar barStyle="light-content" backgroundColor="#000000" />
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
+      <StatusBar barStyle="dark-content" />
 
       {/* ヘッダー */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity
           style={styles.headerBack}
           onPress={() => {

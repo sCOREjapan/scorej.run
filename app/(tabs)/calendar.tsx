@@ -13,6 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Sounds, unlockAudio } from '../../lib/sounds'
 import HapticTouch from '../../components/HapticTouch'
 import Toast from 'react-native-toast-message'
+import { scheduleEventReminders, cancelEventReminders } from '../../lib/notifications'
 
 // ── ストレージキー ──────────────────────────────────────────
 const SESSIONS_KEY    = 'trackmate_sessions'
@@ -139,6 +140,8 @@ function AddEventModal({
       const raw = await AsyncStorage.getItem(EVENTS_KEY)
       let events: CalendarEvent[] = []
       try { if (raw) events = JSON.parse(raw) } catch {}  // データ破損でも新規保存を継続
+      const savedId   = editEvent ? editEvent.id : `ev_${Date.now()}`
+      const savedDate = editEvent ? editEvent.date : date
       if (editEvent) {
         events = events.map(e => e.id === editEvent.id
           ? { ...e, title: title.trim(), category, notes: notes.trim() || undefined }
@@ -146,7 +149,7 @@ function AddEventModal({
         )
       } else {
         events.push({
-          id: `ev_${Date.now()}`,
+          id: savedId,
           date,
           title: title.trim(),
           category,
@@ -155,6 +158,8 @@ function AddEventModal({
         })
       }
       await AsyncStorage.setItem(EVENTS_KEY, JSON.stringify(events))
+      // 前日夜＋当日朝のリマインダーを予約（休養日・大会・通院など全予定対象）
+      scheduleEventReminders(savedId, savedDate, title.trim()).catch(() => {})
       Sounds.save()
       Toast.show({ type: 'success', text1: editEvent ? '予定を更新しました ✓' : '予定を追加しました ✓', visibilityTime: 1600 })
       onSaved(); onClose()
@@ -361,6 +366,7 @@ export default function CalendarScreen() {
       if (!raw) return
       const events: CalendarEvent[] = JSON.parse(raw)
       await AsyncStorage.setItem(EVENTS_KEY, JSON.stringify(events.filter(e => e.id !== eventId)))
+      cancelEventReminders(eventId).catch(() => {})
       Sounds.delete()
       Toast.show({ type: 'success', text1: '予定を削除しました', visibilityTime: 1400 })
       load()
@@ -712,10 +718,10 @@ const m = StyleSheet.create({
   dateLbl:  { color: TEXT.secondary, fontSize: 12, marginTop: 2 },
   label:    { color: TEXT.hint, fontSize: 11, fontWeight: '700', letterSpacing: 1, marginTop: 16, marginBottom: 8 },
   catRow:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  catBtn:   { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: DIVIDER, backgroundColor: SURFACE2, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  catBtn:   { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 14, borderWidth: 1, borderColor: DIVIDER, backgroundColor: SURFACE2, flexDirection: 'row', alignItems: 'center', gap: 5 },
   catEmoji: { fontSize: 16 },
   catLabel: { fontSize: 12, fontWeight: '700' },
-  input:    { backgroundColor: SURFACE2, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, color: '#111827', fontSize: 15, borderWidth: 1, borderColor: DIVIDER },
+  input:    { backgroundColor: SURFACE2, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, color: '#111827', fontSize: 15, borderWidth: 1, borderColor: DIVIDER },
   inputMulti: { height: 72, textAlignVertical: 'top', paddingTop: 10 },
   saveBtn:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#1c1c1e', borderRadius: 50, paddingVertical: 16, marginTop: 20,
               shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.18, shadowRadius: 12, elevation: 5 },
@@ -730,7 +736,7 @@ const st = StyleSheet.create({
   monthTitle:  { color: '#fff', fontSize: 20, fontWeight: '800', minWidth: 140, textAlign: 'center' },
 
   // カレンダーカード（常にホワイト）
-  calCard:        { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', paddingHorizontal: 8, paddingTop: 12, paddingBottom: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 3 },
+  calCard:        { backgroundColor: '#fff', borderRadius: 21, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', paddingHorizontal: 8, paddingTop: 12, paddingBottom: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 3 },
   summaryChips:   { flexDirection: 'row', gap: 8, marginBottom: 10, paddingHorizontal: 4 },
   chipTraining:   { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FEF9C3', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 },
   chipTrainingTxt:{ color: '#92400E', fontSize: 12, fontWeight: '700' },
@@ -767,7 +773,7 @@ const st = StyleSheet.create({
   intensityTxt:    { fontSize: 10, color: '#9CA3AF' },
 
   // Detail
-  detailCard:   { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 14, gap: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
+  detailCard:   { backgroundColor: '#fff', borderRadius: 21, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 14, gap: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 2 },
   detailHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   detailTitle:  { color: '#111827', fontSize: 14, fontWeight: '700', flex: 1 },
   addBtn:       { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: BRAND, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
@@ -785,7 +791,7 @@ const st = StyleSheet.create({
   badgeTxt:     { fontSize: 10, fontWeight: '700' },
 
   // Summary
-  summaryCard:  { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 16, gap: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
+  summaryCard:  { backgroundColor: '#fff', borderRadius: 21, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 16, gap: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 2 },
   summaryTitle: { color: '#111827', fontSize: 15, fontWeight: '700' },
   summaryRow:   { flexDirection: 'row', gap: 8 },
 })

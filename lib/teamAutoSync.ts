@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { syncTeamSessions, upsertPlayerStats, fetchPlayerStats } from './supabaseTeam'
 import { calcLevelInfo } from './gamification'
 import type { TrainingSession } from '../types'
+import { localDateStr, todayLocalISO } from './dateLocal'
 
 const JOINED_KEY    = 'trackmate_team_joined'
 const LAST_SYNC_KEY = 'trackmate_team_last_sync'
@@ -19,12 +20,12 @@ interface JoinedTeam {
 function calcStreak(sessions: { session_date: string }[]): number {
   if (!sessions.length) return 0
   const dates = [...new Set(sessions.map(s => s.session_date))].sort((a, b) => b.localeCompare(a))
-  const today     = new Date().toISOString().slice(0, 10)
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
+  const today     = todayLocalISO()
+  const yesterday = localDateStr(new Date(Date.now() - 86400000))
   if (dates[0] !== today && dates[0] !== yesterday) return 0
   let streak = 1
   for (let i = 1; i < dates.length; i++) {
-    const expected = new Date(new Date(dates[i-1] + 'T00:00:00').getTime() - 86400000).toISOString().slice(0, 10)
+    const expected = localDateStr(new Date(new Date(dates[i-1] + 'T00:00:00').getTime() - 86400000))
     if (dates[i] === expected) streak++
     else break
   }
@@ -66,7 +67,7 @@ export async function autoSyncTeam(
     const lvInfo  = calcLevelInfo(sessions.length)
     const stats   = await fetchPlayerStats(joined.code)
     const mine    = stats.find(s => s.player_name === joined.playerName)
-    const cutoff  = new Date(Date.now() - 30*24*60*60*1000).toISOString().slice(0,10)
+    const cutoff  = localDateStr(new Date(Date.now() - 30*24*60*60*1000))
     const recent  = sessions.filter(s => s.session_date >= cutoff)
     const lastS   = sessions[0]
     const streak  = calcStreak(sessions)   // 全履歴から計算（正確な連続日数）

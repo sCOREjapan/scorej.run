@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { TEXT, BRAND } from '../lib/theme'
+import { localDateStr, todayLocalISO } from '../lib/dateLocal'
 
 interface Props {
   date: string          // YYYY-MM-DD
@@ -12,11 +13,11 @@ interface Props {
 function addDays(dateStr: string, days: number): string {
   const d = new Date(dateStr + 'T00:00:00')
   d.setDate(d.getDate() + days)
-  return d.toISOString().slice(0, 10)
+  return localDateStr(d)
 }
 
 function formatLabel(dateStr: string): string {
-  const today     = new Date().toISOString().slice(0, 10)
+  const today     = todayLocalISO()
   const yesterday = addDays(today, -1)
   if (dateStr === today)     return `今日  (${dateStr})`
   if (dateStr === yesterday) return `昨日  (${dateStr})`
@@ -34,7 +35,7 @@ function getFirstDayOfWeek(year: number, month: number): number {
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
 
 export default function DateSelector({ date, onChange, maxDate }: Props) {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayLocalISO()
   const max   = maxDate ?? today
   const canNext = date < max
 
