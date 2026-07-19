@@ -72,7 +72,7 @@ export const TUTORIAL_STEPS: Record<TutorialStepId, TutorialStep> = {
   },
   stretch_banner: {
     id: 'stretch_banner',
-    title: 'ストレッチでコンディションを整える',
+    title: 'ストレッチでスコアを下げる',
     description: 'このバナーをタップするとストレッチ開始。\n終わるとリスクスコアが変化するよ 💪',
     spotKey: 'home_stretch_banner',
     action: 'next',

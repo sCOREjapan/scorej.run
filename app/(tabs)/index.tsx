@@ -33,6 +33,7 @@ import { trackAppOpen, trackPaywallView } from '../../lib/analytics'
 import { usePurchase } from '../../context/PurchaseContext'
 import TutorialSpot from '../../components/TutorialSpot'
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg'
+import { LinearGradient as ScreenGradient } from 'expo-linear-gradient'
 import { useTutorial, isTutorialDone } from '../../lib/tutorialContext'
 import { sendRiskAlertIfNeeded, sendStretchReminderIfNeeded, scheduleCompetitionReminder, scheduleStreakReminder } from '../../lib/notifications'
 import { fetchTeamEvents, sendCoachNotification, type TeamEventRow } from '../../lib/supabaseTeam'
@@ -144,9 +145,10 @@ function AnimatedEntry({ children, delay = 0 }: { children: React.ReactNode; del
   useFocusEffect(
     useCallback(() => {
       fadeY.setValue(0)
-      const anim = Animated.timing(fadeY, {
-        toValue: 1, duration: 420, delay,
-        easing: Easing.out(Easing.cubic), useNativeDriver: true,
+      const anim = Animated.spring(fadeY, {
+        toValue: 1, delay,
+        speed: 16, bounciness: 8,
+        useNativeDriver: true,
       })
       anim.start()
       return () => anim.stop()
@@ -155,7 +157,10 @@ function AnimatedEntry({ children, delay = 0 }: { children: React.ReactNode; del
   return (
     <Animated.View style={{
       opacity: fadeY,
-      transform: [{ translateY: fadeY.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }],
+      transform: [
+        { translateY: fadeY.interpolate({ inputRange: [0, 1], outputRange: [22, 0] }) },
+        { scale: fadeY.interpolate({ inputRange: [0, 1], outputRange: [0.96, 1] }) },
+      ],
     }}>
       {children}
     </Animated.View>
@@ -371,10 +376,11 @@ function ScoreOverviewCard({
     <>
       {/* ── INJURY RISK SCORE カード（タップで内訳） ── */}
       <TutorialSpot spotKey="home_risk_card">
-      <TouchableOpacity
-        activeOpacity={onPressBreakdown ? 0.8 : 1}
+      <PressableScale
         onPress={onPressBreakdown}
-        disabled={!onPressBreakdown}
+        haptic={onPressBreakdown ? 'light' : 'none'}
+        scaleAmount={0.97}
+        sound="tap"
         style={[so.card, { backgroundColor: colors.surface }]}
       >
         {/* スコア行：リング＋（見出し・内訳リンク／バッジ・フレーズ／天気） */}
@@ -394,23 +400,26 @@ function ScoreOverviewCard({
             )}
           </View>
         </View>
-      </TouchableOpacity>
+      </PressableScale>
       </TutorialSpot>
 
       {/* ── ストレッチバナー（リスク40以上 or チュートリアル中は常時表示） ── */}
       {(riskScore >= 40 || !!onStretchStart) && onStretchStart && (
         <TutorialSpot spotKey="home_stretch_banner">
-        <HapticTouch
-          haptic="whoosh"
+        <PressableScale
           onPress={onStretchStart}
-          activeOpacity={0.85}
+          haptic="medium"
+          sound="whoosh"
+          scaleAmount={0.97}
           style={[so.stretchBanner, { backgroundColor: colors.surface }]}
         >
-          <Text style={[so.stretchText, { color: colors.text }]}>🏃 ストレッチでコンディションを整える</Text>
-          <View style={[so.stretchBtn, { backgroundColor: BRAND }]}>
-            <Text style={so.stretchBtnText}>開始 →</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flex: 1 }}>
+            <Text style={[so.stretchText, { color: colors.text }]}>🏃 ストレッチでスコアを下げる</Text>
+            <View style={[so.stretchBtn, { backgroundColor: BRAND }]}>
+              <Text style={so.stretchBtnText}>開始 →</Text>
+            </View>
           </View>
-        </HapticTouch>
+        </PressableScale>
         </TutorialSpot>
       )}
     </>
@@ -1717,7 +1726,7 @@ ${sleepText || 'データなし'}
   })
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <ScreenGradient colors={['#e8e8ec', '#dbe0cd', '#d8d8de']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1 }}>
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView ref={scrollRef} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
 
@@ -2524,7 +2533,7 @@ ${sleepText || 'データなし'}
         onClose={() => setNoadUpsellVisible(false)}
         onUpgrade={() => router.push('/paywall')}
       />
-    </View>
+    </ScreenGradient>
   )
 }
 
