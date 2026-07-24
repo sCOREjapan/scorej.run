@@ -50,14 +50,7 @@ const THROW_EVENTS: AthleticsEvent[]    = ['砲丸投', 'やり投', '円盤投'
 const COMBINED_EVENTS: AthleticsEvent[] = ['十種競技', '七種競技', '八種競技']
 const RELAY_EVENTS: AthleticsEvent[]    = ['4×100mR', '4×400mR']
 
-export function getCompetitionPlanPrompt(
-  daysLeft: number,
-  profile: UserProfile,
-  competitionName: string,
-  event: AthleticsEvent,
-): string {
-  const weeksLeft = Math.min(Math.ceil(daysLeft / 7), 8) // 最大8週
-
+function getCompetitionContext(profile: UserProfile, event: AthleticsEvent) {
   // 試合計画で実際に選ばれた種目（event）を基準にコーチの専門分野を決める。
   // 以前は profile.event_category（ユーザーの登録種目カテゴリ、短距離/中長距離のみ）を
   // 見ていたため、跳躍・投擲種目を選んでも短距離または中長距離のメニューしか
@@ -80,8 +73,25 @@ export function getCompetitionPlanPrompt(
     ? ` 目標:${formatTime(profile.target_time_ms, profile.primary_event)}`
     : ''
 
+  const menuFocus = category === '跳躍' ? '助走・踏切・空中動作・着地の技術練習、補強、スピード養成'
+    : category === '投擲' ? '投てき動作・フォーム練習、専門補強、パワー養成'
+    : category === '混成競技' ? '各種目のバランス練習と苦手種目の補強'
+    : '通常のランニング練習'
+
+  return { category, pbInfo, targetInfo, menuFocus }
+}
+
+export function getCompetitionPlanPrompt(
+  daysLeft: number,
+  profile: UserProfile,
+  competitionName: string,
+  event: AthleticsEvent,
+): string {
+  const weeksLeft = Math.min(Math.ceil(daysLeft / 7), 8) // 最大8週
+  const { category, pbInfo, targetInfo, menuFocus } = getCompetitionContext(profile, event)
+
   return `${category}専門コーチ。${event}選手(${pbInfo}${targetInfo}, 経験${profile.experience_years ?? '?'}年)の「${competitionName}」まで${weeksLeft}週間の計画をJSONのみで返せ。
-種目「${event}」に特化した専門的な練習内容（${category === '跳躍' ? '助走・踏切・空中動作・着地の技術練習、補強、スピード養成' : category === '投擲' ? '投てき動作・フォーム練習、専門補強、パワー養成' : category === '混成競技' ? '各種目のバランス練習と苦手種目の補強' : '通常のランニング練習'}）を組み込むこと。
+種目「${event}」に特化した専門的な練習内容（${menuFocus}）を組み込むこと。
 
 必須ルール:
 - phases配列は必ず${weeksLeft}要素（多くも少なくもNG）
@@ -91,6 +101,33 @@ export function getCompetitionPlanPrompt(
 - 前後の説明文・マークダウン不要、JSONだけ返す
 
 {"phases":[{"week_number":1,"theme":"テーマ","total_volume_km":30,"sessions":[{"day":"月曜","type":"easy","detail":"jog 30min","duration_min":40,"intensity":"easy"},{"day":"火曜","type":"interval","detail":"400m×5 r3min","duration_min":60,"intensity":"hard"}],"key_workout":"週のメインワークアウト"}],"peak_week":${Math.max(2, weeksLeft-1)},"taper_start_week":2,"key_advice":"アドバイス2文"}`
+}
+
+// 長期プラン（5週間以上）は Vercel Edge Function の実行時間上限に収まるよう、
+// 数週間ずつ分割生成する。この関数は1チャンク分（weekNumbersで指定した週だけ）のプロンプトを作る。
+export function getCompetitionPlanChunkPrompt(
+  weekNumbers: number[],
+  weeksLeft: number,
+  profile: UserProfile,
+  competitionName: string,
+  event: AthleticsEvent,
+): string {
+  const { category, pbInfo, targetInfo, menuFocus } = getCompetitionContext(profile, event)
+  const includesRaceWeek = weekNumbers.includes(1)
+  const weekList = weekNumbers.join('・')
+
+  return `${category}専門コーチ。${event}選手(${pbInfo}${targetInfo}, 経験${profile.experience_years ?? '?'}年)の「${competitionName}」まで${weeksLeft}週間の計画を作成中。
+全体はweek_number=${weeksLeft}〜1（week_number=1が試合直前週）で、今回はそのうちweek_number=${weekList}の${weekNumbers.length}週分だけをJSONのみで返せ。
+種目「${event}」に特化した専門的な練習内容（${menuFocus}）を組み込むこと。
+
+必須ルール:
+- phases配列は必ず${weekNumbers.length}要素（week_number=${weekList}のみ、多くも少なくもNG）
+- sessionsは各週5〜6件（月〜土、詳細は簡潔に20文字以内）
+- intensityは easy/moderate/hard/race のみ
+- 前後の説明文・マークダウン不要、JSONだけ返す
+${includesRaceWeek ? '- 今回のweek_number=1は試合直前週なので、大会に向けた最終アドバイスを"key_advice"（2文）としてJSON末尾に含めること' : ''}
+
+{"phases":[{"week_number":${weekNumbers[0]},"theme":"テーマ","total_volume_km":30,"sessions":[{"day":"月曜","type":"easy","detail":"jog 30min","duration_min":40,"intensity":"easy"},{"day":"火曜","type":"interval","detail":"400m×5 r3min","duration_min":60,"intensity":"hard"}],"key_workout":"週のメインワークアウト"}]${includesRaceWeek ? ',"key_advice":"アドバイス2文"' : ''}}`
 }
 
 function formatTime(ms: number, event: TrackEvent): string {
