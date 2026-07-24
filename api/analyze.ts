@@ -1,10 +1,9 @@
 // api/analyze.ts — AI分析プロキシ (Vercel Edge Function)
 // Edge ランタイムを使用: グローバル分散・低レイテンシ・fetch/Request/Response がネイティブ利用可
 //
-// ルーティング方針（2026-07 Gemini移行 Phase1）:
-//   1メッセージ内に画像が2枚以上含まれるリクエスト＝動画分析（analyzeVideo）とみなし、
-//   GEMINI_API_KEY が設定されていれば Gemini 2.5 Flash に振り分ける（コスト目安 -65%）。
-//   それ以外（食事分析=画像1枚・大会プラン等のテキスト系）は従来どおり Anthropic Haiku。
+// ルーティング方針（2026-07 Gemini全面移行）:
+//   GEMINI_API_KEY が設定されていれば全AI機能（動画分析・食事分析・大会プラン・
+//   リカバリー助言・週次サマリー・怪我復帰プラン）を Gemini 2.5 Flash に振り分ける。
 //   クライアント側（lib/claude.ts）は無改修 — リクエスト/レスポンスは Anthropic Messages API 形式のまま。
 //   GEMINI_API_KEY未設定時は自動的に全リクエストが従来のAnthropic経路にフォールバックする。
 //   ⚠️ gemini-2.5-flash は2026-10-16提供終了予定。後継モデルへの差し替えはGEMINI_MODEL定数の変更のみで完結する。
@@ -27,20 +26,6 @@ interface AnthropicRequestBody {
   max_tokens?: number
   system?: string
   messages?: AnthropicMessage[]
-}
-
-// メッセージ全体に含まれる画像ブロック数をカウント（動画分析＝複数フレーム画像を判定するため）
-function countImageBlocks(body: AnthropicRequestBody): number {
-  if (!body?.messages) return 0
-  let count = 0
-  for (const msg of body.messages) {
-    if (Array.isArray(msg.content)) {
-      for (const block of msg.content) {
-        if (block.type === 'image') count++
-      }
-    }
-  }
-  return count
 }
 
 // Anthropic Messages形式 → Gemini generateContent形式に変換
@@ -142,10 +127,9 @@ export default async function handler(request: Request): Promise<Response> {
       body.max_tokens = 3000
     }
 
-    // 画像2枚以上＝動画分析。GEMINI_API_KEY があれば Gemini 2.5 Flash に振り分ける
+    // GEMINI_API_KEY があれば全リクエストを Gemini 2.5 Flash に振り分ける
     const geminiKey = process.env.GEMINI_API_KEY
-    const isVideoAnalysis = countImageBlocks(body) >= 2
-    if (isVideoAnalysis && geminiKey) {
+    if (geminiKey) {
       return await callGemini(body, geminiKey)
     }
 
