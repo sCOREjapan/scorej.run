@@ -3,14 +3,17 @@
 //
 // ルーティング方針（2026-07 Gemini全面移行）:
 //   GEMINI_API_KEY が設定されていれば全AI機能（動画分析・食事分析・大会プラン・
-//   リカバリー助言・週次サマリー・怪我復帰プラン）を Gemini 2.5 Flash に振り分ける。
+//   リカバリー助言・週次サマリー・怪我復帰プラン）を Gemini に振り分ける。
 //   クライアント側（lib/claude.ts）は無改修 — リクエスト/レスポンスは Anthropic Messages API 形式のまま。
 //   GEMINI_API_KEY未設定時は自動的に全リクエストが従来のAnthropic経路にフォールバックする。
-//   ⚠️ gemini-2.5-flash は2026-10-16提供終了予定。後継モデルへの差し替えはGEMINI_MODEL定数の変更のみで完結する。
+//   ⚠️ 2026-07-25: gemini-2.5-flash が新規キーで404（新規ユーザーには提供終了）になったため
+//   gemini-3-flash-preview に切替済み。Geminiのモデル世代交代が非常に速いため、
+//   404が再発したら generativelanguage.googleapis.com/v1beta/models?key=... で
+//   実際に呼べるモデルを確認し、この定数だけ差し替えること。
 export const config = { runtime: 'edge' }
 export const maxDuration = 60
 
-const GEMINI_MODEL = 'gemini-2.5-flash'
+const GEMINI_MODEL = 'gemini-3-flash-preview'
 
 type ContentBlock =
   | { type: 'text'; text: string }
