@@ -33,7 +33,6 @@ import { trackAppOpen, trackPaywallView } from '../../lib/analytics'
 import { usePurchase } from '../../context/PurchaseContext'
 import TutorialSpot from '../../components/TutorialSpot'
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg'
-import { LinearGradient as ScreenGradient } from 'expo-linear-gradient'
 import { useTutorial, isTutorialDone } from '../../lib/tutorialContext'
 import { sendRiskAlertIfNeeded, sendStretchReminderIfNeeded, scheduleCompetitionReminder, scheduleStreakReminder } from '../../lib/notifications'
 import { fetchTeamEvents, sendCoachNotification, type TeamEventRow } from '../../lib/supabaseTeam'
@@ -438,8 +437,8 @@ const so = StyleSheet.create({
   card: {
     borderRadius: 21, padding: 20,
     borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04, shadowRadius: 12, elevation: 2,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.09, shadowRadius: 18, elevation: 5,
   },
   cardHeader:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
   riskLabel:     { fontSize: 22, fontWeight: '700', letterSpacing: 0.2, color: '#111827' },
@@ -461,8 +460,8 @@ const so = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     borderRadius: 21, paddingHorizontal: 20, paddingVertical: 12, marginTop: 8,
     borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03, shadowRadius: 8, elevation: 1,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.07, shadowRadius: 12, elevation: 3,
   },
   stretchText:   { fontSize: 14, fontWeight: '500', flex: 1 },
   stretchBtn:    { borderRadius: 21, paddingHorizontal: 20, paddingVertical: 8 },
@@ -1156,7 +1155,8 @@ function GoalCard({
 }
 
 const gc = StyleSheet.create({
-  card:          { borderRadius: 18, borderWidth: 1, padding: 12, gap: 6 },
+  card:          { borderRadius: 18, borderWidth: 1, padding: 12, gap: 6,
+                   shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 4 },
   header:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title:         { fontSize: 13, fontWeight: '800', letterSpacing: 0.5 },
   emptyRow:      { paddingVertical: 14, alignItems: 'center' },
@@ -1733,7 +1733,7 @@ ${sleepText || 'データなし'}
   })
 
   return (
-    <ScreenGradient colors={['#e8e8ec', '#dbe0cd', '#d8d8de']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
       {/* ── ホーム画面ヘッダーイラスト（陸上選手・グリーン基調、下端は透明にフェード） ── */}
       <Image
         source={require('../../assets/illustrations/home-header.png')}
@@ -1754,33 +1754,38 @@ ${sleepText || 'データなし'}
           {todayUnfilled.length > 0 ? (
             <AnimatedEntry delay={35}>
               <View style={{
-                backgroundColor: colors.surface,
                 borderRadius: 14,
-                borderWidth: 1.5,
-                borderColor: BRAND + '55',
-                overflow: 'hidden',
                 marginBottom: 10,
+                shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 4,
               }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 6 }}>
-                  <Ionicons name="alert-circle" size={16} color={BRAND} />
-                  <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>今日まだ入力していないこと</Text>
+                <View style={{
+                  backgroundColor: colors.surface,
+                  borderRadius: 14,
+                  borderWidth: 1.5,
+                  borderColor: BRAND + '55',
+                  overflow: 'hidden',
+                }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 6 }}>
+                    <Ionicons name="alert-circle" size={16} color={BRAND} />
+                    <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>今日まだ入力していないこと</Text>
+                  </View>
+                  {todayUnfilled.map((item, i) => (
+                    <TouchableOpacity
+                      key={item.key}
+                      activeOpacity={0.75}
+                      onPress={() => { unlockAudio(); item.onPress() }}
+                      style={{
+                        flexDirection: 'row', alignItems: 'center', gap: 10,
+                        paddingHorizontal: 14, paddingVertical: 12,
+                        borderTopWidth: i === 0 ? 0 : 1, borderTopColor: colors.border,
+                      }}
+                    >
+                      <Text style={{ fontSize: 18 }}>{item.icon}</Text>
+                      <Text style={{ flex: 1, color: colors.text, fontSize: 14, fontWeight: '700' }}>{item.label}</Text>
+                      <Ionicons name="chevron-forward" size={16} color={colors.textHint} />
+                    </TouchableOpacity>
+                  ))}
                 </View>
-                {todayUnfilled.map((item, i) => (
-                  <TouchableOpacity
-                    key={item.key}
-                    activeOpacity={0.75}
-                    onPress={() => { unlockAudio(); item.onPress() }}
-                    style={{
-                      flexDirection: 'row', alignItems: 'center', gap: 10,
-                      paddingHorizontal: 14, paddingVertical: 12,
-                      borderTopWidth: i === 0 ? 0 : 1, borderTopColor: colors.border,
-                    }}
-                  >
-                    <Text style={{ fontSize: 18 }}>{item.icon}</Text>
-                    <Text style={{ flex: 1, color: colors.text, fontSize: 14, fontWeight: '700' }}>{item.label}</Text>
-                    <Ionicons name="chevron-forward" size={16} color={colors.textHint} />
-                  </TouchableOpacity>
-                ))}
               </View>
             </AnimatedEntry>
           ) : !doneBannerDismissed && (
@@ -1802,11 +1807,15 @@ ${sleepText || 'データなし'}
           {/* ── Instagram フォロー促進バナー ── */}
           {igBannerVisible && (
             <AnimatedEntry delay={40}>
+              <View style={{
+                marginBottom: 10, borderRadius: 14,
+                shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.15, shadowRadius: 16, elevation: 4,
+              }}>
               <TouchableOpacity
                 activeOpacity={0.88}
                 onPress={() => Linking.openURL('https://www.instagram.com/score.app.japan/')}
                 style={{
-                  marginHorizontal: 0, marginBottom: 10,
+                  marginHorizontal: 0,
                   borderRadius: 14,
                   overflow: 'hidden',
                   backgroundColor: '#1a1a1a',
@@ -1849,6 +1858,7 @@ ${sleepText || 'データなし'}
                   <Ionicons name="close" size={18} color="rgba(255,255,255,0.35)" />
                 </TouchableOpacity>
               </TouchableOpacity>
+              </View>
             </AnimatedEntry>
           )}
 
@@ -1863,6 +1873,10 @@ ${sleepText || 'データなし'}
             const extraCount = teamNotifs.length - 1
             return (
               <AnimatedEntry delay={45}>
+                <View style={{
+                  borderRadius: 14,
+                  shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 4,
+                }}>
                 <HapticTouch
                   haptic="whoosh"
                   activeOpacity={0.85}
@@ -1910,6 +1924,7 @@ ${sleepText || 'データなし'}
                     <Ionicons name="chevron-forward" size={16} color={colors.textHint} />
                   </View>
                 </HapticTouch>
+                </View>
               </AnimatedEntry>
             )
           })()}
@@ -2547,7 +2562,7 @@ ${sleepText || 'データなし'}
         onClose={() => setNoadUpsellVisible(false)}
         onUpgrade={() => router.push('/paywall')}
       />
-    </ScreenGradient>
+    </View>
   )
 }
 
