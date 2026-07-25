@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useFocusEffect } from '@react-navigation/native'
 import {
-  ActivityIndicator, Alert, Animated, Easing, KeyboardAvoidingView, Linking, Modal, Platform,
+  ActivityIndicator, Alert, Animated, Easing, Image, KeyboardAvoidingView, Linking, Modal, Platform,
   ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -250,9 +250,16 @@ function WeekDateBar({
 
 const wb = StyleSheet.create({
   cell:      { alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, gap: 3 },
-  dayName:   { color: '#9ca3af', fontSize: 11, fontWeight: '600' },
+  // イラスト背景の上でも読めるよう、白のテキストシャドウでコントラストを補強
+  dayName:   {
+    color: '#4b5563', fontSize: 11, fontWeight: '700',
+    textShadowColor: 'rgba(255,255,255,0.9)', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 4,
+  },
   numCircle: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  numText:   { color: '#111827', fontSize: 14, fontWeight: '700' },
+  numText:   {
+    color: '#111827', fontSize: 14, fontWeight: '800',
+    textShadowColor: 'rgba(255,255,255,0.9)', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 4,
+  },
   dot:       { width: 5, height: 5, borderRadius: 3 },
   dotEmpty:  { width: 5, height: 5 },
 })
@@ -1727,6 +1734,12 @@ ${sleepText || 'データなし'}
 
   return (
     <ScreenGradient colors={['#e8e8ec', '#dbe0cd', '#d8d8de']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1 }}>
+      {/* ── ホーム画面ヘッダーイラスト（陸上選手・グリーン基調、下端は透明にフェード） ── */}
+      <Image
+        source={require('../../assets/illustrations/home-header.png')}
+        style={s.headerIllustration}
+        resizeMode="cover"
+      />
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView ref={scrollRef} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
 
@@ -1774,8 +1787,9 @@ ${sleepText || 'データなし'}
             <AnimatedEntry delay={35}>
               <View style={{
                 flexDirection: 'row', alignItems: 'center', gap: 8,
-                backgroundColor: BRAND + '15', borderRadius: 14, borderWidth: 1, borderColor: BRAND + '40',
+                backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 14, borderWidth: 1, borderColor: BRAND + '40',
                 paddingHorizontal: 14, paddingVertical: 12, marginBottom: 10,
+                shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
               }}>
                 <Ionicons name="checkmark-circle" size={18} color={BRAND} />
                 <Text style={{ flex: 1, color: colors.text, fontSize: 13, fontWeight: '700' }}>今日の記録は完了！お疲れさまでした 🎉</Text>
@@ -2540,6 +2554,13 @@ ${sleepText || 'データなし'}
 // ── Styles ──────────────────────────────────────────────
 const s = StyleSheet.create({
   content:   { paddingHorizontal: 16, paddingTop: 4, gap: 6, paddingBottom: 110 },
+  headerIllustration: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0,
+    height: 340,
+    width: '100%',
+    pointerEvents: 'none',
+  },
 
   header:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 },
   scorePill:    { backgroundColor: '#111827', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 8 },

@@ -4,7 +4,7 @@ import React, { useRef, useState, useCallback } from 'react'
 import {
   View, Text, TouchableOpacity, StyleSheet,
   Animated, TextInput, ScrollView, Platform,
-  KeyboardAvoidingView,
+  KeyboardAvoidingView, Image,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -258,6 +258,14 @@ export default function OnboardingScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: step === 5 ? '#1a1a2e' : '#f6f6f8' }}>
       <View style={{ flex: 1, maxWidth: 600, alignSelf: 'center', width: '100%' }}>
+      {/* ── STEP1限定：スタートラインイラスト（下端は透明にフェード） ── */}
+      {step === 1 && (
+        <Image
+          source={require('../assets/illustrations/onboarding-header.png')}
+          style={styles.step1Illustration}
+          resizeMode="cover"
+        />
+      )}
       {/* ヘッダー */}
       <SafeAreaView>
         <StepBar step={step} />
@@ -517,14 +525,29 @@ function parsePbToMs(input: string): number | null {
 
 // ── スタイル ───────────────────────────────────────────────
 const styles = StyleSheet.create({
+  step1Illustration: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0,
+    height: 380,
+    width: '100%',
+    pointerEvents: 'none',
+  },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 10,
   },
   backBtn:   { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  stepLabel: { color: TEXT.hint, fontSize: 12, fontWeight: '700', letterSpacing: 1 },
+  // STEP1のイラスト背景の上でも読めるよう、白のテキストシャドウでコントラストを補強
+  // （他ステップの無地背景では影は事実上見えないため無害）
+  stepLabel: {
+    color: '#4b5563', fontSize: 12, fontWeight: '700', letterSpacing: 1,
+    textShadowColor: 'rgba(255,255,255,0.9)', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 4,
+  },
   skipBtn:   { width: 60, alignItems: 'flex-end', paddingVertical: 4 },
-  skipText:  { color: TEXT.hint, fontSize: 13, fontWeight: '600' },
+  skipText:  {
+    color: '#4b5563', fontSize: 13, fontWeight: '600',
+    textShadowColor: 'rgba(255,255,255,0.9)', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 4,
+  },
 
   content:    { padding: 24, paddingBottom: 40, flexGrow: 1 },
   titleArea:  { gap: 10, marginBottom: 4 },
