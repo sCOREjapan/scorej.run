@@ -1,4 +1,4 @@
-import React, { Component, useEffect, useState } from 'react'
+import React, { Component, useEffect, useRef, useState } from 'react'
 import {
   Platform, View, ActivityIndicator, TouchableOpacity,
   Text, Modal, ScrollView, Linking, StyleSheet,
@@ -9,6 +9,7 @@ import Toast from 'react-native-toast-message'
 import * as Font from 'expo-font'
 import * as SplashScreen from 'expo-splash-screen'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import Constants from 'expo-constants'
 import { Ionicons } from '@expo/vector-icons'
 import { AuthProvider, useAuth } from '../context/AuthContext'
 import { ThemeProvider } from '../context/ThemeContext'
@@ -16,6 +17,7 @@ import { PurchaseProvider } from '../context/PurchaseContext'
 import SplashAnimation from '../components/SplashAnimation'
 import { TutorialProvider } from '../lib/tutorialContext'
 import TutorialSlides from '../components/TutorialSlides'
+import LineCommunityBanner from '../components/LineCommunityBanner'
 import { initOneSignal, requestPushPermission } from '../lib/notify'
 import { initAdmob, showAppOpenAd } from '../lib/admob'
 // expo-tracking-transparency: 動的インポートでバージョン非互換クラッシュを防ぐ
@@ -83,6 +85,8 @@ class AppErrorBoundary extends Component<{ children: React.ReactNode }, EBState>
 }
 
 const CONSENT_KEY = 'score_terms_accepted_v1'
+// LINEコミュニティ告知バナー：このバージョンで表示済みかどうかを記録するキー
+const LINE_BANNER_SEEN_KEY = 'line_banner_seen_version'
 
 // ─────────────────────────────────────────────────────────
 // ConsentModal — 初回起動時に利用規約・プライバシーポリシーへの同意を求める
@@ -452,6 +456,36 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       .catch(() => setConsentAccepted(false))
   }, [])
 
+  // ── LINEコミュニティ告知バナー ──────────────────────────
+  // 「アプデ後に一度だけ・新規ユーザーのオンボーディングとは絶対に被らない」ため、
+  // コールドスタート時点で isOnboarded が true だったユーザー（＝既存ユーザー）
+  // だけを対象にする。オンボーディング完了直後は wasOnboardedAtColdStart=false のまま
+  // なので、初回ユーザーには絶対に表示されない。
+  const wasOnboardedAtColdStart = useRef<boolean | null>(null)
+  const [showLineBanner, setShowLineBanner] = useState(false)
+
+  useEffect(() => {
+    if (loading) return
+    if (wasOnboardedAtColdStart.current === null) {
+      wasOnboardedAtColdStart.current = isOnboarded
+    }
+    if (!wasOnboardedAtColdStart.current) return
+    if (consentAccepted !== true) return // 規約同意が先
+
+    const currentVersion = Constants.expoConfig?.version ?? ''
+    AsyncStorage.getItem(LINE_BANNER_SEEN_KEY).then(seenVersion => {
+      if (seenVersion !== currentVersion) {
+        setShowLineBanner(true)
+      }
+    }).catch(() => {})
+  }, [loading, isOnboarded, consentAccepted])
+
+  const dismissLineBanner = () => {
+    setShowLineBanner(false)
+    const currentVersion = Constants.expoConfig?.version ?? ''
+    AsyncStorage.setItem(LINE_BANNER_SEEN_KEY, currentVersion).catch(() => {})
+  }
+
   useEffect(() => {
     if (loading) return
     // 同意チェックが終わるまでナビゲーションは行わない
@@ -531,6 +565,10 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       {/* 同意モーダル — 未同意の場合すべての画面の上に表示（admin は除く） */}
       {!consentAccepted && segments[0] !== 'admin' && (
         <ConsentModal onAccept={() => setConsentAccepted(true)} />
+      )}
+      {/* LINEコミュニティ告知バナー — 既存ユーザーのアプデ後、同意済みの場合のみ一度表示 */}
+      {showLineBanner && segments[0] !== 'admin' && (
+        <LineCommunityBanner onDismiss={dismissLineBanner} />
       )}
     </>
   )
