@@ -18,6 +18,7 @@ import SplashAnimation from '../components/SplashAnimation'
 import { TutorialProvider } from '../lib/tutorialContext'
 import TutorialSlides from '../components/TutorialSlides'
 import LineCommunityBanner from '../components/LineCommunityBanner'
+import CoachPlanBanner from '../components/CoachPlanBanner'
 import { initOneSignal, requestPushPermission } from '../lib/notify'
 import { initAdmob, showAppOpenAd } from '../lib/admob'
 // expo-tracking-transparency: 動的インポートでバージョン非互換クラッシュを防ぐ
@@ -87,6 +88,8 @@ class AppErrorBoundary extends Component<{ children: React.ReactNode }, EBState>
 const CONSENT_KEY = 'score_terms_accepted_v1'
 // LINEコミュニティ告知バナー：このバージョンで表示済みかどうかを記録するキー
 const LINE_BANNER_SEEN_KEY = 'line_banner_seen_version'
+// コーチプラン値下げ告知バナー：このバージョンで表示済みかどうかを記録するキー
+const COACH_BANNER_SEEN_KEY = 'coach_banner_seen_version'
 
 // ─────────────────────────────────────────────────────────
 // ConsentModal — 初回起動時に利用規約・プライバシーポリシーへの同意を求める
@@ -456,13 +459,14 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       .catch(() => setConsentAccepted(false))
   }, [])
 
-  // ── LINEコミュニティ告知バナー ──────────────────────────
+  // ── アプデ後告知バナー（LINEコミュニティ・コーチプラン値下げ） ──────────
   // 「アプデ後に一度だけ・新規ユーザーのオンボーディングとは絶対に被らない」ため、
   // コールドスタート時点で isOnboarded が true だったユーザー（＝既存ユーザー）
   // だけを対象にする。オンボーディング完了直後は wasOnboardedAtColdStart=false のまま
   // なので、初回ユーザーには絶対に表示されない。
+  // 複数バナーが同時に「未読」でも重ならないよう、キューにして1つずつ順番に見せる。
   const wasOnboardedAtColdStart = useRef<boolean | null>(null)
-  const [showLineBanner, setShowLineBanner] = useState(false)
+  const [bannerQueue, setBannerQueue] = useState<Array<'line' | 'coach'>>([])
 
   useEffect(() => {
     if (loading) return
@@ -473,17 +477,23 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     if (consentAccepted !== true) return // 規約同意が先
 
     const currentVersion = Constants.expoConfig?.version ?? ''
-    AsyncStorage.getItem(LINE_BANNER_SEEN_KEY).then(seenVersion => {
-      if (seenVersion !== currentVersion) {
-        setShowLineBanner(true)
-      }
-    }).catch(() => {})
+    ;(async () => {
+      const queue: Array<'line' | 'coach'> = []
+      try {
+        const lineSeen = await AsyncStorage.getItem(LINE_BANNER_SEEN_KEY)
+        if (lineSeen !== currentVersion) queue.push('line')
+        const coachSeen = await AsyncStorage.getItem(COACH_BANNER_SEEN_KEY)
+        if (coachSeen !== currentVersion) queue.push('coach')
+      } catch {}
+      if (queue.length) setBannerQueue(queue)
+    })()
   }, [loading, isOnboarded, consentAccepted])
 
-  const dismissLineBanner = () => {
-    setShowLineBanner(false)
+  const dismissBanner = (key: 'line' | 'coach') => {
+    const storageKey = key === 'line' ? LINE_BANNER_SEEN_KEY : COACH_BANNER_SEEN_KEY
     const currentVersion = Constants.expoConfig?.version ?? ''
-    AsyncStorage.setItem(LINE_BANNER_SEEN_KEY, currentVersion).catch(() => {})
+    AsyncStorage.setItem(storageKey, currentVersion).catch(() => {})
+    setBannerQueue(q => q.slice(1))
   }
 
   useEffect(() => {
@@ -566,9 +576,12 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       {!consentAccepted && segments[0] !== 'admin' && (
         <ConsentModal onAccept={() => setConsentAccepted(true)} />
       )}
-      {/* LINEコミュニティ告知バナー — 既存ユーザーのアプデ後、同意済みの場合のみ一度表示 */}
-      {showLineBanner && segments[0] !== 'admin' && (
-        <LineCommunityBanner onDismiss={dismissLineBanner} />
+      {/* アプデ後告知バナー — 既存ユーザー・同意済みの場合のみ、キューの先頭を1つずつ表示 */}
+      {segments[0] !== 'admin' && bannerQueue[0] === 'line' && (
+        <LineCommunityBanner onDismiss={() => dismissBanner('line')} />
+      )}
+      {segments[0] !== 'admin' && bannerQueue[0] === 'coach' && (
+        <CoachPlanBanner onDismiss={() => dismissBanner('coach')} />
       )}
     </>
   )

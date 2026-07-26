@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   TextInput, KeyboardAvoidingView, Platform, Modal, Linking, Dimensions,
-  Animated, Easing, ActivityIndicator, Alert, RefreshControl,
+  Animated, Easing, ActivityIndicator, Alert, RefreshControl, Image,
 } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
 const SCREEN_H = Dimensions.get('window').height
@@ -652,67 +652,72 @@ function CoachPaywallScreen({ onBack, onPurchased }: { onBack: () => void; onPur
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#0D1F13' }}>
+    <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
+      <Image
+        source={require('../../assets/banners/coach-plan-banner.png')}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 320, width: '100%', opacity: 0.5 }}
+        resizeMode="cover"
+      />
       <SafeAreaView style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ padding: 24, paddingTop: 32, gap: 20 }} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={{ padding: 24, paddingTop: 16, gap: 20 }} showsVerticalScrollIndicator={false}>
           {/* 戻るボタン */}
           <TouchableOpacity onPress={onBack} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start' }} activeOpacity={0.7}>
-            <Ionicons name="chevron-back" size={20} color="rgba(255,255,255,0.6)" />
-            <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14 }}>戻る</Text>
+            <Ionicons name="chevron-back" size={20} color="#4b5563" />
+            <Text style={{ color: '#4b5563', fontSize: 14 }}>戻る</Text>
           </TouchableOpacity>
 
           {/* ヘッダー */}
-          <View style={{ alignItems: 'center', gap: 10, marginBottom: 4 }}>
-            <View style={{ width: 64, height: 64, borderRadius: 18, backgroundColor: COACH_GREEN + '44', borderWidth: 1.5, borderColor: COACH_GREEN + '88', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="clipboard" size={32} color="#4ADE80" />
+          <View style={{ alignItems: 'center', gap: 10, marginBottom: 4, marginTop: 100 }}>
+            <View style={{ backgroundColor: 'rgba(255,255,255,0.88)', borderRadius: 20, paddingVertical: 14, paddingHorizontal: 20 }}>
+              <Text style={{ color: '#111827', fontSize: 24, fontWeight: '900', textAlign: 'center' }}>
+                コーチプランを選択
+              </Text>
+              <Text style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', lineHeight: 20, marginTop: 4 }}>
+                コーチ・監督・顧問の先生向け{'\n'}チーム管理の完全版プランです
+              </Text>
             </View>
-            <Text style={{ color: '#fff', fontSize: 24, fontWeight: '900', textAlign: 'center' }}>
-              コーチプランを選択
-            </Text>
-            <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, textAlign: 'center', lineHeight: 20 }}>
-              コーチ・監督・顧問の先生向け{'\n'}チーム管理の完全版プランです
-            </Text>
           </View>
 
-          {/* チームプラン（¥2,980） */}
-          <View style={{ backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 18, borderWidth: 1, borderColor: 'rgba(74,222,128,0.3)', padding: 20, gap: 12 }}>
+          {/* チームプラン（¥1,980） */}
+          <View style={{ backgroundColor: '#ffffff', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 20, gap: 12,
+            shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.09, shadowRadius: 18, elevation: 5 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <View style={{ backgroundColor: COACH_GREEN, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 3 }}>
                 <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>チームプラン</Text>
               </View>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 4 }}>
-              <Text style={{ color: '#4ADE80', fontSize: 36, fontWeight: '900', lineHeight: 40 }}>¥2,980</Text>
-              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginBottom: 4 }}>/月</Text>
+              <Text style={{ color: COACH_GREEN, fontSize: 36, fontWeight: '900', lineHeight: 40 }}>¥1,980</Text>
+              <Text style={{ color: '#9ca3af', fontSize: 14, marginBottom: 4 }}>/月</Text>
             </View>
             {/* 機能一覧 */}
             <View style={{ gap: 8 }}>
               {COACH_FEATURES.map((f, i) => (
                 <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: COACH_GREEN + '66', alignItems: 'center', justifyContent: 'center' }}>
-                    <Ionicons name="checkmark" size={13} color="#4ADE80" />
+                  <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: COACH_GREEN + '18', alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name="checkmark" size={13} color={COACH_GREEN} />
                   </View>
-                  <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, flex: 1 }}>{f}</Text>
+                  <Text style={{ color: '#374151', fontSize: 13, flex: 1 }}>{f}</Text>
                 </View>
               ))}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: COACH_GREEN + '66', alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name="checkmark" size={13} color="#4ADE80" />
+                <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: COACH_GREEN + '18', alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="checkmark" size={13} color={COACH_GREEN} />
                 </View>
-                <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, flex: 1, fontWeight: '700' }}>AI機能すべて完全無制限 ✨</Text>
+                <Text style={{ color: '#374151', fontSize: 13, flex: 1, fontWeight: '700' }}>AI機能すべて完全無制限 ✨</Text>
               </View>
             </View>
 
             {/* パッケージ読み込み中 or タイムアウト */}
             {loadTimedOut && !coachPkg ? (
               <View style={{ gap: 10 }}>
-                <View style={{ backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, padding: 14, alignItems: 'center' }}>
-                  <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, textAlign: 'center', lineHeight: 18 }}>
+                <View style={{ backgroundColor: '#f9fafb', borderRadius: 12, padding: 14, alignItems: 'center' }}>
+                  <Text style={{ color: '#9ca3af', fontSize: 12, textAlign: 'center', lineHeight: 18 }}>
                     現在プラン情報を取得できません。{'\n'}以前ご購入済みの場合は「購入を復元する」をタップしてください。
                   </Text>
                 </View>
                 <TouchableOpacity
-                  style={[{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#16A34A', borderRadius: 14, paddingVertical: 15 }, busy && { opacity: 0.5 }]}
+                  style={[{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: COACH_GREEN, borderRadius: 14, paddingVertical: 15 }, busy && { opacity: 0.5 }]}
                   onPress={handleRestore}
                   disabled={busy}
                   activeOpacity={0.85}
@@ -725,7 +730,7 @@ function CoachPaywallScreen({ onBack, onPurchased }: { onBack: () => void; onPur
               </View>
             ) : (
               <TouchableOpacity
-                style={[{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#16A34A', borderRadius: 14, paddingVertical: 15 }, (busy || (pkgLoading && !coachPkg)) && { opacity: 0.5 }]}
+                style={[{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: COACH_GREEN, borderRadius: 14, paddingVertical: 15 }, (busy || (pkgLoading && !coachPkg)) && { opacity: 0.5 }]}
                 onPress={handlePurchase}
                 disabled={busy || (pkgLoading && !coachPkg)}
                 activeOpacity={0.85}
@@ -743,7 +748,7 @@ function CoachPaywallScreen({ onBack, onPurchased }: { onBack: () => void; onPur
 
           {/* 復元 */}
           <TouchableOpacity onPress={handleRestore} disabled={busy} style={{ alignItems: 'center', paddingVertical: 8 }} activeOpacity={0.7}>
-            <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12 }}>以前の購入を復元する</Text>
+            <Text style={{ color: '#9ca3af', fontSize: 12 }}>以前の購入を復元する</Text>
           </TouchableOpacity>
 
           {/* DEV専用スキップ */}
@@ -765,15 +770,15 @@ function CoachPaywallScreen({ onBack, onPurchased }: { onBack: () => void; onPur
           )}
 
           {/* 法的必須テキスト（Apple審査要件 3.1.2） */}
-          <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10, textAlign: 'center', lineHeight: 16 }}>
+          <Text style={{ color: '#9ca3af', fontSize: 10, textAlign: 'center', lineHeight: 16 }}>
             {'• サブスクリプションは月ごとに自動更新されます。\n• 更新の24時間前までにキャンセルしない限り、同額で自動更新されます。\n• キャンセルは「設定」→「Apple ID」→「サブスクリプション」から行えます。'}
           </Text>
           <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 8 }}>
             <TouchableOpacity onPress={() => Linking.openURL('https://scorej-run.vercel.app/privacy')}>
-              <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11, textDecorationLine: 'underline' }}>プライバシーポリシー</Text>
+              <Text style={{ color: '#9ca3af', fontSize: 11, textDecorationLine: 'underline' }}>プライバシーポリシー</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => Linking.openURL('https://scorej-run.vercel.app/terms')}>
-              <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11, textDecorationLine: 'underline' }}>利用規約</Text>
+              <Text style={{ color: '#9ca3af', fontSize: 11, textDecorationLine: 'underline' }}>利用規約</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>

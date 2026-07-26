@@ -123,7 +123,7 @@ const PLANS = [
   },
   {
     name: 'コーチプラン',
-    price: '¥2,980',
+    price: '¥1,980',
     period: '/月',
     color: '#3b82f6',
     bg: '#eff6ff',

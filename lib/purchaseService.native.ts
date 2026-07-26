@@ -8,7 +8,7 @@ export const ENTITLEMENT_NOAD  = 'noad'
 export const ENTITLEMENT_COACH = 'coach'
 export const PRODUCT_IDS = {
   noad_monthly:   'score_noad_monthly_v2',   // ¥980/月
-  coach_monthly:  'score_coach_monthly_v2',  // ¥2,980/月
+  coach_monthly:  'score_coach_monthly_v2',  // ¥1,980/月
 }
 export type PlanTier = 'free' | 'noad' | 'coach'
 

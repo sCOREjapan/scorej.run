@@ -7,7 +7,7 @@ export const ENTITLEMENT_COACH = 'coach'
 // App Store Connect で作成するプロダクト ID（2件）
 export const PRODUCT_IDS = {
   noad_monthly:   'score_noad_monthly_v2',   // ¥980/月  広告なしプラン
-  coach_monthly:  'score_coach_monthly_v2',  // ¥2,980/月 コーチプラン
+  coach_monthly:  'score_coach_monthly_v2',  // ¥1,980/月 コーチプラン
 }
 
 export type PlanTier = 'free' | 'noad' | 'coach'

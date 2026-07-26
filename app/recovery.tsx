@@ -7,9 +7,12 @@ import { checkAdGate, recordUsage } from '../lib/adGate'
 import AdGateModal from '../components/AdGateModal'
 import { useAuth } from '../context/AuthContext'
 import Svg, {
-  Circle, Ellipse, Path, G, Line, Rect,
-  Text as SvgText,
+  Circle, Ellipse, G, Rect,
+  Text as SvgText, Image as SvgImage,
 } from 'react-native-svg'
+
+const BODY_FRONT = require('../assets/body/body-front.png')
+const BODY_BACK  = require('../assets/body/body-back.png')
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useRouter } from 'expo-router'
@@ -522,72 +525,15 @@ function BodyMap({ view, selected, onToggle }: {
   )
 }
 
-/* ─── シンプル人体図 ────── */
+/* ─── 人体シルエット（AI生成イラストを既存タップ座標系にフィット） ────── */
 function AnatomicalBody({ view }: { view:'front'|'back' }) {
-  const fill   = '#f0f4f8'
-  const stroke = '#334155'
-  const sw     = 1.6
-  const center = 110
-
+  const W = 220, H = 370
   return (
-    <G>
-      {/* 頭 */}
-      <Ellipse cx={center} cy={28} rx={19} ry={22} fill={fill} stroke={stroke} strokeWidth={sw}/>
-
-      {/* 首 */}
-      <Rect x={104} y={50} width={12} height={14} rx={4} fill={fill} stroke={stroke} strokeWidth={sw}/>
-
-      {/* 胴体 */}
-      <Rect x={82} y={64} width={56} height={86} rx={10} fill={fill} stroke={stroke} strokeWidth={sw}/>
-
-      {/* 腰・骨盤 */}
-      <Ellipse cx={center} cy={170} rx={30} ry={12} fill={fill} stroke={stroke} strokeWidth={sw}/>
-
-      {/* 左上腕 */}
-      <Rect x={58} y={68} width={18} height={52} rx={8} fill={fill} stroke={stroke} strokeWidth={sw}/>
-      {/* 左前腕 */}
-      <Rect x={55} y={124} width={14} height={44} rx={7} fill={fill} stroke={stroke} strokeWidth={sw}/>
-      {/* 左手首・手 */}
-      <Ellipse cx={62} cy={176} rx={9} ry={7} fill={fill} stroke={stroke} strokeWidth={sw}/>
-
-      {/* 右上腕 */}
-      <Rect x={144} y={68} width={18} height={52} rx={8} fill={fill} stroke={stroke} strokeWidth={sw}/>
-      {/* 右前腕 */}
-      <Rect x={151} y={124} width={14} height={44} rx={7} fill={fill} stroke={stroke} strokeWidth={sw}/>
-      {/* 右手首・手 */}
-      <Ellipse cx={158} cy={176} rx={9} ry={7} fill={fill} stroke={stroke} strokeWidth={sw}/>
-
-      {/* 左太もも */}
-      <Rect x={84} y={182} width={22} height={68} rx={9} fill={fill} stroke={stroke} strokeWidth={sw}/>
-      {/* 左膝 */}
-      <Ellipse cx={95} cy={256} rx={13} ry={10} fill={fill} stroke={stroke} strokeWidth={sw}/>
-      {/* 左すね・ふくらはぎ */}
-      <Rect x={86} y={266} width={18} height={62} rx={8} fill={fill} stroke={stroke} strokeWidth={sw}/>
-      {/* 左足首・足 */}
-      <Ellipse cx={95} cy={336} rx={12} ry={8} fill={fill} stroke={stroke} strokeWidth={sw}/>
-      <Ellipse cx={91} cy={348} rx={18} ry={8} fill={fill} stroke={stroke} strokeWidth={sw}/>
-
-      {/* 右太もも */}
-      <Rect x={114} y={182} width={22} height={68} rx={9} fill={fill} stroke={stroke} strokeWidth={sw}/>
-      {/* 右膝 */}
-      <Ellipse cx={125} cy={256} rx={13} ry={10} fill={fill} stroke={stroke} strokeWidth={sw}/>
-      {/* 右すね・ふくらはぎ */}
-      <Rect x={116} y={266} width={18} height={62} rx={8} fill={fill} stroke={stroke} strokeWidth={sw}/>
-      {/* 右足首・足 */}
-      <Ellipse cx={125} cy={336} rx={12} ry={8} fill={fill} stroke={stroke} strokeWidth={sw}/>
-      <Ellipse cx={129} cy={348} rx={18} ry={8} fill={fill} stroke={stroke} strokeWidth={sw}/>
-
-      {/* 背面専用マーク */}
-      {view === 'back' && (
-        <G>
-          {/* 脊柱ライン */}
-          <Line x1={center} y1={64} x2={center} y2={150} stroke={stroke} strokeWidth={0.8} strokeDasharray="3,3"/>
-          {/* 肩甲骨ヒント */}
-          <Ellipse cx={97} cy={94} rx={10} ry={14} fill="none" stroke={stroke} strokeWidth={0.9} strokeDasharray="3,2"/>
-          <Ellipse cx={123} cy={94} rx={10} ry={14} fill="none" stroke={stroke} strokeWidth={0.9} strokeDasharray="3,2"/>
-        </G>
-      )}
-    </G>
+    <SvgImage
+      href={view === 'front' ? BODY_FRONT : BODY_BACK}
+      x={0} y={0} width={W} height={H}
+      preserveAspectRatio="none"
+    />
   )
 }
 

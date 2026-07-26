@@ -294,7 +294,7 @@ export default function CoachLandingPage() {
             <FadeCard delay={300} style={[s.planCard, s.planFeatured]}>
               <View style={s.planBadge}><Text style={s.planBadgeTxt}>チームにおすすめ</Text></View>
               <Text style={[s.planName, { color: WHITE }]}>チームプラン</Text>
-              <Text style={[s.planPrice, { color: WHITE }]}>¥2,980</Text>
+              <Text style={[s.planPrice, { color: WHITE }]}>¥1,980</Text>
               <Text style={[s.planPer, { color: 'rgba(255,255,255,0.6)' }]}>/ 月（20名まで）</Text>
               {['コーチダッシュボード', '全選手コンディション一覧', '怪我リスクスコア自動算出', 'チーム予定管理', '練習記録の自動集計', 'リアルタイム通知'].map((f, i) => (
                 <View key={i} style={s.planFeat}>

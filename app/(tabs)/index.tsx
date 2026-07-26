@@ -32,7 +32,7 @@ import { autoSyncTeam } from '../../lib/teamAutoSync'
 import { trackAppOpen, trackPaywallView } from '../../lib/analytics'
 import { usePurchase } from '../../context/PurchaseContext'
 import TutorialSpot from '../../components/TutorialSpot'
-import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg'
+import Svg, { Circle, Defs, LinearGradient, Stop, Path } from 'react-native-svg'
 import { useTutorial, isTutorialDone } from '../../lib/tutorialContext'
 import { sendRiskAlertIfNeeded, sendStretchReminderIfNeeded, scheduleCompetitionReminder, scheduleStreakReminder } from '../../lib/notifications'
 import { fetchTeamEvents, sendCoachNotification, type TeamEventRow } from '../../lib/supabaseTeam'
@@ -293,10 +293,10 @@ const lb = StyleSheet.create({
 // ScoreOverviewCard — W3スタイル INJURY RISK SCORE
 // ────────────────────────────────────────────────────────
 const RISK_CFG = [
-  { max: 24,  color: BRAND,     label: '低リスク',   phrase: '全力で追い込もう！' },
-  { max: 49,  color: '#f59e0b', label: 'やや注意',   phrase: '軽めを意識しよう' },
-  { max: 74,  color: '#f97316', label: '要注意',     phrase: '強度を落とそう' },
-  { max: 100, color: ALERT,     label: '高リスク',   phrase: '今日は休養が必要' },
+  { max: 24,  color: BRAND,     label: '低リスク',   phrase: '全力で追い込もう！', note: '今日はしっかり追い込んでOKです' },
+  { max: 49,  color: '#f59e0b', label: 'やや注意',   phrase: '軽めを意識しよう',   note: '今日は軽めの練習がおすすめです' },
+  { max: 74,  color: '#f97316', label: '要注意',     phrase: '強度を落とそう',     note: '強度を抑えた練習にしましょう' },
+  { max: 100, color: ALERT,     label: '高リスク',   phrase: '今日は休養が必要',   note: '今日はしっかり休養を取りましょう' },
 ]
 
 // hexカラーを明るく/暗くする（グラデーション用）
@@ -358,6 +358,53 @@ function RiskRing({ score, color, trackColor, size = 132 }: { score: number; col
   )
 }
 
+// ── 半円ゲージ（ホーム画面ヒーロー用：怪我リスクを主役として中央に大きく見せる） ──
+function RiskGauge({ score, color, trackColor, size = 232 }: { score: number; color: string; trackColor: string; size?: number }) {
+  const strokeWidth = 20
+  const r  = (size - strokeWidth) / 2
+  const cx = size / 2
+  const cy = r + strokeWidth / 2
+  const toRad = (deg: number) => (deg * Math.PI) / 180
+  const ptAt  = (radius: number, deg: number) => ({ x: cx + radius * Math.cos(toRad(deg)), y: cy + radius * Math.sin(toRad(deg)) })
+
+  const pct = Math.min(100, Math.max(0, score)) / 100
+  const start = ptAt(r, 180)
+  const end   = ptAt(r, 360)
+  const progEndAngle = 180 + 180 * pct
+  const progEnd = ptAt(r, progEndAngle)
+  // 進捗弧の掃引角は0〜180度の範囲に収まるため large-arc-flag は常に0
+  const largeArc = 0
+
+  const trackPath = `M ${start.x} ${start.y} A ${r} ${r} 0 1 1 ${end.x} ${end.y}`
+  const progPath  = `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 1 ${progEnd.x} ${progEnd.y}`
+
+  const tickCount = 11
+  const tickR = r + strokeWidth / 2 + 7
+  const ticks = Array.from({ length: tickCount }, (_, i) => ptAt(tickR, 180 + (180 / (tickCount - 1)) * i))
+
+  const gradId  = `riskGaugeGrad-${color.replace('#', '')}`
+  const height  = cy + strokeWidth / 2 + 6
+
+  return (
+    <View style={{ width: size, height, alignItems: 'center' }}>
+      <Svg width={size} height={height} viewBox={`0 0 ${size} ${height}`} style={{ position: 'absolute' }}>
+        <Defs>
+          <LinearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="0%">
+            <Stop offset="0%" stopColor={shadeColor(color, 0.15)} />
+            <Stop offset="100%" stopColor={shadeColor(color, -0.1)} />
+          </LinearGradient>
+        </Defs>
+        {ticks.map((t, i) => <Circle key={i} cx={t.x} cy={t.y} r={1.6} fill={trackColor} />)}
+        <Path d={trackPath} stroke={trackColor} strokeWidth={strokeWidth} fill="none" strokeLinecap="round" />
+        <Path d={progPath}  stroke={`url(#${gradId})`} strokeWidth={strokeWidth} fill="none" strokeLinecap="round" />
+      </Svg>
+      <View style={{ position: 'absolute', top: cy - 62, left: 0, right: 0, alignItems: 'center' }}>
+        <Text style={{ fontSize: 56, fontWeight: '800', color: '#111827', letterSpacing: -1, fontVariant: ['tabular-nums'] }}>{score}</Text>
+      </View>
+    </View>
+  )
+}
+
 function ScoreOverviewCard({
   sessions, sleepRecords, conditionLevel, riskResult,
   effectiveRiskScore, weatherBonus, onStretchStart,
@@ -389,22 +436,18 @@ function ScoreOverviewCard({
         sound="tap"
         style={[so.card, { backgroundColor: colors.surface }]}
       >
-        {/* スコア行：リング＋（見出し・内訳リンク／バッジ・フレーズ／天気） */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18 }}>
-          <RiskRing score={riskScore} color={cfg.color} trackColor={colors.surface2} />
-          <View style={{ gap: 8, flex: 1 }}>
-            <Text style={so.riskLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>今日の怪我リスク</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-              <View style={[so.riskBadge, { backgroundColor: cfg.color + '18', borderColor: cfg.color + '40' }]}>
-                <View style={[so.riskDot, { backgroundColor: cfg.color }]} />
-                <Text style={[so.riskBadgeText, { color: cfg.color }]}>{cfg.label}</Text>
-              </View>
-              <Text style={[so.phrase, { color: cfg.color }]}>{cfg.phrase}</Text>
-            </View>
-            {!!weatherBonus && (
-              <Text style={so.weatherPt}>天気 {weatherBonus > 0 ? '+' : ''}{weatherBonus}</Text>
-            )}
+        <View style={{ width: '100%', alignItems: 'center' }}>
+          <Text style={so.heroTitle}>今日の怪我リスク</Text>
+          <RiskGauge score={riskScore} color={cfg.color} trackColor={colors.surface2} size={188} />
+          <View style={[so.riskBadge, { backgroundColor: cfg.color + '18', borderColor: cfg.color + '40', marginTop: 8 }]}>
+            <View style={[so.riskDot, { backgroundColor: cfg.color }]} />
+            <Text style={[so.riskBadgeText, { color: cfg.color }]}>{cfg.label}</Text>
           </View>
+          <Text style={[so.phrase, { color: cfg.color, marginTop: 8 }]}>{cfg.phrase}</Text>
+          <Text style={so.riskNote}>{cfg.note}</Text>
+          {!!weatherBonus && (
+            <Text style={[so.weatherPt, { marginTop: 4 }]}>天気 {weatherBonus > 0 ? '+' : ''}{weatherBonus}</Text>
+          )}
         </View>
       </PressableScale>
       </TutorialSpot>
@@ -419,10 +462,18 @@ function ScoreOverviewCard({
           scaleAmount={0.97}
           style={[so.stretchBanner, { backgroundColor: colors.surface }]}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flex: 1 }}>
-            <Text style={[so.stretchText, { color: colors.text }]}>🏃 ストレッチでスコアを下げる</Text>
-            <View style={[so.stretchBtn, { backgroundColor: BRAND }]}>
-              <Text style={so.stretchBtnText}>開始 →</Text>
+          <View style={{ width: '100%', flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View style={so.stretchIconWrap}>
+              <Ionicons name="body-outline" size={22} color={BRAND} />
+            </View>
+            <View style={{ flex: 1, gap: 1 }}>
+              <Text style={so.stretchLabel} numberOfLines={1}>今日のおすすめ</Text>
+              <Text style={[so.stretchText, { color: colors.text }]} numberOfLines={1}>ストレッチ5分で</Text>
+              <Text style={[so.stretchGain, { color: BRAND }]} numberOfLines={1}>怪我リスク -12%</Text>
+            </View>
+            <View style={so.stretchBtn}>
+              <Text style={so.stretchBtnText}>開始する</Text>
+              <Ionicons name="chevron-forward" size={14} color="#fff" />
             </View>
           </View>
         </PressableScale>
@@ -435,11 +486,12 @@ function ScoreOverviewCard({
 const so = StyleSheet.create({
   // メインカード — Apple UI Skills準拠（21pxスケール角丸・1pxボーダー・淡い影）
   card: {
-    borderRadius: 21, padding: 20,
+    borderRadius: 24, paddingVertical: 24, paddingHorizontal: 16,
     borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
     shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.09, shadowRadius: 18, elevation: 5,
   },
+  heroTitle:     { fontSize: 15, fontWeight: '700', color: '#111827', marginBottom: 8 },
   cardHeader:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
   riskLabel:     { fontSize: 22, fontWeight: '700', letterSpacing: 0.2, color: '#111827' },
   riskBadge:     { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 21, paddingHorizontal: 12, paddingVertical: 4 },
@@ -447,7 +499,8 @@ const so = StyleSheet.create({
   riskBadgeText: { fontSize: 11, fontWeight: '700' },
   scoreNum:      { fontSize: 72, fontWeight: '700', letterSpacing: -3, color: '#111827', lineHeight: 80, marginVertical: 2, fontVariant: ['tabular-nums'] },
   phraseRow:     { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
-  phrase:        { fontSize: 16, fontWeight: '500' },
+  phrase:        { fontSize: 16, fontWeight: '700' },
+  riskNote:      { fontSize: 12, fontWeight: '400', color: '#9ca3af', marginTop: 2 },
   weatherPt:     { fontSize: 12, color: '#808080', fontWeight: '400' },
   barTrack:      { height: 4, borderRadius: 2, overflow: 'hidden' },
   barFill:       { height: 4, borderRadius: 2 },
@@ -455,17 +508,20 @@ const so = StyleSheet.create({
   statInline:      { width: 64, borderRadius: 16, paddingVertical: 8, paddingHorizontal: 4, alignItems: 'center', gap: 4, backgroundColor: '#fff', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
   statInlineVal:   { fontSize: 16, fontWeight: '700', letterSpacing: -0.5, color: '#111827', fontVariant: ['tabular-nums'] },
   statInlineLabel: { fontSize: 9, fontWeight: '400', color: '#808080' },
-  // ストレッチバナー（ピル型CTA）
+  // ストレッチバナー（アイコン＋2行テキスト＋ピルCTA）
   stretchBanner: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderRadius: 21, paddingHorizontal: 20, paddingVertical: 12, marginTop: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    borderRadius: 20, paddingHorizontal: 16, paddingVertical: 12, marginTop: 8,
     borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.07, shadowRadius: 12, elevation: 3,
   },
-  stretchText:   { fontSize: 14, fontWeight: '500', flex: 1 },
-  stretchBtn:    { borderRadius: 21, paddingHorizontal: 20, paddingVertical: 8 },
-  stretchBtnText:{ color: '#fff', fontSize: 13, fontWeight: '700' },
+  stretchIconWrap: { width: 44, height: 44, borderRadius: 14, backgroundColor: BRAND + '14', alignItems: 'center', justifyContent: 'center' },
+  stretchLabel:  { fontSize: 11, fontWeight: '600', color: '#9ca3af' },
+  stretchText:   { fontSize: 13, fontWeight: '500' },
+  stretchGain:   { fontSize: 14, fontWeight: '800' },
+  stretchBtn:    { flexDirection: 'row', alignItems: 'center', gap: 2, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: BRAND },
+  stretchBtnText:{ color: '#fff', fontSize: 12.5, fontWeight: '700' },
 })
 
 
@@ -2028,59 +2084,78 @@ ${sleepText || 'データなし'}
             </TutorialSpot>
           </AnimatedEntry>
 
-          {/* ── サクッと入力 ＋ カウントダウン ── */}
+          {/* ── サクッと入力 ＋ カウントダウン（アイコン＋2行テキストの統一ミニカード） ── */}
           <AnimatedEntry delay={120}>
             <View style={{ flexDirection: 'row', gap: 10 }}>
-              {/* サクッと入力（常時・緑背景） */}
+              {/* サクッと入力 */}
               <TutorialSpot spotKey="home_quick_input" style={{ flex: 1 }}>
               <TouchableOpacity
-                style={[s.halfCard, { flex: 1, flexDirection: 'row', backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 8 }]}
+                style={[s.miniCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
                 onPress={() => { unlockAudio(); setShowQuickCondition(true); if (tutStepId === 'quick_input') tutNext() }}
                 activeOpacity={0.78}
               >
-                <Ionicons name="flash" size={18} color="#fff" />
-                <Text style={{ fontSize: 13, fontWeight: '900', color: '#fff' }}>サクッと入力</Text>
+                <View style={s.miniCardIconWrap}>
+                  <Ionicons name="flash-outline" size={20} color={BRAND} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.miniCardTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>サクッと入力</Text>
+                  <Text style={s.miniCardSub} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>30秒で完了</Text>
+                </View>
               </TouchableOpacity>
               </TutorialSpot>
 
               {/* カウントダウンカード */}
               <TouchableOpacity
-                style={[s.halfCard, { flex: 1, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', paddingVertical: 8 }]}
+                style={[s.miniCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
                 onPress={() => setShowCountdownModal(true)}
                 activeOpacity={0.78}
               >
                 {injuryDaysLeft !== null ? (
                   <>
-                    <Text style={{ fontSize: 12, fontWeight: '800', color: '#FF6B6B' }}>怪我復帰まで</Text>
-                    <Text style={{ fontSize: 26, fontWeight: '900', color: '#FF6B6B', letterSpacing: -1 }}>
-                      {injuryDaysLeft}<Text style={{ fontSize: 14 }}> 日</Text>
-                    </Text>
+                    <View style={[s.miniCardIconWrap, { backgroundColor: '#FF6B6B14' }]}>
+                      <Ionicons name="medkit-outline" size={20} color="#FF6B6B" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.miniCardTitle} numberOfLines={1}>怪我復帰まで</Text>
+                      <Text style={[s.miniCardSub, { color: '#FF6B6B', fontWeight: '700' }]} numberOfLines={1}>{injuryDaysLeft}日</Text>
+                    </View>
                   </>
                 ) : compDaysLeft !== null ? (
                   <>
-                    <Text style={{ fontSize: 12, fontWeight: '800', color: BRAND }} numberOfLines={1}>{compDaysLeft.name}</Text>
-                    <Text style={{ fontSize: 26, fontWeight: '900', color: BRAND, letterSpacing: -1 }}>
-                      {compDaysLeft.days}<Text style={{ fontSize: 14 }}> 日</Text>
-                    </Text>
+                    <View style={s.miniCardIconWrap}>
+                      <Ionicons name="calendar-outline" size={20} color={BRAND} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.miniCardTitle} numberOfLines={1}>大会まで</Text>
+                      <Text style={[s.miniCardSub, { color: BRAND, fontWeight: '700' }]} numberOfLines={1}>{compDaysLeft.days}日</Text>
+                    </View>
                   </>
                 ) : (
                   <>
-                    <Ionicons name="timer-outline" size={18} color={colors.textHint} />
-                    <Text style={{ fontSize: 12, fontWeight: '800', color: colors.textHint }}>カウントダウン</Text>
+                    <View style={s.miniCardIconWrap}>
+                      <Ionicons name="timer-outline" size={20} color={BRAND} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.miniCardTitle} numberOfLines={1}>カウントダウン</Text>
+                      <Text style={s.miniCardSub} numberOfLines={1}>大会を登録</Text>
+                    </View>
                   </>
                 )}
               </TouchableOpacity>
             </View>
           </AnimatedEntry>
 
-          {/* ── 動画分析 ＋ メニュー ＋ カレンダー ── */}
+          {/* ── クイックアクセス（線画アイコンで統一） ── */}
           <AnimatedEntry delay={160}>
-            <View style={{ backgroundColor: 'rgba(163,230,53,0.16)', borderRadius: 20, padding: 8 }}>
+            <View style={{ gap: 8 }}>
+              <Text style={[s.sectionLabel, { color: colors.textSec, marginBottom: 0 }]}>クイックアクセス</Text>
               <View style={s.quickLinks}>
                 {[
-                  { icon: '📹', label: '動画分析', route: '/video-analysis',  spotKey: undefined },
-                  { icon: '📋', label: 'メニュー', route: '/workout-menu',    spotKey: 'notebook_menu_link' as const },
-                  { icon: '📅', label: 'カレンダー', route: '/(tabs)/calendar', spotKey: undefined },
+                  { icon: 'videocam-outline' as const,  label: '動画分析',   route: '/video-analysis',    spotKey: undefined },
+                  { icon: 'clipboard-outline' as const, label: 'メニュー',   route: '/workout-menu',      spotKey: 'notebook_menu_link' as const },
+                  { icon: 'calendar-outline' as const,  label: 'カレンダー', route: '/(tabs)/calendar',   spotKey: undefined },
+                  { icon: 'restaurant-outline' as const,label: '食事分析',   route: '/(tabs)/nutrition',  spotKey: undefined },
+                  { icon: 'flag-outline' as const,      label: '試合計画',   route: '/(tabs)/competition',spotKey: 'competition_tab' as const },
                 ].map(item => {
                   const btn = (
                     <PressableScale
@@ -2091,8 +2166,10 @@ ${sleepText || 'データなし'}
                       style={{ flex: 1 }}
                     >
                       <View style={[s.quickLink, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                        <Text style={{ fontSize: 20 }}>{item.icon}</Text>
-                        <Text style={[s.quickLinkLabel, { color: colors.textSec }]}>{item.label}</Text>
+                        <View style={s.quickLinkIconWrap}>
+                          <Ionicons name={item.icon} size={22} color={BRAND} />
+                        </View>
+                        <Text style={s.quickLinkLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{item.label}</Text>
                       </View>
                     </PressableScale>
                   )
@@ -2107,34 +2184,6 @@ ${sleepText || 'データなし'}
           {/* ── 改善タスク（ある場合のみ表示） ── */}
           <AnimatedEntry delay={180}>
             <TasksCard tasks={tasks} onToggle={toggleTask} />
-          </AnimatedEntry>
-
-          {/* ── クイックリンク（食事分析・試合計画） ── */}
-          <AnimatedEntry delay={240}>
-            <View style={s.quickLinks}>
-              {[
-                { icon: '🍽️', label: '食事分析',  route: '/(tabs)/nutrition',   spotKey: undefined },
-                { icon: '🏆', label: '試合計画',  route: '/(tabs)/competition', spotKey: 'competition_tab' as const },
-              ].map(item => {
-                const btn = (
-                  <PressableScale
-                    key={item.label}
-                    haptic="light"
-                    scaleAmount={0.94}
-                    onPress={() => { unlockAudio(); Sounds.tap(); router.push(item.route as any) }}
-                    style={{ flex: 1 }}
-                  >
-                    <View style={[s.quickLink, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                      <Text style={{ fontSize: 20 }}>{item.icon}</Text>
-                      <Text style={[s.quickLinkLabel, { color: colors.textSec }]}>{item.label}</Text>
-                    </View>
-                  </PressableScale>
-                )
-                return item.spotKey
-                  ? <TutorialSpot key={item.label} spotKey={item.spotKey} style={{ flex: 1 }}>{btn}</TutorialSpot>
-                  : btn
-              })}
-            </View>
           </AnimatedEntry>
 
 
@@ -2568,12 +2617,13 @@ ${sleepText || 'データなし'}
 
 // ── Styles ──────────────────────────────────────────────
 const s = StyleSheet.create({
-  content:   { paddingHorizontal: 16, paddingTop: 4, gap: 6, paddingBottom: 110 },
+  content:   { paddingHorizontal: 16, paddingTop: 8, gap: 16, paddingBottom: 110 },
   headerIllustration: {
     position: 'absolute',
     top: 0, left: 0, right: 0,
-    height: 340,
+    height: 420,
     width: '100%',
+    opacity: 0.4,
     pointerEvents: 'none',
   },
 
@@ -2592,10 +2642,11 @@ const s = StyleSheet.create({
   sessStat:   { fontSize: 12, fontWeight: '600' },
   fatiguePill:{ paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
 
-  quickLinks: { flexDirection: 'row', gap: 10 },
-  quickLink:  { borderRadius: 16, borderWidth: 0, paddingVertical: 12, alignItems: 'center', gap: 5,
-               shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.09, shadowRadius: 16, elevation: 5 },
-  quickLinkLabel: { fontSize: 11, fontWeight: '700', textAlign: 'center' },
+  quickLinks: { flexDirection: 'row', gap: 8 },
+  quickLink:  { flex: 1, borderRadius: 16, borderWidth: 0, paddingVertical: 12, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', gap: 6,
+               shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 3 },
+  quickLinkIconWrap: { width: 40, height: 40, borderRadius: 12, backgroundColor: BRAND + '14', alignItems: 'center', justifyContent: 'center' },
+  quickLinkLabel: { fontSize: 10.5, fontWeight: '700', textAlign: 'center', color: '#4b5563' },
 
   // PRバッジ
   prBadge: {
@@ -2617,6 +2668,15 @@ const s = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.09, shadowRadius: 16, elevation: 5,
   },
+  // ミニカード（アイコン＋2行テキスト、サクッと入力／カウントダウン共通）
+  miniCard: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10,
+    borderRadius: 16, borderWidth: 1, paddingVertical: 12, paddingHorizontal: 12,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 3,
+  },
+  miniCardIconWrap: { width: 36, height: 36, borderRadius: 11, backgroundColor: BRAND + '14', alignItems: 'center', justifyContent: 'center' },
+  miniCardTitle: { fontSize: 12.5, fontWeight: '700', color: '#111827' },
+  miniCardSub:   { fontSize: 11.5, fontWeight: '400', color: '#9ca3af', marginTop: 1 },
   // AIコーチカード（W3スタイル）— 案A ソフト浮き上がり
   aiCoachCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,

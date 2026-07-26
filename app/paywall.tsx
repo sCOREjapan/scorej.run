@@ -47,7 +47,7 @@ const PLANS = [
     id:          'coach'  as const,
     productId:   'score_coach_monthly_v2',
     label:       'コーチプラン',
-    price:       '¥2,980',
+    price:       '¥1,980',
     period:      '/ 月',
     color:       GOLD,
     icon:        '🏆',
