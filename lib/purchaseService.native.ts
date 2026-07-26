@@ -18,6 +18,15 @@ const RC_ANDROID_KEY = 'goog_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
 const ENT_NOAD  = 'noad'
 const ENT_COACH = 'coach'
 
+// coach > noad > free（3箇所で同じ判定をしていたロジックを集約）
+function resolveTier(entitlements: { active: Record<string, { expirationDate?: string | null }> }): { tier: PlanTier; expiresAt?: string } {
+  const coach = entitlements.active[ENT_COACH]
+  const noad  = entitlements.active[ENT_NOAD]
+  if (coach) return { tier: 'coach', expiresAt: coach.expirationDate ?? undefined }
+  if (noad)  return { tier: 'noad',  expiresAt: noad.expirationDate  ?? undefined }
+  return { tier: 'free' }
+}
+
 // ── 初期化 ──────────────────────────────────────────────────────────
 export async function initPurchases(userId?: string): Promise<void> {
   try {
@@ -41,13 +50,8 @@ export async function initPurchases(userId?: string): Promise<void> {
 // ── プラン状態を取得 ─────────────────────────────────────────────
 export async function getPremiumStatus(): Promise<{ tier: PlanTier; expiresAt?: string }> {
   try {
-    const info  = await Purchases.getCustomerInfo()
-    const coach = info.entitlements.active[ENT_COACH]
-    const noad  = info.entitlements.active[ENT_NOAD]
-    // coach > noad > free
-    if (coach) return { tier: 'coach', expiresAt: coach.expirationDate ?? undefined }
-    if (noad)  return { tier: 'noad',  expiresAt: noad.expirationDate  ?? undefined }
-    return { tier: 'free' }
+    const info = await Purchases.getCustomerInfo()
+    return resolveTier(info.entitlements)
   } catch {
     return { tier: 'free' }
   }
@@ -88,9 +92,8 @@ export async function getPackages(): Promise<PurchasesPackage[]> {
 export async function purchasePackage(pkg: PurchasesPackage): Promise<PlanTier | false> {
   try {
     const { customerInfo } = await Purchases.purchasePackage(pkg)
-    if (customerInfo.entitlements.active[ENT_COACH]) return 'coach'
-    if (customerInfo.entitlements.active[ENT_NOAD])  return 'noad'
-    return false
+    const { tier } = resolveTier(customerInfo.entitlements)
+    return tier === 'free' ? false : tier
   } catch (e: any) {
     if (e?.userCancelled) return false
     throw e
@@ -101,9 +104,8 @@ export async function purchasePackage(pkg: PurchasesPackage): Promise<PlanTier |
 export async function restoreAndCheck(): Promise<PlanTier | false> {
   try {
     const info = await Purchases.restorePurchases()
-    if (info.entitlements.active[ENT_COACH]) return 'coach'
-    if (info.entitlements.active[ENT_NOAD])  return 'noad'
-    return false
+    const { tier } = resolveTier(info.entitlements)
+    return tier === 'free' ? false : tier
   } catch {
     return false
   }

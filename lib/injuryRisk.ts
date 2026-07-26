@@ -30,6 +30,7 @@ export interface InjuryRiskResult {
   ctl: number
   tsb: number
   recoveryApplied: number
+  hydrationApplied: number
 }
 
 // ── セッションTSS（改良版） ────────────────────────────────────
@@ -74,6 +75,9 @@ export interface RiskInputExtra {
   // ストレッチ・リカバリーで獲得した本日の軽減ポイント。
   // 疲労蓄積(TSB)・直近疲労度のスコアを直接減らすことで、内訳画面にも効果が見えるようにする。
   recoveryReductionPts?: number
+  // 水分補給リマインダーで獲得した本日の軽減ポイント（ストレッチ由来とは別枠）。
+  // 体調・直近疲労度のスコアを直接減らす。
+  hydrationReductionPts?: number
 }
 
 export function calcInjuryRisk(
@@ -251,6 +255,14 @@ export function calcInjuryRisk(
   fatigueScore -= fatigueReduction
   const recoveryApplied = tsbReduction + fatigueReduction
 
+  // ── 水分補給リマインダーによる軽減（体調・直近疲労度に直接反映）───
+  const hydrationRequested = Math.max(0, extra.hydrationReductionPts ?? 0)
+  const condReduction = Math.min(condScore, hydrationRequested)
+  condScore -= condReduction
+  const hydrationFatigueReduction = Math.min(fatigueScore, hydrationRequested - condReduction)
+  fatigueScore -= hydrationFatigueReduction
+  const hydrationApplied = condReduction + hydrationFatigueReduction
+
   // 合計（上限100）
   let score = loadScore + tsbScore + condScore + sleepQScore + sleepDurScore
             + fatigueScore + consecutiveScore + noRestScore
@@ -374,5 +386,6 @@ export function calcInjuryRisk(
     loadIncreasePct,
     atl: Math.round(atl), ctl: Math.round(ctl), tsb,
     recoveryApplied,
+    hydrationApplied,
   }
 }

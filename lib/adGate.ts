@@ -28,6 +28,17 @@ const BONUS_KEY  = 'score_feature_bonus'         // シェア/招待で獲得し
 // シェアで獲得できる無料枠の1日上限（広告収益の過剰消費を防ぐ）
 const SHARE_BONUS_DAILY_CAP: Partial<Record<Feature, number>> = { video: 1, meal: 2 }
 
+// ── 書き込み直列化キュー ─────────────────────────────────────────
+// AsyncStorageのread-modify-writeはアトミックではないため、連打や複数画面からの
+// 同時呼び出しでカウントの取りこぼし/二重消費が起きうる。同一プロセス内の
+// 書き込み系呼び出しをこのキューで直列化して競合を防ぐ。
+let _writeQueue: Promise<unknown> = Promise.resolve()
+function serialize<T>(fn: () => Promise<T>): Promise<T> {
+  const run = _writeQueue.then(fn, fn)
+  _writeQueue = run.then(() => undefined, () => undefined)
+  return run
+}
+
 // ── 絶対上限（AI APIコスト超過防止）─────────────────────────────
 // 無料プランの広告視聴による「実質無制限」、有料プランの「完全無制限」を悪用/暴走から守るため、
 // tier に関係なく1日あたりの絶対上限を設ける。通常の利用ではまず到達しない値。
@@ -157,16 +168,18 @@ export async function getBonusCredits(feature: Feature): Promise<number> {
  * @returns { granted, atCap } granted=付与できたか, atCap=本日上限に達していたか
  */
 export async function grantShareBonus(feature: Feature): Promise<{ granted: boolean; atCap: boolean; credits: number }> {
-  const cap = SHARE_BONUS_DAILY_CAP[feature] ?? 0
-  const s = await getBonusStore()
-  const today = s.grantedToday[feature] ?? 0
-  if (cap <= 0 || today >= cap) {
-    return { granted: false, atCap: true, credits: s.credits[feature] ?? 0 }
-  }
-  s.credits[feature]      = (s.credits[feature] ?? 0) + 1
-  s.grantedToday[feature] = today + 1
-  await saveBonusStore(s)
-  return { granted: true, atCap: false, credits: s.credits[feature]! }
+  return serialize(async () => {
+    const cap = SHARE_BONUS_DAILY_CAP[feature] ?? 0
+    const s = await getBonusStore()
+    const today = s.grantedToday[feature] ?? 0
+    if (cap <= 0 || today >= cap) {
+      return { granted: false, atCap: true, credits: s.credits[feature] ?? 0 }
+    }
+    s.credits[feature]      = (s.credits[feature] ?? 0) + 1
+    s.grantedToday[feature] = today + 1
+    await saveBonusStore(s)
+    return { granted: true, atCap: false, credits: s.credits[feature]! }
+  })
 }
 
 /** ボーナス無料枠を1回消費する */
@@ -284,39 +297,41 @@ async function computeNormalGate(feature: Feature): Promise<{
 
 // ── 利用を記録 ─────────────────────────────────────────────────
 export async function recordUsage(feature: Feature): Promise<void> {
-  // 絶対上限カウント（tier・経路に関わらず必ず加算）
-  if (HARD_DAILY_CAP[feature] !== undefined) {
-    const hard = await getHardDailyUsage()
-    hard.counts[feature] = (hard.counts[feature] ?? 0) + 1
-    await saveHardDailyUsage(hard)
-  }
-  if (HARD_MONTHLY_CAP[feature] !== undefined) {
-    const hardMonthly = await getHardMonthlyUsage()
-    hardMonthly.counts[feature] = (hardMonthly.counts[feature] ?? 0) + 1
-    await saveHardMonthlyUsage(hardMonthly)
-  }
-  // 通常無料枠が無く、ボーナス枠で利用した場合はボーナスを消費して終了
-  // （通常無料枠がある場合は下の通常カウントを優先消費＝ボーナスは温存）
-  if (!(await isFreeAvailable(feature)) && (await getBonusCredits(feature)) > 0) {
-    await consumeBonus(feature)
-    return
-  }
-  if (feature === 'video' || feature === 'meal') {
-    const w = await getWindowUsage()
-    w.counts[feature] = (w.counts[feature] ?? 0) + 1
-    await saveWindowUsage(w)
-    return
-  }
-  if (feature === 'csv') {
-    const total = await getTotalUsage()
-    total['csv'] = (total['csv'] ?? 0) + 1
-    await saveTotalUsage(total)
-    return
-  }
-  // ai_analysis / recovery / workout: 日次
-  const daily = await getDailyUsage()
-  daily.counts[feature] = (daily.counts[feature] ?? 0) + 1
-  await saveDailyUsage(daily)
+  return serialize(async () => {
+    // 絶対上限カウント（tier・経路に関わらず必ず加算）
+    if (HARD_DAILY_CAP[feature] !== undefined) {
+      const hard = await getHardDailyUsage()
+      hard.counts[feature] = (hard.counts[feature] ?? 0) + 1
+      await saveHardDailyUsage(hard)
+    }
+    if (HARD_MONTHLY_CAP[feature] !== undefined) {
+      const hardMonthly = await getHardMonthlyUsage()
+      hardMonthly.counts[feature] = (hardMonthly.counts[feature] ?? 0) + 1
+      await saveHardMonthlyUsage(hardMonthly)
+    }
+    // 通常無料枠が無く、ボーナス枠で利用した場合はボーナスを消費して終了
+    // （通常無料枠がある場合は下の通常カウントを優先消費＝ボーナスは温存）
+    if (!(await isFreeAvailable(feature)) && (await getBonusCredits(feature)) > 0) {
+      await consumeBonus(feature)
+      return
+    }
+    if (feature === 'video' || feature === 'meal') {
+      const w = await getWindowUsage()
+      w.counts[feature] = (w.counts[feature] ?? 0) + 1
+      await saveWindowUsage(w)
+      return
+    }
+    if (feature === 'csv') {
+      const total = await getTotalUsage()
+      total['csv'] = (total['csv'] ?? 0) + 1
+      await saveTotalUsage(total)
+      return
+    }
+    // ai_analysis / recovery / workout: 日次
+    const daily = await getDailyUsage()
+    daily.counts[feature] = (daily.counts[feature] ?? 0) + 1
+    await saveDailyUsage(daily)
+  })
 }
 
 // ── 残り回数ラベル ────────────────────────────────────────────

@@ -28,6 +28,8 @@ import { registerHomeScroll, unregisterHomeScroll } from '../../lib/homeScroll'
 import { setQuickLogListener, clearQuickLogListener } from '../../lib/quickLogEvent'
 import { getCachedWeather, getWeatherCacheOnly, clearWeatherCache } from '../../lib/weather'
 import { calcWeatherRiskBonus, getWeatherRiskText } from '../../lib/weatherRisk'
+import { getHydrationEligibility, markHydrationShown, logHydrationPress, getHydrationReductionPts } from '../../lib/hydration'
+import Toast from 'react-native-toast-message'
 import { autoSyncTeam } from '../../lib/teamAutoSync'
 import { trackAppOpen, trackPaywallView } from '../../lib/analytics'
 import { usePurchase } from '../../context/PurchaseContext'
@@ -1298,8 +1300,11 @@ export default function DashboardScreen() {
   const [weatherBonus,    setWeatherBonus]    = useState(0)
   const [weatherText,     setWeatherText]     = useState<string | null>(null)
   const [weatherLoading,  setWeatherLoading]  = useState(false)
+  const [weatherTemp,     setWeatherTemp]     = useState<number | null>(null)
   const [stretchReduction,setStretchReduction]= useState(0)
   const [recoveryBanner,  setRecoveryBanner]  = useState<{ reduction: number } | null>(null)
+  const [hydrationReductionPts, setHydrationReductionPts] = useState(0)
+  const [hydrationCard,   setHydrationCard]   = useState<{ message: string; showSaltTip: boolean } | null>(null)
   const [teamNotifs,      setTeamNotifs]      = useState<TeamEventRow[]>([])
   const [reviewWallVisible, setReviewWallVisible] = useState(false)
   const [noadUpsellVisible, setNoadUpsellVisible] = useState(false)
@@ -1369,6 +1374,7 @@ export default function DashboardScreen() {
     const bonus = calcWeatherRiskBonus(w)
     setWeatherBonus(bonus)
     setWeatherText(getWeatherRiskText(w, bonus))
+    setWeatherTemp(w.temp)
   }, [])
 
   // ── 天気取得（1日1回のみAPI呼び出し、それ以外はキャッシュ）────────────────
@@ -1390,6 +1396,35 @@ export default function DashboardScreen() {
     const t = setTimeout(() => fetchWeather(), 600)
     return () => clearTimeout(t)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 今日獲得済みの水分補給軽減ptを起動時に読み込む（バナー表示有無に関わらずスコアに反映）
+  useEffect(() => {
+    getHydrationReductionPts().then(setHydrationReductionPts).catch(() => {})
+  }, [])
+
+  // 水分補給リマインダー：気温・今日の練習強度が揃った時点で表示要否を判定
+  const todaySessionTypes = useMemo(
+    () => sessions.filter(s => s.session_date === getTodayISO()).map(s => s.session_type),
+    [sessions],
+  )
+  useEffect(() => {
+    if (loading === 'loading' || loading === 'idle') return
+    if (weatherTemp === null) return
+    if (hydrationCard) return
+    getHydrationEligibility(weatherTemp, todaySessionTypes).then(elig => {
+      if (elig.show) {
+        setHydrationCard({ message: elig.message, showSaltTip: elig.showSaltTip })
+        markHydrationShown().catch(() => {})
+      }
+    }).catch(() => {})
+  }, [loading, weatherTemp, todaySessionTypes, hydrationCard])
+
+  const handleHydrationPress = useCallback(async () => {
+    setHydrationCard(null)
+    const { pressCount, reductionPts } = await logHydrationPress()
+    setHydrationReductionPts(reductionPts)
+    Toast.show({ type: 'success', text1: 'よく飲んだ！🚰 リスクスコアが少し下がったよ', text2: `今日${pressCount}回目` })
+  }, [])
 
   // レビューウォール：起動5回目以降に表示（4秒後に）
   // チュートリアル中・App Open広告表示中は表示しない（複数の Modal/native広告が
@@ -1717,9 +1752,10 @@ ${sleepText || 'データなし'}
     const asOfMs = new Date(selectedDate + 'T23:59:59').getTime()
     const filteredSessions = isViewingToday ? sessions : sessions.filter(s => s.session_date.slice(0, 10) <= selectedDate)
     const filteredSleep    = isViewingToday ? sleepRecords : sleepRecords.filter(s => s.sleep_date.slice(0, 10) <= selectedDate)
-    const recoveryReductionPts = isViewingToday ? stretchReduction : 0
-    return calcInjuryRisk(filteredSessions, filteredSleep, avgConditionLevel, hasSymptom, { recoveryReductionPts }, asOfMs)
-  }, [sessions, sleepRecords, avgConditionLevel, hasSymptom, loading, selectedDate, isViewingToday, stretchReduction])
+    const recoveryReductionPts  = isViewingToday ? stretchReduction : 0
+    const hydrationReductionArg = isViewingToday ? hydrationReductionPts : 0
+    return calcInjuryRisk(filteredSessions, filteredSleep, avgConditionLevel, hasSymptom, { recoveryReductionPts, hydrationReductionPts: hydrationReductionArg }, asOfMs)
+  }, [sessions, sleepRecords, avgConditionLevel, hasSymptom, loading, selectedDate, isViewingToday, stretchReduction, hydrationReductionPts])
 
   // 天気ボーナスを反映した有効リスクスコア（ストレッチ軽減はriskResult内で計算済み）
   const effectiveRiskScore = useMemo(() => {
@@ -1857,6 +1893,41 @@ ${sleepText || 'データなし'}
                 <TouchableOpacity onPress={() => setDoneBannerDismissed(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <Ionicons name="close" size={18} color={colors.textHint} />
                 </TouchableOpacity>
+              </View>
+            </AnimatedEntry>
+          )}
+          {/* ── 水分補給リマインダー ── */}
+          {hydrationCard && (
+            <AnimatedEntry delay={38}>
+              <View style={{
+                borderRadius: 14, marginBottom: 10,
+                shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 4,
+              }}>
+                <View style={{
+                  backgroundColor: '#ecfeff', borderRadius: 14,
+                  borderWidth: 1.5, borderColor: '#22d3ee55',
+                  padding: 14, gap: 10,
+                }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <Text style={{ fontSize: 22 }}>🚰</Text>
+                    <Text style={{ flex: 1, color: '#0e7490', fontSize: 14, fontWeight: '800' }}>{hydrationCard.message}</Text>
+                    <TouchableOpacity onPress={() => setHydrationCard(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      <Ionicons name="close" size={18} color="#0e7490" />
+                    </TouchableOpacity>
+                  </View>
+                  {hydrationCard.showSaltTip && (
+                    <Text style={{ color: '#0e7490', fontSize: 11.5, lineHeight: 16 }}>
+                      水だけじゃなく塩分も。経口補水液や塩タブレットも活用しよう
+                    </Text>
+                  )}
+                  <TouchableOpacity
+                    onPress={() => { unlockAudio(); handleHydrationPress() }}
+                    activeOpacity={0.85}
+                    style={{ backgroundColor: '#06b6d4', borderRadius: 21, paddingVertical: 11, alignItems: 'center' }}
+                  >
+                    <Text style={{ color: '#fff', fontSize: 13.5, fontWeight: '800' }}>飲んだ！</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </AnimatedEntry>
           )}
@@ -2381,11 +2452,16 @@ ${sleepText || 'データなし'}
                   padding: 14, borderRadius: 14, backgroundColor: colors.surface2,
                 }}>
                   <Text style={{ fontSize: 13, color: colors.textSec }}>
-                    基礎 {riskResult.riskScore + riskResult.recoveryApplied}
+                    基礎 {riskResult.riskScore + riskResult.recoveryApplied + riskResult.hydrationApplied}
                   </Text>
                   {isViewingToday && riskResult.recoveryApplied > 0 && (
                     <Text style={{ fontSize: 13, color: BRAND, fontWeight: '700' }}>
                       − ストレッチ{riskResult.recoveryApplied}
+                    </Text>
+                  )}
+                  {isViewingToday && riskResult.hydrationApplied > 0 && (
+                    <Text style={{ fontSize: 13, color: '#0891b2', fontWeight: '700' }}>
+                      − 水分補給{riskResult.hydrationApplied}
                     </Text>
                   )}
                   {!!weatherBonus && (
@@ -2411,6 +2487,11 @@ ${sleepText || 'データなし'}
               {isViewingToday && riskResult && riskResult.recoveryApplied > 0 && (
                 <Text style={{ fontSize: 11, color: colors.textHint, marginBottom: 10, lineHeight: 16 }}>
                   ※ ストレッチの軽減分は「疲労蓄積」「直近疲労度」の内訳にも反映されています。
+                </Text>
+              )}
+              {isViewingToday && riskResult && riskResult.hydrationApplied > 0 && (
+                <Text style={{ fontSize: 11, color: colors.textHint, marginBottom: 10, lineHeight: 16 }}>
+                  ※ 水分補給の軽減分は「体調」「直近疲労度」の内訳にも反映されています。
                 </Text>
               )}
               {riskResult?.factors.map(f => {

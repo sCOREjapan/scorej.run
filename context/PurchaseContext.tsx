@@ -27,7 +27,7 @@ interface PurchaseContextType {
   loading:         boolean
   packagesReady:   boolean
   purchase:        (pkg: any) => Promise<boolean>
-  restore:         () => Promise<void>
+  restore:         () => Promise<PlanTier | false>
   refreshStatus:   () => Promise<void>
   onUserChanged:   (userId?: string) => Promise<void>
   onUserSignedOut: () => Promise<void>
@@ -37,7 +37,7 @@ const PurchaseContext = createContext<PurchaseContextType>({
   tier: 'free', isNoad: false, isCoach: false,
   expiresAt: undefined, packages: [], packagesDiagnostic: null, loading: true, packagesReady: false,
   purchase:        async () => false,
-  restore:         async () => {},
+  restore:         async () => false,
   refreshStatus:   async () => {},
   onUserChanged:   async () => {},
   onUserSignedOut: async () => {},
@@ -150,12 +150,15 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
     } catch (e: any) {
       // userCancelled は静かに処理
       if (e?.userCancelled) return false
+      // 決済自体は成立しているのにレシート検証等でエラーになるケースに備え、
+      // 最新のエンタイトルメント状態を確認しておく（反映漏れの防止）
+      refreshStatus().catch(() => {})
       Toast.show({ type: 'error', text1: '購入エラー', text2: e?.message ?? '購入に失敗しました' })
       return false
     }
   }, [refreshStatus])
 
-  const restore = useCallback(async () => {
+  const restore = useCallback(async (): Promise<PlanTier | false> => {
     try {
       const result = await restoreAndCheck()
       await refreshStatus()
@@ -165,8 +168,10 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
       } else {
         Toast.show({ type: 'info', text1: '復元できる購入がありません', text2: '以前の購入が見つかりませんでした' })
       }
+      return result
     } catch (e: any) {
       Toast.show({ type: 'error', text1: '復元エラー', text2: e?.message ?? '復元に失敗しました' })
+      return false
     }
   }, [refreshStatus])
 

@@ -647,8 +647,17 @@ function CoachPaywallScreen({ onBack, onPurchased }: { onBack: () => void; onPur
 
   async function handleRestore() {
     setBusy(true)
-    await restore()
+    const result = await restore()
     setBusy(false)
+    if (result === 'coach') {
+      onPurchased()
+    } else if (result === 'noad') {
+      Toast.show({
+        type: 'info',
+        text1: '広告なしプランのみ復元されました',
+        text2: 'コーチプランのご購入は見つかりませんでした',
+      })
+    }
   }
 
   return (
@@ -1084,8 +1093,8 @@ function MiniCalendar({ value, onChange }: { value: string; onChange: (d: string
 // ─────────────────────────────────────────────────────────
 // CoachDashboard — シンプル3セクション
 // ─────────────────────────────────────────────────────────
-function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
-  setup: TeamSetup; onSwitchRole: () => void; onDeleteTeam: () => void; canSwitchRole?: boolean
+function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchRole }: {
+  setup: TeamSetup; isCoach: boolean; onSwitchRole: () => void; onDeleteTeam: () => void; canSwitchRole?: boolean
 }) {
   const [loading,     setLoading]     = useState(true)
   const [messages,    setMessages]    = useState<TeamMessage[]>([])
@@ -1622,6 +1631,18 @@ function CoachDashboard({ setup, onSwitchRole, onDeleteTeam, canSwitchRole }: {
   const newVideos        = videos.filter(v => !v.watched).length
   // 欠席報告: team_messages の [ABSENCE] プレフィックスのもの（未確認 = まだ削除されていない）
   const absenceMessages  = messages.filter(m => m.author_name === '__system__' && m.content.startsWith('[ABSENCE]'))
+
+  // 無料プレビューは「チーム作成＋実メンバー0人（デモ表示）」まで。
+  // 実メンバーが1人でも参加した時点（＝実データが流れ始めた時点）で
+  // 初めて課金を求める。role選択時の即ペイウォールは行わない。
+  if (!loading && !isCoach && members.length >= 1) {
+    return (
+      <CoachPaywallScreen
+        onBack={onSwitchRole}
+        onPurchased={() => {}}
+      />
+    )
+  }
 
   return (
     <View style={{flex:1,backgroundColor:'#f6f6f8'}}>
@@ -4057,7 +4078,7 @@ export default function TeamScreen() {
   const [setup,  setSetup]  = useState<TeamSetup|null>(null)
   const [joined, setJoined] = useState<JoinedTeam|null>(null)
   const fadeY = useRef(new Animated.Value(0)).current
-  const { isCoach, loading: purchaseLoading } = usePurchase()
+  const { isCoach } = usePurchase()
 
   useFocusEffect(useCallback(() => {
     fadeY.setValue(0)
@@ -4103,22 +4124,13 @@ export default function TeamScreen() {
     init()
   }, [])
 
-  // 保存済みロールが 'coach' でも、サブスクが無効/失効している場合は
-  // コーチ機能を使わせない（PurchaseContext の読み込み完了を待って再検証）。
-  // これが無いと、一度でもコーチロールが保存された端末は永久に無課金で
-  // チーム機能を使えてしまう。
-  useEffect(() => {
-    if (purchaseLoading) return
-    if ((state === 'coach' || state === 'coach-setup') && !isCoach) {
-      AsyncStorage.removeItem(ROLE_KEY).catch(() => {})
-      setState('coach-paywall')
-    }
-  }, [purchaseLoading, isCoach, state])
+  // コーチ機能は「チーム作成 + 実メンバー0人（デモプレビュー）」まで無料で到達できる。
+  // 実メンバーが1人でも参加した時点（＝実データが流れ始めた時点）で初めて
+  // CoachDashboard 側が課金を要求する（handleSelectRole・ここでの即ペイウォールは行わない）。
+  // これにより「役割を選んだ瞬間に価値を体験する前に課金要求される」離脱を防ぐ。
 
   async function handleSelectRole(role: Role) {
     if (role === 'coach') {
-      // コーチプラン未加入 → ペイウォールを表示
-      if (!isCoach) { setState('coach-paywall'); return }
       await AsyncStorage.setItem(ROLE_KEY, role).catch(() => {})
       setState(setup ? 'coach' : 'coach-setup')
     } else {
@@ -4172,7 +4184,7 @@ export default function TeamScreen() {
   // coach 状態で setup が無い（壊れたデータ）→ セットアップ画面へフォールバック
   if (state==='coach-setup' || (state==='coach' && !setup))
                                   return <Animated.View style={fadeStyle}><CoachSetupScreen onCreated={handleCoachCreated} onBack={() => setState('select-role')}/></Animated.View>
-  if (state==='coach' && setup)   return <Animated.View style={fadeStyle}><CoachDashboard  setup={setup!}  onSwitchRole={handleSwitchRole} onDeleteTeam={handleDeleteTeam}  canSwitchRole={true}/></Animated.View>
+  if (state==='coach' && setup)   return <Animated.View style={fadeStyle}><CoachDashboard  setup={setup!}  isCoach={isCoach} onSwitchRole={handleSwitchRole} onDeleteTeam={handleDeleteTeam}  canSwitchRole={true}/></Animated.View>
   // player 状態で joined が無い（壊れたデータ）→ 参加画面へフォールバック
   if (state==='player-join' || (state==='player' && !joined))
                                   return <Animated.View style={fadeStyle}><PlayerJoinScreen onJoined={handlePlayerJoined} onBack={() => setState('select-role')}/></Animated.View>
