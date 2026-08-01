@@ -1,5 +1,10 @@
-// api/analyze.ts — AI分析プロキシ (Vercel Edge Function)
-// Edge ランタイムを使用: グローバル分散・低レイテンシ・fetch/Request/Response がネイティブ利用可
+// api/analyze.ts — AI分析プロキシ (Vercel Node.js Serverless Function)
+// 2026-07-28: 動画分析(複数画像+大きめのJSON応答)がEdge Functionの実行時間上限
+// (maxDurationの設定値に関わらず実測25秒前後で強制打ち切り)に達し504になる不具合が
+// 発生したため、Node.js runtimeに変更。maxDuration=60はNode.js runtimeでのみ有効。
+// ⚠️ Node.js runtimeでは (req, res) 形式のハンドラを使うこと。Fetch API形式
+// (request: Request) => Response) のままruntimeだけnodejsに変えると、関数が
+// レスポンスを返せず全リクエストがハングする（2026-07-28に実際に発生・復旧済み）。
 //
 // ルーティング方針（2026-07 Gemini全面移行）:
 //   GEMINI_API_KEY が設定されていれば全AI機能（動画分析・食事分析・大会プラン・
@@ -10,7 +15,7 @@
 //   gemini-3-flash-preview に切替済み。Geminiのモデル世代交代が非常に速いため、
 //   404が再発したら generativelanguage.googleapis.com/v1beta/models?key=... で
 //   実際に呼べるモデルを確認し、この定数だけ差し替えること。
-export const config = { runtime: 'edge' }
+export const config = { runtime: 'nodejs' }
 export const maxDuration = 60
 
 const GEMINI_MODEL = 'gemini-3-flash-preview'
@@ -29,6 +34,11 @@ interface AnthropicRequestBody {
   max_tokens?: number
   system?: string
   messages?: AnthropicMessage[]
+}
+
+interface ProxyResult {
+  status: number
+  body: any
 }
 
 // Anthropic Messages形式 → Gemini generateContent形式に変換
@@ -62,7 +72,7 @@ function fromGeminiResponse(data: any): { content: Array<{ type: 'text'; text: s
   return { content: [{ type: 'text', text }] }
 }
 
-async function callGemini(body: AnthropicRequestBody, apiKey: string): Promise<Response> {
+async function callGemini(body: AnthropicRequestBody, apiKey: string): Promise<ProxyResult> {
   const geminiBody = toGeminiRequest(body)
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
@@ -75,20 +85,14 @@ async function callGemini(body: AnthropicRequestBody, apiKey: string): Promise<R
 
   if (!res.ok) {
     const errText = await res.text().catch(() => '')
-    return new Response(JSON.stringify({ error: `Gemini API エラー (${res.status}): ${errText}` }), {
-      status: res.status,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    return { status: res.status, body: { error: `Gemini API エラー (${res.status}): ${errText}` } }
   }
 
   const data = await res.json()
-  return new Response(JSON.stringify(fromGeminiResponse(data)), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' },
-  })
+  return { status: 200, body: fromGeminiResponse(data) }
 }
 
-async function callAnthropic(body: AnthropicRequestBody, apiKey: string): Promise<Response> {
+async function callAnthropic(body: AnthropicRequestBody, apiKey: string): Promise<ProxyResult> {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -100,31 +104,28 @@ async function callAnthropic(body: AnthropicRequestBody, apiKey: string): Promis
   })
 
   const data = await res.json()
-  return new Response(JSON.stringify(data), {
-    status: res.status,
-    headers: { 'Content-Type': 'application/json' },
-  })
+  return { status: res.status, body: data }
 }
 
-export default async function handler(request: Request): Promise<Response> {
-  if (request.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 })
+export default async function handler(req: any, res: any) {
+  if (req.method !== 'POST') {
+    res.status(405).send('Method not allowed')
+    return
   }
 
   // ── 共有シークレット認証（APP_SECRET が設定されている場合のみ検証） ──
   // Vercel 環境変数 APP_SECRET をセットすることで不正利用を防止する
   const appSecret = process.env.APP_SECRET
   if (appSecret) {
-    const incoming = request.headers.get('X-App-Secret') ?? ''
+    const incoming = req.headers?.['x-app-secret'] ?? ''
     if (incoming !== appSecret) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401, headers: { 'Content-Type': 'application/json' },
-      })
+      res.status(401).json({ error: 'Unauthorized' })
+      return
     }
   }
 
   try {
-    const body = (await request.json()) as AnthropicRequestBody
+    const body = (typeof req.body === 'string' ? JSON.parse(req.body) : req.body) as AnthropicRequestBody
     // max_tokens を 3000 に上限設定（意図しない高コスト呼び出しを防止／出力は入力の5倍高いため上限を絞る）
     if (body && typeof body.max_tokens === 'number' && body.max_tokens > 3000) {
       body.max_tokens = 3000
@@ -132,20 +133,19 @@ export default async function handler(request: Request): Promise<Response> {
 
     // GEMINI_API_KEY があれば全リクエストを Gemini 2.5 Flash に振り分ける
     const geminiKey = process.env.GEMINI_API_KEY
+    let result: ProxyResult
     if (geminiKey) {
-      return await callGemini(body, geminiKey)
+      result = await callGemini(body, geminiKey)
+    } else {
+      const apiKey = process.env.ANTHROPIC_API_KEY ?? process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY
+      if (!apiKey) {
+        res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' })
+        return
+      }
+      result = await callAnthropic(body, apiKey)
     }
-
-    const apiKey = process.env.ANTHROPIC_API_KEY ?? process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'ANTHROPIC_API_KEY not configured' }), {
-        status: 500, headers: { 'Content-Type': 'application/json' },
-      })
-    }
-    return await callAnthropic(body, apiKey)
+    res.status(result.status).json(result.body)
   } catch (e: any) {
-    return new Response(JSON.stringify({ error: e?.message ?? 'Unknown error' }), {
-      status: 500, headers: { 'Content-Type': 'application/json' },
-    })
+    res.status(500).json({ error: e?.message ?? 'Unknown error' })
   }
 }
