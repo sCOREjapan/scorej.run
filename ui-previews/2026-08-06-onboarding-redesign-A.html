@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>オンボーディング刷新 A案 — トーン3案</title>
+<style>
+  :root{
+    --brand:#166534; --brand2:#16a34a;
+    --text1:#111827; --text2:#6b7280; --hint:#9ca3af;
+  }
+  *{box-sizing:border-box;}
+  body{ margin:0; font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif; background:#F6F4EF; color:#1c1c1c; padding:28px; }
+  h1{font-size:19px; margin:0 0 4px;}
+  .quote{ background:#fff; border:1px solid #e8e4da; border-radius:12px; padding:14px 18px; font-size:13px; line-height:1.6; color:#555; margin-bottom:8px;}
+  .quote b{color:#111;}
+  .kcheck{font-size:11.5px; color:#888; margin-bottom:24px;}
+  .kcheck code{background:#eee; padding:1px 5px; border-radius:4px;}
+  .board{ display:flex; gap:22px; align-items:flex-start; overflow-x:auto; padding-bottom:20px;}
+  .col{ flex:0 0 auto; width:340px; }
+  .col-head{ margin-bottom:10px; min-height:130px; }
+  .letter{ display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:7px; background:#1c1c1c; color:#fff; font-size:13px; font-weight:800; margin-right:8px;}
+  .col.ref .letter{ background:#999; }
+  .colname{ font-size:15px; font-weight:800; display:inline-block; vertical-align:middle;}
+  .badge-rec{ display:inline-block; margin-left:8px; font-size:10.5px; font-weight:800; background:var(--brand2); color:#fff; padding:2px 8px; border-radius:20px; vertical-align:middle;}
+  .desc{ font-size:12.3px; color:#666; line-height:1.6; margin-top:6px;}
+  .desc b{ color:#222; }
+  .pt{ color:#0a7a3d; font-weight:700; }
+
+  .tabs{ display:flex; gap:6px; margin-bottom:10px; }
+  .tabs button{ flex:1; border:1.3px solid #ddd7c8; background:#fff; border-radius:10px; padding:7px 0; font-size:11px; font-weight:700; color:#777; cursor:pointer; font-family:inherit;}
+  .tabs button.active{ background:#1c1c1c; color:#fff; border-color:#1c1c1c;}
+
+  .frame-wrap{ border:2px solid #1c1c1c; border-radius:26px; background:#000; }
+  .col.rec .frame-wrap{ border-color:var(--brand2); box-shadow:0 0 0 3px rgba(22,163,74,.18); }
+  .notch{ width:120px; height:22px; background:#000; border-radius:0 0 14px 14px; margin:0 auto; position:relative; z-index:5; }
+  .screen{ width:340px; height:739px; overflow:hidden; position:relative; background:#fff;}
+  .view{ position:absolute; inset:0; opacity:0; pointer-events:none; transition:opacity .25s; overflow-y:auto; }
+  .view.show{ opacity:1; pointer-events:auto; }
+
+  /* ===== 現状 reference ===== */
+  .ref-screen{ padding:0 14px; }
+  .ref-stepbar{ display:flex; gap:5px; padding:34px 6px 0; }
+  .ref-stepbar div{ flex:1; height:3px; border-radius:2px; background:rgba(0,0,0,.12); }
+  .ref-stepbar div:first-child{ background:var(--brand); }
+  .ref-header{ display:flex; justify-content:space-between; align-items:center; padding:10px 2px; font-size:11px; color:#4b5563; font-weight:700; }
+  .ref-emoji{ font-size:38px; margin:24px 0 8px; }
+  .ref-title{ font-size:23px; font-weight:900; color:var(--text1); line-height:32px; }
+  .ref-sub{ font-size:13px; color:var(--text2); margin-top:8px; line-height:19px; }
+  .ref-input{ margin-top:20px; background:#f0f2f5; border-radius:14px; padding:14px 14px; display:flex; align-items:center; gap:10px; border:1px solid rgba(0,0,0,.08); }
+  .ref-input span{ color:var(--hint); font-size:14px; }
+  .ref-nextbtn{ position:absolute; left:14px; right:14px; bottom:24px; background:#1c1c1e; border-radius:50px; padding:15px; text-align:center; color:#fff; font-weight:800; font-size:15px; }
+
+  /* ===== shared elements ===== */
+  .k-pillars{ display:flex; flex-direction:column; gap:10px; margin-top:22px; }
+  .k-pillar{ display:flex; align-items:center; gap:12px; background:#fff; border-radius:16px; padding:14px; border:1px solid #eee; }
+  .k-pillar .ic{ width:38px; height:38px; border-radius:11px; display:flex; align-items:center; justify-content:center; font-size:19px; }
+  .k-pillar .tx b{ display:block; font-size:13px; font-weight:800; color:var(--text1); }
+  .k-pillar .tx span{ font-size:10.5px; color:var(--text2); }
+
+  /* ===== A1 clean ===== */
+  .a1{ background:#fff; padding:0 20px; }
+  .a1-illust{ width:calc(100% + 40px); margin-left:-20px; height:200px; overflow:hidden; }
+  .a1-illust img{ width:100%; height:100%; object-fit:cover; opacity:.9; }
+  .a1-head{ font-size:24px; font-weight:900; color:var(--text1); line-height:32px; margin-top:22px; letter-spacing:-.5px; }
+  .a1-sub{ font-size:13px; color:var(--text2); margin-top:8px; line-height:19px; }
+  .a1-cta{ margin-top:26px; background:var(--brand); border-radius:50px; padding:15px; text-align:center; color:#fff; font-weight:800; font-size:15px; }
+  .a1-skip{ text-align:center; font-size:11.5px; color:var(--hint); margin-top:12px; }
+
+  .a1r{ background:#fff; padding:40px 22px 0; text-align:center; }
+  .a1r-check{ width:64px; height:64px; border-radius:50%; background:rgba(22,101,52,.1); display:flex; align-items:center; justify-content:center; margin:0 auto 18px; font-size:30px; animation:pop .5s cubic-bezier(.32,.72,.28,1); }
+  @keyframes pop{ from{transform:scale(.4); opacity:0;} to{transform:scale(1); opacity:1;} }
+  .a1r-title{ font-size:21px; font-weight:900; color:var(--text1); line-height:29px; }
+  .a1r-card{ margin-top:22px; background:#f6f6f8; border-radius:18px; padding:18px; text-align:left; }
+  .a1r-card .ev{ font-size:12px; color:var(--text2); }
+  .a1r-card .evname{ font-size:19px; font-weight:900; color:var(--brand); margin-top:2px; }
+  .a1r-row{ display:flex; justify-content:space-between; margin-top:12px; padding-top:12px; border-top:1px solid #e5e5e5; font-size:11.5px; color:var(--text2); }
+  .a1r-cta{ margin-top:24px; background:#1c1c1e; border-radius:50px; padding:15px; text-align:center; color:#fff; font-weight:800; font-size:14px; }
+  .a1r-note{ font-size:10.5px; color:var(--hint); margin-top:10px; }
+
+  /* ===== A2 sporty ===== */
+  .a2{ background:linear-gradient(155deg,#0c3d22,#166534 55%,#22a55a); color:#fff; height:100%; position:relative; overflow:hidden; }
+  .a2::before{ content:''; position:absolute; top:-40px; right:-90px; width:260px; height:260px; background:rgba(255,255,255,.08); border-radius:50%; }
+  .a2::after{ content:''; position:absolute; bottom:60px; left:-60px; width:180px; height:180px; background:rgba(255,255,255,.06); transform:rotate(20deg); }
+  .a2-badge{ margin:30px 20px 0; display:inline-block; background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.3); border-radius:20px; padding:5px 12px; font-size:10.5px; font-weight:800; letter-spacing:.5px; }
+  .a2-head{ margin:16px 20px 0; font-size:30px; font-weight:900; line-height:36px; letter-spacing:-1px; position:relative; }
+  .a2-sub{ margin:10px 20px 0; font-size:13px; color:rgba(255,255,255,.75); line-height:19px; position:relative; }
+  .a2-stats{ display:flex; gap:8px; margin:22px 20px 0; position:relative; }
+  .a2-stat{ flex:1; background:rgba(255,255,255,.12); border-radius:14px; padding:12px 8px; text-align:center; backdrop-filter:blur(4px);}
+  .a2-stat b{ display:block; font-size:16px; font-weight:900; }
+  .a2-stat span{ font-size:9px; color:rgba(255,255,255,.7); }
+  .a2-cta{ position:absolute; left:20px; right:20px; bottom:26px; background:#fff; border-radius:16px; padding:16px; text-align:center; color:var(--brand); font-weight:900; font-size:15px; letter-spacing:-.3px;}
+
+  .a2r{ background:linear-gradient(160deg,#052012,#0c3d22 60%,#166534); color:#fff; height:100%; position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:0 24px; overflow:hidden;}
+  .confetti{ position:absolute; inset:0; pointer-events:none; }
+  .confetti i{ position:absolute; width:7px; height:12px; opacity:0; border-radius:2px; }
+  .a2r-num{ font-size:52px; font-weight:900; letter-spacing:-2px; animation:cnt .6s cubic-bezier(.32,.72,.28,1); }
+  @keyframes cnt{ from{ transform:scale(.5); opacity:0;} to{ transform:scale(1); opacity:1;} }
+  .a2r-label{ font-size:12px; color:rgba(255,255,255,.7); margin-top:4px; letter-spacing:2px; }
+  .a2r-title{ font-size:24px; font-weight:900; margin-top:22px; line-height:32px; }
+  .a2r-cta{ margin-top:28px; background:#fff; color:var(--brand); border-radius:16px; padding:15px 30px; font-weight:900; font-size:14px;}
+
+  /* ===== A3 game/mascot ===== */
+  .a3{ background:#FFF8EC; height:100%; position:relative; padding:0 20px; }
+  .a3-xp{ display:flex; align-items:center; gap:8px; margin-top:28px; }
+  .a3-xp-bar{ flex:1; height:10px; background:#f0e4cc; border-radius:6px; overflow:hidden; }
+  .a3-xp-fill{ width:20%; height:100%; background:linear-gradient(90deg,#f59e0b,#fbbf24); border-radius:6px; }
+  .a3-xp-label{ font-size:10px; font-weight:800; color:#b45309; }
+  .a3-mascot{ text-align:center; margin-top:18px; font-size:66px; animation:bounce 1.8s ease-in-out infinite; }
+  @keyframes bounce{ 0%,100%{transform:translateY(0);} 50%{transform:translateY(-10px);} }
+  .a3-bubble{ background:#fff; border:2px solid #1c1c1e; border-radius:18px; padding:14px 16px; margin-top:10px; position:relative; }
+  .a3-bubble:before{ content:''; position:absolute; top:-9px; left:50%; margin-left:-8px; border-width:0 8px 9px; border-style:solid; border-color:transparent transparent #1c1c1e; }
+  .a3-bubble p{ margin:0; font-size:13.5px; font-weight:700; color:var(--text1); text-align:center; line-height:19px;}
+  .a3-quests{ margin-top:18px; display:flex; flex-direction:column; gap:8px; }
+  .a3-quest{ display:flex; align-items:center; gap:10px; background:#fff; border:1.5px solid #1c1c1e; border-radius:14px; padding:10px 12px; }
+  .a3-quest .n{ width:24px; height:24px; border-radius:7px; background:#fbbf24; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:900; }
+  .a3-quest span{ font-size:12px; font-weight:700; color:var(--text1); }
+  .a3-cta{ position:absolute; left:20px; right:20px; bottom:24px; background:#1c1c1e; border-radius:16px; padding:15px; text-align:center; color:#fbbf24; font-weight:900; font-size:14.5px; border:2px solid #1c1c1e;}
+
+  .a3r{ background:#FFF8EC; height:100%; position:relative; text-align:center; padding:0 20px; }
+  .a3r-mascot{ font-size:74px; margin-top:44px; animation:cheer .5s cubic-bezier(.32,.72,.28,1); }
+  @keyframes cheer{ 0%{transform:scale(.5) rotate(-8deg); opacity:0;} 60%{transform:scale(1.12) rotate(4deg);} 100%{transform:scale(1) rotate(0); opacity:1;} }
+  .a3r-badge{ display:inline-block; margin-top:14px; background:#1c1c1e; color:#fbbf24; border-radius:20px; padding:6px 16px; font-size:11px; font-weight:900; letter-spacing:1px; }
+  .a3r-title{ font-size:23px; font-weight:900; color:var(--text1); margin-top:14px; line-height:30px; }
+  .a3r-card{ margin-top:18px; background:#fff; border:2px solid #1c1c1e; border-radius:16px; padding:16px; text-align:left; }
+  .a3r-card .row{ display:flex; justify-content:space-between; font-size:12px; font-weight:700; color:var(--text1); padding:5px 0; }
+  .a3r-card .row span:last-child{ color:#b45309; font-weight:900; }
+  .a3r-cta{ position:absolute; left:20px; right:20px; bottom:20px; background:#1c1c1e; border-radius:16px; padding:15px; text-align:center; color:#fbbf24; font-weight:900; font-size:14px;}
+
+  footer{ margin-top:10px; font-size:12.5px; color:#555; background:#fff; border:1px solid #e8e4da; border-radius:12px; padding:14px 18px;}
+</style>
+</head>
+<body>
+
+  <h1>オンボーディング全面刷新 — A案（パーソナライズ演出型）トーン3案</h1>
+  <div class="quote">お題: <b>「構成(①価値提案→②質問→③演出ローディング→④リビール→⑤ログインへ)は確定。デザイン・トーンだけまだ未定。既存の文章は無視してよい」</b></div>
+  <div class="kcheck">縮尺模型: 設計幅402pt → 画面340px（K=0.8458）。色は<code>lib/theme.ts</code>のBRAND(#166534)踏襲。各パネル上部のタブで①価値提案／④リビールを切替表示。</div>
+
+  <div class="board">
+
+    <!-- 現状 -->
+    <div class="col ref">
+      <div class="col-head">
+        <span class="letter">現</span><span class="colname">現状</span>
+        <div class="desc">今の<code>onboarding.tsx</code> STEP1。<b>価値提案が一切なく</b>いきなり名前入力から始まる。ここを刷新するのが今回のお題。</div>
+      </div>
+      <div class="frame-wrap">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="ref-screen">
+            <div class="ref-stepbar"><div></div><div></div><div></div><div></div></div>
+            <div class="ref-header"><span>‹</span><span>STEP 1 / 4</span><span>スキップ</span></div>
+            <div class="ref-emoji">👋</div>
+            <div class="ref-title">はじめに教えてください</div>
+            <div class="ref-sub">あなたの名前またはニックネームを入力してください</div>
+            <div class="ref-input"><span>👤</span><span>例：田中 太郎 / Taro</span></div>
+          </div>
+          <div class="ref-nextbtn">次へ →</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- A1 -->
+    <div class="col rec">
+      <div class="col-head">
+        <span class="letter">A1</span><span class="colname">クリーン・ミニマル</span><span class="badge-rec">推奨</span>
+        <div class="desc">
+          今のアプリの落ち着いた白基調をそのまま拡張。Apple Fitness / Headspace系。
+          <b>白地＋グリーンを差し色に</b>、余白多めで信頼感を出す。実装コストも一番低い。
+        </div>
+      </div>
+      <div class="tabs" id="tabs-a1">
+        <button class="active" onclick="sw('a1',this,0)">①価値提案</button>
+        <button onclick="sw('a1',this,1)">④リビール</button>
+      </div>
+      <div class="frame-wrap">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="view show" id="a1-0">
+            <div class="a1">
+              <div class="a1-illust"><img src="assets/onboarding-header.png"></div>
+              <div class="a1-head">陸上を、<br>もっと科学的に。</div>
+              <div class="a1-sub">sCOREはフォーム分析・怪我予防・記録管理を1つにした陸上専用のAIコーチアプリです。</div>
+              <div class="k-pillars">
+                <div class="k-pillar"><div class="ic" style="background:rgba(22,101,52,.1);">🎥</div><div class="tx"><b>フォーム分析</b><span>動画でAIが即診断</span></div></div>
+                <div class="k-pillar"><div class="ic" style="background:rgba(220,38,38,.1);">🛡️</div><div class="tx"><b>怪我予防</b><span>毎日のコンディション管理</span></div></div>
+              </div>
+              <div class="a1-cta">はじめる</div>
+            </div>
+          </div>
+          <div class="view" id="a1-1">
+            <div class="a1r">
+              <div class="a1r-check">✅</div>
+              <div class="a1r-title">田中さん専用プラン<br>ができました</div>
+              <div class="a1r-card">
+                <div class="ev">メイン種目</div>
+                <div class="evname">🏃 100m（短距離）</div>
+                <div class="a1r-row"><span>競技歴 2〜4年</span><span>目標: 記録更新</span></div>
+              </div>
+              <div class="a1r-cta">このプランを保存する →</div>
+              <div class="a1r-note">保存には無料のアカウント登録が必要です</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- A2 -->
+    <div class="col">
+      <div class="col-head">
+        <span class="letter">A2</span><span class="colname">エネルギッシュ・スポーティ</span>
+        <div class="desc">
+          Nike Training Club / Strava系。<b>濃いグリーンのグラデ全面塗り</b>＋大胆な余白なしタイポ。
+          リビールは数字がカウントアップする演出で高揚感を出す。改修範囲は中程度（新規背景・アニメ多め）。
+        </div>
+      </div>
+      <div class="tabs" id="tabs-a2">
+        <button class="active" onclick="sw('a2',this,0)">①価値提案</button>
+        <button onclick="sw('a2',this,1)">④リビール</button>
+      </div>
+      <div class="frame-wrap">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="view show" id="a2-0">
+            <div class="a2">
+              <div class="a2-badge">🏃 陸上専用AIコーチ</div>
+              <div class="a2-head">限界を、<br>更新しよう。</div>
+              <div class="a2-sub">フォーム分析・怪我予防・記録管理。すべてが1つのアプリに。</div>
+              <div class="a2-stats">
+                <div class="a2-stat"><b>AI</b><span>フォーム分析</span></div>
+                <div class="a2-stat"><b>0円</b><span>今すぐ開始</span></div>
+                <div class="a2-stat"><b>毎日</b><span>コンディション管理</span></div>
+              </div>
+              <div class="a2-cta">はじめる</div>
+            </div>
+          </div>
+          <div class="view" id="a2-1">
+            <div class="a2r">
+              <div class="confetti" id="confetti-a2"></div>
+              <div class="a2r-num" id="a2num">100m</div>
+              <div class="a2r-label">YOUR EVENT</div>
+              <div class="a2r-title">田中選手、<br>準備完了。</div>
+              <div class="a2r-cta">プランを保存する →</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- A3 -->
+    <div class="col">
+      <div class="col-head">
+        <span class="letter">A3</span><span class="colname">ゲーム化・マスコット</span>
+        <div class="desc">
+          Duolingo系。<b>マスコットキャラが案内役</b>、ステップバーがXPゲージ、質問は「クエスト」表現。
+          最も遊び心があり離脱防止に強いが、既存のシリアスなブランドトーンから一番離れる。改修範囲は最大。
+        </div>
+      </div>
+      <div class="tabs" id="tabs-a3">
+        <button class="active" onclick="sw('a3',this,0)">①価値提案</button>
+        <button onclick="sw('a3',this,1)">④リビール</button>
+      </div>
+      <div class="frame-wrap">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="view show" id="a3-0">
+            <div class="a3">
+              <div class="a3-xp"><div class="a3-xp-bar"><div class="a3-xp-fill"></div></div><div class="a3-xp-label">STEP 1/4</div></div>
+              <div class="a3-mascot">🏃‍♂️</div>
+              <div class="a3-bubble"><p>やあ！ボクはコーチ・ラン。<br>キミ専用の陸上プランを一緒に作ろう！</p></div>
+              <div class="a3-quests">
+                <div class="a3-quest"><div class="n">1</div><span>キミの種目を教えてクエスト</span></div>
+                <div class="a3-quest"><div class="n">2</div><span>フォーム分析でスコアUP</span></div>
+                <div class="a3-quest"><div class="n">3</div><span>怪我ゼロで連続記録更新</span></div>
+              </div>
+              <div class="a3-cta">クエストを始める ▶</div>
+            </div>
+          </div>
+          <div class="view" id="a3-1">
+            <div class="a3r">
+              <div class="a3r-mascot">🎉</div>
+              <div class="a3r-badge">LEVEL UP!</div>
+              <div class="a3r-title">田中さん専用プラン<br>完成！</div>
+              <div class="a3r-card">
+                <div class="row"><span>種目</span><span>100m</span></div>
+                <div class="row"><span>ランク</span><span>中級者</span></div>
+                <div class="row"><span>次の目標</span><span>自己ベスト更新</span></div>
+              </div>
+              <div class="a3r-cta">プランを保存する →</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    タブで①価値提案／④リビールを切替できます。A1/A2/A3のレターを言ってもらえれば、そのトーンで<code>app/onboarding.tsx</code>を全面書き換えします（②質問画面・③演出ローディングも同トーンで実装）。<code>app/auth.tsx</code>（ログイン画面）は一切変更しません。
+  </footer>
+
+<script>
+  function sw(prefix, btn, idx){
+    document.querySelectorAll('#tabs-'+prefix+' button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(prefix+'-0').classList.toggle('show', idx===0);
+    document.getElementById(prefix+'-1').classList.toggle('show', idx===1);
+  }
+  // confetti for A2 reveal
+  (function(){
+    const box = document.getElementById('confetti-a2');
+    const colors = ['#fff','#fde68a','#86efac','#ffffff'];
+    for(let i=0;i<24;i++){
+      const el = document.createElement('i');
+      el.style.left = (Math.random()*100)+'%';
+      el.style.background = colors[i%colors.length];
+      el.style.top = '-10px';
+      el.style.animation = `fall ${1.2+Math.random()*0.8}s ${Math.random()*0.3}s ease-in forwards`;
+      box.appendChild(el);
+    }
+    const style = document.createElement('style');
+    style.textContent = `@keyframes fall{0%{opacity:1; transform:translateY(0) rotate(0);}100%{opacity:.9; transform:translateY(400px) rotate(200deg);}}`;
+    document.head.appendChild(style);
+  })();
+  // 検収用フック: ?reveal=1 で全パネルをリビール表示に固定
+  if (new URLSearchParams(location.search).get('reveal') === '1') {
+    ['a1','a2','a3'].forEach(p=>{
+      document.querySelectorAll('#tabs-'+p+' button')[1].click();
+    });
+  }
+</script>
+</body>
+</html>

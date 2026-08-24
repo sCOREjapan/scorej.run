@@ -13,3 +13,5 @@ dist/
 *.ipa
 build/
 *.xcarchive
+supabase/.temp/
+google-play-service-account.json

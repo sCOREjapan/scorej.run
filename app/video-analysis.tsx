@@ -4,26 +4,41 @@ import {
   StyleSheet, Platform, Alert, ActivityIndicator, Image, Modal, Pressable,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import Svg, { Polygon, Line, Circle } from 'react-native-svg'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { BRAND, TEXT } from '../lib/theme'
 import { checkAdGate, recordUsage, getTier } from '../lib/adGate'
-import { showInterstitialAd } from '../lib/admob'
+import { TICKET_COST, grantTickets } from '../lib/ticketWallet'
 import AdGateModal from '../components/AdGateModal'
+import TicketGateModal from '../components/TicketGateModal'
 import BannerAdView from '../components/BannerAdView'
 import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'expo-router'
 import { trackFeatureUse } from '../lib/analytics'
+import Toast from 'react-native-toast-message'
 import * as ImagePicker from 'expo-image-picker'
 import * as VideoThumbnails from 'expo-video-thumbnails'
 import * as ImageManipulator from 'expo-image-manipulator'
 import * as FileSystem from 'expo-file-system/legacy'
 import { sendCoachNotification, submitVideo } from '../lib/supabaseTeam'
+import { useTranslation } from 'react-i18next'
+import { useLanguage } from '../context/LanguageContext'
+import { narrativeLanguageInstruction } from '../lib/aiLanguage'
+import { getEventLabel } from '../lib/eventLabels'
+import { todayLocalISO } from '../lib/dateLocal'
+import DateSelector from '../components/DateSelector'
 import { VideoView, useVideoPlayer } from 'expo-video'
+import { updateCoachVideoRequests } from '../lib/coachReqStore'
+import {
+  getVideoAnalysisHistory, addVideoAnalysisHistory, deleteVideoAnalysisHistory,
+  type VideoAnalysisHistoryEntry,
+} from '../lib/videoAnalysisHistoryStore'
 
 const JOINED_KEY_VA = 'trackmate_team_joined'
 
 /* ─── 型定義 ─────────────────────────────────── */
 // 改善点の詳細構造（issue=何が問題か / reason=なぜ起きるか / fix=どう直すか）
+// ※ WebPlayer（Web版の簡易分析フロー）が使用。ネイティブ版は新スキーマ（DimensionScore等）を使う
 type ImprovementDetail = {
   issue: string
   reason: string
@@ -51,36 +66,112 @@ type ComprehensiveAnalysis = {
   nextSteps: string[]
 }
 
+type Confidence = 'low' | 'medium' | 'high'
+
+// bbox: 該当フレーム内の観察根拠位置（正規化座標 0〜1）
+type FrameRef = { f: number; x: number; y: number; w: number; h: number }
+
+type DimensionScore = {
+  id: string
+  label: string
+  score: number
+  confidence: Confidence
+  reason: string
+  bbox?: FrameRef
+}
+
+type FeedbackCard = { title: string; text: string; bbox?: FrameRef }
+
+type EventCategory = 'sprint' | 'middle_long' | 'jump' | 'throw'
+
+// 種目共通5軸（静止画から観察できる「フォームの質」のみ。速度・ピッチ等の
+// 直接計測できない数値は含めない）
+// ── AIプロンプト構築専用（常に日本語。表示用ラベルは buildCommonDimensions を使う） ──
+const COMMON_DIMENSIONS = [
+  { id: 'posture',        label: '姿勢' },
+  { id: 'ground_contact', label: '接地' },
+  { id: 'arm_swing',      label: '腕振り' },
+  { id: 'balance',        label: 'バランス' },
+  { id: 'force_transfer', label: '力の伝わりやすさ' },
+] as const
+
+// 種目カテゴリ別の追加2軸（AIプロンプト構築専用・常に日本語）
+const EXTRA_DIMENSIONS: Record<EventCategory, { id: string; label: string }[]> = {
+  sprint:      [{ id: 'start_posture', label: 'スタート姿勢' }, { id: 'accel_posture', label: '加速姿勢' }],
+  middle_long: [{ id: 'relaxation',    label: '力みの少なさ' }, { id: 'rhythm',        label: 'リズムの安定感' }],
+  jump:        [{ id: 'takeoff',       label: '踏切姿勢' },     { id: 'approach',      label: '助走姿勢' }],
+  throw:       [{ id: 'axis_stability',label: '軸の安定' },     { id: 'kinetic_chain', label: '力の連動' }],
+}
+
+// ── 表示用（チャート・スコアカードのラベル。言語設定に追従） ──
+function buildCommonDimensions(t: (key: string) => string) {
+  return [
+    { id: 'posture',        label: t('videoAnalysis.dimensions.posture') },
+    { id: 'ground_contact', label: t('videoAnalysis.dimensions.groundContact') },
+    { id: 'arm_swing',      label: t('videoAnalysis.dimensions.armSwing') },
+    { id: 'balance',        label: t('videoAnalysis.dimensions.balance') },
+    { id: 'force_transfer', label: t('videoAnalysis.dimensions.forceTransfer') },
+  ] as const
+}
+function buildExtraDimensions(t: (key: string) => string): Record<EventCategory, { id: string; label: string }[]> {
+  return {
+    sprint:      [{ id: 'start_posture', label: t('videoAnalysis.dimensions.startPosture') }, { id: 'accel_posture', label: t('videoAnalysis.dimensions.accelPosture') }],
+    middle_long: [{ id: 'relaxation',    label: t('videoAnalysis.dimensions.relaxation') },   { id: 'rhythm',        label: t('videoAnalysis.dimensions.rhythm') }],
+    jump:        [{ id: 'takeoff',       label: t('videoAnalysis.dimensions.takeoff') },      { id: 'approach',      label: t('videoAnalysis.dimensions.approach') }],
+    throw:       [{ id: 'axis_stability',label: t('videoAnalysis.dimensions.axisStability') },{ id: 'kinetic_chain', label: t('videoAnalysis.dimensions.kineticChain') }],
+  }
+}
+
+// レーダーチャートの「理想ライン」目安値（軸ごと）
+const IDEAL_TARGET: Record<string, number> = {
+  posture: 85, ground_contact: 82, arm_swing: 83, balance: 85, force_transfer: 78,
+  start_posture: 82, accel_posture: 80,
+  relaxation: 83, rhythm: 85,
+  takeoff: 80, approach: 82,
+  axis_stability: 82, kinetic_chain: 78,
+}
+
+function inferEventCategory(event: string): EventCategory {
+  const e = event.trim()
+  if (/^(100m|200m|400m|110mH|100mH|300mH|400mH)$/.test(e)) return 'sprint'
+  if (/^(800m|1500m|3000m|5000m|10000m)$/.test(e)) return 'middle_long'
+  if (/(跳)/.test(e)) return 'jump'
+  if (/(投)/.test(e)) return 'throw'
+  if (/(800|1500|3000|5000|10000|marathon|マラソン|駅伝|長距離|中距離)/.test(e)) return 'middle_long'
+  if (/(幅跳|三段跳|高跳|棒高)/.test(e)) return 'jump'
+  return 'sprint'
+}
+
+function dimensionsForEvent(event: string) {
+  const category = inferEventCategory(event)
+  return { category, dims: [...COMMON_DIMENSIONS, ...EXTRA_DIMENSIONS[category]] }
+}
+// 表示用（言語設定に追従したラベルで dims を返す）
+function dimensionsForEventDisplay(event: string, t: (key: string) => string) {
+  const category = inferEventCategory(event)
+  return { category, dims: [...buildCommonDimensions(t), ...buildExtraDimensions(t)[category]] }
+}
+
 const STORAGE_KEY      = 'trackmate_video_annotations'
-const COACH_REQ_KEY    = 'trackmate_coach_video_requests'
 const MAX_FRAMES       = 8
 const THUMB_W          = 320
 
-type CoachVideoRequest = {
-  id:           string
-  videoUri:     string
-  thumbnailUri: string
-  message:      string
-  event:        string
-  sentAt:       string
-  checked?:     boolean
+function buildFocusHints(t: (key: string, opts?: any) => string): string[] {
+  return t('videoAnalysis.focusHints', { returnObjects: true }) as unknown as string[]
 }
-
-const FOCUS_HINTS = [
-  'スタートの姿勢', '腕の振り', 'ストライド', 'コーナリング',
-  '着地のタイミング', '上体の傾き', 'ゴール前',
-]
 
 /* ─── ネイティブ動画分析（iOS/Android）──────────────── */
 type AnalysisPhase = 'idle' | 'extracting' | 'analyzing' | 'result'
 
 type AnalysisResult = {
   score: number
-  overall: string
-  positives: string[]
-  improvements: string[]
-  improvementDetails?: ImprovementDetail[]  // 構造化された改善点（issue/reason/fix）
-  menu: { name: string; detail: string }[]
+  headline: string                    // 一番伝えたい一言（例:「接地を改善すれば、もっと速くなれます」）
+  dimensions: DimensionScore[]
+  confidenceOverall: Confidence
+  strength: FeedbackCard              // 今日の強み
+  focus: FeedbackCard                 // 今日のテーマ（改善点は1つだけに絞る）
+  nextStep: FeedbackCard              // 次の一歩
+  practice: { theme: string; drill: string; drillDetail: string }
   frameNotes?: Array<{ f: number; note: string }>
 }
 
@@ -107,7 +198,7 @@ function _simpleHash(s: string): string {
   for (let i = 0; i < Math.min(s.length, 120); i++) { h = Math.imul(31, h) + s.charCodeAt(i) | 0 }
   return Math.abs(h).toString(36)
 }
-const ANALYSIS_CACHE_PREFIX = 'score_va_cache_v2_'  // v2: 旧壊れキャッシュを無効化
+const ANALYSIS_CACHE_PREFIX = 'score_va_cache_v3_'  // v3: レーダーチャート方式へスキーマ変更のため旧キャッシュを無効化
 const ANALYSIS_CACHE_TTL    = 86400_000  // 24時間
 
 async function getAnalysisCache(videoUri: string, event: string): Promise<AnalysisResult | null> {
@@ -154,6 +245,7 @@ function VideoAnnotationPlayer({
   frameNotes?: Array<{ f: number; note: string }>
   frameTimestamps?: number[]
 }) {
+  const { t } = useTranslation()
   const timestamps = frameTimestamps && frameTimestamps.length > 0 ? frameTimestamps : FRAME_TIMESTAMPS
   const [speed, setSpeed]           = useState<1 | 0.5 | 0.25>(1)
   const [activeFrame, setActiveFrame] = useState<number>(-1)
@@ -238,7 +330,7 @@ function VideoAnnotationPlayer({
           backgroundColor: 'rgba(0,0,0,0.78)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7,
           borderLeftWidth: 3, borderLeftColor: '#FF9500' }}>
           <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>
-            🎯 フレーム{activeFrame + 1} — {activeNote}
+            {t('videoAnalysis.native.frameAnnotation', { n: activeFrame + 1, note: activeNote })}
           </Text>
         </View>
       )}
@@ -251,6 +343,8 @@ function VideoAnnotationPlayer({
       {/* コントロール */}
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, gap: 12 }}>
         <TouchableOpacity onPress={togglePlay} activeOpacity={0.8}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          accessibilityLabel={isPlaying ? t('videoAnalysis.native.pause') : t('videoAnalysis.native.play')}
           style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#166534',
             alignItems: 'center', justifyContent: 'center' }}>
           <Ionicons name={isPlaying ? 'pause' : 'play'} size={18} color="#fff" />
@@ -272,9 +366,9 @@ function VideoAnnotationPlayer({
       {/* フレームタイムライン */}
       <View style={{ paddingHorizontal: 14, paddingBottom: 14, gap: 6 }}>
         <Text style={{ color: '#4b5563', fontSize: 10, fontWeight: '700', letterSpacing: 0.8, marginBottom: 2 }}>
-          フレームタイムライン（タップでシーク）
+          {t('videoAnalysis.native.frameTimeline')}
         </Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
           {timestamps.map((ts, idx) => {
             const hasNote = frameNotes?.some(n => n.f === idx)
             const isActive = activeFrame === idx
@@ -330,111 +424,121 @@ function VideoAnnotationPlayer({
   )
 }
 
-function ScoreRing({ score }: { score: number }) {
-  const color = score >= 80 ? '#34C759' : score >= 60 ? '#FF9500' : '#FF3B30'
-  const label = score >= 80 ? '優秀' : score >= 60 ? '良好' : '要改善'
+// ── 座標計算ヘルパー（レーダーチャート用） ──────────────────────────
+function polarToXY(cx: number, cy: number, r: number, angleDeg: number) {
+  const rad = (angleDeg - 90) * Math.PI / 180
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) }
+}
+const toPolygonStr = (pts: { x: number; y: number }[]) => pts.map(p => `${p.x},${p.y}`).join(' ')
+
+// レーダーチャート（軸=観察できるフォーム品質。実測値=実線、理想ラインは点線）
+function RadarChart({ dimensions, size = 280 }: { dimensions: DimensionScore[]; size?: number }) {
+  const n = dimensions.length
+  if (n < 3) return null
+  const cx = size / 2, cy = size / 2
+  const maxR = size / 2 - 46
+  const step = 360 / n
+
+  const points      = dimensions.map((d, i) => polarToXY(cx, cy, (Math.max(0, Math.min(100, d.score)) / 100) * maxR, i * step))
+  const idealPoints = dimensions.map((d, i) => polarToXY(cx, cy, ((IDEAL_TARGET[d.id] ?? 82) / 100) * maxR, i * step))
+
   return (
-    <View style={{ alignItems: 'center', paddingVertical: 24 }}>
-      <View style={{ width: 140, height: 140, borderRadius: 70, borderWidth: 8, borderColor: color,
-        alignItems: 'center', justifyContent: 'center', backgroundColor: color + '12' }}>
-        <Text style={{ color, fontSize: 52, fontWeight: '900', lineHeight: 60 }}>{score}</Text>
-        <Text style={{ color, fontSize: 12, fontWeight: '700' }}>/ 100</Text>
-      </View>
-      <View style={{ marginTop: 12, backgroundColor: color + '20', borderRadius: 20,
-        paddingHorizontal: 16, paddingVertical: 5, borderWidth: 1, borderColor: color + '50' }}>
-        <Text style={{ color, fontSize: 13, fontWeight: '800' }}>{label}</Text>
+    <View style={{ alignItems: 'center' }}>
+      <Svg width={size} height={size}>
+        {[0.25, 0.5, 0.75, 1].map((ring, ri) => (
+          <Polygon key={ri}
+            points={toPolygonStr(dimensions.map((_, i) => polarToXY(cx, cy, maxR * ring, i * step)))}
+            fill="none" stroke="#e5e7eb" strokeWidth={1} />
+        ))}
+        {dimensions.map((_, i) => {
+          const p = polarToXY(cx, cy, maxR, i * step)
+          return <Line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="#e5e7eb" strokeWidth={1} />
+        })}
+        <Polygon points={toPolygonStr(idealPoints)} fill="none" stroke="#9ca3af" strokeWidth={1.5} strokeDasharray="4,4" />
+        <Polygon points={toPolygonStr(points)} fill="#16a34a22" stroke="#16a34a" strokeWidth={2.5} />
+        {points.map((p, i) => (
+          <Circle key={i} cx={p.x} cy={p.y} r={4}
+            fill={dimensions[i].confidence === 'low' ? '#fff' : '#16a34a'}
+            stroke="#16a34a" strokeWidth={2} />
+        ))}
+      </Svg>
+      <View style={{ position: 'absolute', width: size, height: size }} pointerEvents="none">
+        {dimensions.map((d, i) => {
+          const p = polarToXY(cx, cy, maxR + 30, i * step)
+          return (
+            <View key={d.id} style={{ position: 'absolute', left: p.x - 38, top: p.y - 16, width: 76, alignItems: 'center' }}>
+              <Text style={{ fontSize: 10, fontWeight: '700', color: '#4b5563', textAlign: 'center' }} numberOfLines={1}>{d.label}</Text>
+              <Text style={{ fontSize: 13, fontWeight: '900', color: d.confidence === 'low' ? '#9ca3af' : '#16a34a' }}>{d.score}</Text>
+            </View>
+          )
+        })}
       </View>
     </View>
   )
 }
 
-function ResultSection({ title, color, icon, items }: {
-  title: string; color: string; icon: string; items: string[]
-}) {
-  const [expanded, setExpanded] = useState(true)
+// 分析の確からしさ（全体）を3ドットで表示
+function ConfidenceDots({ level }: { level: Confidence }) {
+  const { t } = useTranslation()
+  const n = level === 'high' ? 3 : level === 'medium' ? 2 : 1
+  const label = level === 'high' ? t('videoAnalysis.confidence.high') : level === 'medium' ? t('videoAnalysis.confidence.medium') : t('videoAnalysis.confidence.low')
   return (
-    <View style={{ backgroundColor: color + '0D', borderRadius: 16, borderWidth: 1, borderColor: color + '30', overflow: 'hidden' }}>
-      <TouchableOpacity
-        onPress={() => setExpanded(e => !e)}
-        style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 }}
-        activeOpacity={0.8}
-      >
-        <Text style={{ fontSize: 18 }}>{icon}</Text>
-        <Text style={{ flex: 1, color, fontSize: 14, fontWeight: '800' }}>{title}</Text>
-        <Text style={{ fontSize: 16, color }}>{items.length}</Text>
-        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color={color} />
-      </TouchableOpacity>
-      {expanded && (
-        <View style={{ paddingHorizontal: 14, paddingBottom: 14, gap: 8 }}>
-          {items.map((item, i) => (
-            <View key={i} style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
-              <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: color + '25',
-                alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
-                <Text style={{ color, fontSize: 10, fontWeight: '900' }}>{i + 1}</Text>
-              </View>
-              <Text style={{ flex: 1, color: '#374151', fontSize: 13, lineHeight: 20 }}>{item}</Text>
-            </View>
-          ))}
-        </View>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+      {[0, 1, 2].map(i => (
+        <View key={i} style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: i < n ? '#16a34a' : '#e5e7eb' }} />
+      ))}
+      <Text style={{ fontSize: 11, fontWeight: '700', color: '#6b7280', marginLeft: 2 }}>{label}</Text>
+    </View>
+  )
+}
+
+// フレーム画像＋根拠位置（bbox）のハイライト表示
+function EvidenceThumb({ uri, bbox, w = 78, h = 56, color = BRAND }: {
+  uri?: string; bbox?: FrameRef; w?: number; h?: number; color?: string
+}) {
+  if (!uri) return null
+  const ringSize = bbox ? Math.max(18, Math.min(bbox.w * w, bbox.h * h) * 1.6) : 0
+  return (
+    <View style={{ width: w, height: h, borderRadius: 10, overflow: 'hidden', backgroundColor: '#e5e7eb', flexShrink: 0 }}>
+      <Image source={{ uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+      {bbox && (
+        <View style={{
+          position: 'absolute',
+          left: (bbox.x + bbox.w / 2) * w - ringSize / 2,
+          top:  (bbox.y + bbox.h / 2) * h - ringSize / 2,
+          width: ringSize, height: ringSize, borderRadius: ringSize / 2,
+          borderWidth: 2, borderColor: color,
+        }} />
       )}
     </View>
   )
 }
 
-// 改善点詳細カード（issue / reason / fix の3階層で表示）
-function ImprovementDetailSection({ items }: { items: ImprovementDetail[] }) {
-  const [openIndex, setOpenIndex] = useState<number | null>(null)
+// 強み／テーマ／次の一歩カード（アイコン・タイトル・本文＋根拠フレーム）
+function FeedbackCardView({ icon, label, color, bg, card, frameUri }: {
+  icon: string; label: string; color: string; bg: string; card: FeedbackCard; frameUri?: string
+}) {
   return (
-    <View style={{ backgroundColor: '#fff7ed', borderRadius: 16, borderWidth: 1, borderColor: '#fed7aa', overflow: 'hidden' }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderBottomWidth: items.length > 0 ? 1 : 0, borderBottomColor: '#fed7aa' }}>
-        <Text style={{ fontSize: 18 }}>🔍</Text>
-        <Text style={{ flex: 1, color: '#c2410c', fontSize: 14, fontWeight: '800' }}>改善点の詳細分析</Text>
-        <Text style={{ fontSize: 16, color: '#c2410c' }}>{items.length}</Text>
+    <View style={{ backgroundColor: bg, borderRadius: 16, borderWidth: 1, borderColor: color + '30',
+      padding: 14, flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+      <View style={{ flex: 1, gap: 5 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text style={{ fontSize: 14 }}>{icon}</Text>
+          <Text style={{ color, fontSize: 11, fontWeight: '800' }}>{label}</Text>
+        </View>
+        <Text style={{ color: '#111827', fontSize: 14, fontWeight: '800', lineHeight: 20 }}>{card.title}</Text>
+        <Text style={{ color: '#4b5563', fontSize: 12, lineHeight: 18 }}>{card.text}</Text>
       </View>
-      <View style={{ padding: 12, gap: 10 }}>
-        {items.map((item, i) => (
-          <TouchableOpacity
-            key={i}
-            onPress={() => setOpenIndex(openIndex === i ? null : i)}
-            activeOpacity={0.85}
-            style={{ backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#f97316' + '40', overflow: 'hidden' }}
-          >
-            {/* 問題ヘッダー */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, backgroundColor: '#fff7ed' }}>
-              <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#ea580c',
-                alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <Text style={{ color: '#fff', fontSize: 10, fontWeight: '900' }}>{i + 1}</Text>
-              </View>
-              <Text style={{ flex: 1, color: '#9a3412', fontSize: 13, fontWeight: '800', lineHeight: 18 }}>{item.issue}</Text>
-              <Ionicons name={openIndex === i ? 'chevron-up' : 'chevron-down'} size={14} color="#c2410c" />
-            </View>
-            {/* 展開: 原因 + 改善方法 */}
-            {openIndex === i && (
-              <View style={{ padding: 12, gap: 10 }}>
-                <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
-                  <View style={{ backgroundColor: '#fef3c7', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3, flexShrink: 0 }}>
-                    <Text style={{ color: '#92400e', fontSize: 10, fontWeight: '800' }}>なぜ</Text>
-                  </View>
-                  <Text style={{ flex: 1, color: '#374151', fontSize: 13, lineHeight: 20 }}>{item.reason}</Text>
-                </View>
-                <View style={{ height: 1, backgroundColor: '#f3f4f6' }} />
-                <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
-                  <View style={{ backgroundColor: '#dcfce7', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3, flexShrink: 0 }}>
-                    <Text style={{ color: '#166534', fontSize: 10, fontWeight: '800' }}>改善</Text>
-                  </View>
-                  <Text style={{ flex: 1, color: '#374151', fontSize: 13, lineHeight: 20 }}>{item.fix}</Text>
-                </View>
-              </View>
-            )}
-          </TouchableOpacity>
-        ))}
-      </View>
+      {frameUri && card.bbox && <EvidenceThumb uri={frameUri} bbox={card.bbox} color={color} />}
     </View>
   )
 }
 
 // ─── コーチ送信ウィザード ─────────────────────────────────────────
 function CoachSendMode() {
+  const { t } = useTranslation()
+  const { language } = useLanguage()
+  const FOCUS_HINTS = buildFocusHints(t)
   const [step,       setStep]       = useState<1 | 2 | 3>(1)
   const [videoUri,   setVideoUri]   = useState<string | null>(null)
   const [thumbUri,   setThumbUri]   = useState<string | null>(null)
@@ -448,40 +552,39 @@ function CoachSendMode() {
   const pickFromLibrary = async () => {
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync()
-      if (!perm.granted) { Alert.alert('権限が必要です', '写真ライブラリへのアクセスを許可してください'); return }
+      if (!perm.granted) { Alert.alert(t('videoAnalysis.coachSend.permissionRequired'), t('videoAnalysis.coachSend.photoLibraryPermission')); return }
       const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'videos' as any, allowsEditing: false, quality: 1 })
       if (!res.canceled && res.assets[0]) {
         const uri = res.assets[0].uri
         setVideoUri(uri)
-        try { const { uri: t } = await VideoThumbnails.getThumbnailAsync(uri, { time: 500 }); setThumbUri(t) } catch {}
+        try { const { uri: thumb } = await VideoThumbnails.getThumbnailAsync(uri, { time: 500 }); setThumbUri(thumb) } catch {}
         setStep(2)
       }
-    } catch (e: any) { Alert.alert('エラー', e?.message ?? '動画の選択に失敗しました') }
+    } catch (e: any) { Alert.alert(t('videoAnalysis.coachSend.errorTitle'), e?.message ?? t('videoAnalysis.coachSend.pickFailed')) }
   }
 
   const recordNow = async () => {
     try {
       const perm = await ImagePicker.requestCameraPermissionsAsync()
-      if (!perm.granted) { Alert.alert('権限が必要です', 'カメラへのアクセスを許可してください'); return }
+      if (!perm.granted) { Alert.alert(t('videoAnalysis.coachSend.permissionRequired'), t('videoAnalysis.coachSend.cameraPermission')); return }
       const res = await ImagePicker.launchCameraAsync({ mediaTypes: 'videos' as any, allowsEditing: false, quality: 1, videoMaxDuration: 90 })
       if (!res.canceled && res.assets[0]) {
         const uri = res.assets[0].uri
         setVideoUri(uri)
-        try { const { uri: t } = await VideoThumbnails.getThumbnailAsync(uri, { time: 100 }); setThumbUri(t) } catch {}
+        try { const { uri: thumb } = await VideoThumbnails.getThumbnailAsync(uri, { time: 100 }); setThumbUri(thumb) } catch {}
         setStep(2)
       }
-    } catch (e: any) { Alert.alert('エラー', e?.message ?? '動画の撮影に失敗しました') }
+    } catch (e: any) { Alert.alert(t('videoAnalysis.coachSend.errorTitle'), e?.message ?? t('videoAnalysis.coachSend.recordFailed')) }
   }
 
   const send = async () => {
     if (!videoUri) return
     setSending(true)
     try {
-      const raw = await AsyncStorage.getItem(COACH_REQ_KEY)
-      let list: CoachVideoRequest[] = []
-      try { if (raw) list = JSON.parse(raw) } catch {}
-      list.unshift({ id: Date.now().toString(), videoUri, thumbnailUri: thumbUri ?? '', message, event, sentAt: new Date().toISOString() })
-      await AsyncStorage.setItem(COACH_REQ_KEY, JSON.stringify(list.slice(0, 30)))
+      await updateCoachVideoRequests(current => [
+        { id: Date.now().toString(), videoUri, thumbnailUri: thumbUri ?? '', message, event, sentAt: new Date().toISOString() },
+        ...current,
+      ].slice(0, 30))
       // コーチに通知 + Supabase team_videos にレコード作成（別デバイスのコーチが動画タブで確認できるように）
       try {
         const joinedRaw = await AsyncStorage.getItem(JOINED_KEY_VA)
@@ -489,10 +592,10 @@ function CoachSendMode() {
           let joined: any
           try { joined = JSON.parse(joinedRaw) } catch {}
           if (joined?.code && joined?.playerName) {
-            const desc = [event, message].filter(Boolean).join(' / ') || 'フォーム分析を送りました'
+            const desc = [event, message].filter(Boolean).join(' / ') || t('videoAnalysis.coachSend.defaultSendDesc')
             await Promise.all([
               sendCoachNotification(joined.code, 'video', joined.playerName,
-                `${joined.playerName}がフォーム分析を送信しました${event ? `（${event}）` : ''}`),
+                t('videoAnalysis.coachSend.coachNotifyBody', { name: joined.playerName }) + (event ? `（${event}）` : '')),
               // team_videos テーブルに登録 → コーチの「動画」タブに表示される
               submitVideo(joined.code, joined.playerName, '', desc),
             ])
@@ -500,7 +603,7 @@ function CoachSendMode() {
         }
       } catch {}
       setSent(true)
-    } catch { Alert.alert('エラー', '送信に失敗しました') }
+    } catch { Alert.alert(t('videoAnalysis.coachSend.errorTitle'), t('videoAnalysis.coachSend.sendFailed')) }
     finally { setSending(false) }
   }
 
@@ -512,13 +615,13 @@ function CoachSendMode() {
           <Ionicons name="checkmark-circle" size={56} color="#16a34a" />
         </View>
         <Text style={{ fontSize: 22, fontWeight: '900', color: '#111827', marginBottom: 10, textAlign: 'center' }}>
-          コーチに送りました！
+          {t('videoAnalysis.coachSend.sentTitle')}
         </Text>
         <Text style={{ fontSize: 14, color: '#6b7280', textAlign: 'center', lineHeight: 22, marginBottom: 32 }}>
-          コーチがアプリを開いたときに{'\n'}「コーチビュー」から確認できます。
+          {t('videoAnalysis.coachSend.sentDesc')}
         </Text>
         <TouchableOpacity style={cst.primaryBtn} onPress={reset}>
-          <Text style={cst.primaryBtnText}>もう一本送る</Text>
+          <Text style={cst.primaryBtnText}>{t('videoAnalysis.coachSend.sendAnother')}</Text>
         </TouchableOpacity>
       </View>
     )
@@ -527,7 +630,7 @@ function CoachSendMode() {
   // ── ステップインジケーター ──
   const StepDots = () => (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 28 }}>
-      {(['動画', 'メモ', '確認'] as const).map((label, i) => {
+      {[t('videoAnalysis.coachSend.stepVideo'), t('videoAnalysis.coachSend.stepMemo'), t('videoAnalysis.coachSend.stepConfirm')].map((label, i) => {
         const n = (i + 1) as 1 | 2 | 3
         const active  = step === n
         const done    = step > n
@@ -552,31 +655,30 @@ function CoachSendMode() {
   if (step === 1) {
     return (
       <ScrollView style={{ flex: 1, backgroundColor: '#f6f6f8' }} contentContainerStyle={cst.scroll} keyboardShouldPersistTaps="handled">
-        <Text style={cst.title}>動画を選んでください</Text>
-        <Text style={cst.subtitle}>コーチに見てほしいシーンを送りましょう</Text>
+        <Text style={cst.title}>{t('videoAnalysis.coachSend.step1Title')}</Text>
+        <Text style={cst.subtitle}>{t('videoAnalysis.coachSend.step1Subtitle')}</Text>
         <StepDots />
 
         <TouchableOpacity style={cst.bigCard} onPress={recordNow} activeOpacity={0.85}>
           <View style={[cst.bigCardIcon, { backgroundColor: '#dcfce7' }]}>
             <Ionicons name="videocam" size={40} color="#16a34a" />
           </View>
-          <Text style={cst.bigCardTitle}>今すぐ撮影する</Text>
-          <Text style={cst.bigCardSub}>カメラを起動して録画（最大90秒）</Text>
+          <Text style={cst.bigCardTitle}>{t('videoAnalysis.coachSend.recordNowTitle')}</Text>
+          <Text style={cst.bigCardSub}>{t('videoAnalysis.coachSend.recordNowSub')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={[cst.bigCard, { marginTop: 12 }]} onPress={pickFromLibrary} activeOpacity={0.85}>
           <View style={[cst.bigCardIcon, { backgroundColor: '#f0fdf4' }]}>
             <Ionicons name="images" size={40} color="#22c55e" />
           </View>
-          <Text style={cst.bigCardTitle}>ライブラリから選ぶ</Text>
-          <Text style={cst.bigCardSub}>撮り貯めた動画から選択</Text>
+          <Text style={cst.bigCardTitle}>{t('videoAnalysis.coachSend.pickLibraryTitle')}</Text>
+          <Text style={cst.bigCardSub}>{t('videoAnalysis.coachSend.pickLibrarySub')}</Text>
         </TouchableOpacity>
 
         <View style={cst.tipBox}>
           <Ionicons name="bulb-outline" size={16} color="#ca8a04" />
           <Text style={cst.tipText}>
-            横向きで撮ると全身が映りやすいです。{'\n'}
-            正面・側面・後方の3方向があるとベストです。
+            {t('videoAnalysis.coachSend.tip')}
           </Text>
         </View>
       </ScrollView>
@@ -587,35 +689,35 @@ function CoachSendMode() {
   if (step === 2) {
     return (
       <ScrollView style={{ flex: 1, backgroundColor: '#f6f6f8' }} contentContainerStyle={cst.scroll} keyboardShouldPersistTaps="handled">
-        <Text style={cst.title}>コーチへのメモ</Text>
-        <Text style={cst.subtitle}>どこを見てほしいか教えましょう（任意）</Text>
+        <Text style={cst.title}>{t('videoAnalysis.coachSend.step2Title')}</Text>
+        <Text style={cst.subtitle}>{t('videoAnalysis.coachSend.step2Subtitle')}</Text>
         <StepDots />
 
         {/* サムネイル */}
         {thumbUri && (
           <View style={{ alignItems: 'center', marginBottom: 20 }}>
             <Image source={{ uri: thumbUri }} style={{ width: 200, height: 120, borderRadius: 14, backgroundColor: '#e5e7eb' }} />
-            <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 6 }}>選択済み ✓</Text>
+            <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 6 }}>{t('videoAnalysis.coachSend.selectedCheck')}</Text>
           </View>
         )}
 
         {/* 種目 */}
-        <Text style={cst.fieldLabel}>種目</Text>
+        <Text style={cst.fieldLabel}>{t('videoAnalysis.coachSend.eventLabel')}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8 }}>
-          {['', '100m','200m','400m','800m','1500m','走幅跳','三段跳','走高跳','棒高跳','110mH','400mH','5000m'].map(ev => (
+          {['', '100m','200m','300m','400m','800m','1000m','1500m','3000m','走幅跳','三段跳','走高跳','棒高跳','110mH','400mH','5000m'].map(ev => (
             <TouchableOpacity
               key={ev || 'none'}
               style={[cst.chip, event === ev && cst.chipActive]}
               onPress={() => setEvent(ev)}
               activeOpacity={0.8}
             >
-              <Text style={[cst.chipText, event === ev && { color: '#fff' }]}>{ev || '指定なし'}</Text>
+              <Text style={[cst.chipText, event === ev && { color: '#fff' }]}>{ev ? getEventLabel(ev, language) : t('videoAnalysis.eventNone')}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
 
         {/* フォーカスヒント */}
-        <Text style={cst.fieldLabel}>見てほしいところ（タップで追加）</Text>
+        <Text style={cst.fieldLabel}>{t('videoAnalysis.coachSend.focusHintLabel')}</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
           {FOCUS_HINTS.map(hint => {
             const selected = message.includes(hint)
@@ -642,7 +744,7 @@ function CoachSendMode() {
           style={cst.textarea}
           value={message}
           onChangeText={setMessage}
-          placeholder="その他に気になることを自由に書いてください..."
+          placeholder={t('videoAnalysis.coachSend.messagePlaceholder')}
           placeholderTextColor="#9ca3af"
           multiline
           numberOfLines={3}
@@ -650,10 +752,10 @@ function CoachSendMode() {
 
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
           <TouchableOpacity style={cst.secondaryBtn} onPress={() => setStep(1)}>
-            <Text style={cst.secondaryBtnText}>← 戻る</Text>
+            <Text style={cst.secondaryBtnText}>{t('videoAnalysis.coachSend.back')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[cst.primaryBtn, { flex: 1 }]} onPress={() => setStep(3)}>
-            <Text style={cst.primaryBtnText}>確認する →</Text>
+            <Text style={cst.primaryBtnText}>{t('videoAnalysis.coachSend.confirmNext')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -663,8 +765,8 @@ function CoachSendMode() {
   // ── STEP 3: 確認して送信 ──
   return (
     <ScrollView style={{ flex: 1, backgroundColor: '#f6f6f8' }} contentContainerStyle={cst.scroll}>
-      <Text style={cst.title}>確認して送信</Text>
-      <Text style={cst.subtitle}>内容を確認したら送ってください</Text>
+      <Text style={cst.title}>{t('videoAnalysis.coachSend.step3Title')}</Text>
+      <Text style={cst.subtitle}>{t('videoAnalysis.coachSend.step3Subtitle')}</Text>
       <StepDots />
 
       <View style={cst.confirmCard}>
@@ -672,14 +774,14 @@ function CoachSendMode() {
           <Image source={{ uri: thumbUri }} style={{ width: '100%', height: 180, borderRadius: 10, backgroundColor: '#e5e7eb', marginBottom: 14 }} />
         )}
         <View style={cst.confirmRow}>
-          <Text style={cst.confirmLabel}>種目</Text>
-          <Text style={cst.confirmValue}>{event || '指定なし'}</Text>
+          <Text style={cst.confirmLabel}>{t('videoAnalysis.coachSend.eventLabel')}</Text>
+          <Text style={cst.confirmValue}>{event ? getEventLabel(event, language) : t('videoAnalysis.eventNone')}</Text>
         </View>
         <View style={cst.divider} />
         <View style={cst.confirmRow}>
-          <Text style={cst.confirmLabel}>コーチへのメモ</Text>
+          <Text style={cst.confirmLabel}>{t('videoAnalysis.coachSend.coachMemoLabel')}</Text>
           <Text style={[cst.confirmValue, { flex: 1, textAlign: 'right' }]} numberOfLines={3}>
-            {message || '（なし）'}
+            {message || t('videoAnalysis.coachSend.noneValue')}
           </Text>
         </View>
       </View>
@@ -694,17 +796,17 @@ function CoachSendMode() {
           ? <ActivityIndicator color="#fff" />
           : <>
               <Ionicons name="paper-plane" size={20} color="#fff" />
-              <Text style={cst.sendBtnText}>コーチに送る</Text>
+              <Text style={cst.sendBtnText}>{t('videoAnalysis.coachSend.sendToCoach')}</Text>
             </>
         }
       </TouchableOpacity>
 
       <TouchableOpacity style={cst.secondaryBtn} onPress={() => setStep(2)}>
-        <Text style={cst.secondaryBtnText}>← 修正する</Text>
+        <Text style={cst.secondaryBtnText}>{t('videoAnalysis.coachSend.editBack')}</Text>
       </TouchableOpacity>
 
       <Text style={cst.noteText}>
-        送信した動画は、コーチがアプリの「コーチビュー」から確認できます。
+        {t('videoAnalysis.coachSend.footerNote')}
       </Text>
     </ScrollView>
   )
@@ -712,6 +814,7 @@ function CoachSendMode() {
 
 // ─── タブ切替ラッパー ─────────────────────────────────────────────
 function NativeVideoAnalysisRoot() {
+  const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<'ai' | 'coach'>('ai')
   return (
     <View style={{ flex: 1, backgroundColor: '#f6f6f8' }}>
@@ -723,7 +826,7 @@ function NativeVideoAnalysisRoot() {
           activeOpacity={0.8}
         >
           <Ionicons name="sparkles" size={14} color={activeTab === 'ai' ? '#fff' : '#6b7280'} />
-          <Text style={[cst.tabText, activeTab === 'ai' && { color: '#fff' }]}>AIで自分で分析</Text>
+          <Text style={[cst.tabText, activeTab === 'ai' && { color: '#fff' }]}>{t('videoAnalysis.coachSend.tabAi')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[cst.tab, activeTab === 'coach' && { backgroundColor: '#16a34a' }]}
@@ -731,7 +834,7 @@ function NativeVideoAnalysisRoot() {
           activeOpacity={0.8}
         >
           <Ionicons name="paper-plane" size={14} color={activeTab === 'coach' ? '#fff' : '#6b7280'} />
-          <Text style={[cst.tabText, activeTab === 'coach' && { color: '#fff' }]}>コーチに送る</Text>
+          <Text style={[cst.tabText, activeTab === 'coach' && { color: '#fff' }]}>{t('videoAnalysis.coachSend.tabCoach')}</Text>
         </TouchableOpacity>
       </View>
       {activeTab === 'ai'
@@ -808,9 +911,17 @@ function NativeVideoAnalysis() {
   const [frames, setFrames]           = useState<string[]>([])
   const [frameTimestampsUsed, setFrameTimestampsUsed] = useState<number[]>(FRAME_TIMESTAMPS)
   const [event, setEvent]             = useState('')
+  // 動画の撮影日（分析を実行した日と異なる場合があるため、ユーザーが手動で指定できるようにする）
+  const [shotDate, setShotDate]       = useState(todayLocalISO())
   const [clothingColor, setClothingColor] = useState('')
   const [shoeColor,     setShoeColor]     = useState('')
+  const [laneNumber,    setLaneNumber]    = useState('')
+  const [finishPosition,setFinishPosition]= useState('')
+  // 複数人動画で別人が分析された場合の自己申告チケット返還（1結果につき1回まで）
+  const [reportedWrongPerson, setReportedWrongPerson] = useState(false)
+  const [refundingTicket,     setRefundingTicket]     = useState(false)
   const [result, setResult]           = useState<AnalysisResult | null>(null)
+  const [prevScore, setPrevScore]     = useState<number | null>(null)
   const [rawText, setRawText]         = useState('')
   const [error, setError]             = useState('')
   const [stepLabel, setStepLabel]     = useState('')
@@ -818,31 +929,48 @@ function NativeVideoAnalysis() {
   const [adGateRemaining,   setAdGateRemaining]   = useState(0)
   const [adGateHardLimited, setAdGateHardLimited] = useState(false)
   const [adGateLimitType,   setAdGateLimitType]   = useState<'none'|'daily'|'monthly'|'total'|'window'>('none')
-  const [remaining,         setRemaining]         = useState<number | null>(null)
+  const [ticketGateVisible, setTicketGateVisible] = useState(false)
+  const [ticketGateCost,    setTicketGateCost]    = useState(0)
+  const [ticketGateBalance, setTicketGateBalance] = useState(0)
   const [upsellVisible,     setUpsellVisible]     = useState(false)
+  const [historyList,       setHistoryList]       = useState<VideoAnalysisHistoryEntry[]>([])
+  const [historyModal,      setHistoryModal]      = useState(false)
+  const [historyDetail,     setHistoryDetail]     = useState<VideoAnalysisHistoryEntry | null>(null)
+  const [historyFilter,     setHistoryFilter]     = useState<string | null>(null)
   const { isGuest } = useAuth()
   const router = useRouter()
+  const { t } = useTranslation()
+  const { language } = useLanguage()
   // 連続タップによる二重起動防止（AdGate async チェック中もガード）
   const analyzingRef = React.useRef(false)
   // 広告視聴済みクレジット（分析失敗時のリトライも広告なしで通す）
   const adCreditRef = React.useRef(false)
 
   React.useEffect(() => {
-    checkAdGate('video').then(g => {
-      if (g.remaining < 999) setRemaining(g.remaining)
-    }).catch(() => {})
+    getVideoAnalysisHistory().then(setHistoryList).catch(() => {})
   }, [])
 
-  // 分析結果表示後にインタースティシャル広告を表示
-  React.useEffect(() => {
-    if (phase !== 'result') return
-    showInterstitialAd().catch(() => {})
-  }, [phase])
+  // 複数種目を分析しているユーザーが種目ごとの推移を追いやすいよう、種目でグルーピングする。
+  // グループの並びは「その種目を最後に分析した日」が新しい順。各グループ内は元のnewest-first順のまま。
+  const historyEvents = React.useMemo(
+    () => Array.from(new Set(historyList.map(h => h.event))),
+    [historyList]
+  )
+  const groupedHistory = React.useMemo(() => {
+    const filtered = historyFilter ? historyList.filter(h => h.event === historyFilter) : historyList
+    const order: string[] = []
+    const map = new Map<string, VideoAnalysisHistoryEntry[]>()
+    for (const h of filtered) {
+      if (!map.has(h.event)) { map.set(h.event, []); order.push(h.event) }
+      map.get(h.event)!.push(h)
+    }
+    return order.map(event => ({ event, entries: map.get(event)! }))
+  }, [historyList, historyFilter])
 
   async function pickVideo() {
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync()
-      if (!perm.granted) { Alert.alert('権限が必要です', '写真ライブラリへのアクセスを許可してください'); return }
+      if (!perm.granted) { Alert.alert(t('videoAnalysis.native.permissionRequired'), t('videoAnalysis.native.photoLibraryPermission')); return }
       const res = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: 'videos' as any,
         allowsEditing: false, quality: 1,
@@ -856,30 +984,63 @@ function NativeVideoAnalysis() {
         const durMs = (res.assets[0] as any).duration
         setVideoDurationMs(typeof durMs === 'number' && durMs > 0 ? durMs : null)
         setLocalVideoUri(null)
-        setResult(null); setRawText(''); setError(''); setFrames([])
+        setResult(null); setRawText(''); setError(''); setFrames([]); setReportedWrongPerson(false)
+        setShotDate(todayLocalISO())
         setPhase('idle')
       }
-    } catch (e: any) { Alert.alert('エラー', e?.message ?? '動画の選択に失敗しました') }
+    } catch (e: any) { Alert.alert(t('videoAnalysis.native.pickErrorTitle'), e?.message ?? t('videoAnalysis.native.pickErrorMessage')) }
+  }
+
+  // 複数人動画で対象と違う選手が分析されてしまった場合の自己申告チケット返還。
+  // 1件の分析結果につき1回のみ（再分析・別動画の選択でリセットされる）。
+  function reportWrongPersonAnalyzed() {
+    if (reportedWrongPerson || refundingTicket) return
+    Alert.alert(
+      t('videoAnalysis.native.wrongPersonTitle'),
+      t('videoAnalysis.native.wrongPersonMessage', { n: TICKET_COST.video }),
+      [
+        { text: t('videoAnalysis.native.cancel'), style: 'cancel' },
+        {
+          text: t('videoAnalysis.native.refundConfirm'),
+          onPress: async () => {
+            setRefundingTicket(true)
+            try {
+              await grantTickets(TICKET_COST.video)
+              setReportedWrongPerson(true)
+              Toast.show({ type: 'success', text1: t('videoAnalysis.native.refundedToast', { n: TICKET_COST.video }), visibilityTime: 2000 })
+            } catch {
+              Toast.show({ type: 'error', text1: t('videoAnalysis.native.refundFailedToast'), text2: t('videoAnalysis.native.refundFailedHint') })
+            } finally {
+              setRefundingTicket(false)
+            }
+          },
+        },
+      ]
+    )
   }
 
   async function analyze(skipGate = false, forceRefresh = false) {
     if (analyzingRef.current) return   // 二重タップ防止
-    if (!videoUri) { Alert.alert('動画を選択してください'); return }
+    if (!videoUri) { Alert.alert(t('videoAnalysis.native.selectVideoAlert')); return }
     // ゲストはログイン必須
     if (isGuest) { setAdGateRemaining(0); setAdGateHardLimited(false); setAdGateVisible(true); return }
     // 広告視聴済みクレジットがあればゲートをスキップ（分析失敗時のリトライも許可）
     const usedAdCredit = adCreditRef.current
     if (adCreditRef.current) { skipGate = true }
     // AdGateチェック（広告視聴後は skipGate=true でバイパス）
+    let usesTicketThisRun = false
     if (!skipGate) {
       const gate = await checkAdGate('video')
-      if (!gate.allowed) { setAdGateRemaining(gate.remaining); setAdGateHardLimited(gate.hardLimited); setAdGateLimitType(gate.limitType); setAdGateVisible(true); return }
-      await recordUsage('video')
+      if (!gate.allowed) {
+        if (gate.needsTicket) { setTicketGateCost(gate.ticketCost); setTicketGateBalance(gate.ticketBalance); setTicketGateVisible(true) }
+        else { setAdGateRemaining(gate.remaining); setAdGateHardLimited(gate.hardLimited); setAdGateLimitType(gate.limitType); setAdGateVisible(true) }
+        return
+      }
+      usesTicketThisRun = gate.needsTicket
     }
     analyzingRef.current = true
     trackFeatureUse('video')
-    checkAdGate('video').then(g => { if (g.remaining < 999) setRemaining(g.remaining) }).catch(() => {})
-    setError(''); setResult(null); setRawText('')
+    setError(''); setResult(null); setRawText(''); setReportedWrongPerson(false)
 
     try {
       // ── キャッシュチェック（forceRefresh=true のときはスキップ） ──
@@ -892,7 +1053,7 @@ function NativeVideoAnalysis() {
 
       // ── Step 1: フレーム抽出 ──
       setPhase('extracting')
-      setStepLabel('動画からフレームを抽出中...')
+      setStepLabel(t('videoAnalysis.native.extractingStep'))
 
       let localUri = videoUri
       if (videoUri.startsWith('ph://') || !videoUri.startsWith('file://')) {
@@ -901,7 +1062,7 @@ function NativeVideoAnalysis() {
           await FileSystem.copyAsync({ from: videoUri, to: dest })
         } catch {
           // iCloudにのみ保存されている動画は端末への同期が必要（PHPhotosErrorDomain等）
-          throw new Error('動画の読み込みに失敗しました。iCloudにのみ保存されている場合は、写真アプリで一度動画を開いて端末にダウンロードしてから再度お試しください。')
+          throw new Error(t('videoAnalysis.native.videoLoadFailed'))
         }
         localUri = dest
       }
@@ -915,9 +1076,9 @@ function NativeVideoAnalysis() {
       setFrameTimestampsUsed(timestampsForThisVideo)
 
       // 320px / compress 0.45 → 画像トークン数を ~50% 削減
-      for (const t of timestampsForThisVideo) {
+      for (const ts of timestampsForThisVideo) {
         try {
-          const { uri } = await VideoThumbnails.getThumbnailAsync(localUri, { time: t, quality: 0.8 })
+          const { uri } = await VideoThumbnails.getThumbnailAsync(localUri, { time: ts, quality: 0.8 })
           const resized = await ImageManipulator.manipulateAsync(
             uri, [{ resize: { width: 440 } }],  // 480→440: フレーム5→6枚化に伴い1枚あたりのトークンを微減して総量を維持
             { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
@@ -939,12 +1100,12 @@ function NativeVideoAnalysis() {
         base64Frames.push(b64); thumbUris.push(resized.uri)
       }
 
-      if (base64Frames.length === 0) throw new Error('フレームの取得に失敗しました')
+      if (base64Frames.length === 0) throw new Error(t('videoAnalysis.native.frameFetchFailed'))
       setFrames(thumbUris)
 
       // ── Step 2: AI分析 ──
       setPhase('analyzing')
-      setStepLabel(`${base64Frames.length}フレームをAIで分析中...`)
+      setStepLabel(t('videoAnalysis.native.analyzingStep', { n: base64Frames.length }))
 
       // 抽出したフレーム(最大FRAME_COUNT枚)を全て使用。
       // 以前は4枚に制限していたが、computeFrameTimestampsが動画終盤まで
@@ -955,26 +1116,43 @@ function NativeVideoAnalysis() {
         source: { type: 'base64' as const, media_type: 'image/jpeg' as const, data: b64 },
       }))
 
-      // 人物特定情報をプロンプトに組み込む
+      // 人物特定情報をプロンプトに組み込む（レーン番号・着順は同じユニフォームの
+      // チームメイトが並ぶレース動画で服・靴の色より確実な識別情報になるため追加）
       const personHint = [
-        clothingColor ? `服の色：${clothingColor}` : '',
-        shoeColor     ? `靴の色：${shoeColor}` : '',
+        laneNumber     ? `レーン番号：${laneNumber}`   : '',
+        finishPosition ? `着順：${finishPosition}`     : '',
+        clothingColor  ? `服の色：${clothingColor}`     : '',
+        shoeColor      ? `靴の色：${shoeColor}`         : '',
       ].filter(Boolean).join('、')
 
       // 採点の基準点を明示し、モデルが無難な中間点に逃げるのを防ぐ
       const nF = imageBlocks.length
-      const prompt = `陸上${event ? `(${event})` : ''}フォーム分析。${personHint ? `対象:${personHint}。` : ''}${nF}フレーム(0〜${nF-1})を、実際に写っている姿勢・関節角度・接地位置から具体的に評価せよ。画像から判断できない項目は無理に指摘せず、見えている範囲だけで評価すること。
+      const { dims } = dimensionsForEvent(event)
+      const dimIdList = dims.map(d => d.id).join('、')
+      const prompt = `陸上${event ? `(${event})` : ''}フォーム分析。${personHint ? `対象:${personHint}。` : ''}${nF}フレーム(0〜${nF-1})を評価せよ。
 
-採点基準（0-100、必ず画像の内容に応じて差をつけること。迷っても中間の点数に逃げない）:
-- 90-100: トップ選手レベル。重心の真下での接地、無駄のない腕振り、上下動が少ない
-- 70-89: 実業団・大学レベル。フォームの大枠は良いが細部に改善点がある
-- 50-69: 一般的な部活生レベル。基本はできているが明確な改善点が複数ある
-- 30-49: フォームに大きな崩れがある（過度な後傾、ブレーキ動作、腕の振りすぎ等）
-- 0-29: 画像が不鮮明、または陸上競技のフォームと判断できない
+重要な原則（必ず守ること）:
+- 静止画からは「速度」「ピッチ」「ストライド」など直接計測できない数値は絶対にスコア化しない
+- スコア化するのは画像から観察できる「フォームの質」のみ（能力の推測ではない）
+- 各項目に必ずconfidence(low/medium/high)を付け、静止画だけでは判断しづらい場合はlowにする
+- 誇張せず、実際に写っている姿勢・関節角度・接地位置から見えている範囲だけで評価する
+
+評価する項目（${dims.length}件、必ず全て採点。0-100で必ず差をつける。中間点への逃げ禁止）:
+${dims.map(d => `- ${d.id}(${d.label})`).join('\n')}
+
+採点基準（各項目共通）:
+- 90-100: トップ選手レベル
+- 70-89: 実業団・大学レベル。大枠は良いが細部に改善点
+- 50-69: 一般的な部活生レベル。明確な改善点が複数
+- 30-49: フォームに大きな崩れがある
+- 0-29: 画像が不鮮明、または判断不能
+
+bbox（根拠位置）は、その所見の根拠となる身体部位のおおよその位置を0〜1の正規化座標
+(f=該当フレーム番号、x/y=左上、w/h=幅高さ)で指定。確信が持てなければ省略可。
 
 コードブロック不使用・生のJSONのみで回答:
-{"score":0-100,"overall":"総評50字","positives":["良い点(部位明記)","良い点2","良い点3"],"improvements":["改善要約1","改善要約2","改善要約3"],"improvementDetails":[{"issue":"問題(部位と動作)","reason":"原因","fix":"改善方法"}],"menu":[{"name":"ドリル","detail":"方法・セット数"}],"frameNotes":[{"f":番号,"note":"指摘20字"}]}
-improvementDetails:3件、issue/reason/fix必須。menu:2件。frameNotes:最大2件。`
+{"score":総合0-100,"headline":"一番伝えたい一言30字以内(例:接地を改善すれば、もっと速くなれます)","confidenceOverall":"low|medium|high","dimensions":[{"id":"${dims[0]?.id ?? 'posture'}","score":0-100,"confidence":"low|medium|high","reason":"20字以内","bbox":{"f":0,"x":0.3,"y":0.2,"w":0.2,"h":0.3}}],"strength":{"title":"15字以内","text":"40字以内","bbox":{"f":0,"x":0,"y":0,"w":0,"h":0}},"focus":{"title":"15字以内(改善点は最重要な1つのみ)","text":"40字以内","bbox":{"f":0,"x":0,"y":0,"w":0,"h":0}},"nextStep":{"title":"15字以内","text":"40字以内"},"practice":{"theme":"今日の練習テーマ20字以内","drill":"ドリル名","drillDetail":"方法・セット数"},"frameNotes":[{"f":番号,"note":"指摘20字"}]}
+dimensions:上記${dims.length}項目(${dimIdList})全て必須。focusは改善点を1つだけに絞ること（複数挙げない）。frameNotes:最大2件。${narrativeLanguageInstruction(language)}`
 
       // Vercel proxy経由でAnthropicを呼び出し（APIキーをクライアントに持たせない）
       const apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
@@ -985,14 +1163,20 @@ improvementDetails:3件、issue/reason/fix必須。menu:2件。frameNotes:最大
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'claude-sonnet-5',
-          max_tokens: 1500,  // 1100だと項目が多いJSONが途中で切れてパース失敗し常に60点フォールバックになっていたため増量（コスト配慮で2000より抑制）
+          // レーダーチャート方式(7項目×score/confidence/reason/bbox + strength/focus/nextStep + practice)で
+          // 応答JSONが旧スキーマよりかなり大きくなったため増量。1500のままだと応答が途中で切れて
+          // JSONパース失敗→総合スコア60点の汎用フォールバックになる不具合が発生していた
+          // （api/analyze.ts側でmax_tokens>3000は3000に丸められるため、そこまでの余裕を確保）
+          max_tokens: 2600,
           messages: [{ role: 'user', content: [...imageBlocks, { type: 'text', text: prompt }] }],
         }),
-      }, 45000)
+      }, 65000)  // サーバー側(api/analyze.ts)のmaxDuration=60秒より長くする。45秒のままだと
+                 // Geminiの応答が46〜59秒かかったケースでサーバーは間に合っているのに
+                 // クライアントが先にタイムアウトしてエラーになっていた
 
       if (!res.ok) {
         const errBody = await res.text().catch(() => '')
-        throw new Error(`APIエラー (${res.status}): ${errBody.slice(0, 120)}`)
+        throw new Error(t('videoAnalysis.native.apiErrorMessage', { status: res.status, body: errBody.slice(0, 120) }))
       }
       const json = await res.json()
       // Sonnet 5 は thinking ブロックが content[0] に入るため、text ブロックを探して取得する
@@ -1006,46 +1190,105 @@ improvementDetails:3件、issue/reason/fix必須。menu:2件。frameNotes:最大
       // 方法2: 生のJSON（コードブロックなし）
       const rawMatch = text.match(/\{[\s\S]*\}/)
       const jsonStr = codeMatch?.[1] ?? rawMatch?.[0] ?? null
+      const emptyCard = (): FeedbackCard => ({ title: '', text: '' })
+      const isConfidence = (v: any): v is Confidence => v === 'low' || v === 'medium' || v === 'high'
+      const asBbox = (b: any): FrameRef | undefined =>
+        (b && typeof b.f === 'number' && typeof b.x === 'number' && typeof b.y === 'number'
+          && typeof b.w === 'number' && typeof b.h === 'number' && b.w > 0 && b.h > 0) ? b : undefined
+      const asCard = (c: any): FeedbackCard =>
+        c && typeof c.title === 'string' ? { title: c.title, text: c.text ?? '', bbox: asBbox(c.bbox) } : emptyCard()
       if (jsonStr) {
         try {
           const p = JSON.parse(jsonStr) as any
+          // 総合スコアが数値でない場合は「JSONは解析できたが中身が不完全」なケース。
+          // 以前ここを60点にフォールバックしていたため、エラーにもならず偽の60点が
+          // 正常な結果として表示され続ける不具合があった（総合パース失敗時のエラー化とは
+          // 別経路のため、そちらの修正だけでは直っていなかった）。ここも素直に失敗扱いにする。
+          if (typeof p.score !== 'number') throw new Error('score missing')
+          const { dims: expectedDims } = dimensionsForEventDisplay(event, t)
+          const rawDims: any[] = Array.isArray(p.dimensions) ? p.dimensions : []
+          const dimensions: DimensionScore[] = expectedDims.map(d => {
+            const found = rawDims.find(r => r?.id === d.id)
+            return {
+              id: d.id,
+              label: d.label,
+              score: typeof found?.score === 'number' ? Math.max(0, Math.min(100, found.score)) : 60,
+              confidence: isConfidence(found?.confidence) ? found.confidence : 'low',
+              reason: typeof found?.reason === 'string' ? found.reason : '',
+              bbox: asBbox(found?.bbox),
+            }
+          })
           parsed = {
-            score: typeof p.score === 'number' ? p.score : 60,
-            overall: p.overall ?? '分析完了',
-            positives: Array.isArray(p.positives) ? p.positives : [],
-            improvements: Array.isArray(p.improvements) ? p.improvements : [],
-            improvementDetails: Array.isArray(p.improvementDetails)
-              ? p.improvementDetails.filter((d: any) => d?.issue && d?.reason && d?.fix)
-              : undefined,
-            menu: Array.isArray(p.menu) ? p.menu : [],
+            score: p.score,
+            headline: p.headline ?? t('videoAnalysis.native.defaultHeadline'),
+            dimensions,
+            confidenceOverall: isConfidence(p.confidenceOverall) ? p.confidenceOverall : 'low',
+            strength: asCard(p.strength),
+            focus: asCard(p.focus),
+            nextStep: asCard(p.nextStep),
+            practice: {
+              theme: p.practice?.theme ?? '',
+              drill: p.practice?.drill ?? '',
+              drillDetail: p.practice?.drillDetail ?? '',
+            },
             frameNotes: Array.isArray(p.frameNotes) ? p.frameNotes : undefined,
           }
         } catch { parsed = null }
       }
-      // 方法3: JSONが取れなければテキストから最低限の結果を生成
-      // コードブロック行・空行・記号のみの行を除外して有効なテキストを探す
-      if (!parsed && text.trim().length > 0) {
-        const validLine = text.split('\n').find((l: string) => {
-          const t = l.trim()
-          return t.length > 5 && !t.startsWith('`') && !t.startsWith('{') && !t.startsWith('[')
-        })
-        parsed = {
-          score: 60,
-          overall: validLine?.slice(0, 80) ?? '分析完了',
-          positives: [],
-          improvements: [],
-          menu: [],
-        }
+      // JSONが取得できなかった場合、以前は「スコア60点固定」の中身のない仮結果を
+      // 生成してそのまま成功扱いにしていたが、これはAIが混雑等でまともに応答できなかった
+      // ときに偽の分析結果をユーザーに提示し、かつチケットも消費してしまう不具合だった。
+      // 解析失敗は素直に失敗として扱い、チケットを消費せずリトライを促す。
+      if (!parsed) {
+        throw new Error(t('videoAnalysis.native.parseFailedError'))
       }
+
+      // 同じ種目の直近分析があればスコア差分表示のために保持
+      // ※ event の空文字フォールバック値は履歴のグルーピングキー（内部データ）のため、
+      //   表示用の翻訳は行わず常に日本語の固定値を使う（言語切り替えで別グループに
+      //   分裂しないように）。表示側は historyEvents 生成時に翻訳する。
+      const prevEntry = historyList.find(h => h.event === (event || '種目未指定'))
+
+      // 履歴への永続保存を、画面状態の更新・チケット消費より必ず先に完了させる。
+      // 以前は setResult/setPhase('result') → チケット消費 → 履歴保存（fire-and-forget）
+      // の順で、履歴保存が非同期のまま画面遷移が先に起きていたため、遷移直後に
+      // クラッシュするとチケットだけ消費されて分析結果が履歴に残らない不具合があった。
+      // 画像は保存しない（base64サムネイルを含めるとJSONが肥大化し、AsyncStorageの
+      // 書き込みが失敗して履歴が実は保存されていない不具合の原因になっていたため）
+      try {
+        const nextHistory = await addVideoAnalysisHistory({
+          event: event || '種目未指定',
+          shot_date: shotDate || undefined,
+          score: parsed.score,
+          headline: parsed.headline,
+          dimensions: parsed.dimensions,
+          confidenceOverall: parsed.confidenceOverall,
+          strength: parsed.strength,
+          focus: parsed.focus,
+          nextStep: parsed.nextStep,
+          practice: parsed.practice,
+        })
+        setHistoryList(nextHistory)
+      } catch {
+        // 履歴保存に失敗しても、AIの応答自体は無駄にせずユーザーに提示する
+      }
+
       setResult(parsed)
       setPhase('result')
+      setPrevScore(prevEntry?.score ?? null)
       adCreditRef.current = false  // 分析成功でクレジット消費
       // 広告視聴後の分析が完了したら、広告なしプランへのアップセルを提示
       if (usedAdCredit) setUpsellVisible(true)
+
+      // 分析に成功した場合のみ利用回数・チケットを消費する（失敗時に課金しないため）
+      if (!skipGate) {
+        await recordUsage('video')
+        if (usesTicketThisRun) Toast.show({ type: 'info', text1: t('videoAnalysis.native.ticketUsedToast', { n: TICKET_COST.video }), visibilityTime: 1800 })
+      }
       // キャッシュに保存（同じ動画の再分析コストをゼロに）
-      if (parsed) setAnalysisCache(videoUri, event, parsed).catch(() => {})
+      setAnalysisCache(videoUri, event, parsed).catch(() => {})
     } catch (e: any) {
-      setError(e?.message ?? '分析に失敗しました')
+      setError(e?.message ?? t('videoAnalysis.native.analysisFailedError'))
       setPhase('idle')
       // 分析失敗時はクレジットを残す（リトライを広告なしで許可）
     } finally {
@@ -1057,6 +1300,15 @@ improvementDetails:3件、issue/reason/fix必須。menu:2件。frameNotes:最大
     ? result.score >= 80 ? '#34C759' : result.score >= 60 ? '#FF9500' : '#FF3B30'
     : '#166534'
 
+  // 分析の根拠ギャラリー用データ（bboxが付いているカード/軸を集約）
+  type EvidenceItem = { bbox: FrameRef; caption: string; color: string }
+  const evidenceItems: EvidenceItem[] = result ? [
+    ...(result.strength.bbox ? [{ bbox: result.strength.bbox, caption: `⭐ ${result.strength.title}`, color: '#16a34a' }] : []),
+    ...(result.focus.bbox    ? [{ bbox: result.focus.bbox,    caption: `🔥 ${result.focus.title}`,    color: '#d97706' }] : []),
+    ...(result.nextStep.bbox ? [{ bbox: result.nextStep.bbox, caption: `🎯 ${result.nextStep.title}`, color: '#2563eb' }] : []),
+    ...result.dimensions.filter(d => d.bbox).map(d => ({ bbox: d.bbox as FrameRef, caption: `${d.label}：${d.reason}`, color: '#6b7280' })),
+  ].filter(it => frames[it.bbox.f]) : []
+
   return (
     <View style={{ flex: 1, backgroundColor: '#f5f5f7' }}>
       <ScrollView
@@ -1066,18 +1318,32 @@ improvementDetails:3件、issue/reason/fix必須。menu:2件。frameNotes:最大
         keyboardShouldPersistTaps="handled"
       >
         {/* ヘッダー */}
-        <View style={{ marginBottom: 20 }}>
-          <Text style={{ color: '#111827', fontSize: 24, fontWeight: '900', letterSpacing: -0.5 }}>フォーム分析</Text>
-          <Text style={{ color: '#6b7280', fontSize: 13, marginTop: 2 }}>AIが{MAX_FRAMES}フレームを同時解析・最速診断</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: '#111827', fontSize: 24, fontWeight: '900', letterSpacing: -0.5 }}>{t('videoAnalysis.native.title')}</Text>
+            <Text style={{ color: '#6b7280', fontSize: 13, marginTop: 2 }}>{t('videoAnalysis.native.subtitle', { n: MAX_FRAMES })}</Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => setHistoryModal(true)}
+            activeOpacity={0.8}
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: 5,
+              backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb',
+              paddingHorizontal: 12, paddingVertical: 8,
+            }}
+          >
+            <Ionicons name="time-outline" size={15} color={BRAND} />
+            <Text style={{ color: BRAND, fontSize: 12, fontWeight: '700' }}>{t('videoAnalysis.native.history')}</Text>
+          </TouchableOpacity>
         </View>
 
         {/* 種目入力 */}
         <View style={{ marginBottom: 14 }}>
-          <Text style={{ color: '#6b7280', fontSize: 11, fontWeight: '700', marginBottom: 6, letterSpacing: 0.8 }}>種目（任意）</Text>
+          <Text style={{ color: '#6b7280', fontSize: 11, fontWeight: '700', marginBottom: 6, letterSpacing: 0.8 }}>{t('videoAnalysis.native.eventLabel')}</Text>
           <TextInput
             style={{ backgroundColor: '#fff', color: '#111827', borderRadius: 12,
               padding: 14, fontSize: 15, borderWidth: 1, borderColor: '#e5e7eb' }}
-            placeholder="例：100m、走り幅跳び"
+            placeholder={t('videoAnalysis.native.eventPlaceholder')}
             placeholderTextColor="#9ca3af"
             value={event}
             onChangeText={setEvent}
@@ -1088,38 +1354,63 @@ improvementDetails:3件、issue/reason/fix必須。menu:2件。frameNotes:最大
         <View style={{ marginBottom: 14, backgroundColor: '#fff', borderRadius: 14,
           borderWidth: 1, borderColor: '#e5e7eb', padding: 14 }}>
           <Text style={{ color: '#6b7280', fontSize: 11, fontWeight: '700', marginBottom: 10, letterSpacing: 0.8 }}>
-            👤 分析対象の特定（複数人映っている場合）
+            {t('videoAnalysis.native.personIdTitle')}
           </Text>
-          <View style={{ flexDirection: 'row', gap: 10 }}>
+          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: '#9ca3af', fontSize: 10, fontWeight: '600', marginBottom: 5 }}>服の色</Text>
+              <Text style={{ color: '#9ca3af', fontSize: 10, fontWeight: '600', marginBottom: 5 }}>{t('videoAnalysis.native.laneNumberLabel')}</Text>
               <TextInput
                 style={{ backgroundColor: '#f9fafb', color: '#111827', borderRadius: 10,
                   paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, borderWidth: 1, borderColor: '#e5e7eb' }}
-                placeholder="例：赤、白など"
+                placeholder={t('videoAnalysis.native.laneNumberPlaceholder')}
+                placeholderTextColor="#9ca3af"
+                keyboardType="number-pad"
+                value={laneNumber}
+                onChangeText={setLaneNumber}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: '#9ca3af', fontSize: 10, fontWeight: '600', marginBottom: 5 }}>{t('videoAnalysis.native.finishPositionLabel')}</Text>
+              <TextInput
+                style={{ backgroundColor: '#f9fafb', color: '#111827', borderRadius: 10,
+                  paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, borderWidth: 1, borderColor: '#e5e7eb' }}
+                placeholder={t('videoAnalysis.native.finishPositionPlaceholder')}
+                placeholderTextColor="#9ca3af"
+                value={finishPosition}
+                onChangeText={setFinishPosition}
+              />
+            </View>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: '#9ca3af', fontSize: 10, fontWeight: '600', marginBottom: 5 }}>{t('videoAnalysis.native.clothingColorLabel')}</Text>
+              <TextInput
+                style={{ backgroundColor: '#f9fafb', color: '#111827', borderRadius: 10,
+                  paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, borderWidth: 1, borderColor: '#e5e7eb' }}
+                placeholder={t('videoAnalysis.native.clothingColorPlaceholder')}
                 placeholderTextColor="#9ca3af"
                 value={clothingColor}
                 onChangeText={setClothingColor}
               />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: '#9ca3af', fontSize: 10, fontWeight: '600', marginBottom: 5 }}>靴の色</Text>
+              <Text style={{ color: '#9ca3af', fontSize: 10, fontWeight: '600', marginBottom: 5 }}>{t('videoAnalysis.native.shoeColorLabel')}</Text>
               <TextInput
                 style={{ backgroundColor: '#f9fafb', color: '#111827', borderRadius: 10,
                   paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, borderWidth: 1, borderColor: '#e5e7eb' }}
-                placeholder="例：黒、黄など"
+                placeholder={t('videoAnalysis.native.shoeColorPlaceholder')}
                 placeholderTextColor="#9ca3af"
                 value={shoeColor}
                 onChangeText={setShoeColor}
               />
             </View>
           </View>
-          {(clothingColor || shoeColor) ? (
+          {(laneNumber || finishPosition || clothingColor || shoeColor) ? (
             <Text style={{ color: '#16a34a', fontSize: 11, marginTop: 8 }}>
-              ✓ {[clothingColor && `服：${clothingColor}`, shoeColor && `靴：${shoeColor}`].filter(Boolean).join('　')}の選手を分析対象にします
+              ✓ {t('videoAnalysis.native.targetConfirmed', { parts: [laneNumber && t('videoAnalysis.native.laneLabel', { n: laneNumber }), finishPosition && t('videoAnalysis.native.finishLabel', { n: finishPosition }), clothingColor && t('videoAnalysis.native.clothingLabel', { n: clothingColor }), shoeColor && t('videoAnalysis.native.shoeLabel', { n: shoeColor })].filter(Boolean).join('　') })}
             </Text>
           ) : (
-            <Text style={{ color: '#9ca3af', fontSize: 11, marginTop: 6 }}>入力すると複数人の動画でも正確に分析できます</Text>
+            <Text style={{ color: '#9ca3af', fontSize: 11, marginTop: 6 }}>{t('videoAnalysis.native.targetHint')}</Text>
           )}
         </View>
 
@@ -1141,18 +1432,28 @@ improvementDetails:3件、issue/reason/fix必須。menu:2件。frameNotes:最大
             color={videoUri ? '#16a34a' : '#9ca3af'}
           />
           <Text style={{ color: videoUri ? '#16a34a' : '#6b7280', fontSize: 14, marginTop: 10, fontWeight: '700' }}>
-            {videoUri ? '動画選択済み ✓  （タップして変更）' : '動画をタップして選択'}
+            {videoUri ? t('videoAnalysis.native.videoSelected') : t('videoAnalysis.native.videoSelectPrompt')}
           </Text>
           {!videoUri && (
-            <Text style={{ color: '#9ca3af', fontSize: 12, marginTop: 4 }}>MP4 / MOV 対応</Text>
+            <Text style={{ color: '#9ca3af', fontSize: 12, marginTop: 4 }}>{t('videoAnalysis.native.videoFormats')}</Text>
           )}
         </TouchableOpacity>
+
+        {/* 撮影日（分析を実行する日と異なる場合があるため手動指定できるようにする） */}
+        {videoUri && (
+          <View style={{ marginBottom: 14 }}>
+            <Text style={{ color: '#6b7280', fontSize: 11, fontWeight: '700', marginBottom: 8, letterSpacing: 0.8 }}>
+              {t('videoAnalysis.native.shotDateLabel')}
+            </Text>
+            <DateSelector date={shotDate} onChange={setShotDate} />
+          </View>
+        )}
 
         {/* 抽出フレームサムネイル */}
         {frames.length > 0 && (
           <View style={{ marginBottom: 14 }}>
             <Text style={{ color: '#6b7280', fontSize: 11, fontWeight: '700', marginBottom: 8, letterSpacing: 0.8 }}>
-              抽出フレーム ({frames.length}枚)
+              {t('videoAnalysis.native.extractedFrames', { n: frames.length })}
             </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
               {frames.map((uri, i) => (
@@ -1185,7 +1486,7 @@ improvementDetails:3件、issue/reason/fix必須。menu:2件。frameNotes:最大
             <ActivityIndicator color="#16a34a" size="large" />
             <Text style={{ color: '#6b7280', fontSize: 14, fontWeight: '600' }}>{stepLabel}</Text>
             <View style={{ flexDirection: 'row', gap: 6 }}>
-              {['フレーム抽出', 'AI解析', '結果生成'].map((step, i) => {
+              {[t('videoAnalysis.native.stepExtract'), t('videoAnalysis.native.stepAnalyze'), t('videoAnalysis.native.stepResult')].map((step, i) => {
                 const done = (phase === 'extracting' && i === 0) || (phase === 'analyzing' && i <= 1)
                 return (
                   <View key={step} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -1199,20 +1500,16 @@ improvementDetails:3件、issue/reason/fix必須。menu:2件。frameNotes:最大
           </View>
         ) : (
           <>
-            {/* 残り回数バッジ */}
-            {remaining !== null && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8,
-                backgroundColor: remaining <= 1 ? '#fef2f2' : '#f0fdf4',
-                borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, alignSelf: 'flex-start',
-                borderWidth: 1, borderColor: remaining <= 1 ? '#fca5a5' : '#bbf7d0',
-              }}>
-                <Ionicons name={remaining <= 1 ? 'warning-outline' : 'flash-outline'} size={12}
-                  color={remaining <= 1 ? '#dc2626' : '#16a34a'}/>
-                <Text style={{ fontSize: 11, fontWeight: '700', color: remaining <= 1 ? '#dc2626' : '#16a34a' }}>
-                  {remaining === 0 ? '無料枠を使い切りました' : `残り${remaining}回（無料枠）`}
-                </Text>
-              </View>
-            )}
+            {/* チケット消費数バッジ */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8,
+              backgroundColor: 'rgba(245,158,11,0.14)',
+              borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, alignSelf: 'flex-start',
+              borderWidth: 1, borderColor: 'rgba(245,158,11,0.35)',
+            }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: '#f59e0b' }}>
+                {t('videoAnalysis.native.ticketBadge', { n: TICKET_COST.video })}
+              </Text>
+            </View>
             <TouchableOpacity
               onPress={() => analyze(false, phase === 'result')}
               disabled={!videoUri}
@@ -1227,7 +1524,7 @@ improvementDetails:3件、issue/reason/fix必須。menu:2件。frameNotes:最大
             >
               <Ionicons name="sparkles" size={18} color={videoUri ? '#fff' : '#9ca3af'} />
               <Text style={{ color: videoUri ? '#fff' : '#9ca3af', fontSize: 16, fontWeight: '800' }}>
-                {phase === 'result' ? '再分析する' : 'AIで分析する'}
+                {phase === 'result' ? t('videoAnalysis.native.reanalyzeButton') : t('videoAnalysis.native.analyzeButton')}
               </Text>
             </TouchableOpacity>
           </>
@@ -1246,49 +1543,156 @@ improvementDetails:3件、issue/reason/fix必須。menu:2件。frameNotes:最大
               />
             )}
 
-            {/* スコアリング */}
+            {/* ヘッドライン＋スコア */}
             <View style={{ backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: scoreColor + '40',
               overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8 }}>
               <View style={{ height: 3, backgroundColor: scoreColor }} />
-              <ScoreRing score={result.score} />
-              <View style={{ paddingHorizontal: 20, paddingBottom: 18 }}>
-                <Text style={{ color: '#374151', fontSize: 15, lineHeight: 24, textAlign: 'center' }}>
-                  {result.overall}
+              <View style={{ padding: 20, gap: 6 }}>
+                <Text style={{ color: scoreColor, fontSize: 12, fontWeight: '800' }}>
+                  {result.score >= 80 ? t('videoAnalysis.native.scoreGood') : result.score >= 60 ? t('videoAnalysis.native.scoreOk') : t('videoAnalysis.native.scoreLow')}
                 </Text>
+                <Text style={{ color: '#111827', fontSize: 20, fontWeight: '900', lineHeight: 28 }}>
+                  {result.headline}
+                </Text>
+                <Text style={{ color: '#9ca3af', fontSize: 11, marginTop: 4 }}>
+                  {new Date().toLocaleString(language === 'ja' ? 'ja-JP' : 'en-US', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                  {event ? t('videoAnalysis.native.eventPrefix', { event }) : ''}
+                </Text>
+
+                <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 16, marginTop: 14 }}>
+                  <View>
+                    <Text style={{ color: '#9ca3af', fontSize: 11, fontWeight: '700' }}>{t('videoAnalysis.native.totalScore')}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+                      <Text style={{ color: scoreColor, fontSize: 40, fontWeight: '900' }}>{result.score}</Text>
+                      <Text style={{ color: '#9ca3af', fontSize: 13, fontWeight: '700' }}>/ 100</Text>
+                    </View>
+                    {prevScore !== null && (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2,
+                        backgroundColor: result.score >= prevScore ? '#f0fdf4' : '#fef2f2',
+                        alignSelf: 'flex-start', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 }}>
+                        <Ionicons name={result.score >= prevScore ? 'arrow-up' : 'arrow-down'} size={10}
+                          color={result.score >= prevScore ? '#16a34a' : '#dc2626'} />
+                        <Text style={{ fontSize: 10.5, fontWeight: '800', color: result.score >= prevScore ? '#16a34a' : '#dc2626' }}>
+                          {t('videoAnalysis.native.prevDiff', { sign: result.score - prevScore >= 0 ? '+' : '', n: result.score - prevScore })}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={{ flex: 1, gap: 3 }}>
+                    <Text style={{ color: '#9ca3af', fontSize: 11, fontWeight: '700' }}>{t('videoAnalysis.native.confidenceLabel')}</Text>
+                    <ConfidenceDots level={result.confidenceOverall} />
+                    <Text style={{ color: '#9ca3af', fontSize: 10, lineHeight: 14 }}>{t('videoAnalysis.native.confidenceNote')}</Text>
+                  </View>
+                </View>
               </View>
             </View>
 
-            {/* 良い点 */}
-            {result.positives?.length > 0 && (
-              <ResultSection title="良い点" color="#16a34a" icon="✅" items={result.positives} />
-            )}
-
-            {/* 改善点（詳細あれば詳細カード、なければ従来表示） */}
-            {result.improvementDetails && result.improvementDetails.length > 0 ? (
-              <ImprovementDetailSection items={result.improvementDetails} />
-            ) : result.improvements?.length > 0 ? (
-              <ResultSection title="改善点" color="#d97706" icon="⚠️" items={result.improvements} />
+            {/* 複数人動画で違う選手が分析された場合の申告リンク */}
+            {laneNumber || finishPosition || clothingColor || shoeColor ? (
+              <TouchableOpacity
+                onPress={reportWrongPersonAnalyzed}
+                disabled={reportedWrongPerson || refundingTicket}
+                activeOpacity={0.7}
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 4 }}
+              >
+                {reportedWrongPerson ? (
+                  <>
+                    <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
+                    <Text style={{ color: '#16a34a', fontSize: 12, fontWeight: '700' }}>{t('videoAnalysis.native.reportRefunded')}</Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="alert-circle-outline" size={14} color="#9ca3af" />
+                    <Text style={{ color: '#9ca3af', fontSize: 12, fontWeight: '600', textDecorationLine: 'underline' }}>
+                      {refundingTicket ? t('videoAnalysis.native.reportProcessing') : t('videoAnalysis.native.reportWrongPerson')}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
             ) : null}
 
-            {/* 練習メニュー */}
-            {result.menu?.length > 0 && (
-              <View style={{ backgroundColor: '#eff6ff', borderRadius: 16, borderWidth: 1, borderColor: '#bfdbfe', padding: 16 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                  <Text style={{ fontSize: 18 }}>🏃</Text>
-                  <Text style={{ color: '#2563eb', fontSize: 14, fontWeight: '800' }}>おすすめ練習メニュー</Text>
+            {/* レーダーチャート */}
+            {result.dimensions.length >= 3 && (
+              <View style={{ backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb', padding: 16, alignItems: 'center', gap: 10 }}>
+                <RadarChart dimensions={result.dimensions} />
+                <View style={{ flexDirection: 'row', gap: 16, marginTop: 2 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                    <View style={{ width: 16, height: 2, backgroundColor: '#16a34a' }} />
+                    <Text style={{ fontSize: 11, color: '#4b5563', fontWeight: '700' }}>{t('videoAnalysis.native.you')}</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                    <View style={{ width: 16, height: 0, borderTopWidth: 1.5, borderColor: '#9ca3af', borderStyle: 'dashed' }} />
+                    <Text style={{ fontSize: 11, color: '#4b5563', fontWeight: '700' }}>{t('videoAnalysis.native.idealLine')}</Text>
+                  </View>
                 </View>
-                {result.menu.map((m, i) => (
-                  <View key={i} style={{ flexDirection: 'row', gap: 12, marginBottom: 10, alignItems: 'flex-start' }}>
-                    <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: '#dbeafe',
-                      alignItems: 'center', justifyContent: 'center' }}>
-                      <Text style={{ color: '#2563eb', fontSize: 12, fontWeight: '900' }}>{i + 1}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#fefce8',
+                  borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#fde047', width: '100%' }}>
+                  <Ionicons name="bulb-outline" size={14} color="#ca8a04" />
+                  <Text style={{ flex: 1, color: '#713f12', fontSize: 11, lineHeight: 16 }}>
+                    {t('videoAnalysis.native.radarNote')}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {/* AIコーチのフィードバック */}
+            {(result.strength.title || result.focus.title || result.nextStep.title) && (
+              <View style={{ gap: 10 }}>
+                <Text style={{ color: '#111827', fontSize: 14, fontWeight: '800' }}>{t('videoAnalysis.native.aiFeedback')}</Text>
+                {result.strength.title && (
+                  <FeedbackCardView icon="⭐" label={t('videoAnalysis.native.todayStrength')} color="#16a34a" bg="#f0fdf4"
+                    card={result.strength} frameUri={result.strength.bbox ? frames[result.strength.bbox.f] : undefined} />
+                )}
+                {result.focus.title && (
+                  <FeedbackCardView icon="🔥" label={t('videoAnalysis.native.todayTheme')} color="#d97706" bg="#fffbeb"
+                    card={result.focus} frameUri={result.focus.bbox ? frames[result.focus.bbox.f] : undefined} />
+                )}
+                {result.nextStep.title && (
+                  <FeedbackCardView icon="🎯" label={t('videoAnalysis.native.nextStep')} color="#2563eb" bg="#eff6ff"
+                    card={result.nextStep} frameUri={result.nextStep.bbox ? frames[result.nextStep.bbox.f] : undefined} />
+                )}
+              </View>
+            )}
+
+            {/* 今日の練習テーマ＋おすすめドリル */}
+            {(result.practice.theme || result.practice.drill) && (
+              <View style={{ backgroundColor: '#111827', borderRadius: 16, padding: 16, gap: 10 }}>
+                {result.practice.theme && (
+                  <View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                      <Ionicons name="flag" size={13} color="#4ade80" />
+                      <Text style={{ color: '#4ade80', fontSize: 11, fontWeight: '800' }}>{t('videoAnalysis.native.todayPracticeTheme')}</Text>
                     </View>
+                    <Text style={{ color: '#fff', fontSize: 15, fontWeight: '800', lineHeight: 21 }}>{result.practice.theme}</Text>
+                    <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 11.5, marginTop: 2 }}>{t('videoAnalysis.native.practiceThemeNote')}</Text>
+                  </View>
+                )}
+                {result.practice.drill && (
+                  <View style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 12, flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+                    <Text style={{ fontSize: 18 }}>👟</Text>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ color: '#111827', fontSize: 14, fontWeight: '700' }}>{m.name}</Text>
-                      <Text style={{ color: '#6b7280', fontSize: 12, lineHeight: 18, marginTop: 2 }}>{m.detail}</Text>
+                      <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>{t('videoAnalysis.native.recommendedDrill', { name: result.practice.drill })}</Text>
+                      {result.practice.drillDetail && (
+                        <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11.5, marginTop: 2, lineHeight: 16 }}>{result.practice.drillDetail}</Text>
+                      )}
                     </View>
                   </View>
-                ))}
+                )}
+              </View>
+            )}
+
+            {/* 分析の根拠（静止画比較） */}
+            {evidenceItems.length > 0 && (
+              <View style={{ gap: 8 }}>
+                <Text style={{ color: '#111827', fontSize: 14, fontWeight: '800' }}>{t('videoAnalysis.native.evidenceTitle')}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+                  {evidenceItems.map((it, i) => (
+                    <View key={i} style={{ width: 120, gap: 6 }}>
+                      <EvidenceThumb uri={frames[it.bbox.f]} bbox={it.bbox} w={120} h={90} color={it.color} />
+                      <Text style={{ color: '#4b5563', fontSize: 10.5, lineHeight: 14 }} numberOfLines={3}>{it.caption}</Text>
+                    </View>
+                  ))}
+                </ScrollView>
               </View>
             )}
 
@@ -1299,7 +1703,7 @@ improvementDetails:3件、issue/reason/fix必須。menu:2件。frameNotes:最大
               style={{ borderRadius: 16, padding: 16, alignItems: 'center',
                 backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb' }}
             >
-              <Text style={{ color: '#6b7280', fontSize: 14, fontWeight: '700' }}>🔄 再分析する</Text>
+              <Text style={{ color: '#6b7280', fontSize: 14, fontWeight: '700' }}>🔄 {t('videoAnalysis.native.reanalyzeButton')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -1326,12 +1730,19 @@ improvementDetails:3件、issue/reason/fix必須。menu:2件。frameNotes:最大
           setAdGateVisible(false)
           await recordUsage('video')
           trackFeatureUse('video')
-          checkAdGate('video').then(g2 => { if (g2.remaining < 999) setRemaining(g2.remaining) }).catch(() => {})
           adCreditRef.current = true  // 広告視聴済みクレジット付与（失敗時リトライも許可）
-          setError(''); setResult(null); setRawText('')
+          setError(''); setResult(null); setRawText(''); setReportedWrongPerson(false)
           analyze(true, true)  // forceRefresh=true で必ず新規分析を実行
         }}
         onUpgrade={() => { setAdGateVisible(false); router.push('/paywall') }}
+      />
+
+      <TicketGateModal
+        visible={ticketGateVisible}
+        feature="video"
+        ticketCost={ticketGateCost}
+        ticketBalance={ticketGateBalance}
+        onClose={() => setTicketGateVisible(false)}
       />
 
       {/* ── 分析結果後アップセルシート（広告視聴で分析した直後に表示） ── */}
@@ -1343,25 +1754,24 @@ improvementDetails:3件、issue/reason/fix必須。menu:2件。frameNotes:最大
                 <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)', alignSelf: 'center', marginBottom: 4 }} />
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                   <Ionicons name="star" size={24} color="#16a34a" />
-                  <Text style={{ color: '#fff', fontSize: 17, fontWeight: '800' }}>広告なしプランにしませんか？</Text>
+                  <Text style={{ color: '#fff', fontSize: 17, fontWeight: '800' }}>{t('videoAnalysis.native.upsellTitle')}</Text>
                 </View>
                 <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, lineHeight: 20 }}>
-                  無料枠を使い切ると広告視聴が必要になります。{'\n'}
-                  広告なしプランなら、フォーム分析も食事分析も広告なしで使い放題です。
+                  {t('videoAnalysis.native.upsellBody')}
                 </Text>
                 <View style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 14, gap: 8 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>FREE（今のプラン）</Text>
-                    <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>無料枠超過後は広告視聴</Text>
+                    <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>{t('videoAnalysis.native.upsellFreeLabel')}</Text>
+                    <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>{t('videoAnalysis.native.upsellFreeDesc')}</Text>
                   </View>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <View style={{ backgroundColor: '#166534', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
-                        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800' }}>広告なし</Text>
+                        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800' }}>{t('videoAnalysis.native.upsellNoAdsBadge')}</Text>
                       </View>
-                      <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>¥980/月</Text>
+                      <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>{t('videoAnalysis.native.upsellPrice')}</Text>
                     </View>
-                    <Text style={{ color: '#4ade80', fontSize: 12, fontWeight: '700' }}>広告一切なし</Text>
+                    <Text style={{ color: '#4ade80', fontSize: 12, fontWeight: '700' }}>{t('videoAnalysis.native.upsellNoAdsFull')}</Text>
                   </View>
                 </View>
                 <TouchableOpacity
@@ -1369,14 +1779,224 @@ improvementDetails:3件、issue/reason/fix必須。menu:2件。frameNotes:最大
                   onPress={() => { setUpsellVisible(false); router.push('/paywall?plan=noad' as any) }}
                   activeOpacity={0.85}
                 >
-                  <Text style={{ color: '#fff', fontSize: 15, fontWeight: '800' }}>広告なしプランを見る ¥980/月〜</Text>
+                  <Text style={{ color: '#fff', fontSize: 15, fontWeight: '800' }}>{t('videoAnalysis.native.upsellCta')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={{ alignItems: 'center', paddingVertical: 4 }} onPress={() => setUpsellVisible(false)} activeOpacity={0.7}>
-                  <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>今はしない</Text>
+                  <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>{t('videoAnalysis.native.upsellDismiss')}</Text>
                 </TouchableOpacity>
               </View>
             </Pressable>
           </View>
+        </Pressable>
+      </Modal>
+
+      {/* ── 分析履歴一覧モーダル ── */}
+      <Modal visible={historyModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setHistoryModal(false)}>
+        <View style={{ flex: 1, backgroundColor: '#f5f5f7' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 14 }}>
+            <Text style={{ color: '#111827', fontSize: 18, fontWeight: '900' }}>{t('videoAnalysis.native.historyTitle')}</Text>
+            <TouchableOpacity onPress={() => setHistoryModal(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={t('videoAnalysis.native.closeLabel')}>
+              <Ionicons name="close" size={24} color="#6b7280" />
+            </TouchableOpacity>
+          </View>
+          {historyList.length === 0 ? (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
+              <Text style={{ fontSize: 32, marginBottom: 8 }}>🎥</Text>
+              <Text style={{ color: '#6b7280', fontSize: 14, textAlign: 'center' }}>{t('videoAnalysis.native.noHistoryTitle')}</Text>
+            </View>
+          ) : (
+            <>
+              {historyEvents.length > 1 && (
+                <ScrollView
+                  horizontal showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 12, gap: 8 }}
+                >
+                  {[null, ...historyEvents].map(ev => (
+                    <TouchableOpacity
+                      key={ev ?? '__all'}
+                      onPress={() => setHistoryFilter(ev)}
+                      activeOpacity={0.8}
+                      style={{
+                        paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999,
+                        backgroundColor: historyFilter === ev ? BRAND : '#fff',
+                        borderWidth: 1, borderColor: historyFilter === ev ? BRAND : '#e5e7eb',
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: historyFilter === ev ? '#fff' : '#374151' }}>
+                        {ev ? (ev === '種目未指定' ? t('videoAnalysis.native.eventUnspecified') : getEventLabel(ev, language)) : t('videoAnalysis.native.allFilter')}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
+              <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 4, gap: 18 }} showsVerticalScrollIndicator={false}>
+                {groupedHistory.map(group => (
+                  <View key={group.event} style={{ gap: 10 }}>
+                    {historyEvents.length > 1 && (
+                      <Text style={{ color: '#9ca3af', fontSize: 12, fontWeight: '800', letterSpacing: 0.3 }}>
+                        {group.event === '種目未指定' ? t('videoAnalysis.native.eventUnspecified') : getEventLabel(group.event, language)}{t('videoAnalysis.native.entriesCount', { n: group.entries.length })}
+                      </Text>
+                    )}
+                    {group.entries.map((h, i) => {
+                      const hColor = h.score >= 80 ? '#34C759' : h.score >= 60 ? '#FF9500' : '#FF3B30'
+                      const prev = group.entries[i + 1]
+                      const delta = prev ? h.score - prev.score : null
+                      return (
+                        <TouchableOpacity
+                          key={h.id}
+                          onPress={() => setHistoryDetail(h)}
+                          activeOpacity={0.8}
+                          style={{
+                            flexDirection: 'row', alignItems: 'center', gap: 12,
+                            backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#e5e7eb', padding: 12,
+                          }}
+                        >
+                          {h.thumbBase64 ? (
+                            <Image source={{ uri: `data:image/jpeg;base64,${h.thumbBase64}` }} style={{ width: 52, height: 52, borderRadius: 10 }} />
+                          ) : (
+                            <View style={{ width: 52, height: 52, borderRadius: 10, backgroundColor: '#f0f2f5', alignItems: 'center', justifyContent: 'center' }}>
+                              <Ionicons name="videocam-outline" size={20} color="#9ca3af" />
+                            </View>
+                          )}
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ color: '#111827', fontSize: 14, fontWeight: '700' }} numberOfLines={1}>{h.event === '種目未指定' ? t('videoAnalysis.native.eventUnspecified') : getEventLabel(h.event, language)}</Text>
+                            <Text style={{ color: '#6b7280', fontSize: 12, marginTop: 2 }} numberOfLines={1}>
+                              {new Date(h.shot_date ? h.shot_date + 'T00:00:00' : h.created_at).toLocaleDateString(language === 'ja' ? 'ja-JP' : 'en-US', { month: 'short', day: 'numeric', weekday: 'short' })}　{h.headline ?? h.overall ?? ''}
+                            </Text>
+                          </View>
+                          <View style={{ alignItems: 'center' }}>
+                            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: hColor + '18', alignItems: 'center', justifyContent: 'center' }}>
+                              <Text style={{ color: hColor, fontSize: 14, fontWeight: '900' }}>{h.score}</Text>
+                            </View>
+                            {delta !== null && delta !== 0 && (
+                              <Text style={{
+                                fontSize: 10, fontWeight: '800', marginTop: 3,
+                                color: delta > 0 ? '#34C759' : '#FF3B30',
+                              }}>
+                                {delta > 0 ? `▲${delta}` : `▼${Math.abs(delta)}`}
+                              </Text>
+                            )}
+                          </View>
+                        </TouchableOpacity>
+                      )
+                    })}
+                  </View>
+                ))}
+              </ScrollView>
+            </>
+          )}
+        </View>
+      </Modal>
+
+      {/* ── 分析履歴詳細モーダル ── */}
+      <Modal visible={!!historyDetail} transparent animationType="slide" onRequestClose={() => setHistoryDetail(null)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }} onPress={() => setHistoryDetail(null)}>
+          <Pressable onPress={() => {}}>
+            <View style={{ backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 36, maxHeight: '85%' }}>
+              {historyDetail && (
+                <>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: '#111827', fontSize: 17, fontWeight: '900' }}>{historyDetail.event === '種目未指定' ? t('videoAnalysis.native.eventUnspecified') : getEventLabel(historyDetail.event, language)}</Text>
+                      <Text style={{ color: '#6b7280', fontSize: 12, marginTop: 2 }}>
+                        {historyDetail.shot_date
+                          ? new Date(historyDetail.shot_date + 'T00:00:00').toLocaleDateString(language === 'ja' ? 'ja-JP' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+                          : new Date(historyDetail.created_at).toLocaleString(language === 'ja' ? 'ja-JP' : 'en-US')}
+                      </Text>
+                      {historyDetail.shot_date && historyDetail.shot_date !== historyDetail.created_at.slice(0, 10) && (
+                        <Text style={{ color: '#9ca3af', fontSize: 11, marginTop: 1 }}>
+                          {t('videoAnalysis.native.analyzedOn', { date: new Date(historyDetail.created_at).toLocaleDateString(language === 'ja' ? 'ja-JP' : 'en-US') })}
+                        </Text>
+                      )}
+                    </View>
+                    <TouchableOpacity onPress={() => setHistoryDetail(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={t('videoAnalysis.native.closeLabel')}>
+                      <Ionicons name="close" size={22} color="#6b7280" />
+                    </TouchableOpacity>
+                  </View>
+                  <ScrollView showsVerticalScrollIndicator={false}>
+                    <View style={{ alignItems: 'center', paddingVertical: 10 }}>
+                      <Text style={{
+                        color: historyDetail.score >= 80 ? '#34C759' : historyDetail.score >= 60 ? '#FF9500' : '#FF3B30',
+                        fontSize: 40, fontWeight: '900',
+                      }}>{historyDetail.score}<Text style={{ fontSize: 14, color: '#9ca3af' }}> / 100</Text></Text>
+                    </View>
+                    <Text style={{ color: '#374151', fontSize: 14, lineHeight: 21, marginBottom: 16, textAlign: 'center', fontWeight: '700' }}>
+                      {historyDetail.headline ?? historyDetail.overall ?? ''}
+                    </Text>
+
+                    {historyDetail.dimensions && historyDetail.dimensions.length >= 3 ? (
+                      <View style={{ gap: 14 }}>
+                        <View style={{ alignItems: 'center' }}>
+                          <RadarChart dimensions={historyDetail.dimensions} size={240} />
+                        </View>
+                        {historyDetail.strength?.title && (
+                          <FeedbackCardView icon="⭐" label={t('videoAnalysis.native.todayStrength')} color="#16a34a" bg="#f0fdf4" card={historyDetail.strength} />
+                        )}
+                        {historyDetail.focus?.title && (
+                          <FeedbackCardView icon="🔥" label={t('videoAnalysis.native.todayTheme')} color="#d97706" bg="#fffbeb" card={historyDetail.focus} />
+                        )}
+                        {historyDetail.nextStep?.title && (
+                          <FeedbackCardView icon="🎯" label={t('videoAnalysis.native.nextStep')} color="#2563eb" bg="#eff6ff" card={historyDetail.nextStep} />
+                        )}
+                        {historyDetail.practice?.drill && (
+                          <View style={{ backgroundColor: '#f0f2f5', borderRadius: 10, padding: 12 }}>
+                            <Text style={{ color: '#111827', fontSize: 13, fontWeight: '700' }}>{t('videoAnalysis.native.recommendedDrill', { name: historyDetail.practice.drill })}</Text>
+                            {historyDetail.practice.drillDetail && (
+                              <Text style={{ color: '#6b7280', fontSize: 12, marginTop: 2 }}>{historyDetail.practice.drillDetail}</Text>
+                            )}
+                          </View>
+                        )}
+                      </View>
+                    ) : (
+                      <>
+                        {/* 旧スキーマの履歴（互換表示） */}
+                        {!!historyDetail.positives?.length && (
+                          <View style={{ backgroundColor: '#f0fdf415', borderRadius: 16, borderWidth: 1, borderColor: '#16a34a30', padding: 14, marginBottom: 10 }}>
+                            <Text style={{ color: '#16a34a', fontSize: 13, fontWeight: '800', marginBottom: 8 }}>{t('videoAnalysis.native.goodPoints')}</Text>
+                            {historyDetail.positives.map((p, i) => (
+                              <Text key={i} style={{ color: '#374151', fontSize: 13, lineHeight: 20 }}>・{p}</Text>
+                            ))}
+                          </View>
+                        )}
+                        {!!historyDetail.improvements?.length && (
+                          <View style={{ backgroundColor: '#fffbeb', borderRadius: 16, borderWidth: 1, borderColor: '#fde68a', padding: 14, marginBottom: 10 }}>
+                            <Text style={{ color: '#d97706', fontSize: 13, fontWeight: '800', marginBottom: 8 }}>{t('videoAnalysis.native.improvements')}</Text>
+                            {historyDetail.improvements.map((p, i) => (
+                              <Text key={i} style={{ color: '#374151', fontSize: 13, lineHeight: 20 }}>・{p}</Text>
+                            ))}
+                          </View>
+                        )}
+                        {!!historyDetail.menu?.length && (
+                          <View style={{ marginTop: 4 }}>
+                            <Text style={{ color: '#6b7280', fontSize: 12, fontWeight: '700', marginBottom: 8 }}>{t('videoAnalysis.native.recommendedDrills')}</Text>
+                            {historyDetail.menu.map((mn, i) => (
+                              <View key={i} style={{ backgroundColor: '#f0f2f5', borderRadius: 10, padding: 12, marginBottom: 8 }}>
+                                <Text style={{ color: '#111827', fontSize: 13, fontWeight: '700' }}>{mn.name}</Text>
+                                <Text style={{ color: '#6b7280', fontSize: 12, marginTop: 2 }}>{mn.detail}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        )}
+                      </>
+                    )}
+
+                    <TouchableOpacity
+                      onPress={() => {
+                        const id = historyDetail.id
+                        setHistoryDetail(null)
+                        deleteVideoAnalysisHistory(id).then(setHistoryList).catch(() => {})
+                      }}
+                      style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 14, marginTop: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="trash-outline" size={15} color="#FF3B30" />
+                      <Text style={{ color: '#FF3B30', fontSize: 13, fontWeight: '700' }}>{t('videoAnalysis.native.deleteHistory')}</Text>
+                    </TouchableOpacity>
+                  </ScrollView>
+                </>
+              )}
+            </View>
+          </Pressable>
         </Pressable>
       </Modal>
     </View>
@@ -1422,7 +2042,7 @@ function PremiumGate() {
         {/* 料金 */}
         <View style={{ alignSelf: 'stretch', backgroundColor: 'rgba(229,62,62,0.1)', borderRadius: 16, padding: 20, borderWidth: 1, borderColor: 'rgba(229,62,62,0.3)', alignItems: 'center', gap: 8 }}>
           <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>プレミアムプラン</Text>
-          <Text style={{ color: '#111827', fontSize: 32, fontWeight: '900' }}>¥980<Text style={{ fontSize: 14, fontWeight: '400' }}>/月</Text></Text>
+          <Text style={{ color: '#111827', fontSize: 32, fontWeight: '900' }}>¥480<Text style={{ fontSize: 14, fontWeight: '400' }}>/月</Text></Text>
           <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11 }}>いつでもキャンセル可能</Text>
         </View>
 
@@ -1443,6 +2063,8 @@ function PremiumGate() {
 function WebPlayer({ isPremiumUser: isPremiumProp }: { isPremiumUser: boolean }) {
   const router = useRouter()
   const { isGuest: isGuestWeb } = useAuth()
+  const { t } = useTranslation()
+  const { language } = useLanguage()
 
   /* ── refs ── */
   const videoRef         = useRef<HTMLVideoElement | null>(null)
@@ -1467,6 +2089,9 @@ function WebPlayer({ isPremiumUser: isPremiumProp }: { isPremiumUser: boolean })
   const [adGateRemainingW,  setAdGateRemainingW]  = useState(0)
   const [adGateHardLimited, setAdGateHardLimited] = useState(false)
   const [adGateLimitTypeW,  setAdGateLimitTypeW]  = useState<'none'|'daily'|'monthly'|'total'|'window'>('none')
+  const [ticketGateVisible, setTicketGateVisible] = useState(false)
+  const [ticketGateCost,    setTicketGateCost]    = useState(0)
+  const [ticketGateBalance, setTicketGateBalance] = useState(0)
   const isPremiumUser = isPremiumProp
 
   // 種目・選手指定
@@ -1536,7 +2161,7 @@ function WebPlayer({ isPremiumUser: isPremiumProp }: { isPremiumUser: boolean })
   }, [phase])
 
   /* ── overlay描画 ── */
-  const drawOverlay = useCallback((t: number) => {
+  const drawOverlay = useCallback((time: number) => {
     const cv  = canvasRef.current
     const vid = videoRef.current
     if (!cv || !vid || !vid.offsetWidth) return
@@ -1544,7 +2169,7 @@ function WebPlayer({ isPremiumUser: isPremiumProp }: { isPremiumUser: boolean })
     cv.height = vid.offsetHeight
     const ctx = cv.getContext('2d')!
     ctx.clearRect(0, 0, cv.width, cv.height)
-    const near = annotationsRef.current.filter(a => Math.abs(a.timestamp - t) < 0.6)
+    const near = annotationsRef.current.filter(a => Math.abs(a.timestamp - time) < 0.6)
     if (!near.length) { setActiveAnn(null); return }
     const ann = near[0]
     setActiveAnn(ann)
@@ -1565,9 +2190,9 @@ function WebPlayer({ isPremiumUser: isPremiumProp }: { isPremiumUser: boolean })
     ;(ctx as any).roundRect?.(bx, by, bw, bh, 6)
     ctx.fill()
     ctx.fillStyle = '#fff'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'right'
-    ctx.fillText('🤖 分析済み', cv.width - 12, by + 16)
+    ctx.fillText(`🤖 ${t('videoAnalysis.web.analyzedBadge')}`, cv.width - 12, by + 16)
     ctx.textAlign = 'left'
-  }, [])
+  }, [t])
 
   /* ── フレーム抽出 ── */
   const extractFrame = (vid: HTMLVideoElement, t: number): Promise<string> =>
@@ -1597,7 +2222,7 @@ function WebPlayer({ isPremiumUser: isPremiumProp }: { isPremiumUser: boolean })
         messages: [{ role: 'user', content: [
           { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: dataUrl.split(',')[1] } },
           { type: 'text', text: `陸上${selectedEvent ? `(${selectedEvent})` : ''}${athleteColor ? ` 対象:${athleteColor}` : ''} ${formatTime(t)}地点。JSON形式のみ:
-{"overall":"評価20字","positives":["良い点(部位)","良い点2"],"improvements":["要約1","要約2"],"improvementDetails":[{"issue":"問題(部位)","reason":"原因(根拠)","fix":"改善方法"}],"injuryRisk":"リスク30字(低ければ「リスク低」)"}` }
+{"overall":"評価20字","positives":["良い点(部位)","良い点2"],"improvements":["要約1","要約2"],"improvementDetails":[{"issue":"問題(部位)","reason":"原因(根拠)","fix":"改善方法"}],"injuryRisk":"リスク30字(低ければ「リスク低」)"}${narrativeLanguageInstruction(language)}` }
         ]}]
       }),
     }, 30000)
@@ -1652,9 +2277,10 @@ ${summary}
     {"name": "ドリル名4（弱点補強ドリル）", "detail": "弱点部位を補強する種目"}
   ],
   "nextSteps": ["次の練習で意識すること1（具体的な動作・角度・タイミング）", "意識すること2", "意識すること3"]
-}` }]
+}${narrativeLanguageInstruction(language)}` }]
         }),
-      }, 45000)
+      }, 65000)  // api/analyze.tsのmaxDuration=60秒に合わせて、45秒のクライアント側タイムアウトが
+                 // サーバーより先に切れないようにする
       const data  = await res.json()
       const text  = data.content?.find((b: any) => b.type === 'text')?.text ?? '{}'
       const match = text.match(/\{[\s\S]*\}/)
@@ -1664,16 +2290,17 @@ ${summary}
   }
 
   /* ── 分析コア（アドゲートチェック後に呼ぶ） ── */
-  const startAnalysisCore = async () => {
+  /* 戻り値: 1フレーム以上の分析に成功したか（失敗時はチケットを消費させないための判定に使う） */
+  const startAnalysisCore = async (): Promise<boolean> => {
     const vid = videoRef.current
-    if (!vid?.src) { Alert.alert('動画を選択してください'); return }
+    if (!vid?.src) { Alert.alert(t('videoAnalysis.web.selectVideoAlert')); return false }
     if (!vid.duration)
       await new Promise<void>(r => vid.addEventListener('loadedmetadata', () => r(), { once: true }))
     setPhase('analyzing')
     const dur  = vid.duration
     const step = Math.max(dur / MAX_FRAMES, 0.5)
     const times: number[] = []
-    for (let t = step / 2; t < dur; t += step) times.push(parseFloat(t.toFixed(2)))
+    for (let ts = step / 2; ts < dur; ts += step) times.push(parseFloat(ts.toFixed(2)))
     const capped = times.slice(0, MAX_FRAMES)
     setProgress({ done: 0, total: capped.length })
     const results: Annotation[] = []
@@ -1686,30 +2313,43 @@ ${summary}
         setAnnotations([...results])
       } catch { /* skip */ }
     }
+    if (results.length === 0) {
+      setPhase('player')
+      Alert.alert(t('videoAnalysis.web.analysisFailedTitle'), t('videoAnalysis.web.analysisFailedMessage'))
+      return false
+    }
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(results)).catch(() => {})
     vid.currentTime = 0
     setPhase('player')
     /* 総合評価を非同期で生成 */
     generateComprehensive(results)
+    return true
   }
 
   /* ── 分析スタート（アドゲートチェック付き） ── */
   const startAnalysis = async () => {
     if (startingRef.current) return  // 二重タップ防止
     const vid = videoRef.current
-    if (!vid?.src) { Alert.alert('動画を選択してください'); return }
+    if (!vid?.src) { Alert.alert(t('videoAnalysis.web.selectVideoAlert')); return }
     startingRef.current = true
     try {
       const gate = await checkAdGate('video')
       if (!gate.allowed) {
-        setAdGateRemainingW(gate.remaining)
-        setAdGateHardLimited(gate.hardLimited)
-        setAdGateLimitTypeW(gate.limitType)
-        setAdGateVisible(true)
+        if (gate.needsTicket) {
+          setTicketGateCost(gate.ticketCost); setTicketGateBalance(gate.ticketBalance); setTicketGateVisible(true)
+        } else {
+          setAdGateRemainingW(gate.remaining)
+          setAdGateHardLimited(gate.hardLimited)
+          setAdGateLimitTypeW(gate.limitType)
+          setAdGateVisible(true)
+        }
         return
       }
-      await recordUsage('video')
-      await startAnalysisCore()
+      const succeeded = await startAnalysisCore()
+      if (succeeded) {
+        await recordUsage('video')
+        if (gate.needsTicket) Toast.show({ type: 'info', text1: t('videoAnalysis.web.ticketUsedToast', { n: gate.ticketCost }), visibilityTime: 1800 })
+      }
     } finally {
       startingRef.current = false
     }
@@ -1740,13 +2380,13 @@ ${summary}
       <View style={s.bg}>
         <ScrollView contentContainerStyle={s.uploadCenter}>
           <Ionicons name="film-outline" size={64} color="#166534" />
-          <Text style={s.uploadTitle}>練習フォームをAI分析</Text>
-          <Text style={s.uploadSub}>アップロード → AI自動分析 → スローで確認</Text>
+          <Text style={s.uploadTitle}>{t('videoAnalysis.web.uploadTitle')}</Text>
+          <Text style={s.uploadSub}>{t('videoAnalysis.web.uploadSub')}</Text>
           <View style={s.stepRow}>
             {[
-              ['cloud-upload-outline', '① 動画を選ぶ'],
-              ['sparkles-outline',     '② AIが分析'],
-              ['eye-outline',          '③ スローで確認'],
+              ['cloud-upload-outline', t('videoAnalysis.web.step1')],
+              ['sparkles-outline',     t('videoAnalysis.web.step2')],
+              ['eye-outline',          t('videoAnalysis.web.step3')],
             ].map(([icon, label], i) => (
               <View key={i} style={s.stepItem}>
                 <View style={s.stepIcon}>
@@ -1766,22 +2406,22 @@ ${summary}
 
           <TouchableOpacity style={s.uploadBtn} onPress={() => fileRef.current?.click()}>
             <Ionicons name="cloud-upload-outline" size={20} color="#fff" />
-            <Text style={s.uploadBtnText}>{videoName ? '動画を変更' : '動画を選ぶ'}</Text>
+            <Text style={s.uploadBtnText}>{videoName ? t('videoAnalysis.web.changeVideo') : t('videoAnalysis.web.chooseVideo')}</Text>
           </TouchableOpacity>
 
           {/* ── 種目選択 ── */}
           <View style={s.settingCard}>
-            <Text style={s.settingTitle}>🏃 分析する種目（任意）</Text>
-            <Text style={s.settingDesc}>選ぶと種目に特化したアドバイスが得られます</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }} contentContainerStyle={{ gap: 6, paddingBottom: 2 }}>
-              {['', '100m','200m','400m','800m','1500m','110mH','100mH','400mH','走幅跳','三段跳','走高跳','棒高跳','砲丸投','やり投','円盤投'].map(ev => (
+            <Text style={s.settingTitle}>{t('videoAnalysis.web.eventSectionTitle')}</Text>
+            <Text style={s.settingDesc}>{t('videoAnalysis.web.eventSectionDesc')}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }} contentContainerStyle={{ gap: 8, paddingBottom: 2 }}>
+              {['', '100m','200m','300m','400m','800m','1000m','1500m','3000m','110mH','100mH','300mH','400mH','走幅跳','三段跳','走高跳','棒高跳','砲丸投','やり投','円盤投'].map(ev => (
                 <TouchableOpacity
                   key={ev || '指定なし'}
                   onPress={() => setSelectedEvent(ev)}
                   style={[s.evChip, selectedEvent === ev && s.evChipActive]}
                 >
                   <Text style={[s.evChipText, selectedEvent === ev && { color: '#fff' }]}>
-                    {ev || '指定なし'}
+                    {ev ? getEventLabel(ev, language) : t('videoAnalysis.eventNone')}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -1790,12 +2430,12 @@ ${summary}
 
           {/* ── 複数人動画: 選手の服・靴の色 ── */}
           <View style={s.settingCard}>
-            <Text style={s.settingTitle}>👤 分析する選手の特徴（複数人動画の場合）</Text>
-            <Text style={s.settingDesc}>服の色・靴の色などを入力するとその選手に絞って分析します</Text>
+            <Text style={s.settingTitle}>{t('videoAnalysis.web.athleteSectionTitle')}</Text>
+            <Text style={s.settingDesc}>{t('videoAnalysis.web.athleteSectionDesc')}</Text>
             <TextInput
               value={athleteColor}
               onChangeText={setAthleteColor}
-              placeholder="例: 赤いユニフォーム、白いスパイク　/ 一人の場合は空欄でOK"
+              placeholder={t('videoAnalysis.web.athletePlaceholder')}
               placeholderTextColor="#555"
               style={s.colorInput}
               multiline
@@ -1803,10 +2443,15 @@ ${summary}
           </View>
 
           {videoName ? (
-            <TouchableOpacity style={s.analyzeBtn} onPress={startAnalysis}>
-              <Ionicons name="sparkles-outline" size={22} color="#fff" />
-              <Text style={s.analyzeBtnText}>AIで分析スタート 🚀</Text>
-            </TouchableOpacity>
+            <>
+              <View style={s.ticketBadge}>
+                <Text style={s.ticketBadgeText}>{t('videoAnalysis.web.ticketBadge', { n: TICKET_COST.video })}</Text>
+              </View>
+              <TouchableOpacity style={s.analyzeBtn} onPress={startAnalysis}>
+                <Ionicons name="sparkles-outline" size={22} color="#fff" />
+                <Text style={s.analyzeBtnText}>{t('videoAnalysis.web.startAnalysis')}</Text>
+              </TouchableOpacity>
+            </>
           ) : null}
 
           {/* ── AIモデル表示 ── */}
@@ -1815,18 +2460,18 @@ ${summary}
               <>
                 <Text style={s.planBannerIcon}>⚡</Text>
                 <View>
-                  <Text style={s.planBannerTitle}>高精度モード（Opus）</Text>
-                  <Text style={s.planBannerSub}>プレミアムの高精度AIで分析します</Text>
+                  <Text style={s.planBannerTitle}>{t('videoAnalysis.web.proModeTitle')}</Text>
+                  <Text style={s.planBannerSub}>{t('videoAnalysis.web.proModeSub')}</Text>
                 </View>
               </>
             ) : (
               <>
                 <Text style={s.planBannerIcon}>🤖</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.planBannerTitle}>標準モード（Haiku）で分析</Text>
+                  <Text style={s.planBannerTitle}>{t('videoAnalysis.web.freeModeTitle')}</Text>
                   <Text style={s.planBannerSub}>
-                    <Text style={{ color: '#FFD700', fontWeight: '700' }}>プレミアム ¥490/月</Text>
-                    {'  にすると高精度AI（Opus）で\n骨格・重心・角度まで詳細分析'}
+                    <Text style={{ color: '#FFD700', fontWeight: '700' }}>{t('videoAnalysis.web.freeModePremiumLabel')}</Text>
+                    {t('videoAnalysis.web.freeModeSub')}
                   </Text>
                 </View>
               </>
@@ -1834,7 +2479,7 @@ ${summary}
           </View>
 
           <Text style={s.privacyNote}>
-            🔒 動画はデバイス内のみで処理{'\n'}フレーム画像のみAI分析に使用します
+            {t('videoAnalysis.web.privacyNote')}
           </Text>
         </ScrollView>
 
@@ -1849,13 +2494,21 @@ ${summary}
           onClose={() => setAdGateVisible(false)}
           onAdWatched={async () => {
             setAdGateVisible(false)
-            await recordUsage('video')
-            await startAnalysisCore()
+            const succeeded = await startAnalysisCore()
+            if (succeeded) await recordUsage('video')
           }}
           onUpgrade={() => {
             setAdGateVisible(false)
             router.push('/paywall')
           }}
+        />
+
+        <TicketGateModal
+          visible={ticketGateVisible}
+          feature="video"
+          ticketCost={ticketGateCost}
+          ticketBalance={ticketGateBalance}
+          onClose={() => setTicketGateVisible(false)}
         />
       </View>
     )
@@ -1868,15 +2521,15 @@ ${summary}
       <View style={s.center}>
         <View style={s.analyzeCard}>
           <ActivityIndicator size="large" color="#166534" />
-          <Text style={s.analyzeTitle}>AIがフォームを分析中</Text>
+          <Text style={s.analyzeTitle}>{t('videoAnalysis.web.analyzingTitle')}</Text>
           <Text style={s.analyzeCount}>{progress.done} / {progress.total}</Text>
           <View style={s.barTrack}>
             <View style={[s.barFill, { width: `${pct}%` as any }]} />
           </View>
           <Text style={s.analyzeSub}>
-            {progress.done === 0 ? 'キーフレームを抽出中...' : `フレーム ${progress.done} を分析しました`}
+            {progress.done === 0 ? t('videoAnalysis.web.extractingKeyframes') : t('videoAnalysis.web.analyzedFrame', { n: progress.done })}
           </Text>
-          <Text style={s.analyzeNote}>この画面を閉じないでください</Text>
+          <Text style={s.analyzeNote}>{t('videoAnalysis.web.dontClose')}</Text>
         </View>
       </View>
     )
@@ -1915,13 +2568,13 @@ ${summary}
 
         {/* ── コントロール ── */}
         <View style={s.ctrlRow}>
-          <TouchableOpacity style={s.iconBtn} onPress={() => stepFrame(-1)}>
+          <TouchableOpacity style={s.iconBtn} onPress={() => stepFrame(-1)} accessibilityLabel={t('videoAnalysis.web.prevFrame')}>
             <Ionicons name="play-skip-back" size={20} color="#fff" />
           </TouchableOpacity>
-          <TouchableOpacity style={s.playBtn} onPress={togglePlay}>
+          <TouchableOpacity style={s.playBtn} onPress={togglePlay} accessibilityLabel={isPlaying ? t('videoAnalysis.web.pause') : t('videoAnalysis.web.play')}>
             <Ionicons name={isPlaying ? 'pause' : 'play'} size={28} color="#fff" />
           </TouchableOpacity>
-          <TouchableOpacity style={s.iconBtn} onPress={() => stepFrame(1)}>
+          <TouchableOpacity style={s.iconBtn} onPress={() => stepFrame(1)} accessibilityLabel={t('videoAnalysis.web.nextFrame')}>
             <Ionicons name="play-skip-forward" size={20} color="#fff" />
           </TouchableOpacity>
         </View>
@@ -1938,44 +2591,44 @@ ${summary}
         {/* ── アクティブフレームのアドバイス ── */}
         {activeAnn ? (
           <View style={s.adviceCard}>
-            <Text style={s.adviceTime}>🤖 {formatTime(activeAnn.timestamp)} のフレーム分析</Text>
+            <Text style={s.adviceTime}>{t('videoAnalysis.web.frameAnalysisAt', { time: formatTime(activeAnn.timestamp) })}</Text>
             <Text style={s.adviceOverall}>{activeAnn.advice.overall}</Text>
             {activeAnn.advice.positives.length > 0 && <>
-              <Text style={s.sectionLabel}>✅ 良い点</Text>
+              <Text style={s.sectionLabel}>{t('videoAnalysis.web.goodPoints')}</Text>
               {activeAnn.advice.positives.map((p, i) => <Text key={i} style={s.adviceItem}>• {p}</Text>)}
             </>}
             {activeAnn.advice.improvementDetails && activeAnn.advice.improvementDetails.length > 0 ? (
               <>
-                <Text style={s.sectionLabel}>🔍 改善点（原因・対策）</Text>
+                <Text style={s.sectionLabel}>{t('videoAnalysis.web.improvementsWithReason')}</Text>
                 {activeAnn.advice.improvementDetails.map((d, i) => (
                   <View key={i} style={{ backgroundColor: '#fff7ed', borderRadius: 8, padding: 8, marginBottom: 6, borderLeftWidth: 3, borderLeftColor: '#f97316' }}>
                     <Text style={{ color: '#9a3412', fontSize: 12, fontWeight: '800', marginBottom: 4 }}>⚠️ {d.issue}</Text>
-                    <Text style={{ color: '#92400e', fontSize: 11, marginBottom: 3 }}>📍 なぜ: {d.reason}</Text>
-                    <Text style={{ color: '#166534', fontSize: 11 }}>✅ 改善: {d.fix}</Text>
+                    <Text style={{ color: '#92400e', fontSize: 11, marginBottom: 3 }}>{t('videoAnalysis.web.why', { reason: d.reason })}</Text>
+                    <Text style={{ color: '#166534', fontSize: 11 }}>{t('videoAnalysis.web.fix', { fix: d.fix })}</Text>
                   </View>
                 ))}
               </>
             ) : activeAnn.advice.improvements.length > 0 ? (
               <>
-                <Text style={s.sectionLabel}>⚠️ 改善点</Text>
+                <Text style={s.sectionLabel}>{t('videoAnalysis.web.improvements')}</Text>
                 {activeAnn.advice.improvements.map((p, i) => <Text key={i} style={s.adviceItem}>• {p}</Text>)}
               </>
             ) : null}
             {activeAnn.advice.injuryRisk && activeAnn.advice.injuryRisk !== 'リスク低' && (
               <View style={{ marginTop: 8, backgroundColor: '#FFF1F2', borderRadius: 8, padding: 8, borderLeftWidth: 3, borderLeftColor: '#F43F5E' }}>
-                <Text style={{ color: '#BE123C', fontSize: 11, fontWeight: '700', marginBottom: 2 }}>🚨 怪我リスク</Text>
+                <Text style={{ color: '#BE123C', fontSize: 11, fontWeight: '700', marginBottom: 2 }}>{t('videoAnalysis.web.injuryRisk')}</Text>
                 <Text style={{ color: '#9F1239', fontSize: 12 }}>{activeAnn.advice.injuryRisk}</Text>
               </View>
             )}
           </View>
         ) : (
           <View style={s.noAdviceCard}>
-            <Text style={s.noAdviceTxt}>再生すると分析済みフレームでアドバイスが表示されます</Text>
+            <Text style={s.noAdviceTxt}>{t('videoAnalysis.web.noAdviceYet')}</Text>
           </View>
         )}
 
         {/* ── サムネイル一覧 ── */}
-        <Text style={s.sectionTitle}>分析済みフレーム ({annotations.length}件)</Text>
+        <Text style={s.sectionTitle}>{t('videoAnalysis.web.analyzedFrames', { n: annotations.length })}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ paddingLeft: 12, marginBottom: 8 }}>
           {annotations.map(ann => (
             <TouchableOpacity
@@ -1996,12 +2649,12 @@ ${summary}
         {/* ── 総合評価セクション ── */}
         {/* ════════════════════════════════════════ */}
         <View style={s.divider} />
-        <Text style={s.bigSectionTitle}>総合評価 & トレーニングメニュー</Text>
+        <Text style={s.bigSectionTitle}>{t('videoAnalysis.web.comprehensiveTitle')}</Text>
 
         {loadingComp ? (
           <View style={s.compLoading}>
             <ActivityIndicator size="small" color="#166534" />
-            <Text style={s.compLoadingTxt}>AIが総合評価を生成中...</Text>
+            <Text style={s.compLoadingTxt}>{t('videoAnalysis.web.generatingComprehensive')}</Text>
           </View>
         ) : comprehensive ? (
           <>
@@ -2009,11 +2662,11 @@ ${summary}
             <View style={s.compCard}>
               <View style={s.compCardHeader}>
                 <Ionicons name="analytics-outline" size={18} color="#166534" />
-                <Text style={s.compCardTitle}>総合評価</Text>
+                <Text style={s.compCardTitle}>{t('videoAnalysis.web.overallEvaluation')}</Text>
               </View>
               <Text style={s.compSummary}>{comprehensive.summary}</Text>
               {comprehensive.keyFindings.length > 0 && <>
-                <Text style={s.sectionLabel}>📌 全体的な特徴</Text>
+                <Text style={s.sectionLabel}>{t('videoAnalysis.web.keyFindingsLabel')}</Text>
                 {comprehensive.keyFindings.map((f, i) => (
                   <View key={i} style={s.findingRow}>
                     <View style={s.findingDot} />
@@ -2023,7 +2676,7 @@ ${summary}
               </>}
               {comprehensive.injuryWarnings && comprehensive.injuryWarnings.length > 0 && (
                 <View style={{ marginTop: 10, backgroundColor: '#FFF1F2', borderRadius: 10, padding: 10, borderLeftWidth: 3, borderLeftColor: '#F43F5E' }}>
-                  <Text style={{ color: '#BE123C', fontSize: 12, fontWeight: '800', marginBottom: 6 }}>🚨 フォームからみるリスク傾向</Text>
+                  <Text style={{ color: '#BE123C', fontSize: 12, fontWeight: '800', marginBottom: 6 }}>{t('videoAnalysis.web.injuryRiskTrend')}</Text>
                   {comprehensive.injuryWarnings.map((w, i) => (
                     <Text key={i} style={{ color: '#9F1239', fontSize: 12, lineHeight: 20 }}>• {w}</Text>
                   ))}
@@ -2035,7 +2688,7 @@ ${summary}
             <View style={s.compCard}>
               <View style={s.compCardHeader}>
                 <Ionicons name="barbell-outline" size={18} color="#166534" />
-                <Text style={s.compCardTitle}>推奨トレーニングメニュー</Text>
+                <Text style={s.compCardTitle}>{t('videoAnalysis.web.recommendedMenu')}</Text>
               </View>
               {comprehensive.trainingMenu.map((ex, i) => (
                 <View key={i} style={s.menuItem}>
@@ -2052,7 +2705,7 @@ ${summary}
             <View style={s.compCard}>
               <View style={s.compCardHeader}>
                 <Ionicons name="flag-outline" size={18} color="#166534" />
-                <Text style={s.compCardTitle}>次の練習で意識すること</Text>
+                <Text style={s.compCardTitle}>{t('videoAnalysis.web.nextPracticeFocus')}</Text>
               </View>
               {comprehensive.nextSteps.map((step, i) => (
                 <View key={i} style={s.nextStepRow}>
@@ -2064,7 +2717,7 @@ ${summary}
           </>
         ) : (
           <View style={s.compLoading}>
-            <Text style={s.compLoadingTxt}>分析が完了すると総合評価が表示されます</Text>
+            <Text style={s.compLoadingTxt}>{t('videoAnalysis.web.waitingForComplete')}</Text>
           </View>
         )}
 
@@ -2078,7 +2731,7 @@ ${summary}
           }}
         >
           <Ionicons name="refresh-outline" size={14} color="#555" />
-          <Text style={s.reanalyzeTxt}>別の動画で分析する</Text>
+          <Text style={s.reanalyzeTxt}>{t('videoAnalysis.web.analyzeAnotherVideo')}</Text>
         </TouchableOpacity>
 
       </ScrollView>
@@ -2121,6 +2774,11 @@ const s = StyleSheet.create({
                     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
                     shadowOpacity: 0.18, shadowRadius: 12, elevation: 5 },
   analyzeBtnText: { color: '#ffffff', fontSize: 18, fontWeight: '800', letterSpacing: -0.3 },
+  ticketBadge:    { flexDirection: 'row', alignItems: 'center', marginBottom: 10,
+                    backgroundColor: 'rgba(245,158,11,0.14)', borderRadius: 8,
+                    borderWidth: 1, borderColor: 'rgba(245,158,11,0.35)',
+                    paddingHorizontal: 10, paddingVertical: 4 },
+  ticketBadgeText:{ fontSize: 11, fontWeight: '700', color: '#f59e0b' },
   privacyNote:    { color: '#333', fontSize: 11, textAlign: 'center', lineHeight: 18 },
 
   /* setting cards before analysis */

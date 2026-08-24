@@ -12,6 +12,8 @@ import { BRAND, TEXT } from '../lib/theme'
 import { Sounds, unlockAudio } from '../lib/sounds'
 import Toast from 'react-native-toast-message'
 import { autoSyncTeam } from '../lib/teamAutoSync'
+import { updateSessions } from '../lib/sessionsStore'
+import { addTasks } from '../lib/tasksStore'
 import { trackSessionRecord } from '../lib/analytics'
 import { successNotify } from '../lib/haptics'
 import { parseDistanceAndReps } from '../lib/parseWorkoutDistance'
@@ -19,7 +21,6 @@ import PracticeShareCard, { PracticeShareData } from './PracticeShareCard'
 import type { TrainingSession } from '../types'
 
 const SESSIONS_KEY = 'trackmate_sessions'
-const TASKS_KEY    = 'trackmate_tasks'
 
 // ── 日付ヘルパー ─────────────────────────────────────────────────
 /** ローカル日付を YYYY-MM-DD 文字列に変換（toISOStringはUTCになるのでNG） */
@@ -129,16 +130,7 @@ function generateTasks(sessionType: string, fatigueLevel: number, notes: string)
 async function saveTasks(newTexts: string[]) {
   if (newTexts.length === 0) return
   try {
-    const raw = await AsyncStorage.getItem(TASKS_KEY)
-    const existing = raw ? JSON.parse(raw) : []
-    const newTasks = newTexts.map(text => ({
-      id: `task_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      text,
-      completed: false,
-      created_at: new Date().toISOString(),
-    }))
-    const merged = [...newTasks, ...existing].slice(0, 20)  // 最大20件
-    await AsyncStorage.setItem(TASKS_KEY, JSON.stringify(merged))
+    await addTasks(newTexts)
   } catch { /* ignore */ }
 }
 
@@ -218,10 +210,6 @@ export default function QuickLogModal({ visible, onClose, onSaved, editSession }
     // ── 保存 ──────────────────────────────────
     const toNum = (v: any) => (v !== null && v !== undefined && v !== 'null' && !isNaN(Number(v)) && Number(v) > 0) ? Number(v) : undefined
     try {
-      const existing = await AsyncStorage.getItem(SESSIONS_KEY)
-      let sessions: any[] = []
-      try { if (existing) sessions = JSON.parse(existing) } catch {}  // データ破損でも保存を継続
-
       const parsedFields = {
         session_date:    parsed.session_date    || today,
         session_type:    parsed.session_type    || 'easy',
@@ -236,8 +224,9 @@ export default function QuickLogModal({ visible, onClose, onSaved, editSession }
 
       if (editSession) {
         // ── 既存の自由入力レコードを上書き（id・created_at は保持） ──
-        sessions = sessions.map(sx => (sx.id === editSession.id ? { ...sx, ...parsedFields } : sx))
-        await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions))
+        const sessions = await updateSessions(current =>
+          current.map(sx => (sx.id === editSession.id ? { ...sx, ...parsedFields } as TrainingSession : sx))
+        )
         autoSyncTeam(sessions, { force: true }).catch(() => {})
         Sounds.save()
         successNotify()
@@ -248,14 +237,13 @@ export default function QuickLogModal({ visible, onClose, onSaved, editSession }
         return
       }
 
-      sessions.unshift({
+      const newSession = {
         id:              `ql_${Date.now()}`,
         user_id:         (await AsyncStorage.getItem('userId').catch(() => null)) ?? 'local',
         created_at:      new Date().toISOString(),
         ...parsedFields,
-      })
-
-      await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions))
+      }
+      const sessions = await updateSessions(current => [newSession as any, ...current])
       autoSyncTeam(sessions, { force: true }).catch(() => {})
       trackSessionRecord(parsed.session_type || 'easy')
 
@@ -313,7 +301,7 @@ export default function QuickLogModal({ visible, onClose, onSaved, editSession }
           <View style={st.handle} />
           <View style={st.header}>
             <Text style={st.title}>{isEdit ? '✏️ 自由入力を編集' : '✏️ 自由入力で記録'}</Text>
-            <TouchableOpacity onPress={handleClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <TouchableOpacity onPress={handleClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="閉じる" accessibilityRole="button">
               <Ionicons name="close" size={22} color={TEXT.secondary} />
             </TouchableOpacity>
           </View>

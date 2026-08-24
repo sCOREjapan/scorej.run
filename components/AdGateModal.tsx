@@ -3,24 +3,31 @@
 //   isGuest                     → ログイン促進
 //   それ以外（needsAd=true）     → 広告を視聴して機能を1回解放
 import React, { useEffect, useState } from 'react'
-import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native'
+import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ImageBackground } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import type { Feature } from '../lib/adGate'
 import { watchAdsForReward } from '../lib/rewardedAd'
 import { trackPaywallView } from '../lib/analytics'
 
+const MEAL_PAYWALL_BG = require('../assets/banners/meal-paywall-bg.png')
+
 const BRAND      = '#166534'
 const ADS_NEEDED = 2   // 2本の広告視聴でAI機能1回解放
 
 // ── 機能名マップ ──────────────────────────────────────────────
 const FEATURE_LABELS: Record<Feature, string> = {
-  ai_analysis: 'AI練習分析コーチ',
-  video:       '動画フォーム分析',
-  meal:        'AI食事分析',
-  csv:         'CSVエクスポート',
-  recovery:    'AIリカバリー相談',
-  workout:     'AI練習メニュー生成',
+  ai_analysis:      'AI練習分析コーチ',
+  video:            '動画フォーム分析',
+  meal:             'AI食事分析',
+  csv:              'CSVエクスポート',
+  recovery:         'AIリカバリー相談',
+  workout:          'AI練習メニュー生成',
+  meal_coach:       'AI食事コーチ',
+  daily_insight:    '今日のAIアドバイス',
+  notebook_ai:      '練習ノートAI解析',
+  competition_plan: '大会プラン生成',
+  injury_recovery:  '復帰プラン生成',
 }
 
 interface Props {
@@ -104,7 +111,41 @@ export default function AdGateModal({
     )
   }
 
-  // ── 本日の絶対上限に達した場合：広告視聴では解除できない ──────
+  // ── 累計上限に達した場合：広告では解除できず、有料プランのみ ──────
+  // （日次/月次の絶対上限とは異なり、リセットされないためアップグレード導線を出す）
+  if (hardLimited && limitType === 'total') {
+    const bg = feature === 'meal' ? MEAL_PAYWALL_BG : undefined
+    return (
+      <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+        <View style={st.overlay}>
+          <View style={[st.card, { overflow: 'hidden' }]}>
+            {bg && (
+              <ImageBackground source={bg} style={StyleSheet.absoluteFill} resizeMode="cover" />
+            )}
+            <View style={st.handle} />
+            <View style={[st.iconWrap, { backgroundColor: 'rgba(22,101,52,0.15)' }]}>
+              <Ionicons name="star" size={32} color={BRAND} />
+            </View>
+            <Text style={st.title}>無料枠を使い切りました</Text>
+            <Text style={st.sub}>{featureName}の無料利用回数は終了しました。{'\n'}引き続きご利用いただくには、プロプランへの登録が必要です。</Text>
+            <TouchableOpacity
+              style={[st.primaryBtn, { backgroundColor: BRAND }]}
+              onPress={() => { onClose(); router.push('/paywall') }}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="star" size={18} color="#fff" />
+              <Text style={st.primaryBtnTxt}>プロプランを見る</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={st.cancelBtn} onPress={onClose} activeOpacity={0.7}>
+              <Text style={st.cancelTxt}>今はしない</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    )
+  }
+
+  // ── 本日/今月の絶対上限に達した場合：リセットされるまで待つ（広告視聴でも解除不可） ──
   if (hardLimited) {
     return (
       <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -159,7 +200,7 @@ export default function AdGateModal({
           </View>
 
           <Text style={st.title}>広告を見て使う 🎬</Text>
-          <Text style={st.sub}>{featureName}は広告{ADS_NEEDED}本の視聴で無料で使えます。</Text>
+          <Text style={st.sub}>{featureName}は、広告{ADS_NEEDED}本の視聴で何度でも無料で使えます。{'\n'}使うたびに広告を見れば、回数制限はありません。</Text>
 
           {/* 広告視聴ボタン */}
           <TouchableOpacity

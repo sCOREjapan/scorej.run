@@ -22,8 +22,8 @@ import type { AthleticsEvent, RaceRecord } from '../types'
 const RECORDS_KEY = 'trackmate_race_records'
 
 const TRACK_EVENTS: AthleticsEvent[] = [
-  '100m', '200m', '400m', '800m', '1500m',
-  '5000m', '10000m', '110mH', '100mH', '400mH',
+  '100m', '200m', '300m', '400m', '800m', '1000m', '1500m', '3000m',
+  '5000m', '10000m', '110mH', '100mH', '300mH', '400mH',
   '3000mSC', 'half_marathon', 'marathon', '競歩',
 ]
 
@@ -205,7 +205,7 @@ const RankRow: React.FC<{ entry: RankingEntry }> = ({ entry }) => {
 
       {/* 名前 */}
       <View style={styles.rankNameContainer}>
-        <Text style={[styles.rankName, entry.isMe && { color: BRAND }]} numberOfLines={1}>
+        <Text style={[styles.rankName, entry.isMe && { color: NEON.green }]} numberOfLines={1}>
           {entry.displayName}
         </Text>
         {entry.isMe && (
@@ -218,7 +218,7 @@ const RankRow: React.FC<{ entry: RankingEntry }> = ({ entry }) => {
       {/* 記録 */}
       <Text style={[
         styles.rankResult,
-        entry.isMe && { color: BRAND },
+        entry.isMe && { color: NEON.green },
         isTop3 && { fontWeight: '800' },
       ]}>
         {entry.result}
@@ -345,7 +345,7 @@ export default function RankingScreen() {
       {/* リスト */}
       {loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator color={BRAND} size="large" />
+          <ActivityIndicator color={NEON.green} size="large" />
           <Text style={styles.loadingText}>ランキングを取得中...</Text>
         </View>
       ) : (
@@ -357,7 +357,7 @@ export default function RankingScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => loadRanking(selectedEvent, true)}
-              tintColor={BRAND}
+              tintColor={NEON.green}
             />
           }
         >
@@ -434,7 +434,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   tabTextActive: {
-    color: TEXT.primary,
+    color: '#FFFFFF',
     fontWeight: '700',
   },
 
@@ -478,7 +478,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   rankTitleText: {
-    color: TEXT.primary,
+    color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '800',
   },
@@ -551,7 +551,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   rankName: {
-    color: TEXT.primary,
+    color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '600',
   },
@@ -564,13 +564,13 @@ const styles = StyleSheet.create({
     borderColor: `${BRAND}66`,
   },
   meBadgeText: {
-    color: BRAND,
+    color: NEON.green,
     fontSize: 10,
     fontWeight: '800',
   },
   rankResult: {
     width: 80,
-    color: TEXT.primary,
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
     textAlign: 'right',

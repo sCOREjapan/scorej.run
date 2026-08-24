@@ -7,7 +7,7 @@ module.exports = {
   expo: {
     name: 'sCORE',
     slug: 'score',
-    version: '13.0.0',
+    version: '17',
     extra: {
       eas: { projectId: '17151d64-68e8-4831-b3a2-0bead72fa41e' },
       googleWebClientId: '918711129795-hskjq09k6e8gumt71ptmgkjepskmktf2.apps.googleusercontent.com',
@@ -17,13 +17,14 @@ module.exports = {
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'dark',
-    splash: { resizeMode: 'contain', backgroundColor: '#0a0a0a' },
+    // image必須(Android): 未指定だとsplashscreen_logo drawableが生成されずgradleビルドが失敗する
+    splash: { image: './assets/icon.png', resizeMode: 'contain', backgroundColor: '#0a0a0a' },
     ios: {
       supportsTablet: true,
       requiresFullScreen: true,
       bundleIdentifier: 'com.scorejapan.score',
       usesAppleSignIn: true,
-      buildNumber: '11',
+      buildNumber: '32',
       infoPlist: {
         CFBundleURLTypes: [
           {
@@ -67,9 +68,7 @@ module.exports = {
     ],
     scheme: 'score',
     web: { bundler: 'metro', output: 'static', favicon: './assets/icon.png' },
-    // expo-modules-autolinking: react-native-purchases を config plugin 自動検出から除外
-    autolinking: {
-      exclude: ['react-native-purchases'],
-    },
+    // react-native-purchases の autolinking 除外(iOS限定)は react-native.config.js に移動
+    // (旧: ここでの exclude はプラットフォーム共通に効いてしまい、Android ビルドが壊れていた)
   },
 }

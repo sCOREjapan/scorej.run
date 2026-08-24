@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useFocusEffect } from '@react-navigation/native'
+import { useTranslation } from 'react-i18next'
+import { useLanguage } from '../../context/LanguageContext'
+import { getEventLabel } from '../../lib/eventLabels'
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   TextInput, Modal, KeyboardAvoidingView, Platform, Animated, Alert, Dimensions, Pressable,
@@ -9,8 +12,8 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import * as Crypto from 'expo-crypto'
 import Toast from 'react-native-toast-message'
-import { showInterstitialAd } from '../../lib/admob'
 import { BG_GRADIENT, BRAND, TEXT, NEON } from '../../lib/theme'
 import { Sounds, unlockAudio } from '../../lib/sounds'
 import HapticTouch from '../../components/HapticTouch'
@@ -33,19 +36,19 @@ import { calcLevelInfo } from '../../lib/gamification'
 import TutorialSpot from '../../components/TutorialSpot'
 import { STANDARD_HURDLE_HEIGHTS, isHurdleEvent } from '../../lib/hurdleHeights'
 import { usePurchase } from '../../context/PurchaseContext'
+import { getSessions, updateSessions } from '../../lib/sessionsStore'
+import { getWeights, updateWeights, type WeightRecord } from '../../lib/weightStore'
 
 const RECORDS_KEY       = 'trackmate_race_records'
 const SESSIONS_KEY      = 'trackmate_sessions'
 const CONDITION_MAP_KEY = 'trackmate_condition_map'
 const SLEEP_KEY         = 'trackmate_sleep'
-const WEIGHT_KEY        = 'trackmate_weight'
-type WeightRecord = { id: string; date: string; weight_kg: number }
 const SCREEN_W          = Dimensions.get('window').width
 
 // ── 種目定義 ──────────────────────────────────────────────────────
 const TRACK_EVENTS: AthleticsEvent[] = [
-  '100m','200m','400m','800m','1500m','3000m',
-  '5000m','10000m','110mH','100mH','400mH','3000mSC',
+  '100m','200m','300m','400m','800m','1000m','1500m','3000m',
+  '5000m','10000m','110mH','100mH','300mH','400mH','3000mSC',
   'half_marathon','marathon','競歩',
   '4×100mR','4×400mR',
 ]
@@ -61,6 +64,61 @@ const FIELD_EVENT_SET = new Set<AthleticsEvent>(FIELD_EVENTS)
 function isField(e: AthleticsEvent) { return FIELD_EVENT_SET.has(e) }
 function hasWind(e: AthleticsEvent)  { return WIND_EVENTS.includes(e) }
 
+// ── 記録追加モーダル：種目ブロック（1種目=1ブロック、本数分だけ記録欄が並ぶ）───
+const REPS_PRESETS = [1, 2, 3, 4, 5, 6, 8, 10]
+const MAX_REPS = 20
+
+type TimeBlock = {
+  key: string
+  event: AthleticsEvent
+  reps: string        // 表示・入力用の文字列（'1'〜'20'）
+  mins: string[]
+  secs: string[]
+  meters: string[]
+  cms: string[]
+  wind: string
+  windPos: boolean
+  hurdleHeight: number | null
+  isPB: boolean
+  isSB: boolean
+}
+
+function newTimeBlock(): TimeBlock {
+  return {
+    key: `blk_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    event: '100m', reps: '1',
+    mins: [''], secs: [''], meters: [''], cms: [''],
+    wind: '', windPos: true, hurdleHeight: null, isPB: false, isSB: false,
+  }
+}
+
+// 本数変更時、各配列を新しい本数に合わせて伸縮する（既存の入力値は保持）
+function resizeBlockReps(b: TimeBlock, nextReps: number): TimeBlock {
+  const resize = (arr: string[]) => {
+    const next = arr.slice(0, nextReps)
+    while (next.length < nextReps) next.push('')
+    return next
+  }
+  return {
+    ...b, reps: String(nextReps),
+    mins: resize(b.mins), secs: resize(b.secs), meters: resize(b.meters), cms: resize(b.cms),
+  }
+}
+
+
+// ── 日付+時刻ソート ───────────────────────────────────────────────
+// 同日に複数記録がある場合、race_time（任意入力）があればそれで並び替える。
+// race_timeが無い記録は '' 扱いとなり、date_ascでは時刻ありの記録より前に並ぶ
+// （どちらが先か判断できないため、安定ソートで既存の並び順を尊重する）。
+function dateTimeKey(r: RaceRecord): string {
+  return `${r.race_date}T${r.race_time ?? ''}`
+}
+function dateTimeAsc(a: RaceRecord, b: RaceRecord): number {
+  return dateTimeKey(a).localeCompare(dateTimeKey(b))
+}
+function dateTimeDesc(a: RaceRecord, b: RaceRecord): number {
+  return dateTimeKey(b).localeCompare(dateTimeKey(a))
+}
 
 // ── フォーマット ──────────────────────────────────────────────────
 function msToDisplay(ms: number, event: AthleticsEvent): string {
@@ -115,15 +173,18 @@ function Badge({ label, color }: { label: string; color: string }) {
 // ── 記録カード ────────────────────────────────────────────────────
 function RecordCard({ record, onDelete, onEdit }: { record: RaceRecord; onDelete: () => void; onEdit: () => void }) {
   const router = useRouter()
+  const { t } = useTranslation()
+  const { language } = useLanguage()
   return (
     <View style={[styles.recordCard, record.is_pb && styles.recordCardPB]}>
       <View style={styles.recordLeft}>
         <View style={styles.eventBadgeWrap}>
-          <Text style={styles.eventBadgeText}>{record.event}</Text>
+          <Text style={styles.eventBadgeText}>{getEventLabel(record.event, language)}</Text>
         </View>
-        <View style={{ flexDirection: 'row', gap: 4, marginTop: 4 }}>
+        <View style={{ flexDirection: 'row', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
           {record.is_pb && <Badge label="PB" color={NEON.green} />}
-          {record.is_sb && !record.is_pb && <Badge label="SB" color={NEON.blue} />}
+          {record.is_sb && <Badge label="SB" color={NEON.blue} />}
+          {record.is_official && <Badge label={t('records.recordCard.official')} color={BRAND} />}
         </View>
       </View>
 
@@ -147,7 +208,13 @@ function RecordCard({ record, onDelete, onEdit }: { record: RaceRecord; onDelete
       </View>
 
       <View style={styles.recordRight}>
-        <Text style={styles.recordDate}>{record.race_date}</Text>
+        <Text style={styles.recordDate}>{record.race_date}{record.race_time ? `  ${record.race_time}` : ''}</Text>
+        <Text style={styles.windText}>
+          {(() => {
+            const days = Math.floor((Date.now() - new Date(record.race_date + 'T00:00:00').getTime()) / 86400000)
+            return days <= 0 ? t('records.recordCard.today') : t('records.recordCard.daysAgo', { n: days })
+          })()}
+        </Text>
         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
           <TutorialSpot spotKey="records_share_btn">
           <TouchableOpacity
@@ -156,13 +223,13 @@ function RecordCard({ record, onDelete, onEdit }: { record: RaceRecord; onDelete
             activeOpacity={0.75}
           >
             <Ionicons name="share-social-outline" size={13} color="#fff" />
-            <Text style={styles.shareBtnTxt}>シェア</Text>
+            <Text style={styles.shareBtnTxt}>{t('records.recordCard.share')}</Text>
           </TouchableOpacity>
           </TutorialSpot>
-          <TouchableOpacity onPress={onEdit} style={{ padding: 4 }}>
+          <TouchableOpacity onPress={onEdit} style={{ padding: 4 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel={t('records.recordCard.edit')}>
             <Ionicons name="pencil-outline" size={14} color={BRAND} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={onDelete} style={{ padding: 4 }}>
+          <TouchableOpacity onPress={onDelete} style={{ padding: 4 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel={t('records.recordCard.delete')}>
             <Ionicons name="trash-outline" size={14} color={TEXT.hint} />
           </TouchableOpacity>
         </View>
@@ -173,6 +240,8 @@ function RecordCard({ record, onDelete, onEdit }: { record: RaceRecord; onDelete
 
 // ── PBサマリーカード ───────────────────────────────────────────────
 function PBSummary({ records }: { records: RaceRecord[] }) {
+  const { t } = useTranslation()
+  const { language } = useLanguage()
   // 種目ごとのPBを取得
   const pbMap = new Map<string, RaceRecord>()
   records.filter(r => r.is_pb).forEach(r => {
@@ -185,12 +254,12 @@ function PBSummary({ records }: { records: RaceRecord[] }) {
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <Ionicons name="trophy" size={16} color={NEON.green} />
-        <Text style={styles.cardTitle}>自己ベスト一覧</Text>
+        <Text style={styles.cardTitle}>{t('records.pbSummary.title')}</Text>
       </View>
       <View style={styles.pbGrid}>
         {pbs.map(r => (
           <View key={r.id} style={styles.pbItem}>
-            <Text style={styles.pbEvent}>{r.event}</Text>
+            <Text style={styles.pbEvent}>{getEventLabel(r.event, language)}</Text>
             <Text style={styles.pbResult}>{r.result_display}</Text>
             <Text style={styles.pbDate}>{r.race_date}</Text>
           </View>
@@ -205,9 +274,13 @@ const TYPE_COLORS: Record<string,string> = {
   interval:'#E53935', tempo:'#FF9500', easy:'#4ECDC4', long:'#5AC8FA',
   sprint:'#FF6B6B', drill:'#AF52DE', strength:'#FF6B35', race:'#FFD700', rest:'#555',
 }
-const TYPE_LABELS: Record<string,string> = {
-  interval:'インターバル', tempo:'テンポ走', easy:'ジョグ', long:'ロング走',
-  sprint:'スプリント', drill:'ドリル', strength:'ウェイト', race:'試合', rest:'休養',
+function buildSessionTypeLabels(t: (key: string) => string): Record<string,string> {
+  return {
+    interval: t('records.sessionType.interval'), tempo: t('records.sessionType.tempo'),
+    easy: t('records.sessionType.easy'), long: t('records.sessionType.long'),
+    sprint: t('records.sessionType.sprint'), drill: t('records.sessionType.drill'),
+    strength: t('records.sessionType.strength'), race: t('records.sessionType.race'), rest: t('records.sessionType.rest'),
+  }
 }
 const TYPE_EMOJIS: Record<string,string> = {
   interval:'⚡', tempo:'🏃', easy:'🌿', long:'🛣️',
@@ -217,6 +290,8 @@ const FATIGUE_EMOJI = (v: number) => v >= 9 ? '🥵' : v >= 7 ? '😰' : v >= 5 
 
 // ヒートマップ: 全練習記録を横スクロールで表示（週ごとの列、今日が右端）
 function Heatmap({ sessions }: { sessions: TrainingSession[] }) {
+  const { t } = useTranslation()
+  const { language } = useLanguage()
   const scrollRef = useRef<any>(null)
   const today = new Date()
   const todayStr = localDateStr(today)
@@ -229,7 +304,7 @@ function Heatmap({ sessions }: { sessions: TrainingSession[] }) {
 
   const CELL = 14
   const GAP  = 3
-  const DOW_LABELS = ['日', '月', '火', '水', '木', '金', '土']
+  const DOW_LABELS = t('records.dow', { returnObjects: true }) as string[]
 
   // 最も古い練習日から今日まで全部カバー（最低52週）
   const oldestDate = sessions.length > 0
@@ -292,7 +367,7 @@ function Heatmap({ sessions }: { sessions: TrainingSession[] }) {
                 <View key={ci} style={{ width: CELL + GAP, alignItems: 'flex-start' }}>
                   {showMonth ? (
                     <Text style={{ color: TEXT.hint, fontSize: 8 }}>
-                      {`${new Date(firstReal!).getMonth()+1}月`}
+                      {language === 'ja' ? `${new Date(firstReal!).getMonth()+1}月` : new Date(firstReal!).toLocaleDateString('en-US', { month: 'short' })}
                     </Text>
                   ) : <View style={{ height: 10 }} />}
                 </View>
@@ -331,11 +406,11 @@ function Heatmap({ sessions }: { sessions: TrainingSession[] }) {
       {/* 凡例 */}
       <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         {[
-          { color: '#34C759', label: 'ジョグ' },
-          { color: '#E53935', label: 'スプリント' },
-          { color: '#FF9500', label: 'テンポ走' },
-          { color: '#5AC8FA', label: 'ロング走' },
-          { color: '#FFD700', label: '試合' },
+          { color: '#34C759', label: t('records.heatmap.legendJog') },
+          { color: '#E53935', label: t('records.heatmap.legendSprint') },
+          { color: '#FF9500', label: t('records.heatmap.legendTempo') },
+          { color: '#5AC8FA', label: t('records.heatmap.legendLong') },
+          { color: '#FFD700', label: t('records.heatmap.legendRace') },
         ].map(l => (
           <View key={l.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
             <View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: l.color }} />
@@ -344,7 +419,7 @@ function Heatmap({ sessions }: { sessions: TrainingSession[] }) {
         ))}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
           <View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: 'transparent', borderWidth: 1.5, borderColor: BRAND }} />
-          <Text style={{ color: TEXT.hint, fontSize: 9 }}>今日</Text>
+          <Text style={{ color: TEXT.hint, fontSize: 9 }}>{t('records.heatmap.legendToday')}</Text>
         </View>
       </View>
     </View>
@@ -358,6 +433,9 @@ function SessionDetailSheet({ session, onClose, onDelete, onEdit }: {
   onDelete: (id: string) => void
   onEdit: (session: TrainingSession) => void
 }) {
+  const { t } = useTranslation()
+  const { language } = useLanguage()
+  const TYPE_LABELS = buildSessionTypeLabels(t)
   const color = TYPE_COLORS[session.session_type] ?? '#888'
   const label = TYPE_LABELS[session.session_type] ?? session.session_type
   const emoji = TYPE_EMOJIS[session.session_type] ?? '📝'
@@ -371,15 +449,19 @@ function SessionDetailSheet({ session, onClose, onDelete, onEdit }: {
   }
   const fmtDist = (m: number) => m >= 1000 ? `${(m/1000).toFixed(2)}km` : `${m}m`
 
-  const CONDITION_LABELS: Record<number, string> = {2:'最悪',3:'悪い',4:'やや悪',5:'普通',6:'まあまあ',7:'良い',8:'かなり良い',9:'絶好調',10:'最高'}
+  const CONDITION_LABELS: Record<number, string> = {
+    2: t('records.sessionDetail.condition2'), 3: t('records.sessionDetail.condition3'), 4: t('records.sessionDetail.condition4'),
+    5: t('records.sessionDetail.condition5'), 6: t('records.sessionDetail.condition6'), 7: t('records.sessionDetail.condition7'),
+    8: t('records.sessionDetail.condition8'), 9: t('records.sessionDetail.condition9'), 10: t('records.sessionDetail.condition10'),
+  }
 
   const stats: { icon: string; label: string; value: string; color?: string }[] = [
-    ...(session.event     ? [{ icon:'🏟️', label:'種目',   value: session.event }] : []),
-    ...(session.time_ms   ? [{ icon:'⏱',  label:'タイム', value: fmtMs(session.time_ms) }] : []),
-    ...(session.distance_m? [{ icon:'📏', label:'距離',   value: fmtDist(session.distance_m) }] : []),
-    ...(session.reps      ? [{ icon:'🔁', label:'本数',   value: `${session.reps}本` }] : []),
-    { icon: FATIGUE_EMOJI(fat),  label:'疲労度',   value: `${fat}/10` },
-    ...(cond != null      ? [{ icon: cond >= 7 ? '😊' : cond >= 5 ? '😐' : '😕', label:'体調', value: `${cond}/10  ${CONDITION_LABELS[cond] ?? ''}` }] : []),
+    ...(session.event     ? [{ icon:'🏟️', label: t('records.sessionDetail.statEvent'),   value: getEventLabel(session.event, language) }] : []),
+    ...(session.time_ms   ? [{ icon:'⏱',  label: t('records.sessionDetail.statTime'), value: fmtMs(session.time_ms) }] : []),
+    ...(session.distance_m? [{ icon:'📏', label: t('records.sessionDetail.statDistance'),   value: fmtDist(session.distance_m) }] : []),
+    ...(session.reps      ? [{ icon:'🔁', label: t('records.sessionDetail.statReps'),   value: `${session.reps}${t('records.sessionDetail.statRepsUnit')}` }] : []),
+    { icon: FATIGUE_EMOJI(fat),  label: t('records.sessionDetail.statFatigue'),   value: `${fat}/10` },
+    ...(cond != null      ? [{ icon: cond >= 7 ? '😊' : cond >= 5 ? '😐' : '😕', label: t('records.sessionDetail.statCondition'), value: `${cond}/10  ${CONDITION_LABELS[cond] ?? ''}` }] : []),
   ]
 
   return (
@@ -398,11 +480,12 @@ function SessionDetailSheet({ session, onClose, onDelete, onEdit }: {
           <View style={{ flex: 1 }}>
             <Text style={{ color, fontSize: 16, fontWeight: '900' }}>{label}</Text>
             <Text style={{ color: TEXT.hint, fontSize: 12, marginTop: 2 }}>
-              {session.session_date}{'  '}
-              {['日','月','火','水','木','金','土'][new Date(session.session_date).getDay()]}曜日
+              {language === 'ja'
+                ? `${session.session_date}  ${(t('records.dow', { returnObjects: true }) as string[])[new Date(session.session_date).getDay()]}曜日`
+                : new Date(session.session_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', weekday: 'long' })}
             </Text>
           </View>
-          <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+          <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel={t('records.sessionDetail.close')}>
             <Ionicons name="close" size={22} color={TEXT.secondary} />
           </TouchableOpacity>
         </View>
@@ -422,7 +505,7 @@ function SessionDetailSheet({ session, onClose, onDelete, onEdit }: {
         {session.notes ? (
           <View style={{ backgroundColor: '#f8f8fa', borderRadius: 12, padding: 14,
             borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', marginBottom: 12 }}>
-            <Text style={{ color: TEXT.hint, fontSize: 11, fontWeight: '700', marginBottom: 8 }}>📝 メモ</Text>
+            <Text style={{ color: TEXT.hint, fontSize: 11, fontWeight: '700', marginBottom: 8 }}>📝 {t('records.sessionDetail.memo')}</Text>
             <Text style={{ color: TEXT.secondary, fontSize: 13, lineHeight: 22 }}>{session.notes}</Text>
           </View>
         ) : null}
@@ -436,7 +519,7 @@ function SessionDetailSheet({ session, onClose, onDelete, onEdit }: {
             activeOpacity={0.85}
           >
             <Ionicons name="create-outline" size={16} color="#fff" />
-            <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>編集する</Text>
+            <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>{t('records.sessionDetail.editButton')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => { onDelete(session.id); onClose() }}
@@ -446,7 +529,7 @@ function SessionDetailSheet({ session, onClose, onDelete, onEdit }: {
             activeOpacity={0.8}
           >
             <Ionicons name="trash-outline" size={16} color="#FF3B30" />
-            <Text style={{ color: '#FF3B30', fontWeight: '700', fontSize: 14 }}>削除</Text>
+            <Text style={{ color: '#FF3B30', fontWeight: '700', fontSize: 14 }}>{t('records.sessionDetail.deleteButton')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -471,11 +554,13 @@ function GlowCalendar({ sessions, selectedDate, onSelectDate }: {
   selectedDate?: string | null
   onSelectDate?: (d: string) => void
 }) {
+  const { t } = useTranslation()
+  const { language } = useLanguage()
   const now = new Date()
   const [viewYear, setViewYear]   = useState(now.getFullYear())
   const [viewMonth, setViewMonth] = useState(now.getMonth())
 
-  const DOW_LABELS = ['日', '月', '火', '水', '木', '金', '土']
+  const DOW_LABELS = t('records.dow', { returnObjects: true }) as string[]
 
   // date → max fatigue map
   const fatigueMap: Record<string, number> = {}
@@ -515,13 +600,13 @@ function GlowCalendar({ sessions, selectedDate, onSelectDate }: {
     <View>
       {/* 月ナビ */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <TouchableOpacity onPress={prevMonth} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <TouchableOpacity onPress={prevMonth} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={t('records.calendar.prevMonth')}>
           <Ionicons name="chevron-back" size={18} color={TEXT.secondary} />
         </TouchableOpacity>
         <Text style={{ color: TEXT.primary, fontSize: 14, fontWeight: '800' }}>
-          {viewYear}年 {viewMonth + 1}月
+          {language === 'ja' ? `${viewYear}年 ${viewMonth + 1}月` : new Date(viewYear, viewMonth).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
         </Text>
-        <TouchableOpacity onPress={nextMonth} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ opacity: canNext ? 1 : 0.3 }}>
+        <TouchableOpacity onPress={nextMonth} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ opacity: canNext ? 1 : 0.3 }} accessibilityLabel={t('records.calendar.nextMonth')}>
           <Ionicons name="chevron-forward" size={18} color={TEXT.secondary} />
         </TouchableOpacity>
       </View>
@@ -584,11 +669,11 @@ function GlowCalendar({ sessions, selectedDate, onSelectDate }: {
       {/* 凡例 */}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.06)' }}>
         {[
-          { label: '低負荷', color: '#DCFCE7' },
-          { label: '軽め', color: '#BBF7D0' },
-          { label: '中程度', color: '#FEF9C3' },
-          { label: 'きつめ', color: '#FED7AA' },
-          { label: '高負荷', color: '#FECACA' },
+          { label: t('records.calendar.legendLow'), color: '#DCFCE7' },
+          { label: t('records.calendar.legendLight'), color: '#BBF7D0' },
+          { label: t('records.calendar.legendMedium'), color: '#FEF9C3' },
+          { label: t('records.calendar.legendHard'), color: '#FED7AA' },
+          { label: t('records.calendar.legendVeryHard'), color: '#FECACA' },
         ].map(item => (
           <View key={item.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: item.color, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' }} />
@@ -602,6 +687,9 @@ function GlowCalendar({ sessions, selectedDate, onSelectDate }: {
 
 // セッション1件のタイムラインカード（タップで詳細表示）
 function SessionTimelineCard({ session, onTap, onShare }: { session: TrainingSession; onTap: () => void; onShare: () => void }) {
+  const { t } = useTranslation()
+  const { language } = useLanguage()
+  const TYPE_LABELS = buildSessionTypeLabels(t)
   const color = TYPE_COLORS[session.session_type] ?? '#888'
   const label = TYPE_LABELS[session.session_type] ?? session.session_type
   const emoji = TYPE_EMOJIS[session.session_type] ?? '📝'
@@ -625,7 +713,7 @@ function SessionTimelineCard({ session, onTap, onShare }: { session: TrainingSes
       <View style={{ flex: 1, gap: 4, paddingBottom: 12 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Text style={{ color, fontSize: 13, fontWeight: '800' }}>{label}</Text>
-          {session.event ? <Text style={{ color: TEXT.hint, fontSize: 12 }}>{session.event}</Text> : null}
+          {session.event ? <Text style={{ color: TEXT.hint, fontSize: 12 }}>{getEventLabel(session.event, language)}</Text> : null}
           <Text style={{ color: TEXT.hint, fontSize: 11, marginLeft: 'auto' as any }}>
             {FATIGUE_EMOJI(fat)} {fat}/10
           </Text>
@@ -646,7 +734,7 @@ function SessionTimelineCard({ session, onTap, onShare }: { session: TrainingSes
           ) : null}
           {session.reps ? (
             <View style={{ backgroundColor: '#f0f2f5', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
-              <Text style={{ color: TEXT.primary, fontSize: 12, fontWeight: '700' }}>🔁 {session.reps}本</Text>
+              <Text style={{ color: TEXT.primary, fontSize: 12, fontWeight: '700' }}>🔁 {session.reps}{t('records.sessionDetail.statRepsUnit')}</Text>
             </View>
           ) : null}
         </View>
@@ -658,7 +746,7 @@ function SessionTimelineCard({ session, onTap, onShare }: { session: TrainingSes
         ) : null}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Text style={{ color: TEXT.hint, fontSize: 10 }}>詳細を見る</Text>
+            <Text style={{ color: TEXT.hint, fontSize: 10 }}>{t('records.timeline.viewDetail')}</Text>
             <Ionicons name="chevron-forward" size={10} color={TEXT.hint} />
           </View>
           <TouchableOpacity
@@ -667,7 +755,7 @@ function SessionTimelineCard({ session, onTap, onShare }: { session: TrainingSes
             style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(229,57,53,0.08)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}
           >
             <Ionicons name="share-outline" size={11} color={BRAND} />
-            <Text style={{ color: BRAND, fontSize: 10, fontWeight: '700' }}>シェア</Text>
+            <Text style={{ color: BRAND, fontSize: 10, fontWeight: '700' }}>{t('records.timeline.share')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -677,16 +765,17 @@ function SessionTimelineCard({ session, onTap, onShare }: { session: TrainingSes
 
 // 日付グループヘッダー
 function DateHeader({ dateStr }: { dateStr: string }) {
+  const { t } = useTranslation()
   const now = new Date()
   const d   = new Date(dateStr)
   const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000)
-  const label = diffDays === 0 ? '今日' : diffDays === 1 ? '昨日' : diffDays < 7 ? `${diffDays}日前` : dateStr.slice(5).replace('-', '/')
+  const label = diffDays === 0 ? t('records.dateHeader.today') : diffDays === 1 ? t('records.dateHeader.yesterday') : diffDays < 7 ? t('records.dateHeader.daysAgo', { n: diffDays }) : dateStr.slice(5).replace('-', '/')
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, marginBottom: 2 }}>
       <Text style={{ color: diffDays === 0 ? BRAND : TEXT.secondary, fontSize: 12, fontWeight: '800' }}>{label}</Text>
       <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.06)' }} />
       <Text style={{ color: TEXT.hint, fontSize: 10 }}>
-        {['日','月','火','水','木','金','土'][d.getDay()]}
+        {(t('records.dow', { returnObjects: true }) as string[])[d.getDay()]}
       </Text>
     </View>
   )
@@ -702,6 +791,8 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
   onReload: () => void
 }) {
   const router = useRouter()
+  const { t } = useTranslation()
+  const { language } = useLanguage()
   const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null)
   const [shareSession,    setShareSession]    = useState<PracticeShareData | null>(null)
   const [selectedDate,    setSelectedDate]    = useState<string | null>(null)
@@ -736,10 +827,7 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
   }
 
   // セッション→シェアデータ変換
-  const TYPE_LABEL_MAP: Record<string, string> = {
-    interval:'インターバル', tempo:'テンポ走', easy:'ジョグ', long:'ロング走',
-    sprint:'スプリント', drill:'ドリル', strength:'ウェイト', race:'試合', rest:'休養',
-  }
+  const TYPE_LABEL_MAP = buildSessionTypeLabels(t)
   const fmtMsShare = (ms: number) => {
     const s = ms / 1000
     if (s < 60) return `${s.toFixed(2)}"`
@@ -749,8 +837,11 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
     const dt = new Date(sess.session_date + 'T00:00:00')
     const weekdays = ['日','月','火','水','木','金','土']
     const levelInfo = calcLevelInfo(sessions.length)
+    const dateLabel = language === 'ja'
+      ? `${dt.getFullYear()}年${dt.getMonth()+1}月${dt.getDate()}日（${weekdays[dt.getDay()]}）`
+      : dt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })
     return {
-      date:      `${dt.getFullYear()}年${dt.getMonth()+1}月${dt.getDate()}日（${weekdays[dt.getDay()]}）`,
+      date:      dateLabel,
       title:     TYPE_LABEL_MAP[sess.session_type] ?? sess.session_type,
       menu:      sess.notes ?? undefined,
       distance:  sess.distance_m ? sess.distance_m / 1000 : undefined,
@@ -785,7 +876,7 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
           onPress={() => { unlockAudio(); Sounds.tap(); router.push('/manual-log' as any) }}
         >
           <Ionicons name="create-outline" size={20} color="#5AC8FA" />
-          <Text style={[styles.inputShortcutText, { color: '#5AC8FA' }]}>手動入力</Text>
+          <Text style={[styles.inputShortcutText, { color: '#5AC8FA' }]}>{t('records.practiceTab.manualInput')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.inputShortcut, { borderColor: 'rgba(229,57,53,0.4)', backgroundColor: 'rgba(229,57,53,0.07)' }]}
@@ -793,7 +884,7 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
           onPress={() => { unlockAudio(); Sounds.whoosh(); router.push('/practice-input' as any) }}
         >
           <Text style={{ fontSize: 18 }}>✏️</Text>
-          <Text style={[styles.inputShortcutText, { color: BRAND }]}>自由入力</Text>
+          <Text style={[styles.inputShortcutText, { color: BRAND }]}>{t('records.practiceTab.freeInput')}</Text>
         </TouchableOpacity>
       </View>
       </AnimatedSection>
@@ -808,7 +899,7 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
               <Text style={{ color: streak > 0 ? BRAND : '#aaa', fontSize: 40, fontWeight: '900', lineHeight: 44 }}>
                 {streak}
               </Text>
-              <Text style={{ color: TEXT.secondary, fontSize: 14, marginBottom: 6 }}>日連続</Text>
+              <Text style={{ color: TEXT.secondary, fontSize: 14, marginBottom: 6 }}>{t('records.practiceTab.streakUnit')}</Text>
               {streak >= 7  && <Text style={{ fontSize: 20, marginBottom: 4 }}>🔥</Text>}
               {streak >= 30 && <Text style={{ fontSize: 20, marginBottom: 4 }}>💎</Text>}
             </View>
@@ -816,20 +907,20 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
           <View style={{ gap: 10 }}>
             <View style={{ alignItems: 'flex-end', gap: 2 }}>
               <Text style={{ color: TEXT.primary, fontSize: 18, fontWeight: '900' }}>{sessions.length}</Text>
-              <Text style={{ color: TEXT.hint, fontSize: 10 }}>総練習数</Text>
+              <Text style={{ color: TEXT.hint, fontSize: 10 }}>{t('records.practiceTab.totalSessions')}</Text>
             </View>
             <View style={{ alignItems: 'flex-end', gap: 2 }}>
               <Text style={{ color: TEXT.primary, fontSize: 18, fontWeight: '900' }}>{totalKm.toFixed(0)}km</Text>
-              <Text style={{ color: TEXT.hint, fontSize: 10 }}>累計距離</Text>
+              <Text style={{ color: TEXT.hint, fontSize: 10 }}>{t('records.practiceTab.totalDistance')}</Text>
             </View>
           </View>
         </View>
         <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.08)', flexDirection: 'row', gap: 12 }}>
-          <Text style={{ color: TEXT.hint, fontSize: 11 }}>今週</Text>
-          <Text style={{ color: TEXT.primary, fontSize: 11, fontWeight: '700' }}>{thisWeekSessions.length}回</Text>
-          <Text style={{ color: TEXT.hint, fontSize: 11, marginLeft: 8 }}>今月</Text>
+          <Text style={{ color: TEXT.hint, fontSize: 11 }}>{t('records.practiceTab.thisWeek')}</Text>
+          <Text style={{ color: TEXT.primary, fontSize: 11, fontWeight: '700' }}>{t('records.practiceTab.timesUnit', { n: thisWeekSessions.length })}</Text>
+          <Text style={{ color: TEXT.hint, fontSize: 11, marginLeft: 8 }}>{t('records.practiceTab.thisMonth')}</Text>
           <Text style={{ color: TEXT.primary, fontSize: 11, fontWeight: '700' }}>
-            {sessions.filter(s => new Date(s.session_date).getMonth() === new Date().getMonth()).length}回
+            {t('records.practiceTab.timesUnit', { n: sessions.filter(s => new Date(s.session_date).getMonth() === new Date().getMonth()).length })}
           </Text>
         </View>
       </View>
@@ -840,10 +931,10 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <Text style={{ fontSize: 14 }}>📅</Text>
-          <Text style={styles.cardTitle}>練習カレンダー</Text>
+          <Text style={styles.cardTitle}>{t('records.practiceTab.calendarTitle')}</Text>
           {selectedDate && (
             <TouchableOpacity onPress={() => setSelectedDate(null)} style={{ marginLeft: 'auto' as any }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={{ color: TEXT.hint, fontSize: 12 }}>選択解除 ✕</Text>
+              <Text style={{ color: TEXT.hint, fontSize: 12 }}>{t('records.practiceTab.clearSelection')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -859,13 +950,15 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
             <Text style={{ color: TEXT.primary, fontSize: 13, fontWeight: '800', marginBottom: 6 }}>
               {(() => {
                 const dt = new Date(selectedDate + 'T00:00:00')
-                const w = ['日','月','火','水','木','金','土'][dt.getDay()]
-                return `${dt.getMonth()+1}月${dt.getDate()}日（${w}）の練習`
+                const dateLabel = language === 'ja'
+                  ? `${dt.getMonth()+1}月${dt.getDate()}日（${['日','月','火','水','木','金','土'][dt.getDay()]}）`
+                  : dt.toLocaleDateString('en-US', { month: 'long', day: 'numeric', weekday: 'short' })
+                return t('records.practiceTab.selectedDayTitle', { date: dateLabel })
               })()}
             </Text>
             {(byDate[selectedDate] ?? []).length === 0 ? (
               <View style={{ paddingVertical: 16, alignItems: 'center' }}>
-                <Text style={{ color: TEXT.hint, fontSize: 12 }}>この日の練習記録はありません</Text>
+                <Text style={{ color: TEXT.hint, fontSize: 12 }}>{t('records.practiceTab.noSessionsThisDay')}</Text>
               </View>
             ) : (
               byDate[selectedDate].map(s => (
@@ -887,16 +980,16 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <Text style={{ fontSize: 14 }}>📒</Text>
-          <Text style={styles.cardTitle}>練習ノート</Text>
-          <Text style={{ color: TEXT.hint, fontSize: 12 }}>{sessions.length}件</Text>
+          <Text style={styles.cardTitle}>{t('records.practiceTab.notebookTitle')}</Text>
+          <Text style={{ color: TEXT.hint, fontSize: 12 }}>{t('records.practiceTab.countUnit', { n: sessions.length })}</Text>
         </View>
         {loading ? (
           <View style={{ gap: 10 }}>{[1,2,3].map(i => <SkeletonRect key={i} h={80} />)}</View>
         ) : sessions.length === 0 ? (
           <View style={styles.empty}>
             <Text style={{ fontSize: 36 }}>📝</Text>
-            <Text style={styles.emptyText}>まだ練習記録がありません</Text>
-            <Text style={[styles.emptyText, { fontSize: 12, marginTop: 4 }]}>＋ボタンから今日の練習を記録しよう</Text>
+            <Text style={styles.emptyText}>{t('records.practiceTab.emptyTitle')}</Text>
+            <Text style={[styles.emptyText, { fontSize: 12, marginTop: 4 }]}>{t('records.practiceTab.emptyHint')}</Text>
           </View>
         ) : (
           <ScrollView
@@ -915,7 +1008,7 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
             ))}
             {sessions.length > 60 && (
               <Text style={{ color: TEXT.hint, fontSize: 12, textAlign: 'center', paddingTop: 8 }}>
-                直近60件を表示中（全{sessions.length}件）
+                {t('records.practiceTab.showingRecent', { n: 60, total: sessions.length })}
               </Text>
             )}
           </ScrollView>
@@ -1076,6 +1169,7 @@ function WeightSection({
   onAdd: (kg: number, date: string) => void
   onDelete: (id: string) => void
 }) {
+  const { t } = useTranslation()
   const today = todayLocalISO()
   const [input, setInput] = useState('')
   const [selectedDate, setSelectedDate] = useState(today)
@@ -1102,10 +1196,10 @@ function WeightSection({
   function formatDateLabel(dateStr: string) {
     const d = new Date(dateStr)
     const diff = Math.round((d.getTime() - new Date(today).getTime()) / 86400000)
-    if (diff === 0) return '今日'
-    if (diff === -1) return '昨日'
-    if (diff === 1) return '明日'
-    const dow = ['日','月','火','水','木','金','土'][d.getDay()]
+    if (diff === 0) return t('records.weight.today')
+    if (diff === -1) return t('records.weight.yesterday')
+    if (diff === 1) return t('records.weight.tomorrow')
+    const dow = (t('records.dow', { returnObjects: true }) as string[])[d.getDay()]
     return `${d.getMonth()+1}/${d.getDate()}(${dow})`
   }
 
@@ -1114,7 +1208,7 @@ function WeightSection({
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <Text style={{ fontSize: 15 }}>⚖️</Text>
-        <Text style={styles.cardTitle}>体重の推移</Text>
+        <Text style={styles.cardTitle}>{t('records.weight.title')}</Text>
         {latest && (
           <Text style={{ color: BRAND, fontSize: 14, fontWeight: '800', marginLeft: 'auto' as any }}>
             {latest.weight_kg}kg
@@ -1157,7 +1251,7 @@ function WeightSection({
         <TextInput
           value={input}
           onChangeText={setInput}
-          placeholder={existingForDate ? `現在: ${existingForDate.weight_kg}kg` : `${formatDateLabel(selectedDate)}の体重 (kg)`}
+          placeholder={existingForDate ? t('records.weight.placeholderExisting', { kg: existingForDate.weight_kg }) : t('records.weight.placeholderNew', { date: formatDateLabel(selectedDate) })}
           placeholderTextColor={TEXT.hint}
           keyboardType="decimal-pad"
           style={[styles.weightInput]}
@@ -1168,7 +1262,7 @@ function WeightSection({
           disabled={!input.trim()}
           activeOpacity={0.8}
         >
-          <Text style={{ color: '#fff', fontWeight: '800', fontSize: 13 }}>記録</Text>
+          <Text style={{ color: '#fff', fontWeight: '800', fontSize: 13 }}>{t('records.weight.save')}</Text>
         </TouchableOpacity>
         {existingForDate && (
           <TouchableOpacity
@@ -1184,7 +1278,7 @@ function WeightSection({
       {/* グラフ */}
       {sorted.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={styles.emptyText}>体重データがありません{'\n'}毎日記録しましょう</Text>
+          <Text style={styles.emptyText}>{t('records.weight.empty')}</Text>
         </View>
       ) : (
         <WeightLineChart records={sorted} />
@@ -1200,6 +1294,7 @@ function TrendLineChart({ data, color, format }: {
   color: string
   format: (v: number) => string
 }) {
+  const { t } = useTranslation()
   const displayed = data.slice(-30)
   if (displayed.length === 0) return null
 
@@ -1290,12 +1385,12 @@ function TrendLineChart({ data, color, format }: {
       {/* 統計 */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
         <Text style={{ color: TEXT.hint, fontSize: 11 }}>
-          平均: <Text style={{ color: TEXT.primary, fontWeight: '700' }}>
+          {t('records.trend.avg')}: <Text style={{ color: TEXT.primary, fontWeight: '700' }}>
             {format(vals.reduce((a, v) => a + v, 0) / vals.length)}
           </Text>
         </Text>
         <Text style={{ color: TEXT.hint, fontSize: 11 }}>
-          最高: <Text style={{ color, fontWeight: '700' }}>{format(rawMax)}</Text>
+          {t('records.trend.max')}: <Text style={{ color, fontWeight: '700' }}>{format(rawMax)}</Text>
         </Text>
       </View>
     </View>
@@ -1310,6 +1405,7 @@ function HealthTab({ conditionMap, sleepRecords, weightRecords, onAddWeight, onD
   onDeleteWeight: (id: string) => void
   loading: boolean
 }) {
+  const { t } = useTranslation()
   if (loading) return <View style={{ gap: 10 }}>{[1,2].map(i => <SkeletonRect key={i} h={120} />)}</View>
 
   // 体調データ（日付順）
@@ -1333,11 +1429,11 @@ function HealthTab({ conditionMap, sleepRecords, weightRecords, onAddWeight, onD
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <Text style={{ fontSize: 15 }}>💪</Text>
-          <Text style={styles.cardTitle}>体調の推移</Text>
+          <Text style={styles.cardTitle}>{t('records.health.conditionTitle')}</Text>
         </View>
         {condData.length === 0 ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyText}>体調データがありません{'\n'}ホームで毎日入力しましょう</Text>
+            <Text style={styles.emptyText}>{t('records.health.conditionEmpty')}</Text>
           </View>
         ) : (
           <>
@@ -1353,7 +1449,7 @@ function HealthTab({ conditionMap, sleepRecords, weightRecords, onAddWeight, onD
                   {COND_EMOJIS[Math.min(4, Math.round((condData[condData.length-1].value - 1) / 2))]}
                 </Text>
                 <View>
-                  <Text style={{ color: TEXT.secondary, fontSize: 11 }}>直近の体調</Text>
+                  <Text style={{ color: TEXT.secondary, fontSize: 11 }}>{t('records.health.recentCondition')}</Text>
                   <Text style={{ color: TEXT.primary, fontSize: 16, fontWeight: '800' }}>
                     {condData[condData.length-1].value}/10
                   </Text>
@@ -1370,11 +1466,11 @@ function HealthTab({ conditionMap, sleepRecords, weightRecords, onAddWeight, onD
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <Text style={{ fontSize: 15 }}>😴</Text>
-          <Text style={styles.cardTitle}>睡眠時間の推移</Text>
+          <Text style={styles.cardTitle}>{t('records.health.sleepTitle')}</Text>
         </View>
         {sleepData.length === 0 ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyText}>睡眠データがありません{'\n'}睡眠タブで記録しましょう</Text>
+            <Text style={styles.emptyText}>{t('records.health.sleepEmpty')}</Text>
           </View>
         ) : (
           <TrendLineChart
@@ -1396,6 +1492,8 @@ function HealthTab({ conditionMap, sleepRecords, weightRecords, onAddWeight, onD
 // ── メイン ────────────────────────────────────────────────────────
 export default function RecordsScreen() {
   const router = useRouter()
+  const { t } = useTranslation()
+  const { language } = useLanguage()
   const { isGuest } = useAuth()
   const { isNoad } = usePurchase()
   const [activeTab, setActiveTab] = useState<'practice'|'records'|'health'>('practice')
@@ -1410,43 +1508,39 @@ export default function RecordsScreen() {
   const [weightRecords, setWeightRecords] = useState<WeightRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [modalVisible, setModalVisible] = useState(false)
+  const [toolsMenuVisible, setToolsMenuVisible] = useState(false)
   const [filterEvent, setFilterEvent] = useState<AthleticsEvent | '全種目'>('全種目')
   const [chartEvent, setChartEvent] = useState<AthleticsEvent | null>(null)
   const [sortOrder, setSortOrder] = useState<'date_desc' | 'date_asc' | 'result'>('date_desc')
   const [editId, setEditId] = useState<string | null>(null)
 
-  // フォーム状態
-  const [fEvent, setFEvent]   = useState<AthleticsEvent>('100m')
+  // フォーム状態（日付・大会名・会場・メモは1回の保存セッションで共通）
   const [fDate, setFDate]     = useState(todayLocalISO())
-  const [fMin, setFMin]       = useState('')
-  const [fSec, setFSec]       = useState('')
-  const [fMeter, setFMeter]   = useState('')
-  const [fCm, setFCm]         = useState('')
-  const [fWind, setFWind]     = useState('')
-  const [fWindPos, setFWindPos] = useState(true)   // true=+ / false=-
-  const [fHurdleHeight, setFHurdleHeight] = useState<number | null>(null)
+  const [fTime, setFTime]     = useState('')   // HH:MM（任意。同日複数記録の並び替え用）
   const [fVenue, setFVenue]   = useState('')
   const [fComp, setFComp]     = useState('')
-  const [fIsPB, setFIsPB]     = useState(false)
-  const [showConfetti, setShowConfetti] = useState(false)
-  const [fIsSB, setFIsSB]     = useState(false)
   const [fNotes, setFNotes]   = useState('')
+  const [fOfficial, setFOfficial] = useState(false)   // 公認記録かどうか
+  const [recordFilter, setRecordFilter] = useState<'all' | 'official' | 'manual'>('all')
+  const [showConfetti, setShowConfetti] = useState(false)
   const [saving, setSaving]   = useState(false)
+  // 種目ブロック（1保存セッションで複数種目・各種目で複数本を入力できる）
+  const [blocks, setBlocks]   = useState<TimeBlock[]>([newTimeBlock()])
 
   // ロード（フォーカス時にも再ロード：manual-log等から戻った時に反映）
   const loadData = useCallback(() => {
     Promise.all([
       AsyncStorage.getItem(RECORDS_KEY),
-      AsyncStorage.getItem(SESSIONS_KEY),
+      getSessions(),
       AsyncStorage.getItem(CONDITION_MAP_KEY),
       AsyncStorage.getItem(SLEEP_KEY),
-      AsyncStorage.getItem(WEIGHT_KEY),
-    ]).then(([recRaw, sessRaw, condRaw, sleepRaw, weightRaw]) => {
+      getWeights(),
+    ]).then(([recRaw, sess, condRaw, sleepRaw, weights]) => {
       if (recRaw)    { try { setRecords(JSON.parse(recRaw)) }         catch {} }
-      if (sessRaw)   { try { setSessions(JSON.parse(sessRaw)) }       catch {} }
+      setSessions(sess)
       if (condRaw)   { try { setConditionMap(JSON.parse(condRaw)) }   catch {} }
       if (sleepRaw)  { try { setSleepRecords(JSON.parse(sleepRaw)) }  catch {} }
-      if (weightRaw) { try { setWeightRecords(JSON.parse(weightRaw)) }catch {} }
+      setWeightRecords(weights)
       setLoading(false)
     }).catch(() => setLoading(false))  // エラー時もローディングを解除
   }, [])
@@ -1456,111 +1550,154 @@ export default function RecordsScreen() {
 
   const handleAddWeight = useCallback(async (kg: number, date: string) => {
     const newRec: WeightRecord = { id: `w_${Date.now()}`, date, weight_kg: kg }
-    const next = [...weightRecords.filter(r => r.date !== date), newRec]
-      .sort((a, b) => a.date.localeCompare(b.date))
+    const next = await updateWeights(current =>
+      [...current.filter(r => r.date !== date), newRec].sort((a, b) => a.date.localeCompare(b.date))
+    )
     setWeightRecords(next)
-    await AsyncStorage.setItem(WEIGHT_KEY, JSON.stringify(next)).catch(() => {})
-    Toast.show({ type: 'success', text1: `${kg}kg を記録しました`, visibilityTime: 1500 })
-  }, [weightRecords])
+    Toast.show({ type: 'success', text1: t('records.toast.weightSaved', { kg }), visibilityTime: 1500 })
+  }, [t])
 
   const handleDeleteWeight = useCallback(async (id: string) => {
-    const next = weightRecords.filter(r => r.id !== id)
+    const next = await updateWeights(current => current.filter(r => r.id !== id))
     setWeightRecords(next)
-    await AsyncStorage.setItem(WEIGHT_KEY, JSON.stringify(next)).catch(() => {})
-    Toast.show({ type: 'success', text1: '削除しました', visibilityTime: 1200 })
-  }, [weightRecords])
+    Toast.show({ type: 'success', text1: t('records.toast.deleted'), visibilityTime: 1200 })
+  }, [t])
 
   const handleDeleteSession = useCallback(async (id: string) => {
-    const next = sessions.filter(s => s.id !== id)
+    // 直列化キュー経由で削除する: 他画面がちょうど保存中でも、その完了を待ってから
+    // 最新の状態を読み直して削除するため、削除が古いスナップショットで上書きされない
+    const next = await updateSessions(current => current.filter(s => s.id !== id))
     setSessions(next)
-    await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(next)).catch(() => {})
-    Toast.show({ type: 'success', text1: '練習記録を削除しました', visibilityTime: 1500 })
-  }, [sessions])
+    Toast.show({ type: 'success', text1: t('records.toast.sessionDeleted'), visibilityTime: 1500 })
+  }, [t])
 
   function resetForm() {
     setEditId(null)
-    setFEvent('100m'); setFDate(todayLocalISO())
-    setFMin(''); setFSec(''); setFMeter(''); setFCm(''); setFWind(''); setFWindPos(true)
-    setFVenue(''); setFComp(''); setFIsPB(false); setFIsSB(false); setFNotes('')
-    setFHurdleHeight(null)
+    setFDate(todayLocalISO())
+    setFTime('')
+    setFVenue(''); setFComp(''); setFNotes('')
+    setFOfficial(false)
+    setBlocks([newTimeBlock()])
   }
 
   function openEdit(r: RaceRecord) {
     setEditId(r.id)
-    setFEvent(r.event)
     setFDate(r.race_date)
+    setFTime(r.race_time ?? '')
+    setFVenue(r.venue ?? '')
+    setFComp(r.competition_name ?? '')
+    setFNotes(r.notes ?? '')
+    setFOfficial(r.is_official ?? false)
+    const b = newTimeBlock()
+    b.event = r.event
     if (isField(r.event)) {
       const totalCm = r.result_cm ?? 0
-      setFMeter(String(Math.floor(totalCm / 100)))
-      setFCm(String(totalCm % 100))
-      setFMin(''); setFSec('')
+      b.meters = [String(Math.floor(totalCm / 100))]
+      b.cms    = [String(totalCm % 100)]
     } else {
       const totalSec = (r.result_ms ?? 0) / 1000
       const m = Math.floor(totalSec / 60)
-      setFMin(m > 0 ? String(m) : '')
-      setFSec((totalSec % 60).toFixed(2))
-      setFMeter(''); setFCm('')
+      b.mins = [m > 0 ? String(m) : '']
+      b.secs = [(totalSec % 60).toFixed(2)]
     }
-    setFWind(r.wind_ms !== undefined ? String(Math.abs(r.wind_ms)) : '')
-    setFWindPos((r.wind_ms ?? 1) >= 0)
-    setFVenue(r.venue ?? '')
-    setFComp(r.competition_name ?? '')
-    setFIsPB(r.is_pb ?? false)
-    setFIsSB(r.is_sb ?? false)
-    setFNotes(r.notes ?? '')
-    setFHurdleHeight(r.hurdle_height_cm ?? null)
+    b.wind = r.wind_ms !== undefined ? String(Math.abs(r.wind_ms)) : ''
+    b.windPos = (r.wind_ms ?? 1) >= 0
+    b.isPB = r.is_pb ?? false
+    b.isSB = r.is_sb ?? false
+    b.hurdleHeight = r.hurdle_height_cm ?? null
+    setBlocks([b])
     setModalVisible(true)
   }
 
-  const handleSave = useCallback(async () => {
-    const field = isField(fEvent)
-    const result_ms  = field ? undefined : parseTrackInput(fMin, fSec)
-    const result_cm  = field ? parseFieldInput(fMeter, fCm) : undefined
-    if (!field && (!result_ms || result_ms <= 0)) {
-      Toast.show({ type: 'error', text1: 'タイムを入力してください' }); return
-    }
-    if (field && (!result_cm || result_cm <= 0)) {
-      Toast.show({ type: 'error', text1: '記録を入力してください' }); return
-    }
+  // 種目ブロックを更新するヘルパー
+  function updateBlock(key: string, patch: Partial<TimeBlock>) {
+    setBlocks(prev => prev.map(b => b.key === key ? { ...b, ...patch } : b))
+  }
+  function updateBlockReps(key: string, nextReps: number) {
+    const clamped = Math.max(1, Math.min(MAX_REPS, nextReps))
+    setBlocks(prev => prev.map(b => b.key === key ? resizeBlockReps(b, clamped) : b))
+  }
+  function addBlock() {
+    setBlocks(prev => [...prev, newTimeBlock()])
+  }
+  function removeBlock(key: string) {
+    setBlocks(prev => prev.length <= 1 ? prev : prev.filter(b => b.key !== key))
+  }
 
-    const display = field
-      ? cmToDisplay(result_cm!)
-      : msToDisplay(result_ms!, fEvent)
+  const handleSave = useCallback(async () => {
+    // 全ブロック・全本数分のレコードを組み立てながらバリデーションする
+    type Built = { event: AthleticsEvent; result_ms?: number; result_cm?: number; display: string
+      wind_ms?: number; hurdle_height_cm?: number; is_pb: boolean; is_sb: boolean }
+    const built: Built[] = []
+    for (const b of blocks) {
+      const field = isField(b.event)
+      const repCount = field ? b.meters.length : b.mins.length
+      for (let i = 0; i < repCount; i++) {
+        const result_ms = field ? undefined : parseTrackInput(b.mins[i], b.secs[i])
+        const result_cm = field ? parseFieldInput(b.meters[i], b.cms[i]) : undefined
+        const repSuffix = repCount > 1 ? ` ${t('records.modal.repN', { n: i + 1 })}` : ''
+        if (!field && (!result_ms || result_ms <= 0)) {
+          Toast.show({ type: 'error', text1: t('records.toast.enterTime', { event: getEventLabel(b.event, language), rep: repSuffix }) })
+          return
+        }
+        if (field && (!result_cm || result_cm <= 0)) {
+          Toast.show({ type: 'error', text1: t('records.toast.enterResult', { event: getEventLabel(b.event, language), rep: repSuffix }) })
+          return
+        }
+        built.push({
+          event: b.event, result_ms, result_cm,
+          display: field ? cmToDisplay(result_cm!) : msToDisplay(result_ms!, b.event),
+          wind_ms: b.wind !== '' ? parseFloat(b.wind) * (b.windPos ? 1 : -1) : undefined,
+          hurdle_height_cm: isHurdleEvent(b.event) ? b.hurdleHeight ?? undefined : undefined,
+          is_pb: repCount === 1 ? b.isPB : false,
+          is_sb: repCount === 1 ? b.isSB : false,
+        })
+      }
+    }
+    if (built.length === 0) {
+      Toast.show({ type: 'error', text1: t('records.toast.enterRecord') }); return
+    }
 
     setSaving(true)
     try {
       const userId = (await AsyncStorage.getItem('userId').catch(() => null)) ?? 'local'
-      const rec: RaceRecord = {
-        id: editId ?? `rec_${Date.now()}`,
+      const now = new Date().toISOString()
+      const newRecs: RaceRecord[] = built.map((x, i) => ({
+        id: editId && i === 0 ? editId : Crypto.randomUUID(),
         user_id: userId,
-        event: fEvent,
-        result_display: display,
-        result_ms,
-        result_cm,
+        event: x.event,
+        result_display: x.display,
+        result_ms: x.result_ms,
+        result_cm: x.result_cm,
         race_date: fDate,
+        race_time: fTime || undefined,
         venue: fVenue || undefined,
         competition_name: fComp || undefined,
-        wind_ms: fWind !== '' ? parseFloat(fWind) * (fWindPos ? 1 : -1) : undefined,
-        hurdle_height_cm: isHurdleEvent(fEvent) ? fHurdleHeight ?? undefined : undefined,
-        is_pb: fIsPB,
-        is_sb: fIsSB,
+        wind_ms: x.wind_ms,
+        hurdle_height_cm: x.hurdle_height_cm,
+        is_pb: x.is_pb,
+        is_sb: x.is_sb,
+        is_official: fOfficial,
         notes: fNotes || undefined,
-        created_at: editId ? (records.find(r => r.id === editId)?.created_at ?? new Date().toISOString()) : new Date().toISOString(),
-      }
+        created_at: editId ? (records.find(r => r.id === editId)?.created_at ?? now) : now,
+      }))
       const updated = editId
-        ? records.map(r => r.id === editId ? rec : r).sort((a, b) => b.race_date.localeCompare(a.race_date))
-        : [rec, ...records].sort((a, b) => b.race_date.localeCompare(a.race_date))
+        ? records.map(r => r.id === editId ? newRecs[0] : r).sort(dateTimeDesc)
+        : [...newRecs, ...records].sort(dateTimeDesc)
       await AsyncStorage.setItem(RECORDS_KEY, JSON.stringify(updated))
       setRecords(updated)
-      if (fIsPB && !editId) { Sounds.pb(); pbCelebration(); setShowConfetti(true); setTimeout(() => setShowConfetti(false), 3000) } else { Sounds.save() }
-      Toast.show({ type: 'success', text1: `✅ ${fEvent}  ${display}${fIsPB && !editId ? '  🏆 PB！' : ''}` })
-      if (!editId) showInterstitialAd().catch(() => {})
+      const anyPB = newRecs.some(r => r.is_pb)
+      if (anyPB && !editId) { Sounds.pb(); pbCelebration(); setShowConfetti(true); setTimeout(() => setShowConfetti(false), 3000) } else { Sounds.save() }
+      const summary = newRecs.length === 1
+        ? `${getEventLabel(newRecs[0].event, language)}  ${newRecs[0].result_display}`
+        : t('records.toast.recordsCount', { n: newRecs.length })
+      Toast.show({ type: 'success', text1: `✅ ${summary}${anyPB && !editId ? t('records.toast.pbCelebration') : ''}` })
       resetForm(); setModalVisible(false)
     } catch {
       Sounds.error()
-      Toast.show({ type: 'error', text1: '保存に失敗しました' })
+      Toast.show({ type: 'error', text1: t('records.toast.saveFailed') })
     } finally { setSaving(false) }
-  }, [fEvent, fDate, fMin, fSec, fMeter, fCm, fWind, fHurdleHeight, fVenue, fComp, fIsPB, fIsSB, fNotes, records])
+  }, [blocks, fDate, fTime, fVenue, fComp, fNotes, fOfficial, editId, records, t, language])
 
   const handleDelete = useCallback(async (id: string) => {
     Sounds.delete()
@@ -1574,8 +1711,10 @@ export default function RecordsScreen() {
 
   // フィルター＋ソート適用
   const filtered = (() => {
-    const base = filterEvent === '全種目' ? records : records.filter(r => r.event === filterEvent)
-    if (sortOrder === 'date_asc') return [...base].sort((a, b) => a.race_date.localeCompare(b.race_date))
+    let base = filterEvent === '全種目' ? records : records.filter(r => r.event === filterEvent)
+    if (recordFilter === 'official') base = base.filter(r => r.is_official)
+    else if (recordFilter === 'manual') base = base.filter(r => !r.is_official)
+    if (sortOrder === 'date_asc') return [...base].sort(dateTimeAsc)
     if (sortOrder === 'result') {
       return [...base].sort((a, b) => {
         if (a.result_ms !== undefined && b.result_ms !== undefined) return a.result_ms - b.result_ms
@@ -1583,7 +1722,7 @@ export default function RecordsScreen() {
         return 0
       })
     }
-    return base // date_desc（デフォルト）
+    return [...base].sort(dateTimeDesc) // date_desc（デフォルト）
   })()
 
   // グラフデータ（フィルター種目 or 最初のトラック/フィールド種目）
@@ -1604,7 +1743,7 @@ export default function RecordsScreen() {
 
         {/* ── ヘッダー ── */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>進捗</Text>
+          <Text style={styles.headerTitle}>{t('records.header.title')}</Text>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <TouchableOpacity
               style={styles.iconBtn}
@@ -1615,42 +1754,77 @@ export default function RecordsScreen() {
                 if (!gate.allowed) { setCsvGateRemaining(gate.remaining); setCsvGateHardLimited(gate.hardLimited); setCsvGateLimitType(gate.limitType); setCsvGateVisible(true); return }
                 await recordUsage('csv')
                 trackFeatureUse('csv')
-                Alert.alert('エクスポート', '形式を選択してください', [
-                  { text: 'CSV',  onPress: () => exportAllDataCSV().catch(() => Toast.show({ type: 'error', text1: 'エクスポートに失敗しました' })) },
-                  { text: 'JSON', onPress: () => exportAllDataJSON().catch(() => Toast.show({ type: 'error', text1: 'エクスポートに失敗しました' })) },
-                  { text: 'キャンセル', style: 'cancel' },
+                Alert.alert(t('records.header.exportAlertTitle'), t('records.header.exportAlertMessage'), [
+                  { text: 'CSV',  onPress: () => exportAllDataCSV().catch(() => Toast.show({ type: 'error', text1: t('records.header.exportFailed') })) },
+                  { text: 'JSON', onPress: () => exportAllDataJSON().catch(() => Toast.show({ type: 'error', text1: t('records.header.exportFailed') })) },
+                  { text: t('common.cancel'), style: 'cancel' },
                 ])
               }}
               activeOpacity={0.8}
+              hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+              accessibilityLabel={t('records.header.export')}
             >
-              <Ionicons name="download-outline" size={18} color="#fff" />
+              <Ionicons name="download-outline" size={18} color={TEXT.secondary} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.iconBtn} onPress={() => { Sounds.whoosh(); router.push('/video-analysis') }} activeOpacity={0.8}>
-              <Ionicons name="film-outline" size={18} color="#fff" />
+            <TouchableOpacity style={styles.iconBtn} onPress={() => { Sounds.whoosh(); router.push('/video-analysis') }} activeOpacity={0.8} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }} accessibilityLabel={t('records.header.videoAnalysis')}>
+              <Ionicons name="film-outline" size={18} color={TEXT.secondary} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.iconBtn} onPress={() => { Sounds.whoosh(); router.push('/timer') }} activeOpacity={0.8}>
-              <Ionicons name="timer-outline" size={18} color="#fff" />
+            <TouchableOpacity style={styles.iconBtn} onPress={() => { Sounds.whoosh(); router.push('/timer') }} activeOpacity={0.8} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }} accessibilityLabel={t('records.header.timer')}>
+              <Ionicons name="timer-outline" size={18} color={TEXT.secondary} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.addBtn} onPress={() => { unlockAudio(); Sounds.whoosh(); setModalVisible(true) }} activeOpacity={0.8}>
+            <TouchableOpacity style={styles.iconBtn} onPress={() => { unlockAudio(); Sounds.whoosh(); setToolsMenuVisible(true) }} activeOpacity={0.8} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }} accessibilityLabel={t('records.header.tools')}>
+              <Ionicons name="construct-outline" size={18} color={TEXT.secondary} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.addBtn} onPress={() => { unlockAudio(); Sounds.whoosh(); setModalVisible(true) }} activeOpacity={0.8} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }} accessibilityLabel={t('records.header.add')}>
               <Ionicons name="add" size={22} color="#fff" />
             </TouchableOpacity>
           </View>
         </View>
 
+        {/* ── ツールメニュー（スターター・混成競技・トレーニングタイマー） ── */}
+        <Modal visible={toolsMenuVisible} animationType="fade" transparent onRequestClose={() => setToolsMenuVisible(false)}>
+          <Pressable style={toolsMenu.overlay} onPress={() => setToolsMenuVisible(false)}>
+            <Pressable style={toolsMenu.card} onPress={() => {}}>
+              <Text style={toolsMenu.title}>{t('records.toolsMenu.title')}</Text>
+              {([
+                { icon: 'flag-outline' as const, label: t('records.toolsMenu.starterLabel'), sub: t('records.toolsMenu.starterSub'), route: '/starter' },
+                { icon: 'calculator-outline' as const, label: t('records.toolsMenu.combinedLabel'), sub: t('records.toolsMenu.combinedSub'), route: '/combined-events' },
+                { icon: 'stopwatch-outline' as const, label: t('records.toolsMenu.timerLabel'), sub: t('records.toolsMenu.timerSub'), route: '/training-timer' },
+              ]).map(item => (
+                <TouchableOpacity
+                  key={item.route}
+                  style={toolsMenu.row}
+                  activeOpacity={0.7}
+                  onPress={() => { setToolsMenuVisible(false); unlockAudio(); Sounds.tap(); router.push(item.route as any) }}
+                >
+                  <View style={toolsMenu.rowIconWrap}>
+                    <Ionicons name={item.icon} size={20} color={BRAND} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={toolsMenu.rowLabel}>{item.label}</Text>
+                    <Text style={toolsMenu.rowSub}>{item.sub}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+                </TouchableOpacity>
+              ))}
+            </Pressable>
+          </Pressable>
+        </Modal>
+
         {/* ── タブバー ── */}
         <View style={styles.tabBar}>
           {([
-            { key: 'practice', label: '練習履歴' },
-            { key: 'records',  label: 'タイム記録' },
-            { key: 'health',   label: '体調・睡眠' },
-          ] as const).map(t => (
+            { key: 'practice', label: t('records.tabs.practice') },
+            { key: 'records',  label: t('records.tabs.records') },
+            { key: 'health',   label: t('records.tabs.health') },
+          ] as const).map(tabItem => (
             <HapticTouch
-              key={t.key}
+              key={tabItem.key}
               haptic="tabSwitch"
-              style={[styles.tabItem, activeTab === t.key && styles.tabItemActive]}
-              onPress={() => setActiveTab(t.key)}
+              style={[styles.tabItem, activeTab === tabItem.key && styles.tabItemActive]}
+              onPress={() => setActiveTab(tabItem.key)}
             >
-              <Text style={[styles.tabLabel, activeTab === t.key && styles.tabLabelActive]}>{t.label}</Text>
+              <Text style={[styles.tabLabel, activeTab === tabItem.key && styles.tabLabelActive]}>{tabItem.label}</Text>
             </HapticTouch>
           ))}
         </View>
@@ -1673,7 +1847,7 @@ export default function RecordsScreen() {
               activeOpacity={0.85}
             >
               <Ionicons name="stopwatch-outline" size={22} color="#fff" />
-              <Text style={styles.bigAddBtnText}>タイムを入力する</Text>
+              <Text style={styles.bigAddBtnText}>{t('records.bigAddButton')}</Text>
               <Ionicons name="chevron-forward" size={18} color="#9ca3af" />
             </TouchableOpacity>
           </AnimatedSection>
@@ -1702,7 +1876,7 @@ export default function RecordsScreen() {
                       style={[styles.filterChip, (targetEvent === e) && styles.filterChipActive]}
                       onPress={() => setChartEvent(e)}
                     >
-                      <Text style={[styles.filterChipText, (targetEvent === e) && styles.filterChipTextActive]}>{e}</Text>
+                      <Text style={[styles.filterChipText, (targetEvent === e) && styles.filterChipTextActive]}>{getEventLabel(e, language)}</Text>
                     </HapticTouch>
                   ))}
                 </View>
@@ -1710,9 +1884,10 @@ export default function RecordsScreen() {
               )}
               <TrainingChart
                 data={chartData}
-                title={`${targetEvent}${isFieldChart ? ' 記録推移' : ' タイム推移'}`}
+                title={`${getEventLabel(targetEvent!, language)} ${t(isFieldChart ? 'records.chartKindField' : 'records.chartKindTime')}`}
                 color={BRAND}
-                unit={isFieldChart ? 'm' : '秒'}
+                unit={isFieldChart ? 'm' : t('records.chartUnitSeconds')}
+                invertY={!isFieldChart}
                 isLoading={false}
               />
             </View>
@@ -1731,8 +1906,8 @@ export default function RecordsScreen() {
                 <Ionicons name="trending-up" size={20} color="#d97706" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={growthReportSt.title}>もっと成長を実感する</Text>
-                <Text style={growthReportSt.sub}>自己ベストや怪我のなりやすさが、これまでの記録からまとめて見られます</Text>
+                <Text style={growthReportSt.title}>{t('records.growthReport.title')}</Text>
+                <Text style={growthReportSt.sub}>{t('records.growthReport.desc')}</Text>
               </View>
               {!isNoad && (
                 <View style={growthReportSt.badge}>
@@ -1756,7 +1931,7 @@ export default function RecordsScreen() {
                     style={[styles.filterChip, filterEvent === e && styles.filterChipActive]}
                     onPress={() => setFilterEvent(e as any)}
                   >
-                    <Text style={[styles.filterChipText, filterEvent === e && styles.filterChipTextActive]}>{e}</Text>
+                    <Text style={[styles.filterChipText, filterEvent === e && styles.filterChipTextActive]}>{e === '全種目' ? t('records.allEventsFilter') : getEventLabel(e, language)}</Text>
                   </HapticTouch>
                 ))}
               </View>
@@ -1769,20 +1944,35 @@ export default function RecordsScreen() {
           <View style={styles.card}>
             <View style={styles.cardHeader}>
               <Ionicons name="list" size={16} color={BRAND} />
-              <Text style={styles.cardTitle}>記録一覧</Text>
-              <Text style={styles.countText}>{filtered.length}件</Text>
+              <Text style={styles.cardTitle}>{t('records.list.title')}</Text>
+              <Text style={styles.countText}>{t('records.list.countUnit', { n: filtered.length })}</Text>
             </View>
 
             {/* ソート */}
             {!loading && filtered.length > 0 && (
               <View style={{ flexDirection: 'row', gap: 6, marginBottom: 4 }}>
-                {([['date_desc','新しい順'],['date_asc','古い順'],['result','記録順']] as const).map(([v,l]) => (
+                {([['date_desc',t('records.sort.dateDesc')],['date_asc',t('records.sort.dateAsc')],['result',t('records.sort.result')]] as const).map(([v,l]) => (
                   <TouchableOpacity
                     key={v}
                     style={[styles.filterChip, sortOrder === v && styles.filterChipActive, { paddingHorizontal: 10, paddingVertical: 4 }]}
                     onPress={() => setSortOrder(v)}
                   >
                     <Text style={[styles.filterChipText, sortOrder === v && styles.filterChipTextActive, { fontSize: 11 }]}>{l}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* 手動・公認フィルター */}
+            {!loading && records.length > 0 && (
+              <View style={{ flexDirection: 'row', gap: 6, marginBottom: 4 }}>
+                {([['all',t('records.officialFilter.all')],['official',t('records.officialFilter.official')],['manual',t('records.officialFilter.manual')]] as const).map(([v,l]) => (
+                  <TouchableOpacity
+                    key={v}
+                    style={[styles.filterChip, recordFilter === v && styles.filterChipActive, { paddingHorizontal: 10, paddingVertical: 4 }]}
+                    onPress={() => setRecordFilter(v)}
+                  >
+                    <Text style={[styles.filterChipText, recordFilter === v && styles.filterChipTextActive, { fontSize: 11 }]}>{l}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -1795,9 +1985,9 @@ export default function RecordsScreen() {
             ) : filtered.length === 0 ? (
               <View style={styles.empty}>
                 <Ionicons name="timer-outline" size={40} color={TEXT.hint} />
-                <Text style={styles.emptyText}>まだ記録がありません</Text>
+                <Text style={styles.emptyText}>{t('records.list.empty')}</Text>
                 <HapticTouch haptic="whoosh" style={styles.emptyBtn} onPress={() => setModalVisible(true)}>
-                  <Text style={styles.emptyBtnText}>最初の記録を追加</Text>
+                  <Text style={styles.emptyBtnText}>{t('records.list.addFirst')}</Text>
                 </HapticTouch>
               </View>
             ) : (
@@ -1828,149 +2018,234 @@ export default function RecordsScreen() {
                 {/* ヘッダー */}
                 <View style={styles.modalHeader}>
                   <TouchableOpacity onPress={() => { resetForm(); setModalVisible(false) }}>
-                    <Text style={styles.cancelText}>キャンセル</Text>
+                    <Text style={styles.cancelText}>{t('common.cancel')}</Text>
                   </TouchableOpacity>
-                  <Text style={styles.modalTitle}>{editId ? '記録を編集' : '記録を追加'}</Text>
+                  <Text style={styles.modalTitle}>{t(editId ? 'records.modal.editTitle' : 'records.modal.addTitle')}</Text>
                   <TouchableOpacity onPress={handleSave} disabled={saving}>
-                    <Text style={[styles.saveText, saving && { opacity: 0.4 }]}>{saving ? '保存中...' : '保存'}</Text>
+                    <Text style={[styles.saveText, saving && { opacity: 0.4 }]}>{saving ? t('records.modal.saving') : t('common.save')}</Text>
                   </TouchableOpacity>
                 </View>
 
-                {/* 日付 */}
-                <Text style={styles.label}>日付</Text>
-                <DateSelector date={fDate} onChange={setFDate} />
-
-                {/* 種目 */}
-                <Text style={styles.label}>種目</Text>
-                <Text style={styles.subLabel}>トラック</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
-                  <View style={styles.chipRow}>
-                    {TRACK_EVENTS.map(e => (
-                      <HapticTouch key={e} haptic="toggleOn" style={[styles.chip, fEvent === e && styles.chipActive]} onPress={() => setFEvent(e)}>
-                        <Text style={[styles.chipText, fEvent === e && styles.chipTextActive]}>{e}</Text>
-                      </HapticTouch>
-                    ))}
+                {/* 日付・時刻 */}
+                <View style={styles.metaRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.label}>{t('records.modal.dateLabel')}</Text>
+                    <DateSelector date={fDate} onChange={setFDate} />
                   </View>
-                </ScrollView>
-                <Text style={styles.subLabel}>フィールド</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
-                  <View style={styles.chipRow}>
-                    {FIELD_EVENTS.map(e => (
-                      <HapticTouch key={e} haptic="toggleOn" style={[styles.chip, fEvent === e && styles.chipActive]} onPress={() => setFEvent(e)}>
-                        <Text style={[styles.chipText, fEvent === e && styles.chipTextActive]}>{e}</Text>
-                      </HapticTouch>
-                    ))}
+                  <View style={{ width: 96 }}>
+                    <Text style={styles.label}>{t('records.modal.raceTimeLabel')}</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={fTime}
+                      onChangeText={val => {
+                        const digits = val.replace(/[^0-9]/g, '').slice(0, 4)
+                        setFTime(digits.length > 2 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits)
+                      }}
+                      placeholder="14:30"
+                      placeholderTextColor="#9aa5b1"
+                      keyboardType="number-pad"
+                      maxLength={5}
+                    />
                   </View>
-                </ScrollView>
-
-                {/* タイム or 記録 */}
-                {isField(fEvent) ? (
-                  <>
-                    <Text style={styles.label}>記録</Text>
-                    <View style={styles.timeRow}>
-                      <View style={styles.timeCol}>
-                        <Text style={styles.timeUnit}>m</Text>
-                        <TextInput style={styles.timeNumInput} value={fMeter}
-                          onChangeText={t => setFMeter(t.replace(/[^0-9]/g, '').slice(0, 2))}
-                          editable keyboardType="number-pad" returnKeyType="done" maxLength={2}
-                          placeholder="7" placeholderTextColor="#445577" textAlign="center" />
-                      </View>
-                      <Text style={styles.timeSep}>.</Text>
-                      <View style={styles.timeCol}>
-                        <Text style={styles.timeUnit}>cm</Text>
-                        <TextInput style={styles.timeNumInput} value={fCm}
-                          onChangeText={t => setFCm(t.replace(/[^0-9]/g, '').slice(0, 2))}
-                          editable keyboardType="number-pad" returnKeyType="done" maxLength={2}
-                          placeholder="32" placeholderTextColor="#445577" textAlign="center" />
-                      </View>
-                    </View>
-                  </>
-                ) : (
-                  <>
-                    <Text style={styles.label}>タイム</Text>
-                    <View style={styles.timeRow}>
-                      <View style={styles.timeCol}>
-                        <Text style={styles.timeUnit}>分</Text>
-                        <TextInput style={styles.timeNumInput} value={fMin} onChangeText={setFMin}
-                          keyboardType="number-pad" placeholder="0" placeholderTextColor="#445577" maxLength={2} textAlign="center" />
-                      </View>
-                      <Text style={styles.timeSep}>:</Text>
-                      <View style={styles.timeCol}>
-                        <Text style={styles.timeUnit}>秒</Text>
-                        <TextInput style={styles.timeNumInput} value={fSec} onChangeText={setFSec}
-                          keyboardType="decimal-pad" placeholder="10.85" placeholderTextColor="#445577" maxLength={5} textAlign="center" />
-                      </View>
-                    </View>
-                  </>
-                )}
-
-                {/* 風速 */}
-                {hasWind(fEvent) && (
-                  <>
-                    <Text style={styles.label}>風速（m/s）</Text>
-                    <View style={styles.windRow}>
-                      {/* +/- トグルボタン */}
-                      <TouchableOpacity
-                        style={[styles.windSignBtn, !fWindPos && styles.windSignBtnMinus]}
-                        onPress={() => setFWindPos(v => !v)}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={[styles.windSignTxt, !fWindPos && { color: '#ef4444' }]}>
-                          {fWindPos ? '+' : '−'}
-                        </Text>
-                      </TouchableOpacity>
-                      <TextInput
-                        style={[styles.input, styles.windInput]}
-                        value={fWind}
-                        onChangeText={t => setFWind(t.replace(/[^0-9.]/g, ''))}
-                        keyboardType="decimal-pad"
-                        placeholder="1.2"
-                        placeholderTextColor="#445577"
-                      />
-                      <Text style={styles.windUnit}>m/s</Text>
-                    </View>
-                  </>
-                )}
-
-                {/* ハードルの高さ */}
-                {isHurdleEvent(fEvent) && (
-                  <>
-                    <Text style={styles.label}>ハードルの高さ</Text>
-                    <View style={[styles.chipRow, { flexWrap: 'wrap', marginBottom: 14 }]}>
-                      {STANDARD_HURDLE_HEIGHTS.map(h => (
-                        <HapticTouch key={h.cm} haptic="toggleOn" style={[styles.chip, fHurdleHeight === h.cm && styles.chipActive]} onPress={() => setFHurdleHeight(h.cm)}>
-                          <Text style={[styles.chipText, fHurdleHeight === h.cm && styles.chipTextActive]}>{h.label}</Text>
-                        </HapticTouch>
-                      ))}
-                    </View>
-                  </>
-                )}
-
-                {/* PB / SB トグル */}
-                <View style={styles.toggleRow}>
-                  <TouchableOpacity style={[styles.toggleBtn, fIsPB && styles.toggleBtnPB]} onPress={() => { fIsPB ? Sounds.toggleOff() : Sounds.toggleOn(); setFIsPB(v => !v); if (!fIsPB) setFIsSB(false) }}>
-                    <Ionicons name={fIsPB ? 'trophy' : 'trophy-outline'} size={16} color={fIsPB ? NEON.green : TEXT.secondary} />
-                    <Text style={[styles.toggleText, fIsPB && { color: NEON.green }]}>PB（自己ベスト）</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.toggleBtn, fIsSB && styles.toggleBtnSB]} onPress={() => { fIsSB ? Sounds.toggleOff() : Sounds.toggleOn(); setFIsSB(v => !v); if (!fIsSB) setFIsPB(false) }}>
-                    <Ionicons name={fIsSB ? 'star' : 'star-outline'} size={16} color={fIsSB ? NEON.blue : TEXT.secondary} />
-                    <Text style={[styles.toggleText, fIsSB && { color: NEON.blue }]}>SB（シーズンベスト）</Text>
-                  </TouchableOpacity>
                 </View>
 
-                {/* 大会名・会場 */}
-                <Text style={styles.label}>大会名（任意）</Text>
-                <TextInput style={styles.input} value={fComp} onChangeText={setFComp}
-                  placeholder="例: 春季陸上競技大会" placeholderTextColor="#445577" />
+                {/* 大会名・会場（1回の保存で全種目共通） */}
+                <View style={styles.metaRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.label}>{t('records.modal.competitionLabel')}</Text>
+                    <TextInput style={styles.input} value={fComp} onChangeText={setFComp}
+                      placeholder={t('records.modal.competitionPlaceholder')} placeholderTextColor="#9aa5b1" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.label}>{t('records.modal.venueLabel')}</Text>
+                    <TextInput style={styles.input} value={fVenue} onChangeText={setFVenue}
+                      placeholder={t('records.modal.venuePlaceholder')} placeholderTextColor="#9aa5b1" />
+                  </View>
+                </View>
 
-                <Text style={styles.label}>会場（任意）</Text>
-                <TextInput style={styles.input} value={fVenue} onChangeText={setFVenue}
-                  placeholder="例: 国立競技場" placeholderTextColor="#445577" />
+                {/* 公認記録トグル（1回の保存で全種目共通） */}
+                <TouchableOpacity
+                  onPress={() => setFOfficial(v => !v)}
+                  style={[
+                    styles.toggleBtn,
+                    { flex: 0, alignSelf: 'flex-start', paddingHorizontal: 16, marginBottom: 14 },
+                    fOfficial && { backgroundColor: `${BRAND}15`, borderColor: BRAND },
+                  ]}
+                >
+                  <Ionicons name={fOfficial ? 'ribbon' : 'ribbon-outline'} size={16} color={fOfficial ? BRAND : TEXT.secondary} />
+                  <Text style={[styles.toggleText, fOfficial && { color: BRAND }]}>{t('records.modal.officialToggle')}</Text>
+                </TouchableOpacity>
+
+                {/* 種目ブロック（複数追加可・各ブロックで本数を指定すると入力欄が増える） */}
+                {blocks.map((b, bi) => {
+                  const field = isField(b.event)
+                  const repCount = field ? b.meters.length : b.mins.length
+                  return (
+                    <View key={b.key} style={styles.eventBlock}>
+                      <View style={styles.eventBlockHeader}>
+                        <Text style={styles.eventBlockTitle}>{t('records.modal.eventBlockTitle', { n: bi + 1 })}</Text>
+                        {blocks.length > 1 && (
+                          <TouchableOpacity onPress={() => removeBlock(b.key)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                            <Ionicons name="close-circle" size={20} color="#9aa5b1" />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+
+                      <Text style={styles.subLabel}>{t('records.modal.trackLabel')}</Text>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+                        <View style={styles.chipRow}>
+                          {TRACK_EVENTS.map(e => (
+                            <HapticTouch key={e} haptic="toggleOn" style={[styles.chip, b.event === e && styles.chipActive]} onPress={() => updateBlock(b.key, { event: e })}>
+                              <Text style={[styles.chipText, b.event === e && styles.chipTextActive]}>{getEventLabel(e, language)}</Text>
+                            </HapticTouch>
+                          ))}
+                        </View>
+                      </ScrollView>
+                      <Text style={styles.subLabel}>{t('records.modal.fieldLabel')}</Text>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+                        <View style={styles.chipRow}>
+                          {FIELD_EVENTS.map(e => (
+                            <HapticTouch key={e} haptic="toggleOn" style={[styles.chip, b.event === e && styles.chipActive]} onPress={() => updateBlock(b.key, { event: e })}>
+                              <Text style={[styles.chipText, b.event === e && styles.chipTextActive]}>{getEventLabel(e, language)}</Text>
+                            </HapticTouch>
+                          ))}
+                        </View>
+                      </ScrollView>
+
+                      {/* 本数（複数レース・複数本のインターバルをまとめて入力） */}
+                      <Text style={styles.label}>{t('records.modal.repsLabel')}</Text>
+                      <View style={[styles.chipRow, { marginBottom: 14 }]}>
+                        {REPS_PRESETS.map(n => (
+                          <HapticTouch key={n} haptic="toggleOn" style={[styles.repsChip, repCount === n && styles.chipActive]} onPress={() => updateBlockReps(b.key, n)}>
+                            <Text style={[styles.chipText, repCount === n && styles.chipTextActive]}>{n}</Text>
+                          </HapticTouch>
+                        ))}
+                        <TextInput
+                          style={styles.repsInput}
+                          value={String(repCount)}
+                          onChangeText={val => updateBlockReps(b.key, parseInt(val.replace(/[^0-9]/g, '') || '1', 10))}
+                          keyboardType="number-pad" maxLength={2} textAlign="center"
+                        />
+                        <Text style={styles.repsUnit}>{t('records.modal.repsUnit')}</Text>
+                      </View>
+
+                      {/* タイム or 記録（本数分だけ行が並ぶ） */}
+                      <Text style={styles.label}>{t(field ? 'records.modal.resultLabel' : 'records.modal.timeLabel')}</Text>
+                      <View style={{ gap: 8, marginBottom: 4 }}>
+                        {Array.from({ length: repCount }, (_, i) => (
+                          <View key={i} style={styles.repRow}>
+                            {repCount > 1 && <Text style={styles.repRowLabel}>{t('records.modal.repN', { n: i + 1 })}</Text>}
+                            {field ? (
+                              <View style={styles.timeRow}>
+                                <View style={styles.timeCol}>
+                                  <Text style={styles.timeUnit}>m</Text>
+                                  <TextInput style={styles.timeNumInput} value={b.meters[i]}
+                                    onChangeText={t => { const m = [...b.meters]; m[i] = t.replace(/[^0-9]/g, '').slice(0, 2); updateBlock(b.key, { meters: m }) }}
+                                    editable keyboardType="number-pad" returnKeyType="done" maxLength={2}
+                                    placeholder="7" placeholderTextColor="#9aa5b1" textAlign="center" />
+                                </View>
+                                <Text style={styles.timeSep}>.</Text>
+                                <View style={styles.timeCol}>
+                                  <Text style={styles.timeUnit}>cm</Text>
+                                  <TextInput style={styles.timeNumInput} value={b.cms[i]}
+                                    onChangeText={t => { const c = [...b.cms]; c[i] = t.replace(/[^0-9]/g, '').slice(0, 2); updateBlock(b.key, { cms: c }) }}
+                                    editable keyboardType="number-pad" returnKeyType="done" maxLength={2}
+                                    placeholder="32" placeholderTextColor="#9aa5b1" textAlign="center" />
+                                </View>
+                              </View>
+                            ) : (
+                              <View style={styles.timeRow}>
+                                <View style={styles.timeCol}>
+                                  <Text style={styles.timeUnit}>{t('records.modal.minUnit')}</Text>
+                                  <TextInput style={styles.timeNumInput} value={b.mins[i]}
+                                    onChangeText={val => { const m = [...b.mins]; m[i] = val.replace(/[^0-9]/g, ''); updateBlock(b.key, { mins: m }) }}
+                                    keyboardType="number-pad" placeholder="0" placeholderTextColor="#9aa5b1" maxLength={2} textAlign="center" />
+                                </View>
+                                <Text style={styles.timeSep}>:</Text>
+                                <View style={styles.timeCol}>
+                                  <Text style={styles.timeUnit}>{t('records.modal.secUnit')}</Text>
+                                  <TextInput style={styles.timeNumInput} value={b.secs[i]}
+                                    onChangeText={val => { const s = [...b.secs]; s[i] = val.replace(/[^0-9.]/g, ''); updateBlock(b.key, { secs: s }) }}
+                                    keyboardType="decimal-pad" placeholder="10.85" placeholderTextColor="#9aa5b1" maxLength={5} textAlign="center" />
+                                </View>
+                              </View>
+                            )}
+                          </View>
+                        ))}
+                      </View>
+
+                      {/* 風速 */}
+                      {hasWind(b.event) && (
+                        <>
+                          <Text style={styles.label}>{t('records.modal.windLabel')}</Text>
+                          <View style={styles.windRow}>
+                            <TouchableOpacity
+                              style={[styles.windSignBtn, !b.windPos && styles.windSignBtnMinus]}
+                              onPress={() => updateBlock(b.key, { windPos: !b.windPos })}
+                              activeOpacity={0.7}
+                            >
+                              <Text style={[styles.windSignTxt, !b.windPos && { color: '#ef4444' }]}>
+                                {b.windPos ? '+' : '−'}
+                              </Text>
+                            </TouchableOpacity>
+                            <TextInput
+                              style={[styles.input, styles.windInput]}
+                              value={b.wind}
+                              onChangeText={t => updateBlock(b.key, { wind: t.replace(/[^0-9.]/g, '') })}
+                              keyboardType="decimal-pad"
+                              placeholder="1.2"
+                              placeholderTextColor="#9aa5b1"
+                            />
+                            <Text style={styles.windUnit}>m/s</Text>
+                          </View>
+                        </>
+                      )}
+
+                      {/* ハードルの高さ */}
+                      {isHurdleEvent(b.event) && (
+                        <>
+                          <Text style={styles.label}>{t('records.modal.hurdleHeightLabel')}</Text>
+                          <View style={[styles.chipRow, { flexWrap: 'wrap', marginBottom: 14 }]}>
+                            {STANDARD_HURDLE_HEIGHTS.map(h => (
+                              <HapticTouch key={h.cm} haptic="toggleOn" style={[styles.chip, b.hurdleHeight === h.cm && styles.chipActive]} onPress={() => updateBlock(b.key, { hurdleHeight: h.cm })}>
+                                <Text style={[styles.chipText, b.hurdleHeight === h.cm && styles.chipTextActive]}>{h.label}</Text>
+                              </HapticTouch>
+                            ))}
+                          </View>
+                        </>
+                      )}
+
+                      {/* PB / SB トグル（1本のみの記録の場合だけ表示） */}
+                      {repCount === 1 && (
+                        <View style={styles.toggleRow}>
+                          {/* PB・SBは同時に成立しうる（自己ベスト更新は必ずシーズンベストでもある）ため、
+                              互いを排他的にクリアせず独立してON/OFFできるようにする */}
+                          <TouchableOpacity style={[styles.toggleBtn, b.isPB && styles.toggleBtnPB]} onPress={() => { b.isPB ? Sounds.toggleOff() : Sounds.toggleOn(); updateBlock(b.key, { isPB: !b.isPB }) }}>
+                            <Ionicons name={b.isPB ? 'trophy' : 'trophy-outline'} size={16} color={b.isPB ? NEON.green : TEXT.secondary} />
+                            <Text style={[styles.toggleText, b.isPB && { color: NEON.green }]}>{t('records.modal.pbToggle')}</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={[styles.toggleBtn, b.isSB && styles.toggleBtnSB]} onPress={() => { b.isSB ? Sounds.toggleOff() : Sounds.toggleOn(); updateBlock(b.key, { isSB: !b.isSB }) }}>
+                            <Ionicons name={b.isSB ? 'star' : 'star-outline'} size={16} color={b.isSB ? NEON.blue : TEXT.secondary} />
+                            <Text style={[styles.toggleText, b.isSB && { color: NEON.blue }]}>{t('records.modal.sbToggle')}</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+                  )
+                })}
+
+                {/* 種目を追加 */}
+                {!editId && (
+                  <HapticTouch haptic="tap" style={styles.addEventBtn} onPress={addBlock}>
+                    <Ionicons name="add-circle-outline" size={18} color={BRAND} />
+                    <Text style={styles.addEventBtnText}>{t('records.modal.addEvent')}</Text>
+                  </HapticTouch>
+                )}
 
                 {/* メモ */}
-                <Text style={styles.label}>メモ（任意）</Text>
+                <Text style={styles.label}>{t('records.modal.noteLabel')}</Text>
                 <TextInput style={[styles.input, styles.textArea]} value={fNotes} onChangeText={setFNotes}
-                  multiline numberOfLines={3} placeholder="コンディション・気づきなど..." placeholderTextColor="#445577" />
+                  multiline numberOfLines={3} placeholder={t('records.modal.notePlaceholder')} placeholderTextColor="#445577" />
 
               </ScrollView>
             </KeyboardAvoidingView>
@@ -1992,7 +2267,7 @@ export default function RecordsScreen() {
           setCsvGateVisible(false)
           await recordUsage('csv')
           trackFeatureUse('csv')
-          exportAllDataCSV().catch(() => Toast.show({ type: 'error', text1: 'エクスポートに失敗しました' }))
+          exportAllDataCSV().catch(() => Toast.show({ type: 'error', text1: t('records.header.exportFailed') }))
         }}
         onUpgrade={() => { setCsvGateVisible(false); router.push('/paywall') }}
       />
@@ -2025,6 +2300,16 @@ const growthReportSt = StyleSheet.create({
 })
 
 // ── スタイル ──────────────────────────────────────────────────────
+const toolsMenu = StyleSheet.create({
+  overlay:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  card:        { backgroundColor: '#f6f6f8', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 36, gap: 4 },
+  title:       { fontSize: 17, fontWeight: '800', color: TEXT.primary, marginBottom: 10 },
+  row:         { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#ffffff', borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.08)', borderRadius: 16, padding: 14, marginBottom: 8 },
+  rowIconWrap: { width: 40, height: 40, borderRadius: 12, backgroundColor: BRAND + '14', alignItems: 'center', justifyContent: 'center' },
+  rowLabel:    { fontSize: 14, fontWeight: '800', color: TEXT.primary },
+  rowSub:      { fontSize: 11.5, color: '#9ca3af', marginTop: 2 },
+})
+
 const styles = StyleSheet.create({
   safe:    { flex: 1, backgroundColor: 'transparent' },
   scroll:  { flex: 1 },
@@ -2077,7 +2362,7 @@ const styles = StyleSheet.create({
 
   // 空状態
   empty:      { alignItems: 'center', paddingVertical: 32, gap: 10 },
-  emptyText:  { color: TEXT.hint, fontSize: 14 },
+  emptyText:  { color: TEXT.secondary, fontSize: 14 },
   emptyBtn:   { backgroundColor: BRAND, borderRadius: 21, paddingHorizontal: 20, paddingVertical: 10 },
   emptyBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
 
@@ -2119,6 +2404,34 @@ const styles = StyleSheet.create({
   toggleBtnPB: { backgroundColor: 'rgba(34,197,94,0.08)', borderColor: NEON.green },
   toggleBtnSB: { backgroundColor: 'rgba(59,130,246,0.08)', borderColor: NEON.blue },
   toggleText:  { color: TEXT.secondary, fontSize: 12, fontWeight: '600' },
+
+  // 大会名・会場（横並び）
+  metaRow: { flexDirection: 'row', gap: 10 },
+
+  // 種目ブロック（1種目=1カード。複数追加すると縦に並ぶ）
+  eventBlock: {
+    backgroundColor: '#fbfbfd', borderRadius: 18, borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)',
+    padding: 14, marginBottom: 14, gap: 2,
+  },
+  eventBlockHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  eventBlockTitle:  { color: TEXT.primary, fontSize: 13, fontWeight: '800' },
+
+  // 本数チップ・入力
+  repsChip:  { width: 36, height: 32, borderRadius: 21, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', backgroundColor: '#f0f2f5', alignItems: 'center', justifyContent: 'center' },
+  repsInput: { width: 44, height: 32, borderRadius: 21, borderWidth: 1, borderColor: 'rgba(59,130,246,0.25)', backgroundColor: '#f8f8fa', color: TEXT.primary, fontSize: 14, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  repsUnit:  { color: TEXT.hint, fontSize: 12, fontWeight: '600', alignSelf: 'center' },
+
+  // 本数分の記録行
+  repRow:      { gap: 4 },
+  repRowLabel: { color: TEXT.hint, fontSize: 11, fontWeight: '700' },
+
+  // 種目を追加ボタン
+  addEventBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 12, borderRadius: 14, borderWidth: 1.5, borderStyle: 'dashed', borderColor: `${BRAND}55`,
+    marginBottom: 14,
+  },
+  addEventBtnText: { color: BRAND, fontSize: 13, fontWeight: '700' },
 
   // タイム入力大ボタン
   bigAddBtn: {

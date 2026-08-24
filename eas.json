@@ -33,6 +33,10 @@
         "appleId": "amuletbaby.shop@gmail.com",
         "ascAppId": "6766394981",
         "appleTeamId": "4B5NK8DR67"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-play-service-account.json",
+        "track": "internal"
       }
     }
   }

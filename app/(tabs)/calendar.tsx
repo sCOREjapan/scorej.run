@@ -10,7 +10,9 @@ import { TEXT, SURFACE, SURFACE2, DIVIDER, NEON, BRAND } from '../../lib/theme'
 import { useTheme } from '../../context/ThemeContext'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import * as Crypto from 'expo-crypto'
 import { Sounds, unlockAudio } from '../../lib/sounds'
+import { SESSION_TYPE_LABEL } from '../../lib/sessionTypeLabels'
 import HapticTouch from '../../components/HapticTouch'
 import Toast from 'react-native-toast-message'
 import { scheduleEventReminders, cancelEventReminders } from '../../lib/notifications'
@@ -140,7 +142,7 @@ function AddEventModal({
       const raw = await AsyncStorage.getItem(EVENTS_KEY)
       let events: CalendarEvent[] = []
       try { if (raw) events = JSON.parse(raw) } catch {}  // データ破損でも新規保存を継続
-      const savedId   = editEvent ? editEvent.id : `ev_${Date.now()}`
+      const savedId   = editEvent ? editEvent.id : Crypto.randomUUID()
       const savedDate = editEvent ? editEvent.date : date
       if (editEvent) {
         events = events.map(e => e.id === editEvent.id
@@ -187,7 +189,7 @@ function AddEventModal({
               <Text style={m.title}>{editEvent ? '予定を編集' : '予定を追加'}</Text>
               <Text style={m.dateLbl}>{formattedDate}</Text>
             </View>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="閉じる">
               <Ionicons name="close" size={22} color={TEXT.secondary} />
             </TouchableOpacity>
           </View>
@@ -303,7 +305,7 @@ export default function CalendarScreen() {
             const fatigue = s.fatigue_level ?? 5
             addDot(
               s.session_date ?? s.created_at, 'gps',
-              s.session_type ?? 'GPS練習',
+              (s.session_type && SESSION_TYPE_LABEL[s.session_type]) ?? 'GPS練習',
               s.distance_m ? `${(s.distance_m / 1000).toFixed(1)}km` : undefined,
               undefined, fatigue,
             )
@@ -433,11 +435,11 @@ export default function CalendarScreen() {
 
           {/* ── 月ナビ ── */}
           <View style={st.monthNav}>
-            <HapticTouch haptic="tabSwitch" onPress={() => changeMonth(-1)} style={[st.navBtn, { backgroundColor: colors.surface2, borderColor: colors.border, opacity: isAtMin ? 0.3 : 1 }]} activeOpacity={0.7}>
+            <HapticTouch haptic="tabSwitch" onPress={() => changeMonth(-1)} style={[st.navBtn, { backgroundColor: colors.surface2, borderColor: colors.border, opacity: isAtMin ? 0.3 : 1 }]} activeOpacity={0.7} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} accessibilityLabel="前の月">
               <Ionicons name="chevron-back" size={22} color={colors.text} />
             </HapticTouch>
             <Text style={[st.monthTitle, { color: colors.text }]}>{year}年{month + 1}月</Text>
-            <HapticTouch haptic="tabSwitch" onPress={() => changeMonth(1)} style={[st.navBtn, { backgroundColor: colors.surface2, borderColor: colors.border, opacity: isAtMax ? 0.3 : 1 }]} activeOpacity={0.7}>
+            <HapticTouch haptic="tabSwitch" onPress={() => changeMonth(1)} style={[st.navBtn, { backgroundColor: colors.surface2, borderColor: colors.border, opacity: isAtMax ? 0.3 : 1 }]} activeOpacity={0.7} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} accessibilityLabel="次の月">
               <Ionicons name="chevron-forward" size={22} color={colors.text} />
             </HapticTouch>
           </View>
@@ -557,12 +559,14 @@ export default function CalendarScreen() {
                           <TouchableOpacity
                             onPress={() => openEdit(rec.eventId!)}
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            accessibilityLabel="編集"
                           >
                             <Ionicons name="pencil-outline" size={16} color={TEXT.secondary} />
                           </TouchableOpacity>
                           <TouchableOpacity
                             onPress={() => deleteEvent(rec.eventId!)}
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            accessibilityLabel="削除"
                           >
                             <Ionicons name="trash-outline" size={16} color="#FF3B30" />
                           </TouchableOpacity>

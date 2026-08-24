@@ -5,6 +5,8 @@ import {
 } from 'react-native'
 import { checkAdGate, recordUsage } from '../lib/adGate'
 import AdGateModal from '../components/AdGateModal'
+import TicketGateModal from '../components/TicketGateModal'
+import Toast from 'react-native-toast-message'
 import { useAuth } from '../context/AuthContext'
 import Svg, {
   Circle, Ellipse, G, Rect,
@@ -16,6 +18,7 @@ const BODY_BACK  = require('../assets/body/body-back.png')
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useRouter } from 'expo-router'
+import { createStorageQueue } from '../lib/storageQueue'
 
 /* ─── 型定義 ─────────────────────────────────── */
 type Severity = 'mild' | 'moderate' | 'severe'
@@ -53,45 +56,48 @@ function fetchWithTimeout(url: string, options: RequestInit, ms: number): Promis
   return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(id))
 }
 
+// 座標はAI生成イラスト(assets/body/body-front.png・body-back.png、220×370のviewBox基準)に
+// 実測でフィットさせている。イラストを差し替えた場合はここも合わせて調整すること。
+// 2026-07-29: イラスト差し替え(通常の人体比率)に伴い、シルエットのピクセル解析に基づき全ゾーンを再calibrate。
 const ZONES: ZoneDef[] = [
-  { id:'head',        label:'頭・首',              front:{type:'circle', cx:110,cy:28,r:20},           back:{type:'circle', cx:110,cy:28,r:20} },
-  { id:'neck',        label:'首・頸部',             front:{type:'ellipse',cx:110,cy:57,rx:10,ry:8},    back:{type:'ellipse',cx:110,cy:57,rx:10,ry:8} },
-  { id:'shoulder_l',  label:'左肩',                front:{type:'ellipse',cx:72,cy:72,rx:15,ry:10},    back:{type:'ellipse',cx:72,cy:72,rx:15,ry:10} },
-  { id:'shoulder_r',  label:'右肩',                front:{type:'ellipse',cx:148,cy:72,rx:15,ry:10},   back:{type:'ellipse',cx:148,cy:72,rx:15,ry:10} },
-  { id:'chest',       label:'胸・肋骨',             front:{type:'ellipse',cx:110,cy:100,rx:24,ry:18} },
-  { id:'upper_back',  label:'背中（上）',            back:{type:'ellipse', cx:110,cy:100,rx:24,ry:18} },
-  { id:'belly',       label:'腹部',                front:{type:'ellipse',cx:110,cy:132,rx:20,ry:14} },
-  { id:'lower_back',  label:'腰・下背部',            back:{type:'ellipse', cx:110,cy:132,rx:20,ry:14} },
-  { id:'upper_arm_l', label:'左上腕',              front:{type:'ellipse',cx:67,cy:94,rx:10,ry:22},    back:{type:'ellipse',cx:67,cy:94,rx:10,ry:22} },
-  { id:'upper_arm_r', label:'右上腕',              front:{type:'ellipse',cx:153,cy:94,rx:10,ry:22},   back:{type:'ellipse',cx:153,cy:94,rx:10,ry:22} },
-  { id:'elbow_l',     label:'左肘',                front:{type:'ellipse',cx:62,cy:130,rx:10,ry:9},    back:{type:'ellipse',cx:62,cy:130,rx:10,ry:9} },
-  { id:'elbow_r',     label:'右肘',                front:{type:'ellipse',cx:158,cy:130,rx:10,ry:9},   back:{type:'ellipse',cx:158,cy:130,rx:10,ry:9} },
-  { id:'forearm_l',   label:'左前腕',              front:{type:'ellipse',cx:62,cy:152,rx:9,ry:18},    back:{type:'ellipse',cx:62,cy:152,rx:9,ry:18} },
-  { id:'forearm_r',   label:'右前腕',              front:{type:'ellipse',cx:158,cy:152,rx:9,ry:18},   back:{type:'ellipse',cx:158,cy:152,rx:9,ry:18} },
-  { id:'wrist_l',     label:'左手首',              front:{type:'ellipse',cx:62,cy:176,rx:9,ry:7},     back:{type:'ellipse',cx:62,cy:176,rx:9,ry:7} },
-  { id:'wrist_r',     label:'右手首',              front:{type:'ellipse',cx:158,cy:176,rx:9,ry:7},    back:{type:'ellipse',cx:158,cy:176,rx:9,ry:7} },
-  { id:'hip_l',       label:'左股関節',             front:{type:'ellipse',cx:92,cy:185,rx:18,ry:12},   back:{type:'ellipse',cx:92,cy:185,rx:18,ry:12} },
-  { id:'hip_r',       label:'右股関節',             front:{type:'ellipse',cx:128,cy:185,rx:18,ry:12},  back:{type:'ellipse',cx:128,cy:185,rx:18,ry:12} },
-  { id:'groin',       label:'鼠径部・内転筋',        front:{type:'ellipse',cx:110,cy:194,rx:12,ry:10} },
-  { id:'buttock',     label:'臀部・お尻',            back:{type:'ellipse', cx:110,cy:185,rx:26,ry:16} },
-  { id:'quad_l',      label:'大腿前（左）',           front:{type:'ellipse',cx:95,cy:220,rx:14,ry:26} },
-  { id:'quad_r',      label:'大腿前（右）',           front:{type:'ellipse',cx:125,cy:220,rx:14,ry:26} },
-  { id:'hamstring_l', label:'ハムストリング（左）',    back:{type:'ellipse', cx:95,cy:220,rx:14,ry:26} },
-  { id:'hamstring_r', label:'ハムストリング（右）',    back:{type:'ellipse', cx:125,cy:220,rx:14,ry:26} },
-  { id:'it_band_l',   label:'腸脛靭帯（左）',         front:{type:'ellipse',cx:82,cy:225,rx:5,ry:22},   back:{type:'ellipse',cx:82,cy:225,rx:5,ry:22} },
-  { id:'it_band_r',   label:'腸脛靭帯（右）',         front:{type:'ellipse',cx:138,cy:225,rx:5,ry:22},  back:{type:'ellipse',cx:138,cy:225,rx:5,ry:22} },
-  { id:'knee_l',      label:'左膝',                front:{type:'ellipse',cx:95,cy:256,rx:14,ry:10},   back:{type:'ellipse',cx:95,cy:256,rx:14,ry:10} },
-  { id:'knee_r',      label:'右膝',                front:{type:'ellipse',cx:125,cy:256,rx:14,ry:10},  back:{type:'ellipse',cx:125,cy:256,rx:14,ry:10} },
-  { id:'shin_l',      label:'すね（左）',             front:{type:'ellipse',cx:95,cy:290,rx:10,ry:24} },
-  { id:'shin_r',      label:'すね（右）',             front:{type:'ellipse',cx:125,cy:290,rx:10,ry:24} },
-  { id:'calf_l',      label:'ふくらはぎ（左）',        back:{type:'ellipse', cx:95,cy:290,rx:10,ry:24} },
-  { id:'calf_r',      label:'ふくらはぎ（右）',        back:{type:'ellipse', cx:125,cy:290,rx:10,ry:24} },
-  { id:'achilles_l',  label:'アキレス腱（左）',        back:{type:'ellipse', cx:95,cy:326,rx:7,ry:11} },
-  { id:'achilles_r',  label:'アキレス腱（右）',        back:{type:'ellipse', cx:125,cy:326,rx:7,ry:11} },
-  { id:'ankle_l',     label:'左足首',              front:{type:'ellipse',cx:95,cy:336,rx:10,ry:8},    back:{type:'ellipse',cx:95,cy:336,rx:10,ry:8} },
-  { id:'ankle_r',     label:'右足首',              front:{type:'ellipse',cx:125,cy:336,rx:10,ry:8},   back:{type:'ellipse',cx:125,cy:336,rx:10,ry:8} },
-  { id:'foot_l',      label:'左足・足底',            front:{type:'ellipse',cx:91,cy:348,rx:16,ry:8},    back:{type:'ellipse',cx:91,cy:348,rx:16,ry:8} },
-  { id:'foot_r',      label:'右足・足底',            front:{type:'ellipse',cx:129,cy:348,rx:16,ry:8},   back:{type:'ellipse',cx:129,cy:348,rx:16,ry:8} },
+  { id:'head',        label:'頭・首',              front:{type:'circle', cx:110,cy:43,r:20},           back:{type:'circle', cx:110,cy:43,r:20} },
+  { id:'neck',        label:'首・頸部',             front:{type:'ellipse',cx:110,cy:61,rx:10,ry:6},    back:{type:'ellipse',cx:110,cy:61,rx:10,ry:6} },
+  { id:'shoulder_l',  label:'左肩',                front:{type:'ellipse',cx:79, cy:72, rx:18,ry:16},  back:{type:'ellipse',cx:79, cy:72, rx:18,ry:16} },
+  { id:'shoulder_r',  label:'右肩',                front:{type:'ellipse',cx:142,cy:72, rx:18,ry:16},  back:{type:'ellipse',cx:142,cy:72, rx:18,ry:16} },
+  { id:'chest',       label:'胸・肋骨',             front:{type:'ellipse',cx:110,cy:110,rx:40,ry:22} },
+  { id:'upper_back',  label:'背中（上）',            back:{type:'ellipse', cx:110,cy:110,rx:40,ry:22} },
+  { id:'belly',       label:'腹部',                front:{type:'ellipse',cx:110,cy:168,rx:30,ry:26} },
+  { id:'lower_back',  label:'腰・下背部',            back:{type:'ellipse', cx:110,cy:168,rx:30,ry:26} },
+  { id:'upper_arm_l', label:'左上腕',              front:{type:'ellipse',cx:72, cy:96, rx:13,ry:24},  back:{type:'ellipse',cx:72, cy:96, rx:13,ry:24} },
+  { id:'upper_arm_r', label:'右上腕',              front:{type:'ellipse',cx:149,cy:96, rx:13,ry:24},  back:{type:'ellipse',cx:149,cy:96, rx:13,ry:24} },
+  { id:'elbow_l',     label:'左肘',                front:{type:'ellipse',cx:64, cy:121,rx:11,ry:10},  back:{type:'ellipse',cx:64, cy:121,rx:11,ry:10} },
+  { id:'elbow_r',     label:'右肘',                front:{type:'ellipse',cx:156,cy:121,rx:11,ry:10},  back:{type:'ellipse',cx:156,cy:121,rx:11,ry:10} },
+  { id:'forearm_l',   label:'左前腕',              front:{type:'ellipse',cx:58, cy:145,rx:11,ry:24},  back:{type:'ellipse',cx:58, cy:145,rx:11,ry:24} },
+  { id:'forearm_r',   label:'右前腕',              front:{type:'ellipse',cx:163,cy:145,rx:11,ry:24},  back:{type:'ellipse',cx:163,cy:145,rx:11,ry:24} },
+  { id:'wrist_l',     label:'左手首',              front:{type:'ellipse',cx:52, cy:169,rx:9, ry:8},   back:{type:'ellipse',cx:52, cy:169,rx:9, ry:8} },
+  { id:'wrist_r',     label:'右手首',              front:{type:'ellipse',cx:169,cy:169,rx:9, ry:8},   back:{type:'ellipse',cx:169,cy:169,rx:9, ry:8} },
+  { id:'hip_l',       label:'左股関節',             front:{type:'ellipse',cx:90, cy:193,rx:16,ry:14},  back:{type:'ellipse',cx:90, cy:193,rx:16,ry:14} },
+  { id:'hip_r',       label:'右股関節',             front:{type:'ellipse',cx:130,cy:193,rx:16,ry:14},  back:{type:'ellipse',cx:130,cy:193,rx:16,ry:14} },
+  { id:'groin',       label:'鼠径部・内転筋',        front:{type:'ellipse',cx:110,cy:203,rx:12,ry:9} },
+  { id:'buttock',     label:'臀部・お尻',            back:{type:'ellipse', cx:110,cy:200,rx:30,ry:16} },
+  { id:'quad_l',      label:'大腿前（左）',           front:{type:'ellipse',cx:91, cy:224,rx:15,ry:27} },
+  { id:'quad_r',      label:'大腿前（右）',           front:{type:'ellipse',cx:129,cy:224,rx:15,ry:27} },
+  { id:'hamstring_l', label:'ハムストリング（左）',    back:{type:'ellipse', cx:91, cy:224,rx:15,ry:27} },
+  { id:'hamstring_r', label:'ハムストリング（右）',    back:{type:'ellipse', cx:129,cy:224,rx:15,ry:27} },
+  { id:'it_band_l',   label:'腸脛靭帯（左）',         front:{type:'ellipse',cx:76, cy:224,rx:6, ry:27},  back:{type:'ellipse',cx:76, cy:224,rx:6, ry:27} },
+  { id:'it_band_r',   label:'腸脛靭帯（右）',         front:{type:'ellipse',cx:144,cy:224,rx:6, ry:27},  back:{type:'ellipse',cx:144,cy:224,rx:6, ry:27} },
+  { id:'knee_l',      label:'左膝',                front:{type:'ellipse',cx:91, cy:253,rx:13,ry:11},  back:{type:'ellipse',cx:91, cy:253,rx:13,ry:11} },
+  { id:'knee_r',      label:'右膝',                front:{type:'ellipse',cx:129,cy:253,rx:13,ry:11},  back:{type:'ellipse',cx:129,cy:253,rx:13,ry:11} },
+  { id:'shin_l',      label:'すね（左）',             front:{type:'ellipse',cx:82, cy:292,rx:11,ry:32} },
+  { id:'shin_r',      label:'すね（右）',             front:{type:'ellipse',cx:138,cy:292,rx:11,ry:32} },
+  { id:'calf_l',      label:'ふくらはぎ（左）',        back:{type:'ellipse', cx:82, cy:292,rx:11,ry:32} },
+  { id:'calf_r',      label:'ふくらはぎ（右）',        back:{type:'ellipse', cx:138,cy:292,rx:11,ry:32} },
+  { id:'achilles_l',  label:'アキレス腱（左）',        back:{type:'ellipse', cx:77, cy:324,rx:7, ry:10} },
+  { id:'achilles_r',  label:'アキレス腱（右）',        back:{type:'ellipse', cx:143,cy:324,rx:7, ry:10} },
+  { id:'ankle_l',     label:'左足首',              front:{type:'ellipse',cx:77, cy:324,rx:8, ry:8},   back:{type:'ellipse',cx:77, cy:324,rx:8, ry:8} },
+  { id:'ankle_r',     label:'右足首',              front:{type:'ellipse',cx:143,cy:324,rx:8, ry:8},   back:{type:'ellipse',cx:143,cy:324,rx:8, ry:8} },
+  { id:'foot_l',      label:'左足・足底',            front:{type:'ellipse',cx:75, cy:337,rx:15,ry:8},   back:{type:'ellipse',cx:75, cy:337,rx:15,ry:8} },
+  { id:'foot_r',      label:'右足・足底',            front:{type:'ellipse',cx:145,cy:337,rx:15,ry:8},   back:{type:'ellipse',cx:145,cy:337,rx:15,ry:8} },
 ]
 
 const PAIN_TYPES     = [{id:'sharp',label:'鋭い・刺すような'},{id:'dull',label:'鈍い・重い'},{id:'burning',label:'燃えるような・しびれ'},{id:'aching',label:'じんじん・疼く'}]
@@ -101,6 +107,9 @@ const SEVERITY_COLOR = { mild:'#34C759', moderate:'#FF9500', severe:'#FF3B30' }
 const SEVERITY_LABEL = { mild:'軽度', moderate:'中程度', severe:'重度' }
 const STORAGE_KEY = 'trackmate_recovery_records'
 const RECOVERY_CACHE_KEY = 'trackmate_recovery_ai_cache_v1'
+// askAI(分析→保存)と deleteRecord(削除) が同じ history state を基点に非同期で
+// 読み書きするため、直列化して lost update を防ぐ
+const recoveryStore = createStorageQueue<SavedRecord[]>(STORAGE_KEY, [])
 
 /* ════════════════════════════════════════════ */
 export default function RecoveryScreen() {
@@ -122,6 +131,9 @@ export default function RecoveryScreen() {
   const [adGateRemaining,   setAdGateRemaining]   = useState(0)
   const [adGateHardLimited, setAdGateHardLimited] = useState(false)
   const [adGateLimitType,   setAdGateLimitType]   = useState<'none'|'daily'|'monthly'|'total'|'window'>('none')
+  const [ticketGateVisible, setTicketGateVisible] = useState(false)
+  const [ticketGateCost,    setTicketGateCost]    = useState(0)
+  const [ticketGateBalance, setTicketGateBalance] = useState(0)
   const fadeAnim = useRef(new Animated.Value(1)).current
   // AdGate async チェック中の二重タップ防止
   const askingRef = useRef(false)
@@ -132,7 +144,7 @@ export default function RecoveryScreen() {
   }
 
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then(r => { if(r) { try { setHistory(JSON.parse(r)) } catch {} } }).catch(()=>{})
+    recoveryStore.get().then(setHistory).catch(()=>{})
   },[])
 
   const togglePart = (id: string) => {
@@ -140,7 +152,7 @@ export default function RecoveryScreen() {
   }
 
   /* ── AI相談 ── */
-  const askAICore = async () => {
+  const askAICore = async (needsTicket = false, ticketCost = 0) => {
     setApiError('')
     setLoading(true)
 
@@ -203,9 +215,12 @@ export default function RecoveryScreen() {
         id:Date.now().toString(), date:new Date().toLocaleDateString('ja-JP'),
         bodyParts, painLevel, result:parsed,
       }
-      const upd = [rec,...history].slice(0,20)
+      const upd = await recoveryStore.update(current => [rec, ...current].slice(0, 20))
       setHistory(upd)
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(upd))
+
+      // AI相談に成功した場合のみ利用回数・チケットを消費する（失敗時に課金しないため）
+      await recordUsage('recovery')
+      if (needsTicket) Toast.show({ type: 'info', text1: `🎫 チケットを${ticketCost}枚使用しました`, visibilityTime: 1800 })
       // 結果をキャッシュに保存（同一入力の再分析でAPIコストを発生させない）
       try {
         const _raw = await AsyncStorage.getItem(RECOVERY_CACHE_KEY)
@@ -225,9 +240,8 @@ export default function RecoveryScreen() {
       {
         text: '削除する', style: 'destructive',
         onPress: async () => {
-          const upd = history.filter(r => r.id !== id)
+          const upd = await recoveryStore.update(current => current.filter(r => r.id !== id))
           setHistory(upd)
-          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(upd)).catch(() => {})
         },
       },
     ])
@@ -244,14 +258,16 @@ export default function RecoveryScreen() {
     try {
       const gate = await checkAdGate('recovery')
       if (!gate.allowed) {
-        setAdGateRemaining(gate.remaining)
-        setAdGateHardLimited(gate.hardLimited)
-        setAdGateLimitType(gate.limitType)
-        setAdGateVisible(true)
+        if (gate.needsTicket) { setTicketGateCost(gate.ticketCost); setTicketGateBalance(gate.ticketBalance); setTicketGateVisible(true) }
+        else {
+          setAdGateRemaining(gate.remaining)
+          setAdGateHardLimited(gate.hardLimited)
+          setAdGateLimitType(gate.limitType)
+          setAdGateVisible(true)
+        }
         return
       }
-      await recordUsage('recovery')
-      await askAICore()
+      await askAICore(gate.needsTicket, gate.ticketCost)
     } finally {
       askingRef.current = false
     }
@@ -330,7 +346,9 @@ export default function RecoveryScreen() {
                 return (
                   <TouchableOpacity key={n}
                     style={[s.levelBtn,{borderColor:col},painLevel===n&&{backgroundColor:col}]}
-                    onPress={()=>setPainLevel(n)}>
+                    onPress={()=>setPainLevel(n)}
+                    hitSlop={{top:4,bottom:4,left:2,right:2}}
+                    accessibilityLabel={`痛みレベル${n}`}>
                     <Text style={[s.levelTxt,painLevel===n&&{color:'#fff',fontWeight:'800'}]}>{n}</Text>
                   </TouchableOpacity>
                 )
@@ -381,6 +399,10 @@ export default function RecoveryScreen() {
               <Text style={s.disclaimerTxt}>AIアドバイスは医師の診断の代替ではありません。重篤な症状は医療機関を受診してください。</Text>
             </View>
 
+            <View style={[s.ticketCostBadge, { backgroundColor: '#16653422', borderColor: '#166534' }]}>
+              <Text style={[s.ticketCostBadgeText, { color: '#166534' }]}>無料</Text>
+            </View>
+
             <TouchableOpacity style={[s.submitBtn,loading&&{opacity:0.6}]} onPress={askAI} disabled={loading}>
               {loading
                 ? <><ActivityIndicator color="#fff"/><Text style={s.submitTxt}>AIが分析中...</Text></>
@@ -415,6 +437,7 @@ export default function RecoveryScreen() {
                       <TouchableOpacity
                         onPress={(e)=>{e.stopPropagation();deleteRecord(rec.id)}}
                         hitSlop={{top:8,bottom:8,left:8,right:8}}
+                        accessibilityLabel="削除"
                       >
                         <Ionicons name="trash-outline" size={18} color="#ef4444"/>
                       </TouchableOpacity>
@@ -440,13 +463,21 @@ export default function RecoveryScreen() {
         onClose={() => setAdGateVisible(false)}
         onAdWatched={async () => {
           setAdGateVisible(false)
-          await recordUsage('recovery')
+          // 使用記録は askAICore が成功時にのみ行う(ここで先に記録すると二重課金・失敗時課金になる)
           await askAICore()
         }}
         onUpgrade={() => {
           setAdGateVisible(false)
           router.push('/paywall')
         }}
+      />
+
+      <TicketGateModal
+        visible={ticketGateVisible}
+        feature="recovery"
+        ticketCost={ticketGateCost}
+        ticketBalance={ticketGateBalance}
+        onClose={() => setTicketGateVisible(false)}
       />
     </View>
   )
@@ -457,6 +488,12 @@ function BodyMap({ view, selected, onToggle }: {
   view:'front'|'back'; selected:string[]; onToggle:(id:string)=>void
 }) {
   const W=220, H=370
+  const DISPLAY_SCALE = 1.4  // タップ判定座標系(220×370)はそのままに、表示サイズだけ拡大する
+  // 手首・足首・アキレス腱など小さい部位は、見た目の形はそのままにタップ判定だけ広げる
+  // （見た目の選択ハイライトは実寸のまま、別レイヤーの透明な当たり判定を上乗せする）
+  // 20pt程度まで広げると密集部位（首・肩・鼠径部など）同士のタップ判定が
+  // 大きく重なってしまうため、隣接部位を誤タップしない範囲で控えめに拡大する
+  const MIN_HIT_R = 11  // viewBox座標系での最小半径（画面上でおよそ半径15pt = 直径31pt相当）
   const zones = ZONES.filter(z => view==='front' ? !!z.front : !!z.back)
   const getShape = (z: ZoneDef) => view==='front' ? z.front! : z.back!
   const getLabelY = (shape: ZoneShape) => {
@@ -465,7 +502,7 @@ function BodyMap({ view, selected, onToggle }: {
   }
 
   return (
-    <Svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+    <Svg width={W*DISPLAY_SCALE} height={H*DISPLAY_SCALE} viewBox={`0 0 ${W} ${H}`}>
       {/* 背景（react-native-svg の style prop が効かない環境対策） */}
       <Rect x={0} y={0} width={W} height={H} fill="#f8fafc" rx={14} ry={14} />
 
@@ -479,6 +516,13 @@ function BodyMap({ view, selected, onToggle }: {
 
         return (
           <G key={zone.id} onPress={() => onToggle(zone.id)}>
+            {/* 拡大タップ判定（常に透明。見た目のサイズは変えずタップ範囲だけ広げる） */}
+            {shape.type==='circle'
+              ? (shape.r < MIN_HIT_R && <Circle cx={shape.cx} cy={shape.cy} r={MIN_HIT_R} fill="rgba(0,0,0,0.001)"/>)
+              : ((shape.rx < MIN_HIT_R || shape.ry < MIN_HIT_R) &&
+                  <Ellipse cx={shape.cx} cy={shape.cy} rx={Math.max(shape.rx,MIN_HIT_R)} ry={Math.max(shape.ry,MIN_HIT_R)} fill="rgba(0,0,0,0.001)"/>)
+            }
+
             {/* 選択時グロー */}
             {sel && shape.type==='circle' && (
               <Circle cx={shape.cx} cy={shape.cy} r={shape.r+7}
@@ -709,6 +753,11 @@ const s = StyleSheet.create({
                       backgroundColor:'rgba(255,149,0,0.08)',borderRadius:10,
                       borderWidth:1,borderColor:'rgba(255,149,0,0.28)',marginBottom:16},
   disclaimerBannerTxt:{color:'#b45309',fontSize:11,lineHeight:17,flex:1},
+  ticketCostBadge:  {alignSelf:'center',flexDirection:'row',alignItems:'center',marginTop:14,
+                      backgroundColor:'rgba(245,158,11,0.10)',borderRadius:20,
+                      paddingHorizontal:12,paddingVertical:5,
+                      borderWidth:1,borderColor:'rgba(245,158,11,0.3)'},
+  ticketCostBadgeText:{color:'#b45309',fontSize:12,fontWeight:'800'},
   submitBtn:        {flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,
                       backgroundColor:'#1c1c1e',borderRadius:50,paddingVertical:18,marginTop:16,
                       shadowColor:'#000',shadowOffset:{width:0,height:4},
@@ -736,7 +785,7 @@ const s = StyleSheet.create({
   histCard:         {backgroundColor:'#fff',borderRadius:18,padding:14,marginBottom:10,
                       shadowColor:'#000',shadowOffset:{width:0,height:4},shadowOpacity:0.04,shadowRadius:12,elevation:2},
   histDate:         {color:'#6b7280',fontSize:11},
-  histPart:         {color:'#9ca3af',fontSize:12,marginBottom:4},
+  histPart:         {color:'#6b7280',fontSize:12,marginBottom:4},
   histDiag:         {color:'#111827',fontSize:15,fontWeight:'700',paddingRight:24},
   empty:            {alignItems:'center',paddingTop:80,gap:12},
   emptyTxt:         {color:'#6b7280',fontSize:14},

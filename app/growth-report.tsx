@@ -66,7 +66,7 @@ function smoothLinePath(pts: { x: number; y: number }[]): string {
 
 // ── 天気アプリ風ウィジェットカード（一覧画面の「窓」） ──────────────────
 function GrowthWidgetCard({
-  icon, title, value, valueColor, trend, data, color, onPress,
+  icon, title, value, valueColor, trend, data, color, onPress, invert = false,
 }: {
   icon: string
   title: string
@@ -76,6 +76,8 @@ function GrowthWidgetCard({
   data: ChartDataPoint[]
   color: string
   onPress: () => void
+  /** trueの場合、値が小さいほど上に表示する（タイム種目など「小さい=良い記録」向け） */
+  invert?: boolean
 }) {
   const [w, setW] = useState(300)
   const H = 64
@@ -88,10 +90,13 @@ function GrowthWidgetCard({
     const max = Math.max(...values)
     const range = max - min || 1
     const padY = H * 0.16
-    const pts = data.map((p, i) => ({
-      x: (i / (data.length - 1)) * w,
-      y: H - padY - ((p.value - min) / range) * (H - padY * 2),
-    }))
+    const pts = data.map((p, i) => {
+      const ratio = (p.value - min) / range
+      return {
+        x: (i / (data.length - 1)) * w,
+        y: invert ? padY + ratio * (H - padY * 2) : H - padY - ratio * (H - padY * 2),
+      }
+    })
     const line = smoothLinePath(pts)
     const area = `${line} L ${pts[pts.length - 1].x} ${H} L ${pts[0].x} ${H} Z`
     return { line, area }
@@ -311,7 +316,7 @@ export default function GrowthReportScreen() {
       <LinearGradient colors={SCREEN_BG} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.screen}>
         <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
           <View style={st.header}>
-            <TouchableOpacity style={st.backBtn} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/records')}>
+            <TouchableOpacity style={st.backBtn} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/records')} accessibilityLabel="戻る">
               <Ionicons name="chevron-back" size={26} color={'#ffffff'} />
             </TouchableOpacity>
             <Text style={st.headerTitle}>成長レポート</Text>
@@ -346,6 +351,7 @@ export default function GrowthReportScreen() {
               if (view !== 'list') { setView('list'); return }
               router.canGoBack() ? router.back() : router.replace('/(tabs)/records')
             }}
+            accessibilityLabel="戻る"
           >
             <Ionicons name="chevron-back" size={26} color={'#ffffff'} />
           </TouchableOpacity>
@@ -364,6 +370,7 @@ export default function GrowthReportScreen() {
               trend={pbTrend}
               data={pbChartData}
               color={BRAND}
+              invert={!isFieldEvent}
               onPress={() => setView('pb')}
             />
             </Animated.View>
@@ -421,6 +428,7 @@ export default function GrowthReportScreen() {
                     title={selectedEvent ?? ''}
                     color={BRAND}
                     unit={isFieldEvent ? 'm' : ''}
+                    invertY={!isFieldEvent}
                     maxPoints={200}
                     showYear
                   />
@@ -512,7 +520,7 @@ const st = StyleSheet.create({
   sectionTitle: { color: '#111827', fontSize: 15, fontWeight: '800', marginBottom: 12 },
   summaryTxt:   { color: '#111827', fontSize: 13, fontWeight: '700', marginTop: 10 },
   summarySub:   { color: '#6b7280', fontSize: 12, marginTop: 4 },
-  emptyTxt:     { color: '#9ca3af', fontSize: 13, textAlign: 'center', paddingVertical: 24 },
+  emptyTxt:     { color: '#6b7280', fontSize: 13, textAlign: 'center', paddingVertical: 24 },
 
   eventChip:       { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10, backgroundColor: '#f0f2f5' },
   eventChipActive: { backgroundColor: BRAND },
@@ -547,8 +555,8 @@ const wc = StyleSheet.create({
   title:     { color: '#111827', fontSize: 13.5, fontWeight: '800' },
   valueRow:  { marginTop: 10 },
   value:     { fontSize: 26, fontWeight: '900', letterSpacing: -0.5 },
-  trend:     { color: '#9ca3af', fontSize: 12, fontWeight: '600', marginTop: 2 },
+  trend:     { color: '#6b7280', fontSize: 12, fontWeight: '600', marginTop: 2 },
   chartWrap: { height: 64, marginTop: 10, marginHorizontal: -16, marginBottom: -16 },
   chartEmpty:{ flex: 1, alignItems: 'center', justifyContent: 'center' },
-  chartEmptyTxt: { color: '#c9c9ce', fontSize: 11 },
+  chartEmptyTxt: { color: '#9ca3af', fontSize: 11 },
 })

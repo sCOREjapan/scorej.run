@@ -7,6 +7,7 @@
 
 import { Platform } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { isAnyAdShowing, setAnyAdShowing } from './adLock'
 
 // ── ストレージキー ─────────────────────────────────────────────
 const SAVE_COUNT_KEY        = 'score_save_count_interstitial'
@@ -132,8 +133,12 @@ export async function showRewardedAd(): Promise<boolean> {
   const lib = getAdmob()
   if (!lib) return false
 
+  // 他の広告（インタースティシャル/App Open）が表示中なら多重起動しない
+  if (isAnyAdShowing()) return false
+
   const unitId = Platform.OS === 'ios' ? AD_UNIT_IDS.rewarded.ios : AD_UNIT_IDS.rewarded.android
 
+  setAnyAdShowing(true)
   try {
     const { RewardedAd, RewardedAdEventType, AdEventType } = lib
     const rewarded = RewardedAd.createForAdRequest(unitId, { requestNonPersonalizedAdsOnly: true })
@@ -174,6 +179,8 @@ export async function showRewardedAd(): Promise<boolean> {
   } catch (e) {
     console.warn('[admob] showRewardedAd exception:', e)
     return false
+  } finally {
+    setAnyAdShowing(false)
   }
 }
 
@@ -195,8 +202,12 @@ export async function showInterstitialAd(): Promise<boolean> {
   const lib = getAdmob()
   if (!lib) return false
 
+  // 他の広告（リワード/App Open）が表示中なら多重起動しない
+  if (isAnyAdShowing()) return false
+
   const unitId = Platform.OS === 'ios' ? AD_UNIT_IDS.interstitial.ios : AD_UNIT_IDS.interstitial.android
 
+  setAnyAdShowing(true)
   try {
     const { InterstitialAd, AdEventType } = lib
     const interstitial = InterstitialAd.createForAdRequest(unitId, { requestNonPersonalizedAdsOnly: true })
@@ -231,6 +242,8 @@ export async function showInterstitialAd(): Promise<boolean> {
   } catch (e) {
     console.warn('[admob] showInterstitialAd exception:', e)
     return false
+  } finally {
+    setAnyAdShowing(false)
   }
 }
 
@@ -257,9 +270,13 @@ export async function showAppOpenAd(): Promise<void> {
     if (lastShown === todayStr()) return  // 今日は表示済み
   } catch {}
 
+  // 他の広告（インタースティシャル/リワード）が表示中なら多重起動しない
+  if (isAnyAdShowing()) return
+
   const unitId = Platform.OS === 'ios' ? AD_UNIT_IDS.appOpen.ios : AD_UNIT_IDS.appOpen.android
 
   _appOpenAdShowing = true
+  setAnyAdShowing(true)
   try {
     const { AppOpenAd, AdEventType } = lib
     const appOpen = AppOpenAd.createForAdRequest(unitId, { requestNonPersonalizedAdsOnly: true })
@@ -311,6 +328,7 @@ export async function showAppOpenAd(): Promise<void> {
     console.warn('[admob] showAppOpenAd exception:', e)
   } finally {
     _appOpenAdShowing = false
+    setAnyAdShowing(false)
   }
 }
 

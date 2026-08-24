@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>チーム機能 — メニュー画面（自由文優先の再設計）</title>
+<style>
+  :root{
+    --brand:#166534; --alert:#E53935; --high:#FF9500; --medium:#6366f1; --low:#34C759;
+    --text-primary:#111827; --text-secondary:#6b7280; --text-hint:#9ca3af;
+    --divider: rgba(0,0,0,0.07); --bg:#F6F4EF;
+  }
+  * { box-sizing: border-box; }
+  html,body{ margin:0; padding:0; background:var(--bg); font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif; }
+  .page{ max-width:1360px; margin:0 auto; padding:28px 24px 60px; }
+  .topbar{ margin-bottom:22px; }
+  .topbar h1{ font-size:19px; margin:0 0 8px; color:var(--text-primary); }
+  .quote{ font-size:13px; color:var(--text-secondary); background:#fff; border:1px solid #e8e4da; border-radius:12px; padding:12px 16px; line-height:1.6; }
+  .quote b{ color:var(--text-primary); }
+  .panels{ display:flex; gap:22px; align-items:flex-start; flex-wrap:wrap; justify-content:center; }
+  .panel{ background:#fff; border:1px solid #e8e4da; border-radius:18px; padding:16px 16px 20px; width:360px; }
+  .panel.reco{ border-color: var(--brand); box-shadow:0 0 0 2px rgba(22,101,52,0.12); }
+  .panel-head{ display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+  .badge-reco{ margin-left:auto; font-size:10px; font-weight:800; color:#fff; background:var(--brand); padding:3px 8px; border-radius:20px; }
+  .pname{ font-size:14px; font-weight:800; color:var(--text-primary); }
+  .pdesc{ font-size:12px; color:var(--text-secondary); line-height:1.6; margin:4px 0 14px; }
+
+  .frame-wrap{ display:flex; justify-content:center; }
+  .frame{
+    position:relative; width:352px; height:680px; background:#F2F1EC;
+    border-radius:36px; border:7px solid #111; overflow:hidden;
+    box-shadow:0 10px 24px rgba(0,0,0,0.18);
+  }
+  .notch{
+    position:absolute; top:0; left:50%; transform:translateX(-50%);
+    width:120px; height:18px; background:#111; border-radius:0 0 14px 14px; z-index:5;
+  }
+  .canvas{ position:absolute; top:0; left:0; transform-origin: top left; }
+  .scr{ width:440px; height:850px; background:#fafaf8; overflow:hidden; position:relative; }
+
+  .hdr{ background:#fff; border-bottom:1px solid var(--divider); padding:14px 16px 12px; display:flex; align-items:center; justify-content:space-between; }
+  .hdr-title{ font-size:19px; font-weight:800; color:var(--text-primary); }
+
+  .chip{ flex-shrink:0; background:#f5f6f8; border:1px solid var(--divider); border-radius:16px; padding:8px 14px; font-size:12.5px; font-weight:700; color:#444; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="topbar">
+    <h1>チーム機能 — メニュー画面（自由文優先への再設計）</h1>
+    <div class="quote">合意した方向性: <b>「まず自由文でサクッと書いて送れる」ことを主役にし、ライブラリ（よく使うフレーズ）は文章に挿入する補助に格下げする。</b> カテゴリ・強度・所要時間・フォルダといった入力項目は撤去し、フレーズは「ラベル＋挿入されるテキスト」だけのシンプルな形にします。</div>
+  </div>
+
+  <div class="panels">
+
+    <div class="panel reco">
+      <div class="panel-head">
+        <div class="pname">自由文入力＋よく使うフレーズで挿入</div>
+        <div class="badge-reco">この方向で</div>
+      </div>
+      <div class="pdesc">
+        大きなテキストエリアが主役。下の「よく使うフレーズ」チップをタップすると、その場でテキストに1行追記される（別モーダルを開かない）。フレーズ自体は「タイトル未入力でもOK」で、テキストを選択して「+保存」すればその場でフレーズ化できる（=自然に増えていく）。カテゴリ分類・強度・所要時間の入力は撤去。
+      </div>
+      <div class="frame-wrap">
+        <div class="frame">
+          <div class="notch"></div>
+          <div class="canvas" style="transform:scale(0.8)">
+            <div class="scr">
+              <div class="hdr">
+                <div class="hdr-title">メニュー</div>
+                <div style="font-size:11px; color:var(--text-hint);">8/21(金)</div>
+              </div>
+
+              <div style="padding:16px; display:flex; flex-direction:column; gap:14px;">
+                <div>
+                  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                    <div style="font-size:11px;font-weight:700;color:var(--text-hint);letter-spacing:0.5px;">今日の練習を書く</div>
+                    <div style="display:flex; align-items:center; gap:4px; background:rgba(99,102,241,0.1); border-radius:14px; padding:5px 10px;">
+                      <span style="font-size:12px;">🤖</span>
+                      <span style="font-size:11px; font-weight:800; color:var(--medium);">メニューに困ったら？</span>
+                    </div>
+                  </div>
+                  <div style="background:#fff; border:1.5px solid var(--divider); border-radius:16px; padding:14px; min-height:140px; font-size:14px; line-height:22px; color:var(--text-primary);">
+                    アップジョグ 10分<br>
+                    流し 100m×6<br>
+                    <span style="color:#c7c9cd;">300m×6本（レスト90秒）</span><span style="display:inline-block;width:2px;height:16px;background:var(--brand);vertical-align:middle;"></span>
+                  </div>
+                </div>
+
+                <div>
+                  <div style="font-size:11px;font-weight:700;color:var(--text-hint);letter-spacing:0.5px;margin-bottom:8px;">よく使うフレーズ（タップで挿入）</div>
+                  <div style="display:flex; gap:8px; overflow-x:auto;">
+                    <div class="chip">🔥 アップジョグ10分</div>
+                    <div class="chip">⚡ 流し100m×6</div>
+                    <div class="chip">🏃 300m×6本（R90秒）</div>
+                    <div class="chip">❄️ クールダウン</div>
+                    <div class="chip" style="background:#fff;border-style:dashed;color:var(--text-hint);">+ 保存</div>
+                  </div>
+                </div>
+
+                <div style="background:var(--brand); border-radius:16px; padding:15px; text-align:center; margin-top:6px;">
+                  <div style="color:#fff; font-size:15px; font-weight:800;">チームに共有する</div>
+                </div>
+
+                <div style="text-align:center; font-size:11px; color:var(--text-hint); margin-top:-4px;">アナウンスにそのまま投稿されます</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div class="pname">🤖「メニューに困ったら？」を押した後</div>
+      </div>
+      <div class="pdesc">
+        既存の個人向けAIメニュー生成（workout-menu.tsx）と同じAPIを使い回せる。狙いたい種類と強度を2タップ選ぶだけで生成し、結果は<b>自動共有せずテキストエリアに挿入するだけ</b>（コーチが必ず目を通して編集してから送る）。個人向け機能と同様にチケットを消費する想定。
+      </div>
+      <div class="frame-wrap">
+        <div class="frame">
+          <div class="notch"></div>
+          <div class="canvas" style="transform:scale(0.8)">
+            <div class="scr">
+              <div style="position:absolute; inset:0; background:rgba(0,0,0,0.45);"></div>
+              <div style="position:absolute; left:0; right:0; bottom:0; background:#fff; border-top-left-radius:28px; border-top-right-radius:28px; padding:22px 20px 28px;">
+                <div style="width:36px;height:4px;border-radius:2px;background:rgba(0,0,0,0.12);margin:0 auto 18px;"></div>
+                <div style="font-size:17px; font-weight:800; color:var(--text-primary); margin-bottom:4px;">🤖 AIにメニューを考えてもらう</div>
+                <div style="font-size:12px; color:var(--text-secondary); margin-bottom:18px;">狙いと強度を選ぶだけ。結果は編集してから送れます</div>
+
+                <div style="font-size:11px;font-weight:700;color:var(--text-hint);letter-spacing:0.5px;margin-bottom:8px;">今日の狙い（複数選択可）</div>
+                <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px;">
+                  <div class="chip" style="background:var(--brand); color:#fff; border-color:var(--brand);">⚡ スプリント</div>
+                  <div class="chip">🏃 インターバル</div>
+                  <div class="chip" style="background:var(--brand); color:#fff; border-color:var(--brand);">🎯 ドリル</div>
+                  <div class="chip">💪 補強</div>
+                  <div class="chip">🏞️ 走り込み</div>
+                </div>
+
+                <div style="font-size:11px;font-weight:700;color:var(--text-hint);letter-spacing:0.5px;margin-bottom:8px;">強度</div>
+                <div style="display:flex; gap:8px; margin-bottom:18px;">
+                  <div class="chip" style="flex:1; text-align:center;">軽め</div>
+                  <div class="chip" style="flex:1; text-align:center; background:var(--brand); color:#fff; border-color:var(--brand);">普通</div>
+                  <div class="chip" style="flex:1; text-align:center;">追い込み</div>
+                </div>
+
+                <div style="font-size:11px;font-weight:700;color:var(--text-hint);letter-spacing:0.5px;margin-bottom:8px;">自由記入欄（任意）</div>
+                <div style="background:#f8f8fa; border:1px solid var(--divider); border-radius:12px; padding:11px 13px; font-size:12.5px; color:var(--text-hint); margin-bottom:22px;">例: 明日大会なので調整程度に／怪我明けの選手がいるので負荷は抑えめで</div>
+
+                <div style="background:var(--medium); border-radius:16px; padding:15px; text-align:center; display:flex; align-items:center; justify-content:center; gap:8px;">
+                  <span style="font-size:15px;">🎫</span>
+                  <div style="color:#fff; font-size:15px; font-weight:800;">2枚でAIに考えてもらう</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer style="margin-top:26px; font-size:12px; color:var(--text-secondary); background:#fff; border:1px solid #e8e4da; border-radius:12px; padding:12px 16px; max-width:800px; margin-left:auto; margin-right:auto;">
+    これで進めていいか、直したい点があれば教えてください。OKなら <code>app/(tabs)/team.tsx</code> のメニュータブとデータモデル（ライブラリ簡素化含む）を実装します。
+  </footer>
+</div>
+</body>
+</html>

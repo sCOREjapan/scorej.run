@@ -98,6 +98,7 @@ export function getCompetitionPlanPrompt(
 - week_number=1が試合直前週
 - sessionsは各週5〜6件（月〜土、詳細は簡潔に20文字以内）
 - intensityは easy/moderate/hard/race のみ
+- dayは"月曜/火曜/水曜/木曜/金曜/土曜/日曜"のいずれか（他の言語の文言に翻訳せず必ず日本語のまま）
 - 前後の説明文・マークダウン不要、JSONだけ返す
 
 {"phases":[{"week_number":1,"theme":"テーマ","total_volume_km":30,"sessions":[{"day":"月曜","type":"easy","detail":"jog 30min","duration_min":40,"intensity":"easy"},{"day":"火曜","type":"interval","detail":"400m×5 r3min","duration_min":60,"intensity":"hard"}],"key_workout":"週のメインワークアウト"}],"peak_week":${Math.max(2, weeksLeft-1)},"taper_start_week":2,"key_advice":"アドバイス2文"}`
@@ -124,6 +125,7 @@ export function getCompetitionPlanChunkPrompt(
 - phases配列は必ず${weekNumbers.length}要素（week_number=${weekList}のみ、多くも少なくもNG）
 - sessionsは各週5〜6件（月〜土、詳細は簡潔に20文字以内）
 - intensityは easy/moderate/hard/race のみ
+- dayは"月曜/火曜/水曜/木曜/金曜/土曜/日曜"のいずれか（他の言語の文言に翻訳せず必ず日本語のまま）
 - 前後の説明文・マークダウン不要、JSONだけ返す
 ${includesRaceWeek ? '- 今回のweek_number=1は試合直前週なので、大会に向けた最終アドバイスを"key_advice"（2文）としてJSON末尾に含めること' : ''}
 

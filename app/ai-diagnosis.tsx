@@ -11,8 +11,12 @@ import Toast from 'react-native-toast-message'
 import { BG_GRADIENT, BRAND, TEXT, NEON } from '../lib/theme'
 import { Sounds } from '../lib/sounds'
 import { checkAdGate, recordUsage } from '../lib/adGate'
+import { TICKET_COST } from '../lib/ticketWallet'
 import AdGateModal from '../components/AdGateModal'
+import TicketGateModal from '../components/TicketGateModal'
 import { useAuth } from '../context/AuthContext'
+import { useLanguage } from '../context/LanguageContext'
+import { narrativeLanguageInstruction } from '../lib/aiLanguage'
 import { useRouter } from 'expo-router'
 import { trackFeatureUse } from '../lib/analytics'
 import { localDateStr } from '../lib/dateLocal'
@@ -136,8 +140,11 @@ export default function AIDiagnosisScreen() {
   const [adGateRemaining,  setAdGateRemaining]  = useState(0)
   const [adGateHardLimited,setAdGateHardLimited]= useState(false)
   const [adGateLimitType,  setAdGateLimitType]  = useState<'none'|'daily'|'monthly'|'total'|'window'>('none')
-  const [remaining,        setRemaining]        = useState<number | null>(null)
+  const [ticketGateVisible, setTicketGateVisible] = useState(false)
+  const [ticketGateCost,    setTicketGateCost]    = useState(0)
+  const [ticketGateBalance, setTicketGateBalance] = useState(0)
   const { isGuest } = useAuth()
+  const { language } = useLanguage()
   const router = useRouter()
   // AdGate async チェック中の二重タップ防止
   const diagnosingRef = React.useRef(false)
@@ -147,10 +154,6 @@ export default function AIDiagnosisScreen() {
       if (raw) {
         try { setHistory(JSON.parse(raw)) } catch {}
       }
-    }).catch(() => {})
-    // 残り回数を取得して表示
-    checkAdGate('ai_analysis').then(g => {
-      if (g.remaining < 999) setRemaining(g.remaining)
     }).catch(() => {})
   }, [])
 
@@ -168,29 +171,26 @@ export default function AIDiagnosisScreen() {
       // AdGateチェック
       const gate = await checkAdGate('ai_analysis')
       if (!gate.allowed) {
-        setAdGateRemaining(gate.remaining)
-        setAdGateHardLimited(gate.hardLimited)
-        setAdGateLimitType(gate.limitType)
-        setAdGateVisible(true)
+        if (gate.needsTicket) { setTicketGateCost(gate.ticketCost); setTicketGateBalance(gate.ticketBalance); setTicketGateVisible(true) }
+        else {
+          setAdGateRemaining(gate.remaining)
+          setAdGateHardLimited(gate.hardLimited)
+          setAdGateLimitType(gate.limitType)
+          setAdGateVisible(true)
+        }
         return
       }
-      await runDiagnose()
+      await runDiagnose(gate.needsTicket ? gate.ticketCost : 0)
     } finally {
       diagnosingRef.current = false
     }
   }, [isGuest])
 
-  const runDiagnose = useCallback(async () => {
+  const runDiagnose = useCallback(async (ticketCostUsed = 0) => {
     setAdGateVisible(false)
     Sounds.whoosh()
     setLoading(true)
     setResult(null)
-    await recordUsage('ai_analysis')
-    trackFeatureUse('ai_analysis')
-    // 残り回数を更新
-    checkAdGate('ai_analysis').then(g => {
-      if (g.remaining < 999) setRemaining(g.remaining)
-    }).catch(() => {})
 
     try {
       // データ収集
@@ -261,7 +261,7 @@ ${JSON.stringify(trainingData, null, 2)}
 3. 改善のための具体的な提案（箇条書き3〜5点）
 4. 来週の練習強度の推奨（1文）
 
-回答は日本語で、選手が理解しやすい言葉を使ってください。`,
+回答は日本語で、選手が理解しやすい言葉を使ってください。${narrativeLanguageInstruction(language)}`,
             },
           ],
         }),
@@ -286,6 +286,11 @@ ${JSON.stringify(trainingData, null, 2)}
         AsyncStorage.setItem(AI_DIAGNOSES_KEY, JSON.stringify(next)).catch(() => {})
         return next
       })
+
+      // 分析に成功した場合のみ利用回数・チケットを消費する（失敗時に課金しないため）
+      await recordUsage('ai_analysis')
+      trackFeatureUse('ai_analysis')
+      if (ticketCostUsed > 0) Toast.show({ type: 'info', text1: `🎫 チケットを${ticketCostUsed}枚使用しました`, visibilityTime: 1800 })
     } catch (err: any) {
       Sounds.error()
       // フォールバック表示
@@ -323,20 +328,10 @@ ${JSON.stringify(trainingData, null, 2)}
             <Text style={styles.cardDesc}>
               直近7日間の練習記録・体調・睡眠データをもとに、AIが疲労状態を分析して改善提案を行います。
             </Text>
-            {/* 残り回数バッジ */}
-            {remaining !== null && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
-                backgroundColor: remaining <= 1 ? 'rgba(239,68,68,0.12)' : 'rgba(22,101,52,0.12)',
-                borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1,
-                borderColor: remaining <= 1 ? 'rgba(239,68,68,0.3)' : 'rgba(22,101,52,0.3)',
-              }}>
-                <Ionicons name={remaining <= 1 ? 'warning-outline' : 'flash-outline'} size={12}
-                  color={remaining <= 1 ? '#ef4444' : BRAND}/>
-                <Text style={{ fontSize: 11, fontWeight: '700', color: remaining <= 1 ? '#ef4444' : BRAND }}>
-                  {remaining === 0 ? '無料枠を使い切りました' : `残り${remaining}回（無料枠）`}
-                </Text>
-              </View>
-            )}
+            {/* チケット消費数バッジ */}
+            <View style={styles.ticketCostBadge}>
+              <Text style={styles.ticketCostBadgeText}>🎫 {TICKET_COST.ai_analysis}枚</Text>
+            </View>
             <TouchableOpacity
               style={[styles.analyzeBtn, loading && { opacity: 0.6 }]}
               onPress={handleDiagnose}
@@ -421,6 +416,14 @@ ${JSON.stringify(trainingData, null, 2)}
         onAdWatched={() => runDiagnose()}
         onUpgrade={() => { setAdGateVisible(false); router.push('/paywall') }}
       />
+
+      <TicketGateModal
+        visible={ticketGateVisible}
+        feature="ai_analysis"
+        ticketCost={ticketGateCost}
+        ticketBalance={ticketGateBalance}
+        onClose={() => setTicketGateVisible(false)}
+      />
     </View>
   )
 }
@@ -440,8 +443,20 @@ const styles = StyleSheet.create({
   },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   cardIcon:   { fontSize: 22 },
-  cardTitle:  { color: TEXT.primary, fontSize: 15, fontWeight: '700', flex: 1 },
+  // カードは #111111 の暗色背景のため、TEXT.primary(ライト背景用の濃色)ではなく白系を使用
+  cardTitle:  { color: '#fff', fontSize: 15, fontWeight: '700', flex: 1 },
   cardDesc:   { color: TEXT.secondary, fontSize: 13, lineHeight: 20 },
+
+  ticketCostBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(245,158,11,0.14)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.35)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  ticketCostBadgeText: { fontSize: 11, fontWeight: '700', color: '#f59e0b' },
 
   analyzeBtn: {
     flexDirection: 'row',
@@ -462,7 +477,7 @@ const styles = StyleSheet.create({
   },
   fatigueBadgeText: { fontSize: 12, fontWeight: '700' },
 
-  commentText: { color: TEXT.primary, fontSize: 14, lineHeight: 22 },
+  commentText: { color: '#fff', fontSize: 14, lineHeight: 22 },
 
   section:      { gap: 8 },
   sectionTitle: { color: TEXT.secondary, fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
@@ -481,7 +496,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   nextWeekLabel: { color: TEXT.hint, fontSize: 11, fontWeight: '600' },
-  nextWeekValue: { color: TEXT.primary, fontSize: 13, lineHeight: 20 },
+  nextWeekValue: { color: '#fff', fontSize: 13, lineHeight: 20 },
 
   // 履歴カード
   diagCard: {

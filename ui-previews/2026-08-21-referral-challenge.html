@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>友達紹介チャレンジ画面 — 3案</title>
+<style>
+  :root{
+    --brand:#166534; --alert:#E53935;
+    --text-primary:#111827; --text-secondary:#6b7280; --text-hint:#9ca3af;
+    --divider: rgba(0,0,0,0.07); --bg:#f6f6f8; --surface:#ffffff; --surface2:#f0f2f5;
+    --blue:#3b82f6; --amber:#f59e0b; --green:#22c55e;
+  }
+  * { box-sizing: border-box; }
+  html,body{ margin:0; padding:0; background:#F6F4EF; font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif; }
+  .page{ max-width:1200px; margin:0 auto; padding:28px 24px 60px; }
+  .topbar{ margin-bottom:22px; }
+  .topbar h1{ font-size:19px; margin:0 0 8px; color:#111827; }
+  .quote{ font-size:13px; color:#6b7280; background:#fff; border:1px solid #e8e4da; border-radius:12px; padding:12px 16px; line-height:1.6; }
+  .quote b{ color:#111827; }
+  .panels{ display:flex; gap:22px; align-items:flex-start; flex-wrap:wrap; justify-content:center; }
+  .panel{ background:#fff; border:1px solid #e8e4da; border-radius:18px; padding:16px 16px 20px; width:320px; }
+  .panel.reco{ border-color: var(--brand); box-shadow:0 0 0 2px rgba(22,101,52,0.12); }
+  .panel-head{ display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+  .letter{ width:22px; height:22px; border-radius:6px; background:#eee; color:#555; font-size:12px; font-weight:800; display:flex; align-items:center; justify-content:center; }
+  .badge-reco{ margin-left:auto; font-size:10px; font-weight:800; color:#fff; background:var(--brand); padding:3px 8px; border-radius:20px; }
+  .pname{ font-size:13.5px; font-weight:800; color:#111827; }
+  .pdesc{ font-size:11.5px; color:#6b7280; line-height:1.6; margin:4px 0 14px; }
+
+  .frame-wrap{ display:flex; justify-content:center; }
+  .frame{
+    position:relative; width:308px; height:596px; background:#F2F1EC;
+    border-radius:32px; border:7px solid #111; overflow:hidden;
+    box-shadow:0 10px 24px rgba(0,0,0,0.18);
+  }
+  .notch{
+    position:absolute; top:0; left:50%; transform:translateX(-50%);
+    width:105px; height:16px; background:#111; border-radius:0 0 12px 12px; z-index:5;
+  }
+  .canvas{ position:absolute; top:0; left:0; transform-origin: top left; transform:scale(0.7); }
+  .scr{ width:440px; height:850px; background:var(--bg); overflow:hidden; position:relative; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="topbar">
+    <h1>チーム機能 — 友達紹介チャレンジ画面（新規）</h1>
+    <div class="quote">お題: <b>「チャレンジ参加→コード交付→友達がインストール→ログイン後コード入力→両方にチケット付与」の招待画面。</b>
+    枚数はミッション報酬と同じ基準の5枚/一発表示、受け取りはサーバー側で1人1回だけ検証（不正対策済み）。既存の team-invite.tsx（チーム招待コード画面）と役割は似ているが、こちらは金銭価値のあるチケットが動くため「チャレンジ感の演出量」と「情報の見せ方」に選択の幅がある。</div>
+  </div>
+
+  <div class="panels">
+
+    <div class="panel">
+      <div class="panel-head">
+        <div class="letter">A</div>
+        <div class="pname">team-invite.tsx踏襲型</div>
+      </div>
+      <div class="pdesc">
+        既存のチーム招待コード画面と全く同じ構成（自分のコード→シェア／コピー、その下にコード入力欄）をそのままライトテーマに置き換えただけの案。学習コストが低く実装も最速。ただし「チケットが貰える」という一番大事な情報が地味になりがち。
+      </div>
+      <div class="frame-wrap">
+        <div class="frame">
+          <div class="notch"></div>
+          <div class="canvas">
+            <div class="scr">
+              <div style="background:#fff; border-bottom:1px solid var(--divider); padding:22px 20px 16px; display:flex; align-items:center; gap:10px;">
+                <div style="width:36px;height:36px;border-radius:18px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:16px;">‹</div>
+                <div style="font-size:19px;font-weight:800;color:var(--text-primary);">友達紹介</div>
+              </div>
+              <div style="padding:18px; display:flex; flex-direction:column; gap:16px;">
+                <div style="background:#fff; border:1px solid var(--divider); border-radius:20px; padding:20px;">
+                  <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                    <span style="font-size:16px;">🎁</span>
+                    <span style="font-size:15px; font-weight:800; color:var(--text-primary);">あなたの紹介コード</span>
+                  </div>
+                  <div style="font-size:12px; color:var(--text-secondary); line-height:19px; margin-bottom:16px;">友達がこのコードを使って登録すると、お互いにチケット5枚もらえます</div>
+                  <div style="background:rgba(22,101,52,0.06); border:1px solid rgba(22,101,52,0.25); border-radius:16px; align-items:center; padding:22px 16px; text-align:center;">
+                    <div style="font-size:38px; font-weight:900; letter-spacing:7px; color:var(--brand);">7K2M9X</div>
+                  </div>
+                  <div style="display:flex; gap:10px; margin-top:14px;">
+                    <div style="flex:1; background:var(--brand); border-radius:50px; padding:14px; text-align:center; color:#fff; font-size:14px; font-weight:800;">共有する</div>
+                    <div style="background:var(--surface2); border-radius:12px; padding:14px 16px; text-align:center; color:var(--text-secondary); font-size:12px; font-weight:700;">コピー</div>
+                  </div>
+                </div>
+
+                <div style="background:#fff; border:1px solid var(--divider); border-radius:20px; padding:20px;">
+                  <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                    <span style="font-size:16px;">✍️</span>
+                    <span style="font-size:15px; font-weight:800; color:var(--text-primary);">紹介コードを入力</span>
+                  </div>
+                  <div style="font-size:12px; color:var(--text-secondary); line-height:19px; margin-bottom:14px;">友達からコードをもらったら入力してください</div>
+                  <div style="background:var(--surface2); border-radius:12px; padding:15px; text-align:center; font-size:22px; font-weight:800; letter-spacing:5px; color:var(--text-hint);">------</div>
+                  <div style="margin-top:12px; background:var(--surface2); border-radius:12px; padding:14px; text-align:center; color:var(--text-hint); font-size:13px; font-weight:700;">受け取る</div>
+                </div>
+
+                <div style="display:flex; gap:8px; background:#fff; border:1px solid var(--divider); border-radius:14px; padding:13px 14px;">
+                  <span style="font-size:13px;">ℹ️</span>
+                  <div style="font-size:11px; color:var(--text-hint); line-height:17px;">登録から48時間以内のコード入力のみ有効です</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div class="letter">B</div>
+        <div class="pname">チャレンジ演出強め</div>
+      </div>
+      <div class="pdesc">
+        上部を「チャレンジ」ヒーローセクションにして進捗（紹介人数）を見せ、ゲーム性で継続シェアを促す案。訴求力は一番強いが、以前チーム機能で「AIっぽすぎる」と指摘のあった装飾寄りの方向に近く、今の全体トーン（フラット・低装飾）とはズレる可能性。
+      </div>
+      <div class="frame-wrap">
+        <div class="frame">
+          <div class="notch"></div>
+          <div class="canvas">
+            <div class="scr">
+              <div style="background:#fff; border-bottom:1px solid var(--divider); padding:22px 20px 16px; display:flex; align-items:center; gap:10px;">
+                <div style="width:36px;height:36px;border-radius:18px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:16px;">‹</div>
+                <div style="font-size:19px;font-weight:800;color:var(--text-primary);">友達紹介チャレンジ</div>
+              </div>
+              <div style="padding:18px; display:flex; flex-direction:column; gap:16px;">
+                <div style="background:linear-gradient(135deg,var(--brand),#0f4a26); border-radius:22px; padding:24px 20px; text-align:center;">
+                  <div style="font-size:30px;">🎉</div>
+                  <div style="color:#fff; font-size:17px; font-weight:800; margin:8px 0 4px;">友達を呼んでチケットGET</div>
+                  <div style="color:rgba(255,255,255,0.85); font-size:12px; line-height:18px;">友達が登録してコードを入力すると<br>お互いに<b style="color:#fff;">チケット5枚</b>プレゼント</div>
+                  <div style="display:flex; justify-content:center; gap:6px; margin-top:16px;">
+                    <div style="background:rgba(255,255,255,0.15); border-radius:20px; padding:8px 16px; color:#fff; font-size:12px; font-weight:700;">👥 紹介実績 2人</div>
+                  </div>
+                </div>
+
+                <div style="background:#fff; border:1px solid var(--divider); border-radius:20px; padding:18px; text-align:center;">
+                  <div style="font-size:11px;font-weight:700;color:var(--text-hint);letter-spacing:0.5px;margin-bottom:10px;">あなたの紹介コード</div>
+                  <div style="font-size:34px; font-weight:900; letter-spacing:6px; color:var(--text-primary); margin-bottom:14px;">7K2M9X</div>
+                  <div style="background:var(--brand); border-radius:50px; padding:14px; color:#fff; font-size:14px; font-weight:800;">友達にシェア</div>
+                </div>
+
+                <div style="background:#fff; border:1px solid var(--divider); border-radius:16px; padding:16px;">
+                  <div style="font-size:12.5px; font-weight:800; color:var(--text-primary); margin-bottom:10px;">コードをもらった人はこちら</div>
+                  <div style="background:var(--surface2); border-radius:12px; padding:13px; text-align:center; color:var(--text-hint); font-size:20px; font-weight:800; letter-spacing:4px;">------</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel reco">
+      <div class="panel-head">
+        <div class="letter" style="background:var(--brand);color:#fff;">C</div>
+        <div class="pname">ミニマル実用型</div>
+        <div class="badge-reco">この方向で</div>
+      </div>
+      <div class="pdesc">
+        装飾を削り「もらえる枚数」だけを大きく見せて、あとはコード＋ボタンのみ。今回のメニュー再設計・チームダッシュボード再設計で選ばれてきた「情報を絞る」トーンと一貫性がある。進捗人数などのゲーム要素は入れず、シェア導線に集中。
+      </div>
+      <div class="frame-wrap">
+        <div class="frame">
+          <div class="notch"></div>
+          <div class="canvas">
+            <div class="scr">
+              <div style="background:#fff; border-bottom:1px solid var(--divider); padding:22px 20px 16px; display:flex; align-items:center; gap:10px;">
+                <div style="width:36px;height:36px;border-radius:18px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:16px;">‹</div>
+                <div style="font-size:19px;font-weight:800;color:var(--text-primary);">友達紹介</div>
+              </div>
+              <div style="padding:18px; display:flex; flex-direction:column; gap:14px;">
+
+                <div style="background:#fff; border:1px solid var(--divider); border-radius:20px; padding:22px 20px; text-align:center;">
+                  <div style="font-size:13px; color:var(--text-secondary); line-height:19px; margin-bottom:2px;">友達が登録してコードを入力すると</div>
+                  <div style="font-size:26px; font-weight:900; color:var(--brand); margin:2px 0 18px;">お互いに🎫5枚</div>
+
+                  <div style="font-size:10.5px;font-weight:700;color:var(--text-hint);letter-spacing:0.5px;margin-bottom:8px;">あなたのコード</div>
+                  <div style="font-size:32px; font-weight:900; letter-spacing:6px; color:var(--text-primary); margin-bottom:16px;">7K2M9X</div>
+
+                  <div style="background:var(--brand); border-radius:50px; padding:14px; color:#fff; font-size:14px; font-weight:800;">友達にシェア</div>
+                </div>
+
+                <div style="background:#fff; border:1px solid var(--divider); border-radius:16px; padding:16px 18px;">
+                  <div style="font-size:12.5px; font-weight:800; color:var(--text-primary); margin-bottom:10px;">コードをもらったら</div>
+                  <div style="display:flex; gap:8px;">
+                    <div style="flex:1; background:var(--surface2); border-radius:12px; padding:13px; text-align:center; color:var(--text-hint); font-size:18px; font-weight:800; letter-spacing:3px;">------</div>
+                    <div style="background:var(--surface2); border-radius:12px; padding:13px 16px; color:var(--text-hint); font-size:12.5px; font-weight:700; display:flex; align-items:center;">受取る</div>
+                  </div>
+                </div>
+
+                <div style="font-size:10.5px; color:var(--text-hint); text-align:center; line-height:16px; padding:0 6px;">登録から48時間以内の入力のみ有効・受け取りは1アカウント1回まで</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer style="margin-top:26px; font-size:12px; color:#6b7280; background:#fff; border:1px solid #e8e4da; border-radius:12px; padding:12px 16px; max-width:800px; margin-left:auto; margin-right:auto;">
+    A/B/Cのレターで選べばそのまま実装に進みます（DBスキーマとlib/referral.tsは選択後に接続）。枚数(5枚)・有効期限(48時間)はここで一緒に変えても大丈夫です。
+  </footer>
+</div>
+</body>
+</html>

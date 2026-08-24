@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>チーム機能（コーチダッシュボード）— UI変更案 3案</title>
+<style>
+  :root{
+    --brand:#166534; --alert:#E53935; --high:#FF9500; --medium:#6366f1; --low:#34C759;
+    --text-primary:#111827; --text-secondary:#6b7280; --text-hint:#9ca3af;
+    --divider: rgba(0,0,0,0.07); --bg:#F6F4EF;
+  }
+  * { box-sizing: border-box; }
+  html,body{ margin:0; padding:0; background:var(--bg); font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif; }
+  .page{ max-width:1360px; margin:0 auto; padding:28px 24px 60px; }
+  .topbar{ margin-bottom:22px; }
+  .topbar h1{ font-size:19px; margin:0 0 8px; color:var(--text-primary); }
+  .quote{ font-size:13px; color:var(--text-secondary); background:#fff; border:1px solid #e8e4da; border-radius:12px; padding:12px 16px; line-height:1.6; }
+  .quote b{ color:var(--text-primary); }
+  .panels{ display:flex; gap:22px; align-items:flex-start; flex-wrap:wrap; }
+  .panel{ background:#fff; border:1px solid #e8e4da; border-radius:18px; padding:16px 16px 20px; width:340px; }
+  .panel.reco{ border-color: var(--brand); box-shadow:0 0 0 2px rgba(22,101,52,0.12); }
+  .panel-head{ display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+  .letter{ width:22px;height:22px;border-radius:7px;background:#11182710;color:var(--text-primary);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center; }
+  .pname{ font-size:14px; font-weight:800; color:var(--text-primary); }
+  .badge-reco{ margin-left:auto; font-size:10px; font-weight:800; color:#fff; background:var(--brand); padding:3px 8px; border-radius:20px; }
+  .pdesc{ font-size:11.5px; color:var(--text-secondary); line-height:1.55; margin:4px 0 14px; min-height:64px; }
+
+  .frame-wrap{ display:flex; justify-content:center; }
+  .frame{
+    position:relative; width:352px; height:640px; background:#F2F1EC;
+    border-radius:36px; border:7px solid #111; overflow:hidden;
+    box-shadow:0 10px 24px rgba(0,0,0,0.18);
+  }
+  .notch{
+    position:absolute; top:0; left:50%; transform:translateX(-50%);
+    width:120px; height:18px; background:#111; border-radius:0 0 14px 14px; z-index:5;
+  }
+  .canvas{ position:absolute; top:0; left:0; transform-origin: top left; }
+
+  /* ---- 440pt design space (K = 352/440 = 0.8) ---- */
+  .scr{ width:440px; height:800px; background:#F6F4EF; overflow:hidden; position:relative; }
+
+  .hdr{ background:#fff; border-bottom:1px solid var(--divider); padding:14px 16px 12px; display:flex; align-items:center; justify-content:space-between; }
+  .hdr-title{ font-size:19px; font-weight:800; color:var(--text-primary); }
+  .hdr-sub{ display:flex; align-items:center; gap:6px; margin-top:2px; }
+  .coach-chip{ background:rgba(22,101,52,0.12); border-radius:6px; padding:2px 7px; font-size:11px; font-weight:700; color:var(--brand); }
+  .coach-name{ font-size:11px; color:#555; }
+  .hdr-right{ display:flex; align-items:center; gap:8px; }
+  .code-box{ background:rgba(22,101,52,0.05); border:1.5px solid rgba(22,101,52,0.2); border-radius:14px; padding:7px 12px; text-align:center; }
+  .code-label{ font-size:9px; font-weight:700; color:#555; }
+  .code-val{ font-size:15px; font-weight:900; color:var(--brand); letter-spacing:3px; }
+  .icon-btn{ width:36px; height:36px; border-radius:14px; background:#f5f6f8; border:1px solid var(--divider); }
+
+  .tabs{ background:#fff; border-bottom:1px solid var(--divider); padding:8px 12px; display:flex; gap:4px; }
+  .tab{ padding:7px 13px; border-radius:21px; font-size:13px; font-weight:700; color:#555; }
+  .tab.active{ background:rgba(22,101,52,0.08); color:var(--brand); }
+
+  .body{ padding:16px; display:flex; flex-direction:column; gap:14px; }
+
+  footer{ margin-top:26px; font-size:12px; color:var(--text-secondary); background:#fff; border:1px solid #e8e4da; border-radius:12px; padding:12px 16px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="topbar">
+    <h1>チーム機能（コーチダッシュボード）— UI変更案（3案）</h1>
+    <div class="quote">お題（原文）: <b>「現在のチーム機能の確認 → UI変更案をいくつか欲しい」</b><br>
+    具体的な不満点はまだ聞いていない段階なので、情報密度・視覚的階層・カード構成の3方向から改善案を提示します。ヘッダー・タブ構成は3案とも現状と同じ（変えていません）。</div>
+  </div>
+
+  <div class="panels">
+
+    <!-- ============ A: 統合サマリー1枚型 ============ -->
+    <div class="panel reco">
+      <div class="panel-head">
+        <div class="letter">A</div>
+        <div class="pname">統合サマリー1枚型</div>
+        <div class="badge-reco">推奨</div>
+      </div>
+      <div class="pdesc">現状は「ケアアラートカード」と「4項目サマリー行」で欠席・痛み・高リスクの件数が<b>二重に表示</b>されている。これを1枚のサマリーカードに統合し、要対応者は横スクロールの顔アイコン列で見せる。結果、名簿までの到達がスクロール1〜2回分早くなる。</div>
+      <div class="frame-wrap">
+        <div class="frame">
+          <div class="notch"></div>
+          <div class="canvas" style="transform:scale(0.8)">
+            <div class="scr">
+              <div class="hdr">
+                <div>
+                  <div class="hdr-title">テスト陸上部</div>
+                  <div class="hdr-sub"><span class="coach-chip">コーチ</span><span class="coach-name">テストコーチ</span></div>
+                </div>
+                <div class="hdr-right">
+                  <div class="code-box"><div class="code-label">参加コード</div><div class="code-val">093-SZU</div></div>
+                  <div class="icon-btn"></div><div class="icon-btn"></div>
+                </div>
+              </div>
+              <div class="tabs">
+                <div class="tab active">メンバー</div><div class="tab">📋 メニュー</div><div class="tab">アナウンス</div><div class="tab">動画</div><div class="tab">予定</div>
+              </div>
+              <div class="body">
+                <!-- 統合サマリーカード -->
+                <div style="background:#fff;border-radius:18px;border:1px solid rgba(229,57,53,0.2);overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+                  <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid rgba(0,0,0,0.06);">
+                    <div style="width:26px;height:26px;border-radius:8px;background:rgba(239,68,68,0.15);display:flex;align-items:center;justify-content:center;font-size:14px;">⚠️</div>
+                    <div style="flex:1;font-size:14px;font-weight:800;color:var(--text-primary);">今日の要対応</div>
+                    <div style="font-size:11px;font-weight:700;color:var(--alert);">2件</div>
+                  </div>
+                  <div style="display:flex;gap:10px;padding:12px 14px;overflow-x:auto;">
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;">
+                      <div style="width:44px;height:44px;border-radius:22px;background:var(--alert);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;border:2px solid #fff;box-shadow:0 0 0 2px var(--alert);">佐</div>
+                      <div style="font-size:10px;font-weight:700;color:var(--text-primary);">佐藤</div>
+                      <div style="font-size:9px;color:var(--alert);font-weight:700;">🤕未確認</div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;">
+                      <div style="width:44px;height:44px;border-radius:22px;background:var(--high);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;border:2px solid #fff;box-shadow:0 0 0 2px var(--high);">田</div>
+                      <div style="font-size:10px;font-weight:700;color:var(--text-primary);">田中</div>
+                      <div style="font-size:9px;color:var(--high);font-weight:700;">高リスク</div>
+                    </div>
+                  </div>
+                  <div style="display:flex;border-top:1px solid rgba(0,0,0,0.06);">
+                    <div style="flex:1;text-align:center;padding:8px 4px;border-right:1px solid rgba(0,0,0,0.06);"><div style="font-size:14px;font-weight:800;color:var(--low);">0</div><div style="font-size:9px;color:#888;">欠席</div></div>
+                    <div style="flex:1;text-align:center;padding:8px 4px;border-right:1px solid rgba(0,0,0,0.06);"><div style="font-size:14px;font-weight:800;color:var(--alert);">1</div><div style="font-size:9px;color:#888;">痛み</div></div>
+                    <div style="flex:1;text-align:center;padding:8px 4px;border-right:1px solid rgba(0,0,0,0.06);"><div style="font-size:14px;font-weight:800;color:var(--high);">1</div><div style="font-size:9px;color:#888;">高リスク</div></div>
+                    <div style="flex:1;text-align:center;padding:8px 4px;"><div style="font-size:14px;font-weight:800;color:var(--medium);">中</div><div style="font-size:9px;color:#888;">負荷</div></div>
+                  </div>
+                </div>
+
+                <div style="font-size:11px;font-weight:700;color:var(--text-hint);letter-spacing:0.5px;">選手一覧（2人）</div>
+
+                <!-- メンバーカード -->
+                <div style="background:rgba(239,68,68,0.06);border-radius:18px;border:1px solid rgba(0,0,0,0.06);border-left:4px solid var(--alert);padding:10px;display:flex;align-items:center;gap:10px;">
+                  <div style="width:34px;height:34px;border-radius:17px;background:#f59e0b;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;">佐</div>
+                  <div style="flex:1;"><div style="font-size:14px;font-weight:800;color:var(--text-primary);">佐藤 ひな</div><div style="font-size:11px;color:var(--text-secondary);">400m / 400mH</div></div>
+                  <div style="text-align:right;"><div style="font-size:24px;font-weight:900;color:var(--alert);line-height:26px;">52</div><div style="font-size:9px;font-weight:700;color:var(--alert);">経過観察</div></div>
+                </div>
+                <div style="background:rgba(255,149,0,0.06);border-radius:18px;border:1px solid rgba(0,0,0,0.06);border-left:4px solid var(--high);padding:10px;display:flex;align-items:center;gap:10px;">
+                  <div style="width:34px;height:34px;border-radius:17px;background:#6366f1;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;">田</div>
+                  <div style="flex:1;"><div style="font-size:14px;font-weight:800;color:var(--text-primary);">田中 翼</div><div style="font-size:11px;color:var(--text-secondary);">100m / 200m</div></div>
+                  <div style="text-align:right;"><div style="font-size:24px;font-weight:900;color:var(--high);line-height:26px;">41</div><div style="font-size:9px;font-weight:700;color:var(--high);">経過観察</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ B: グループ化ロースター型 ============ -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="letter">B</div>
+        <div class="pname">グループ化ロースター型</div>
+      </div>
+      <div class="pdesc">ケアアラート・サマリーの構成は現状のまま維持し、変更は<b>名簿部分のみ</b>。フラットな1本のリストではなく「要注意」「順調」でセクション分けし、見出しで視覚的階層を作る。削除ボタンは常時表示せず長押しメニューに移し、行のノイズを減らす。最も変更範囲が小さい案。</div>
+      <div class="frame-wrap">
+        <div class="frame">
+          <div class="notch"></div>
+          <div class="canvas" style="transform:scale(0.8)">
+            <div class="scr">
+              <div class="hdr">
+                <div>
+                  <div class="hdr-title">テスト陸上部</div>
+                  <div class="hdr-sub"><span class="coach-chip">コーチ</span><span class="coach-name">テストコーチ</span></div>
+                </div>
+                <div class="hdr-right">
+                  <div class="code-box"><div class="code-label">参加コード</div><div class="code-val">093-SZU</div></div>
+                  <div class="icon-btn"></div><div class="icon-btn"></div>
+                </div>
+              </div>
+              <div class="tabs">
+                <div class="tab active">メンバー</div><div class="tab">📋 メニュー</div><div class="tab">アナウンス</div><div class="tab">動画</div><div class="tab">予定</div>
+              </div>
+              <div class="body">
+                <div style="background:#fff;border-radius:16px;border:1px solid rgba(239,68,68,0.25);overflow:hidden;">
+                  <div style="display:flex;align-items:center;gap:8px;background:rgba(239,68,68,0.07);padding:10px 14px;border-bottom:1px solid rgba(239,68,68,0.15);">
+                    <div style="width:28px;height:28px;border-radius:8px;background:rgba(239,68,68,0.15);display:flex;align-items:center;justify-content:center;">⚠️</div>
+                    <div style="flex:1;font-size:14px;font-weight:800;color:var(--alert);">ケアアラート</div>
+                    <div style="font-size:11px;font-weight:700;color:var(--alert);">2件</div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid rgba(0,0,0,0.06);">
+                    <div style="width:34px;height:34px;border-radius:10px;background:rgba(239,68,68,0.12);display:flex;align-items:center;justify-content:center;font-size:16px;">🤕</div>
+                    <div style="flex:1;"><div style="font-size:13px;font-weight:800;color:var(--alert);">佐藤</div><div style="font-size:11px;color:#888;">未確認の痛み報告</div></div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:12px;padding:12px;">
+                    <div style="width:34px;height:34px;border-radius:10px;background:rgba(255,149,0,0.12);display:flex;align-items:center;justify-content:center;font-size:16px;">⚠️</div>
+                    <div style="flex:1;"><div style="font-size:13px;font-weight:800;color:var(--high);">田中</div><div style="font-size:11px;color:#888;">高リスク・状態確認を</div></div>
+                  </div>
+                </div>
+
+                <div style="display:flex;gap:6px;">
+                  <div style="flex:1;background:#f7f8fa;border-radius:12px;padding:10px;text-align:center;"><div style="font-size:16px;font-weight:800;color:var(--low);">0件</div><div style="font-size:10px;color:#888;">欠席</div></div>
+                  <div style="flex:1;background:#f7f8fa;border-radius:12px;padding:10px;text-align:center;"><div style="font-size:16px;font-weight:800;color:var(--alert);">1件</div><div style="font-size:10px;color:#888;">痛み</div></div>
+                  <div style="flex:1;background:#f7f8fa;border-radius:12px;padding:10px;text-align:center;"><div style="font-size:16px;font-weight:800;color:var(--high);">1人</div><div style="font-size:10px;color:#888;">高リスク</div></div>
+                </div>
+
+                <!-- 要注意グループ -->
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <div style="width:6px;height:6px;border-radius:3px;background:var(--alert);"></div>
+                  <div style="font-size:11px;font-weight:800;color:var(--text-primary);">要注意（2人）</div>
+                </div>
+                <div style="background:rgba(239,68,68,0.06);border-radius:16px;border-left:4px solid var(--alert);padding:10px;display:flex;align-items:center;gap:10px;">
+                  <div style="width:32px;height:32px;border-radius:16px;background:#f59e0b;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;">佐</div>
+                  <div style="flex:1;"><div style="font-size:13px;font-weight:800;color:var(--text-primary);">佐藤 ひな</div><div style="font-size:10px;color:var(--text-secondary);">400m / 400mH</div></div>
+                  <div style="font-size:20px;font-weight:900;color:var(--alert);">52</div>
+                </div>
+                <div style="background:rgba(255,149,0,0.06);border-radius:16px;border-left:4px solid var(--high);padding:10px;display:flex;align-items:center;gap:10px;">
+                  <div style="width:32px;height:32px;border-radius:16px;background:#6366f1;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;">田</div>
+                  <div style="flex:1;"><div style="font-size:13px;font-weight:800;color:var(--text-primary);">田中 翼</div><div style="font-size:10px;color:var(--text-secondary);">100m / 200m</div></div>
+                  <div style="font-size:20px;font-weight:900;color:var(--high);">41</div>
+                </div>
+
+                <!-- 順調グループ -->
+                <div style="display:flex;align-items:center;gap:6px;margin-top:4px;">
+                  <div style="width:6px;height:6px;border-radius:3px;background:var(--low);"></div>
+                  <div style="font-size:11px;font-weight:800;color:var(--text-primary);">順調（0人）</div>
+                </div>
+                <div style="text-align:center;padding:14px;color:#bbb;font-size:11px;">該当なし</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ C: カンバン/グリッド型 ============ -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="letter">C</div>
+        <div class="pname">カンバン/グリッド型</div>
+      </div>
+      <div class="pdesc">最もレイアウトの変化が大きい案。上部の4指標を横スクロールの大きめKPIカードに、名簿を<b>2列グリッド</b>に変更。1画面によりを多くの選手を表示でき、ダッシュボードらしい見た目になる一方、1人あたりの情報量は減る（種目名は省略等）。</div>
+      <div class="frame-wrap">
+        <div class="frame">
+          <div class="notch"></div>
+          <div class="canvas" style="transform:scale(0.8)">
+            <div class="scr">
+              <div class="hdr">
+                <div>
+                  <div class="hdr-title">テスト陸上部</div>
+                  <div class="hdr-sub"><span class="coach-chip">コーチ</span><span class="coach-name">テストコーチ</span></div>
+                </div>
+                <div class="hdr-right">
+                  <div class="code-box"><div class="code-label">参加コード</div><div class="code-val">093-SZU</div></div>
+                  <div class="icon-btn"></div><div class="icon-btn"></div>
+                </div>
+              </div>
+              <div class="tabs">
+                <div class="tab active">メンバー</div><div class="tab">📋 メニュー</div><div class="tab">アナウンス</div><div class="tab">動画</div><div class="tab">予定</div>
+              </div>
+              <div class="body">
+                <!-- KPI横スクロール -->
+                <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;">
+                  <div style="flex-shrink:0;width:96px;background:#fff;border:1px solid rgba(0,0,0,0.07);border-radius:16px;padding:12px;">
+                    <div style="font-size:18px;">🙏</div>
+                    <div style="font-size:18px;font-weight:900;color:var(--low);margin-top:6px;">0件</div>
+                    <div style="font-size:10px;color:#888;">欠席</div>
+                  </div>
+                  <div style="flex-shrink:0;width:96px;background:#fff;border:1.5px solid var(--alert);border-radius:16px;padding:12px;">
+                    <div style="font-size:18px;">🤕</div>
+                    <div style="font-size:18px;font-weight:900;color:var(--alert);margin-top:6px;">1件</div>
+                    <div style="font-size:10px;color:#888;">痛み報告</div>
+                  </div>
+                  <div style="flex-shrink:0;width:96px;background:#fff;border:1px solid rgba(0,0,0,0.07);border-radius:16px;padding:12px;">
+                    <div style="font-size:18px;">⚠️</div>
+                    <div style="font-size:18px;font-weight:900;color:var(--high);margin-top:6px;">1人</div>
+                    <div style="font-size:10px;color:#888;">高リスク</div>
+                  </div>
+                  <div style="flex-shrink:0;width:96px;background:#fff;border:1px solid rgba(0,0,0,0.07);border-radius:16px;padding:12px;">
+                    <div style="font-size:18px;">💪</div>
+                    <div style="font-size:14px;font-weight:900;color:var(--medium);margin-top:6px;">中</div>
+                    <div style="font-size:10px;color:#888;">チーム負荷</div>
+                  </div>
+                </div>
+
+                <div style="font-size:11px;font-weight:700;color:var(--text-hint);letter-spacing:0.5px;">選手一覧（2人）</div>
+
+                <!-- 2列グリッド -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                  <div style="background:rgba(239,68,68,0.06);border-radius:16px;border:1px solid rgba(0,0,0,0.06);border-top:3px solid var(--alert);padding:10px;display:flex;flex-direction:column;align-items:center;gap:4px;">
+                    <div style="width:36px;height:36px;border-radius:18px;background:#f59e0b;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;">佐</div>
+                    <div style="font-size:12px;font-weight:800;color:var(--text-primary);">佐藤 ひな</div>
+                    <div style="font-size:20px;font-weight:900;color:var(--alert);line-height:22px;">52</div>
+                    <div style="font-size:9px;font-weight:700;color:var(--alert);">🤕未確認</div>
+                  </div>
+                  <div style="background:rgba(255,149,0,0.06);border-radius:16px;border:1px solid rgba(0,0,0,0.06);border-top:3px solid var(--high);padding:10px;display:flex;flex-direction:column;align-items:center;gap:4px;">
+                    <div style="width:36px;height:36px;border-radius:18px;background:#6366f1;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;">田</div>
+                    <div style="font-size:12px;font-weight:800;color:var(--text-primary);">田中 翼</div>
+                    <div style="font-size:20px;font-weight:900;color:var(--high);line-height:22px;">41</div>
+                    <div style="font-size:9px;font-weight:700;color:var(--high);">経過観察</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>案のレターを伝えてください（例:「A」「Bをベースに名簿だけグリッドに」など）。決まればそのまま <code>app/(tabs)/team.tsx</code> の CoachDashboard 実装に反映します。</footer>
+</div>
+</body>
+</html>

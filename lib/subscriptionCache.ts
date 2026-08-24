@@ -7,31 +7,67 @@ import type { PlanTier } from './purchaseService'
 
 export const SUB_CACHE_KEY = 'trackmate_subscription'
 
-type CachedSubscription = { isPremium: boolean; plan: PlanTier; expiresAt?: string }
+type CachedSubscription = {
+  isPremium: boolean
+  plan: PlanTier
+  expiresAt?: string
+  originalPurchaseDate?: string
+  hasTicketMonthly?: boolean
+  ticketMonthlyExpiresAt?: string
+}
 
-export async function cacheSubscriptionStatus(tier: PlanTier, expiresAt?: string): Promise<void> {
+export async function cacheSubscriptionStatus(
+  tier: PlanTier,
+  expiresAt?: string,
+  originalPurchaseDate?: string,
+  hasTicketMonthly?: boolean,
+  ticketMonthlyExpiresAt?: string,
+): Promise<void> {
   await AsyncStorage.setItem(SUB_CACHE_KEY, JSON.stringify({
     isPremium: tier !== 'free',
     plan: tier,
     expiresAt,
+    originalPurchaseDate,
+    hasTicketMonthly,
+    ticketMonthlyExpiresAt,
   } satisfies CachedSubscription)).catch(() => {})
 }
 
 /**
  * キャッシュされたプランを返す。
- * expiresAt が無い（RevenueCat から取得できなかった等）場合は期限を保証できないため、
- * 安全側に倒して free 扱いにする（誤って無期限に有効判定してしまうのを防ぐ）。
+ * expiresAt はRevenueCatのプロモーション付与・生涯购入等では null になることがあり、
+ * 「無い＝即free扱い」にすると本来有効な課金ユーザーを誤ってfree判定してしまう
+ * （2026-08: 広告なしプラン加入者が無料枠扱いされる不具合の原因だった）。
+ * expiresAt が実際に取得できていて、かつ過去日付の場合のみ失効とみなす。
  */
-export async function readCachedTier(): Promise<{ tier: PlanTier; expiresAt?: string }> {
+export async function readCachedTier(): Promise<{
+  tier: PlanTier
+  expiresAt?: string
+  originalPurchaseDate?: string
+  hasTicketMonthly: boolean
+  ticketMonthlyExpiresAt?: string
+}> {
   try {
     const raw = await AsyncStorage.getItem(SUB_CACHE_KEY)
-    if (!raw) return { tier: 'free' }
+    if (!raw) return { tier: 'free', hasTicketMonthly: false }
     const cached: CachedSubscription = JSON.parse(raw)
-    if (!cached.plan || cached.plan === 'free') return { tier: 'free' }
-    if (!cached.expiresAt) return { tier: 'free' }
-    if (new Date(cached.expiresAt) < new Date()) return { tier: 'free' }
-    return { tier: cached.plan, expiresAt: cached.expiresAt }
+    const ticketMonthlyExpired = !!cached.ticketMonthlyExpiresAt && new Date(cached.ticketMonthlyExpiresAt) < new Date()
+    const hasTicketMonthly = !!cached.hasTicketMonthly && !ticketMonthlyExpired
+
+    if (!cached.plan || cached.plan === 'free') {
+      return { tier: 'free', hasTicketMonthly, ticketMonthlyExpiresAt: cached.ticketMonthlyExpiresAt }
+    }
+    if (cached.expiresAt && new Date(cached.expiresAt) < new Date()) {
+      return { tier: 'free', hasTicketMonthly, ticketMonthlyExpiresAt: cached.ticketMonthlyExpiresAt }
+    }
+    return {
+      tier: cached.plan,
+      expiresAt: cached.expiresAt,
+      originalPurchaseDate: cached.originalPurchaseDate,
+      hasTicketMonthly,
+      ticketMonthlyExpiresAt: cached.ticketMonthlyExpiresAt,
+    }
   } catch {
-    return { tier: 'free' }
+    return { tier: 'free', hasTicketMonthly: false }
   }
 }

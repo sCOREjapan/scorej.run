@@ -25,6 +25,8 @@ import {
 } from '../lib/supabaseTeam'
 import { supabase } from '../lib/supabase'
 import { localDateStr } from '../lib/dateLocal'
+import { SESSION_TYPE_LABEL } from '../lib/sessionTypeLabels'
+import { getCoachVideoRequests, updateCoachVideoRequests, type CoachVideoRequest } from '../lib/coachReqStore'
 
 const JOINED_KEY_CV = 'trackmate_team_joined'
 
@@ -33,17 +35,6 @@ const SESSIONS_KEY  = 'trackmate_sessions'
 const RECORDS_KEY   = 'trackmate_race_records'
 const SLEEP_KEY     = 'trackmate_sleep'
 const TEAM_KEY      = 'trackmate_team'
-const COACH_REQ_KEY = 'trackmate_coach_video_requests'
-
-type CoachVideoRequest = {
-  id:           string
-  videoUri:     string
-  thumbnailUri: string
-  message:      string
-  event:        string
-  sentAt:       string
-  checked?:     boolean
-}
 
 // ── スケルトン ────────────────────────────────────────────────────
 function Skeleton({ h = 16, w = '100%' }: { h?: number; w?: string | number }) {
@@ -222,12 +213,12 @@ export default function CoachViewScreen() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [rawSessions, rawRecords, rawSleep, rawTeam, rawVideoReqs] = await Promise.all([
+      const [rawSessions, rawRecords, rawSleep, rawTeam, videoReqs] = await Promise.all([
         AsyncStorage.getItem(SESSIONS_KEY),
         AsyncStorage.getItem(RECORDS_KEY),
         AsyncStorage.getItem(SLEEP_KEY),
         AsyncStorage.getItem(TEAM_KEY),
-        AsyncStorage.getItem(COACH_REQ_KEY),
+        getCoachVideoRequests(),
       ])
 
       // ── 過去7日のセッション ──────────────────────────────────────
@@ -265,10 +256,13 @@ export default function CoachViewScreen() {
       try {
         if (rawSleep) {
           const all: SleepRecord[] = JSON.parse(rawSleep)
-          const cutoff = new Date()
-          cutoff.setDate(cutoff.getDate() - 7)
+          // UTC混在を避けるため日付文字列同士で比較（セッションの過去7日フィルタと同様）
+          const sleepCutoff = new Date()
+          sleepCutoff.setDate(sleepCutoff.getDate() - 7)
+          sleepCutoff.setHours(0, 0, 0, 0)
+          const sleepCutoffStr = localDateStr(sleepCutoff)
           const week = all
-            .filter(s => new Date(s.sleep_date) >= cutoff)
+            .filter(s => s.sleep_date.slice(0, 10) >= sleepCutoffStr)
             .sort((a, b) => a.sleep_date.localeCompare(b.sleep_date))
             .slice(-7)
           setSleepData(week.map(s => ({ date: s.sleep_date, score: s.quality_score })))
@@ -288,11 +282,7 @@ export default function CoachViewScreen() {
       } catch {}
 
       // ── 送られた動画 ─────────────────────────────────────────────
-      try {
-        if (rawVideoReqs) {
-          setVideoRequests(JSON.parse(rawVideoReqs))
-        }
-      } catch {}
+      setVideoRequests(videoReqs)
     } catch {
       // ignore
     } finally {
@@ -305,15 +295,15 @@ export default function CoachViewScreen() {
   const fatigueColor = avgFatigue >= 7 ? BRAND : avgFatigue >= 5 ? NEON.amber : NEON.green
 
   const markVideoChecked = async (id: string) => {
-    const updated = videoRequests.map(r => r.id === id ? { ...r, checked: true } : r)
+    const updated = await updateCoachVideoRequests(current =>
+      current.map(r => r.id === id ? { ...r, checked: true } : r)
+    )
     setVideoRequests(updated)
-    await AsyncStorage.setItem(COACH_REQ_KEY, JSON.stringify(updated)).catch(() => {})
   }
 
   const deleteVideoRequest = async (id: string) => {
-    const updated = videoRequests.filter(r => r.id !== id)
+    const updated = await updateCoachVideoRequests(current => current.filter(r => r.id !== id))
     setVideoRequests(updated)
-    await AsyncStorage.setItem(COACH_REQ_KEY, JSON.stringify(updated)).catch(() => {})
   }
 
   const uncheckedCount = videoRequests.filter(r => !r.checked).length
@@ -324,7 +314,7 @@ export default function CoachViewScreen() {
 
         {/* ヘッダー */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => { Sounds.tap(); router.back() }} style={styles.backBtn}>
+          <TouchableOpacity onPress={() => { Sounds.tap(); router.back() }} style={styles.backBtn} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} accessibilityLabel="戻る">
             <Ionicons name="chevron-back" size={22} color={TEXT.primary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>コーチビュー</Text>
@@ -419,7 +409,7 @@ export default function CoachViewScreen() {
                         backgroundColor: s.fatigue_level >= 7 ? BRAND : s.fatigue_level >= 5 ? NEON.amber : NEON.green,
                       }]} />
                       <Text style={styles.sessionDate}>{s.session_date.slice(5)}</Text>
-                      <Text style={styles.sessionType}>{s.session_type}</Text>
+                      <Text style={styles.sessionType}>{SESSION_TYPE_LABEL[s.session_type] ?? s.session_type}</Text>
                       <Text style={styles.sessionFatigue}>疲労 {s.fatigue_level}/10</Text>
                     </View>
                   ))}
@@ -584,6 +574,8 @@ export default function CoachViewScreen() {
                           style={styles.deleteBtn}
                           onPress={() => deleteVideoRequest(req.id)}
                           activeOpacity={0.8}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          accessibilityLabel="動画を削除"
                         >
                           <Ionicons name="trash-outline" size={14} color="#ef4444" />
                         </TouchableOpacity>
@@ -664,7 +656,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  cardTitle: { color: TEXT.primary, fontSize: 15, fontWeight: '700', flex: 1 },
+  cardTitle: { color: '#fff', fontSize: 15, fontWeight: '700', flex: 1 },
   cardSub: { color: TEXT.hint, fontSize: 11 },
 
   // サマリー
@@ -686,7 +678,7 @@ const styles = StyleSheet.create({
   },
   sessionDot: { width: 8, height: 8, borderRadius: 4 },
   sessionDate: { color: TEXT.secondary, fontSize: 12, width: 34, fontWeight: '600' },
-  sessionType: { color: TEXT.primary, fontSize: 13, flex: 1 },
+  sessionType: { color: '#fff', fontSize: 13, flex: 1 },
   sessionFatigue: { color: TEXT.hint, fontSize: 11 },
   moreText: { color: TEXT.hint, fontSize: 12, textAlign: 'center', marginTop: 2 },
 

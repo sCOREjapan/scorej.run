@@ -19,9 +19,10 @@ import { trackSessionRecord } from '../lib/analytics'
 import { parseDistanceAndReps } from '../lib/parseWorkoutDistance'
 import PracticeShareCard, { PracticeShareData } from '../components/PracticeShareCard'
 import type { LibraryFolder } from './workout-menu'
+import { updateSessions } from '../lib/sessionsStore'
+import { addTasks } from '../lib/tasksStore'
 
 const SESSIONS_KEY = 'trackmate_sessions'
-const TASKS_KEY    = 'trackmate_tasks'
 const LIBRARY_KEY  = 'trackmate_exercise_library'
 
 function CalendarPicker({ value, onChange }: { value: string; onChange: (d: string) => void }) {
@@ -56,11 +57,11 @@ function CalendarPicker({ value, onChange }: { value: string; onChange: (d: stri
   return (
     <View style={cal.wrap}>
       <View style={cal.header}>
-        <HapticTouch haptic="tap" onPress={prevMonth} style={cal.arrow}>
+        <HapticTouch haptic="tap" onPress={prevMonth} style={cal.arrow} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="前の月">
           <Ionicons name="chevron-back" size={18} color="#6b7280" />
         </HapticTouch>
         <Text style={cal.monthLabel}>{viewYear}年 {viewMonth + 1}月</Text>
-        <HapticTouch haptic="tap" onPress={nextMonth} style={cal.arrow}>
+        <HapticTouch haptic="tap" onPress={nextMonth} style={cal.arrow} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="次の月">
           <Ionicons name="chevron-forward" size={18} color="#6b7280" />
         </HapticTouch>
       </View>
@@ -151,7 +152,7 @@ function fallbackParse(text: string, today: string): Record<string, any> {
   // インターバル系（質の高い練習の代表）として扱う。他のキーワードが既にあれば、そちらを優先する。
   else if (/ポイント練習|ポイント練/i.test(t)) session_type = 'interval'
 
-  const eventMatch = t.match(/\b(100m|200m|400m|800m|1500m|3000m|5000m|10000m|110mH|100mH|400mH|3000mSC)\b/i)
+  const eventMatch = t.match(/\b(100m|200m|300m|400m|800m|1000m|1500m|3000m|5000m|10000m|110mH|100mH|300mH|400mH|3000mSC)\b/i)
   const event = eventMatch ? eventMatch[1] : null
 
   let time_ms: number | null = null
@@ -196,13 +197,7 @@ function formatTimeMs(ms: number): string {
 async function saveTasks(newTexts: string[]) {
   if (newTexts.length === 0) return
   try {
-    const raw = await AsyncStorage.getItem(TASKS_KEY)
-    const existing = raw ? JSON.parse(raw) : []
-    const newTasks = newTexts.map(text => ({
-      id: `task_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      text, completed: false, created_at: new Date().toISOString(),
-    }))
-    await AsyncStorage.setItem(TASKS_KEY, JSON.stringify([...newTasks, ...existing].slice(0, 20)))
+    await addTasks(newTexts)
   } catch { /* ignore */ }
 }
 
@@ -250,10 +245,7 @@ export default function PracticeInputScreen() {
     const parsed = fallbackParse(freeText, selectedDate)
     const toNum = (v: any) => (v !== null && v !== undefined && v !== 'null' && !isNaN(Number(v)) && Number(v) > 0) ? Number(v) : undefined
     try {
-      const existing = await AsyncStorage.getItem(SESSIONS_KEY)
-      let sessions: any[] = []
-      try { if (existing) sessions = JSON.parse(existing) } catch {}
-      sessions.unshift({
+      const newSession = {
         id:              `ql_${Date.now()}`,
         user_id:         (await AsyncStorage.getItem('userId').catch(() => null)) ?? 'local',
         created_at:      new Date().toISOString(),
@@ -266,8 +258,8 @@ export default function PracticeInputScreen() {
         fatigue_level:   toNum(parsed.fatigue_level) ?? 5,
         condition_level: toNum(parsed.condition_level) ?? 7,
         notes:           freeText,
-      })
-      await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions))
+      }
+      const sessions = await updateSessions(current => [newSession as any, ...current])
       autoSyncTeam(sessions, { force: true }).catch(() => {})
       trackSessionRecord(parsed.session_type || 'easy')
 
@@ -316,7 +308,7 @@ export default function PracticeInputScreen() {
         >
           {/* ── ヘッダー ── */}
           <View style={[s.header, { borderBottomColor: colors.border }]}>
-            <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
+            <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="戻る">
               <Ionicons name="chevron-back" size={24} color={colors.text} />
             </TouchableOpacity>
             <Text style={[s.title, { color: colors.text }]}>自由入力</Text>
@@ -427,7 +419,7 @@ export default function PracticeInputScreen() {
               placeholderTextColor={colors.textHint}
               textAlignVertical="top"
             />
-            <Text style={[s.hint, { color: colors.textHint }]}>
+            <Text style={[s.hint, { color: colors.textSec }]}>
               💡 疲労度・タイムを含めると自動で記録に反映されます{'\n'}
               💡 ポイント練習は「400m×5本」「テンポ走5km」「坂道ダッシュ」のように、本数・距離・種類を書くと自動で分類されます
             </Text>
@@ -456,7 +448,7 @@ export default function PracticeInputScreen() {
                 activeOpacity={0.7}
               >
                 <Ionicons name="folder-outline" size={14} color={colors.textHint} />
-                <Text style={[s.emptyLibraryText, { color: colors.textHint }]}>
+                <Text style={[s.emptyLibraryText, { color: colors.textSec }]}>
                   メニューライブラリに種目を登録すると、ここから選べます
                 </Text>
                 <Ionicons name="chevron-forward" size={14} color={colors.textHint} />

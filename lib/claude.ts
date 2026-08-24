@@ -14,6 +14,8 @@ import type {
 } from '../types'
 import { getVideoAnalysisPrompt } from '../prompts/video'
 import { getMealAnalysisPrompt, getCompetitionPlanPrompt, getCompetitionPlanChunkPrompt, getSleepAdvicePrompt } from '../prompts/index'
+import { narrativeLanguageInstruction } from './aiLanguage'
+import type { Language } from '../context/LanguageContext'
 
 const MODEL = 'claude-haiku-4-5-20251001'
 // Vercel proxy URL（APIキーをクライアントに持たせない）
@@ -212,7 +214,8 @@ export async function generateCompetitionPlan(
   competitionDate: Date,
   competitionName: string,
   profile: UserProfile,
-  event: AthleticsEvent
+  event: AthleticsEvent,
+  language: Language = 'ja'
 ): Promise<{ phases: WeekPlan[]; peak_week: number; taper_start_week: number; key_advice: string }> {
   const daysLeft = Math.ceil((competitionDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
   if (daysLeft < 1) throw new Error('試合日が過去です')
@@ -222,7 +225,7 @@ export async function generateCompetitionPlan(
   const weeksLeft = Math.min(Math.ceil(cappedDays / 7), 8)
 
   if (weeksLeft <= COMPETITION_PLAN_CHUNK_WEEKS) {
-    const systemPrompt = getCompetitionPlanPrompt(cappedDays, profile, competitionName, event)
+    const systemPrompt = getCompetitionPlanPrompt(cappedDays, profile, competitionName, event) + narrativeLanguageInstruction(language)
     const text = await callClaude({
       model: MODEL,
       max_tokens: 4096,
@@ -248,7 +251,7 @@ export async function generateCompetitionPlan(
   const allPhases: WeekPlan[] = []
   let keyAdvice = ''
   for (const chunkWeeks of weekChunks) {
-    const systemPrompt = getCompetitionPlanChunkPrompt(chunkWeeks, weeksLeft, profile, competitionName, event)
+    const systemPrompt = getCompetitionPlanChunkPrompt(chunkWeeks, weeksLeft, profile, competitionName, event) + narrativeLanguageInstruction(language)
     const text = await callClaude({
       model: MODEL,
       max_tokens: 2048,
@@ -349,8 +352,9 @@ export async function generateInjuryRecoveryPlan(params: {
   painLevel: number
   hasSwelling: boolean
   totalDays: number
+  language?: Language
 }): Promise<InjuryDayPlan[]> {
-  const { side, parts, injuryType, description, painLevel, hasSwelling, totalDays } = params
+  const { side, parts, injuryType, description, painLevel, hasSwelling, totalDays, language = 'ja' } = params
 
   const bodyInfo = `部位: ${side}${parts.join('・')}
 種類: ${injuryType}
@@ -359,13 +363,13 @@ export async function generateInjuryRecoveryPlan(params: {
 状況: ${description || 'なし'}`
 
   if (totalDays <= INJURY_PLAN_CHUNK_DAYS) {
-    return generateInjuryRecoveryPlanChunk(bodyInfo, 1, totalDays, totalDays)
+    return generateInjuryRecoveryPlanChunk(bodyInfo, 1, totalDays, totalDays, language)
   }
 
   const results: InjuryDayPlan[] = []
   for (let start = 1; start <= totalDays; start += INJURY_PLAN_CHUNK_DAYS) {
     const end = Math.min(start + INJURY_PLAN_CHUNK_DAYS - 1, totalDays)
-    const chunk = await generateInjuryRecoveryPlanChunk(bodyInfo, start, end, totalDays)
+    const chunk = await generateInjuryRecoveryPlanChunk(bodyInfo, start, end, totalDays, language)
     results.push(...chunk)
   }
   return results
@@ -375,7 +379,8 @@ async function generateInjuryRecoveryPlanChunk(
   bodyInfo: string,
   startDay: number,
   endDay: number,
-  totalDays: number
+  totalDays: number,
+  language: Language = 'ja'
 ): Promise<InjuryDayPlan[]> {
   const days = endDay - startDay + 1
 
@@ -390,7 +395,7 @@ async function generateInjuryRecoveryPlanChunk(
 - phaseは「急性期」「亜急性期」「リハビリ期」「復帰準備期」から、全体day=1〜${totalDays}の中でのこの日数帯にふさわしい段階を割り当てること（例:序盤は急性期、終盤は復帰準備期）
 - exercisesは具体的な動作名と回数・時間を含めること
 - avoidには絶対NGな動作を列挙すること
-- JSON以外は一切出力しないこと`
+- JSON以外は一切出力しないこと` + narrativeLanguageInstruction(language)
 
   const user = `${bodyInfo}
 回復日数（全体）: ${totalDays}日

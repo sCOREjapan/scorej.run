@@ -144,7 +144,14 @@ export default function ReviewWall({ visible, onClose }: Props) {
         {/* 星 */}
         <View style={s.stars}>
           {[1, 2, 3, 4, 5].map(n => (
-            <TouchableOpacity key={n} onPress={() => setStarPressed(n)} activeOpacity={0.7}>
+            <TouchableOpacity
+              key={n}
+              onPress={() => setStarPressed(n)}
+              activeOpacity={0.7}
+              hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+              accessibilityLabel={`星${n}`}
+              accessibilityRole="button"
+            >
               <Ionicons
                 name={n <= starPressed ? 'star' : 'star-outline'}
                 size={38}
@@ -243,10 +250,10 @@ const s = StyleSheet.create({
     alignItems: 'center', gap: 0, marginTop: -4,
   },
   subBtn: {
-    flex: 1, alignItems: 'center', paddingVertical: 8,
+    flex: 1, alignItems: 'center', paddingVertical: 12, minHeight: 44, justifyContent: 'center',
   },
   subBtnTxt: {
-    color: 'rgba(255,255,255,0.4)', fontSize: 14,
+    color: 'rgba(255,255,255,0.65)', fontSize: 14,
   },
   subDivider: {
     width: 1, height: 16, backgroundColor: 'rgba(255,255,255,0.15)',

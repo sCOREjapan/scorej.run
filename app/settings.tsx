@@ -5,6 +5,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   Switch, Alert, TextInput, Platform, Linking,
 } from 'react-native'
+import { useTranslation } from 'react-i18next'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -13,6 +14,8 @@ import * as FileSystem from 'expo-file-system/legacy'
 import * as Sharing from 'expo-sharing'
 
 import { useAuth } from '../context/AuthContext'
+import { useLanguage } from '../context/LanguageContext'
+import { getEventLabel } from '../lib/eventLabels'
 import { supabase } from '../lib/supabase'
 import { useTheme } from '../context/ThemeContext'
 import { usePurchase } from '../context/PurchaseContext'
@@ -20,6 +23,8 @@ import { useTutorial } from '../lib/tutorialContext'
 import AnimatedSection from '../components/AnimatedSection'
 import { requestPermission, getPermission, startAllSchedulers } from '../lib/notifications'
 import { checkAdGate, recordUsage } from '../lib/adGate'
+import { getTicketBalance, grantProfileCompleteBonusIfNeeded } from '../lib/ticketWallet'
+import Toast from 'react-native-toast-message'
 import { Sounds, isSoundEnabled, isHapticsEnabled, setSoundEnabled, setHapticsEnabled, loadSoundPrefs } from '../lib/sounds'
 import AdGateModal from '../components/AdGateModal'
 import { trackFeatureUse } from '../lib/analytics'
@@ -30,23 +35,49 @@ const TEAM_ROLE_KEY = 'trackmate_team_role'
 const TEAM_SETUP_KEY   = 'trackmate_team_setup'
 const TEAM_JOINED_KEY  = 'trackmate_team_joined'
 
-const EVENT_CATEGORIES = [
-  { label: 'スプリント', events: ['100m', '200m', '300m', '400m', '300mH'] },
-  { label: '中距離',    events: ['800m', '1500m'] },
-  { label: '長距離',    events: ['5000m', '10000m', 'ハーフ', 'マラソン', '競歩'] },
-  { label: 'ハードル',  events: ['100mH', '110mH', '400mH'] },
-  { label: '障害',      events: ['3000mSC'] },
-  { label: '跳躍',      events: ['走幅跳', '三段跳', '棒高跳', '走高跳'] },
-  { label: '投擲',      events: ['砲丸投', '円盤投', 'やり投', 'ハンマー投'] },
-  { label: '混成',      events: ['十種競技', '七種競技', '八種競技'] },
-  { label: 'リレー',    events: ['4×100mR', '4×400mR'] },
-] as const
+function buildEventCategories(t: (key: string) => string) {
+  return [
+    { key: 'sprint',       label: t('settings.eventCategories.sprint'),       events: ['100m', '200m', '300m', '400m', '300mH'] },
+    { key: 'middle',       label: t('settings.eventCategories.middle'),       events: ['800m', '1000m', '1500m', '3000m'] },
+    { key: 'long',         label: t('settings.eventCategories.long'),         events: ['5000m', '10000m', 'ハーフ', 'マラソン', '競歩'] },
+    { key: 'hurdle',       label: t('settings.eventCategories.hurdle'),       events: ['100mH', '110mH', '400mH'] },
+    { key: 'steeplechase', label: t('settings.eventCategories.steeplechase'), events: ['3000mSC'] },
+    { key: 'jump',         label: t('settings.eventCategories.jump'),         events: ['走幅跳', '三段跳', '棒高跳', '走高跳'] },
+    { key: 'throw',        label: t('settings.eventCategories.throw'),        events: ['砲丸投', '円盤投', 'やり投', 'ハンマー投'] },
+    { key: 'combined',     label: t('settings.eventCategories.combined'),     events: ['十種競技', '七種競技', '八種競技'] },
+    { key: 'relay',        label: t('settings.eventCategories.relay'),        events: ['4×100mR', '4×400mR'] },
+  ] as const
+}
 
 interface Profile {
   name: string
   event: string
   age: string
   club: string
+  pb: string           // 自己ベスト（表示用文字列。例: "12:34.56"）
+  target: string        // 目標タイム（同上）
+  experienceYears: string   // 競技経験年数（年の部分）
+  experienceMonths: string  // 競技経験年数（ヶ月の部分。0〜11）
+}
+
+// PB/目標タイム入力: "分:秒.秒" または秒のみ → ミリ秒
+function parseTimeToMs(input: string): number | null {
+  const trimmed = input.trim()
+  if (!trimmed) return null
+  const mMatch = trimmed.match(/^(\d+):(\d+(?:\.\d+)?)$/)
+  if (mMatch) return Math.round((parseInt(mMatch[1], 10) * 60 + parseFloat(mMatch[2])) * 1000)
+  const sMatch = trimmed.match(/^\d+(?:\.\d+)?$/)
+  if (sMatch) return Math.round(parseFloat(trimmed) * 1000)
+  return null
+}
+// ミリ秒 → 表示用文字列（60秒未満は秒のみ、以上は "分:秒"）
+function formatMsToTime(ms?: number | null): string {
+  if (!ms || ms <= 0) return ''
+  const totalSec = ms / 1000
+  if (totalSec < 60) return totalSec.toFixed(2)
+  const min = Math.floor(totalSec / 60)
+  const sec = (totalSec % 60).toFixed(2).padStart(5, '0')
+  return `${min}:${sec}`
 }
 
 interface NotifSettings {
@@ -55,7 +86,7 @@ interface NotifSettings {
 }
 
 // CSV エクスポート（Web のみ）
-async function exportCSV() {
+async function exportCSV(t: (key: string, opts?: any) => string) {
   try {
     const [sessionsRaw, racesRaw] = await Promise.all([
       AsyncStorage.getItem('trackmate_sessions'),
@@ -109,13 +140,13 @@ async function exportCSV() {
       const path = (FileSystem.cacheDirectory ?? '') + filename
       await FileSystem.writeAsStringAsync(path, csv, { encoding: FileSystem.EncodingType.UTF8 })
       if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(path, { mimeType: 'text/csv', dialogTitle: 'CSVをエクスポート' })
+        await Sharing.shareAsync(path, { mimeType: 'text/csv', dialogTitle: t('settings.data.exportCsvDialogTitle') })
       } else {
-        Alert.alert('完了', `${filename} を保存しました`)
+        Alert.alert(t('settings.data.exportDoneTitle'), t('settings.data.exportDoneMessage', { filename }))
       }
     }
   } catch (e) {
-    Alert.alert('エラー', 'エクスポートに失敗しました')
+    Alert.alert(t('settings.data.exportErrorTitle'), t('settings.data.exportErrorMessage'))
   }
 }
 
@@ -160,12 +191,21 @@ function LabeledInput({
 export default function SettingsScreen() {
   const { user, signOut, isGuest, signOutGuest } = useAuth()
   const { colors } = useTheme()
-  const { tier, isNoad, isCoach, expiresAt, restore } = usePurchase()
+  const { t } = useTranslation()
+  const { language, setLanguage } = useLanguage()
+  const EVENT_CATEGORIES = buildEventCategories(t)
+  const { tier, isNoad, isCoach, hasTicketMonthly, expiresAt, restore } = usePurchase()
   const { startTutorial } = useTutorial()
   const router = useRouter()
 
   // プロフィール
-  const [profile, setProfile] = useState<Profile>({ name: '', event: '', age: '', club: '' })
+  const [profile, setProfile] = useState<Profile>({ name: '', event: '', age: '', club: '', pb: '', target: '', experienceYears: '', experienceMonths: '' })
+
+  // チケット残高
+  const [ticketBalance, setTicketBalance] = useState(0)
+  useEffect(() => {
+    getTicketBalance().then(setTicketBalance).catch(() => {})
+  }, [])
 
   // CSV AdGate
   const [csvGateVisible,     setCsvGateVisible]     = useState(false)
@@ -191,7 +231,20 @@ export default function SettingsScreen() {
       if (v) {
         try {
           const p = JSON.parse(v)
-          setProfile({ name: p.name ?? '', event: p.event ?? '', age: p.age != null ? String(p.age) : '', club: p.club ?? '' })
+          // experience_yearsは小数（例: 3.5 = 3年6ヶ月）で保存されているため、年とヶ月に分解して表示する
+          let expYears = '', expMonths = ''
+          if (p.experience_years != null) {
+            const totalMonths = Math.round(Number(p.experience_years) * 12)
+            expYears  = String(Math.floor(totalMonths / 12))
+            expMonths = String(totalMonths % 12)
+          }
+          setProfile({
+            name: p.name ?? '', event: p.event ?? '', age: p.age != null ? String(p.age) : '', club: p.club ?? '',
+            pb:         formatMsToTime(p.personal_best_ms),
+            target:     formatMsToTime(p.target_time_ms),
+            experienceYears: expYears,
+            experienceMonths: expMonths,
+          })
         } catch {}
       }
     }).catch(() => {})
@@ -202,15 +255,34 @@ export default function SettingsScreen() {
   }, [])
 
   // プロフィール保存
+  // 既存の保存データ（オンボーディングで入力した自己ベスト・目標タイム等）を
+  // 丸ごと上書きしないよう、既存データを読み直してこの画面の項目だけをマージする
   const saveProfile = async () => {
+    let existing: Record<string, any> = {}
+    try {
+      const raw = await AsyncStorage.getItem(PROFILE_KEY)
+      if (raw) existing = JSON.parse(raw)
+    } catch {}
     const toSave = {
+      ...existing,
       name:  profile.name,
       event: profile.event,
       age:   profile.age ? Number(profile.age) : null,
       club:  profile.club,
+      personal_best_ms: profile.pb.trim() ? (parseTimeToMs(profile.pb) ?? existing.personal_best_ms) : undefined,
+      target_time_ms:   profile.target.trim() ? (parseTimeToMs(profile.target) ?? existing.target_time_ms) : undefined,
+      experience_years: (profile.experienceYears.trim() || profile.experienceMonths.trim())
+        ? Math.round(((Number(profile.experienceYears) || 0) * 12 + (Number(profile.experienceMonths) || 0))) / 12
+        : existing.experience_years,
     }
     await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(toSave)).catch(() => {})
-    Alert.alert('保存しました')
+    Alert.alert(t('settings.profile.savedAlert'))
+
+    // プロフィール（種目・自己ベスト）を初めて完成させたらチケットボーナス
+    if (toSave.name?.trim() && toSave.event?.trim() && toSave.personal_best_ms) {
+      const { granted } = await grantProfileCompleteBonusIfNeeded()
+      if (granted) Toast.show({ type: 'success', text1: t('settings.profile.profileBonus') })
+    }
   }
 
   // 通知トグル
@@ -247,16 +319,16 @@ export default function SettingsScreen() {
       }
     }
     if (Platform.OS === 'web') {
-      if (window.confirm('ログアウトしますか？')) {
+      if (window.confirm(t('settings.account.signOutMessage'))) {
         doSignOut()
       }
     } else {
       Alert.alert(
-        'ログアウト',
-        'ログアウトしますか？',
+        t('settings.account.signOutTitle'),
+        t('settings.account.signOutMessage'),
         [
-          { text: 'キャンセル', style: 'cancel' },
-          { text: 'ログアウト', style: 'destructive', onPress: doSignOut },
+          { text: t('settings.account.cancel'), style: 'cancel' },
+          { text: t('settings.account.signOut'), style: 'destructive', onPress: doSignOut },
         ]
       )
     }
@@ -265,21 +337,21 @@ export default function SettingsScreen() {
   // アカウント削除
   const handleDeleteAccount = () => {
     Alert.alert(
-      'アカウントを削除',
-      'アカウントとすべてのデータを完全に削除しますか？この操作は取り消せません。',
+      t('settings.account.deleteTitle'),
+      t('settings.account.deleteMessage'),
       [
-        { text: 'キャンセル', style: 'cancel' },
+        { text: t('settings.account.cancel'), style: 'cancel' },
         {
-          text: '削除する',
+          text: t('settings.account.deleteConfirm'),
           style: 'destructive',
           onPress: () => {
             Alert.alert(
-              '本当に削除しますか？',
-              '練習記録・コンディションデータ・設定がすべて削除されます。',
+              t('settings.account.deleteFinalTitle'),
+              t('settings.account.deleteFinalMessage'),
               [
-                { text: 'キャンセル', style: 'cancel' },
+                { text: t('settings.account.cancel'), style: 'cancel' },
                 {
-                  text: '完全に削除する',
+                  text: t('settings.account.deleteFinalConfirm'),
                   style: 'destructive',
                   onPress: async () => {
                     try {
@@ -348,8 +420,8 @@ export default function SettingsScreen() {
     // iOS Safari (非PWA) は Notification API 非対応
     if (typeof window === 'undefined' || !('Notification' in window)) {
       Alert.alert(
-        '通知を使うにはホーム画面に追加してください',
-        'iPhoneの場合、Safariで「共有ボタン → ホーム画面に追加」をすると通知が利用できます。',
+        t('settings.permissions.homeScreenTitle'),
+        t('settings.permissions.homeScreenMessage'),
       )
       return
     }
@@ -357,14 +429,14 @@ export default function SettingsScreen() {
     setNotifPerm(result as string)
     if (result === 'granted') {
       startAllSchedulers()
-      Alert.alert('通知をONにしました 🎉', '練習・睡眠リマインダーと怪我リスクアラートをお届けします。')
+      Alert.alert(t('settings.permissions.notifOnTitle'), t('settings.permissions.notifOnMessage'))
     } else if (result === 'denied') {
       Alert.alert(
-        '通知が拒否されています',
-        'ブラウザの設定から通知を許可してください。\niPhone: 設定 → Safari → 詳細 → 通知',
+        t('settings.permissions.notifDeniedTitle'),
+        t('settings.permissions.notifDeniedMessage'),
       )
     }
-  }, [])
+  }, [t])
 
   const handleRequestLocationPerm = useCallback(async () => {
     if (Platform.OS !== 'web') {
@@ -374,11 +446,11 @@ export default function SettingsScreen() {
         if (locPerm === 'denied') {
           // 拒否済み → システム設定を開く
           Alert.alert(
-            '位置情報が拒否されています',
-            'iPhoneの「設定」→「sCORE」→「位置情報」→「このAppの使用中」を選択してください。',
+            t('settings.permissions.locDeniedTitleNative'),
+            t('settings.permissions.locDeniedMessageNative'),
             [
-              { text: 'キャンセル', style: 'cancel' },
-              { text: '設定を開く', onPress: () => Linking.openSettings() },
+              { text: t('settings.account.cancel'), style: 'cancel' },
+              { text: t('settings.permissions.openSettings'), onPress: () => Linking.openSettings() },
             ]
           )
           return
@@ -386,37 +458,37 @@ export default function SettingsScreen() {
         const { status } = await Location.requestForegroundPermissionsAsync()
         if (status === 'granted') {
           setLocPerm('granted')
-          Alert.alert('位置情報をONにしました ✅', '天気情報を自動取得してリスクスコアに反映します。')
+          Alert.alert(t('settings.permissions.locOnTitle'), t('settings.permissions.locOnMessage'))
         } else {
           setLocPerm('denied')
         }
       } catch {
-        Alert.alert('エラー', '位置情報の許可に失敗しました。')
+        Alert.alert(t('settings.permissions.locErrorTitle'), t('settings.permissions.locErrorMessage'))
       }
       return
     }
 
     // Web
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      Alert.alert('非対応', 'このブラウザは位置情報に対応していません。')
+      Alert.alert(t('settings.permissions.locUnsupportedTitle'), t('settings.permissions.locUnsupportedMessage'))
       return
     }
     navigator.geolocation.getCurrentPosition(
       () => {
         setLocPerm('granted')
-        Alert.alert('位置情報をONにしました ✅', '天気情報を自動取得してリスクスコアに反映します。')
+        Alert.alert(t('settings.permissions.locOnTitle'), t('settings.permissions.locOnMessage'))
       },
       (err) => {
         if (err.code === 1) {
           setLocPerm('denied')
-          Alert.alert('位置情報が拒否されています', 'ブラウザの「設定」→「サイトの設定」→「位置情報」から許可してください。')
+          Alert.alert(t('settings.permissions.locDeniedTitleWeb'), t('settings.permissions.locDeniedMessageWeb'))
         } else {
-          Alert.alert('位置情報の取得に失敗しました', err.message)
+          Alert.alert(t('settings.permissions.locFailedTitle'), err.message)
         }
       },
       { enableHighAccuracy: false, timeout: 10000 }
     )
-  }, [locPerm])
+  }, [locPerm, t])
 
   // 全データリセット（AsyncStorage + FileSystem + ログアウト）
   const handleClearCache = async () => {
@@ -438,7 +510,7 @@ export default function SettingsScreen() {
     }
 
     if (Platform.OS === 'web') {
-      const ok = window.confirm('全データをリセットしますか？\n練習記録・プロフィール・設定がすべて削除されます。この操作は取り消せません。')
+      const ok = window.confirm(t('settings.data.resetConfirmWeb'))
       if (!ok) return
       await doReset()
       if ('caches' in window) {
@@ -448,12 +520,12 @@ export default function SettingsScreen() {
       window.location.reload()
     } else {
       Alert.alert(
-        '全データをリセット',
-        '練習記録・プロフィール・チーム情報・設定がすべて削除されます。\n\nこの操作は取り消せません。',
+        t('settings.data.resetTitle'),
+        t('settings.data.resetMessage'),
         [
-          { text: 'キャンセル', style: 'cancel' },
+          { text: t('settings.account.cancel'), style: 'cancel' },
           {
-            text: 'すべて削除', style: 'destructive',
+            text: t('settings.data.resetConfirm'), style: 'destructive',
             onPress: async () => {
               await doReset()
             },
@@ -481,7 +553,7 @@ export default function SettingsScreen() {
     }
     await recordUsage('csv')
     trackFeatureUse('csv')
-    await exportCSV()
+    await exportCSV(t)
   }
 
   return (
@@ -491,67 +563,100 @@ export default function SettingsScreen() {
 
           {/* ── 現在のプラン ──────────────────────────────────── */}
           <AnimatedSection delay={0}>
-            <SectionCard title="現在のプラン">
+            <SectionCard title={t('settings.currentPlan.title')}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 }}>
                 <View>
                   <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
-                    {tier === 'coach' ? '🏆 コーチプラン' : tier === 'noad' ? '🚫 広告なしプラン' : '🆓 無料プラン'}
+                    {tier === 'coach' ? t('settings.currentPlan.plans.coach') : hasTicketMonthly ? t('settings.currentPlan.plans.ticketMonthly') : tier === 'noad' ? t('settings.currentPlan.plans.noad') : t('settings.currentPlan.plans.free')}
                   </Text>
                   {expiresAt && (
                     <Text style={{ fontSize: 12, color: colors.textSec, marginTop: 2 }}>
-                      {new Date(expiresAt).toLocaleDateString('ja-JP')} まで有効
+                      {t('settings.currentPlan.validUntil', { date: new Date(expiresAt).toLocaleDateString(language === 'ja' ? 'ja-JP' : 'en-US') })}
                     </Text>
                   )}
-                  {tier === 'free' && (
-                    <Text style={{ fontSize: 12, color: colors.textSec, marginTop: 2 }}>広告が表示されます</Text>
+                  {!isNoad && (
+                    <Text style={{ fontSize: 12, color: colors.textSec, marginTop: 2 }}>{t('settings.currentPlan.adsShown')}</Text>
                   )}
                 </View>
-                {tier === 'free' ? (
+                {!isNoad ? (
                   <TouchableOpacity
                     onPress={() => router.push('/paywall' as any)}
-                    style={{ backgroundColor: '#16a34a', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 }}
+                    style={{ backgroundColor: '#16a34a', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}
                     activeOpacity={0.85}
                   >
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff' }}>プランを見る</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff' }}>{t('settings.currentPlan.viewPlans')}</Text>
                   </TouchableOpacity>
                 ) : (
                   <TouchableOpacity
                     onPress={() => Linking.openURL('https://apps.apple.com/account/subscriptions')}
-                    style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: colors.border }}
+                    style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: colors.border, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}
                     activeOpacity={0.75}
                   >
-                    <Text style={{ fontSize: 12, color: colors.textSec }}>管理する</Text>
+                    <Text style={{ fontSize: 12, color: colors.textSec }}>{t('settings.currentPlan.manage')}</Text>
                   </TouchableOpacity>
                 )}
               </View>
-              {tier === 'free' && (
+              {!isNoad && (
                 <TouchableOpacity
                   onPress={() => restore()}
                   style={{ marginTop: 10, alignItems: 'center' }}
                 >
-                  <Text style={{ fontSize: 13, color: colors.textSec }}>購入を復元する</Text>
+                  <Text style={{ fontSize: 13, color: colors.textSec }}>{t('settings.currentPlan.restorePurchases')}</Text>
                 </TouchableOpacity>
               )}
             </SectionCard>
           </AnimatedSection>
 
+          {/* ── チケット ───────────────────────────────────────── */}
+          <AnimatedSection delay={20}>
+            <SectionCard title={t('settings.tickets.title')}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 }}>
+                <View>
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
+                    {t('settings.tickets.balance', { n: ticketBalance })}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: colors.textSec, marginTop: 2 }}>
+                    {t('settings.tickets.usageHint')}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => router.push('/tickets' as any)}
+                  style={{ backgroundColor: '#f59e0b', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}
+                  activeOpacity={0.85}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#241300' }}>{t('settings.tickets.buy')}</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity
+                onPress={() => router.push('/referral-challenge' as any)}
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, marginTop: 6, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }}
+                activeOpacity={0.7}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>
+                  {t('settings.tickets.referral')}
+                </Text>
+                <Text style={{ fontSize: 18, color: colors.textSec }}>›</Text>
+              </TouchableOpacity>
+            </SectionCard>
+          </AnimatedSection>
+
           {/* ── プロフィール ───────────────────────────────────── */}
           <AnimatedSection delay={40}>
-            <SectionCard title="プロフィール">
+            <SectionCard title={t('settings.profile.title')}>
               <LabeledInput
-                label="名前"
+                label={t('settings.profile.name')}
                 value={profile.name}
                 onChangeText={v => setProfile(p => ({ ...p, name: v }))}
-                placeholder="田中 太郎"
+                placeholder={t('settings.profile.namePlaceholder')}
               />
               <View style={styles.divider} />
 
               {/* 種目タグ（複数選択可・カンマ区切りで保持） */}
               <View style={styles.fieldRow}>
-                <Text style={styles.fieldLabel}>種目（複数選択可）</Text>
+                <Text style={styles.fieldLabel}>{t('settings.profile.eventsLabel')}</Text>
               </View>
               {EVENT_CATEGORIES.map(cat => (
-                <View key={cat.label} style={{ marginBottom: 10 }}>
+                <View key={cat.key} style={{ marginBottom: 10 }}>
                   <Text style={styles.eventCategoryLabel}>{cat.label}</Text>
                   <View style={styles.tagWrap}>
                     {cat.events.map(ev => {
@@ -568,7 +673,7 @@ export default function SettingsScreen() {
                           })}
                           activeOpacity={0.75}
                         >
-                          <Text style={[styles.tagText, active && { color: '#fff' }]}>{ev}</Text>
+                          <Text style={[styles.tagText, active && { color: '#fff' }]}>{getEventLabel(ev, language)}</Text>
                         </TouchableOpacity>
                       )
                     })}
@@ -578,7 +683,7 @@ export default function SettingsScreen() {
 
               <View style={styles.divider} />
               <LabeledInput
-                label="年齢"
+                label={t('settings.profile.age')}
                 value={profile.age}
                 onChangeText={v => setProfile(p => ({ ...p, age: v.replace(/[^0-9]/g, '') }))}
                 placeholder="20"
@@ -586,28 +691,69 @@ export default function SettingsScreen() {
               />
               <View style={styles.divider} />
               <LabeledInput
-                label="所属"
+                label={t('settings.profile.club')}
                 value={profile.club}
                 onChangeText={v => setProfile(p => ({ ...p, club: v }))}
-                placeholder="〇〇陸上クラブ"
+                placeholder={t('settings.profile.clubPlaceholder')}
               />
+              <View style={styles.divider} />
+              <LabeledInput
+                label={t('settings.profile.pb')}
+                value={profile.pb}
+                onChangeText={v => setProfile(p => ({ ...p, pb: v.replace(/[^0-9:.]/g, '') }))}
+                placeholder="12:34.56"
+              />
+              <View style={styles.divider} />
+              <LabeledInput
+                label={t('settings.profile.target')}
+                value={profile.target}
+                onChangeText={v => setProfile(p => ({ ...p, target: v.replace(/[^0-9:.]/g, '') }))}
+                placeholder="11:50.00"
+              />
+              <View style={styles.divider} />
+              <View style={styles.fieldRow}>
+                <Text style={styles.fieldLabel}>{t('settings.profile.experience')}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1, justifyContent: 'flex-end' }}>
+                  <TextInput
+                    style={[styles.fieldInput, { flex: 0, width: 36, outlineStyle: 'none' } as any]}
+                    value={profile.experienceYears}
+                    onChangeText={v => setProfile(p => ({ ...p, experienceYears: v.replace(/[^0-9]/g, '') }))}
+                    placeholder="3"
+                    placeholderTextColor="#9ca3af"
+                    keyboardType="numeric"
+                  />
+                  <Text style={{ color: '#9ca3af', fontSize: 13 }}>{t('settings.profile.years')}</Text>
+                  <TextInput
+                    style={[styles.fieldInput, { flex: 0, width: 30, outlineStyle: 'none' } as any]}
+                    value={profile.experienceMonths}
+                    onChangeText={v => {
+                      const n = v.replace(/[^0-9]/g, '')
+                      setProfile(p => ({ ...p, experienceMonths: n === '' ? '' : String(Math.min(11, Number(n))) }))
+                    }}
+                    placeholder="0"
+                    placeholderTextColor="#9ca3af"
+                    keyboardType="numeric"
+                  />
+                  <Text style={{ color: '#9ca3af', fontSize: 13 }}>{t('settings.profile.months')}</Text>
+                </View>
+              </View>
 
               <TouchableOpacity style={styles.saveBtn} onPress={saveProfile} activeOpacity={0.85}>
-                <Text style={styles.saveBtnText}>保存する</Text>
+                <Text style={styles.saveBtnText}>{t('settings.profile.save')}</Text>
               </TouchableOpacity>
             </SectionCard>
           </AnimatedSection>
 
           {/* ── アカウント ─────────────────────────────────────── */}
           <AnimatedSection delay={80}>
-            <SectionCard title="アカウント">
+            <SectionCard title={t('settings.account.title')}>
               {isGuest ? (
                 /* ゲスト → ログイン誘導 */
                 <>
                   <View style={styles.fieldRow}>
-                    <Text style={styles.fieldLabel}>ステータス</Text>
+                    <Text style={styles.fieldLabel}>{t('settings.account.status')}</Text>
                     <View style={{ backgroundColor: '#FF9500' + '22', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
-                      <Text style={{ color: '#FF9500', fontSize: 12, fontWeight: '800' }}>ゲスト</Text>
+                      <Text style={{ color: '#FF9500', fontSize: 12, fontWeight: '800' }}>{t('settings.account.guest')}</Text>
                     </View>
                   </View>
                   <View style={styles.divider} />
@@ -618,8 +764,8 @@ export default function SettingsScreen() {
                   >
                     <Ionicons name="log-in-outline" size={18} color="#166534" />
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.actionText, { color: '#166534', fontWeight: '800' }]}>アカウントを作成 / ログイン</Text>
-                      <Text style={{ color: colors.textHint, fontSize: 11, marginTop: 2 }}>データをクラウドに保存できます</Text>
+                      <Text style={[styles.actionText, { color: '#166534', fontWeight: '800' }]}>{t('settings.account.createAccount')}</Text>
+                      <Text style={{ color: colors.textHint, fontSize: 11, marginTop: 2 }}>{t('settings.account.cloudSaveHint')}</Text>
                     </View>
                     <Ionicons name="chevron-forward" size={16} color="#166534" />
                   </TouchableOpacity>
@@ -628,7 +774,7 @@ export default function SettingsScreen() {
                 /* ログイン済み */
                 <>
                   <View style={styles.fieldRow}>
-                    <Text style={styles.fieldLabel}>メールアドレス</Text>
+                    <Text style={styles.fieldLabel}>{t('settings.account.email')}</Text>
                     <Text style={styles.fieldValue} numberOfLines={1}>
                       {user?.email ?? '—'}
                     </Text>
@@ -636,12 +782,12 @@ export default function SettingsScreen() {
                   <View style={styles.divider} />
                   <TouchableOpacity style={styles.dangerRow} onPress={handleSignOut} activeOpacity={0.75}>
                     <Ionicons name="log-out-outline" size={18} color="#E53935" />
-                    <Text style={styles.dangerText}>ログアウト</Text>
+                    <Text style={styles.dangerText}>{t('settings.account.signOut')}</Text>
                   </TouchableOpacity>
                   <View style={styles.divider} />
                   <TouchableOpacity style={styles.dangerRow} onPress={handleDeleteAccount} activeOpacity={0.75}>
                     <Ionicons name="trash-outline" size={18} color="#E53935" />
-                    <Text style={styles.dangerText}>アカウントを削除する</Text>
+                    <Text style={styles.dangerText}>{t('settings.account.deleteAccount')}</Text>
                   </TouchableOpacity>
                 </>
               )}
@@ -650,21 +796,21 @@ export default function SettingsScreen() {
 
           {/* ── チーム設定 ────────────────────────────────────── */}
           <AnimatedSection delay={120}>
-            <SectionCard title="チーム設定">
+            <SectionCard title={t('settings.team.title')}>
               <View style={styles.fieldRow}>
-                <Text style={styles.fieldLabel}>現在のロール</Text>
+                <Text style={styles.fieldLabel}>{t('settings.team.currentRole')}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   {teamRole === 'coach' && (
                     <View style={{ backgroundColor: '#166534' + '20', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 }}>
-                      <Text style={{ color: '#166534', fontSize: 12, fontWeight: '700' }}>コーチ・監督</Text>
+                      <Text style={{ color: '#166534', fontSize: 12, fontWeight: '700' }}>{t('settings.team.coach')}</Text>
                     </View>
                   )}
                   {teamRole === 'player' && (
                     <View style={{ backgroundColor: '#34C759' + '20', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 }}>
-                      <Text style={{ color: '#34C759', fontSize: 12, fontWeight: '700' }}>選手</Text>
+                      <Text style={{ color: '#34C759', fontSize: 12, fontWeight: '700' }}>{t('settings.team.player')}</Text>
                     </View>
                   )}
-                  {!teamRole && <Text style={styles.fieldValue}>未設定</Text>}
+                  {!teamRole && <Text style={styles.fieldValue}>{t('settings.team.notSet')}</Text>}
                 </View>
               </View>
               <View style={styles.divider} />
@@ -678,17 +824,17 @@ export default function SettingsScreen() {
                     router.push('/(tabs)/team')
                   }
                   if (typeof window !== 'undefined') {
-                    if (window.confirm('チームのロール設定をリセットします。チームタブで再設定できます。')) doSwitch()
+                    if (window.confirm(t('settings.team.switchConfirmWeb'))) doSwitch()
                   } else {
-                    Alert.alert('ロールを切り替え', 'チームのロール設定をリセットします。', [
-                      { text: 'キャンセル', style: 'cancel' },
-                      { text: 'リセット', style: 'destructive', onPress: doSwitch },
+                    Alert.alert(t('settings.team.switchTitle'), t('settings.team.switchMessage'), [
+                      { text: t('settings.account.cancel'), style: 'cancel' },
+                      { text: t('settings.team.reset'), style: 'destructive', onPress: doSwitch },
                     ])
                   }
                 }}
               >
                 <Ionicons name="swap-horizontal-outline" size={18} color="#6b7280" />
-                <Text style={styles.actionText}>コーチ ↔ 選手を切り替え</Text>
+                <Text style={styles.actionText}>{t('settings.team.switchRole')}</Text>
                 <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
               </TouchableOpacity>
             </SectionCard>
@@ -696,7 +842,7 @@ export default function SettingsScreen() {
 
           {/* ── アクセス許可 & 通知 ──────────────────────────── */}
           <AnimatedSection delay={160}>
-            <SectionCard title="アクセス許可 & 通知">
+            <SectionCard title={t('settings.permissions.title')}>
 
               {/* ── 位置情報 ── */}
               <View style={styles.permRow}>
@@ -705,12 +851,12 @@ export default function SettingsScreen() {
                     <Ionicons name="location-outline" size={20} color="#5AC8FA" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.permTitle}>位置情報</Text>
+                    <Text style={styles.permTitle}>{t('settings.permissions.location')}</Text>
                     <Text style={styles.permSub}>
-                      {locPerm === 'granted'     ? '✅ 許可済み — 天気自動取得ON'
-                       : locPerm === 'denied'    ? '🚫 拒否済み — 設定から変更'
-                       : locPerm === 'unsupported' ? '非対応ブラウザ'
-                       : '未設定 — 天気でリスクを補正'}
+                      {locPerm === 'granted'     ? t('settings.permissions.locationGranted')
+                       : locPerm === 'denied'    ? t('settings.permissions.locationDenied')
+                       : locPerm === 'unsupported' ? t('settings.permissions.unsupportedBrowser')
+                       : t('settings.permissions.locationUnset')}
                     </Text>
                   </View>
                 </View>
@@ -721,7 +867,7 @@ export default function SettingsScreen() {
                     activeOpacity={0.85}
                   >
                     <Text style={[styles.permBtnText, locPerm === 'denied' && { color: '#6b7280' }]}>
-                      {locPerm === 'denied' ? '設定を開く' : '許可する'}
+                      {locPerm === 'denied' ? t('settings.permissions.openSettings') : t('settings.permissions.allow')}
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -736,12 +882,12 @@ export default function SettingsScreen() {
                     <Ionicons name="notifications-outline" size={20} color="#166534" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.permTitle}>プッシュ通知</Text>
+                    <Text style={styles.permTitle}>{t('settings.permissions.pushNotif')}</Text>
                     <Text style={styles.permSub}>
-                      {notifPerm === 'granted'     ? '✅ 許可済み — 通知ON'
-                       : notifPerm === 'denied'    ? '🚫 拒否済み — 設定から変更'
-                       : notifPerm === 'unsupported' ? '非対応ブラウザ'
-                       : '未設定 — リスク・睡眠・練習通知'}
+                      {notifPerm === 'granted'     ? t('settings.permissions.notifGranted')
+                       : notifPerm === 'denied'    ? t('settings.permissions.notifDenied')
+                       : notifPerm === 'unsupported' ? t('settings.permissions.unsupportedBrowser')
+                       : t('settings.permissions.notifUnset')}
                     </Text>
                   </View>
                 </View>
@@ -752,7 +898,7 @@ export default function SettingsScreen() {
                     activeOpacity={0.85}
                   >
                     <Text style={[styles.permBtnText, notifPerm === 'denied' && { color: '#6b7280' }]}>
-                      {notifPerm === 'denied' ? '設定を開く' : '許可する'}
+                      {notifPerm === 'denied' ? t('settings.permissions.openSettings') : t('settings.permissions.allow')}
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -763,10 +909,10 @@ export default function SettingsScreen() {
               {/* 通知スケジュール説明 */}
               <View style={{ gap: 6, paddingTop: 4 }}>
                 {[
-                  { time: '17:00', label: '練習記録リマインダー', icon: '📝' },
-                  { time: '20:00', label: '睡眠リマインダー',     icon: '💤' },
-                  { time: 'リアルタイム', label: '怪我リスクアラート',  icon: '🔴' },
-                  { time: '大会前',    label: '大会リマインダー',   icon: '🏆' },
+                  { time: '17:00', label: t('settings.permissions.schedule.practice'), icon: '📝' },
+                  { time: '20:00', label: t('settings.permissions.schedule.sleep'),     icon: '💤' },
+                  { time: t('settings.permissions.schedule.realtime'), label: t('settings.permissions.schedule.riskAlert'),  icon: '🔴' },
+                  { time: t('settings.permissions.schedule.beforeCompetition'),    label: t('settings.permissions.schedule.competition'),   icon: '🏆' },
                 ].map(item => (
                   <View key={item.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <Text style={{ fontSize: 14 }}>{item.icon}</Text>
@@ -779,7 +925,7 @@ export default function SettingsScreen() {
               <View style={styles.divider} />
 
               <View style={styles.switchRow}>
-                <Text style={styles.switchLabel}>練習リマインダー (17時)</Text>
+                <Text style={styles.switchLabel}>{t('settings.permissions.practiceReminderSwitch')}</Text>
                 <Switch
                   value={notifSettings.practiceReminder}
                   onValueChange={v => toggleNotif('practiceReminder', v)}
@@ -790,7 +936,7 @@ export default function SettingsScreen() {
               </View>
               <View style={styles.divider} />
               <View style={styles.switchRow}>
-                <Text style={styles.switchLabel}>大会リマインダー</Text>
+                <Text style={styles.switchLabel}>{t('settings.permissions.competitionReminderSwitch')}</Text>
                 <Switch
                   value={notifSettings.raceReminder}
                   onValueChange={v => toggleNotif('raceReminder', v)}
@@ -804,9 +950,9 @@ export default function SettingsScreen() {
 
           {/* ── 効果音・バイブレーション ───────────────────────── */}
           <AnimatedSection delay={230}>
-            <SectionCard title="効果音・バイブレーション">
+            <SectionCard title={t('settings.sound.title')}>
               <View style={styles.switchRow}>
-                <Text style={styles.switchLabel}>効果音</Text>
+                <Text style={styles.switchLabel}>{t('settings.sound.soundEffect')}</Text>
                 <Switch
                   value={soundOn}
                   onValueChange={toggleSound}
@@ -817,7 +963,7 @@ export default function SettingsScreen() {
               </View>
               <View style={styles.divider} />
               <View style={styles.switchRow}>
-                <Text style={styles.switchLabel}>バイブレーション</Text>
+                <Text style={styles.switchLabel}>{t('settings.sound.vibration')}</Text>
                 <Switch
                   value={hapticOn}
                   onValueChange={toggleHaptic}
@@ -831,14 +977,14 @@ export default function SettingsScreen() {
 
           {/* ── データ ───────────────────────────────────────── */}
           <AnimatedSection delay={240}>
-            <SectionCard title="データ">
+            <SectionCard title={t('settings.data.title')}>
               <TouchableOpacity
                 style={styles.actionRow}
                 onPress={handleExportCSV}
                 activeOpacity={0.75}
               >
                 <Ionicons name="download-outline" size={18} color="#6b7280" />
-                <Text style={styles.actionText}>記録をCSVでエクスポート</Text>
+                <Text style={styles.actionText}>{t('settings.data.exportCsv')}</Text>
                 <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
               </TouchableOpacity>
               <View style={styles.divider} />
@@ -848,7 +994,7 @@ export default function SettingsScreen() {
                 activeOpacity={0.75}
               >
                 <Ionicons name="trash-outline" size={18} color="#E53935" />
-                <Text style={[styles.actionText, { color: '#E53935' }]}>全データをリセット</Text>
+                <Text style={[styles.actionText, { color: '#E53935' }]}>{t('settings.data.resetAll')}</Text>
                 <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
               </TouchableOpacity>
             </SectionCard>
@@ -856,10 +1002,34 @@ export default function SettingsScreen() {
 
           {/* ── アプリ情報 ────────────────────────────────────── */}
           <AnimatedSection delay={320}>
-            <SectionCard title="アプリ情報">
+            <SectionCard title={t('settings.appInfo.title')}>
               <View style={styles.fieldRow}>
-                <Text style={styles.fieldLabel}>バージョン</Text>
+                <Text style={styles.fieldLabel}>{t('settings.appInfo.version')}</Text>
                 <Text style={styles.fieldValue}>1.6.1</Text>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.fieldRow}>
+                <Text style={styles.fieldLabel}>{t('settings.appInfo.language')}</Text>
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                  <TouchableOpacity
+                    onPress={() => setLanguage('ja')}
+                    style={{
+                      paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14,
+                      backgroundColor: language === 'ja' ? '#166534' : '#f0f2f5',
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: language === 'ja' ? '#fff' : '#6b7280' }}>{t('settings.appInfo.japanese')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setLanguage('en')}
+                    style={{
+                      paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14,
+                      backgroundColor: language === 'en' ? '#166534' : '#f0f2f5',
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: language === 'en' ? '#fff' : '#6b7280' }}>{t('settings.appInfo.english')}</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
               <View style={styles.divider} />
               <TouchableOpacity
@@ -868,7 +1038,7 @@ export default function SettingsScreen() {
                 activeOpacity={0.75}
               >
                 <Ionicons name="help-circle-outline" size={18} color="#6b7280" />
-                <Text style={styles.actionText}>お問い合わせ・サポート</Text>
+                <Text style={styles.actionText}>{t('settings.appInfo.support')}</Text>
                 <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
               </TouchableOpacity>
               <View style={styles.divider} />
@@ -878,7 +1048,7 @@ export default function SettingsScreen() {
                 activeOpacity={0.75}
               >
                 <Ionicons name="shield-checkmark-outline" size={18} color="#6b7280" />
-                <Text style={styles.actionText}>プライバシーポリシー</Text>
+                <Text style={styles.actionText}>{t('settings.appInfo.privacyPolicy')}</Text>
                 <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
               </TouchableOpacity>
               <View style={styles.divider} />
@@ -888,7 +1058,7 @@ export default function SettingsScreen() {
                 activeOpacity={0.75}
               >
                 <Ionicons name="document-text-outline" size={18} color="#6b7280" />
-                <Text style={styles.actionText}>利用規約</Text>
+                <Text style={styles.actionText}>{t('settings.appInfo.terms')}</Text>
                 <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
               </TouchableOpacity>
               <View style={styles.divider} />
@@ -902,13 +1072,13 @@ export default function SettingsScreen() {
                 activeOpacity={0.75}
               >
                 <Ionicons name="play-circle-outline" size={18} color="#6b7280" />
-                <Text style={styles.actionText}>チュートリアルをもう一度見る</Text>
+                <Text style={styles.actionText}>{t('settings.appInfo.replayTutorial')}</Text>
                 <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
               </TouchableOpacity>
               <View style={styles.divider} />
               <View style={[styles.fieldRow, { paddingBottom: 4 }]}>
                 <Text style={{ color: '#555', fontSize: 12, textAlign: 'center', flex: 1 }}>
-                  Made with ❤️ for athletes
+                  {t('settings.appInfo.footer')}
                 </Text>
               </View>
             </SectionCard>
@@ -929,7 +1099,7 @@ export default function SettingsScreen() {
           setCsvGateVisible(false)
           await recordUsage('csv')
           trackFeatureUse('csv')
-          await exportCSV()
+          await exportCSV(t)
         }}
         onUpgrade={() => {
           setCsvGateVisible(false)
@@ -973,7 +1143,7 @@ const styles = StyleSheet.create({
   permIcon:    { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   permTitle:   { color: '#111827', fontSize: 14, fontWeight: '700' },
   permSub:     { color: '#6b7280', fontSize: 11, marginTop: 2 },
-  permBtn:     { backgroundColor: '#166534', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 8 },
+  permBtn:     { backgroundColor: '#166534', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 8, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   permBtnText: { color: '#fff', fontSize: 12, fontWeight: '800' },
 
   // フィールド行
@@ -1009,15 +1179,15 @@ const styles = StyleSheet.create({
   // ログアウト行
   dangerRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingVertical: 10,
+    paddingVertical: 10, minHeight: 44,
   },
   dangerText: { color: '#E53935', fontSize: 15, fontWeight: '700' },
 
   // Switch 行
-  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
+  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4, minHeight: 44 },
   switchLabel: { color: '#111827', fontSize: 15, fontWeight: '600' },
 
   // アクション行（データ）
-  actionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
+  actionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, minHeight: 44 },
   actionText: { flex: 1, color: '#111827', fontSize: 15, fontWeight: '600' },
 })

@@ -12,6 +12,7 @@ import { BRAND } from '../../lib/theme'
 import { triggerQuickLog } from '../../lib/quickLogEvent'
 import { initNotificationsOnFirstLaunch } from '../../lib/notifications'
 import { todayLocalISO } from '../../lib/dateLocal'
+import { getTicketBalance } from '../../lib/ticketWallet'
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name']
 
@@ -46,12 +47,12 @@ function AnimatedTabButton({ children, onPress, accessibilityState, style }: any
 }
 
 // ── ラジアルFABアイテム定義（4種類のログ入力）──
-const RADIAL_ITEMS = [
-  { icon: '🏃', label: '練習記録', angle: -150, route: '/practice-input', action: 'practice' },
-  { icon: '⏱️', label: 'タイム記録', angle: -110, route: '/timer',          action: 'timer'    },
-  { icon: '😴', label: '睡眠記録', angle: -70,  route: '/(tabs)/sleep',    action: 'sleep'    },
-  { icon: '🩹', label: 'リカバリー', angle: -30,  route: '/recovery',        action: 'recovery' },
-] as const
+const RADIAL_ITEMS: { icon: IoniconsName; label: string; angle: number; route: string; action: string }[] = [
+  { icon: 'barbell-outline',  label: '練習記録', angle: -150, route: '/practice-input', action: 'practice' },
+  { icon: 'stopwatch-outline',label: 'タイム記録', angle: -110, route: '/timer',          action: 'timer'    },
+  { icon: 'moon-outline',     label: '睡眠記録', angle: -70,  route: '/(tabs)/sleep',    action: 'sleep'    },
+  { icon: 'medkit-outline',   label: 'リカバリー', angle: -30,  route: '/recovery',        action: 'recovery' },
+]
 
 const RADIUS = 110   // アイテム円の重なりを防ぐ十分な半径
 
@@ -121,7 +122,7 @@ function RadialFAB({ bottomOffset }: { bottomOffset: number }) {
             ]}
           >
             <TouchableOpacity onPress={() => handleItem(item.action, item.route)} style={fab.item} activeOpacity={0.85}>
-              <Text style={{ fontSize: 20 }}>{item.icon}</Text>
+              <Ionicons name={item.icon} size={22} color={BRAND} />
             </TouchableOpacity>
             <Text style={fab.itemLabel} numberOfLines={1}>{item.label}</Text>
           </Animated.View>
@@ -158,7 +159,7 @@ const TAB_ITEMS: TabItem[] = [
   { route: '/(tabs)/mypage',  label: '設定',   icon: 'person-outline',      iconFocused: 'person'      },
 ]
 
-function CustomTabBar({ bottomInset }: { bottomInset: number }) {
+function CustomTabBar({ bottomInset, ticketBalance }: { bottomInset: number; ticketBalance: number | null }) {
   const router   = useRouter()
   const pathname = usePathname()
 
@@ -169,6 +170,15 @@ function CustomTabBar({ bottomInset }: { bottomInset: number }) {
 
   return (
     <View style={[tb.container, { paddingBottom: Math.max(bottomInset, 8) }]}>
+      {ticketBalance !== null && (
+        <TouchableOpacity
+          style={tb.ticketBadge}
+          onPress={() => { unlockAudio(); Sounds.tap(); router.push('/tickets' as any) }}
+          activeOpacity={0.8}
+        >
+          <Text style={tb.ticketBadgeText}>🎫 {ticketBalance}</Text>
+        </TouchableOpacity>
+      )}
       {TAB_ITEMS.map(tab => {
         const active = tab.route ? isActive(tab.route) : false
         return (
@@ -213,6 +223,14 @@ const tb = StyleSheet.create({
     paddingTop: 8,
     paddingHorizontal: 8,
   },
+  ticketBadge: {
+    position: 'absolute', top: -11, right: 14, zIndex: 10,
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#ffffff', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3,
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 4,
+  },
+  ticketBadgeText: { fontSize: 11, fontWeight: '800', color: '#f59e0b' },
   item:          { flex: 1, alignItems: 'center', gap: 3 },
   iconWrap:      { width: 40, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   iconWrapActive:{ backgroundColor: BRAND },
@@ -257,17 +275,28 @@ const BANNER_H = 72   // バナー広告の高さ見込み（適応バナー高�
 export default function TabLayout() {
   const insets   = useSafeAreaInsets()
   const pathname = usePathname()
-  const { isNoad } = usePurchase()
+  const { isNoad, isCoach } = usePurchase()
   const showBanner = !isNoad   // 広告なしプラン以上はバナー非表示
+
+  // ── タブバーのチケット残高バッジ（コーチプランは無制限のため非表示） ──
+  const [ticketBalance, setTicketBalance] = useState<number | null>(null)
+  useEffect(() => {
+    if (isCoach) { setTicketBalance(null); return }
+    let cancelled = false
+    const refresh = () => { getTicketBalance().then(n => { if (!cancelled) setTicketBalance(n) }).catch(() => {}) }
+    refresh()
+    const interval = setInterval(refresh, 5000)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [isCoach, pathname])
   const [bannerLoaded, setBannerLoaded] = useState(false)
   // バナー表示中はFABをその分上にずらす
   // バナー表示中は常にその分FABを上にずらす（読み込み状態に依存させない＝広告に重ねない）
   const fabBottomOffset = Math.max(insets.bottom, 16) + 56 + (showBanner ? BANNER_H : 0)
   const hideFab  = pathname === '/team' || pathname === '/(tabs)/team'
 
-  // ── アップデート案内モーダル（週1回表示・App Storeへ誘導） ──
+  // ── アップデート案内モーダル（1.5週間に1回表示・App Storeへ誘導） ──
   const UPDATE_PROMO_KEY = 'score_update_promo_last_shown'
-  const UPDATE_PROMO_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000
+  const UPDATE_PROMO_INTERVAL_MS = 1.5 * 7 * 24 * 60 * 60 * 1000
   const APP_STORE_URL = 'https://apps.apple.com/jp/app/score/id6766394981'
   const [showUpdate, setShowUpdate] = useState(false)
   useEffect(() => {
@@ -358,7 +387,7 @@ export default function TabLayout() {
       )}
 
       {/* ── W3 カスタムタブバー ── */}
-      <CustomTabBar bottomInset={insets.bottom} />
+      <CustomTabBar bottomInset={insets.bottom} ticketBalance={ticketBalance} />
 
       {/* ── ラジアルFAB（チーム画面では非表示） ── */}
       {!hideFab && <RadialFAB bottomOffset={fabBottomOffset} />}

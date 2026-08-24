@@ -19,7 +19,7 @@ import type { RaceRecord } from '../types'
 import { captureRef } from 'react-native-view-shot'
 import * as MediaLibrary from 'expo-media-library'
 import * as Sharing from 'expo-sharing'
-import { grantShareBonus } from '../lib/adGate'
+import { grantShareBonusTicket } from '../lib/ticketWallet'
 import { usePurchase } from '../context/PurchaseContext'
 
 const RECORDS_KEY = 'trackmate_race_records'
@@ -836,9 +836,9 @@ export default function ShareCardScreen() {
       })
       await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'シェアカードを投稿' })
       // シェアシートを開いた段階でボーナス付与（iOSは実投稿を検知できないため）
-      const r = await grantShareBonus('video')
+      const r = await grantShareBonusTicket()
       if (r.granted) {
-        Toast.show({ type: 'success', text1: '🎁 動画分析1回無料を獲得！', text2: '次の動画分析が広告なしで使えます', visibilityTime: 2600 })
+        Toast.show({ type: 'success', text1: '🎁 チケット1枚を獲得！', text2: 'AI機能に使えます', visibilityTime: 2600 })
       } else if (r.atCap) {
         Toast.show({ type: 'info', text1: 'シェアありがとう！', text2: '無料獲得は1日1回までです', visibilityTime: 2400 })
       }
@@ -855,7 +855,7 @@ export default function ShareCardScreen() {
 
         {/* ヘッダー */}
         <View style={s.header}>
-          <TouchableOpacity style={s.backBtn} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')}>
+          <TouchableOpacity style={s.backBtn} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')} accessibilityLabel="戻る">
             <Ionicons name="chevron-back" size={26} color="rgba(255,255,255,0.75)" />
           </TouchableOpacity>
           <Text style={s.headerTitle}>シェアカード</Text>
@@ -1212,7 +1212,7 @@ const s = StyleSheet.create({
   guideNumTxt: { color: BRAND, fontSize: 12, fontWeight: '800' },
   guideTxt:    { color: 'rgba(255,255,255,0.55)', fontSize: 13, flex: 1, lineHeight: 20 },
 
-  selectorLabel: { color: 'rgba(255,255,255,0.35)', fontSize: 11, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase' },
+  selectorLabel: { color: 'rgba(255,255,255,0.55)', fontSize: 11, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase' },
   chips: { gap: 10, paddingBottom: 4 },
   chip: {
     backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 12,

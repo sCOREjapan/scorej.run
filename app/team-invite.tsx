@@ -127,7 +127,7 @@ export default function TeamInviteScreen() {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           {/* ヘッダー */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => { Sounds.tap(); router.back() }} style={styles.backBtn}>
+            <TouchableOpacity onPress={() => { Sounds.tap(); router.back() }} style={styles.backBtn} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} accessibilityLabel="戻る">
               <Ionicons name="chevron-back" size={22} color={TEXT.primary} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>チーム招待</Text>
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  sectionTitle: { color: TEXT.primary, fontSize: 16, fontWeight: '700' },
+  sectionTitle: { color: '#fff', fontSize: 16, fontWeight: '700' },
   subText: { color: TEXT.secondary, fontSize: 13, lineHeight: 20 },
 
   // コード表示

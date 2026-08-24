@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>オンボーディング ソフトグリーン再デザイン</title>
+<style>
+  :root{ --brand:#166534; --g1:#22c55e; --g2:#166534; --tint:#f0fdf4; --border:#d7ecdf; --text1:#111827; --text2:#6b7280; --hint:#9ca3af; }
+  *{box-sizing:border-box;}
+  body{ margin:0; font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif; background:#F6F4EF; color:#1c1c1c; padding:28px; }
+  h1{font-size:19px; margin:0 0 4px;}
+  .quote{ background:#fff; border:1px solid #e8e4da; border-radius:12px; padding:14px 18px; font-size:13px; line-height:1.6; color:#555; margin-bottom:8px;}
+  .quote b{color:#111;}
+  .kcheck{font-size:11.5px; color:#888; margin-bottom:24px;}
+  .kcheck code{background:#eee; padding:1px 5px; border-radius:4px;}
+  .board{ display:flex; gap:22px; align-items:flex-start; overflow-x:auto; padding-bottom:20px;}
+  .col{ flex:0 0 auto; width:340px; }
+  .col-head{ margin-bottom:10px; min-height:110px; }
+  .letter{ display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:7px; background:#1c1c1c; color:#fff; font-size:13px; font-weight:800; margin-right:8px;}
+  .col.ref .letter{ background:#999; }
+  .colname{ font-size:15px; font-weight:800; display:inline-block; vertical-align:middle;}
+  .badge-rec{ display:inline-block; margin-left:8px; font-size:10.5px; font-weight:800; background:var(--g1); color:#fff; padding:2px 8px; border-radius:20px; vertical-align:middle;}
+  .desc{ font-size:12.3px; color:#666; line-height:1.6; margin-top:6px;}
+  .desc b{ color:#222; }
+  .pt{ color:#0a7a3d; font-weight:700; }
+
+  .tabs{ display:flex; gap:6px; margin-bottom:10px; }
+  .tabs button{ flex:1; border:1.3px solid #ddd7c8; background:#fff; border-radius:10px; padding:7px 0; font-size:11px; font-weight:700; color:#777; cursor:pointer; font-family:inherit;}
+  .tabs button.active{ background:#1c1c1c; color:#fff; border-color:#1c1c1c;}
+
+  .frame-wrap{ border:2px solid #1c1c1c; border-radius:26px; background:#000; }
+  .col.rec .frame-wrap{ border-color:var(--g1); box-shadow:0 0 0 3px rgba(34,197,94,.18); }
+  .notch{ width:120px; height:22px; background:#000; border-radius:0 0 14px 14px; margin:0 auto; position:relative; z-index:5; }
+  .screen{ width:340px; height:739px; overflow:hidden; position:relative; background:#fff;}
+  .view{ position:absolute; inset:0; opacity:0; pointer-events:none; transition:opacity .25s; }
+  .view.show{ opacity:1; pointer-events:auto; }
+
+  /* ===== 現状(A3ゲーム風) ===== */
+  .old{ background:#FFF8EC; padding:0 20px; height:100%; }
+  .old-xp{ display:flex; align-items:center; gap:8px; margin-top:28px; }
+  .old-xp-bar{ flex:1; height:10px; background:#f0e4cc; border-radius:6px; overflow:hidden; }
+  .old-xp-fill{ width:25%; height:100%; background:#f59e0b; border-radius:6px; }
+  .old-xp-label{ font-size:10px; font-weight:800; color:#b45309; }
+  .old-mascot{ text-align:center; margin-top:14px; font-size:44px; }
+  .old-bubble{ background:#fff; border:2px solid #1c1c1e; border-radius:18px; padding:12px 14px; margin-top:8px; position:relative; }
+  .old-bubble:before{ content:''; position:absolute; top:-9px; left:50%; margin-left:-8px; border-width:0 8px 9px; border-style:solid; border-color:transparent transparent #1c1c1e; }
+  .old-bubble p{ margin:0; font-size:12.5px; font-weight:700; color:var(--text1); text-align:center; line-height:18px;}
+  .old-title{ font-size:20px; font-weight:900; color:var(--text1); margin-top:18px; }
+  .old-sub{ font-size:12px; color:var(--text2); margin-top:6px; }
+  .old-input{ margin-top:16px; background:#fff; border:1.5px solid #1c1c1e; border-radius:14px; padding:14px; display:flex; align-items:center; gap:10px; }
+  .old-input span{ color:var(--hint); font-size:13px; }
+  .old-cta{ position:absolute; left:20px; right:20px; bottom:20px; background:#1c1c1e; border-radius:50px; padding:15px; text-align:center; color:#fbbf24; font-weight:900; font-size:14px; border:2px solid #1c1c1e;}
+
+  /* ===== 新デザイン（参考画像ベース・ソフトグリーン） ===== */
+  .new{ background:#fff; padding:0 22px; height:100%; }
+  .new-topbar{ display:flex; align-items:center; gap:10px; margin-top:24px; }
+  .new-progress{ flex:1; height:5px; background:#eceae4; border-radius:3px; overflow:hidden; }
+  .new-progress-fill{ height:100%; width:25%; background:linear-gradient(90deg,var(--g1),var(--g2)); border-radius:3px; }
+  .new-skip{ font-size:11.5px; color:var(--hint); font-weight:700; }
+
+  .new-illust-wrap{ text-align:center; margin-top:26px; position:relative; height:78px; }
+  .new-blob{ width:78px; height:78px; border-radius:50%; background:radial-gradient(circle at 32% 28%, #86efac, var(--g1) 60%, var(--g2)); margin:0 auto; display:flex; align-items:center; justify-content:center; }
+  .new-blob svg{ width:38px; height:38px; }
+  .new-dots{ position:absolute; top:2px; left:calc(50% + 16px); background:#fff; border:1.5px solid var(--border); border-radius:14px; padding:4px 8px; font-size:9px; color:var(--g2); font-weight:800; box-shadow:0 2px 6px rgba(0,0,0,.06); }
+
+  .new-head{ font-size:21px; font-weight:900; color:var(--text1); text-align:center; margin-top:18px; line-height:29px; letter-spacing:-.3px; }
+  .new-sub{ font-size:12px; color:var(--text2); text-align:center; margin-top:8px; line-height:18px; padding:0 6px; }
+
+  .new-input{ margin-top:22px; background:#fafaf8; border:1.5px solid var(--border); border-radius:16px; padding:15px; display:flex; align-items:center; gap:10px; }
+  .new-input span{ color:var(--hint); font-size:13.5px; }
+
+  .new-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:22px; }
+  .new-card{ background:#fff; border:1.5px solid var(--border); border-radius:18px; padding:16px 10px; text-align:center; }
+  .new-card.sel{ background:var(--tint); border:2px solid var(--g1); }
+  .new-avatar{ width:52px; height:52px; border-radius:50%; background:#f3f4f6; margin:0 auto 8px; display:flex; align-items:center; justify-content:center; }
+  .new-card.sel .new-avatar{ background:#dcfce7; }
+  .new-avatar svg{ width:26px; height:26px; }
+  .new-card-label{ font-size:12.5px; font-weight:800; color:var(--text1); }
+
+  .new-link{ text-align:center; margin-top:18px; font-size:11.5px; color:var(--g2); font-weight:700; text-decoration:underline; }
+
+  .new-cta{ position:absolute; left:22px; right:22px; bottom:22px; background:linear-gradient(135deg,var(--g1),var(--g2)); border-radius:50px; padding:16px; text-align:center; color:#fff; font-weight:800; font-size:15px; box-shadow:0 8px 20px rgba(22,101,52,.28);}
+
+  footer{ margin-top:10px; font-size:12.5px; color:#555; background:#fff; border:1px solid #e8e4da; border-radius:12px; padding:14px 18px;}
+</style>
+</head>
+<body>
+
+  <h1>オンボーディング再デザイン — 参考画像ベースのソフトグリーン</h1>
+  <div class="quote">お題: <b>「見た目を大幅変更してこの参考画像に近い形にしてほしい。緑の部分は少しだけグラデーションを加えて」</b>（参考: 薄いプログレスバー・緑の丸吹き出しに線画キャラ・2カラム選択カード・下部フル幅緑ボタン）</div>
+  <div class="kcheck">縮尺模型: 設計幅402pt → 画面340px（K=0.8458）。ベース色は<code>lib/theme.ts</code>のBRAND(#166534)。方向性は参考画像に確定なのでA/B/C分岐なし、現状比較のみ。</div>
+
+  <div class="board">
+
+    <!-- 現状 -->
+    <div class="col ref">
+      <div class="col-head">
+        <span class="letter">現</span><span class="colname">現状（A3ゲーム風）</span>
+        <div class="desc">今の<code>onboarding.tsx</code>。INK黒枠＋アンバーの「ゲーム」トーン。ここを参考画像寄りに変更するのが今回のお題。</div>
+      </div>
+      <div class="frame-wrap">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="old">
+            <div class="old-xp"><div class="old-xp-bar"><div class="old-xp-fill"></div></div><div class="old-xp-label">QUEST 1/4</div></div>
+            <div class="old-mascot">🏃‍♂️</div>
+            <div class="old-bubble"><p>まずはキミの名前を教えて！</p></div>
+            <div class="old-title">① きみの名前は？</div>
+            <div class="old-sub">ニックネームでもOK！後で変更できるよ</div>
+            <div class="old-input"><span>👤 例：田中 太郎 / Taro</span></div>
+          </div>
+          <div class="old-cta">次のクエストへ</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 新デザイン -->
+    <div class="col rec">
+      <div class="col-head">
+        <span class="letter">新</span><span class="colname">参考画像ベース（ソフトグリーン）</span><span class="badge-rec">この方向で</span>
+        <div class="desc">
+          白背景＋薄いピル型プログレスバー、緑グラデーションの丸吹き出しに線画キャラ、
+          太字見出し＋理由説明、選択は2カラムカード（薄緑背景＋緑枠が選択状態）、
+          ボタンは<span class="pt">緑グラデーション</span>のフル幅角丸。タブで①名前入力／②カテゴリ選択を切替できます。
+        </div>
+      </div>
+      <div class="tabs" id="tabs-new">
+        <button class="active" onclick="sw(this,0)">①名前入力</button>
+        <button onclick="sw(this,1)">②カテゴリ選択</button>
+      </div>
+      <div class="frame-wrap">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="view show" id="new-0">
+            <div class="new">
+              <div class="new-topbar"><div class="new-progress"><div class="new-progress-fill"></div></div><div class="new-skip">スキップ</div></div>
+              <div class="new-illust-wrap">
+                <div class="new-blob">
+                  <svg viewBox="0 0 24 24" fill="none"><path d="M13 4a2 2 0 100 4 2 2 0 000-4zM7 21l2.5-6L7 13l1.5-4L12 10l2 2 3 1v2l-3-1-1 3 2 4h-2l-1.5-3L9 21H7z" fill="#fff"/></svg>
+                </div>
+                <div class="new-dots">•••</div>
+              </div>
+              <div class="new-head">まずはキミの名前を、<br>少しだけ教えてください。</div>
+              <div class="new-sub">名前を知れば、あなた専用のトレーニング<br>プランを作ることができます。</div>
+              <div class="new-input"><span>👤　例：田中 太郎 / Taro</span></div>
+              <div class="new-link">すでにアカウントをお持ちの方</div>
+            </div>
+            <div class="new-cta">次へ</div>
+          </div>
+          <div class="view" id="new-1">
+            <div class="new">
+              <div class="new-topbar"><div class="new-progress"><div class="new-progress-fill" style="width:50%"></div></div><div class="new-skip">スキップ</div></div>
+              <div class="new-illust-wrap">
+                <div class="new-blob">
+                  <svg viewBox="0 0 24 24" fill="none"><path d="M13 4a2 2 0 100 4 2 2 0 000-4zM7 21l2.5-6L7 13l1.5-4L12 10l2 2 3 1v2l-3-1-1 3 2 4h-2l-1.5-3L9 21H7z" fill="#fff"/></svg>
+                </div>
+                <div class="new-dots">•••</div>
+              </div>
+              <div class="new-head">得意なジャンルは<br>どれですか？</div>
+              <div class="new-sub">メインで取り組んでいるジャンルを<br>選んでください。</div>
+              <div class="new-grid">
+                <div class="new-card"><div class="new-avatar"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12h16M14 6l6 6-6 6" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="new-card-label">短距離</div></div>
+                <div class="new-card sel"><div class="new-avatar"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12h16M14 6l6 6-6 6" stroke="#166534" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="new-card-label">中距離</div></div>
+                <div class="new-card"><div class="new-avatar"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="#6b7280" stroke-width="2"/></svg></div><div class="new-card-label">長距離</div></div>
+                <div class="new-card"><div class="new-avatar"><svg viewBox="0 0 24 24" fill="none"><path d="M12 4l2 6h6l-5 4 2 6-5-4-5 4 2-6-5-4h6z" stroke="#6b7280" stroke-width="1.6" stroke-linejoin="round"/></svg></div><div class="new-card-label">フィールド</div></div>
+              </div>
+            </div>
+            <div class="new-cta">次へ</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    タブで①②を切替できます。この方向で良ければ「これで」と言ってもらえれば、
+    クエスト全ステップ（③④の演出ローディング・リビール含む）とイントロカルーセルのボタンも
+    同じソフトグリーン基調に統一して<code>app/onboarding.tsx</code>を書き換えます。
+  </footer>
+
+<script>
+  function sw(btn, idx){
+    document.querySelectorAll('#tabs-new button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('new-0').classList.toggle('show', idx===0);
+    document.getElementById('new-1').classList.toggle('show', idx===1);
+  }
+  const qtab = new URLSearchParams(location.search).get('tab');
+  if (qtab === '1') { document.querySelectorAll('#tabs-new button')[1].click(); }
+</script>
+</body>
+</html>

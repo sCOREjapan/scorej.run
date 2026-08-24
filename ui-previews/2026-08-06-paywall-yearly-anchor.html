@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>paywall 年額アンカリング 3案</title>
+<style>
+  :root{
+    --k: 0.8458; /* K = 340px ÷ 402pt (sCORE iPhone設計幅) */
+    --brand:#16a34a;
+    --gold:#d97706;
+    --bg:#0a0a0a;
+    --card:#1a1a1a;
+    --border:#2a2a2a;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+    background:#F6F4EF;
+    color:#1c1c1c;
+    padding:28px;
+  }
+  h1{font-size:19px; margin:0 0 4px;}
+  .quote{
+    background:#fff; border:1px solid #e8e4da; border-radius:12px;
+    padding:14px 18px; font-size:13px; line-height:1.6; color:#555; margin-bottom:8px;
+  }
+  .quote b{color:#111;}
+  .kcheck{font-size:11.5px; color:#888; margin-bottom:24px;}
+  .kcheck code{background:#eee; padding:1px 5px; border-radius:4px;}
+  .board{
+    display:flex; gap:22px; align-items:flex-start; overflow-x:auto; padding-bottom:20px;
+  }
+  .col{ flex:0 0 auto; width:340px; }
+  .col-head{ margin-bottom:10px; min-height:108px; }
+  .letter{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:24px; height:24px; border-radius:7px; background:#1c1c1c; color:#fff;
+    font-size:13px; font-weight:800; margin-right:8px;
+  }
+  .col.ref .letter{ background:#999; }
+  .colname{ font-size:15px; font-weight:800; display:inline-block; vertical-align:middle;}
+  .badge-rec{
+    display:inline-block; margin-left:8px; font-size:10.5px; font-weight:800;
+    background:var(--brand); color:#fff; padding:2px 8px; border-radius:20px; vertical-align:middle;
+  }
+  .desc{ font-size:12.3px; color:#666; line-height:1.6; margin-top:6px; }
+  .desc b{ color:#222; }
+  .pt{ color:#0a7a3d; font-weight:700; }
+  .frame-wrap{
+    border:2px solid #1c1c1c; border-radius:26px;
+    background:#000;
+  }
+  .col.rec .frame-wrap{ border-color:var(--brand); box-shadow:0 0 0 3px rgba(22,163,74,.18); }
+  .notch{
+    width:120px; height:22px; background:#000; border-radius:0 0 14px 14px;
+    margin:0 auto; position:relative; z-index:5;
+  }
+  .screen{
+    width:340px; height:739px; background:var(--bg);
+    overflow-y:auto; position:relative;
+    -webkit-mask-image: -webkit-radial-gradient(white, black);
+  }
+  .screen::-webkit-scrollbar{ display:none; }
+
+  /* ---- ported paywall styles (scaled by K, values annotated in pt via title attr) ---- */
+  .ph-header{ display:flex; align-items:center; justify-content:space-between; padding:10px 13px; }
+  .ph-close{ width:34px; height:34px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:18px; }
+  .ph-title{ font-size:14.4px; font-weight:700; color:#fff; }
+  .ph-scroll{ padding:0 13px 30px; }
+  .ph-lead{ font-size:20px; font-weight:900; color:#fff; text-align:center; line-height:26px; margin:4px 0 6px; }
+  .ph-lead .g{ color:var(--brand); }
+  .ph-sub{ font-size:11px; color:#999; text-align:center; line-height:16px; margin-bottom:17px; }
+
+  .plan-card{
+    background:var(--card); border-radius:17.8px; padding:14px; margin-bottom:10px;
+    border:1.3px solid var(--border);
+  }
+  .plan-card.selected{ border-width:1.7px; border-color:var(--brand); }
+  .plan-card.selected.gold{ border-color:var(--gold); }
+  .plan-top{ display:flex; align-items:flex-start; gap:9px; margin-bottom:11px; }
+  .radio{ width:17px; height:17px; border-radius:50%; border:1.7px solid #555; flex:0 0 auto; margin-top:2px; display:flex; align-items:center; justify-content:center;}
+  .radio.on{ border-color:var(--brand); }
+  .radio.on.gold{ border-color:var(--gold); }
+  .radio .dot{ width:7px; height:7px; border-radius:50%; background:var(--brand); }
+  .radio .dot.gold{ background:var(--gold); }
+  .plan-info{ flex:1; }
+  .plan-icon-row{ display:flex; align-items:center; gap:5px; }
+  .plan-label{ font-size:13.5px; font-weight:800; color:#fff; }
+  .plan-label.on{ color:var(--brand); }
+  .plan-label.on.gold{ color:var(--gold); }
+  .plan-tag{ font-size:9.5px; color:#888; margin-top:2px; }
+  .plan-price-wrap{ text-align:right; }
+  .plan-price{ font-size:16.5px; font-weight:900; color:var(--brand); font-variant-numeric:tabular-nums; transition:opacity .18s; }
+  .plan-price.gold{ color:var(--gold); }
+  .plan-period{ font-size:9px; color:#888; margin-top:1px; }
+  .strike{ font-size:9.5px; color:#666; text-decoration:line-through; margin-right:4px; }
+  .save-pill{
+    display:inline-block; font-size:8.5px; font-weight:800; color:#04321a; background:#5eead4;
+    padding:1.5px 6px; border-radius:20px; margin-top:3px;
+  }
+  .feat-list{ display:flex; flex-direction:column; gap:6px; padding-left:3px; }
+  .feat-row{ display:flex; align-items:center; gap:6px; }
+  .feat-dot{ width:11px; height:11px; border-radius:50%; background:var(--brand); flex:0 0 auto; position:relative; }
+  .feat-dot.gold{ background:var(--gold); }
+  .feat-dot::after{ content:'✓'; position:absolute; inset:0; color:#fff; font-size:7.5px; display:flex; align-items:center; justify-content:center; }
+  .feat-text{ font-size:10.5px; color:#ccc; }
+
+  .seg{
+    display:flex; background:#111; border-radius:10px; padding:2px; gap:2px;
+  }
+  .seg button{
+    flex:1; border:none; background:transparent; color:#999; font-size:10.5px; font-weight:700;
+    padding:6px 0; border-radius:8px; font-family:inherit; cursor:pointer; transition:.18s;
+  }
+  .seg button.active{ background:var(--brand); color:#fff; }
+  .seg.gold button.active{ background:var(--gold); }
+
+  .toplevel-seg{
+    display:flex; background:var(--card); border:1.3px solid var(--border); border-radius:12px;
+    padding:3px; gap:3px; margin-bottom:15px;
+  }
+  .toplevel-seg button{
+    flex:1; border:none; background:transparent; color:#999; font-size:11.5px; font-weight:800;
+    padding:8px 0; border-radius:9px; font-family:inherit; cursor:pointer; transition:.2s;
+  }
+  .toplevel-seg button.active{ background:var(--brand); color:#fff; }
+
+  .purchase-btn{
+    border-radius:17.8px; padding:12px 0; text-align:center; margin-top:6px; background:var(--brand);
+  }
+  .purchase-btn.gold{ background:var(--gold); }
+  .purchase-btn span{ color:#fff; font-size:12.5px; font-weight:800; }
+
+  .most-popular{
+    position:absolute; top:-9px; left:14px; background:var(--brand); color:#fff;
+    font-size:9px; font-weight:800; padding:3px 10px; border-radius:20px;
+  }
+  .plan-card.pop{ position:relative; margin-top:12px; border-color:var(--brand); border-width:1.7px; }
+
+  .ann-hint{ font-size:9px; color:#5eead4; margin-top:3px; }
+
+  footer{
+    margin-top:10px; font-size:12.5px; color:#555; background:#fff; border:1px solid #e8e4da;
+    border-radius:12px; padding:14px 18px;
+  }
+</style>
+</head>
+<body>
+
+  <h1>sCORE 課金画面 — 年額アンカリング導入 3案</h1>
+  <div class="quote">お題（ユーザーの言語化）: <b>「広告なしプランに年額オプションを追加して、Marco式の価格アンカリング（人気バッジ・週/月あたり換算・取り消し線）を効かせたい。実装イメージが湧かないので見せてほしい」</b></div>
+  <div class="kcheck">縮尺模型: 設計幅 <code>402pt</code>（sCORE想定iPhone基準） → 画面 <code>340px</code> ＝ K = <code>0.8458</code>。中の要素はすべて pt×K で配置。角丸・余白・文字サイズは <code>app/paywall.tsx</code> の実値を踏襲。</div>
+
+  <div class="board">
+
+    <!-- ============ 現状（参考） ============ -->
+    <div class="col ref">
+      <div class="col-head">
+        <span class="letter">現</span><span class="colname">現状（月額のみ）</span>
+        <div class="desc">今の paywall.tsx。<b>2製品とも月額のみ</b>、期間の選択肢がない。ここに年額を足すのが今回のお題。</div>
+      </div>
+      <div class="frame-wrap">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="ph-header">
+            <div class="ph-close">✕</div>
+            <div class="ph-title">プランを選択</div>
+            <div style="width:34px"></div>
+          </div>
+          <div class="ph-scroll">
+            <div class="ph-lead">sCORE の全機能は<br><span class="g">無料</span>でお使いいただけます。</div>
+            <div class="ph-sub">プランに加入すると広告が消えたり<br>チーム管理機能が使えるようになります。</div>
+
+            <div class="plan-card selected">
+              <div class="plan-top">
+                <div class="radio on"><div class="dot"></div></div>
+                <div class="plan-info">
+                  <div class="plan-icon-row"><span>🚫</span><span class="plan-label on">広告なしプラン</span></div>
+                  <div class="plan-tag">広告を無くす</div>
+                </div>
+                <div class="plan-price-wrap">
+                  <div class="plan-price">¥480</div>
+                  <div class="plan-period">/ 月</div>
+                </div>
+              </div>
+              <div class="feat-list">
+                <div class="feat-row"><div class="feat-dot"></div><div class="feat-text">全ての機能がそのまま使える</div></div>
+                <div class="feat-row"><div class="feat-dot"></div><div class="feat-text">バナー広告・動画広告が完全に消える</div></div>
+              </div>
+            </div>
+
+            <div class="plan-card">
+              <div class="plan-top">
+                <div class="radio"></div>
+                <div class="plan-info">
+                  <div class="plan-icon-row"><span>🏆</span><span class="plan-label">コーチプラン</span></div>
+                  <div class="plan-tag">チームを管理するコーチ・顧問の方へ</div>
+                </div>
+                <div class="plan-price-wrap">
+                  <div class="plan-price gold">¥1,980</div>
+                  <div class="plan-period">/ 月</div>
+                </div>
+              </div>
+              <div class="feat-list">
+                <div class="feat-row"><div class="feat-dot gold"></div><div class="feat-text">チーム全員のコンディション一覧</div></div>
+              </div>
+            </div>
+
+            <div class="purchase-btn"><span>広告なしプラン を始める ¥480/ 月</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ A. カード内トグル（本命） ============ -->
+    <div class="col rec">
+      <div class="col-head">
+        <span class="letter">A</span><span class="colname">カード内トグル</span><span class="badge-rec">推奨</span>
+        <div class="desc">
+          <b>広告なしプランのカードの中だけ</b>に「月額／年額」のセグメントを追加。全体の2枚構成は変えず、
+          年額を選ぶと価格が <span class="pt">¥400/月換算（年¥4,800）</span>にフェード切替、
+          月額¥5,760との差額を<span class="pt">取り消し線＋お得ピル</span>で見せる。改修範囲が一番小さい。
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="notch"></div>
+        <div class="screen" id="scr-a">
+          <div class="ph-header">
+            <div class="ph-close">✕</div>
+            <div class="ph-title">プランを選択</div>
+            <div style="width:34px"></div>
+          </div>
+          <div class="ph-scroll">
+            <div class="ph-lead">sCORE の全機能は<br><span class="g">無料</span>でお使いいただけます。</div>
+            <div class="ph-sub">プランに加入すると広告が消えたり<br>チーム管理機能が使えるようになります。</div>
+
+            <div class="plan-card selected">
+              <div class="plan-top">
+                <div class="radio on"><div class="dot"></div></div>
+                <div class="plan-info">
+                  <div class="plan-icon-row"><span>🚫</span><span class="plan-label on">広告なしプラン</span></div>
+                  <div class="plan-tag">広告を無くす</div>
+                </div>
+                <div class="plan-price-wrap">
+                  <div class="plan-price" id="a-price">¥480</div>
+                  <div class="plan-period" id="a-period">/ 月</div>
+                </div>
+              </div>
+
+              <div class="seg" style="margin-bottom:11px;">
+                <button class="active" onclick="setA(this,false)">月額</button>
+                <button onclick="setA(this,true)">年額（2ヶ月分お得）</button>
+              </div>
+
+              <div class="feat-list">
+                <div class="feat-row"><div class="feat-dot"></div><div class="feat-text">全ての機能がそのまま使える</div></div>
+                <div class="feat-row"><div class="feat-dot"></div><div class="feat-text">バナー広告・動画広告が完全に消える</div></div>
+              </div>
+            </div>
+
+            <div class="plan-card">
+              <div class="plan-top">
+                <div class="radio"></div>
+                <div class="plan-info">
+                  <div class="plan-icon-row"><span>🏆</span><span class="plan-label">コーチプラン</span></div>
+                  <div class="plan-tag">チームを管理するコーチ・顧問の方へ</div>
+                </div>
+                <div class="plan-price-wrap">
+                  <div class="plan-price gold">¥1,980</div>
+                  <div class="plan-period">/ 月</div>
+                </div>
+              </div>
+              <div class="feat-list">
+                <div class="feat-row"><div class="feat-dot gold"></div><div class="feat-text">チーム全員のコンディション一覧</div></div>
+              </div>
+            </div>
+
+            <div class="purchase-btn"><span id="a-btn">広告なしプラン を始める ¥480/ 月</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ B. 3カード構成・年額を人気バッジで独立 ============ -->
+    <div class="col">
+      <div class="col-head">
+        <span class="letter">B</span><span class="colname">3カード・年額を独立</span>
+        <div class="desc">
+          Marcoの構造そのまま採用。<b>広告なし年額を単独カード化</b>し「人気」バッジ＋プリ選択で最上段に。
+          広告なし月額はその下に控えめに、コーチはさらに下。<span class="pt">改修範囲は一番大きい</span>が、
+          年額への誘導力は最も強い。
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="ph-header">
+            <div class="ph-close">✕</div>
+            <div class="ph-title">プランを選択</div>
+            <div style="width:34px"></div>
+          </div>
+          <div class="ph-scroll">
+            <div class="ph-lead">sCORE の全機能は<br><span class="g">無料</span>でお使いいただけます。</div>
+            <div class="ph-sub">プランに加入すると広告が消えたり<br>チーム管理機能が使えるようになります。</div>
+
+            <div class="plan-card selected pop">
+              <div class="most-popular">人気 ・ 2ヶ月分お得</div>
+              <div class="plan-top">
+                <div class="radio on"><div class="dot"></div></div>
+                <div class="plan-info">
+                  <div class="plan-icon-row"><span>🚫</span><span class="plan-label on">広告なしプラン（年額）</span></div>
+                  <div class="plan-tag">広告を無くす</div>
+                </div>
+                <div class="plan-price-wrap">
+                  <div class="strike">¥5,760</div>
+                  <div class="plan-price">¥400</div>
+                  <div class="plan-period">/ 月換算</div>
+                  <div class="ann-hint">年¥4,800 一括</div>
+                </div>
+              </div>
+              <div class="feat-list">
+                <div class="feat-row"><div class="feat-dot"></div><div class="feat-text">全ての機能がそのまま使える</div></div>
+                <div class="feat-row"><div class="feat-dot"></div><div class="feat-text">バナー広告・動画広告が完全に消える</div></div>
+              </div>
+            </div>
+
+            <div class="plan-card">
+              <div class="plan-top">
+                <div class="radio"></div>
+                <div class="plan-info">
+                  <div class="plan-icon-row"><span>🚫</span><span class="plan-label">広告なしプラン（月額）</span></div>
+                  <div class="plan-tag">まずはお試しで</div>
+                </div>
+                <div class="plan-price-wrap">
+                  <div class="plan-price">¥480</div>
+                  <div class="plan-period">/ 月</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="plan-card">
+              <div class="plan-top">
+                <div class="radio"></div>
+                <div class="plan-info">
+                  <div class="plan-icon-row"><span>🏆</span><span class="plan-label">コーチプラン</span></div>
+                  <div class="plan-tag">チームを管理するコーチ・顧問の方へ</div>
+                </div>
+                <div class="plan-price-wrap">
+                  <div class="plan-price gold">¥1,980</div>
+                  <div class="plan-period">/ 月</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="purchase-btn"><span>広告なしプラン（年額） を始める ¥4,800/ 年</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ C. 画面全体トグル ============ -->
+    <div class="col">
+      <div class="col-head">
+        <span class="letter">C</span><span class="colname">画面全体で月/年を切替</span>
+        <div class="desc">
+          リード文の下に<b>画面共通の「月払い／年払い」セグメント</b>を1つだけ置き、
+          広告なし・コーチ<b>両方の価格が同時に</b>切り替わる。Headspace/Duolingo系の作法。
+          コーチプランにも年額を作る前提になるので<span class="pt">対象範囲が一番広い</span>。
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="notch"></div>
+        <div class="screen" id="scr-c">
+          <div class="ph-header">
+            <div class="ph-close">✕</div>
+            <div class="ph-title">プランを選択</div>
+            <div style="width:34px"></div>
+          </div>
+          <div class="ph-scroll">
+            <div class="ph-lead">sCORE の全機能は<br><span class="g">無料</span>でお使いいただけます。</div>
+            <div class="ph-sub">プランに加入すると広告が消えたり<br>チーム管理機能が使えるようになります。</div>
+
+            <div class="toplevel-seg">
+              <button class="active" onclick="setC(this,false)">月払い</button>
+              <button onclick="setC(this,true)">年払い（お得）</button>
+            </div>
+
+            <div class="plan-card selected">
+              <div class="plan-top">
+                <div class="radio on"><div class="dot"></div></div>
+                <div class="plan-info">
+                  <div class="plan-icon-row"><span>🚫</span><span class="plan-label on">広告なしプラン</span></div>
+                  <div class="plan-tag">広告を無くす</div>
+                </div>
+                <div class="plan-price-wrap">
+                  <div class="plan-price" id="c-price1">¥480</div>
+                  <div class="plan-period" id="c-period1">/ 月</div>
+                </div>
+              </div>
+              <div class="feat-list">
+                <div class="feat-row"><div class="feat-dot"></div><div class="feat-text">全ての機能がそのまま使える</div></div>
+                <div class="feat-row"><div class="feat-dot"></div><div class="feat-text">バナー広告・動画広告が完全に消える</div></div>
+              </div>
+            </div>
+
+            <div class="plan-card">
+              <div class="plan-top">
+                <div class="radio"></div>
+                <div class="plan-info">
+                  <div class="plan-icon-row"><span>🏆</span><span class="plan-label">コーチプラン</span></div>
+                  <div class="plan-tag">チームを管理するコーチ・顧問の方へ</div>
+                </div>
+                <div class="plan-price-wrap">
+                  <div class="plan-price gold" id="c-price2">¥1,980</div>
+                  <div class="plan-period" id="c-period2">/ 月</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="purchase-btn"><span id="c-btn">広告なしプラン を始める ¥480/ 月</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ A確定版. 両カードにトグル適用 ============ -->
+    <div class="col rec">
+      <div class="col-head">
+        <span class="letter">A</span><span class="colname">確定版 — 両カードにトグル</span><span class="badge-rec">選択済み</span>
+        <div class="desc">
+          Aの選択を受けて、<b>コーチプランのカードにも同じ月額/年額セグメント</b>を追加。
+          2枚は<span class="pt">それぞれ独立</span>にトグルできる（広告なしを年額にしてもコーチは月額のまま、が可能）。
+          コーチ年額は同じ「2ヶ月分お得」率で <span class="pt">¥1,650/月換算（年¥19,800）</span>。
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="notch"></div>
+        <div class="screen" id="scr-a2">
+          <div class="ph-header">
+            <div class="ph-close">✕</div>
+            <div class="ph-title">プランを選択</div>
+            <div style="width:34px"></div>
+          </div>
+          <div class="ph-scroll">
+            <div class="ph-lead">sCORE の全機能は<br><span class="g">無料</span>でお使いいただけます。</div>
+            <div class="ph-sub">プランに加入すると広告が消えたり<br>チーム管理機能が使えるようになります。</div>
+
+            <div class="plan-card selected">
+              <div class="plan-top">
+                <div class="radio on"><div class="dot"></div></div>
+                <div class="plan-info">
+                  <div class="plan-icon-row"><span>🚫</span><span class="plan-label on">広告なしプラン</span></div>
+                  <div class="plan-tag">広告を無くす</div>
+                </div>
+                <div class="plan-price-wrap">
+                  <div class="plan-price" id="a2-price-ad">¥480</div>
+                  <div class="plan-period" id="a2-period-ad">/ 月</div>
+                </div>
+              </div>
+              <div class="seg" style="margin-bottom:11px;">
+                <button class="active" onclick="setA2(this,false,'ad')">月額</button>
+                <button onclick="setA2(this,true,'ad')">年額（2ヶ月分お得）</button>
+              </div>
+              <div class="feat-list">
+                <div class="feat-row"><div class="feat-dot"></div><div class="feat-text">全ての機能がそのまま使える</div></div>
+                <div class="feat-row"><div class="feat-dot"></div><div class="feat-text">バナー広告・動画広告が完全に消える</div></div>
+              </div>
+            </div>
+
+            <div class="plan-card">
+              <div class="plan-top">
+                <div class="radio"></div>
+                <div class="plan-info">
+                  <div class="plan-icon-row"><span>🏆</span><span class="plan-label">コーチプラン</span></div>
+                  <div class="plan-tag">チームを管理するコーチ・顧問の方へ</div>
+                </div>
+                <div class="plan-price-wrap">
+                  <div class="plan-price gold" id="a2-price-coach">¥1,980</div>
+                  <div class="plan-period" id="a2-period-coach">/ 月</div>
+                </div>
+              </div>
+              <div class="seg gold" style="margin-bottom:11px;">
+                <button class="active" onclick="setA2(this,false,'coach')">月額</button>
+                <button onclick="setA2(this,true,'coach')">年額（2ヶ月分お得）</button>
+              </div>
+              <div class="feat-list">
+                <div class="feat-row"><div class="feat-dot gold"></div><div class="feat-text">チーム全員のコンディション一覧</div></div>
+              </div>
+            </div>
+
+            <div class="purchase-btn"><span id="a2-btn">広告なしプラン を始める ¥480/ 月</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    タップできます — A・Cはセグメントを押すと価格がフェード切替、Bはそのまま静的な最終形です。<br>
+    最後の「確定版」は選択されたA案をコーチプランにも展開したもの。これでよければ <code>app/paywall.tsx</code> の実装に進みます（数字は仮値。実際の価格はApp Store Connect / RevenueCatに広告なし年額・コーチ年額の2プロダクトを作ってから確定）。
+  </footer>
+
+<script>
+  function setA(btn, yearly){
+    document.querySelectorAll('#scr-a .seg button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const price = document.getElementById('a-price');
+    const period = document.getElementById('a-period');
+    const cardBtn = document.getElementById('a-btn');
+    price.style.opacity = 0;
+    period.style.opacity = 0;
+    setTimeout(()=>{
+      if(yearly){
+        price.innerHTML = '¥400';
+        period.innerHTML = '/ 月換算';
+        cardBtn.textContent = '広告なしプラン を始める ¥4,800/ 年';
+      } else {
+        price.innerHTML = '¥480';
+        period.innerHTML = '/ 月';
+        cardBtn.textContent = '広告なしプラン を始める ¥480/ 月';
+      }
+      price.style.opacity = 1;
+      period.style.opacity = 1;
+    }, 160);
+  }
+  function setA2(btn, yearly, which){
+    const scope = btn.closest('.plan-card');
+    scope.querySelectorAll('.seg button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const price = document.getElementById(which==='ad' ? 'a2-price-ad' : 'a2-price-coach');
+    const period = document.getElementById(which==='ad' ? 'a2-period-ad' : 'a2-period-coach');
+    price.style.opacity = 0;
+    period.style.opacity = 0;
+    setTimeout(()=>{
+      if(which==='ad'){
+        if(yearly){ price.textContent='¥400'; period.textContent='/ 月換算'; }
+        else { price.textContent='¥480'; period.textContent='/ 月'; }
+      } else {
+        if(yearly){ price.textContent='¥1,650'; period.textContent='/ 月換算'; }
+        else { price.textContent='¥1,980'; period.textContent='/ 月'; }
+      }
+      price.style.opacity = 1;
+      period.style.opacity = 1;
+    }, 160);
+    updateA2Btn();
+  }
+  function updateA2Btn(){
+    const adYearly = document.querySelector('#a2-price-ad').textContent.includes('400');
+    document.getElementById('a2-btn').textContent =
+      adYearly ? '広告なしプラン を始める ¥4,800/ 年' : '広告なしプラン を始める ¥480/ 月';
+  }
+  function setC(btn, yearly){
+    document.querySelectorAll('#scr-c .toplevel-seg button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    ['c-price1','c-period1','c-price2','c-period2','c-btn'].forEach(id=>{
+      document.getElementById(id).style.opacity = 0;
+    });
+    setTimeout(()=>{
+      if(yearly){
+        document.getElementById('c-price1').textContent = '¥400';
+        document.getElementById('c-period1').textContent = '/ 月換算';
+        document.getElementById('c-price2').textContent = '¥1,650';
+        document.getElementById('c-period2').textContent = '/ 月換算';
+        document.getElementById('c-btn').textContent = '広告なしプラン を始める ¥4,800/ 年';
+      } else {
+        document.getElementById('c-price1').textContent = '¥480';
+        document.getElementById('c-period1').textContent = '/ 月';
+        document.getElementById('c-price2').textContent = '¥1,980';
+        document.getElementById('c-period2').textContent = '/ 月';
+        document.getElementById('c-btn').textContent = '広告なしプラン を始める ¥480/ 月';
+      }
+      ['c-price1','c-period1','c-price2','c-period2','c-btn'].forEach(id=>{
+        document.getElementById(id).style.opacity = 1;
+      });
+    }, 160);
+  }
+</script>
+</body>
+</html>

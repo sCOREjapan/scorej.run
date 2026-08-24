@@ -5,6 +5,7 @@ import {
   StyleSheet, Animated, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import * as Crypto from 'expo-crypto'
 import { Ionicons } from '@expo/vector-icons'
 import { BRAND, TEXT } from '../lib/theme'
 import { Sounds, unlockAudio } from '../lib/sounds'
@@ -12,11 +13,12 @@ import { successNotify } from '../lib/haptics'
 import Toast from 'react-native-toast-message'
 import HapticTouch from './HapticTouch'
 import { parseDistanceAndReps } from '../lib/parseWorkoutDistance'
+import { updateSessions } from '../lib/sessionsStore'
+import { getConditionMap, updateConditionMap } from '../lib/conditionStore'
+import { getSleepRecords, updateSleepRecords } from '../lib/sleepStore'
+import { updateWeights } from '../lib/weightStore'
 
-const CONDITION_MAP_KEY = 'trackmate_condition_map'
-const SLEEP_KEY         = 'trackmate_sleep'
 const SESSIONS_KEY      = 'trackmate_sessions'
-const WEIGHT_KEY        = 'trackmate_weight'
 const DRAFT_KEY         = 'trackmate_quick_condition_draft'
 
 type Draft = {
@@ -85,18 +87,12 @@ export default function QuickConditionModal({ visible, onClose, onSaved, date }:
       ;(async () => {
         try {
           // 体調
-          const condMapRaw = await AsyncStorage.getItem(CONDITION_MAP_KEY).catch(() => null)
-          if (condMapRaw) {
-            const condMap = JSON.parse(condMapRaw)
-            if (condMap[targetDate] != null) setCondition(condMap[targetDate])
-          }
+          const condMap = await getConditionMap().catch(() => ({} as Record<string, number>))
+          if (condMap[targetDate] != null) setCondition(condMap[targetDate])
           // 睡眠
-          const sleepRaw = await AsyncStorage.getItem(SLEEP_KEY).catch(() => null)
-          if (sleepRaw) {
-            const sleepRecords: any[] = JSON.parse(sleepRaw)
-            const daySleep = sleepRecords.find((r: any) => r.sleep_date === targetDate)
-            if (daySleep) setSleepH(Math.round((daySleep.duration_min / 60) * 2) / 2)
-          }
+          const sleepRecords = await getSleepRecords().catch(() => [])
+          const daySleep = sleepRecords.find(r => r.sleep_date === targetDate)
+          if (daySleep?.duration_min != null) setSleepH(Math.round((daySleep.duration_min / 60) * 2) / 2)
           // 疲労度（セッションから取得）
           const sessRaw = await AsyncStorage.getItem(SESSIONS_KEY).catch(() => null)
           if (sessRaw) {
@@ -152,33 +148,32 @@ export default function QuickConditionModal({ visible, onClose, onSaved, date }:
     setSaving(true)
     try {
       // ── 体調を保存 ──
-      const condMapRaw = await AsyncStorage.getItem(CONDITION_MAP_KEY).catch(() => null)
-      const condMap = condMapRaw ? JSON.parse(condMapRaw) : {}
-      condMap[targetDate] = condition
-      await AsyncStorage.setItem(CONDITION_MAP_KEY, JSON.stringify(condMap))
+      await updateConditionMap(current => ({ ...current, [targetDate]: condition }))
 
       // ── 睡眠を保存 ──
-      const sleepRaw = await AsyncStorage.getItem(SLEEP_KEY).catch(() => null)
-      let sleepRecords: any[] = sleepRaw ? JSON.parse(sleepRaw) : []
-      // 対象日の記録が既にあれば上書き
-      sleepRecords = sleepRecords.filter((r: any) => r.sleep_date !== targetDate)
-      sleepRecords.unshift({
-        id:            `qs_${Date.now()}`,
-        user_id:       (await AsyncStorage.getItem('userId').catch(() => null)) ?? 'local',
-        sleep_date:    targetDate,
-        duration_min:  Math.round(sleepH * 60),
-        quality_score: Math.round(condition / 2),
-        created_at:    new Date().toISOString(),
+      // 睡眠タブの詳細記録（就寝/起床時刻・メモ）が既にある場合、ここでの上書きで
+      // 消してしまわないよう、対象日の既存レコードを引き継いだ上で
+      // duration_min/quality_score だけを更新する
+      const userId = (await AsyncStorage.getItem('userId').catch(() => null)) ?? 'local'
+      await updateSleepRecords(current => {
+        const existing = current.find(r => r.sleep_date === targetDate)
+        const rest = current.filter(r => r.sleep_date !== targetDate)
+        return [{
+          ...existing,
+          id:            existing?.id ?? Crypto.randomUUID(),
+          user_id:       userId,
+          sleep_date:    targetDate,
+          duration_min:  Math.round(sleepH * 60),
+          quality_score: Math.round(condition / 2),
+          created_at:    existing?.created_at ?? new Date().toISOString(),
+        }, ...rest].slice(0, 365)
       })
-      await AsyncStorage.setItem(SLEEP_KEY, JSON.stringify(sleepRecords.slice(0, 365)))
 
       // ── 練習メモ（任意）を保存 ──
       // 「ジョグ8km」のようなテキストから距離・本数を抽出し、累計距離に反映されるようにする
       if (menuText.trim()) {
         const { distance_m, reps } = parseDistanceAndReps(menuText.trim())
-        const sessRaw = await AsyncStorage.getItem(SESSIONS_KEY).catch(() => null)
-        let sessions: any[] = sessRaw ? JSON.parse(sessRaw) : []
-        sessions.unshift({
+        const newSession = {
           id:              `qc_${Date.now()}`,
           user_id:         (await AsyncStorage.getItem('userId').catch(() => null)) ?? 'local',
           created_at:      new Date().toISOString(),
@@ -189,18 +184,17 @@ export default function QuickConditionModal({ visible, onClose, onSaved, date }:
           notes:           menuText.trim(),
           distance_m:      distance_m ?? undefined,
           reps:            reps ?? undefined,
-        })
-        await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions))
+        }
+        await updateSessions(current => [newSession as any, ...current])
       }
 
       // ── 体重（任意）を保存 ──
       const parsedWeight = parseFloat(weightStr.replace(',', '.'))
       if (!isNaN(parsedWeight) && parsedWeight > 0) {
-        const wRaw = await AsyncStorage.getItem(WEIGHT_KEY).catch(() => null)
-        let weights: any[] = wRaw ? JSON.parse(wRaw) : []
-        weights = weights.filter((w: any) => w.date !== targetDate)
-        weights.unshift({ id: `wt_${Date.now()}`, date: targetDate, weight_kg: parsedWeight })
-        await AsyncStorage.setItem(WEIGHT_KEY, JSON.stringify(weights.slice(0, 365)))
+        await updateWeights(current => {
+          const rest = current.filter(w => w.date !== targetDate)
+          return [{ id: `wt_${Date.now()}`, date: targetDate, weight_kg: parsedWeight }, ...rest].slice(0, 365)
+        })
       }
 
       // 保存が完了したら下書きは不要になるため削除
@@ -234,7 +228,7 @@ export default function QuickConditionModal({ visible, onClose, onSaved, date }:
           <View style={st.handle} />
           <View style={st.header}>
             <Text style={st.title}>{isToday ? '今日の状態を記録' : `${targetDate.slice(5).replace('-', '/')}の状態を記録`}</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="閉じる" accessibilityRole="button">
               <Ionicons name="close" size={22} color={TEXT.secondary} />
             </TouchableOpacity>
           </View>
@@ -258,7 +252,7 @@ export default function QuickConditionModal({ visible, onClose, onSaved, date }:
             </View>
 
             {/* ── 睡眠時間 ── */}
-            <Text style={st.sectionLabel}>睡眠時間</Text>
+            <Text style={st.sectionLabel}>睡眠時間（ざっくり）</Text>
             <View style={st.sleepRow}>
               <TouchableOpacity style={st.sleepAdj} onPress={() => adjustSleep(-0.5)} activeOpacity={0.7}>
                 <Ionicons name="remove" size={20} color={TEXT.primary} />
@@ -271,6 +265,7 @@ export default function QuickConditionModal({ visible, onClose, onSaved, date }:
                 <Ionicons name="add" size={20} color={TEXT.primary} />
               </TouchableOpacity>
             </View>
+            <Text style={st.sleepHint}>就寝・起床時刻やメモまで記録したい時は「睡眠」タブから。ここでの記録はそちらを上書きしません</Text>
 
             {/* ── 体調 ── */}
             <Text style={st.sectionLabel}>体調</Text>
@@ -366,6 +361,7 @@ const st = StyleSheet.create({
   sleepDisplay: { flexDirection: 'row', alignItems: 'baseline', gap: 4 },
   sleepVal:     { fontSize: 36, fontWeight: '900', color: TEXT.primary, lineHeight: 42 },
   sleepUnit:    { fontSize: 14, color: TEXT.secondary, fontWeight: '600' },
+  sleepHint:    { fontSize: 11, color: TEXT.hint, textAlign: 'center', marginTop: -12, marginBottom: 18 },
 
   optToggle:    { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 12, marginBottom: 4 },
   optToggleText:{ fontSize: 13, color: BRAND, fontWeight: '700' },

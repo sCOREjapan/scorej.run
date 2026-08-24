@@ -2,6 +2,8 @@
 import React from 'react'
 import { Modal, View, Text, TouchableOpacity, ImageBackground, StyleSheet, Linking, SafeAreaView } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import Toast from 'react-native-toast-message'
+import { grantLineJoinBonusIfNeeded } from '../lib/ticketWallet'
 
 const LINE_OPENCHAT_URL =
   'https://line.me/ti/g2/jLaBKGHQlJ6xlPaNYBhI_6N0O8OAPvVefJ2Lsw?utm_source=invitation&utm_medium=link_copy&utm_campaign=default'
@@ -9,6 +11,10 @@ const LINE_OPENCHAT_URL =
 export default function LineCommunityBanner({ onDismiss }: { onDismiss: () => void }) {
   const handleJoin = () => {
     Linking.openURL(LINE_OPENCHAT_URL).catch(() => {})
+    // 参加ボタンを押した時点で自己申告としてチケットを1回だけ付与
+    grantLineJoinBonusIfNeeded().then(({ granted }) => {
+      if (granted) Toast.show({ type: 'success', text1: '🎫 LINE参加でチケット5枚を獲得しました' })
+    }).catch(() => {})
     onDismiss()
   }
 

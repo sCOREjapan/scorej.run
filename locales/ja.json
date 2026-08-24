@@ -1,0 +1,1788 @@
+{
+  "common": {
+    "cancel": "キャンセル",
+    "save": "保存",
+    "loading": "読み込み中..."
+  },
+  "languagePicker": {
+    "title": "言語を選択",
+    "japanese": "日本語",
+    "english": "English"
+  },
+  "consent": {
+    "backToConsent": "同意画面に戻る",
+    "welcomeTitle": "sCOREへようこそ",
+    "subtitle": "ご利用を開始する前に\n以下の規約をご確認ください",
+    "terms": "利用規約",
+    "privacy": "プライバシーポリシー",
+    "agreeToTerms": "利用規約に同意します",
+    "agreeToPrivacy": "プライバシーポリシーに同意します",
+    "agreeAndReturn": "{{doc}}に同意して戻る",
+    "startApp": "同意してアプリを始める",
+    "footer": "© 2026 trackmate. All rights reserved."
+  },
+  "onboarding": {
+    "intro": {
+      "slide1": {
+        "tagline": "陸上競技パフォーマンス管理",
+        "heroTitle": "体のスコアが、\n怪我を防ぎ\nあなたを強くする。",
+        "heroSub": "睡眠・疲労・練習負荷を統合分析し\n今日のベストな練習をAIが導く",
+        "sleepScore": "睡眠スコア",
+        "fatigue": "疲労度",
+        "condition": "コンディション",
+        "nextPage": "次のページへ"
+      },
+      "slide2": {
+        "tag": "WHAT sCORE DOES",
+        "title": "sCOREができること",
+        "subtitle": "ただ記録して終わりじゃない。\n蓄積されたデータが次の練習を変える。",
+        "features": [
+          {
+            "title": "体のスコアをリアルタイム把握",
+            "desc": "睡眠・疲労・練習負荷を統合分析。今日追い込んでいいか、数値でわかる。"
+          },
+          {
+            "title": "AIが今日のメニューを設計",
+            "desc": "練習ライブラリからピックするだけ。AIがプロコーチ級のメニューを組む。"
+          },
+          {
+            "title": "怪我リスクを事前に検知",
+            "desc": "疲労・睡眠不足・体調悪化を検知し、怪我する前にアラートを出す。"
+          },
+          {
+            "title": "目標から逆算して管理",
+            "desc": "試合日・目標タイムを設定。AIが逆算してトレーニング計画を作成。"
+          }
+        ]
+      },
+      "slide3": {
+        "tag": "DO YOU RELATE?",
+        "title": "こんな経験、ありませんか？",
+        "subtitle": "当てはまるものを選んでください",
+        "checklist": [
+          "怪我で大事な試合を棒に振ったことがある",
+          "練習を頑張っているのにタイムが伸びない",
+          "自分の体の状態を数値で把握できていない",
+          "練習日誌をつけても続かない",
+          "疲労が抜けているか毎回わからない",
+          "練習メニューを毎回一から考えるのが面倒"
+        ],
+        "resultSuffix": "つ当てはまりました",
+        "resultSub": "sCOREはその全てを解決するために作られています。"
+      },
+      "slide4": {
+        "tag": "BEFORE & AFTER",
+        "title": "管理の質が、結果を変える",
+        "subtitle": "同じ努力なら、管理している選手が勝つ。",
+        "beforeLabel": "従来の方法",
+        "afterLabel": "sCORE",
+        "before": [
+          "手書きノートに記録",
+          "データがバラバラ",
+          "怪我の原因が後からしかわからない",
+          "メニューを毎回考える",
+          "体の状態は感覚頼み"
+        ],
+        "after": [
+          "全記録が自動で統合",
+          "スコアで状態を一目把握",
+          "怪我リスクを事前に検知",
+          "AIが30秒でメニュー作成",
+          "データが次の練習の武器に"
+        ]
+      },
+      "slide5": {
+        "tag": "FROM THE DEVELOPER",
+        "title": "開発者からのメッセージ",
+        "message": "陸上競技を続けてきた中で、何度も怪我に悩まされました。\n\n疲労が抜けているのか、今日追い込んでいいのか、毎回感覚で判断するしかなかった。そして何度も「やりすぎ」で離脱しました。\n\nあの時、自分の体の状態をちゃんと数値で見ることができていたら。怪我をする前にサインに気づけていたら。\n\nその後悔から、sCOREは生まれました。\n\n同じ思いをする選手を、一人でも減らしたい。全力で練習できる選手を、一人でも増やしたい。\n\nスタートラインに立ち続けることが、最強の戦略だと信じています。",
+        "signature": "sCORE 開発者"
+      },
+      "back": "戻る",
+      "next": "次へ",
+      "startQuest": "クエストを始める"
+    },
+    "categories": {
+      "sprint": {
+        "label": "短距離",
+        "sub": "100m〜400mH"
+      },
+      "middle": {
+        "label": "中距離",
+        "sub": "800m〜3000mSC"
+      },
+      "long": {
+        "label": "長距離",
+        "sub": "5000m〜マラソン"
+      },
+      "field": {
+        "label": "フィールド",
+        "sub": "跳躍・投擲"
+      }
+    },
+    "experience": {
+      "beginner": {
+        "label": "始めたばかり",
+        "sub": "1年未満"
+      },
+      "intermediate": {
+        "label": "中級者",
+        "sub": "2〜4年"
+      },
+      "experienced": {
+        "label": "経験者",
+        "sub": "5〜9年"
+      },
+      "veteran": {
+        "label": "ベテラン",
+        "sub": "10年以上"
+      }
+    },
+    "step": {
+      "headline1": "まずはキミの名前を、\n少しだけ教えてください。",
+      "headline2": "得意なジャンルは\nどれですか？",
+      "headline3": "メイン種目は\nどれですか？",
+      "headline4": "最後にもう少しだけ\n教えてください。",
+      "sub1": "名前を知れば、あなた専用のトレーニング\nプランを作ることができます。",
+      "sub2": "メインで取り組んでいるジャンルを\n選んでください。",
+      "sub3": "一番力を入れている種目を\n選んでください。",
+      "sub4": "入力するとAIのアドバイスが\nより正確になります（スキップOK）。"
+    },
+    "skip": "スキップ",
+    "defaultAthleteName": "アスリート",
+    "namePlaceholder": "例：田中 太郎 / Taro",
+    "processing": {
+      "title": "プランを作成中...",
+      "items": [
+        "きみのデータを分析中...",
+        "怪我リスクを計算中...",
+        "AIプランを生成中..."
+      ]
+    },
+    "reveal": {
+      "badge": "プラン完成",
+      "title": "{{name}}さん専用プランが\nできました",
+      "defaultName": "きみ",
+      "event": "種目",
+      "level": "レベル",
+      "nextGoal": "次の目標",
+      "nextGoalValue": "自己ベスト更新",
+      "startButton": "このプランで始める"
+    },
+    "fields": {
+      "experienceLabel": "競技歴",
+      "ageLabel": "年齢",
+      "agePlaceholder": "例：20",
+      "ageUnit": "歳",
+      "regionLabel": "地域（都道府県）",
+      "regionHint": "後から設定で変更できます（スキップ可）",
+      "pbLabel": "自己ベスト（{{event}}）",
+      "pbLabelDefault": "選択種目",
+      "pbHintField": "メートル単位で入力（例: 7.32）",
+      "pbHintTrack": "秒またはm:ss形式（例: 10.85 / 1:47.32）",
+      "pbPlaceholderField": "例：7.32（m）",
+      "pbPlaceholderLong": "例：13:45.00 / 1:23:45",
+      "pbPlaceholderMiddle": "例：1:47.32 / 3:35.00",
+      "pbPlaceholderShort": "例：10.85 / 47.32"
+    },
+    "quiz": {
+      "next": "次へ",
+      "createPlan": "プランを作る"
+    }
+  },
+  "home": {
+    "dayNames": [
+      "日",
+      "月",
+      "火",
+      "水",
+      "木",
+      "金",
+      "土"
+    ],
+    "relativeDate": {
+      "today": "今日",
+      "tomorrow": "明日",
+      "dayAfterTomorrow": "明後日"
+    },
+    "condition": {
+      "tough": "きつい",
+      "hard": "しんどい",
+      "normal": "ふつう",
+      "good": "いい感じ",
+      "great": "絶好調"
+    },
+    "risk": {
+      "cardTitle": "今日の怪我リスク",
+      "detail": "詳細",
+      "weather": "天気",
+      "scaleLow": "低",
+      "scaleMid": "中",
+      "scaleHigh": "高",
+      "tiers": {
+        "low": {
+          "label": "低リスク",
+          "phrase": "全力で追い込もう！",
+          "note": "今日はしっかり追い込んでOKです"
+        },
+        "caution": {
+          "label": "やや注意",
+          "phrase": "軽めを意識しよう",
+          "note": "今日は軽めの練習がおすすめです"
+        },
+        "warning": {
+          "label": "要注意",
+          "phrase": "強度を落とそう",
+          "note": "強度を抑えた練習にしましょう"
+        },
+        "high": {
+          "label": "高リスク",
+          "phrase": "今日は休養が必要",
+          "note": "今日はしっかり休養を取りましょう"
+        }
+      }
+    },
+    "stretchBanner": {
+      "today": "今日のおすすめ",
+      "title": "ストレッチ5分で",
+      "gain": "怪我リスク -12%",
+      "start": "開始する"
+    },
+    "conditionCardDefaultLabel": "今日の体調",
+    "improvementTasksTitle": "改善タスク",
+    "datePicker": {
+      "clear": "クリア",
+      "selectHint": "日付を選択してください（任意）"
+    },
+    "goals": {
+      "deadlinePassed": "期限切れ",
+      "dueToday": "今日が期限",
+      "daysLeft": "残{{n}}日",
+      "title": "目標",
+      "activeCount": "{{n}}件",
+      "tapToAdd": "タップして目標を追加しよう",
+      "taskCount": "{{done}}/{{total}} タスク",
+      "achieved": "達成！",
+      "longPress": "長押し",
+      "addTask": "タスクを追加",
+      "hideAchieved": "達成済みを隠す",
+      "showAchieved": "達成済み {{n}}件",
+      "editTitle": "目標を編集",
+      "addTitle": "目標を追加",
+      "label": "目標",
+      "textPlaceholder": "例: 100m 11秒台を切る",
+      "deadlineLabel": "期日（任意）",
+      "tasksLabel": "タスク",
+      "tasksCompleted": "{{done}}/{{total}} 完了",
+      "taskInputPlaceholder": "新しいタスクを入力...",
+      "save": "保存",
+      "add": "追加",
+      "delete": "削除",
+      "daysSinceSet": "設定から{{n}}日"
+    },
+    "ctaItems": {
+      "condition": "今日の体調を記録しよう",
+      "sleep": "睡眠記録を入力しよう",
+      "practice": "今日の練習を記録しよう"
+    },
+    "toasts": {
+      "streakBonus": "連続記録ボーナス！",
+      "ticketsEarned": "🎫 チケット{{n}}枚を獲得しました",
+      "hydration": "よく飲んだ！🚰 リスクスコアが少し下がったよ",
+      "hydrationCount": "今日{{n}}回目",
+      "firstGoalBonus": "🎫 目標設定でチケット5枚を獲得しました"
+    },
+    "dailyLimitAlert": {
+      "title": "本日の上限に達しました",
+      "message": "また明日お試しください。",
+      "ok": "OK"
+    },
+    "aiAdvice": {
+      "unavailable": "未計算",
+      "getFailed": "アドバイスを取得できませんでした。時間をおいてもう一度お試しください。",
+      "apiError": "⚠️ APIエラー ({{status}})。しばらくしてから再試行してください。",
+      "connectionError": "⚠️ 接続エラー: {{message}}",
+      "tryAgain": "もう一度お試しください。",
+      "ticketUsed": "🎫 チケットを{{n}}枚使用しました"
+    },
+    "todoCta": {
+      "title": "今日まだ入力していないこと",
+      "allDone": "今日の記録は完了！お疲れさまでした 🎉"
+    },
+    "hydrationReminder": {
+      "text": "水だけじゃなく塩分も。経口補水液や塩タブレットも活用しよう",
+      "drank": "飲んだ！"
+    },
+    "igBanner": {
+      "question": "@score.app.japan フォローしてますか？",
+      "challenge": "Monthly Challenge 開催中🎯 参加してベストを更新しよう"
+    },
+    "teamBanner": {
+      "newEvent": "新しい予定が追加されました",
+      "moreCount": "+{{n}}件",
+      "moreEvents": "他{{n}}件の予定 →"
+    },
+    "selectedDateSection": {
+      "recordsFor": "{{date}} の記録",
+      "noRecords": "この日の記録はありません",
+      "fatigue": "疲労{{n}}"
+    },
+    "miniCards": {
+      "quickLog": "サクッと入力",
+      "quickLogSub": "30秒で完了",
+      "injuryReturn": "怪我復帰まで",
+      "competitionCountdown": "大会まで",
+      "daysUnit": "{{n}}日",
+      "countdown": "カウントダウン",
+      "registerCompetition": "大会を登録"
+    },
+    "aiCoachCard": {
+      "title": "今日のAIアドバイス",
+      "viewAdvice": "今日のアドバイスを見る",
+      "analyze": "練習・体調データからコーチが分析",
+      "ticketBadge": "🎫 {{n}}枚"
+    },
+    "quickAccess": {
+      "title": "クイックアクセス",
+      "videoAnalysis": "動画分析",
+      "menu": "メニュー",
+      "calendar": "カレンダー",
+      "mealAnalysis": "食事分析",
+      "competitionPlan": "試合計画",
+      "starter": "スターター",
+      "combinedEvents": "混成競技",
+      "trainingTimer": "トレーニング\nタイマー"
+    },
+    "practiceList": {
+      "title": "練習一覧",
+      "count": "{{n}}件",
+      "progress": "進捗へ →",
+      "noRecords": "まだ記録なし",
+      "addHint": "下の＋ボタンから記録しよう！"
+    },
+    "recoveryBanner": "✅ リカバリー完了！怪我リスクが{{n}}ポイント下がりました",
+    "breakdown": {
+      "title": "怪我リスクの内訳",
+      "base": "基礎 {{n}}",
+      "stretch": "− ストレッチ{{n}}",
+      "hydration": "− 水分補給{{n}}",
+      "weather": "天気{{n}}",
+      "current": "現在 {{n}}",
+      "stretchNote": "※ ストレッチの軽減分は「疲労蓄積」「直近疲労度」の内訳にも反映されています。",
+      "hydrationNote": "※ 水分補給の軽減分は「体調」「直近疲労度」の内訳にも反映されています。"
+    },
+    "aiCoachModal": {
+      "title": "AIコーチからのアドバイス",
+      "analyzing": "データを分析中…",
+      "refetch": "再取得"
+    },
+    "countdownModal": {
+      "title": "カウントダウン",
+      "subtitle": "プランを選択してください",
+      "competitionPlan": "試合計画",
+      "daysLeft": "あと {{n}} 日",
+      "registerHint": "試合を登録してカウントダウンを開始",
+      "registerButton": "試合を登録する",
+      "injuryPlan": "怪我復帰計画",
+      "recoveryInProgress": "回復プラン進行中",
+      "injuryFree": "怪我なし継続",
+      "daysUnit": "{{n}} 日",
+      "recordInjuryButton": "怪我を記録する"
+    }
+  },
+  "settings": {
+    "currentPlan": {
+      "title": "現在のプラン",
+      "plans": {
+        "coach": "🏆 コーチプラン",
+        "ticketMonthly": "🎫 チケット月額プラン",
+        "noad": "🚫 広告なしプラン",
+        "free": "🆓 無料プラン"
+      },
+      "validUntil": "{{date}} まで有効",
+      "adsShown": "広告が表示されます",
+      "viewPlans": "プランを見る",
+      "manage": "管理する",
+      "restorePurchases": "購入を復元する"
+    },
+    "tickets": {
+      "title": "チケット",
+      "balance": "🎫 {{n}}枚",
+      "usageHint": "動画分析・AIメニュー作成・食事分析に使えます",
+      "buy": "購入する",
+      "referral": "🎁 友達紹介でチケットGET"
+    },
+    "profile": {
+      "title": "プロフィール",
+      "name": "名前",
+      "namePlaceholder": "田中 太郎",
+      "eventsLabel": "種目（複数選択可）",
+      "age": "年齢",
+      "club": "所属",
+      "clubPlaceholder": "〇〇陸上クラブ",
+      "pb": "自己ベスト（分:秒 例: 12:34.56）",
+      "target": "目標タイム（分:秒）",
+      "experience": "競技経験年数",
+      "save": "保存する",
+      "savedAlert": "保存しました",
+      "profileBonus": "🎫 プロフィール完成でチケット5枚を獲得しました",
+      "years": "年",
+      "months": "ヶ月"
+    },
+    "eventCategories": {
+      "sprint": "スプリント",
+      "middle": "中距離",
+      "long": "長距離",
+      "hurdle": "ハードル",
+      "steeplechase": "障害",
+      "jump": "跳躍",
+      "throw": "投擲",
+      "combined": "混成",
+      "relay": "リレー"
+    },
+    "account": {
+      "title": "アカウント",
+      "status": "ステータス",
+      "guest": "ゲスト",
+      "createAccount": "アカウントを作成 / ログイン",
+      "cloudSaveHint": "データをクラウドに保存できます",
+      "email": "メールアドレス",
+      "signOut": "ログアウト",
+      "deleteAccount": "アカウントを削除する",
+      "signOutTitle": "ログアウト",
+      "signOutMessage": "ログアウトしますか？",
+      "cancel": "キャンセル",
+      "deleteTitle": "アカウントを削除",
+      "deleteMessage": "アカウントとすべてのデータを完全に削除しますか？この操作は取り消せません。",
+      "deleteConfirm": "削除する",
+      "deleteFinalTitle": "本当に削除しますか？",
+      "deleteFinalMessage": "練習記録・コンディションデータ・設定がすべて削除されます。",
+      "deleteFinalConfirm": "完全に削除する"
+    },
+    "team": {
+      "title": "チーム設定",
+      "currentRole": "現在のロール",
+      "coach": "コーチ・監督",
+      "player": "選手",
+      "notSet": "未設定",
+      "switchRole": "コーチ ↔ 選手を切り替え",
+      "switchConfirmWeb": "チームのロール設定をリセットします。チームタブで再設定できます。",
+      "switchTitle": "ロールを切り替え",
+      "switchMessage": "チームのロール設定をリセットします。",
+      "reset": "リセット"
+    },
+    "permissions": {
+      "title": "アクセス許可 & 通知",
+      "location": "位置情報",
+      "locationGranted": "✅ 許可済み — 天気自動取得ON",
+      "locationDenied": "🚫 拒否済み — 設定から変更",
+      "unsupportedBrowser": "非対応ブラウザ",
+      "locationUnset": "未設定 — 天気でリスクを補正",
+      "pushNotif": "プッシュ通知",
+      "notifGranted": "✅ 許可済み — 通知ON",
+      "notifDenied": "🚫 拒否済み — 設定から変更",
+      "notifUnset": "未設定 — リスク・睡眠・練習通知",
+      "openSettings": "設定を開く",
+      "allow": "許可する",
+      "schedule": {
+        "practice": "練習記録リマインダー",
+        "sleep": "睡眠リマインダー",
+        "riskAlert": "怪我リスクアラート",
+        "competition": "大会リマインダー",
+        "realtime": "リアルタイム",
+        "beforeCompetition": "大会前"
+      },
+      "practiceReminderSwitch": "練習リマインダー (17時)",
+      "competitionReminderSwitch": "大会リマインダー",
+      "homeScreenTitle": "通知を使うにはホーム画面に追加してください",
+      "homeScreenMessage": "iPhoneの場合、Safariで「共有ボタン → ホーム画面に追加」をすると通知が利用できます。",
+      "notifOnTitle": "通知をONにしました 🎉",
+      "notifOnMessage": "練習・睡眠リマインダーと怪我リスクアラートをお届けします。",
+      "notifDeniedTitle": "通知が拒否されています",
+      "notifDeniedMessage": "ブラウザの設定から通知を許可してください。\niPhone: 設定 → Safari → 詳細 → 通知",
+      "locDeniedTitleNative": "位置情報が拒否されています",
+      "locDeniedMessageNative": "iPhoneの「設定」→「sCORE」→「位置情報」→「このAppの使用中」を選択してください。",
+      "locErrorTitle": "エラー",
+      "locErrorMessage": "位置情報の許可に失敗しました。",
+      "locUnsupportedTitle": "非対応",
+      "locUnsupportedMessage": "このブラウザは位置情報に対応していません。",
+      "locOnTitle": "位置情報をONにしました ✅",
+      "locOnMessage": "天気情報を自動取得してリスクスコアに反映します。",
+      "locDeniedTitleWeb": "位置情報が拒否されています",
+      "locDeniedMessageWeb": "ブラウザの「設定」→「サイトの設定」→「位置情報」から許可してください。",
+      "locFailedTitle": "位置情報の取得に失敗しました"
+    },
+    "sound": {
+      "title": "効果音・バイブレーション",
+      "soundEffect": "効果音",
+      "vibration": "バイブレーション"
+    },
+    "data": {
+      "title": "データ",
+      "exportCsv": "記録をCSVでエクスポート",
+      "resetAll": "全データをリセット",
+      "exportCsvDialogTitle": "CSVをエクスポート",
+      "exportDoneTitle": "完了",
+      "exportDoneMessage": "{{filename}} を保存しました",
+      "exportErrorTitle": "エラー",
+      "exportErrorMessage": "エクスポートに失敗しました",
+      "resetConfirmWeb": "全データをリセットしますか？\n練習記録・プロフィール・設定がすべて削除されます。この操作は取り消せません。",
+      "resetTitle": "全データをリセット",
+      "resetMessage": "練習記録・プロフィール・チーム情報・設定がすべて削除されます。\n\nこの操作は取り消せません。",
+      "resetConfirm": "すべて削除"
+    },
+    "appInfo": {
+      "title": "アプリ情報",
+      "version": "バージョン",
+      "language": "言語 / Language",
+      "japanese": "日本語",
+      "english": "English",
+      "support": "お問い合わせ・サポート",
+      "privacyPolicy": "プライバシーポリシー",
+      "terms": "利用規約",
+      "replayTutorial": "チュートリアルをもう一度見る",
+      "footer": "Made with ❤️ for athletes"
+    }
+  },
+  "team": {
+    "bodyParts": {
+      "head": "頭・首",
+      "shoulderR": "右肩",
+      "shoulderL": "左肩",
+      "elbowR": "右腕・肘",
+      "backUpper": "背中・胸",
+      "elbowL": "左腕・肘",
+      "backLower": "腰",
+      "hipR": "右股関節",
+      "hipL": "左股関節",
+      "kneeR": "右膝",
+      "kneeL": "左膝",
+      "ankleR": "右足首",
+      "ankleL": "左足首"
+    },
+    "aiMenuFocusTags": {
+      "sprint": "スプリント",
+      "interval": "インターバル",
+      "drill": "ドリル",
+      "strength": "補強",
+      "endurance": "走り込み"
+    },
+    "aiMenuIntensity": {
+      "light": "軽め",
+      "normal": "普通",
+      "hard": "追い込み"
+    },
+    "eventCfg": {
+      "practice": "練習",
+      "race": "試合",
+      "rest": "休み",
+      "meeting": "集合",
+      "other": "その他"
+    },
+    "riskCfg": {
+      "danger": "高リスク",
+      "high": "要注意",
+      "medium": "経過観察",
+      "low": "良好"
+    },
+    "loadCfg": {
+      "danger": "危険",
+      "high": "高",
+      "medium": "中",
+      "low": "低"
+    },
+    "fatigue": {
+      "easy": "楽",
+      "slightlyEasy": "やや楽",
+      "normal": "ふつう",
+      "hard": "きつい",
+      "limit": "限界"
+    },
+    "date": {
+      "today": "今日",
+      "yesterday": "昨日",
+      "tomorrow": "明日",
+      "daysAgo": "{{n}}日前",
+      "justNow": "たった今",
+      "minutesAgo": "{{n}}分前",
+      "hoursAgo": "{{n}}時間前",
+      "daysLeftShort": "あと{{n}}日"
+    },
+    "demoMembers": {
+      "tanaka": {
+        "name": "田中 翼",
+        "event": "100m / 200m"
+      },
+      "suzuki": {
+        "name": "鈴木 愛",
+        "event": "5000m"
+      },
+      "sato": {
+        "name": "佐藤 ひな",
+        "event": "400m / 400mH"
+      },
+      "ito": {
+        "name": "伊藤 拓海",
+        "event": "1500m"
+      }
+    },
+    "playerIconPicker": {
+      "title": "アイコンを選ぶ",
+      "reset": "アイコンをリセット（イニシャル表示に戻す）"
+    },
+    "confirm": {
+      "cancel": "キャンセル"
+    },
+    "videoSubmit": {
+      "titleGuide": "🎥 動画をコーチに送る",
+      "titleInput": "🔗 URLを貼り付けて送る",
+      "close": "閉じる",
+      "step1Title": "Googleドライブを開く",
+      "step1Desc": "下の「ドライブを開く」ボタンをタップ",
+      "step2Title": "動画をアップロード",
+      "step2Desc": "＋ボタン → アップロード → 動画を選択",
+      "step3Title": "共有リンクをコピー",
+      "step3Desc": "ファイルを長押し → 共有 →「リンクをコピー」",
+      "step4Title": "ここに貼り付けて送信",
+      "step4Desc": "下の「貼り付けて送る」ボタンをタップ",
+      "openDrive": "Googleドライブを開く",
+      "pasteAndSend": "コピーしたURLを貼り付けて送る",
+      "manualInputHint": "URLを手動で入力する場合はこちら",
+      "backToGuide": "手順を見る",
+      "urlLabel": "動画URL（Google Drive / YouTube）",
+      "urlPlaceholder": "https://drive.google.com/...",
+      "pasteFromClipboard": "クリップボードから貼り付け",
+      "noteLabel": "コーチへのメモ（任意）",
+      "notePlaceholder": "スタートの動作を見てほしいです...",
+      "sending": "送信中...",
+      "send": "送る",
+      "defaultDesc": "動画を送りました",
+      "urlPasted": "URLを貼り付けました",
+      "urlNotFound": "URLが見つかりません",
+      "urlNotFoundHint": "まずGoogleドライブでリンクをコピーしてください",
+      "clipboardReadFailed": "クリップボードの読み取りに失敗しました",
+      "urlRequired": "URLを入力してください",
+      "sentToast": "動画を送りました ✓",
+      "sendFailed": "送信に失敗しました",
+      "newMemberTitle": "👋 新メンバー",
+      "newMemberBody": "{{name}} がチームに参加しました"
+    },
+    "roleSelection": {
+      "title": "チーム機能",
+      "subtitle": "あなたの役割を選択してください",
+      "coachTitle": "コーチ・監督・先生",
+      "coachDesc": "チームを作成して選手を招待。状態の確認・アナウンスができます",
+      "playerTitle": "選手・アスリート",
+      "playerDesc": "コードでチームに参加。状態を報告・動画をコーチに送れます",
+      "changeLaterHint": "※ あとから変更できます"
+    },
+    "coachSetup": {
+      "back": "戻る",
+      "title": "チームを作成",
+      "subtitle": "作成後に参加コードが発行されます",
+      "teamNameLabel": "チーム名",
+      "teamNamePlaceholder": "例: ○○高校陸上部",
+      "coachNameLabel": "コーチ・監督名",
+      "coachNamePlaceholder": "例: 山本 太郎",
+      "createButton": "チームを作成する",
+      "missingFields": "チーム名とコーチ名を入力してください",
+      "createFailed": "チームの作成に失敗しました。再度お試しください"
+    },
+    "playerJoin": {
+      "back": "戻る",
+      "title": "チームに参加",
+      "subtitle": "コーチから受け取ったコードと\nあなたの名前を入力してください",
+      "codeLabel": "参加コード（6文字）",
+      "nameLabel": "あなたの名前",
+      "namePlaceholder": "例: 田中 翼",
+      "joinButton": "チームに参加する",
+      "joining": "参加中...",
+      "codeError": "6文字のコードを入力してください",
+      "nameError": "名前を入力してください",
+      "teamNotFound": "チームが見つかりません。コードを確認してください",
+      "corruptData": "保存データが破損しています。再度お試しください",
+      "joinFailed": "参加に失敗しました。もう一度お試しください",
+      "joinedToast": "{{teamName}} に参加しました！",
+      "defaultTeamName": "チーム",
+      "defaultCoachName": "コーチ"
+    },
+    "coachDashboard": {
+      "role": "コーチ",
+      "code": "参加コード",
+      "refresh": "更新",
+      "menu": "メニュー",
+      "loading": "データを読み込み中...",
+      "syncBannerTitle": "スコアを反映するには選手の操作が必要です",
+      "syncBannerBody": "各選手がアプリを開いてチームタブを表示すると、練習データが自動で同期されスコアが表示されます。右上の ↻ ボタンで再取得できます。",
+      "needsAttention": "要対応",
+      "needsAttentionCount": "{{n}}人",
+      "teamLoad": "チーム負荷",
+      "absenceReport": "欠席報告",
+      "markConfirmed": "確認済みにする",
+      "showAll": "× すべて表示（{{n}}人）",
+      "noEventSet": "種目未設定",
+      "notSynced": "未同期",
+      "unconfirmed": "🤕未確認",
+      "removeMember": "メンバーを削除",
+      "noMatchingMembers": "該当する選手はいません",
+      "messagePlaceholder": "チームへのメッセージを入力...",
+      "send": "送信",
+      "noMessages": "まだメッセージはありません",
+      "delete": "削除",
+      "pin": "ピン留め",
+      "unpin": "ピン留めを解除",
+      "systemAbsence": "欠席報告",
+      "systemVideo": "動画・フォーム分析",
+      "systemRisk": "リスクアラート",
+      "systemNotice": "通知",
+      "sentToast": "送信しました",
+      "sendFailedTitle": "送信できませんでした",
+      "loginRequired": "ログインが必要です",
+      "noVideosYet": "まだ動画は届いていません",
+      "noVideosHint": "選手が動画を送ると\nここに表示されます",
+      "watchVideo": "動画を見る",
+      "videoDaysLeft": "あと{{n}}日",
+      "videoAutoDeleteNote": "動画は投稿から7日後に自動で削除されます",
+      "noEventsYet": "予定はまだありません",
+      "addEventHint": "下のボタンから追加してください",
+      "ended": "終了",
+      "deleteEvent": "予定を削除",
+      "writeMenuLabel": "今日の練習を書く",
+      "aiMenuButton": "メニューに困ったら？",
+      "menuPlaceholder": "例:\nアップジョグ 10分\n流し 100m×6\n300m×6本（レスト90秒）\nクールダウン 10分",
+      "quickPhrasesLabel": "よく使うフレーズ（タップで挿入）",
+      "addPhrase": "+ 保存",
+      "quickPhrasesHint": "よく使う練習を保存すると、ここからワンタップで挿入できます（長押しで削除）",
+      "shareToTeam": "チームに共有する",
+      "shareToTeamNote": "アナウンスにそのまま投稿されます",
+      "addEventFab": "＋ 予定を追加する",
+      "tabMembers": "メンバー",
+      "tabMenu": "メニュー",
+      "tabMessages": "アナウンス",
+      "tabVideos": "動画",
+      "tabCalendar": "予定",
+      "addEventModalTitle": "📅 予定を追加",
+      "eventTitleLabel": "タイトル（必須）",
+      "eventTitlePlaceholder": "例: 400mインターバル",
+      "eventTypeLabel": "種別",
+      "eventDateLabel": "日付（必須）",
+      "eventTimeLabel": "時間（任意）",
+      "eventTimePlaceholder": "例: 14:00",
+      "eventLocationLabel": "場所（任意）",
+      "eventLocationPlaceholder": "例: 第二グラウンド",
+      "eventMemoLabel": "メモ（任意）",
+      "eventMemoPlaceholder": "備考など...",
+      "adding": "追加中…",
+      "add": "追加する",
+      "removeMemberConfirmTitle": "メンバーを削除",
+      "removeMemberConfirmMessage": "{{name}} をチームから削除しますか？",
+      "removedToast": "{{name}} を削除しました",
+      "deleteFailed": "削除に失敗しました",
+      "ackFailedTitle": "確認できませんでした",
+      "ackFailedMessage": "ログインしてから再試行してください",
+      "ackedToast": "確認済みにしました ✓",
+      "ackFailedGeneric": "確認に失敗しました",
+      "savePhraseTitle": "よく使うフレーズを保存",
+      "phraseNameLabel": "チップの名前",
+      "phraseNamePlaceholder": "例: アップジョグ10分",
+      "phraseTextLabel": "タップした時に挿入されるテキスト",
+      "phraseTextPlaceholder": "例: 300m×6本（レスト90秒）",
+      "save": "保存する",
+      "phraseSavedToast": "よく使うフレーズに追加しました ✓",
+      "aiMenuSheetTitle": "🤖 AIにメニューを考えてもらう",
+      "aiMenuSheetSubtitle": "狙いと強度を選ぶだけ。結果は編集してから送れます",
+      "aiMenuFocusLabel": "今日の狙い（複数選択可）",
+      "aiMenuIntensityLabel": "強度",
+      "aiMenuFreeNoteLabel": "自由記入欄（任意）",
+      "aiMenuFreeNotePlaceholder": "例: 明日大会なので調整程度に／怪我明けの選手がいるので負荷は抑えめで",
+      "aiMenuGenerateButton": "{{cost}}枚でAIに考えてもらう",
+      "aiMenuInputRequired": "練習内容を入力してください",
+      "aiMenuSharedToast": "✅ 練習内容をチームに共有しました",
+      "aiMenuShareFailed": "共有に失敗しました",
+      "aiMenuAddedToast": "🤖 AIが考えたメニューを追記しました",
+      "aiMenuGenerateFailed": "メニューの生成に失敗しました",
+      "tryAgain": "もう一度お試しください",
+      "dailyLimitReached": "本日の利用上限に達しました",
+      "dbNotSetTitle": "⚠️ DBテーブル未設定",
+      "dbNotSetMessage": "Supabase SQL エディタで schema.sql を実行してください",
+      "teamSyncingTitle": "チーム情報の同期中",
+      "teamSyncingMessage": "もう一度お試しください",
+      "permissionErrorTitle": "権限エラー",
+      "permissionErrorMessage": "ログインしてから再試行してください",
+      "invalidTypeTitle": "種別の値が無効です",
+      "eventAddFailedTitle": "予定を追加できませんでした",
+      "eventAddedToast": "予定を追加しました ✓",
+      "newEventPushTitle": "📅 {{teamName}}",
+      "newEventPushBody": "新しい予定：{{title}}（{{date}}）",
+      "menuAnnouncePushTitle": "📋 {{teamName}}",
+      "menuAnnouncePushBody": "{{date}} の練習",
+      "painReportPushTitle": "🤕 痛み報告",
+      "painReportPushBody": "{{name}}さんが痛みを報告しました",
+      "videoArrivedPushTitle": "🎥 動画が届きました",
+      "videoArrivedPushBody": "{{name}}さんが動画を送ってきました",
+      "absenceNotifTitle": "🙏 欠席報告",
+      "importantNoticeTitle": "📌 重要なお知らせ"
+    },
+    "memberDetail": {
+      "close": "閉じる",
+      "painUnacked": "痛み・違和感の報告あり（未確認）",
+      "painAcked": "痛み報告（確認済み）",
+      "markConfirmed": "確認済みにする",
+      "injuryRisk": "怪我リスク",
+      "fatigueLevel": "疲労度",
+      "weeklyDistance": "今週距離",
+      "lastWeek": "先週{{km}}km",
+      "weeklyLoad": "週間負荷:",
+      "attentionPoints": "⚠️ 注意ポイント",
+      "notSyncedTitle": "まだ練習データが同期されていません",
+      "notSyncedHint": "選手が練習を記録すると自動的に表示されます",
+      "joinedDate": "参加日: {{date}}"
+    },
+    "teammateProfile": {
+      "level": "レベル",
+      "personalBest": "自己ベスト",
+      "notEntered": "未入力",
+      "streakDays": "{{n}}日連続中！",
+      "streakSub": "継続は力なり",
+      "goal": "🎯 目標",
+      "joinedDate": "参加日: {{date}}"
+    },
+    "playerDashboard": {
+      "player": "選手",
+      "refresh": "更新",
+      "menu": "メニュー",
+      "loading": "データを読み込み中...",
+      "changeIcon": "アイコンを変更",
+      "reportPain": "痛みを報告",
+      "painCountReporting": "{{n}}箇所を報告中",
+      "noPainReport": "報告なし",
+      "sendVideo": "動画を送る",
+      "sendToCoach": "コーチへ送信",
+      "profile": "プロフィール",
+      "eventAndPb": "種目・自己ベスト",
+      "shareSettings": "共有設定",
+      "shareLevelPrivate": "非公開",
+      "shareLevelPartial": "一部共有",
+      "shareLevelFull": "全公開",
+      "tabHome": "ホーム",
+      "tabMembers": "チームメイト",
+      "coachAnnouncements": "📌 コーチからのお知らせ",
+      "coachMessages": "📣 コーチからのメッセージ",
+      "count": "{{n}}件",
+      "noCoachMessages": "コーチからのメッセージはまだありません",
+      "teamSchedule": "📅 チーム予定",
+      "noCoachEvents": "コーチからの予定はまだありません",
+      "newEventBadge": "新しい予定が追加されました",
+      "confirmed": "確認済",
+      "confirm": "確認",
+      "todayAbsence": "今日の欠席報告",
+      "absencePlaceholder": "理由・メモを入力（任意）",
+      "sending": "送信中...",
+      "sendButton": "送信する",
+      "absenceDefault": "欠席",
+      "absenceRecordNote": "【休み報告】{{note}}",
+      "absenceReportedPush": "{{name}}が休みを報告しました",
+      "absenceSentToast": "欠席をコーチに報告しました ✓",
+      "sendFailed": "送信に失敗しました",
+      "myCondition": "マイ コンディション",
+      "noData": "データなし",
+      "streakDaysUnit": "{{n}}日",
+      "zeroDays": "0日",
+      "consecutiveRecord": "連続記録",
+      "currentPainReport": "現在の痛み報告",
+      "noTeammatesYet": "まだチームメイトがいません",
+      "noTeammatesHint": "コーチが他のメンバーを招待すると\nここに表示されます",
+      "streakDaysShort": "{{n}}日連続",
+      "pbNotEntered": "PB未入力",
+      "painModalTitle": "痛みや違和感のある箇所",
+      "painModalDesc": "痛い箇所をタップして選択してください（複数OK）。コーチに伝わります。",
+      "detailNoteLabel": "詳細・メモ（任意）",
+      "detailNotePlaceholder": "例: 走ると右膝が痛む、昨日から違和感がある...",
+      "reportToCoach": "コーチに報告する",
+      "noPainClear": "痛みなし（クリア）",
+      "painReportSentToast": "痛みの報告を送りました",
+      "profileEditTitle": "プロフィール編集",
+      "profileEditDesc": "入力するとチームメイトに表示されます。レベルはアプリの練習記録数から自動計算されます。",
+      "eventLabel": "種目",
+      "eventPlaceholder": "例: 100m, 走り幅跳び",
+      "pbLabel": "自己ベスト",
+      "pbPlaceholder": "例: 10.83, 6m42cm",
+      "goalLabel": "目標",
+      "goalPlaceholder": "例: 都大会入賞、自己ベスト更新",
+      "publishToTeam": "チームに公開する",
+      "profileUpdatedToast": "プロフィールを更新しました ✓",
+      "saveFailedToast": "保存できませんでした",
+      "newMessagePush": "📣 {{name}}からのメッセージ",
+      "newEventPush": "{{date}} {{title}}",
+      "painReportPushBody": "{{labels}}：{{detail}}",
+      "painReportPushDefault": "痛み報告: {{labels}}"
+    },
+    "shareLevel": {
+      "title": "データ共有設定",
+      "desc": "コーチに共有する情報の範囲を選択します。いつでも変更でき、即座に反映されます。",
+      "currentSetting": "現在の設定",
+      "noChange": "変更なし（閉じる）",
+      "saveApply": "保存して即時反映",
+      "savedToast": "共有設定を保存しました",
+      "full": {
+        "title": "全データ公開（推奨）",
+        "desc": "練習量・種目・距離など詳細をコーチと共有。最も正確なサポートを受けられます"
+      },
+      "partial": {
+        "title": "コンディションのみ",
+        "desc": "疲労度・体調スコアだけを共有。練習メニューの詳細は非公開"
+      },
+      "private": {
+        "title": "非公開",
+        "desc": "名前と種目のみ表示。データはコーチに共有されません"
+      }
+    },
+    "menuSheet": {
+      "title": "チームメニュー",
+      "deleteTeam": "チームを削除",
+      "leaveTeam": "チームを脱退",
+      "deleteTeamHint": "参加コードが無効になります",
+      "leaveTeamHint": "再参加にはコードが必要です",
+      "cancel": "キャンセル",
+      "deleteTeamConfirmMessage": "参加コードが無効になり、全メンバーのデータが失われます。本当に削除しますか？",
+      "leaveTeamConfirmMessage": "チームを脱退します。再参加するにはコードが必要です。本当に脱退しますか？",
+      "deleteConfirmLabel": "削除する",
+      "leaveConfirmLabel": "脱退する"
+    }
+  },
+  "videoAnalysis": {
+    "dimensions": {
+      "posture": "姿勢",
+      "groundContact": "接地",
+      "armSwing": "腕振り",
+      "balance": "バランス",
+      "forceTransfer": "力の伝わりやすさ",
+      "startPosture": "スタート姿勢",
+      "accelPosture": "加速姿勢",
+      "relaxation": "力みの少なさ",
+      "rhythm": "リズムの安定感",
+      "takeoff": "踏切姿勢",
+      "approach": "助走姿勢",
+      "axisStability": "軸の安定",
+      "kineticChain": "力の連動"
+    },
+    "confidence": {
+      "high": "高",
+      "medium": "中",
+      "low": "低"
+    },
+    "focusHints": [
+      "スタートの姿勢",
+      "腕の振り",
+      "ストライド",
+      "コーナリング",
+      "着地のタイミング",
+      "上体の傾き",
+      "ゴール前"
+    ],
+    "eventNone": "指定なし",
+    "coachSend": {
+      "tabAi": "AIで自分で分析",
+      "tabCoach": "コーチに送る",
+      "errorTitle": "エラー",
+      "permissionRequired": "権限が必要です",
+      "photoLibraryPermission": "写真ライブラリへのアクセスを許可してください",
+      "cameraPermission": "カメラへのアクセスを許可してください",
+      "pickFailed": "動画の選択に失敗しました",
+      "recordFailed": "動画の撮影に失敗しました",
+      "sendFailed": "送信に失敗しました",
+      "defaultSendDesc": "フォーム分析を送りました",
+      "coachNotifyBody": "{{name}}がフォーム分析を送信しました",
+      "sentTitle": "コーチに送りました！",
+      "sentDesc": "コーチがアプリを開いたときに\n「コーチビュー」から確認できます。",
+      "sendAnother": "もう一本送る",
+      "stepVideo": "動画",
+      "stepMemo": "メモ",
+      "stepConfirm": "確認",
+      "step1Title": "動画を選んでください",
+      "step1Subtitle": "コーチに見てほしいシーンを送りましょう",
+      "recordNowTitle": "今すぐ撮影する",
+      "recordNowSub": "カメラを起動して録画（最大90秒）",
+      "pickLibraryTitle": "ライブラリから選ぶ",
+      "pickLibrarySub": "撮り貯めた動画から選択",
+      "tip": "横向きで撮ると全身が映りやすいです。\n正面・側面・後方の3方向があるとベストです。",
+      "step2Title": "コーチへのメモ",
+      "step2Subtitle": "どこを見てほしいか教えましょう（任意）",
+      "selectedCheck": "選択済み ✓",
+      "eventLabel": "種目",
+      "focusHintLabel": "見てほしいところ（タップで追加）",
+      "messagePlaceholder": "その他に気になることを自由に書いてください...",
+      "back": "← 戻る",
+      "confirmNext": "確認する →",
+      "step3Title": "確認して送信",
+      "step3Subtitle": "内容を確認したら送ってください",
+      "coachMemoLabel": "コーチへのメモ",
+      "noneValue": "（なし）",
+      "sendToCoach": "コーチに送る",
+      "editBack": "← 修正する",
+      "footerNote": "送信した動画は、コーチがアプリの「コーチビュー」から確認できます。"
+    },
+    "native": {
+      "title": "フォーム分析",
+      "subtitle": "AIが{{n}}フレームを同時解析・最速診断",
+      "history": "履歴",
+      "eventLabel": "種目（任意）",
+      "eventPlaceholder": "例：100m、走り幅跳び",
+      "personIdTitle": "👤 分析対象の特定（複数人映っている場合）",
+      "laneNumberLabel": "レーン番号",
+      "laneNumberPlaceholder": "例：3",
+      "finishPositionLabel": "着順",
+      "finishPositionPlaceholder": "例：2位",
+      "clothingColorLabel": "服の色",
+      "clothingColorPlaceholder": "例：赤、白など",
+      "shoeColorLabel": "靴の色",
+      "shoeColorPlaceholder": "例：黒、黄など",
+      "targetConfirmed": "{{parts}}の選手を分析対象にします",
+      "targetHint": "レーン番号や着順を入力すると、同じユニフォームの選手が並ぶ動画でも正確に分析できます",
+      "laneLabel": "レーン：{{n}}",
+      "finishLabel": "着順：{{n}}",
+      "clothingLabel": "服：{{n}}",
+      "shoeLabel": "靴：{{n}}",
+      "videoSelected": "動画選択済み ✓  （タップして変更）",
+      "videoSelectPrompt": "動画をタップして選択",
+      "videoFormats": "MP4 / MOV 対応",
+      "extractedFrames": "抽出フレーム ({{n}}枚)",
+      "stepExtract": "フレーム抽出",
+      "stepAnalyze": "AI解析",
+      "stepResult": "結果生成",
+      "ticketBadge": "🎫 {{n}}枚",
+      "reanalyzeButton": "再分析する",
+      "analyzeButton": "AIで分析する",
+      "scoreGood": "よくできています！",
+      "scoreOk": "順調です",
+      "scoreLow": "伸びしろがあります",
+      "totalScore": "総合スコア",
+      "prevDiff": "前回比 {{sign}}{{n}}",
+      "confidenceLabel": "分析の確からしさ",
+      "confidenceNote": "静止画から確認しやすいフォーム要素を評価しています",
+      "reportWrongPerson": "違う選手が分析された（チケットを返還する）",
+      "reportProcessing": "処理中...",
+      "reportRefunded": "チケットを返還しました",
+      "permissionRequired": "権限が必要です",
+      "photoLibraryPermission": "写真ライブラリへのアクセスを許可してください",
+      "pickErrorTitle": "エラー",
+      "pickErrorMessage": "動画の選択に失敗しました",
+      "wrongPersonTitle": "違う選手が分析されましたか？",
+      "wrongPersonMessage": "使用したチケット{{n}}枚を返還します。よろしいですか？",
+      "cancel": "キャンセル",
+      "refundConfirm": "返還する",
+      "refundedToast": "🎫 チケット{{n}}枚を返還しました",
+      "refundFailedToast": "返還に失敗しました",
+      "refundFailedHint": "サポートまでお問い合わせください",
+      "videoLoadFailed": "動画の読み込みに失敗しました。iCloudにのみ保存されている場合は、写真アプリで一度動画を開いて端末にダウンロードしてから再度お試しください。",
+      "frameFetchFailed": "フレームの取得に失敗しました",
+      "extractingStep": "動画からフレームを抽出中...",
+      "analyzingStep": "{{n}}フレームをAIで分析中...",
+      "frameAnnotation": "🎯 フレーム{{n}} — {{note}}",
+      "pause": "一時停止",
+      "play": "再生",
+      "frameTimeline": "フレームタイムライン（タップでシーク）",
+      "selectVideoAlert": "動画を選択してください",
+      "you": "あなた",
+      "idealLine": "理想ライン（目安）",
+      "radarNote": "多角形が外側に広いほど良いフォームの傾向です。点線に近いほど理想的なバランスに近づきます。",
+      "aiFeedback": "AIコーチのフィードバック",
+      "todayStrength": "今日の強み",
+      "todayTheme": "今日のテーマ",
+      "nextStep": "次の一歩",
+      "todayPracticeTheme": "今日の練習テーマ",
+      "practiceThemeNote": "この1つだけを意識して走ってみましょう。",
+      "recommendedDrill": "おすすめドリル：{{name}}",
+      "evidenceTitle": "分析の根拠（静止画比較）",
+      "eventPrefix": "　種目：{{event}}",
+      "ticketUsedToast": "🎫 チケットを{{n}}枚使用しました",
+      "parseFailedError": "AIの応答を解析できませんでした。時間をおいてもう一度お試しください。",
+      "analysisFailedError": "分析に失敗しました",
+      "apiErrorMessage": "APIエラー ({{status}}): {{body}}",
+      "defaultHeadline": "分析完了",
+      "eventUnspecified": "種目未指定",
+      "closeLabel": "閉じる",
+      "historyTitle": "分析履歴",
+      "noHistoryTitle": "まだ分析履歴がありません\n動画を分析すると、ここに記録されます",
+      "allFilter": "すべて",
+      "entriesCount": "　{{n}}件",
+      "goodPoints": "✅ 良い点",
+      "improvements": "⚠️ 改善点",
+      "recommendedDrills": "おすすめドリル",
+      "deleteHistory": "この履歴を削除",
+      "upsellTitle": "広告なしプランにしませんか？",
+      "upsellBody": "無料枠を使い切ると広告視聴が必要になります。\n広告なしプランなら、フォーム分析も食事分析も広告なしで使い放題です。",
+      "upsellFreeLabel": "FREE（今のプラン）",
+      "upsellFreeDesc": "無料枠超過後は広告視聴",
+      "upsellNoAdsBadge": "広告なし",
+      "upsellPrice": "¥480/月",
+      "upsellNoAdsFull": "広告一切なし",
+      "upsellCta": "広告なしプランを見る ¥480/月〜",
+      "upsellDismiss": "今はしない",
+      "shotDateLabel": "撮影日",
+      "analyzedOn": "分析日: {{date}}"
+    },
+    "premiumGate": {
+      "title": "フォーム動画分析",
+      "subtitle": "AIによる動画フォーム分析は\nプレミアムプラン限定の機能です",
+      "feature1": "フレームごとのAIフォーム診断",
+      "feature2": "改善点・強化ポイントの詳細分析",
+      "feature3": "パーソナル練習メニュー自動生成",
+      "feature4": "高精度モデル（Claude Opus）使用",
+      "planLabel": "プレミアムプラン",
+      "cancelAnytime": "いつでもキャンセル可能",
+      "teamPlanTitle": "👥 チーム・学校向けプラン",
+      "teamPlanDesc": "部活・チーム全員で使えるプランは¥3,000/月〜\n設定画面からお問い合わせください",
+      "comingSoonNote": "※ 現在サブスクリプション決済は準備中です\nリリース時にご登録のメールにご連絡します"
+    },
+    "web": {
+      "uploadTitle": "練習フォームをAI分析",
+      "uploadSub": "アップロード → AI自動分析 → スローで確認",
+      "step1": "① 動画を選ぶ",
+      "step2": "② AIが分析",
+      "step3": "③ スローで確認",
+      "changeVideo": "動画を変更",
+      "chooseVideo": "動画を選ぶ",
+      "eventSectionTitle": "🏃 分析する種目（任意）",
+      "eventSectionDesc": "選ぶと種目に特化したアドバイスが得られます",
+      "athleteSectionTitle": "👤 分析する選手の特徴（複数人動画の場合）",
+      "athleteSectionDesc": "服の色・靴の色などを入力するとその選手に絞って分析します",
+      "athletePlaceholder": "例: 赤いユニフォーム、白いスパイク　/ 一人の場合は空欄でOK",
+      "ticketBadge": "🎫 {{n}}枚",
+      "startAnalysis": "AIで分析スタート 🚀",
+      "proModeTitle": "高精度モード（Opus）",
+      "proModeSub": "プレミアムの高精度AIで分析します",
+      "freeModeTitle": "標準モード（Haiku）で分析",
+      "freeModePremiumLabel": "プレミアム ¥490/月",
+      "freeModeSub": "  にすると高精度AI（Opus）で\n骨格・重心・角度まで詳細分析",
+      "privacyNote": "🔒 動画はデバイス内のみで処理\nフレーム画像のみAI分析に使用します",
+      "selectVideoAlert": "動画を選択してください",
+      "analysisFailedTitle": "分析に失敗しました",
+      "analysisFailedMessage": "フレームの解析に失敗しました。時間をおいてもう一度お試しください。",
+      "analyzingTitle": "AIがフォームを分析中",
+      "extractingKeyframes": "キーフレームを抽出中...",
+      "analyzedFrame": "フレーム {{n}} を分析しました",
+      "analyzedBadge": "分析済み",
+      "dontClose": "この画面を閉じないでください",
+      "prevFrame": "前のフレーム",
+      "nextFrame": "次のフレーム",
+      "pause": "一時停止",
+      "play": "再生",
+      "frameAnalysisAt": "🤖 {{time}} のフレーム分析",
+      "goodPoints": "✅ 良い点",
+      "improvementsWithReason": "🔍 改善点（原因・対策）",
+      "improvements": "⚠️ 改善点",
+      "why": "📍 なぜ: {{reason}}",
+      "fix": "✅ 改善: {{fix}}",
+      "injuryRisk": "🚨 怪我リスク",
+      "noAdviceYet": "再生すると分析済みフレームでアドバイスが表示されます",
+      "analyzedFrames": "分析済みフレーム ({{n}}件)",
+      "comprehensiveTitle": "総合評価 & トレーニングメニュー",
+      "generatingComprehensive": "AIが総合評価を生成中...",
+      "overallEvaluation": "総合評価",
+      "keyFindingsLabel": "📌 全体的な特徴",
+      "injuryRiskTrend": "🚨 フォームからみるリスク傾向",
+      "recommendedMenu": "推奨トレーニングメニュー",
+      "nextPracticeFocus": "次の練習で意識すること",
+      "waitingForComplete": "分析が完了すると総合評価が表示されます",
+      "analyzeAnotherVideo": "別の動画で分析する",
+      "ticketUsedToast": "🎫 チケットを{{n}}枚使用しました"
+    }
+  },
+  "paywall": {
+    "headerTitle": "プランを選択",
+    "perMonth": "/ 月",
+    "perMonthEquiv": "/ 月換算",
+    "planActive": "プランが有効です ✅",
+    "loadFailedTitle": "商品の読み込みに失敗しました",
+    "loadFailedRetry": "しばらく待ってから再試行してください",
+    "leadHighlight": "怪我リスクチェック",
+    "leadRest": "は\nずっと無料でお使いいただけます。",
+    "subLead": "AIによるフォーム診断・回復プランは無料チケットでスタート。\n足りなくなったらプランで広告なし＆補充を。",
+    "recommended": "おすすめ",
+    "monthly": "月額",
+    "yearlyDiscount": "年額（2ヶ月分お得）",
+    "trialBadge": "🎁 {{days}}日間無料",
+    "startTrial": "{{days}}日間無料で始める",
+    "startPlan": "{{label}} を始める  {{price}}{{period}}",
+    "trialSubtext": "無料期間終了後、自動的に{{price}}{{period}}に切り替わります",
+    "restoreButton": "購入を復元する",
+    "privacyPolicy": "プライバシーポリシー",
+    "terms": "利用規約",
+    "legal": {
+      "trialLine": "初回{{days}}日間は無料でお試しいただけます。トライアル終了の24時間前までにキャンセルしない限り、自動的に有料プランへ移行し課金が開始されます。",
+      "autoRenew": "サブスクリプションは選択した周期（月／年）ごとに自動更新されます。",
+      "cancelNotice": "更新の24時間前までにキャンセルしない限り、同額で自動更新されます。",
+      "howToCancel": "キャンセルは「設定」→「Apple ID」→「サブスクリプション」から行えます。",
+      "refundPolicy": "購入後のキャンセルによる返金は Apple のポリシーに準じます。"
+    },
+    "plans": {
+      "noad": {
+        "label": "広告なしプラン",
+        "tagline": "広告を無くす",
+        "feature1": "広告が完全に消える（バナー・動画とも）",
+        "feature2": "AI機能はチケット制のまま（無料10枚＋購入分）",
+        "yearlyNote": "年¥4,800（2ヶ月分お得）"
+      },
+      "ticket_monthly": {
+        "label": "チケット月額プラン",
+        "tagline": "AI機能をよく使う方へ",
+        "feature1": "広告が完全に消える",
+        "feature2": "毎月チケット{{count}}枚を自動付与",
+        "feature3": "単発パックの追加購入も可能"
+      },
+      "coach": {
+        "label": "コーチプラン",
+        "tagline": "チームを管理するコーチ・顧問の方へ",
+        "feature1": "広告なし＋AI機能チケット不要で無制限",
+        "feature2": "チーム全員のコンディション一覧",
+        "feature3": "コーチノート・チーム内共有機能",
+        "feature4": "AIによる練習メニュー提案（チーム向け）",
+        "yearlyNote": "年¥19,800（2ヶ月分お得）"
+      }
+    }
+  },
+  "records": {
+    "header": {
+      "title": "進捗",
+      "export": "エクスポート",
+      "videoAnalysis": "動画分析",
+      "timer": "タイマー",
+      "tools": "ツール",
+      "add": "記録を追加",
+      "exportAlertTitle": "エクスポート",
+      "exportAlertMessage": "形式を選択してください",
+      "exportFailed": "エクスポートに失敗しました"
+    },
+    "toolsMenu": {
+      "title": "ツール",
+      "starterLabel": "スターター",
+      "starterSub": "On your marks / Set / 号砲",
+      "combinedLabel": "混成競技ツール",
+      "combinedSub": "十種競技・七種競技の得点計算",
+      "timerLabel": "トレーニングタイマー",
+      "timerSub": "インターバル・通常タイマー"
+    },
+    "tabs": {
+      "practice": "練習履歴",
+      "records": "タイム記録",
+      "health": "体調・睡眠"
+    },
+    "bigAddButton": "タイムを入力する",
+    "chartKindTime": "タイム推移",
+    "chartKindField": "記録推移",
+    "chartUnitSeconds": "秒",
+    "growthReport": {
+      "title": "もっと成長を実感する",
+      "desc": "自己ベストや怪我のなりやすさが、これまでの記録からまとめて見られます"
+    },
+    "allEventsFilter": "全種目",
+    "sort": {
+      "dateDesc": "新しい順",
+      "dateAsc": "古い順",
+      "result": "記録順"
+    },
+    "list": {
+      "title": "記録一覧",
+      "countUnit": "{{n}}件",
+      "empty": "まだ記録がありません",
+      "addFirst": "最初の記録を追加"
+    },
+    "recordCard": {
+      "share": "シェア",
+      "edit": "編集",
+      "delete": "削除",
+      "official": "公認",
+      "daysAgo": "{{n}}日前",
+      "today": "今日"
+    },
+    "pbSummary": {
+      "title": "自己ベスト一覧"
+    },
+    "sessionType": {
+      "interval": "インターバル",
+      "tempo": "テンポ走",
+      "easy": "ジョグ",
+      "long": "ロング走",
+      "sprint": "スプリント",
+      "drill": "ドリル",
+      "strength": "ウェイト",
+      "race": "試合",
+      "rest": "休養"
+    },
+    "heatmap": {
+      "legendJog": "ジョグ",
+      "legendSprint": "スプリント",
+      "legendTempo": "テンポ走",
+      "legendLong": "ロング走",
+      "legendRace": "試合",
+      "legendToday": "今日"
+    },
+    "dow": [
+      "日",
+      "月",
+      "火",
+      "水",
+      "木",
+      "金",
+      "土"
+    ],
+    "sessionDetail": {
+      "close": "閉じる",
+      "statEvent": "種目",
+      "statTime": "タイム",
+      "statDistance": "距離",
+      "statReps": "本数",
+      "statRepsUnit": "本",
+      "statFatigue": "疲労度",
+      "statCondition": "体調",
+      "memo": "メモ",
+      "editButton": "編集する",
+      "deleteButton": "削除",
+      "condition2": "最悪",
+      "condition3": "悪い",
+      "condition4": "やや悪",
+      "condition5": "普通",
+      "condition6": "まあまあ",
+      "condition7": "良い",
+      "condition8": "かなり良い",
+      "condition9": "絶好調",
+      "condition10": "最高"
+    },
+    "calendar": {
+      "prevMonth": "前の月",
+      "nextMonth": "次の月",
+      "legendLow": "低負荷",
+      "legendLight": "軽め",
+      "legendMedium": "中程度",
+      "legendHard": "きつめ",
+      "legendVeryHard": "高負荷"
+    },
+    "timeline": {
+      "viewDetail": "詳細を見る",
+      "share": "シェア"
+    },
+    "dateHeader": {
+      "today": "今日",
+      "yesterday": "昨日",
+      "daysAgo": "{{n}}日前"
+    },
+    "practiceTab": {
+      "manualInput": "手動入力",
+      "freeInput": "自由入力",
+      "streakUnit": "日連続",
+      "totalSessions": "総練習数",
+      "totalDistance": "累計距離",
+      "thisWeek": "今週",
+      "thisMonth": "今月",
+      "timesUnit": "{{n}}回",
+      "calendarTitle": "練習カレンダー",
+      "clearSelection": "選択解除 ✕",
+      "selectedDayTitle": "{{date}}の練習",
+      "noSessionsThisDay": "この日の練習記録はありません",
+      "notebookTitle": "練習ノート",
+      "countUnit": "{{n}}件",
+      "emptyTitle": "まだ練習記録がありません",
+      "emptyHint": "＋ボタンから今日の練習を記録しよう",
+      "showingRecent": "直近{{n}}件を表示中（全{{total}}件）"
+    },
+    "weight": {
+      "title": "体重の推移",
+      "today": "今日",
+      "yesterday": "昨日",
+      "tomorrow": "明日",
+      "placeholderExisting": "現在: {{kg}}kg",
+      "placeholderNew": "{{date}}の体重 (kg)",
+      "save": "記録",
+      "empty": "体重データがありません\n毎日記録しましょう"
+    },
+    "trend": {
+      "avg": "平均",
+      "max": "最高"
+    },
+    "health": {
+      "conditionTitle": "体調の推移",
+      "conditionEmpty": "体調データがありません\nホームで毎日入力しましょう",
+      "recentCondition": "直近の体調",
+      "sleepTitle": "睡眠時間の推移",
+      "sleepEmpty": "睡眠データがありません\n睡眠タブで記録しましょう"
+    },
+    "modal": {
+      "editTitle": "記録を編集",
+      "addTitle": "記録を追加",
+      "saving": "保存中...",
+      "dateLabel": "日付",
+      "competitionLabel": "大会名（任意）",
+      "competitionPlaceholder": "例: 春季大会",
+      "venueLabel": "会場（任意）",
+      "venuePlaceholder": "例: 国立競技場",
+      "eventBlockTitle": "種目 {{n}}",
+      "trackLabel": "トラック",
+      "fieldLabel": "フィールド",
+      "repsLabel": "本数",
+      "repsUnit": "本",
+      "resultLabel": "記録",
+      "timeLabel": "タイム",
+      "repN": "{{n}}本目",
+      "minUnit": "分",
+      "secUnit": "秒",
+      "windLabel": "風速（m/s）",
+      "hurdleHeightLabel": "ハードルの高さ",
+      "pbToggle": "PB（自己ベスト）",
+      "sbToggle": "SB（シーズンベスト）",
+      "addEvent": "種目を追加",
+      "noteLabel": "メモ（任意）",
+      "notePlaceholder": "コンディション・気づきなど...",
+      "officialToggle": "公認記録",
+      "raceTimeLabel": "時刻（任意）"
+    },
+    "toast": {
+      "weightSaved": "{{kg}}kg を記録しました",
+      "deleted": "削除しました",
+      "sessionDeleted": "練習記録を削除しました",
+      "enterTime": "{{event}}{{rep}}のタイムを入力してください",
+      "enterResult": "{{event}}{{rep}}の記録を入力してください",
+      "enterRecord": "記録を入力してください",
+      "recordsCount": "{{n}}件の記録",
+      "pbCelebration": "  🏆 PB！",
+      "saveFailed": "保存に失敗しました"
+    },
+    "officialFilter": {
+      "all": "すべて",
+      "official": "公認のみ",
+      "manual": "手動のみ"
+    }
+  },
+  "competition": {
+    "header": {
+      "raceTitle": "試合計画",
+      "injuryTitle": "怪我復帰",
+      "registerCompetition": "試合を登録",
+      "recordInjury": "怪我を記録"
+    },
+    "tabSelector": {
+      "race": "🏁 試合計画",
+      "injury": "🩹 怪我復帰"
+    },
+    "notif": {
+      "label": "大会リマインダー通知",
+      "enabled": "✓ 有効",
+      "allow": "許可する",
+      "enabledToast": "通知を有効にしました",
+      "deniedToast": "ブラウザの設定から通知を許可してください"
+    },
+    "filter": {
+      "all": "全て"
+    },
+    "entryStatus": {
+      "unconfirmed": "未確認",
+      "applied": "申込済",
+      "entering": "出場予定",
+      "absent": "欠場",
+      "finished": "完走"
+    },
+    "generating": {
+      "withWeeks": "AIが{{n}}週間計画を作成中...",
+      "default": "AI計画を作成中..."
+    },
+    "empty": {
+      "noCompTitle": "試合を登録しよう",
+      "noCompText": "試合日を入力すれば、AIが残り日数に合わせた最適なトレーニング計画を作成します",
+      "noCompBtn": "試合を登録する",
+      "noFilterTitle": "該当する試合がありません"
+    },
+    "delete": "削除",
+    "deleteConfirm": {
+      "title": "試合計画を削除",
+      "message": "「{{name}}」を削除しますか？",
+      "confirm": "削除"
+    },
+    "weekSchedule": {
+      "title": "{{n}}週間スケジュール",
+      "daysUntil": "（試合{{n}}日前）"
+    },
+    "countdown": {
+      "daysAgo": "日前",
+      "daysLeft": "日後",
+      "tapToChange": "タップで変更"
+    },
+    "week": {
+      "weekBeforeRace": "直前週",
+      "nWeeksBefore": "{{n}}週前"
+    },
+    "minutesUnit": "分",
+    "todayWorkout": {
+      "todayMenu": "今日のメニュー（{{dow}}）",
+      "tomorrow": "明日（{{dow}}）",
+      "restDay": "今日は休養日",
+      "tomorrowRestDay": "明日は休養日",
+      "weekTheme": "今週のテーマ"
+    },
+    "dowFull": [
+      "日曜",
+      "月曜",
+      "火曜",
+      "水曜",
+      "木曜",
+      "金曜",
+      "土曜"
+    ],
+    "dietAdvice": {
+      "dayOf": "試合当日: 3時間前までに消化の良い炭水化物（おにぎり・バナナ）を。試合直前は水分補給のみ。",
+      "within2": "試合直前: 消化の良いもの（うどん・ご飯・鶏肉）を中心に。揚げ物・乳製品・高脂質は控えよう。",
+      "within7": "試合1週間前: 炭水化物の割合を増やしグリコーゲンを蓄えよう。脂質・食物繊維は控えめに。"
+    },
+    "injury": {
+      "generatingTitle": "回復プランを生成中...",
+      "generatingSub": "AIが症状を分析しています",
+      "noInjuryTitle": "怪我は記録されていません",
+      "noInjuryText": "怪我をしたときに記録すると\nAIが回復プランを自動で作ります",
+      "recordButton": "怪我を記録する",
+      "pastHistory": "過去の怪我",
+      "daysUnit": "日間",
+      "painLabel": "痛み {{n}}/10",
+      "untilRecovery": "回復まで",
+      "daysLeftLabel": "あと{{n}}日",
+      "extend": "＋延長",
+      "recoveredConfirmTitle": "完治確認",
+      "recoveredConfirmMessage": "回復が完了しましたか？",
+      "recoveredConfirmYes": "完治した！",
+      "recoveredButton": "✓ 回復した",
+      "todayPlanTitle": "今日のプラン — Day {{day}} · {{phase}}",
+      "avoidSuffix": " は絶対NG",
+      "treatmentLogTitle": "治療の記録（{{n}}回）",
+      "treatmentLogAdd": "治療に行った",
+      "treatmentLogEmpty": "まだ記録がありません",
+      "deleteTreatmentLog": "この治療記録を削除",
+      "overallSchedule": "全体スケジュール",
+      "dayRange": "Day {{first}}〜{{last}}",
+      "done": "完了",
+      "current": "今ここ",
+      "recoveredToast": "回復おめでとう！",
+      "extendedToast": "{{n}}日延長しました",
+      "treatmentAddedToast": "治療の記録を追加しました"
+    },
+    "injuryForm": {
+      "title": "怪我を記録",
+      "sideLabel": "左右",
+      "side": {
+        "left": "左",
+        "right": "右",
+        "both": "両方"
+      },
+      "partsLabel": "部位（複数可）",
+      "parts": {
+        "hamstring": "ハムストリング",
+        "knee": "膝",
+        "calf": "ふくらはぎ",
+        "achilles": "アキレス腱",
+        "ankle": "足首",
+        "lowBack": "腰",
+        "hip": "股関節",
+        "quadriceps": "大腿四頭筋",
+        "shin": "脛",
+        "shoulder": "肩",
+        "elbow": "肘",
+        "other": "その他"
+      },
+      "typeManualLabel": "怪我の名前・診断名",
+      "typeManualPlaceholder": "例：肉離れ（グレード2）、腸脛靭帯炎 など",
+      "typeLabel": "種類",
+      "types": {
+        "muscleTear": "肉離れ",
+        "sprain": "捻挫",
+        "bruise": "打撲",
+        "tendinitis": "腱炎",
+        "stressFractureSuspected": "疲労骨折疑い",
+        "shinSplints": "シンスプリント",
+        "other": "その他"
+      },
+      "descLabel": "症状の説明（任意）",
+      "descPlaceholder": "例：走中にブチっという感覚、歩行時も痛み",
+      "painLabel": "痛みの強さ（{{n}}/10）",
+      "swellingLabel": "腫れ",
+      "swellingYes": "あり",
+      "swellingNo": "なし",
+      "recoveryDaysLabel": "回復日数",
+      "aiMode": "AIに診断させる（推奨）",
+      "aiModeSub": "症状から回復日数を推定して全プランを生成",
+      "manualMode": "自分で入力",
+      "manualDaysUnit": "日間",
+      "free": "無料",
+      "submit": "保存してプランを生成"
+    },
+    "extendModal": {
+      "title": "日数を延長",
+      "desc": "追加したい日数を入力してください",
+      "dayUnit": "日",
+      "customLabel": "カスタム日数",
+      "submit": "延長する"
+    },
+    "treatmentModal": {
+      "title": "治療の記録を追加",
+      "desc": "今日、治療（通院・施術など）に行きましたか？メモは任意です。",
+      "placeholder": "例: 整形外科でリハビリ（任意）",
+      "submit": "記録する"
+    },
+    "compModal": {
+      "title": "試合を登録",
+      "nameLabel": "試合名",
+      "namePlaceholder": "例: 春季陸上競技大会",
+      "dateLabel": "試合日",
+      "datePlaceholder": "日付を選択",
+      "dateDone": "完了",
+      "eventLabel": "種目",
+      "fieldTargetLabel": "目標記録（m・任意）",
+      "fieldTargetPlaceholder": "例: 7.50",
+      "timeTargetLabel": "目標タイム（任意）",
+      "minUnit": "分",
+      "secUnit": "秒",
+      "ticketCost": "🎫 {{n}}枚",
+      "generate": "AIで計画を作成する"
+    },
+    "eventCategories": {
+      "sprint": "短距離・ハードル",
+      "middle": "中・長距離",
+      "jump": "跳躍",
+      "throw": "投擲",
+      "combined": "混成・リレー"
+    },
+    "entryModal": {
+      "title": "エントリー状態"
+    },
+    "toast": {
+      "validationNameDate": "試合名と日付を入力してください",
+      "invalidDate": "日付の形式が正しくありません（例: 2026-05-01）",
+      "pastRecorded": "過去の大会を記録しました",
+      "dailyLimitReached": "本日の上限に達しました",
+      "ticketUsed": "🎫 チケットを{{n}}枚使用しました",
+      "planCreated": "試合計画を作成しました",
+      "planFailed": "計画生成に失敗しました",
+      "compDeleted": "試合計画を削除しました",
+      "entryStatusChanged": "エントリー状態を「{{status}}」に変更しました",
+      "templatePlanCreated": "テンプレートプランで作成しました",
+      "templatePlanSub": "AIによる個別プランにはチケットが必要です",
+      "injuryFormIncompleteTitle": "入力不足",
+      "injuryFormIncompleteMsg": "部位と種類を選択してください"
+    },
+    "phase": {
+      "acute": "急性期",
+      "subacute": "亜急性期",
+      "rehab": "リハビリ期",
+      "prep": "復帰準備期"
+    },
+    "template": {
+      "acuteAdvice": "{{parts}}の{{type}}の急性期です。安静と冷却を最優先にしてください。",
+      "subacuteAdvice": "炎症が落ち着いてきています。無理のない範囲で少しずつ動かしましょう。",
+      "rehabAdvice": "段階的に負荷を上げていきましょう。痛みが戻ったらすぐに中止してください。",
+      "prepAdvice": "もうすぐ復帰です。最終確認として競技動作を慎重に行いましょう。",
+      "icing": "アイシング",
+      "icingDetail": "15分 × 3回/日",
+      "elevation": "患部挙上",
+      "elevationDetail": "心臓より高く保つ",
+      "lightWalk": "軽いウォーキング",
+      "lightWalkDetail": "痛みが出ない範囲で10〜15分",
+      "lightStretch": "患部周辺の軽いストレッチ",
+      "lightStretchDetail": "痛みが出ない角度まで、10秒×3回",
+      "lightJog": "軽ジョグ",
+      "lightJogDetail": "5〜10分から徐々に延長",
+      "strength": "筋力トレーニング",
+      "strengthDetail": "患部周辺の筋肉を鍛える（体重負荷から）",
+      "jogBuildup": "ジョグ〜ビルドアップ走",
+      "jogBuildupDetail": "60〜80%強度で実施",
+      "sportSpecific": "競技特有の動作確認",
+      "sportSpecificDetail": "スタート・切り返しなど徐々に再開",
+      "avoidLoad": "患部への負荷",
+      "avoidRunning": "走ること",
+      "avoidStretching": "ストレッチ",
+      "avoidJogging": "ジョギング",
+      "avoidDirectionChange": "急な方向転換",
+      "avoidSprint": "全力スプリント",
+      "avoidSuddenDirectionChange": "急激な方向転換",
+      "avoidConsecutiveMatches": "無理な連戦"
+    },
+    "cardError": "この試合を表示できませんでした",
+    "pastPlanNote": "過去の大会として記録されました（トレーニング計画は生成されません）"
+  },
+  "workoutMenu": {
+    "tabs": {
+      "library": "ライブラリ",
+      "history": "AI生成履歴"
+    },
+    "library": {
+      "createTitle": "今日のメニューを作る",
+      "createLead": "作り方を2つから選べます。迷ったら「おまかせ」でOKです",
+      "aiTitle": "AIにおまかせで作ってもらう",
+      "aiSub": "今日の練習イメージを一言伝えるだけ。種目はAIが選びます",
+      "manualTitle": "種目を指定して作ってもらう",
+      "manualSub": "ライブラリから使いたい種目を選び、それを中心に組んでもらう",
+      "libraryTitle": "練習ライブラリ",
+      "addFolder": "フォルダ追加",
+      "libraryLead": "普段よく使う種目をフォルダにまとめておくと、「種目を指定して作る」がすぐ使えます",
+      "emptyTitle": "フォルダを作って種目を登録しよう",
+      "emptyHint": "例：ドリルメニュー、ランメニュー"
+    },
+    "folderCard": {
+      "itemCount": "{{n}}種目"
+    },
+    "history": {
+      "emptyTitle": "まだAI生成履歴がありません",
+      "pickBadge": "ピック生成",
+      "aiBadge": "AI生成"
+    },
+    "folderModal": {
+      "editTitle": "フォルダを編集",
+      "addTitle": "フォルダを作成",
+      "nameLabel": "フォルダ名",
+      "namePlaceholder": "例：ドリルメニュー",
+      "colorLabel": "カラー",
+      "iconLabel": "アイコン",
+      "delete": "フォルダを削除"
+    },
+    "detailModal": {
+      "itemPlaceholder": "種目を追加（例：2ステップ）",
+      "emptyItems": "種目を追加してください"
+    },
+    "aiModal": {
+      "title": "AIメニュー生成",
+      "useLibraryLabel": "使用するライブラリ",
+      "intentLabel": "今日の練習イメージを伝える",
+      "intentPlaceholder": "例：トレ期も終盤に近づき、少しずつスピード練習に移行していきたい。明日は完全休養にする。",
+      "generating": "メニュー生成中...",
+      "generate": "メニューを生成する",
+      "ticketCost": "🎫 {{n}}枚"
+    },
+    "pickerModal": {
+      "selectTitle": "種目をピックする",
+      "generateTitle": "AIでメニューを生成",
+      "noFoldersTitle": "先にライブラリにフォルダを作成してください",
+      "noItems": "種目がありません",
+      "selectedLabel": "選択中",
+      "selectedCount": "{{n}}種目",
+      "next": "次へ",
+      "pickedSummary": "ピックした種目 ({{n}})",
+      "intentLabel": "今日の練習イメージ（任意）",
+      "intentPlaceholder": "例：スピード移行期。強度高めで。",
+      "generating": "メニュー生成中...",
+      "generateWithPick": "このピック内容でAI生成",
+      "backToSelect": "種目を選び直す"
+    },
+    "histDetailModal": {
+      "title": "生成メニュー"
+    },
+    "a11y": {
+      "moveUp": "上に移動",
+      "moveDown": "下に移動",
+      "edit": "編集",
+      "delete": "削除",
+      "close": "閉じる",
+      "addItem": "種目を追加"
+    },
+    "toast": {
+      "ticketUsed": "🎫 チケットを{{n}}枚使用しました",
+      "genericFail": "生成に失敗しました。もう一度お試しください。",
+      "apiError": "APIエラーが発生しました。しばらくしてから再試行してください。",
+      "emptyResult": "メニューを生成できませんでした。時間をおいてもう一度お試しください。"
+    },
+    "headerTitle": "練習メニュー"
+  }
+}

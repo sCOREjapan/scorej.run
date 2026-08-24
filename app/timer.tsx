@@ -20,14 +20,13 @@ import { BRAND, TEXT, SURFACE, SURFACE2, DIVIDER } from '../lib/theme'
 import { todayLocalISO } from '../lib/dateLocal'
 import type { AthleticsEvent, TrainingSession } from '../types'
 import { autoSyncTeam } from '../lib/teamAutoSync'
-import { getTier } from '../lib/adGate'
-import { shouldShowInterstitial, showInterstitialAd } from '../lib/admob'
+import { updateSessions } from '../lib/sessionsStore'
 
 // ─── 定数 ───────────────────────────────────────────────────────────────
 const SESSIONS_KEY = 'trackmate_sessions'
 
 const SPLIT_EVENTS: AthleticsEvent[] = [
-  '100m', '200m', '400m', '110mH', '100mH', '400mH', '800m', '1500m',
+  '100m', '200m', '300m', '400m', '110mH', '100mH', '300mH', '400mH', '800m', '1000m', '1500m', '3000m',
 ]
 
 // ─── ユーティリティ ─────────────────────────────────────────────────────
@@ -162,9 +161,6 @@ export default function TimerScreen() {
       const resultMs = firstSplit ? firstSplit.lapMs : displayMs
 
       const today = todayLocalISO()  // ローカル日付（UTCだと深夜に前日扱いになる）
-      const raw = await AsyncStorage.getItem(SESSIONS_KEY)
-      let existing: TrainingSession[] = []
-      try { if (raw) existing = JSON.parse(raw) } catch {}  // データ破損でも新規保存を継続
 
       const newSession: TrainingSession = {
         id: `timer_${Date.now()}`,
@@ -178,8 +174,7 @@ export default function TimerScreen() {
         created_at: new Date().toISOString(),
       }
 
-      const saved = [newSession, ...existing]
-      await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(saved))
+      const saved = await updateSessions(current => [newSession, ...current])
       autoSyncTeam(saved, { force: true }).catch(() => {})
 
       const totalSec = resultMs / 1000
@@ -194,13 +189,6 @@ export default function TimerScreen() {
       setSaveModalVisible(false)
       handleReset()
       router.back()
-
-      // フリープランのみ：2回に1回インタースティシャル広告を表示
-      const tier = await getTier()
-      if (tier === 'free') {
-        const showAd = await shouldShowInterstitial()
-        if (showAd) await showInterstitialAd()
-      }
     } catch {
       Toast.show({ type: 'error', text1: '保存に失敗しました' })
     } finally {
@@ -221,6 +209,7 @@ export default function TimerScreen() {
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity
           style={styles.headerBack}
+          accessibilityLabel="閉じる"
           onPress={() => {
             if (timerState !== 'idle') {
               Alert.alert('タイマー動作中', '戻ると計測が失われます。', [
@@ -287,6 +276,7 @@ export default function TimerScreen() {
             : handleResume
           }
           activeOpacity={0.85}
+          accessibilityLabel={timerState === 'running' ? '一時停止' : timerState === 'paused' ? '再開' : 'スタート'}
         >
           <Ionicons
             name={timerState === 'running' ? 'pause' : 'play'}
@@ -533,7 +523,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   splitsEmptyText: {
-    color: TEXT.hint,
+    color: TEXT.secondary,
     fontSize: 14,
     textAlign: 'center',
   },

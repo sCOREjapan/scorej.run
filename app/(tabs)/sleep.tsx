@@ -4,18 +4,19 @@ import {
   TouchableOpacity, TextInput, Animated, Dimensions,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useFocusEffect } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { BG_GRADIENT, NEON, TEXT, BRAND } from '../../lib/theme'
 import { Ionicons } from '@expo/vector-icons'
 import Toast from 'react-native-toast-message'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import * as Crypto from 'expo-crypto'
 import { Sounds } from '../../lib/sounds'
 import HapticTouch from '../../components/HapticTouch'
 import AnimatedSection from '../../components/AnimatedSection'
 import type { SleepRecord } from '../../types'
 import { localDateStr, todayLocalISO } from '../../lib/dateLocal'
-
-const SLEEP_KEY = 'trackmate_sleep'
+import { getSleepRecords, updateSleepRecords } from '../../lib/sleepStore'
 const SCREEN_W = Dimensions.get('window').width
 
 function qualityColor(q: number) {
@@ -65,26 +66,26 @@ function TimePicker({ label, hour, minute, onChangeHour, onChangeMinte, color }:
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
         {/* 時 */}
         <View style={{ alignItems: 'center', gap: 3 }}>
-          <TouchableOpacity onPress={incHour} style={tp.btn} activeOpacity={0.7}>
+          <TouchableOpacity onPress={incHour} style={tp.btn} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel={`${label}: 時を1つ進める`}>
             <Ionicons name="chevron-up" size={16} color={color} />
           </TouchableOpacity>
           <View style={[tp.box, { borderColor: color + '60' }]}>
             <Text style={[tp.val, { color }]}>{pad(hour)}</Text>
           </View>
-          <TouchableOpacity onPress={decHour} style={tp.btn} activeOpacity={0.7}>
+          <TouchableOpacity onPress={decHour} style={tp.btn} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel={`${label}: 時を1つ戻す`}>
             <Ionicons name="chevron-down" size={16} color={color} />
           </TouchableOpacity>
         </View>
         <Text style={{ color: 'rgba(0,0,0,0.25)', fontSize: 22, fontWeight: '300', marginBottom: 4 }}>:</Text>
         {/* 分（5分刻み） */}
         <View style={{ alignItems: 'center', gap: 3 }}>
-          <TouchableOpacity onPress={incMin} style={tp.btn} activeOpacity={0.7}>
+          <TouchableOpacity onPress={incMin} style={tp.btn} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel={`${label}: 分を5つ進める`}>
             <Ionicons name="chevron-up" size={16} color={color} />
           </TouchableOpacity>
           <View style={[tp.box, { borderColor: color + '60' }]}>
             <Text style={[tp.val, { color }]}>{pad(minute)}</Text>
           </View>
-          <TouchableOpacity onPress={decMin} style={tp.btn} activeOpacity={0.7}>
+          <TouchableOpacity onPress={decMin} style={tp.btn} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel={`${label}: 分を5つ戻す`}>
             <Ionicons name="chevron-down" size={16} color={color} />
           </TouchableOpacity>
         </View>
@@ -223,7 +224,7 @@ function SleepCard({ record, onEdit, onDelete }: {
         <Text style={[styles.qualityValue, { color }]}>{record.quality_score}</Text>
         <Text style={styles.qualityMax}>/10</Text>
       </View>
-      <TouchableOpacity onPress={onDelete} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ padding: 4 }}>
+      <TouchableOpacity onPress={onDelete} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ padding: 4 }} accessibilityLabel="この記録を削除">
         <Ionicons name="trash-outline" size={16} color="#555" />
       </TouchableOpacity>
     </TouchableOpacity>
@@ -244,6 +245,8 @@ export default function SleepScreen() {
   const [bedMin,   setBedMin]   = useState(30)
   const [wakeHour, setWakeHour] = useState(7)
   const [wakeMin,  setWakeMin]  = useState(0)
+  // 就寝〜起床の間に途中で目が覚めていた時間（分）。実質睡眠時間の計算から差し引く
+  const [awakeMin, setAwakeMin] = useState(0)
   const [quality,  setQuality]  = useState(7)
   const [notes, setNotes] = useState('')
 
@@ -257,25 +260,26 @@ export default function SleepScreen() {
   const bedTotalMin  = bedHour * 60 + bedMin
   let wakeTotalMin   = wakeHour * 60 + wakeMin
   if (wakeTotalMin <= bedTotalMin) wakeTotalMin += 24 * 60
-  const durationMin = wakeTotalMin - bedTotalMin
+  const durationMin = Math.max(0, wakeTotalMin - bedTotalMin - awakeMin)
 
   const pad = (n: number) => String(n).padStart(2, '0')
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const raw = await AsyncStorage.getItem(SLEEP_KEY)
-      if (raw) setRecords(JSON.parse(raw) as SleepRecord[])
+      const recs = await getSleepRecords()
+      setRecords(recs)
     } catch { /* ignore */ }
     finally { setLoading(false) }
   }, [])
 
-  useEffect(() => { load() }, [load])
+  // 体重・睡眠等はホーム画面のクイック記録(QuickConditionModal)からも書き込まれるため、
+  // マウント時だけでなくタブに戻るたびに再読み込みする
+  useFocusEffect(useCallback(() => { load() }, [load]))
 
   async function handleDelete(id: string) {
-    const updated = records.filter(r => r.id !== id)
+    const updated = await updateSleepRecords(current => current.filter(r => r.id !== id))
     setRecords(updated)
-    await AsyncStorage.setItem(SLEEP_KEY, JSON.stringify(updated)).catch(() => {})
     Toast.show({ type: 'success', text1: '削除しました', visibilityTime: 1200 })
   }
 
@@ -298,6 +302,7 @@ export default function SleepScreen() {
       setWakeHour(t.getHours()); setWakeMin(t.getMinutes())
     }
     if (existing) setQuality(existing.quality_score)
+    setAwakeMin(existing?.awake_min ?? 0)
   }
 
   function formatDateLabel(dateStr: string) {
@@ -323,19 +328,21 @@ export default function SleepScreen() {
       if (sleepEnd <= sleepStart) sleepEnd.setDate(sleepEnd.getDate() + 1)
 
       const record: SleepRecord = {
-        id: `local-${Date.now()}`,
+        id: Crypto.randomUUID(),
         user_id: (await AsyncStorage.getItem('userId').catch(() => null)) ?? 'local',
         sleep_date: recordDate,
         sleep_start: sleepStart.toISOString(),
         sleep_end:   sleepEnd.toISOString(),
+        awake_min: awakeMin || undefined,
         quality_score: quality,
         duration_min: durationMin,
         notes: notes || undefined,
         created_at: new Date().toISOString(),
       }
-      const updated = [record, ...records.filter(r => r.sleep_date !== recordDate)]
-        .sort((a, b) => b.sleep_date.localeCompare(a.sleep_date))
-      await AsyncStorage.setItem(SLEEP_KEY, JSON.stringify(updated))
+      const updated = await updateSleepRecords(current =>
+        [record, ...current.filter(r => r.sleep_date !== recordDate)]
+          .sort((a, b) => b.sleep_date.localeCompare(a.sleep_date))
+      )
       setRecords(updated)
       Sounds.save()
       Toast.show({ type: 'success', text1: '✅ 睡眠を記録しました', text2: `${pad(bedHour)}:${pad(bedMin)} → ${pad(wakeHour)}:${pad(wakeMin)}  ${fmtDuration(durationMin)}` })
@@ -433,7 +440,7 @@ export default function SleepScreen() {
               </ScrollView>
 
               {existingForDate && (
-                <Text style={{ color: TEXT.hint, fontSize: 11, textAlign: 'center' }}>
+                <Text style={{ color: TEXT.secondary, fontSize: 11, textAlign: 'center' }}>
                   既存: {fmtDuration(existingForDate.duration_min)} / 質{existingForDate.quality_score} → 上書き保存
                 </Text>
               )}
@@ -458,12 +465,37 @@ export default function SleepScreen() {
                 />
               </View>
 
+              {/* 途中で目が覚めていた時間（任意） */}
+              <View style={{ gap: 8 }}>
+                <Text style={{ color: TEXT.secondary, fontSize: 12, fontWeight: '700', letterSpacing: 1 }}>
+                  途中で起きていた時間（任意）{awakeMin > 0 ? <Text style={{ color: NEON.amber }}> +{awakeMin}分</Text> : null}
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                  {[0, 15, 30, 45, 60, 90].map(n => (
+                    <HapticTouch
+                      key={n}
+                      haptic="toggleOn"
+                      onPress={() => setAwakeMin(n)}
+                      style={{
+                        paddingHorizontal: 12, paddingVertical: 8, borderRadius: 14,
+                        borderWidth: 1.5, borderColor: awakeMin === n ? NEON.amber : 'rgba(0,0,0,0.1)',
+                        backgroundColor: awakeMin === n ? NEON.amber : '#f0f2f5',
+                      }}
+                    >
+                      <Text style={{ color: awakeMin === n ? '#000' : TEXT.secondary, fontSize: 12, fontWeight: '700' }}>
+                        {n === 0 ? 'なし' : `${n}分`}
+                      </Text>
+                    </HapticTouch>
+                  ))}
+                </View>
+              </View>
+
               {/* 質スコア */}
               <View style={{ gap: 8 }}>
                 <Text style={{ color: TEXT.secondary, fontSize: 12, fontWeight: '700', letterSpacing: 1 }}>
                   睡眠の質: <Text style={{ color: qualityColor(quality) }}>{quality}/10</Text>
                 </Text>
-                <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
+                <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                   {Array.from({ length: 10 }, (_, i) => i + 1).map(n => {
                     const col = qualityColor(n)
                     return (
@@ -625,7 +657,7 @@ const styles = StyleSheet.create({
   sleepLeft: { flex: 1, gap: 2 },
   sleepDate: { color: TEXT.primary, fontSize: 14, fontWeight: '600' },
   sleepDuration: { color: TEXT.secondary, fontSize: 12 },
-  sleepNotes: { color: TEXT.hint, fontSize: 12, flex: 1 },
+  sleepNotes: { color: TEXT.secondary, fontSize: 12, flex: 1 },
   qualityBadge: { borderWidth: 2, borderRadius: 22, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   qualityValue: { fontSize: 16, fontWeight: '800', lineHeight: 18 },
   qualityMax: { color: TEXT.hint, fontSize: 9 },

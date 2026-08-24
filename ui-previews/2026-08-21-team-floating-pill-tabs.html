@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>チーム画面 — 浮かせたピル型セレクター案</title>
+<style>
+  :root{
+    --brand:#166534; --alert:#E53935; --high:#FF9500; --medium:#6366f1; --low:#34C759;
+    --text-primary:#111827; --text-secondary:#6b7280; --text-hint:#9ca3af;
+    --divider: rgba(0,0,0,0.07); --bg:#F6F4EF;
+  }
+  * { box-sizing: border-box; }
+  html,body{ margin:0; padding:0; background:var(--bg); font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif; }
+  .page{ max-width:1360px; margin:0 auto; padding:28px 24px 60px; }
+  .topbar{ margin-bottom:22px; }
+  .topbar h1{ font-size:19px; margin:0 0 8px; color:var(--text-primary); }
+  .quote{ font-size:13px; color:var(--text-secondary); background:#fff; border:1px solid #e8e4da; border-radius:12px; padding:12px 16px; line-height:1.6; }
+  .quote b{ color:var(--text-primary); }
+  .panels{ display:flex; gap:22px; align-items:flex-start; flex-wrap:wrap; }
+  .panel{ background:#fff; border:1px solid #e8e4da; border-radius:18px; padding:16px 16px 20px; width:340px; }
+  .panel-head{ display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+  .letter{ width:22px;height:22px;border-radius:7px;background:#11182710;color:var(--text-primary);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center; }
+  .pname{ font-size:14px; font-weight:800; color:var(--text-primary); }
+  .pdesc{ font-size:11.5px; color:var(--text-secondary); line-height:1.55; margin:4px 0 14px; min-height:52px; }
+
+  .frame-wrap{ display:flex; justify-content:center; }
+  .frame{
+    position:relative; width:352px; height:680px; background:#F2F1EC;
+    border-radius:36px; border:7px solid #111; overflow:hidden;
+    box-shadow:0 10px 24px rgba(0,0,0,0.18);
+  }
+  .notch{
+    position:absolute; top:0; left:50%; transform:translateX(-50%);
+    width:120px; height:18px; background:#111; border-radius:0 0 14px 14px; z-index:5;
+  }
+  .canvas{ position:absolute; top:0; left:0; transform-origin: top left; }
+  .scr{ width:440px; height:850px; background:#fafaf8; overflow:hidden; position:relative; }
+
+  .hdr{ background:#fff; border-bottom:1px solid var(--divider); padding:14px 16px 12px; display:flex; align-items:center; justify-content:space-between; }
+  .hdr-title{ font-size:19px; font-weight:800; color:var(--text-primary); }
+  .hdr-sub{ display:flex; align-items:center; gap:6px; margin-top:2px; }
+  .coach-chip{ background:rgba(22,101,52,0.12); border-radius:6px; padding:2px 7px; font-size:11px; font-weight:700; color:var(--brand); }
+  .coach-name{ font-size:11px; color:#555; }
+  .hdr-right{ display:flex; align-items:center; gap:8px; }
+  .code-box{ background:rgba(22,101,52,0.05); border:1.5px solid rgba(22,101,52,0.2); border-radius:14px; padding:7px 12px; text-align:center; }
+  .code-label{ font-size:9px; font-weight:700; color:#555; }
+  .code-val{ font-size:15px; font-weight:900; color:var(--brand); letter-spacing:3px; }
+  .icon-btn{ width:36px; height:36px; border-radius:14px; background:#f5f6f8; border:1px solid var(--divider); }
+
+  .avatar-ring{ width:44px;height:44px;border-radius:22px; display:flex; align-items:center; justify-content:center; }
+  .avatar-inner{ width:34px;height:34px;border-radius:17px;background:#e5e7eb;color:#6b7280;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800; }
+
+  /* アプリ本体の下タブバー（変更しない・現状維持） */
+  .app-tabbar{ position:absolute; left:0; right:0; bottom:0; height:64px; background:#fff; border-top:1px solid var(--divider); display:flex; align-items:center; justify-content:space-around; padding-bottom:6px; }
+  .app-tab{ display:flex; flex-direction:column; align-items:center; gap:3px; }
+  .app-tab-icon{ width:22px; height:22px; border-radius:6px; }
+  .app-tab-label{ font-size:10px; font-weight:600; }
+
+  /* ピル型セレクター（下タブのすぐ上に浮く） */
+  .pill-wrap{ position:absolute; left:16px; right:16px; bottom:76px; z-index:10; }
+  .pill{ background:#fff; border-radius:24px; padding:5px; display:flex; gap:2px; box-shadow:0 6px 20px rgba(0,0,0,0.14), 0 1px 3px rgba(0,0,0,0.08); }
+  .pill-item{ flex:1; text-align:center; padding:9px 4px; border-radius:19px; font-size:11.5px; font-weight:700; color:#8a8f98; position:relative; }
+  .pill-item.active{ background:var(--brand); color:#fff; }
+  .pill-item .dot{ position:absolute; top:5px; right:10px; width:6px; height:6px; border-radius:3px; background:var(--alert); }
+
+  footer{ margin-top:26px; font-size:12px; color:var(--text-secondary); background:#fff; border:1px solid #e8e4da; border-radius:12px; padding:12px 16px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="topbar">
+    <h1>チーム画面 — 浮かせたピル型セレクター（イメージ）</h1>
+    <div class="quote">お題（原文）: <b>「押しやすさを本当に改善したいなら...下タブのすぐ上に浮かせたピル型セレクターにする、これちょっとイメージ作ってみて」</b><br>
+    アプリ本体の下タブ（ホーム/記録/チーム/設定）はそのまま。その<b>すぐ上に浮かせた丸ピル</b>で、メンバー/メニュー/アナウンス/動画/予定を切り替える案です。現在のC案（配色を抑えたロースター）の上に乗せています。</div>
+  </div>
+
+  <div class="panels">
+
+    <!-- ============ A: アイコン+テキストの5分割ピル ============ -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="letter">A</div>
+        <div class="pname">5項目そのまま・浮きピル</div>
+      </div>
+      <div class="pdesc">今の5タブ構成をそのまま、親指の届く下部にピルとして再配置。選択中は緑背景+白文字。未読がある項目（今回はアナウンス）には小さい赤ドット。</div>
+      <div class="frame-wrap">
+        <div class="frame">
+          <div class="notch"></div>
+          <div class="canvas" style="transform:scale(0.8)">
+            <div class="scr">
+              <div class="hdr">
+                <div>
+                  <div class="hdr-title">テスト陸上部</div>
+                  <div class="hdr-sub"><span class="coach-chip">コーチ</span><span class="coach-name">テストコーチ</span></div>
+                </div>
+                <div class="hdr-right">
+                  <div class="code-box"><div class="code-label">参加コード</div><div class="code-val">093-SZU</div></div>
+                  <div class="icon-btn"></div><div class="icon-btn"></div>
+                </div>
+              </div>
+
+              <div style="padding:16px; display:flex; flex-direction:column; gap:14px;">
+                <div style="display:flex; gap:8px;">
+                  <div style="flex:1;background:#fff;border:1px solid var(--divider);border-radius:16px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+                    <div style="width:32px;height:32px;border-radius:10px;background:rgba(229,57,53,0.1);display:flex;align-items:center;justify-content:center;font-size:15px;">⚠️</div>
+                    <div><div style="font-size:10.5px;color:var(--text-hint);font-weight:600;">要対応</div><div style="font-size:19px;font-weight:900;color:var(--alert);line-height:21px;">2人</div></div>
+                  </div>
+                  <div style="flex:1;background:#fff;border:1px solid var(--divider);border-radius:16px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+                    <div style="width:32px;height:32px;border-radius:10px;background:rgba(99,102,241,0.1);display:flex;align-items:center;justify-content:center;font-size:15px;">💪</div>
+                    <div><div style="font-size:10.5px;color:var(--text-hint);font-weight:600;">チーム負荷</div><div style="font-size:19px;font-weight:900;color:var(--medium);line-height:21px;">中</div></div>
+                  </div>
+                </div>
+                <div style="font-size:11px;font-weight:700;color:var(--text-hint);letter-spacing:0.5px;">選手一覧（2人）</div>
+                <div style="display:flex;align-items:center;gap:14px;padding:12px 14px;background:#fff;border-radius:16px;">
+                  <div class="avatar-ring" style="background:conic-gradient(var(--alert) 0% 52%, #eee 52% 100%); padding:2.5px;">
+                    <div style="width:100%;height:100%;border-radius:19px;background:#fff;display:flex;align-items:center;justify-content:center;"><div class="avatar-inner">佐</div></div>
+                  </div>
+                  <div style="flex:1;"><div style="font-size:14px;font-weight:700;color:var(--text-primary);">佐藤 ひな</div><div style="font-size:11px;color:var(--text-secondary);">400m / 400mH</div></div>
+                  <div style="font-size:22px;font-weight:800;color:var(--text-secondary);">52</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:14px;padding:12px 14px;background:#fff;border-radius:16px;">
+                  <div class="avatar-ring" style="background:conic-gradient(var(--high) 0% 41%, #eee 41% 100%); padding:2.5px;">
+                    <div style="width:100%;height:100%;border-radius:19px;background:#fff;display:flex;align-items:center;justify-content:center;"><div class="avatar-inner">田</div></div>
+                  </div>
+                  <div style="flex:1;"><div style="font-size:14px;font-weight:700;color:var(--text-primary);">田中 翼</div><div style="font-size:11px;color:var(--text-secondary);">100m / 200m</div></div>
+                  <div style="font-size:22px;font-weight:800;color:var(--text-secondary);">41</div>
+                </div>
+              </div>
+
+              <div class="pill-wrap">
+                <div class="pill">
+                  <div class="pill-item active">メンバー</div>
+                  <div class="pill-item">メニュー</div>
+                  <div class="pill-item">アナウンス<div class="dot"></div></div>
+                  <div class="pill-item">動画</div>
+                  <div class="pill-item">予定</div>
+                </div>
+              </div>
+
+              <div class="app-tabbar">
+                <div class="app-tab"><div class="app-tab-icon" style="background:#ccc;"></div><div class="app-tab-label" style="color:#999;">ホーム</div></div>
+                <div class="app-tab"><div class="app-tab-icon" style="background:#ccc;"></div><div class="app-tab-label" style="color:#999;">記録</div></div>
+                <div class="app-tab"><div class="app-tab-icon" style="background:var(--brand);"></div><div class="app-tab-label" style="color:var(--brand);">チーム</div></div>
+                <div class="app-tab"><div class="app-tab-icon" style="background:#ccc;"></div><div class="app-tab-label" style="color:#999;">設定</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ B: アイコンのみコンパクトピル ============ -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="letter">B</div>
+        <div class="pname">アイコンのみ・コンパクトピル</div>
+      </div>
+      <div class="pdesc">文字を消してアイコンだけにし、ピル自体を小さく・軽くする。指の移動距離が短くなる一方、初見で何のタブか分かりにくくなるので、選択中の項目だけ下にラベルを出す。</div>
+      <div class="frame-wrap">
+        <div class="frame">
+          <div class="notch"></div>
+          <div class="canvas" style="transform:scale(0.8)">
+            <div class="scr">
+              <div class="hdr">
+                <div>
+                  <div class="hdr-title">テスト陸上部</div>
+                  <div class="hdr-sub"><span class="coach-chip">コーチ</span><span class="coach-name">テストコーチ</span></div>
+                </div>
+                <div class="hdr-right">
+                  <div class="code-box"><div class="code-label">参加コード</div><div class="code-val">093-SZU</div></div>
+                  <div class="icon-btn"></div><div class="icon-btn"></div>
+                </div>
+              </div>
+
+              <div style="padding:16px; display:flex; flex-direction:column; gap:14px;">
+                <div style="display:flex; gap:8px;">
+                  <div style="flex:1;background:#fff;border:1px solid var(--divider);border-radius:16px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+                    <div style="width:32px;height:32px;border-radius:10px;background:rgba(229,57,53,0.1);display:flex;align-items:center;justify-content:center;font-size:15px;">⚠️</div>
+                    <div><div style="font-size:10.5px;color:var(--text-hint);font-weight:600;">要対応</div><div style="font-size:19px;font-weight:900;color:var(--alert);line-height:21px;">2人</div></div>
+                  </div>
+                  <div style="flex:1;background:#fff;border:1px solid var(--divider);border-radius:16px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+                    <div style="width:32px;height:32px;border-radius:10px;background:rgba(99,102,241,0.1);display:flex;align-items:center;justify-content:center;font-size:15px;">💪</div>
+                    <div><div style="font-size:10.5px;color:var(--text-hint);font-weight:600;">チーム負荷</div><div style="font-size:19px;font-weight:900;color:var(--medium);line-height:21px;">中</div></div>
+                  </div>
+                </div>
+                <div style="font-size:11px;font-weight:700;color:var(--text-hint);letter-spacing:0.5px;">選手一覧（2人）</div>
+                <div style="display:flex;align-items:center;gap:14px;padding:12px 14px;background:#fff;border-radius:16px;">
+                  <div class="avatar-ring" style="background:conic-gradient(var(--alert) 0% 52%, #eee 52% 100%); padding:2.5px;">
+                    <div style="width:100%;height:100%;border-radius:19px;background:#fff;display:flex;align-items:center;justify-content:center;"><div class="avatar-inner">佐</div></div>
+                  </div>
+                  <div style="flex:1;"><div style="font-size:14px;font-weight:700;color:var(--text-primary);">佐藤 ひな</div><div style="font-size:11px;color:var(--text-secondary);">400m / 400mH</div></div>
+                  <div style="font-size:22px;font-weight:800;color:var(--text-secondary);">52</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:14px;padding:12px 14px;background:#fff;border-radius:16px;">
+                  <div class="avatar-ring" style="background:conic-gradient(var(--high) 0% 41%, #eee 41% 100%); padding:2.5px;">
+                    <div style="width:100%;height:100%;border-radius:19px;background:#fff;display:flex;align-items:center;justify-content:center;"><div class="avatar-inner">田</div></div>
+                  </div>
+                  <div style="flex:1;"><div style="font-size:14px;font-weight:700;color:var(--text-primary);">田中 翼</div><div style="font-size:11px;color:var(--text-secondary);">100m / 200m</div></div>
+                  <div style="font-size:22px;font-weight:800;color:var(--text-secondary);">41</div>
+                </div>
+              </div>
+
+              <div class="pill-wrap" style="left:60px; right:60px;">
+                <div class="pill" style="padding:6px;">
+                  <div class="pill-item active" style="padding:10px 4px;">👥<div style="font-size:9px;margin-top:2px;">メンバー</div></div>
+                  <div class="pill-item" style="padding:10px 4px;">📋</div>
+                  <div class="pill-item" style="padding:10px 4px;">📢<div class="dot" style="top:6px;right:8px;"></div></div>
+                  <div class="pill-item" style="padding:10px 4px;">🎥</div>
+                  <div class="pill-item" style="padding:10px 4px;">📅</div>
+                </div>
+              </div>
+
+              <div class="app-tabbar">
+                <div class="app-tab"><div class="app-tab-icon" style="background:#ccc;"></div><div class="app-tab-label" style="color:#999;">ホーム</div></div>
+                <div class="app-tab"><div class="app-tab-icon" style="background:#ccc;"></div><div class="app-tab-label" style="color:#999;">記録</div></div>
+                <div class="app-tab"><div class="app-tab-icon" style="background:var(--brand);"></div><div class="app-tab-label" style="color:var(--brand);">チーム</div></div>
+                <div class="app-tab"><div class="app-tab-icon" style="background:#ccc;"></div><div class="app-tab-label" style="color:#999;">設定</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>率直な感想を聞かせてください。「Aで」「やっぱり上のままでいい」等、どちらでも大丈夫です。</footer>
+</div>
+</body>
+</html>

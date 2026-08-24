@@ -13,6 +13,8 @@ interface Props {
   maxPoints?: number
   /** X軸ラベルに年を含める（複数年をまたぐ全期間表示向け） */
   showYear?: boolean
+  /** trueの場合、値が小さいほど上に表示する（タイム種目など「小さい=良い記録」向け） */
+  invertY?: boolean
 }
 
 const SCREEN_WIDTH = Dimensions.get('window').width
@@ -99,6 +101,7 @@ const TrainingChart: React.FC<Props> = ({
   isLoading = false,
   maxPoints = 7,
   showYear = false,
+  invertY = false,
 }) => {
   const chartData = data.slice(-maxPoints)
 
@@ -107,10 +110,17 @@ const TrainingChart: React.FC<Props> = ({
   const maxVal = Math.max(...values)
   const range = maxVal - minVal || 1
 
+  // 通常は値が大きいほど上（良い記録）。invertYがtrueなら値が小さいほど上
+  // （タイム種目は数値が小さいほど良い記録のため）
+  const toY = (v: number) => {
+    const ratio = (v - minVal) / range
+    return invertY ? ratio * INNER_H : INNER_H - ratio * INNER_H
+  }
+
   // ピクセル座標に変換
   const pts = chartData.map((p, i) => ({
     x: chartData.length === 1 ? INNER_W / 2 : (i / (chartData.length - 1)) * INNER_W,
-    y: INNER_H - ((p.value - minVal) / range) * INNER_H,
+    y: toY(p.value),
   }))
 
   const ticks = yTicks(minVal, maxVal)
@@ -135,7 +145,7 @@ const TrainingChart: React.FC<Props> = ({
 
             {/* Y軸グリッド & ラベル */}
             {ticks.map(v => {
-              const py = INNER_H - ((v - minVal) / range) * INNER_H
+              const py = toY(v)
               if (py < -2 || py > INNER_H + 2) return null
               return (
                 <G key={v}>

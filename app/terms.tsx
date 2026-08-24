@@ -47,7 +47,7 @@ function Sub({ title, children }: { title: string; children: React.ReactNode }) 
 function SubLi({ n, children }: { n?: string | number; children: React.ReactNode }) {
   return (
     <View style={[s.liRow, { paddingLeft: 16 }]}>
-      <Text style={[s.bullet, { color: '#6b7280', fontSize: 11 }]}>{n ? `${n}.` : '◦'}</Text>
+      <Text style={[s.bullet, { color: TEXT.hint, fontSize: 11 }]}>{n ? `${n}.` : '◦'}</Text>
       <Text style={[s.body, { flex: 1, fontSize: 12 }]}>{children}</Text>
     </View>
   )
@@ -74,7 +74,7 @@ export default function TermsScreen() {
             <Li n={4}>「コンテンツ」とは、本サービスを通じて提供される文章、画像、動画、AIによるアドバイス・診断、リスクスコア、グラフ、その他一切のデータ・情報をいいます。</Li>
             <Li n={5}>「AIサービス」とは、本サービスが利用するAnthropic社の「Claude」APIおよびその他の外部AI APIを通じて提供される機能（練習分析、怪我リスク診断、リカバリー相談、栄養分析、動画フォーム分析等）をいいます。</Li>
             <Li n={6}>「FREEプラン」とは、月額料金を支払わずに利用できる基本プランをいいます。一部機能に利用回数の制限が設けられます。</Li>
-            <Li n={7}>「広告なしプラン」とは、月額980円（税込）を支払うことで利用できる有料プランをいいます。</Li>
+            <Li n={7}>「広告なしプラン」とは、月額480円（税込）を支払うことで利用できる有料プランをいいます。</Li>
             <Li n={8}>「コーチプラン」とは、月額1,980円（税込）を支払うことで利用できる、チーム管理機能を含む上位有料プランをいいます。</Li>
             <Li n={9}>「チーム機能」とは、コーチまたは指導者がチームを作成し、複数の選手を招待・管理することができる機能をいいます。コーチプランで利用可能です。</Li>
             <Li n={10}>「RevenueCat」とは、当社がサブスクリプション管理に使用するサードパーティサービス（RevenueCat, Inc.、米国）をいいます。</Li>
@@ -96,7 +96,7 @@ export default function TermsScreen() {
               <SubLi n={9}>レベル・XP表示（ゲーミフィケーション）</SubLi>
               <SubLi n={10}>AI練習分析・動画フォーム分析・AI食事分析・AIリカバリー相談・練習メニュー提案・CSVエクスポート（下記5-5に定める無料枠内で利用可能。広告なしプラン・コーチプランでは利用回数制限なし）</SubLi>
             </Sub>
-            <Sub title="2-2. 広告なしプラン機能（月額980円）">
+            <Sub title="2-2. 広告なしプラン機能（月額480円）">
               <SubLi n={1}>全プラン共通機能がすべて利用回数の制限なく使える（AI練習分析・動画フォーム分析・AI食事分析・AIリカバリー相談・CSVエクスポート等）</SubLi>
               <SubLi n={2}>バナー・インタースティシャル広告 完全非表示</SubLi>
               <SubLi n={3}>広告の読み込み待ちがなくなる</SubLi>
@@ -134,7 +134,7 @@ export default function TermsScreen() {
           <Section num="第5条" title="利用料金・課金・サブスクリプション">
             <Sub title="5-1. プランと料金">
               <SubLi n={1}>FREEプラン：無料。一部機能に利用回数制限あり（第2条参照）。</SubLi>
-              <SubLi n={2}>広告なしプラン：月払い980円（税込）。</SubLi>
+              <SubLi n={2}>広告なしプラン：月払い480円（税込）。</SubLi>
               <SubLi n={3}>コーチプラン：月払い1,980円（税込）。</SubLi>
               <SubLi n={4}>料金は予告なく変更される場合があります。変更は次回の課金更新時から適用されます。</SubLi>
             </Sub>
@@ -373,7 +373,7 @@ export default function TermsScreen() {
             <P>運営者：{OPERATOR}</P>
             <P>メールアドレス：{CONTACT}</P>
             <P>受付時間：平日10:00〜18:00（土日祝・年末年始を除く）</P>
-            <P style={{ marginTop: 8, fontSize: 12, color: '#6b7280' }}>
+            <P style={{ marginTop: 8, fontSize: 12, color: TEXT.hint }}>
               ※お問い合わせの際は、ご登録のメールアドレス・お問い合わせ内容・端末のOS・アプリバージョンをご記載ください。
             </P>
           </Section>
@@ -400,7 +400,7 @@ const s = StyleSheet.create({
                   borderLeftWidth: 3, borderLeftColor: '#166534', paddingLeft: 10 },
   sub:          { marginTop: 10, marginBottom: 4 },
   subTitle:     { color: '#9ca3af', fontSize: 12, fontWeight: '700', marginBottom: 6 },
-  body:         { color: TEXT.secondary, fontSize: 13, lineHeight: 22 },
+  body:         { color: TEXT.hint, fontSize: 16, lineHeight: 25 },
   bold:         { color: '#fff', fontWeight: '700' },
   liRow:        { flexDirection: 'row', marginTop: 5, alignItems: 'flex-start' },
   bullet:       { color: '#166534', fontSize: 12, fontWeight: '700', marginRight: 4, marginTop: 1, minWidth: 28 },

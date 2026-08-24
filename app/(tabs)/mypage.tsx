@@ -13,8 +13,10 @@ import { useTheme } from '../../context/ThemeContext'
 import { Sounds, unlockAudio } from '../../lib/sounds'
 import HapticTouch from '../../components/HapticTouch'
 import { localDateStr } from '../../lib/dateLocal'
+import type { RaceRecord } from '../../types'
 
 const PROFILE_KEY = 'trackmate_my_profile'
+const RECORDS_KEY = 'trackmate_race_records'
 
 interface MyProfile {
   name: string
@@ -27,6 +29,7 @@ export default function MyPageScreen() {
   const { colors } = useTheme()
   const { sessions, fetchSessions } = useTrainingSessions()
   const [profile, setProfile] = useState<MyProfile>({ name: '', primary_event: '400m' })
+  const [records, setRecords] = useState<RaceRecord[]>([])
   const fadeY = useRef(new Animated.Value(0)).current
 
   useFocusEffect(useCallback(() => {
@@ -38,14 +41,24 @@ export default function MyPageScreen() {
     return () => anim.stop()
   }, []))
 
-  useEffect(() => {
+  // プロフィールは設定画面・オンボーディング等からも書き込まれるため、
+  // マウント時だけでなくタブに戻るたびに再読み込みする
+  useFocusEffect(useCallback(() => {
     AsyncStorage.getItem(PROFILE_KEY).then(v => { if (v) { try { setProfile(JSON.parse(v)) } catch {} } }).catch(() => {})
+    AsyncStorage.getItem(RECORDS_KEY).then(v => { if (v) { try { setRecords(JSON.parse(v)) } catch {} } }).catch(() => {})
     fetchSessions('')
-  }, [])
+  }, [fetchSessions]))
 
   const displayName = profile.name || 'アスリート'
   const initials    = displayName.slice(0, 2)
   const levelInfo   = calcLevelInfo(sessions.length)
+
+  // 種目ごとの自己ベスト（記録タブのデータをそのまま使う。ここでは入力欄を増やさない）
+  const eventPBs = (() => {
+    const map = new Map<string, RaceRecord>()
+    records.filter(r => r.is_pb).forEach(r => { if (!map.has(r.event)) map.set(r.event, r) })
+    return Array.from(map.values())
+  })()
 
   return (
     <Animated.View style={{ flex: 1, backgroundColor: colors.bg, opacity: fadeY, transform: [{ translateY: fadeY.interpolate({ inputRange: [0,1], outputRange: [14,0] }) }] }}>
@@ -53,7 +66,7 @@ export default function MyPageScreen() {
 
         {/* ── ヘッダー ── */}
         <View style={[s.header, { borderBottomColor: colors.border }]}>
-          <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
+          <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="戻る">
             <Ionicons name="chevron-back" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={[s.headerTitle, { color: colors.text }]}>プロフィール</Text>
@@ -93,6 +106,28 @@ export default function MyPageScreen() {
                 総練習 {sessions.length}回 · 次のレベルまであと{Math.ceil(levelInfo.xpToNext / 100)}回
               </Text>
             </View>
+          </View>
+
+          {/* ── 種目別ベスト ── */}
+          <View style={[s.pbCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={s.pbHeader}>
+              <Ionicons name="trophy-outline" size={16} color={BRAND} />
+              <Text style={[s.pbTitle, { color: colors.text }]}>種目別ベスト</Text>
+            </View>
+            {eventPBs.length > 0 ? (
+              <View style={s.pbGrid}>
+                {eventPBs.map(r => (
+                  <View key={r.id} style={[s.pbItem, { backgroundColor: colors.surface2 }]}>
+                    <Text style={[s.pbEvent, { color: colors.textSec }]}>{r.event}</Text>
+                    <Text style={[s.pbResult, { color: colors.text }]}>{r.result_display}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={[s.pbEmpty, { color: colors.textHint }]}>
+                記録タブでレースを登録すると、種目ごとの自己ベストがここに表示されます
+              </Text>
+            )}
           </View>
 
           {/* ── 統計 ── */}
@@ -162,6 +197,15 @@ const s = StyleSheet.create({
   barBg:       { height: 6, borderRadius: 3, overflow: 'hidden' },
   barFill:     { height: 6, backgroundColor: BRAND, borderRadius: 3 },
   levelSub:    { fontSize: 11 },
+
+  pbCard:      { borderRadius: 21, borderWidth: 1, padding: 16, gap: 12 },
+  pbHeader:    { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  pbTitle:     { fontSize: 14, fontWeight: '800' },
+  pbGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  pbItem:      { flexBasis: '31%', flexGrow: 1, borderRadius: 14, paddingVertical: 10, alignItems: 'center', gap: 2 },
+  pbEvent:     { fontSize: 11, fontWeight: '700' },
+  pbResult:    { fontSize: 15, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  pbEmpty:     { fontSize: 12, lineHeight: 18 },
 
   statsRow:    { flexDirection: 'row', borderRadius: 21, borderWidth: 1, overflow: 'hidden' },
   statCell:    { flex: 1, alignItems: 'center', paddingVertical: 14, gap: 3 },

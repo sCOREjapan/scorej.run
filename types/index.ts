@@ -10,7 +10,7 @@ export type SprintEvent =
   | '110mH' | '100mH' | '300mH' | '400mH'
 
 export type MiddleLongEvent =
-  | '800m' | '1500m' | '3000m'
+  | '800m' | '1000m' | '1500m' | '3000m'
   | '5000m' | '10000m' | '3000mSC'
   | 'half_marathon' | 'marathon'
   | '競歩'
@@ -40,12 +40,14 @@ export interface RaceRecord {
   result_ms?: number       // トラック種目: ミリ秒
   result_cm?: number       // フィールド種目: センチメートル
   race_date: string        // YYYY-MM-DD
+  race_time?: string       // HH:MM（任意）。同日に複数記録がある場合の並び替えに使う
   venue?: string
   competition_name?: string
   wind_ms?: number         // 風速（短距離・跳躍）
   hurdle_height_cm?: number // ハードルの高さ（ハードル種目のみ）
   is_pb: boolean
   is_sb: boolean
+  is_official?: boolean    // true=公認記録、false/undefined=手動入力（非公認）
   notes?: string
   created_at: string
 }
@@ -203,7 +205,8 @@ export interface SleepRecord {
   sleep_date: string
   sleep_start?: string       // ISO 8601 datetime
   sleep_end?: string
-  duration_min?: number      // 計算値
+  awake_min?: number         // 就寝〜起床の間に途中で目が覚めていた時間（分）。duration_minはこれを差し引いた実質睡眠時間
+  duration_min?: number      // 計算値（sleep_end - sleep_start - awake_min）
   quality_score: number      // 1-10
   deep_sleep_min?: number    // HealthKit連携時
   rhr?: number               // 安静時心拍数

@@ -183,11 +183,23 @@ export function calcInjuryRisk(
   else if (loadIncreasePct > 5)  loadScore = 5
 
   // 疲労蓄積 TSB（max 25）
+  // CTL（42日EWMA）は使い始めて間もないうちは実態より低く出るため、TSB(=CTL-ATL)が
+  // 実際の疲労度以上に大きくマイナスへ振れる「コールドスタート」問題がある。
+  // 記録日数が浅いうちはこのファクターの寄与を按分し、新規ユーザーが「常に最大値」に
+  // ならないようにする（21日でフル反映、それ未満は日数に応じて縮小）。
+  const firstSessionDate = sessions.reduce<string | null>((earliest, s) =>
+    !earliest || s.session_date < earliest ? s.session_date : earliest, null)
+  const daysOfHistory = firstSessionDate
+    ? Math.max(1, Math.round((now - new Date(firstSessionDate).getTime()) / MS_DAY) + 1)
+    : 0
+  const tsbRampUp = Math.min(1, daysOfHistory / 21)
+
   let tsbScore = 0
   if      (tsb < -40) tsbScore = 25
   else if (tsb < -20) tsbScore = 16
   else if (tsb < -8)  tsbScore = 8
   else if (tsb < 0)   tsbScore = 3
+  tsbScore = Math.round(tsbScore * tsbRampUp)
 
   // 体調（max 20）
   let condScore = 0
@@ -307,7 +319,8 @@ export function calcInjuryRisk(
       score: Math.round((tsbScore / 25) * 100),
       maxScore: 25,
       description: `TSB ${tsb > 0 ? '+' : ''}${tsb} · 直近疲労 ${avgRecentFatigue.toFixed(1)}/10`
-        + (tsbReduction > 0 ? `（ストレッチで-${tsbReduction}）` : ''),
+        + (tsbReduction > 0 ? `（ストレッチで-${tsbReduction}）` : '')
+        + (daysOfHistory < 21 ? `（記録開始から${daysOfHistory}日・算出中）` : ''),
     },
     {
       key: 'consecutive',

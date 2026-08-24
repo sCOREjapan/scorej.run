@@ -370,7 +370,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   metaText: {
-    color: '#555555',
+    color: '#888888',
     fontSize: 12,
   },
   skeleton: {

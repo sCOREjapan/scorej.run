@@ -52,7 +52,7 @@ export default function LevelRoadmapScreen() {
       <SafeAreaView style={{ flex: 1 }}>
         {/* ヘッダー */}
         <View style={st.header}>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="戻る">
             <Ionicons name="chevron-back" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={[st.headerTitle, { color: colors.text }]}>
@@ -72,7 +72,7 @@ export default function LevelRoadmapScreen() {
               {displayName ? (
                 <Text style={[st.currentName, { color: colors.textSec }]}>{displayName}</Text>
               ) : null}
-              <Text style={[st.currentDesc, { color: colors.textHint }]}>{currentTier.description}</Text>
+              <Text style={[st.currentDesc, { color: colors.textSec }]}>{currentTier.description}</Text>
             </View>
           </View>
 
@@ -86,9 +86,9 @@ export default function LevelRoadmapScreen() {
               <View style={[st.barFill, { width: `${Math.round(info.progress * 100)}%` as any, backgroundColor: currentTier.color }]} />
             </View>
             <View style={st.xpRow}>
-              <Text style={[st.xpSub, { color: colors.textHint }]}>累計練習 {sessionCount}回</Text>
+              <Text style={[st.xpSub, { color: colors.textSec }]}>累計練習 {sessionCount}回</Text>
               {nextTier && (
-                <Text style={[st.xpSub, { color: colors.textHint }]}>
+                <Text style={[st.xpSub, { color: colors.textSec }]}>
                   次のランクまで あと{sessionsToNextRank}回
                 </Text>
               )}
@@ -167,7 +167,7 @@ export default function LevelRoadmapScreen() {
                       </View>
                     )}
                   </View>
-                  <Text style={[st.tierLvRange, { color: colors.textHint }]}>
+                  <Text style={[st.tierLvRange, { color: colors.textSec }]}>
                     Lv.{tier.min}〜{tier.max === 9999 ? '' : tier.max - 1}
                     {tier.min > 0 ? `　累計${tier.sessionsRequired}回〜` : '　スタート'}
                   </Text>

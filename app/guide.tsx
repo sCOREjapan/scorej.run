@@ -114,7 +114,7 @@ const PLANS = [
   },
   {
     name: '広告なしプラン',
-    price: '¥980',
+    price: '¥480',
     period: '/月',
     color: GREEN,
     bg: GREEN_L,

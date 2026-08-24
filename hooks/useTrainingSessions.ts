@@ -1,11 +1,17 @@
 // hooks/useTrainingSessions.ts — トレーニングセッション CRUD フック
+//
+// addSession/updateSession は以前、このフックインスタンス自身のローカルstate(prev)を
+// 基点に read-modify-write していた。このフックを「fetchSessionsを呼ばずに
+// addSessionだけ呼ぶ」使い方（例: app/(tabs)/team.tsx の欠席報告）をすると、
+// prevが常に空配列のまま書き込まれ、trackmate_sessionsの実データが
+// [新規セッションのみ]で上書きされて消える実害が出た（本番レビューで報告された
+// データ消失バグ）。lib/sessionsStore.ts の直列化キュー経由に統一し、
+// 常に最新の永続化データを起点に書き込むようにする。
 
 import { useState, useCallback } from 'react'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import type { TrainingSession, LoadingState } from '../types'
 import { autoSyncTeam } from '../lib/teamAutoSync'
-
-const SESSIONS_KEY = 'trackmate_sessions'
+import { getSessions, updateSessions } from '../lib/sessionsStore'
 
 interface UseTrainingSessionsReturn {
   sessions: TrainingSession[]
@@ -29,9 +35,7 @@ export function useTrainingSessions(): UseTrainingSessionsReturn {
     setLoading('loading')
     setError(null)
     try {
-      const raw = await AsyncStorage.getItem(SESSIONS_KEY)
-      let data: TrainingSession[] = []
-      try { if (raw) data = JSON.parse(raw) } catch {}  // データ破損でも空配列で継続
+      const data = await getSessions()
       // 最新順（session_date 降順）に正規化 — クラウド同期後に順序が乱れることがあるため
       data.sort((a, b) => b.session_date.localeCompare(a.session_date))
       setSessions(data)
@@ -45,7 +49,7 @@ export function useTrainingSessions(): UseTrainingSessionsReturn {
   }, [])
 
   // ─────────────────────────────────────────
-  // セッション追加（AsyncStorage に保存）
+  // セッション追加（直列化キュー経由。常に最新の永続化データを起点に書き込む）
   // ─────────────────────────────────────────
   const addSession = useCallback(
     async (
@@ -57,13 +61,9 @@ export function useTrainingSessions(): UseTrainingSessionsReturn {
           id: `local-${Date.now()}`,
           created_at: new Date().toISOString(),
         }
-        setSessions(prev => {
-          const next = [newSession, ...prev]
-          AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(next))
-            .then(() => autoSyncTeam(next, { force: true }))
-            .catch(() => {})
-          return next
-        })
+        const next = await updateSessions(current => [newSession, ...current])
+        setSessions(next)
+        autoSyncTeam(next, { force: true }).catch(() => {})
         return newSession
       } catch {
         return null
@@ -73,20 +73,16 @@ export function useTrainingSessions(): UseTrainingSessionsReturn {
   )
 
   // ─────────────────────────────────────────
-  // セッション更新（AsyncStorage に保存）
+  // セッション更新（直列化キュー経由。常に最新の永続化データを起点に書き込む）
   // ─────────────────────────────────────────
   const updateSession = useCallback(
     async (
       id: string,
       updates: Partial<Omit<TrainingSession, 'id' | 'created_at'>>
     ): Promise<void> => {
-      setSessions(prev => {
-        const next = prev.map(s => (s.id === id ? { ...s, ...updates } : s))
-        AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(next))
-          .then(() => autoSyncTeam(next, { force: true }))
-          .catch(() => {})
-        return next
-      })
+      const next = await updateSessions(current => current.map(s => (s.id === id ? { ...s, ...updates } : s)))
+      setSessions(next)
+      autoSyncTeam(next, { force: true }).catch(() => {})
     },
     []
   )

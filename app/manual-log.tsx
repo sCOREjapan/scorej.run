@@ -14,15 +14,14 @@ import { useTheme } from '../context/ThemeContext'
 import { Sounds, unlockAudio } from '../lib/sounds'
 import type { TrainingSession, AthleticsEvent } from '../types'
 import { autoSyncTeam } from '../lib/teamAutoSync'
-import { getTier } from '../lib/adGate'
-import { shouldShowInterstitial, showInterstitialAd } from '../lib/admob'
+import { updateSessions } from '../lib/sessionsStore'
 import { todayLocalISO } from '../lib/dateLocal'
 import { STANDARD_HURDLE_HEIGHTS, isHurdleEvent } from '../lib/hurdleHeights'
+import { BRAND } from '../lib/theme'
 
 const SESSIONS_KEY      = 'trackmate_sessions'
 const CONDITION_MAP_KEY = 'trackmate_condition_map'
 const MENU_TEMPLATES_KEY = 'trackmate_menu_templates'
-const BRAND             = '#E53935'
 
 type MenuTemplate = { id: string; name: string; content: string }
 
@@ -42,7 +41,7 @@ const SESSION_TYPES = [
 // ── 種目を分類分け（モーダル用） ──────────────────────────
 const EVENT_CATEGORIES: { label: string; events: AthleticsEvent[] }[] = [
   { label: 'スプリント', events: ['100m','200m','300m','400m','300mH'] },
-  { label: '中距離',    events: ['800m','1500m','3000m'] },
+  { label: '中距離',    events: ['800m','1000m','1500m','3000m'] },
   { label: '長距離',    events: ['5000m','10000m','half_marathon','marathon','競歩'] },
   { label: 'ハードル',  events: ['100mH','110mH','400mH'] },
   { label: '障害',      events: ['3000mSC'] },
@@ -122,11 +121,11 @@ function CalendarPicker({ value, onChange }: { value: string; onChange: (d: stri
     <View style={cal.wrap}>
       {/* ヘッダー（月移動） */}
       <View style={cal.header}>
-        <HapticTouch haptic="tap" onPress={prevMonth} style={cal.arrow}>
+        <HapticTouch haptic="tap" onPress={prevMonth} style={cal.arrow} hitSlop={8} accessibilityLabel="前の月">
           <Ionicons name="chevron-back" size={18} color="#6b7280" />
         </HapticTouch>
         <Text style={cal.monthLabel}>{viewYear}年 {viewMonth + 1}月</Text>
-        <HapticTouch haptic="tap" onPress={nextMonth} style={cal.arrow}>
+        <HapticTouch haptic="tap" onPress={nextMonth} style={cal.arrow} hitSlop={8} accessibilityLabel="次の月">
           <Ionicons name="chevron-forward" size={18} color="#6b7280" />
         </HapticTouch>
       </View>
@@ -207,6 +206,25 @@ function fromMs(ms: number): { min: string; sec: string; cs: string } {
   }
 }
 
+// ── 本数ごとのタイム: mm + ss.cc(小数秒) → ms / 逆変換 ──
+function parseRepTime(min: string, sec: string): number | null {
+  if (!min && !sec) return null
+  const m = Number(min || '0')
+  const s = Number(sec || '0')
+  const ms = Math.round((m * 60 + s) * 1000)
+  return ms > 0 ? ms : null
+}
+function msToRepFields(ms: number): { min: string; sec: string } {
+  const totalSec = ms / 1000
+  const m = Math.floor(totalSec / 60)
+  const s = (totalSec % 60).toFixed(2)
+  return { min: m > 0 ? String(m) : '', sec: s }
+}
+function fmtRepTime(ms: number): string {
+  const { min, sec } = msToRepFields(ms)
+  return min ? `${min}'${sec}"` : `${sec}"`
+}
+
 export default function ManualLogScreen() {
   const router = useRouter()
   const { colors } = useTheme()
@@ -224,7 +242,9 @@ export default function ManualLogScreen() {
   const [timeSec,       setTimeSec]       = useState('')
   const [timeCs,        setTimeCs]        = useState('')
   const [distanceM,     setDistanceM]     = useState('')
-  const [repsStr,       setRepsStr]       = useState('')
+  const [repCount,      setRepCount]      = useState(1)
+  const [repMins,       setRepMins]       = useState<string[]>([''])
+  const [repSecs,       setRepSecs]       = useState<string[]>([''])
   const [fatigue,       setFatigue]       = useState(6)
   const [notes,         setNotes]         = useState('')
   const [condLevel,     setCondLevel]     = useState(6)
@@ -298,7 +318,17 @@ export default function ManualLogScreen() {
           setTimeMin(t.min); setTimeSec(t.sec); setTimeCs(t.cs)
         }
         setDistanceM(sess.distance_m != null ? String(sess.distance_m) : '')
-        setRepsStr(sess.reps != null ? String(sess.reps) : '')
+        // 本数ごとの内訳は保存していないため、編集時は1本目に代表タイムを復元するのみ（残りは空欄で再入力可）
+        const rc = Math.max(1, sess.reps ?? 1)
+        setRepCount(rc)
+        if (sess.time_ms) {
+          const rf = msToRepFields(sess.time_ms)
+          setRepMins(Array.from({ length: rc }, (_, i) => i === 0 ? rf.min : ''))
+          setRepSecs(Array.from({ length: rc }, (_, i) => i === 0 ? rf.sec : ''))
+        } else {
+          setRepMins(Array(rc).fill(''))
+          setRepSecs(Array(rc).fill(''))
+        }
         setFatigue(sess.fatigue_level ?? 6)
         setCondLevel(sess.condition_level ?? 6)
         setNotes(sess.notes ?? '')
@@ -309,18 +339,47 @@ export default function ManualLogScreen() {
   const typeInfo = SESSION_TYPES.find(t => t.key === sessionType)!
   const hasTime  = sessionType !== 'rest' && sessionType !== 'strength'
   const hasReps  = ['sprint','interval','drill','strength'].includes(sessionType)
+  // 本数分だけタイム入力欄を並べる（スプリント・インターバル・ドリル）。ウェイトは本数=セット数のみでタイム欄は出さない
+  const hasRepTimes = hasReps && hasTime
   // 距離は種目を問わず手動で入力できるように（スプリント・試合なども含め全種目で表示、休養のみ除外）
   const hasDist  = sessionType !== 'rest' && sessionType !== 'strength'
 
-  async function handleSave() {
+  // 本数の＋／−。増やすと配列を伸ばし、減らすと末尾を切り詰める（既存の入力値は保持）
+  function changeRepCount(next: number) {
+    const clamped = Math.max(1, Math.min(20, next))
+    setRepCount(clamped)
+    const resize = (arr: string[]) => {
+      const a = arr.slice(0, clamped)
+      while (a.length < clamped) a.push('')
+      return a
+    }
+    setRepMins(resize)
+    setRepSecs(resize)
+  }
+
+  async function handleSave(continueLogging = false) {
     unlockAudio(); Sounds.tap()
     setSaving(true)
     try {
-      const time_ms = (timeMin || timeSec || timeCs)
-        ? toMs(timeMin, timeSec, timeCs)
-        : undefined
+      let time_ms: number | undefined
+      let repTimesNote = ''
+      if (hasRepTimes) {
+        const parsedTimes = repMins.map((m, i) => parseRepTime(m, repSecs[i]))
+        const valid = parsedTimes.filter((v): v is number => v != null)
+        if (valid.length > 0) {
+          time_ms = Math.min(...valid)
+          if (repCount > 1) {
+            const lines = parsedTimes
+              .map((ms, i) => ms != null ? `${i + 1}本目: ${fmtRepTime(ms)}` : null)
+              .filter((l): l is string => l != null)
+            if (lines.length > 0) repTimesNote = `【本数ごとのタイム】\n${lines.join('\n')}`
+          }
+        }
+      } else if (hasTime) {
+        time_ms = (timeMin || timeSec || timeCs) ? toMs(timeMin, timeSec, timeCs) : undefined
+      }
 
-      // 自重モードのときは種目リストをnotesに変換（既存メモがあれば末尾に追記）
+      // 自重モード／本数ごとのタイムは、notesに構造化テキストとして変換する（既存メモがあれば末尾に追記）
       let finalNotes = notes.trim()
       if (sessionType === 'strength' && strengthMode === 'bodyweight' && bwSets.length > 0) {
         const valid = bwSets.filter(s => s.name && s.reps)
@@ -331,10 +390,9 @@ export default function ManualLogScreen() {
           finalNotes = finalNotes ? `${bwText}\n\n${finalNotes}` : bwText
         }
       }
-
-      const raw = await AsyncStorage.getItem(SESSIONS_KEY)
-      let sessions: TrainingSession[] = []
-      try { if (raw) sessions = JSON.parse(raw) } catch {}  // データ破損でも保存を継続
+      if (repTimesNote) {
+        finalNotes = finalNotes ? `${repTimesNote}\n\n${finalNotes}` : repTimesNote
+      }
 
       // 練習タイプを切り替えても非表示になったフィールドの入力値が消えずに残るため、
       // 現在のタイプで実際に表示されている項目だけを保存する（隠れたゴーストデータの混入を防ぐ）
@@ -346,7 +404,7 @@ export default function ManualLogScreen() {
         hurdle_height_cm: (eventVisible && selectedEvent && isHurdleEvent(selectedEvent)) ? hurdleHeight ?? undefined : undefined,
         time_ms:         hasTime ? time_ms : undefined,
         distance_m:      (hasDist && distanceM) ? Number(distanceM) : undefined,
-        reps:            (hasReps && repsStr)   ? Number(repsStr)   : undefined,
+        reps:            hasReps ? repCount : undefined,
         fatigue_level:   fatigue,
         condition_level: condLevel,
         notes:           finalNotes || undefined,
@@ -354,8 +412,9 @@ export default function ManualLogScreen() {
 
       if (isEdit && editId) {
         // ── 既存記録を上書き（id・created_at は保持） ──
-        sessions = sessions.map(sx => (sx.id === editId ? { ...sx, ...fields } : sx))
-        await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions))
+        const sessions = await updateSessions(current =>
+          current.map(sx => (sx.id === editId ? { ...sx, ...fields } : sx))
+        )
         autoSyncTeam(sessions, { force: true }).catch(() => {})
         Toast.show({ type: 'success', text1: '練習を更新しました ✓', visibilityTime: 1500 })
         setTimeout(() => router.back(), 400)
@@ -369,17 +428,25 @@ export default function ManualLogScreen() {
         ...fields,
       }
 
-      sessions.unshift(newSession)
-      await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions))
+      const sessions = await updateSessions(current => [newSession, ...current])
       autoSyncTeam(sessions, { force: true }).catch(() => {})
-      Toast.show({ type: 'success', text1: '練習を記録しました ✓', visibilityTime: 1500 })
 
-      // フリープランのみ：2回に1回インタースティシャル広告を表示（新規記録時のみ）
-      const tier = await getTier()
-      if (tier === 'free') {
-        const showAd = await shouldShowInterstitial()
-        if (showAd) await showInterstitialAd()
+      if (continueLogging) {
+        // 同じ日付・練習タイプのまま、種目ごとの入力だけをリセットして
+        // 続けて次の種目を記録できるようにする（試合や1回の練習で複数種目を記録したい場合）
+        Toast.show({ type: 'success', text1: '記録しました ✓ 続けて次の種目を入力できます', visibilityTime: 1800 })
+        setSelectedEvent(null)
+        setHurdleHeight(null)
+        setTimeMin(''); setTimeSec(''); setTimeCs('')
+        setDistanceM('')
+        setRepCount(1); setRepMins(['']); setRepSecs([''])
+        setNotes('')
+        setBwSets([])
+        setSaving(false)
+        return
       }
+
+      Toast.show({ type: 'success', text1: '練習を記録しました ✓', visibilityTime: 1500 })
 
       setTimeout(() => router.back(), 400)
     } catch {
@@ -395,12 +462,12 @@ export default function ManualLogScreen() {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           {/* ── ヘッダー ── */}
           <View style={[s.header, { borderBottomColor: colors.border }]}>
-            <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
+            <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={10} accessibilityLabel="戻る">
               <Ionicons name="chevron-back" size={24} color={colors.text} />
             </TouchableOpacity>
             <Text style={[s.headerTitle, { color: colors.text }]}>{isEdit ? '記録を編集' : '手動入力'}</Text>
             <TouchableOpacity
-              onPress={handleSave}
+              onPress={() => handleSave()}
               disabled={saving}
               style={[s.saveBtn, { backgroundColor: '#1c1c1e', opacity: saving ? 0.6 : 1 }]}
             >
@@ -451,7 +518,7 @@ export default function ManualLogScreen() {
                     <View style={[s.eventChip, { backgroundColor: typeInfo.color + '22', borderColor: typeInfo.color }]}>
                       <Text style={[s.eventChipText, { color: typeInfo.color }]}>{eventLabel(selectedEvent)}</Text>
                     </View>
-                    <TouchableOpacity onPress={() => { setSelectedEvent(null); Sounds.tap() }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <TouchableOpacity onPress={() => { setSelectedEvent(null); Sounds.tap() }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="種目の選択を解除">
                       <Ionicons name="close-circle" size={18} color={colors.textHint} />
                     </TouchableOpacity>
                   </View>
@@ -532,8 +599,8 @@ export default function ManualLogScreen() {
               </TouchableOpacity>
             </Modal>
 
-            {/* ── タイム入力 ── */}
-            {hasTime && (
+            {/* ── タイム入力（本数を持たない種目のみ。本数がある種目は下の「本数」セクションにまとめる） ── */}
+            {!hasReps && hasTime && (
               <Section title="タイム（任意）">
                 <View style={s.timeRow}>
                   <TimeField value={timeMin} onChange={setTimeMin} placeholder="0" label="分" colors={colors} />
@@ -628,6 +695,7 @@ export default function ManualLogScreen() {
                         <TouchableOpacity
                           onPress={() => { setBwSets(prev => prev.filter((_, i) => i !== idx)); Sounds.tap() }}
                           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          accessibilityLabel={`${bw.name}を削除`}
                         >
                           <Ionicons name="close-circle" size={20} color={colors.textHint} />
                         </TouchableOpacity>
@@ -638,20 +706,62 @@ export default function ManualLogScreen() {
               </Section>
             )}
 
-            {/* ── 本数 / セット（ウェイト以外 or 器具ウェイト） ── */}
+            {/* ── 本数（＋で増やすとその本数分だけタイム欄が並ぶ／ウェイト以外 or 器具ウェイト） ── */}
             {hasReps && !(sessionType === 'strength' && strengthMode === 'bodyweight') && (
-              <Section title="本数">
-                <View style={s.inlineRow}>
-                  <TextInput
-                    value={repsStr}
-                    onChangeText={v => setRepsStr(v.replace(/[^0-9]/g, ''))}
-                    placeholder="例: 6"
-                    placeholderTextColor={colors.textHint}
-                    keyboardType="numeric"
-                    style={[s.shortInput, { backgroundColor: colors.surface2, color: colors.text }]}
-                  />
+              <Section title={hasRepTimes ? '本数・タイム（任意）' : '本数'}>
+                <View style={s.stepperRow}>
+                  <HapticTouch
+                    haptic="tap"
+                    onPress={() => changeRepCount(repCount - 1)}
+                    disabled={repCount <= 1}
+                    style={[s.stepperBtn, { backgroundColor: colors.surface2, opacity: repCount <= 1 ? 0.4 : 1 }]}
+                    hitSlop={4}
+                    accessibilityLabel="本数を減らす"
+                  >
+                    <Ionicons name="remove" size={18} color={colors.text} />
+                  </HapticTouch>
+                  <Text style={[s.stepperCount, { color: colors.text }]}>{repCount}</Text>
                   <Text style={[s.unitLabel, { color: colors.textSec }]}>本</Text>
+                  <HapticTouch
+                    haptic="tap"
+                    onPress={() => changeRepCount(repCount + 1)}
+                    style={[s.stepperBtn, { backgroundColor: BRAND + '18' }]}
+                    hitSlop={4}
+                    accessibilityLabel="本数を増やす"
+                  >
+                    <Ionicons name="add" size={18} color={BRAND} />
+                  </HapticTouch>
                 </View>
+
+                {hasRepTimes && (
+                  <View style={{ gap: 8, marginTop: 12 }}>
+                    {Array.from({ length: repCount }, (_, i) => (
+                      <View key={i} style={s.repRow}>
+                        {repCount > 1 && (
+                          <Text style={[s.repRowLabel, { color: colors.textSec }]}>{i + 1}本目</Text>
+                        )}
+                        <View style={s.repTimeGroup}>
+                          <TextInput
+                            value={repMins[i] ?? ''}
+                            onChangeText={t => setRepMins(prev => prev.map((v, idx) => idx === i ? t.replace(/[^0-9]/g, '') : v))}
+                            placeholder="0" placeholderTextColor={colors.textHint}
+                            keyboardType="number-pad" maxLength={2} textAlign="center"
+                            style={[s.repTimeInput, { width: 44, backgroundColor: colors.surface2, color: colors.text }]}
+                          />
+                          <Text style={[s.repTimeSep, { color: colors.textSec }]}>分</Text>
+                          <TextInput
+                            value={repSecs[i] ?? ''}
+                            onChangeText={t => setRepSecs(prev => prev.map((v, idx) => idx === i ? t.replace(/[^0-9.]/g, '') : v))}
+                            placeholder="12.34" placeholderTextColor={colors.textHint}
+                            keyboardType="decimal-pad" maxLength={5} textAlign="center"
+                            style={[s.repTimeInput, { flex: 1, backgroundColor: colors.surface2, color: colors.text }]}
+                          />
+                          <Text style={[s.repTimeSep, { color: colors.textSec }]}>秒</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
               </Section>
             )}
 
@@ -732,6 +842,19 @@ export default function ManualLogScreen() {
               )}
             </Section>
 
+            {/* 同じ日に別の種目も記録したい場合（例: 100m と 200m を同じ練習で） */}
+            {!isEdit && (
+              <TouchableOpacity
+                onPress={() => handleSave(true)}
+                disabled={saving}
+                style={[s.continueBtn, { borderColor: BRAND, opacity: saving ? 0.5 : 1 }]}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="add-circle-outline" size={16} color={BRAND} />
+                <Text style={[s.continueBtnText, { color: BRAND }]}>保存して続けて別の種目を記録</Text>
+              </TouchableOpacity>
+            )}
+
             <View style={{ height: 40 }} />
           </ScrollView>
         </KeyboardAvoidingView>
@@ -774,9 +897,11 @@ export default function ManualLogScreen() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   const { colors } = useTheme()
   return (
-    <View style={s.section}>
-      <Text style={[s.sectionTitle, { color: '#888' }]}>{title}</Text>
-      {children}
+    <View style={s.sectionShadow}>
+      <View style={[s.section, { backgroundColor: colors.surface }]}>
+        <Text style={[s.sectionTitle, { color: colors.textSec }]}>{title}</Text>
+        {children}
+      </View>
     </View>
   )
 }
@@ -796,7 +921,7 @@ function TimeField({ value, onChange, placeholder, label, colors }: {
         style={[s.timeInput, { backgroundColor: colors.surface2, color: colors.text }]}
         textAlign="center"
       />
-      <Text style={[s.timeLabel, { color: colors.textHint }]}>{label}</Text>
+      <Text style={[s.timeLabel, { color: colors.textSec }]}>{label}</Text>
     </View>
   )
 }
@@ -812,18 +937,27 @@ const s = StyleSheet.create({
   saveBtn:      { paddingHorizontal: 24, paddingVertical: 12, borderRadius: 50 },
   saveBtnText:  { color: '#fff', fontSize: 15, fontWeight: '800', letterSpacing: -0.3 },
 
-  content:  { padding: 16, gap: 8 },
-  section:  { gap: 10, marginBottom: 4 },
-  sectionTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase' },
+  content:  { padding: 16, paddingTop: 12, gap: 14 },
+  sectionShadow: {
+    borderRadius: 18,
+    shadowColor: '#0d1f16',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  section:  { gap: 12, borderRadius: 18, padding: 16, overflow: 'hidden' },
+  sectionTitle: { fontSize: 12, fontWeight: '800', letterSpacing: 0.6 },
 
   typeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   typeBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 12, paddingVertical: 8,
-    borderRadius: 12, borderWidth: 1.5,
+    flexBasis: '31%', flexGrow: 1,
+    flexDirection: 'row', alignItems: 'center', gap: 7,
+    paddingHorizontal: 10, paddingVertical: 11,
+    borderRadius: 14, borderWidth: 1.5,
     backgroundColor: 'transparent',
   },
-  typeBtnLabel: { fontSize: 12, fontWeight: '700' },
+  typeBtnLabel: { fontSize: 12.5, fontWeight: '700' },
 
   dateChip: {
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
@@ -854,29 +988,42 @@ const s = StyleSheet.create({
   tplModalInput: { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15 },
   tplModalBtn:   { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 12 },
 
-  timeRow:      { flexDirection: 'row', alignItems: 'flex-end', gap: 6 },
-  timeSep:      { fontSize: 22, fontWeight: '800', marginBottom: 8 },
-  timeFieldWrap:{ alignItems: 'center', gap: 4 },
+  timeRow:      { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
+  timeSep:      { fontSize: 24, fontWeight: '800', marginBottom: 10 },
+  timeFieldWrap:{ alignItems: 'center', gap: 5 },
   timeInput: {
-    width: 56, height: 52, borderRadius: 14,
-    fontSize: 22, fontWeight: '800', fontVariant: ['tabular-nums'],
+    width: 64, height: 58, borderRadius: 16,
+    fontSize: 24, fontWeight: '800', fontVariant: ['tabular-nums'],
   },
-  timeLabel: { fontSize: 10, fontWeight: '600' },
+  timeLabel: { fontSize: 10.5, fontWeight: '700' },
 
   inlineRow:  { flexDirection: 'row', alignItems: 'center', gap: 10 },
   shortInput: {
-    width: 100, height: 46, borderRadius: 14,
+    width: 100, height: 48, borderRadius: 14,
     fontSize: 18, fontWeight: '700', paddingHorizontal: 12, fontVariant: ['tabular-nums'],
   },
   unitLabel:  { fontSize: 14, fontWeight: '700' },
 
+  stepperRow:   { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  stepperBtn:   { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  stepperCount: { fontSize: 22, fontWeight: '900', minWidth: 30, textAlign: 'center', fontVariant: ['tabular-nums'] },
+
+  repRow:       { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  repRowLabel:  { fontSize: 12, fontWeight: '700', width: 46 },
+  repTimeGroup: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  repTimeInput: {
+    height: 42, borderRadius: 12,
+    fontSize: 15, fontWeight: '700', paddingHorizontal: 10, fontVariant: ['tabular-nums'],
+  },
+  repTimeSep:   { fontSize: 12, fontWeight: '600' },
+
   fatigueRow: { flexDirection: 'row', gap: 6 },
   fatigueBtn: {
     flex: 1, alignItems: 'center', gap: 4,
-    paddingVertical: 10, borderRadius: 12,
+    paddingVertical: 12, borderRadius: 14,
     borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.1)',
   },
-  fatigueBtnLabel: { fontSize: 9, fontWeight: '700', textAlign: 'center' },
+  fatigueBtnLabel: { fontSize: 10, fontWeight: '700', textAlign: 'center' },
 
   notesInput: {
     borderRadius: 14, padding: 12,
@@ -894,6 +1041,11 @@ const s = StyleSheet.create({
     paddingVertical: 4, paddingHorizontal: 2,
   },
   saveTplBtnText: { fontSize: 12, color: BRAND },
+  continueBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    marginTop: 20, borderWidth: 1.5, borderRadius: 50, paddingVertical: 13,
+  },
+  continueBtnText: { fontSize: 14, fontWeight: '700' },
 
   // 自重トレーニング
   modeToggleRow:    { flexDirection: 'row', gap: 10 },

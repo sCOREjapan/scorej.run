@@ -1,0 +1,1788 @@
+{
+  "common": {
+    "cancel": "Cancel",
+    "save": "Save",
+    "loading": "Loading..."
+  },
+  "languagePicker": {
+    "title": "Select your language",
+    "japanese": "日本語",
+    "english": "English"
+  },
+  "consent": {
+    "backToConsent": "Back to consent",
+    "welcomeTitle": "Welcome to sCORE",
+    "subtitle": "Before you get started,\nplease review the following",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy",
+    "agreeToTerms": "I agree to the Terms of Service",
+    "agreeToPrivacy": "I agree to the Privacy Policy",
+    "agreeAndReturn": "Agree to {{doc}} and return",
+    "startApp": "Agree and start the app",
+    "footer": "© 2026 trackmate. All rights reserved."
+  },
+  "onboarding": {
+    "intro": {
+      "slide1": {
+        "tagline": "Track & Field Performance Management",
+        "heroTitle": "Your body's score\nprevents injury and\nmakes you stronger.",
+        "heroSub": "AI combines sleep, fatigue, and training load\nto guide your best practice today",
+        "sleepScore": "Sleep Score",
+        "fatigue": "Fatigue",
+        "condition": "Condition",
+        "nextPage": "Next page"
+      },
+      "slide2": {
+        "tag": "WHAT sCORE DOES",
+        "title": "What sCORE can do",
+        "subtitle": "It's not just about logging.\nYour accumulated data changes tomorrow's practice.",
+        "features": [
+          {
+            "title": "Track your body's score in real time",
+            "desc": "Combines sleep, fatigue, and training load into one number, so you know instantly whether to push today."
+          },
+          {
+            "title": "AI designs today's menu",
+            "desc": "Just pick from your practice library. AI builds a pro-coach-level menu for you."
+          },
+          {
+            "title": "Detect injury risk early",
+            "desc": "Detects fatigue, poor sleep, and declining condition, and alerts you before an injury happens."
+          },
+          {
+            "title": "Work backward from your goal",
+            "desc": "Set your competition date and target time. AI builds a training plan working backward from there."
+          }
+        ]
+      },
+      "slide3": {
+        "tag": "DO YOU RELATE?",
+        "title": "Does this sound familiar?",
+        "subtitle": "Select anything that applies to you",
+        "checklist": [
+          "I've missed an important race due to injury",
+          "I train hard but my times aren't improving",
+          "I can't quantify my own physical condition",
+          "I can't keep up a training journal",
+          "I never know if I've actually recovered from fatigue",
+          "Planning a practice menu from scratch every time is a hassle"
+        ],
+        "resultSuffix": " of these apply to you",
+        "resultSub": "sCORE was built to solve all of these."
+      },
+      "slide4": {
+        "tag": "BEFORE & AFTER",
+        "title": "Better tracking changes your results",
+        "subtitle": "Given equal effort, the athlete who tracks wins.",
+        "beforeLabel": "The old way",
+        "afterLabel": "sCORE",
+        "before": [
+          "Logging in a paper notebook",
+          "Data scattered everywhere",
+          "Only learn the cause of an injury after the fact",
+          "Planning a menu from scratch every time",
+          "Relying on gut feeling for your condition"
+        ],
+        "after": [
+          "Every record automatically combined",
+          "See your condition at a glance with a score",
+          "Detect injury risk before it happens",
+          "AI builds a menu in 30 seconds",
+          "Your data becomes a weapon for the next practice"
+        ]
+      },
+      "slide5": {
+        "tag": "FROM THE DEVELOPER",
+        "title": "A message from the developer",
+        "message": "Throughout my years in track and field, I've been sidelined by injury more times than I can count.\n\nEvery time, I had to guess whether my fatigue had cleared or whether it was safe to push hard that day. And more than once, pushing too hard is exactly what sidelined me again.\n\nIf only I could have actually seen my body's condition as a number back then. If only I could have noticed the warning signs before the injury happened.\n\nThat regret is why sCORE exists.\n\nI want even one fewer athlete to go through what I did. I want even one more athlete to be able to train at full effort.\n\nI believe that staying on the starting line, season after season, is the strongest strategy there is.",
+        "signature": "The sCORE Developer"
+      },
+      "back": "Back",
+      "next": "Next",
+      "startQuest": "Start the Quest"
+    },
+    "categories": {
+      "sprint": {
+        "label": "Sprint",
+        "sub": "100m–400mH"
+      },
+      "middle": {
+        "label": "Middle Distance",
+        "sub": "800m–3000mSC"
+      },
+      "long": {
+        "label": "Long Distance",
+        "sub": "5000m–Marathon"
+      },
+      "field": {
+        "label": "Field",
+        "sub": "Jumps & Throws"
+      }
+    },
+    "experience": {
+      "beginner": {
+        "label": "Just Starting",
+        "sub": "< 1 year"
+      },
+      "intermediate": {
+        "label": "Intermediate",
+        "sub": "2–4 years"
+      },
+      "experienced": {
+        "label": "Experienced",
+        "sub": "5–9 years"
+      },
+      "veteran": {
+        "label": "Veteran",
+        "sub": "10+ years"
+      }
+    },
+    "step": {
+      "headline1": "First, tell us\nyour name.",
+      "headline2": "Which discipline\nare you best at?",
+      "headline3": "What's your\nmain event?",
+      "headline4": "Just a few more\nquestions.",
+      "sub1": "Knowing your name lets us build\na training plan just for you.",
+      "sub2": "Choose the discipline\nyou focus on most.",
+      "sub3": "Choose the event you\nfocus on most.",
+      "sub4": "Filling these in makes AI advice\nmore accurate (you can skip)."
+    },
+    "skip": "Skip",
+    "defaultAthleteName": "Athlete",
+    "namePlaceholder": "e.g. Taro Tanaka",
+    "processing": {
+      "title": "Creating your plan...",
+      "items": [
+        "Analyzing your data...",
+        "Calculating injury risk...",
+        "Generating your AI plan..."
+      ]
+    },
+    "reveal": {
+      "badge": "Plan complete",
+      "title": "A custom plan for {{name}}\nis ready",
+      "defaultName": "you",
+      "event": "Event",
+      "level": "Level",
+      "nextGoal": "Next goal",
+      "nextGoalValue": "Beat your personal best",
+      "startButton": "Start with this plan"
+    },
+    "fields": {
+      "experienceLabel": "Years of experience",
+      "ageLabel": "Age",
+      "agePlaceholder": "e.g. 20",
+      "ageUnit": "yrs",
+      "regionLabel": "Region (prefecture)",
+      "regionHint": "You can change this later in Settings (optional)",
+      "pbLabel": "Personal best ({{event}})",
+      "pbLabelDefault": "your event",
+      "pbHintField": "Enter in meters (e.g. 7.32)",
+      "pbHintTrack": "Seconds or m:ss format (e.g. 10.85 / 1:47.32)",
+      "pbPlaceholderField": "e.g. 7.32 (m)",
+      "pbPlaceholderLong": "e.g. 13:45.00 / 1:23:45",
+      "pbPlaceholderMiddle": "e.g. 1:47.32 / 3:35.00",
+      "pbPlaceholderShort": "e.g. 10.85 / 47.32"
+    },
+    "quiz": {
+      "next": "Next",
+      "createPlan": "Create Plan"
+    }
+  },
+  "home": {
+    "dayNames": [
+      "Sun",
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri",
+      "Sat"
+    ],
+    "relativeDate": {
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "dayAfterTomorrow": "Day after tomorrow"
+    },
+    "condition": {
+      "tough": "Rough",
+      "hard": "Tired",
+      "normal": "OK",
+      "good": "Good",
+      "great": "Great"
+    },
+    "risk": {
+      "cardTitle": "Today's Injury Risk",
+      "detail": "Details",
+      "weather": "Weather",
+      "scaleLow": "Low",
+      "scaleMid": "Mid",
+      "scaleHigh": "High",
+      "tiers": {
+        "low": {
+          "label": "Low Risk",
+          "phrase": "Push at full effort!",
+          "note": "You're good to push hard today"
+        },
+        "caution": {
+          "label": "Mild Caution",
+          "phrase": "Keep it light",
+          "note": "A lighter session is recommended today"
+        },
+        "warning": {
+          "label": "Caution",
+          "phrase": "Ease off the intensity",
+          "note": "Dial back the intensity today"
+        },
+        "high": {
+          "label": "High Risk",
+          "phrase": "Rest is needed today",
+          "note": "Take a proper rest day today"
+        }
+      }
+    },
+    "stretchBanner": {
+      "today": "Today's Pick",
+      "title": "5 min of stretching",
+      "gain": "Injury risk −12%",
+      "start": "Start"
+    },
+    "conditionCardDefaultLabel": "Today's Condition",
+    "improvementTasksTitle": "Improvement Tasks",
+    "datePicker": {
+      "clear": "Clear",
+      "selectHint": "Select a date (optional)"
+    },
+    "goals": {
+      "deadlinePassed": "Overdue",
+      "dueToday": "Due today",
+      "daysLeft": "{{n}} days left",
+      "title": "Goals",
+      "activeCount": "{{n}}",
+      "tapToAdd": "Tap to add a goal",
+      "taskCount": "{{done}}/{{total}} tasks",
+      "achieved": "Achieved!",
+      "longPress": "Long press",
+      "addTask": "Add task",
+      "hideAchieved": "Hide achieved",
+      "showAchieved": "{{n}} achieved",
+      "editTitle": "Edit Goal",
+      "addTitle": "Add Goal",
+      "label": "Goal",
+      "textPlaceholder": "e.g. Break 11 seconds in the 100m",
+      "deadlineLabel": "Deadline (optional)",
+      "tasksLabel": "Tasks",
+      "tasksCompleted": "{{done}}/{{total}} done",
+      "taskInputPlaceholder": "Enter a new task...",
+      "save": "Save",
+      "add": "Add",
+      "delete": "Delete",
+      "daysSinceSet": "{{n}}d since set"
+    },
+    "ctaItems": {
+      "condition": "Log today's condition",
+      "sleep": "Log your sleep",
+      "practice": "Log today's practice"
+    },
+    "toasts": {
+      "streakBonus": "Streak bonus!",
+      "ticketsEarned": "🎫 Earned {{n}} tickets",
+      "hydration": "Nice hydration! 🚰 Your risk score dropped a bit",
+      "hydrationCount": "{{n}}x today",
+      "firstGoalBonus": "🎫 Earned 5 tickets for setting a goal"
+    },
+    "dailyLimitAlert": {
+      "title": "Daily limit reached",
+      "message": "Please try again tomorrow.",
+      "ok": "OK"
+    },
+    "aiAdvice": {
+      "unavailable": "Not calculated",
+      "getFailed": "Couldn't get advice. Please try again later.",
+      "apiError": "⚠️ API error ({{status}}). Please try again later.",
+      "connectionError": "⚠️ Connection error: {{message}}",
+      "tryAgain": "Please try again.",
+      "ticketUsed": "🎫 Used {{n}} ticket(s)"
+    },
+    "todoCta": {
+      "title": "Not logged yet today",
+      "allDone": "Today's logging is complete! Great work 🎉"
+    },
+    "hydrationReminder": {
+      "text": "Don't forget electrolytes too — try an oral rehydration drink or salt tablets",
+      "drank": "Drank!"
+    },
+    "igBanner": {
+      "question": "Following @score.app.japan?",
+      "challenge": "Monthly Challenge is on 🎯 Join and beat your best"
+    },
+    "teamBanner": {
+      "newEvent": "A new event was added",
+      "moreCount": "+{{n}} more",
+      "moreEvents": "{{n}} more events →"
+    },
+    "selectedDateSection": {
+      "recordsFor": "Records for {{date}}",
+      "noRecords": "No records for this day",
+      "fatigue": "Fatigue {{n}}"
+    },
+    "miniCards": {
+      "quickLog": "Quick Log",
+      "quickLogSub": "Done in 30 sec",
+      "injuryReturn": "Until return",
+      "competitionCountdown": "Until competition",
+      "daysUnit": "{{n}}d",
+      "countdown": "Countdown",
+      "registerCompetition": "Register competition"
+    },
+    "aiCoachCard": {
+      "title": "Today's AI Advice",
+      "viewAdvice": "View today's advice",
+      "analyze": "Analyzed from your practice & condition data",
+      "ticketBadge": "🎫 {{n}}"
+    },
+    "quickAccess": {
+      "title": "Quick Access",
+      "videoAnalysis": "Video Analysis",
+      "menu": "Menu",
+      "calendar": "Calendar",
+      "mealAnalysis": "Meal Analysis",
+      "competitionPlan": "Competition Plan",
+      "starter": "Starter",
+      "combinedEvents": "Combined Events",
+      "trainingTimer": "Training\nTimer"
+    },
+    "practiceList": {
+      "title": "Practice Log",
+      "count": "{{n}}",
+      "progress": "View progress →",
+      "noRecords": "No records yet",
+      "addHint": "Log one with the + button below!"
+    },
+    "recoveryBanner": "✅ Recovery complete! Injury risk dropped {{n}} points",
+    "breakdown": {
+      "title": "Injury Risk Breakdown",
+      "base": "Base {{n}}",
+      "stretch": "− Stretching {{n}}",
+      "hydration": "− Hydration {{n}}",
+      "weather": "Weather {{n}}",
+      "current": "Current {{n}}",
+      "stretchNote": "* Stretching's reduction is also reflected in the \"Fatigue Accumulation\" and \"Recent Fatigue\" breakdowns.",
+      "hydrationNote": "* Hydration's reduction is also reflected in the \"Condition\" and \"Recent Fatigue\" breakdowns."
+    },
+    "aiCoachModal": {
+      "title": "Advice from your AI Coach",
+      "analyzing": "Analyzing your data…",
+      "refetch": "Regenerate"
+    },
+    "countdownModal": {
+      "title": "Countdown",
+      "subtitle": "Select a plan",
+      "competitionPlan": "Competition Plan",
+      "daysLeft": "{{n}} days left",
+      "registerHint": "Register a competition to start the countdown",
+      "registerButton": "Register a competition",
+      "injuryPlan": "Injury Recovery Plan",
+      "recoveryInProgress": "Recovery plan in progress",
+      "injuryFree": "Injury-free streak",
+      "daysUnit": "{{n}} days",
+      "recordInjuryButton": "Log an injury"
+    }
+  },
+  "settings": {
+    "currentPlan": {
+      "title": "Current Plan",
+      "plans": {
+        "coach": "🏆 Coach Plan",
+        "ticketMonthly": "🎫 Ticket Monthly Plan",
+        "noad": "🚫 Ad-Free Plan",
+        "free": "🆓 Free Plan"
+      },
+      "validUntil": "Valid until {{date}}",
+      "adsShown": "Ads will be shown",
+      "viewPlans": "View plans",
+      "manage": "Manage",
+      "restorePurchases": "Restore purchases"
+    },
+    "tickets": {
+      "title": "Tickets",
+      "balance": "🎫 {{n}}",
+      "usageHint": "Use for video analysis, AI menu creation, and meal analysis",
+      "buy": "Buy",
+      "referral": "🎁 Get tickets by inviting friends"
+    },
+    "profile": {
+      "title": "Profile",
+      "name": "Name",
+      "namePlaceholder": "e.g. Taro Tanaka",
+      "eventsLabel": "Events (multiple allowed)",
+      "age": "Age",
+      "club": "Club",
+      "clubPlaceholder": "e.g. Track Club",
+      "pb": "Personal best (min:sec, e.g. 12:34.56)",
+      "target": "Target time (min:sec)",
+      "experience": "Years of experience",
+      "save": "Save",
+      "savedAlert": "Saved",
+      "profileBonus": "🎫 Earned 5 tickets for completing your profile",
+      "years": "yr",
+      "months": "mo"
+    },
+    "eventCategories": {
+      "sprint": "Sprint",
+      "middle": "Middle Distance",
+      "long": "Long Distance",
+      "hurdle": "Hurdles",
+      "steeplechase": "Steeplechase",
+      "jump": "Jumps",
+      "throw": "Throws",
+      "combined": "Combined Events",
+      "relay": "Relay"
+    },
+    "account": {
+      "title": "Account",
+      "status": "Status",
+      "guest": "Guest",
+      "createAccount": "Create account / Log in",
+      "cloudSaveHint": "Save your data to the cloud",
+      "email": "Email",
+      "signOut": "Sign out",
+      "deleteAccount": "Delete account",
+      "signOutTitle": "Sign out",
+      "signOutMessage": "Are you sure you want to sign out?",
+      "cancel": "Cancel",
+      "deleteTitle": "Delete Account",
+      "deleteMessage": "Permanently delete your account and all data? This cannot be undone.",
+      "deleteConfirm": "Delete",
+      "deleteFinalTitle": "Are you absolutely sure?",
+      "deleteFinalMessage": "Your practice records, condition data, and settings will all be deleted.",
+      "deleteFinalConfirm": "Delete permanently"
+    },
+    "team": {
+      "title": "Team Settings",
+      "currentRole": "Current role",
+      "coach": "Coach",
+      "player": "Athlete",
+      "notSet": "Not set",
+      "switchRole": "Switch coach ↔ athlete",
+      "switchConfirmWeb": "This will reset your team role. You can set it up again from the Team tab.",
+      "switchTitle": "Switch role",
+      "switchMessage": "This will reset your team role.",
+      "reset": "Reset"
+    },
+    "permissions": {
+      "title": "Permissions & Notifications",
+      "location": "Location",
+      "locationGranted": "✅ Granted — auto weather ON",
+      "locationDenied": "🚫 Denied — change in settings",
+      "unsupportedBrowser": "Unsupported browser",
+      "locationUnset": "Not set — adjusts risk for weather",
+      "pushNotif": "Push Notifications",
+      "notifGranted": "✅ Granted — notifications ON",
+      "notifDenied": "🚫 Denied — change in settings",
+      "notifUnset": "Not set — risk, sleep & practice alerts",
+      "openSettings": "Open settings",
+      "allow": "Allow",
+      "schedule": {
+        "practice": "Practice log reminder",
+        "sleep": "Sleep reminder",
+        "riskAlert": "Injury risk alert",
+        "competition": "Competition reminder",
+        "realtime": "Real-time",
+        "beforeCompetition": "Before competition"
+      },
+      "practiceReminderSwitch": "Practice reminder (5pm)",
+      "competitionReminderSwitch": "Competition reminder",
+      "homeScreenTitle": "Add to Home Screen to use notifications",
+      "homeScreenMessage": "On iPhone, tap Share → Add to Home Screen in Safari to enable notifications.",
+      "notifOnTitle": "Notifications turned ON 🎉",
+      "notifOnMessage": "We'll send practice/sleep reminders and injury risk alerts.",
+      "notifDeniedTitle": "Notifications are denied",
+      "notifDeniedMessage": "Please allow notifications in your browser settings.\niPhone: Settings → Safari → Advanced → Notifications",
+      "locDeniedTitleNative": "Location access is denied",
+      "locDeniedMessageNative": "Please go to iPhone Settings → sCORE → Location and select \"While Using the App\".",
+      "locErrorTitle": "Error",
+      "locErrorMessage": "Failed to request location permission.",
+      "locUnsupportedTitle": "Unsupported",
+      "locUnsupportedMessage": "This browser does not support location services.",
+      "locOnTitle": "Location turned ON ✅",
+      "locOnMessage": "Weather data will be fetched automatically and reflected in your risk score.",
+      "locDeniedTitleWeb": "Location access is denied",
+      "locDeniedMessageWeb": "Please allow it from your browser's Settings → Site Settings → Location.",
+      "locFailedTitle": "Failed to get location"
+    },
+    "sound": {
+      "title": "Sound & Haptics",
+      "soundEffect": "Sound effects",
+      "vibration": "Vibration"
+    },
+    "data": {
+      "title": "Data",
+      "exportCsv": "Export records as CSV",
+      "resetAll": "Reset all data",
+      "exportCsvDialogTitle": "Export CSV",
+      "exportDoneTitle": "Done",
+      "exportDoneMessage": "Saved {{filename}}",
+      "exportErrorTitle": "Error",
+      "exportErrorMessage": "Export failed",
+      "resetConfirmWeb": "Reset all data?\nYour practice records, profile, and settings will all be deleted. This cannot be undone.",
+      "resetTitle": "Reset All Data",
+      "resetMessage": "Your practice records, profile, team info, and settings will all be deleted.\n\nThis cannot be undone.",
+      "resetConfirm": "Delete everything"
+    },
+    "appInfo": {
+      "title": "App Info",
+      "version": "Version",
+      "language": "Language / 言語",
+      "japanese": "日本語",
+      "english": "English",
+      "support": "Contact & Support",
+      "privacyPolicy": "Privacy Policy",
+      "terms": "Terms of Service",
+      "replayTutorial": "Replay tutorial",
+      "footer": "Made with ❤️ for athletes"
+    }
+  },
+  "team": {
+    "bodyParts": {
+      "head": "Head/Neck",
+      "shoulderR": "Right Shoulder",
+      "shoulderL": "Left Shoulder",
+      "elbowR": "Right Arm/Elbow",
+      "backUpper": "Upper Back/Chest",
+      "elbowL": "Left Arm/Elbow",
+      "backLower": "Lower Back",
+      "hipR": "Right Hip",
+      "hipL": "Left Hip",
+      "kneeR": "Right Knee",
+      "kneeL": "Left Knee",
+      "ankleR": "Right Ankle",
+      "ankleL": "Left Ankle"
+    },
+    "aiMenuFocusTags": {
+      "sprint": "Sprint",
+      "interval": "Interval",
+      "drill": "Drills",
+      "strength": "Strength",
+      "endurance": "Endurance"
+    },
+    "aiMenuIntensity": {
+      "light": "Light",
+      "normal": "Normal",
+      "hard": "Hard"
+    },
+    "eventCfg": {
+      "practice": "Practice",
+      "race": "Race",
+      "rest": "Rest",
+      "meeting": "Meeting",
+      "other": "Other"
+    },
+    "riskCfg": {
+      "danger": "High Risk",
+      "high": "Caution",
+      "medium": "Monitor",
+      "low": "Good"
+    },
+    "loadCfg": {
+      "danger": "Danger",
+      "high": "High",
+      "medium": "Mid",
+      "low": "Low"
+    },
+    "fatigue": {
+      "easy": "Easy",
+      "slightlyEasy": "Somewhat Easy",
+      "normal": "Normal",
+      "hard": "Tough",
+      "limit": "Limit"
+    },
+    "date": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "tomorrow": "Tomorrow",
+      "daysAgo": "{{n}}d ago",
+      "justNow": "Just now",
+      "minutesAgo": "{{n}}m ago",
+      "hoursAgo": "{{n}}h ago",
+      "daysLeftShort": "{{n}}d left"
+    },
+    "demoMembers": {
+      "tanaka": {
+        "name": "Tsubasa Tanaka",
+        "event": "100m / 200m"
+      },
+      "suzuki": {
+        "name": "Ai Suzuki",
+        "event": "5000m"
+      },
+      "sato": {
+        "name": "Hina Sato",
+        "event": "400m / 400mH"
+      },
+      "ito": {
+        "name": "Takumi Ito",
+        "event": "1500m"
+      }
+    },
+    "playerIconPicker": {
+      "title": "Choose an icon",
+      "reset": "Reset icon (show initial instead)"
+    },
+    "confirm": {
+      "cancel": "Cancel"
+    },
+    "videoSubmit": {
+      "titleGuide": "🎥 Send a video to your coach",
+      "titleInput": "🔗 Paste a URL to send",
+      "close": "Close",
+      "step1Title": "Open Google Drive",
+      "step1Desc": "Tap the \"Open Drive\" button below",
+      "step2Title": "Upload your video",
+      "step2Desc": "+ button → Upload → Select video",
+      "step3Title": "Copy the share link",
+      "step3Desc": "Long-press the file → Share → \"Copy link\"",
+      "step4Title": "Paste it here to send",
+      "step4Desc": "Tap the \"Paste & send\" button below",
+      "openDrive": "Open Google Drive",
+      "pasteAndSend": "Paste copied URL and send",
+      "manualInputHint": "Enter the URL manually instead",
+      "backToGuide": "View instructions",
+      "urlLabel": "Video URL (Google Drive / YouTube)",
+      "urlPlaceholder": "https://drive.google.com/...",
+      "pasteFromClipboard": "Paste from clipboard",
+      "noteLabel": "Note to coach (optional)",
+      "notePlaceholder": "Please check my start technique...",
+      "sending": "Sending...",
+      "send": "Send",
+      "defaultDesc": "Sent a video",
+      "urlPasted": "Pasted the URL",
+      "urlNotFound": "No URL found",
+      "urlNotFoundHint": "First copy the link from Google Drive",
+      "clipboardReadFailed": "Failed to read the clipboard",
+      "urlRequired": "Please enter a URL",
+      "sentToast": "Video sent ✓",
+      "sendFailed": "Failed to send",
+      "newMemberTitle": "👋 New member",
+      "newMemberBody": "{{name}} joined the team"
+    },
+    "roleSelection": {
+      "title": "Team Features",
+      "subtitle": "Select your role",
+      "coachTitle": "Coach / Manager / Teacher",
+      "coachDesc": "Create a team and invite athletes. Check status and send announcements",
+      "playerTitle": "Athlete",
+      "playerDesc": "Join a team with a code. Report your status and send videos to your coach",
+      "changeLaterHint": "* You can change this later"
+    },
+    "coachSetup": {
+      "back": "Back",
+      "title": "Create a Team",
+      "subtitle": "A join code will be issued after creation",
+      "teamNameLabel": "Team name",
+      "teamNamePlaceholder": "e.g. Lincoln High Track Team",
+      "coachNameLabel": "Coach / Manager name",
+      "coachNamePlaceholder": "e.g. Taro Yamamoto",
+      "createButton": "Create team",
+      "missingFields": "Please enter a team name and coach name",
+      "createFailed": "Failed to create the team. Please try again"
+    },
+    "playerJoin": {
+      "back": "Back",
+      "title": "Join a Team",
+      "subtitle": "Enter the code from your coach\nand your name",
+      "codeLabel": "Join code (6 characters)",
+      "nameLabel": "Your name",
+      "namePlaceholder": "e.g. Taro Tanaka",
+      "joinButton": "Join team",
+      "joining": "Joining...",
+      "codeError": "Please enter a 6-character code",
+      "nameError": "Please enter your name",
+      "teamNotFound": "Team not found. Please check the code",
+      "corruptData": "Saved data is corrupted. Please try again",
+      "joinFailed": "Failed to join. Please try again",
+      "joinedToast": "Joined {{teamName}}!",
+      "defaultTeamName": "Team",
+      "defaultCoachName": "Coach"
+    },
+    "coachDashboard": {
+      "role": "Coach",
+      "code": "Join code",
+      "refresh": "Refresh",
+      "menu": "Menu",
+      "loading": "Loading data...",
+      "syncBannerTitle": "Athletes need to open the app for scores to appear",
+      "syncBannerBody": "When each athlete opens the app and views the Team tab, their practice data syncs automatically and scores appear. Tap ↻ at the top right to refetch.",
+      "needsAttention": "Needs attention",
+      "needsAttentionCount": "{{n}}",
+      "teamLoad": "Team load",
+      "absenceReport": "Absence report",
+      "markConfirmed": "Mark as confirmed",
+      "showAll": "× Show all ({{n}})",
+      "noEventSet": "No event set",
+      "notSynced": "Not synced",
+      "unconfirmed": "🤕Unconfirmed",
+      "removeMember": "Remove member",
+      "noMatchingMembers": "No matching athletes",
+      "messagePlaceholder": "Enter a message to the team...",
+      "send": "Send",
+      "noMessages": "No messages yet",
+      "delete": "Delete",
+      "pin": "Pin",
+      "unpin": "Unpin",
+      "systemAbsence": "Absence report",
+      "systemVideo": "Video / form review",
+      "systemRisk": "Risk alert",
+      "systemNotice": "Notice",
+      "sentToast": "Sent",
+      "sendFailedTitle": "Couldn't send",
+      "loginRequired": "You need to log in",
+      "noVideosYet": "No videos yet",
+      "noVideosHint": "When an athlete sends a video\nit'll show up here",
+      "watchVideo": "Watch video",
+      "videoDaysLeft": "{{n}}d left",
+      "videoAutoDeleteNote": "Videos are automatically deleted 7 days after posting",
+      "noEventsYet": "No events yet",
+      "addEventHint": "Add one with the button below",
+      "ended": "Ended",
+      "deleteEvent": "Delete event",
+      "writeMenuLabel": "Write today's practice",
+      "aiMenuButton": "Stuck on a menu?",
+      "menuPlaceholder": "e.g.\nWarm-up jog 10 min\nStrides 100m×6\n300m×6 (90s rest)\nCool-down 10 min",
+      "quickPhrasesLabel": "Quick phrases (tap to insert)",
+      "addPhrase": "+ Save",
+      "quickPhrasesHint": "Save phrases you use often to insert them with one tap (long-press to delete)",
+      "shareToTeam": "Share with team",
+      "shareToTeamNote": "Posts directly as an announcement",
+      "addEventFab": "+ Add event",
+      "tabMembers": "Members",
+      "tabMenu": "Menu",
+      "tabMessages": "Announcements",
+      "tabVideos": "Videos",
+      "tabCalendar": "Events",
+      "addEventModalTitle": "📅 Add Event",
+      "eventTitleLabel": "Title (required)",
+      "eventTitlePlaceholder": "e.g. 400m Intervals",
+      "eventTypeLabel": "Type",
+      "eventDateLabel": "Date (required)",
+      "eventTimeLabel": "Time (optional)",
+      "eventTimePlaceholder": "e.g. 14:00",
+      "eventLocationLabel": "Location (optional)",
+      "eventLocationPlaceholder": "e.g. Field 2",
+      "eventMemoLabel": "Notes (optional)",
+      "eventMemoPlaceholder": "Any notes...",
+      "adding": "Adding…",
+      "add": "Add",
+      "removeMemberConfirmTitle": "Remove Member",
+      "removeMemberConfirmMessage": "Remove {{name}} from the team?",
+      "removedToast": "Removed {{name}}",
+      "deleteFailed": "Failed to delete",
+      "ackFailedTitle": "Couldn't confirm",
+      "ackFailedMessage": "Please log in and try again",
+      "ackedToast": "Marked as confirmed ✓",
+      "ackFailedGeneric": "Failed to confirm",
+      "savePhraseTitle": "Save a Quick Phrase",
+      "phraseNameLabel": "Chip name",
+      "phraseNamePlaceholder": "e.g. Warm-up jog 10min",
+      "phraseTextLabel": "Text inserted when tapped",
+      "phraseTextPlaceholder": "e.g. 300m×6 (90s rest)",
+      "save": "Save",
+      "phraseSavedToast": "Added to quick phrases ✓",
+      "aiMenuSheetTitle": "🤖 Have AI build a menu",
+      "aiMenuSheetSubtitle": "Just pick a focus and intensity. You can edit the result before sending",
+      "aiMenuFocusLabel": "Today's focus (multiple allowed)",
+      "aiMenuIntensityLabel": "Intensity",
+      "aiMenuFreeNoteLabel": "Notes (optional)",
+      "aiMenuFreeNotePlaceholder": "e.g. Race tomorrow so keep it light / one athlete just returned from injury",
+      "aiMenuGenerateButton": "Generate with AI for {{cost}} tickets",
+      "aiMenuInputRequired": "Please enter practice content",
+      "aiMenuSharedToast": "✅ Shared today's practice with the team",
+      "aiMenuShareFailed": "Failed to share",
+      "aiMenuAddedToast": "🤖 Added the AI-generated menu",
+      "aiMenuGenerateFailed": "Failed to generate a menu",
+      "tryAgain": "Please try again",
+      "dailyLimitReached": "Daily usage limit reached",
+      "dbNotSetTitle": "⚠️ Database not set up",
+      "dbNotSetMessage": "Please run schema.sql in the Supabase SQL editor",
+      "teamSyncingTitle": "Syncing team info",
+      "teamSyncingMessage": "Please try again",
+      "permissionErrorTitle": "Permission error",
+      "permissionErrorMessage": "Please log in and try again",
+      "invalidTypeTitle": "Invalid type value",
+      "eventAddFailedTitle": "Couldn't add the event",
+      "eventAddedToast": "Event added ✓",
+      "newEventPushTitle": "📅 {{teamName}}",
+      "newEventPushBody": "New event: {{title}} ({{date}})",
+      "menuAnnouncePushTitle": "📋 {{teamName}}",
+      "menuAnnouncePushBody": "Practice for {{date}}",
+      "painReportPushTitle": "🤕 Pain report",
+      "painReportPushBody": "{{name}} reported pain",
+      "videoArrivedPushTitle": "🎥 Video received",
+      "videoArrivedPushBody": "{{name}} sent a video",
+      "absenceNotifTitle": "🙏 Absence report",
+      "importantNoticeTitle": "📌 Important notice"
+    },
+    "memberDetail": {
+      "close": "Close",
+      "painUnacked": "Pain/discomfort reported (unconfirmed)",
+      "painAcked": "Pain report (confirmed)",
+      "markConfirmed": "Mark as confirmed",
+      "injuryRisk": "Injury Risk",
+      "fatigueLevel": "Fatigue",
+      "weeklyDistance": "Weekly Distance",
+      "lastWeek": "Last week {{km}}km",
+      "weeklyLoad": "Weekly load:",
+      "attentionPoints": "⚠️ Points to Watch",
+      "notSyncedTitle": "Practice data hasn't synced yet",
+      "notSyncedHint": "This will show automatically once the athlete logs a practice",
+      "joinedDate": "Joined: {{date}}"
+    },
+    "teammateProfile": {
+      "level": "Level",
+      "personalBest": "Personal Best",
+      "notEntered": "Not entered",
+      "streakDays": "{{n}}-day streak!",
+      "streakSub": "Consistency is strength",
+      "goal": "🎯 Goal",
+      "joinedDate": "Joined: {{date}}"
+    },
+    "playerDashboard": {
+      "player": "Athlete",
+      "refresh": "Refresh",
+      "menu": "Menu",
+      "loading": "Loading data...",
+      "changeIcon": "Change icon",
+      "reportPain": "Report pain",
+      "painCountReporting": "Reporting {{n}} area(s)",
+      "noPainReport": "No report",
+      "sendVideo": "Send a video",
+      "sendToCoach": "Send to coach",
+      "profile": "Profile",
+      "eventAndPb": "Event & personal best",
+      "shareSettings": "Sharing settings",
+      "shareLevelPrivate": "Private",
+      "shareLevelPartial": "Partial",
+      "shareLevelFull": "Full",
+      "tabHome": "Home",
+      "tabMembers": "Teammates",
+      "coachAnnouncements": "📌 From Your Coach",
+      "coachMessages": "📣 Messages from Coach",
+      "count": "{{n}}",
+      "noCoachMessages": "No messages from your coach yet",
+      "teamSchedule": "📅 Team Schedule",
+      "noCoachEvents": "No events from your coach yet",
+      "newEventBadge": "A new event was added",
+      "confirmed": "Confirmed",
+      "confirm": "Confirm",
+      "todayAbsence": "Today's Absence Report",
+      "absencePlaceholder": "Reason / notes (optional)",
+      "sending": "Sending...",
+      "sendButton": "Send",
+      "absenceDefault": "Absent",
+      "absenceRecordNote": "[Absence] {{note}}",
+      "absenceReportedPush": "{{name}} reported being absent",
+      "absenceSentToast": "Reported your absence to the coach ✓",
+      "sendFailed": "Failed to send",
+      "myCondition": "My Condition",
+      "noData": "No data",
+      "streakDaysUnit": "{{n}}d",
+      "zeroDays": "0d",
+      "consecutiveRecord": "Streak",
+      "currentPainReport": "Current Pain Report",
+      "noTeammatesYet": "No teammates yet",
+      "noTeammatesHint": "This will show up once\nyour coach invites other members",
+      "streakDaysShort": "{{n}}d streak",
+      "pbNotEntered": "No PB entered",
+      "painModalTitle": "Areas with pain or discomfort",
+      "painModalDesc": "Tap the affected areas (multiple OK). This will be shared with your coach.",
+      "detailNoteLabel": "Details / notes (optional)",
+      "detailNotePlaceholder": "e.g. My right knee hurts when running, started feeling off yesterday...",
+      "reportToCoach": "Report to coach",
+      "noPainClear": "No pain (clear)",
+      "painReportSentToast": "Sent your pain report",
+      "profileEditTitle": "Edit Profile",
+      "profileEditDesc": "This is shown to your teammates. Level is calculated automatically from your practice log count.",
+      "eventLabel": "Event",
+      "eventPlaceholder": "e.g. 100m, Long Jump",
+      "pbLabel": "Personal best",
+      "pbPlaceholder": "e.g. 10.83, 6m42cm",
+      "goalLabel": "Goal",
+      "goalPlaceholder": "e.g. Place at states, beat my PB",
+      "publishToTeam": "Publish to team",
+      "profileUpdatedToast": "Profile updated ✓",
+      "saveFailedToast": "Couldn't save",
+      "newMessagePush": "📣 Message from {{name}}",
+      "newEventPush": "{{date}} {{title}}",
+      "painReportPushBody": "{{labels}}: {{detail}}",
+      "painReportPushDefault": "Pain report: {{labels}}"
+    },
+    "shareLevel": {
+      "title": "Data Sharing Settings",
+      "desc": "Choose how much information to share with your coach. You can change this anytime and it applies instantly.",
+      "currentSetting": "Current setting",
+      "noChange": "No change (close)",
+      "saveApply": "Save & apply now",
+      "savedToast": "Sharing settings saved",
+      "full": {
+        "title": "Share Everything (Recommended)",
+        "desc": "Share practice volume, event, distance, and more with your coach for the most accurate support"
+      },
+      "partial": {
+        "title": "Condition Only",
+        "desc": "Only share fatigue and condition scores. Practice menu details stay private"
+      },
+      "private": {
+        "title": "Private",
+        "desc": "Only your name and event are shown. No data is shared with your coach"
+      }
+    },
+    "menuSheet": {
+      "title": "Team Menu",
+      "deleteTeam": "Delete Team",
+      "leaveTeam": "Leave Team",
+      "deleteTeamHint": "The join code will become invalid",
+      "leaveTeamHint": "You'll need the code to rejoin",
+      "cancel": "Cancel",
+      "deleteTeamConfirmMessage": "The join code will become invalid and all members' data will be lost. Are you sure you want to delete?",
+      "leaveTeamConfirmMessage": "You'll leave the team. You'll need the code to rejoin. Are you sure you want to leave?",
+      "deleteConfirmLabel": "Delete",
+      "leaveConfirmLabel": "Leave"
+    }
+  },
+  "videoAnalysis": {
+    "dimensions": {
+      "posture": "Posture",
+      "groundContact": "Ground Contact",
+      "armSwing": "Arm Swing",
+      "balance": "Balance",
+      "forceTransfer": "Force Transfer",
+      "startPosture": "Start Posture",
+      "accelPosture": "Acceleration Posture",
+      "relaxation": "Relaxation",
+      "rhythm": "Rhythm Stability",
+      "takeoff": "Takeoff Posture",
+      "approach": "Approach Posture",
+      "axisStability": "Axis Stability",
+      "kineticChain": "Kinetic Chain"
+    },
+    "confidence": {
+      "high": "High",
+      "medium": "Mid",
+      "low": "Low"
+    },
+    "focusHints": [
+      "Start posture",
+      "Arm swing",
+      "Stride",
+      "Cornering",
+      "Landing timing",
+      "Upper body lean",
+      "Finish"
+    ],
+    "eventNone": "Not specified",
+    "coachSend": {
+      "tabAi": "Analyze with AI",
+      "tabCoach": "Send to Coach",
+      "errorTitle": "Error",
+      "permissionRequired": "Permission needed",
+      "photoLibraryPermission": "Please allow access to your photo library",
+      "cameraPermission": "Please allow access to your camera",
+      "pickFailed": "Failed to select the video",
+      "recordFailed": "Failed to record the video",
+      "sendFailed": "Failed to send",
+      "defaultSendDesc": "Sent a form analysis video",
+      "coachNotifyBody": "{{name}} sent a form analysis video",
+      "sentTitle": "Sent to your coach!",
+      "sentDesc": "Your coach can view it from\n\"Coach View\" the next time they open the app.",
+      "sendAnother": "Send another",
+      "stepVideo": "Video",
+      "stepMemo": "Note",
+      "stepConfirm": "Confirm",
+      "step1Title": "Choose a video",
+      "step1Subtitle": "Send the scene you want your coach to see",
+      "recordNowTitle": "Record now",
+      "recordNowSub": "Open the camera and record (up to 90 sec)",
+      "pickLibraryTitle": "Choose from library",
+      "pickLibrarySub": "Pick from your saved videos",
+      "tip": "Filming sideways makes it easier to capture your whole body.\nFront, side, and back angles work best together.",
+      "step2Title": "Note for your coach",
+      "step2Subtitle": "Tell them what to look at (optional)",
+      "selectedCheck": "Selected ✓",
+      "eventLabel": "Event",
+      "focusHintLabel": "What to look at (tap to add)",
+      "messagePlaceholder": "Write anything else you'd like them to know...",
+      "back": "← Back",
+      "confirmNext": "Review →",
+      "step3Title": "Review & Send",
+      "step3Subtitle": "Check the details, then send",
+      "coachMemoLabel": "Note for coach",
+      "noneValue": "(none)",
+      "sendToCoach": "Send to Coach",
+      "editBack": "← Edit",
+      "footerNote": "Your coach can view the video you send from \"Coach View\" in the app."
+    },
+    "native": {
+      "title": "Form Analysis",
+      "subtitle": "AI analyzes {{n}} frames at once for a fast diagnosis",
+      "history": "History",
+      "eventLabel": "Event (optional)",
+      "eventPlaceholder": "e.g. 100m, Long Jump",
+      "personIdTitle": "👤 Identify the athlete (if multiple people appear)",
+      "laneNumberLabel": "Lane number",
+      "laneNumberPlaceholder": "e.g. 3",
+      "finishPositionLabel": "Finish position",
+      "finishPositionPlaceholder": "e.g. 2nd",
+      "clothingColorLabel": "Clothing color",
+      "clothingColorPlaceholder": "e.g. red, white",
+      "shoeColorLabel": "Shoe color",
+      "shoeColorPlaceholder": "e.g. black, yellow",
+      "targetConfirmed": "Will analyze the athlete matching {{parts}}",
+      "targetHint": "Entering a lane number or finish position helps pinpoint the right athlete even in videos with matching uniforms",
+      "laneLabel": "Lane: {{n}}",
+      "finishLabel": "Finish: {{n}}",
+      "clothingLabel": "Clothing: {{n}}",
+      "shoeLabel": "Shoes: {{n}}",
+      "videoSelected": "Video selected ✓  (tap to change)",
+      "videoSelectPrompt": "Tap to select a video",
+      "videoFormats": "MP4 / MOV supported",
+      "extractedFrames": "Extracted frames ({{n}})",
+      "stepExtract": "Extract frames",
+      "stepAnalyze": "AI analysis",
+      "stepResult": "Generate results",
+      "ticketBadge": "🎫 {{n}}",
+      "reanalyzeButton": "Re-analyze",
+      "analyzeButton": "Analyze with AI",
+      "scoreGood": "Great job!",
+      "scoreOk": "You're on track",
+      "scoreLow": "Room to grow",
+      "totalScore": "Overall Score",
+      "prevDiff": "vs last time {{sign}}{{n}}",
+      "confidenceLabel": "Analysis confidence",
+      "confidenceNote": "Evaluating form elements that are easy to observe from still images",
+      "reportWrongPerson": "Wrong athlete was analyzed (refund my ticket)",
+      "reportProcessing": "Processing...",
+      "reportRefunded": "Ticket refunded",
+      "permissionRequired": "Permission needed",
+      "photoLibraryPermission": "Please allow access to your photo library",
+      "pickErrorTitle": "Error",
+      "pickErrorMessage": "Failed to select the video",
+      "wrongPersonTitle": "Was the wrong athlete analyzed?",
+      "wrongPersonMessage": "This will refund the {{n}} ticket(s) used. Continue?",
+      "cancel": "Cancel",
+      "refundConfirm": "Refund",
+      "refundedToast": "🎫 Refunded {{n}} ticket(s)",
+      "refundFailedToast": "Refund failed",
+      "refundFailedHint": "Please contact support",
+      "videoLoadFailed": "Failed to load the video. If it's only stored in iCloud, open it once in the Photos app to download it to your device, then try again.",
+      "frameFetchFailed": "Failed to extract frames",
+      "extractingStep": "Extracting frames from the video...",
+      "analyzingStep": "AI is analyzing {{n}} frame(s)...",
+      "frameAnnotation": "🎯 Frame {{n}} — {{note}}",
+      "pause": "Pause",
+      "play": "Play",
+      "frameTimeline": "Frame timeline (tap to seek)",
+      "selectVideoAlert": "Please select a video",
+      "you": "You",
+      "idealLine": "Ideal line (reference)",
+      "radarNote": "The wider the polygon, the better the form tends to be. Closer to the dotted line means closer to ideal balance.",
+      "aiFeedback": "Feedback from your AI Coach",
+      "todayStrength": "Today's Strength",
+      "todayTheme": "Today's Focus",
+      "nextStep": "Next Step",
+      "todayPracticeTheme": "Today's Practice Theme",
+      "practiceThemeNote": "Focus on just this one thing during your run.",
+      "recommendedDrill": "Recommended drill: {{name}}",
+      "evidenceTitle": "Evidence (still image comparison)",
+      "eventPrefix": "  Event: {{event}}",
+      "ticketUsedToast": "🎫 Used {{n}} ticket(s)",
+      "parseFailedError": "Couldn't parse the AI's response. Please try again later.",
+      "analysisFailedError": "Analysis failed",
+      "apiErrorMessage": "API error ({{status}}): {{body}}",
+      "defaultHeadline": "Analysis complete",
+      "eventUnspecified": "Unspecified event",
+      "closeLabel": "Close",
+      "historyTitle": "Analysis History",
+      "noHistoryTitle": "No analysis history yet\nAnalyzing a video will record it here",
+      "allFilter": "All",
+      "entriesCount": "  {{n}}",
+      "goodPoints": "✅ Good Points",
+      "improvements": "⚠️ Areas to Improve",
+      "recommendedDrills": "Recommended Drills",
+      "deleteHistory": "Delete this entry",
+      "upsellTitle": "Go ad-free?",
+      "upsellBody": "Once you use up your free allowance you'll need to watch ads.\nWith the ad-free plan, use form analysis and meal analysis as much as you like, ad-free.",
+      "upsellFreeLabel": "FREE (current plan)",
+      "upsellFreeDesc": "Ads after your free allowance",
+      "upsellNoAdsBadge": "Ad-Free",
+      "upsellPrice": "¥480/mo",
+      "upsellNoAdsFull": "No ads at all",
+      "upsellCta": "View ad-free plan from ¥480/mo",
+      "upsellDismiss": "Not now",
+      "shotDateLabel": "Recorded On",
+      "analyzedOn": "Analyzed on {{date}}"
+    },
+    "premiumGate": {
+      "title": "Form Video Analysis",
+      "subtitle": "AI video form analysis is\na premium-only feature",
+      "feature1": "AI form diagnosis for every frame",
+      "feature2": "Detailed analysis of areas to improve and strengths",
+      "feature3": "Auto-generated personal practice menus",
+      "feature4": "Powered by a high-precision model (Claude Opus)",
+      "planLabel": "Premium Plan",
+      "cancelAnytime": "Cancel anytime",
+      "teamPlanTitle": "👥 Team / School Plan",
+      "teamPlanDesc": "Plans for a whole team or club start at ¥3,000/mo\nContact us from the Settings screen",
+      "comingSoonNote": "* Subscription billing is currently in preparation\nWe'll email you when it's available"
+    },
+    "web": {
+      "uploadTitle": "AI Analyze Your Practice Form",
+      "uploadSub": "Upload → Auto AI analysis → Review in slow motion",
+      "step1": "① Choose a video",
+      "step2": "② AI analyzes",
+      "step3": "③ Review in slow-mo",
+      "changeVideo": "Change video",
+      "chooseVideo": "Choose a video",
+      "eventSectionTitle": "🏃 Event to analyze (optional)",
+      "eventSectionDesc": "Selecting one gives you event-specific advice",
+      "athleteSectionTitle": "👤 Athlete features (for videos with multiple people)",
+      "athleteSectionDesc": "Entering clothing/shoe color focuses the analysis on that athlete",
+      "athletePlaceholder": "e.g. red uniform, white spikes / leave blank if only one person",
+      "ticketBadge": "🎫 {{n}}",
+      "startAnalysis": "Start AI Analysis 🚀",
+      "proModeTitle": "High-Precision Mode (Opus)",
+      "proModeSub": "Analyzing with premium high-precision AI",
+      "freeModeTitle": "Analyzing in Standard Mode (Haiku)",
+      "freeModePremiumLabel": "Premium ¥490/mo",
+      "freeModeSub": " unlocks high-precision AI (Opus) for\ndetailed skeletal, center-of-mass, and angle analysis",
+      "privacyNote": "🔒 Videos are processed on-device only\nOnly frame images are used for AI analysis",
+      "selectVideoAlert": "Please select a video",
+      "analysisFailedTitle": "Analysis failed",
+      "analysisFailedMessage": "Failed to analyze the frames. Please try again later.",
+      "analyzingTitle": "AI is analyzing your form",
+      "extractingKeyframes": "Extracting key frames...",
+      "analyzedFrame": "Analyzed frame {{n}}",
+      "analyzedBadge": "Analyzed",
+      "dontClose": "Please don't close this screen",
+      "prevFrame": "Previous frame",
+      "nextFrame": "Next frame",
+      "pause": "Pause",
+      "play": "Play",
+      "frameAnalysisAt": "🤖 Frame analysis at {{time}}",
+      "goodPoints": "✅ Good Points",
+      "improvementsWithReason": "🔍 Areas to Improve (cause & fix)",
+      "improvements": "⚠️ Areas to Improve",
+      "why": "📍 Why: {{reason}}",
+      "fix": "✅ Fix: {{fix}}",
+      "injuryRisk": "🚨 Injury Risk",
+      "noAdviceYet": "Advice will appear for analyzed frames during playback",
+      "analyzedFrames": "Analyzed Frames ({{n}})",
+      "comprehensiveTitle": "Overall Evaluation & Training Menu",
+      "generatingComprehensive": "AI is generating an overall evaluation...",
+      "overallEvaluation": "Overall Evaluation",
+      "keyFindingsLabel": "📌 Overall Characteristics",
+      "injuryRiskTrend": "🚨 Injury Risk Trends from Form",
+      "recommendedMenu": "Recommended Training Menu",
+      "nextPracticeFocus": "Focus for Your Next Practice",
+      "waitingForComplete": "The overall evaluation will appear once analysis is complete",
+      "analyzeAnotherVideo": "Analyze another video",
+      "ticketUsedToast": "🎫 Used {{n}} ticket(s)"
+    }
+  },
+  "paywall": {
+    "headerTitle": "Choose your plan",
+    "perMonth": "/mo",
+    "perMonthEquiv": "/mo equiv.",
+    "planActive": "Your plan is active ✅",
+    "loadFailedTitle": "Failed to load products",
+    "loadFailedRetry": "Please wait a moment and try again",
+    "leadHighlight": "Injury risk check",
+    "leadRest": " is always\nfree to use.",
+    "subLead": "AI form checks and recovery plans start with free tickets.\nWhen you need more, upgrade for ad-free browsing and refills.",
+    "recommended": "Recommended",
+    "monthly": "Monthly",
+    "yearlyDiscount": "Yearly (2 months free)",
+    "trialBadge": "🎁 {{days}}-day free trial",
+    "startTrial": "Start {{days}}-day free trial",
+    "startPlan": "Start {{label}}  {{price}}{{period}}",
+    "trialSubtext": "After the trial ends, this automatically switches to {{price}}{{period}}",
+    "restoreButton": "Restore purchases",
+    "privacyPolicy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "legal": {
+      "trialLine": "Your first {{days}} days are free. Unless you cancel at least 24 hours before the trial ends, you'll automatically be charged for the paid plan.",
+      "autoRenew": "Subscriptions renew automatically at your chosen interval (monthly or yearly).",
+      "cancelNotice": "Unless you cancel at least 24 hours before renewal, you'll be charged the same amount automatically.",
+      "howToCancel": "You can cancel anytime from Settings → Apple ID → Subscriptions.",
+      "refundPolicy": "Refunds for cancellations after purchase follow Apple's policy."
+    },
+    "plans": {
+      "noad": {
+        "label": "Ad-Free Plan",
+        "tagline": "Remove all ads",
+        "feature1": "Removes all ads (banners and videos)",
+        "feature2": "AI features stay ticket-based (10 free + purchases)",
+        "yearlyNote": "¥4,800/year (2 months free)"
+      },
+      "ticket_monthly": {
+        "label": "Ticket Monthly Plan",
+        "tagline": "For heavy AI feature users",
+        "feature1": "Removes all ads",
+        "feature2": "Automatically get {{count}} tickets every month",
+        "feature3": "You can also buy one-time ticket packs"
+      },
+      "coach": {
+        "label": "Coach Plan",
+        "tagline": "For coaches and advisors managing a team",
+        "feature1": "Ad-free with unlimited AI features (no tickets needed)",
+        "feature2": "Condition overview for the whole team",
+        "feature3": "Coach notes and team-wide sharing",
+        "feature4": "AI-generated practice menu suggestions (for teams)",
+        "yearlyNote": "¥19,800/year (2 months free)"
+      }
+    }
+  },
+  "records": {
+    "header": {
+      "title": "Progress",
+      "export": "Export",
+      "videoAnalysis": "Video Analysis",
+      "timer": "Timer",
+      "tools": "Tools",
+      "add": "Add Record",
+      "exportAlertTitle": "Export",
+      "exportAlertMessage": "Choose a format",
+      "exportFailed": "Export failed"
+    },
+    "toolsMenu": {
+      "title": "Tools",
+      "starterLabel": "Starter",
+      "starterSub": "On your marks / Set / Gun",
+      "combinedLabel": "Combined Events Tool",
+      "combinedSub": "Decathlon / heptathlon scoring",
+      "timerLabel": "Training Timer",
+      "timerSub": "Interval & regular timer"
+    },
+    "tabs": {
+      "practice": "Practice",
+      "records": "Time Records",
+      "health": "Condition & Sleep"
+    },
+    "bigAddButton": "Enter a Time",
+    "chartKindTime": "Time Progress",
+    "chartKindField": "Result Progress",
+    "chartUnitSeconds": "s",
+    "growthReport": {
+      "title": "See Your Growth in Detail",
+      "desc": "View your personal bests and injury risk trends, all compiled from your records"
+    },
+    "allEventsFilter": "All Events",
+    "sort": {
+      "dateDesc": "Newest",
+      "dateAsc": "Oldest",
+      "result": "By Result"
+    },
+    "list": {
+      "title": "Records",
+      "countUnit": "{{n}}",
+      "empty": "No records yet",
+      "addFirst": "Add Your First Record"
+    },
+    "recordCard": {
+      "share": "Share",
+      "edit": "Edit",
+      "delete": "Delete",
+      "official": "Official",
+      "daysAgo": "{{n}}d ago",
+      "today": "Today"
+    },
+    "pbSummary": {
+      "title": "Personal Bests"
+    },
+    "sessionType": {
+      "interval": "Interval",
+      "tempo": "Tempo Run",
+      "easy": "Jog",
+      "long": "Long Run",
+      "sprint": "Sprint",
+      "drill": "Drill",
+      "strength": "Weights",
+      "race": "Race",
+      "rest": "Rest"
+    },
+    "heatmap": {
+      "legendJog": "Jog",
+      "legendSprint": "Sprint",
+      "legendTempo": "Tempo Run",
+      "legendLong": "Long Run",
+      "legendRace": "Race",
+      "legendToday": "Today"
+    },
+    "dow": [
+      "S",
+      "M",
+      "T",
+      "W",
+      "T",
+      "F",
+      "S"
+    ],
+    "sessionDetail": {
+      "close": "Close",
+      "statEvent": "Event",
+      "statTime": "Time",
+      "statDistance": "Distance",
+      "statReps": "Reps",
+      "statRepsUnit": "",
+      "statFatigue": "Fatigue",
+      "statCondition": "Condition",
+      "memo": "Memo",
+      "editButton": "Edit",
+      "deleteButton": "Delete",
+      "condition2": "Terrible",
+      "condition3": "Bad",
+      "condition4": "Meh",
+      "condition5": "Normal",
+      "condition6": "OK",
+      "condition7": "Good",
+      "condition8": "Great",
+      "condition9": "Excellent",
+      "condition10": "Best Ever"
+    },
+    "calendar": {
+      "prevMonth": "Previous month",
+      "nextMonth": "Next month",
+      "legendLow": "Low",
+      "legendLight": "Light",
+      "legendMedium": "Medium",
+      "legendHard": "Hard",
+      "legendVeryHard": "Very Hard"
+    },
+    "timeline": {
+      "viewDetail": "View details",
+      "share": "Share"
+    },
+    "dateHeader": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "daysAgo": "{{n}}d ago"
+    },
+    "practiceTab": {
+      "manualInput": "Manual Entry",
+      "freeInput": "Free Text",
+      "streakUnit": "days",
+      "totalSessions": "Total Sessions",
+      "totalDistance": "Total Distance",
+      "thisWeek": "This week",
+      "thisMonth": "This month",
+      "timesUnit": "{{n}}x",
+      "calendarTitle": "Practice Calendar",
+      "clearSelection": "Clear ✕",
+      "selectedDayTitle": "Practice on {{date}}",
+      "noSessionsThisDay": "No practice recorded this day",
+      "notebookTitle": "Practice Notes",
+      "countUnit": "{{n}}",
+      "emptyTitle": "No practice records yet",
+      "emptyHint": "Tap the + button to log today's practice",
+      "showingRecent": "Showing {{n}} most recent (of {{total}} total)"
+    },
+    "weight": {
+      "title": "Weight Trend",
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "tomorrow": "Tomorrow",
+      "placeholderExisting": "Current: {{kg}}kg",
+      "placeholderNew": "Weight for {{date}} (kg)",
+      "save": "Save",
+      "empty": "No weight data yet\nRecord it daily"
+    },
+    "trend": {
+      "avg": "Avg",
+      "max": "Max"
+    },
+    "health": {
+      "conditionTitle": "Condition Trend",
+      "conditionEmpty": "No condition data yet\nLog it daily on the Home tab",
+      "recentCondition": "Recent Condition",
+      "sleepTitle": "Sleep Duration Trend",
+      "sleepEmpty": "No sleep data yet\nLog it on the Sleep tab"
+    },
+    "modal": {
+      "editTitle": "Edit Record",
+      "addTitle": "Add Record",
+      "saving": "Saving...",
+      "dateLabel": "Date",
+      "competitionLabel": "Competition (optional)",
+      "competitionPlaceholder": "e.g. Spring Meet",
+      "venueLabel": "Venue (optional)",
+      "venuePlaceholder": "e.g. National Stadium",
+      "eventBlockTitle": "Event {{n}}",
+      "trackLabel": "Track",
+      "fieldLabel": "Field",
+      "repsLabel": "Reps",
+      "repsUnit": "",
+      "resultLabel": "Result",
+      "timeLabel": "Time",
+      "repN": "Rep {{n}}",
+      "minUnit": "min",
+      "secUnit": "sec",
+      "windLabel": "Wind (m/s)",
+      "hurdleHeightLabel": "Hurdle Height",
+      "pbToggle": "PB (Personal Best)",
+      "sbToggle": "SB (Season Best)",
+      "addEvent": "Add Event",
+      "noteLabel": "Notes (optional)",
+      "notePlaceholder": "Condition, observations, etc...",
+      "officialToggle": "Official Record",
+      "raceTimeLabel": "Time (optional)"
+    },
+    "toast": {
+      "weightSaved": "Recorded {{kg}}kg",
+      "deleted": "Deleted",
+      "sessionDeleted": "Practice record deleted",
+      "enterTime": "Enter the time for {{event}}{{rep}}",
+      "enterResult": "Enter the result for {{event}}{{rep}}",
+      "enterRecord": "Please enter a result",
+      "recordsCount": "{{n}} records",
+      "pbCelebration": "  🏆 PB!",
+      "saveFailed": "Failed to save"
+    },
+    "officialFilter": {
+      "all": "All",
+      "official": "Official only",
+      "manual": "Manual only"
+    }
+  },
+  "competition": {
+    "header": {
+      "raceTitle": "Race Plans",
+      "injuryTitle": "Injury Recovery",
+      "registerCompetition": "Register Competition",
+      "recordInjury": "Record Injury"
+    },
+    "tabSelector": {
+      "race": "🏁 Race Plans",
+      "injury": "🩹 Injury Recovery"
+    },
+    "notif": {
+      "label": "Competition reminder notifications",
+      "enabled": "✓ Enabled",
+      "allow": "Allow",
+      "enabledToast": "Notifications enabled",
+      "deniedToast": "Please allow notifications in your browser settings"
+    },
+    "filter": {
+      "all": "All"
+    },
+    "entryStatus": {
+      "unconfirmed": "Unconfirmed",
+      "applied": "Registered",
+      "entering": "Entering",
+      "absent": "Absent",
+      "finished": "Finished"
+    },
+    "generating": {
+      "withWeeks": "AI is creating a {{n}}-week plan...",
+      "default": "AI is creating a plan..."
+    },
+    "empty": {
+      "noCompTitle": "Register a competition",
+      "noCompText": "Enter a competition date and AI will create an optimal training plan for the time remaining",
+      "noCompBtn": "Register a Competition",
+      "noFilterTitle": "No matching competitions"
+    },
+    "delete": "Delete",
+    "deleteConfirm": {
+      "title": "Delete Race Plan",
+      "message": "Delete \"{{name}}\"?",
+      "confirm": "Delete"
+    },
+    "weekSchedule": {
+      "title": "{{n}}-Week Schedule",
+      "daysUntil": "({{n}} days until race)"
+    },
+    "countdown": {
+      "daysAgo": "days ago",
+      "daysLeft": "days left",
+      "tapToChange": "Tap to change"
+    },
+    "week": {
+      "weekBeforeRace": "Final week",
+      "nWeeksBefore": "{{n}}w before"
+    },
+    "minutesUnit": "min",
+    "todayWorkout": {
+      "todayMenu": "Today's Menu ({{dow}})",
+      "tomorrow": "Tomorrow ({{dow}})",
+      "restDay": "Rest day today",
+      "tomorrowRestDay": "Rest day tomorrow",
+      "weekTheme": "This Week's Theme"
+    },
+    "dowFull": [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday"
+    ],
+    "dietAdvice": {
+      "dayOf": "Race day: Eat easily digestible carbs (rice balls, banana) up to 3 hours before. Just hydrate right before the race.",
+      "within2": "Right before the race: Focus on easily digestible food (udon, rice, chicken). Avoid fried food, dairy, and high-fat meals.",
+      "within7": "One week out: Increase your carb ratio to build up glycogen stores. Keep fat and fiber intake modest."
+    },
+    "injury": {
+      "generatingTitle": "Generating recovery plan...",
+      "generatingSub": "AI is analyzing your symptoms",
+      "noInjuryTitle": "No injuries recorded",
+      "noInjuryText": "Record an injury when it happens\nand AI will build a recovery plan automatically",
+      "recordButton": "Record an Injury",
+      "pastHistory": "Past Injuries",
+      "daysUnit": " days",
+      "painLabel": "Pain {{n}}/10",
+      "untilRecovery": "Until recovery",
+      "daysLeftLabel": "{{n}} days left",
+      "extend": "＋Extend",
+      "recoveredConfirmTitle": "Confirm Recovery",
+      "recoveredConfirmMessage": "Have you fully recovered?",
+      "recoveredConfirmYes": "Recovered!",
+      "recoveredButton": "✓ Recovered",
+      "todayPlanTitle": "Today's Plan — Day {{day}} · {{phase}}",
+      "avoidSuffix": " is strictly off-limits",
+      "treatmentLogTitle": "Treatment Log ({{n}})",
+      "treatmentLogAdd": "Went to treatment",
+      "treatmentLogEmpty": "No records yet",
+      "deleteTreatmentLog": "Delete this treatment log",
+      "overallSchedule": "Overall Schedule",
+      "dayRange": "Day {{first}}–{{last}}",
+      "done": "Done",
+      "current": "Here now",
+      "recoveredToast": "Congrats on your recovery!",
+      "extendedToast": "Extended by {{n}} days",
+      "treatmentAddedToast": "Treatment log added"
+    },
+    "injuryForm": {
+      "title": "Record Injury",
+      "sideLabel": "Side",
+      "side": {
+        "left": "Left",
+        "right": "Right",
+        "both": "Both"
+      },
+      "partsLabel": "Body Part(s)",
+      "parts": {
+        "hamstring": "Hamstring",
+        "knee": "Knee",
+        "calf": "Calf",
+        "achilles": "Achilles",
+        "ankle": "Ankle",
+        "lowBack": "Lower Back",
+        "hip": "Hip",
+        "quadriceps": "Quadriceps",
+        "shin": "Shin",
+        "shoulder": "Shoulder",
+        "elbow": "Elbow",
+        "other": "Other"
+      },
+      "typeManualLabel": "Injury Name / Diagnosis",
+      "typeManualPlaceholder": "e.g. Muscle strain (Grade 2), IT band syndrome",
+      "typeLabel": "Type",
+      "types": {
+        "muscleTear": "Muscle Strain",
+        "sprain": "Sprain",
+        "bruise": "Bruise",
+        "tendinitis": "Tendinitis",
+        "stressFractureSuspected": "Suspected Stress Fracture",
+        "shinSplints": "Shin Splints",
+        "other": "Other"
+      },
+      "descLabel": "Symptom Description (optional)",
+      "descPlaceholder": "e.g. Felt a pop while running, hurts to walk",
+      "painLabel": "Pain Level ({{n}}/10)",
+      "swellingLabel": "Swelling",
+      "swellingYes": "Yes",
+      "swellingNo": "No",
+      "recoveryDaysLabel": "Recovery Days",
+      "aiMode": "Let AI diagnose (recommended)",
+      "aiModeSub": "Estimates recovery days from symptoms and generates the full plan",
+      "manualMode": "Enter manually",
+      "manualDaysUnit": " days",
+      "free": "Free",
+      "submit": "Save and Generate Plan"
+    },
+    "extendModal": {
+      "title": "Extend Days",
+      "desc": "Enter how many days to add",
+      "dayUnit": " days",
+      "customLabel": "Custom days",
+      "submit": "Extend"
+    },
+    "treatmentModal": {
+      "title": "Add Treatment Log",
+      "desc": "Did you go to treatment today (clinic, therapy, etc.)? A note is optional.",
+      "placeholder": "e.g. Rehab at orthopedic clinic (optional)",
+      "submit": "Save"
+    },
+    "compModal": {
+      "title": "Register Competition",
+      "nameLabel": "Competition Name",
+      "namePlaceholder": "e.g. Spring Track & Field Meet",
+      "dateLabel": "Competition Date",
+      "datePlaceholder": "Select a date",
+      "dateDone": "Done",
+      "eventLabel": "Event",
+      "fieldTargetLabel": "Target Result (m, optional)",
+      "fieldTargetPlaceholder": "e.g. 7.50",
+      "timeTargetLabel": "Target Time (optional)",
+      "minUnit": "min",
+      "secUnit": "sec",
+      "ticketCost": "🎫 {{n}}",
+      "generate": "Create Plan with AI"
+    },
+    "eventCategories": {
+      "sprint": "Sprints & Hurdles",
+      "middle": "Middle/Long Distance",
+      "jump": "Jumps",
+      "throw": "Throws",
+      "combined": "Combined & Relays"
+    },
+    "entryModal": {
+      "title": "Entry Status"
+    },
+    "toast": {
+      "validationNameDate": "Please enter a competition name and date",
+      "invalidDate": "Invalid date format (e.g. 2026-05-01)",
+      "pastRecorded": "Past competition recorded",
+      "dailyLimitReached": "Daily limit reached",
+      "ticketUsed": "🎫 Used {{n}} ticket(s)",
+      "planCreated": "Race plan created",
+      "planFailed": "Failed to generate plan",
+      "compDeleted": "Race plan deleted",
+      "entryStatusChanged": "Entry status changed to \"{{status}}\"",
+      "templatePlanCreated": "Created with a template plan",
+      "templatePlanSub": "AI-personalized plans require tickets",
+      "injuryFormIncompleteTitle": "Missing Info",
+      "injuryFormIncompleteMsg": "Please select body part(s) and type"
+    },
+    "phase": {
+      "acute": "Acute Phase",
+      "subacute": "Subacute Phase",
+      "rehab": "Rehab Phase",
+      "prep": "Return Prep Phase"
+    },
+    "template": {
+      "acuteAdvice": "This is the acute phase of your {{type}} ({{parts}}). Prioritize rest and icing.",
+      "subacuteAdvice": "Inflammation is settling down. Start moving gradually within a pain-free range.",
+      "rehabAdvice": "Increase your load step by step. Stop immediately if pain returns.",
+      "prepAdvice": "You're almost back. Carefully test competition movements as a final check.",
+      "icing": "Icing",
+      "icingDetail": "15 min × 3 times/day",
+      "elevation": "Elevate the area",
+      "elevationDetail": "Keep it above heart level",
+      "lightWalk": "Light walking",
+      "lightWalkDetail": "10–15 min, within a pain-free range",
+      "lightStretch": "Light stretching around the area",
+      "lightStretchDetail": "Up to a pain-free angle, 10 sec × 3",
+      "lightJog": "Light jog",
+      "lightJogDetail": "Start at 5–10 min and extend gradually",
+      "strength": "Strength training",
+      "strengthDetail": "Strengthen muscles around the area (bodyweight first)",
+      "jogBuildup": "Jog-to-buildup run",
+      "jogBuildupDetail": "At 60–80% effort",
+      "sportSpecific": "Sport-specific movement check",
+      "sportSpecificDetail": "Gradually reintroduce starts, cutting, etc.",
+      "avoidLoad": "Loading the injured area",
+      "avoidRunning": "Running",
+      "avoidStretching": "Stretching",
+      "avoidJogging": "Jogging",
+      "avoidDirectionChange": "Sudden direction changes",
+      "avoidSprint": "Full-effort sprinting",
+      "avoidSuddenDirectionChange": "Sharp direction changes",
+      "avoidConsecutiveMatches": "Back-to-back competitions without rest"
+    },
+    "cardError": "Could not display this competition",
+    "pastPlanNote": "Recorded as a past competition (no training plan generated)"
+  },
+  "workoutMenu": {
+    "tabs": {
+      "library": "Library",
+      "history": "AI History"
+    },
+    "library": {
+      "createTitle": "Build Today's Menu",
+      "createLead": "Two ways to build it. When unsure, \"Leave it to AI\" works great",
+      "aiTitle": "Let AI Build It",
+      "aiSub": "Just share today's practice idea in a sentence. AI picks the exercises",
+      "manualTitle": "Pick Exercises Yourself",
+      "manualSub": "Choose exercises from your library to build the menu around",
+      "libraryTitle": "Practice Library",
+      "addFolder": "Add Folder",
+      "libraryLead": "Organize exercises you use often into folders so \"pick exercises\" is quick to use",
+      "emptyTitle": "Create a folder and add exercises",
+      "emptyHint": "e.g. Drill Menu, Run Menu"
+    },
+    "folderCard": {
+      "itemCount": "{{n}}"
+    },
+    "history": {
+      "emptyTitle": "No AI generation history yet",
+      "pickBadge": "Picked",
+      "aiBadge": "AI"
+    },
+    "folderModal": {
+      "editTitle": "Edit Folder",
+      "addTitle": "Create Folder",
+      "nameLabel": "Folder Name",
+      "namePlaceholder": "e.g. Drill Menu",
+      "colorLabel": "Color",
+      "iconLabel": "Icon",
+      "delete": "Delete Folder"
+    },
+    "detailModal": {
+      "itemPlaceholder": "Add an exercise (e.g. 2-step)",
+      "emptyItems": "Add an exercise"
+    },
+    "aiModal": {
+      "title": "AI Menu Generation",
+      "useLibraryLabel": "Library to Use",
+      "intentLabel": "Share today's practice idea",
+      "intentPlaceholder": "e.g. Getting toward the end of the training phase, want to shift toward speed work gradually. Tomorrow will be a full rest day.",
+      "generating": "Generating menu...",
+      "generate": "Generate Menu",
+      "ticketCost": "🎫 {{n}}"
+    },
+    "pickerModal": {
+      "selectTitle": "Pick Exercises",
+      "generateTitle": "Generate Menu with AI",
+      "noFoldersTitle": "Create a folder in your library first",
+      "noItems": "No exercises",
+      "selectedLabel": "Selected",
+      "selectedCount": "{{n}}",
+      "next": "Next",
+      "pickedSummary": "Picked Exercises ({{n}})",
+      "intentLabel": "Today's Practice Idea (optional)",
+      "intentPlaceholder": "e.g. Speed transition phase. Higher intensity.",
+      "generating": "Generating menu...",
+      "generateWithPick": "Generate with These Picks",
+      "backToSelect": "Choose Exercises Again"
+    },
+    "histDetailModal": {
+      "title": "Generated Menu"
+    },
+    "a11y": {
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "edit": "Edit",
+      "delete": "Delete",
+      "close": "Close",
+      "addItem": "Add exercise"
+    },
+    "toast": {
+      "ticketUsed": "🎫 Used {{n}} ticket(s)",
+      "genericFail": "Failed to generate. Please try again.",
+      "apiError": "An API error occurred. Please try again shortly.",
+      "emptyResult": "Could not generate a menu. Please try again in a moment."
+    },
+    "headerTitle": "Workout Menu"
+  }
+}

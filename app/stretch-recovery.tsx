@@ -15,8 +15,8 @@ import Svg, { Circle } from 'react-native-svg'
 import * as Haptics from 'expo-haptics'
 import { Sounds, unlockAudio } from '../lib/sounds'
 import { todayLocalISO } from '../lib/dateLocal'
+import { updateStretchResult } from '../lib/stretchResultStore'
 
-const STRETCH_RESULT_KEY   = 'trackmate_stretch_result'
 const CUSTOM_PARTS_KEY     = 'trackmate_stretch_custom_parts'
 const PART_ORDER_KEY       = 'trackmate_stretch_part_order'
 const HIDDEN_PARTS_KEY     = 'trackmate_stretch_hidden_parts'
@@ -71,20 +71,13 @@ function fmtTime(sec: number): string {
 async function saveResult(reduction: number): Promise<{ applied: number; capped: boolean }> {
   const today = todayLocalISO()
   try {
-    const existing = await AsyncStorage.getItem(STRETCH_RESULT_KEY)
-    let prevTotal = 0
-    if (existing) {
-      const parsed = JSON.parse(existing)
-      if (parsed.date === today) prevTotal = parsed.reduction ?? 0
-    }
-    const newTotal = Math.min(MAX_DAILY_REDUCTION, prevTotal + reduction)
-    const applied  = newTotal - prevTotal
-    await AsyncStorage.setItem(STRETCH_RESULT_KEY, JSON.stringify({
-      date: today,
-      reduction: newTotal,
-      showBanner: applied > 0,
-      lastReduction: applied,
-    }))
+    let applied = 0
+    await updateStretchResult(current => {
+      const prevTotal = current.date === today ? current.reduction ?? 0 : 0
+      const newTotal  = Math.min(MAX_DAILY_REDUCTION, prevTotal + reduction)
+      applied = newTotal - prevTotal
+      return { date: today, reduction: newTotal, showBanner: applied > 0, lastReduction: applied }
+    })
     return { applied, capped: applied < reduction }
   } catch {
     return { applied: 0, capped: false }
@@ -171,7 +164,7 @@ function ReorderRow({
       </View>
       <Text style={{ fontSize: 22, marginRight: 10 }}>{part.icon}</Text>
       <Text style={rl.rowName}>{part.name}</Text>
-      <TouchableOpacity onPress={onDelete} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+      <TouchableOpacity onPress={onDelete} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="削除">
         <Ionicons name="trash-outline" size={18} color="#C8102E" />
       </TouchableOpacity>
     </View>
@@ -652,7 +645,7 @@ function StretchScreen({
         {/* ── スタート前（タイマーモード）── */}
         {!isStarted && !isManual && (
           <View style={ss.btnRow}>
-            <TouchableOpacity style={ss.subBtn} onPress={handleBack} activeOpacity={0.7}>
+            <TouchableOpacity style={ss.subBtn} onPress={handleBack} activeOpacity={0.7} accessibilityLabel="戻る">
               <Ionicons name="arrow-back" size={20} color="#9ca3af" />
             </TouchableOpacity>
             <TouchableOpacity
@@ -677,7 +670,7 @@ function StretchScreen({
         {/* ── 手動モード（タイマーなし）── */}
         {isManual && (
           <View style={ss.btnRow}>
-            <TouchableOpacity style={ss.subBtn} onPress={handleBack} activeOpacity={0.7}>
+            <TouchableOpacity style={ss.subBtn} onPress={handleBack} activeOpacity={0.7} accessibilityLabel="戻る">
               <Ionicons name="arrow-back" size={20} color="#9ca3af" />
             </TouchableOpacity>
             <TouchableOpacity
@@ -697,7 +690,7 @@ function StretchScreen({
         {/* ── 実施中（タイマーモード）── */}
         {isStarted && !isManual && (
           <View style={ss.btnRow}>
-            <TouchableOpacity style={ss.subBtn} onPress={handleBack} activeOpacity={0.7}>
+            <TouchableOpacity style={ss.subBtn} onPress={handleBack} activeOpacity={0.7} accessibilityLabel="戻る">
               <Ionicons name="arrow-back" size={20} color="#9ca3af" />
             </TouchableOpacity>
             <TouchableOpacity
@@ -712,6 +705,7 @@ function StretchScreen({
               style={[ss.subBtn2, { backgroundColor: '#C8102E' }]}
               onPress={handleComplete}
               activeOpacity={0.85}
+              accessibilityLabel={completeLabel}
             >
               <Ionicons name={side === 'left' ? 'arrow-forward' : 'checkmark'} size={20} color="#fff" />
             </TouchableOpacity>
@@ -747,7 +741,7 @@ const ss = StyleSheet.create({
   content:       { padding: 20, paddingBottom: 40, alignItems: 'center' },
   partIcon:      { fontSize: 48, marginBottom: 8 },
   partName:      { color: '#111827', fontSize: 26, fontWeight: '900', textAlign: 'center' },
-  manualHint:    { color: '#9ca3af', fontSize: 14, fontWeight: '600', marginTop: 12, textAlign: 'center' },
+  manualHint:    { color: '#6b7280', fontSize: 14, fontWeight: '600', marginTop: 12, textAlign: 'center' },
   // 左右インジケーター
   sideIndicator: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
@@ -785,7 +779,7 @@ const ss = StyleSheet.create({
     width: 52, height: 52, alignItems: 'center', justifyContent: 'center',
     borderRadius: 16,
   },
-  skipText:      { color: '#9ca3af', fontSize: 10, fontWeight: '700' },
+  skipText:      { color: '#6b7280', fontSize: 10, fontWeight: '700' },
 })
 
 // ══════════════════════════════════════════════════════════════
@@ -867,7 +861,7 @@ const cs = StyleSheet.create({
   riskBefore: { color: '#ef4444', fontSize: 40, fontWeight: '900' },
   riskAfter:  { color: '#22c55e', fontSize: 40, fontWeight: '900' },
   riskDelta:  { color: '#22c55e', fontSize: 15, fontWeight: '800' },
-  riskCapped: { color: '#9ca3af', fontSize: 12, fontWeight: '600', marginTop: 2 },
+  riskCapped: { color: '#6b7280', fontSize: 12, fontWeight: '600', marginTop: 2 },
   homeBtn:    {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 8, backgroundColor: '#1c1c1e', borderRadius: 50,
@@ -1008,6 +1002,8 @@ export default function StretchRecoveryScreen() {
             onPress={() => phase === 'select' ? router.back() : setPhase('select')}
             style={ms.backBtn}
             activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="戻る"
           >
             <Ionicons name="chevron-back" size={22} color="#6b7280" />
           </TouchableOpacity>

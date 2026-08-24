@@ -10,7 +10,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
-import { BG_GRADIENT, TEXT } from '../lib/theme'
+import { BG_GRADIENT, TEXT, SURFACE, DIVIDER, SURFACE2 } from '../lib/theme'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
@@ -212,12 +212,12 @@ export default function CalendarScreen() {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           {/* 月ナビゲーション */}
           <View style={styles.monthNav}>
-            <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.navBtn} activeOpacity={0.7}>
-              <Ionicons name="chevron-back" size={22} color="#fff" />
+            <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.navBtn} activeOpacity={0.7} hitSlop={10} accessibilityLabel="前の月">
+              <Ionicons name="chevron-back" size={22} color={TEXT.primary} />
             </TouchableOpacity>
             <Text style={styles.monthTitle}>{year}年{month + 1}月</Text>
-            <TouchableOpacity onPress={() => changeMonth(1)} style={styles.navBtn} activeOpacity={0.7}>
-              <Ionicons name="chevron-forward" size={22} color="#fff" />
+            <TouchableOpacity onPress={() => changeMonth(1)} style={styles.navBtn} activeOpacity={0.7} hitSlop={10} accessibilityLabel="次の月">
+              <Ionicons name="chevron-forward" size={22} color={TEXT.primary} />
             </TouchableOpacity>
           </View>
 
@@ -280,7 +280,7 @@ export default function CalendarScreen() {
           {/* 選択日の詳細 */}
           <View style={styles.detailCard}>
             <View style={styles.detailHeader}>
-              <Ionicons name="calendar-outline" size={16} color="#888" />
+              <Ionicons name="calendar-outline" size={16} color={TEXT.secondary} />
               <Text style={styles.detailTitle}>
                 {selectedDate.replace(/-/g, '/')} の記録
               </Text>
@@ -353,7 +353,7 @@ function DayCell({
   }
 
   const isWeekend = dow === 0 || dow === 6
-  const dayColor = isToday ? '#fff' : isWeekend ? (dow === 0 ? '#E53935' : '#2196F3') : '#ccc'
+  const dayColor = isToday ? '#fff' : isWeekend ? (dow === 0 ? '#E53935' : '#2196F3') : TEXT.primary
 
   return (
     <TouchableOpacity activeOpacity={0.8} onPress={handlePress} style={styles.dayCell}>
@@ -411,8 +411,8 @@ function SummaryItem({
 const sumStyles = StyleSheet.create({
   item: { flex: 1, alignItems: 'center', gap: 4 },
   icon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  value: { color: '#fff', fontSize: 18, fontWeight: '800' },
-  unit: { fontSize: 12, fontWeight: '400', color: '#888' },
+  value: { color: TEXT.primary, fontSize: 18, fontWeight: '800' },
+  unit: { fontSize: 12, fontWeight: '400', color: TEXT.secondary },
   label: { color: '#666', fontSize: 11 },
 })
 
@@ -431,11 +431,11 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: SURFACE2,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  monthTitle: { color: '#fff', fontSize: 20, fontWeight: '800', minWidth: 140, textAlign: 'center' },
+  monthTitle: { color: TEXT.primary, fontSize: 20, fontWeight: '800', minWidth: 140, textAlign: 'center' },
   legendRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -446,10 +446,10 @@ const styles = StyleSheet.create({
   legendDot: { width: 8, height: 8, borderRadius: 4 },
   legendText: { color: '#666', fontSize: 11 },
   calCard: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: SURFACE,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: DIVIDER,
     padding: 12,
   },
   weekRow: {
@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   todayBg: { backgroundColor: '#166534' },
-  selectedBg: { backgroundColor: 'rgba(255,255,255,0.15)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
+  selectedBg: { backgroundColor: 'rgba(22,101,52,0.12)', borderWidth: 1, borderColor: 'rgba(22,101,52,0.4)' },
   dayNum: { fontSize: 13, fontWeight: '500' },
   dotsRow: {
     flexDirection: 'row',
@@ -493,22 +493,22 @@ const styles = StyleSheet.create({
   },
   dot: { width: 4, height: 4, borderRadius: 2 },
   detailCard: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: SURFACE,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: DIVIDER,
     padding: 14,
     gap: 10,
   },
   detailHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  detailTitle: { color: '#fff', fontSize: 15, fontWeight: '700', flex: 1 },
+  detailTitle: { color: TEXT.primary, fontSize: 15, fontWeight: '700', flex: 1 },
   detailCount: { color: '#555', fontSize: 13 },
   noRecords: { color: '#444', fontSize: 13, textAlign: 'center', paddingVertical: 12 },
   recordRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: SURFACE2,
     borderRadius: 8,
     padding: 10,
   },
@@ -519,7 +519,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  recordLabel: { color: '#fff', fontSize: 13, fontWeight: '600' },
+  recordLabel: { color: TEXT.primary, fontSize: 13, fontWeight: '600' },
   recordSub: { color: '#666', fontSize: 11 },
   recordBadge: {
     paddingHorizontal: 8,
@@ -529,13 +529,13 @@ const styles = StyleSheet.create({
   },
   recordBadgeText: { fontSize: 10, fontWeight: '700' },
   summaryCard: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: SURFACE,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: DIVIDER,
     padding: 16,
     gap: 12,
   },
-  summaryTitle: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  summaryTitle: { color: TEXT.primary, fontSize: 15, fontWeight: '700' },
   summaryRow: { flexDirection: 'row', gap: 8 },
 })

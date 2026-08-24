@@ -1,5 +1,5 @@
 // app/(tabs)/notebook.tsx — 陸上ノート（テーマ対応版）
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   TextInput, Modal, KeyboardAvoidingView, Platform,
@@ -13,14 +13,16 @@ import { useTheme } from '../../context/ThemeContext'
 import { Sounds, unlockAudio } from '../../lib/sounds'
 import HapticTouch from '../../components/HapticTouch'
 import { useRouter } from 'expo-router'
-import { showInterstitialAd } from '../../lib/admob'
+import { checkAdGate, recordUsage } from '../../lib/adGate'
+import { TICKET_COST } from '../../lib/ticketWallet'
 import { useFocusEffect } from '@react-navigation/native'
 import { parseDistanceAndReps } from '../../lib/parseWorkoutDistance'
 import type { TrainingSession } from '../../types'
 import { localDateStr, todayLocalISO } from '../../lib/dateLocal'
+import { updateSessions } from '../../lib/sessionsStore'
+import { addTasks } from '../../lib/tasksStore'
 
 const SESSIONS_KEY    = 'trackmate_sessions'
-const TASKS_KEY       = 'trackmate_tasks'
 
 // Hermesの AbortSignal.timeout 非対応に対応したタイムアウト付きfetch
 function fetchWithTimeout(url: string, options: RequestInit, ms: number): Promise<Response> {
@@ -45,7 +47,7 @@ function fallbackParse(text: string, today: string): Record<string, any> {
   else if (/試合|大会|記録会|レース/i.test(t)) session_type = 'race'
   else if (/休養|オフ|休み|レスト|\brest\b/i.test(t)) session_type = 'rest'
 
-  const eventMatch = t.match(/\b(100m|200m|400m|800m|1500m|3000m|5000m|10000m|110mH|100mH|400mH|3000mSC)\b/i)
+  const eventMatch = t.match(/\b(100m|200m|300m|400m|800m|1000m|1500m|3000m|5000m|10000m|110mH|100mH|300mH|400mH|3000mSC)\b/i)
   const event = eventMatch ? eventMatch[1] : null
 
   let time_ms: number | null = null
@@ -82,13 +84,7 @@ async function saveImprovementTasks(sessionType: string, fatigue: number, notes:
 
   if (texts.length === 0) return
   try {
-    const raw = await AsyncStorage.getItem(TASKS_KEY)
-    const existing = raw ? JSON.parse(raw) : []
-    const newTasks = texts.slice(0, 3).map(text => ({
-      id: `task_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      text, completed: false, created_at: new Date().toISOString(),
-    }))
-    await AsyncStorage.setItem(TASKS_KEY, JSON.stringify([...newTasks, ...existing].slice(0, 20)))
+    await addTasks(texts.slice(0, 3))
   } catch { /* ignore */ }
 }
 
@@ -266,16 +262,16 @@ function SessionCard({ session, conditionMap }: { session: TrainingSession; cond
           {session.distance_m? <Text style={[st.sessionStat, { color: colors.text }]}>{fmtDist(session.distance_m)}</Text> : null}
           {session.reps      ? <Text style={[st.sessionStat, { color: colors.text }]}>{session.reps}本</Text>              : null}
           <View style={[st.fatiguePill, { backgroundColor: colors.inputBg }]}>
-            <Text style={[st.fatigueNum, { color: colors.textHint }]}>疲労 {session.fatigue_level}/10</Text>
+            <Text style={[st.fatigueNum, { color: colors.textSec }]}>疲労 {session.fatigue_level}/10</Text>
           </View>
           {cond != null && (
             <View style={[st.fatiguePill, { backgroundColor: colors.inputBg }]}>
-              <Text style={[st.fatigueNum, { color: colors.textHint }]}>{conditionEmoji(cond)} 体調{cond}/10</Text>
+              <Text style={[st.fatigueNum, { color: colors.textSec }]}>{conditionEmoji(cond)} 体調{cond}/10</Text>
             </View>
           )}
         </View>
         {session.notes ? (
-          <Text style={[st.notesText, { color: colors.textHint }]} numberOfLines={expanded ? undefined : 2}>
+          <Text style={[st.notesText, { color: colors.textSec }]} numberOfLines={expanded ? undefined : 2}>
             {session.notes}
           </Text>
         ) : null}
@@ -304,6 +300,8 @@ export default function NotebookScreen() {
   const [modal, setModal]             = useState(false)
   const [freeText, setFreeText]       = useState('')
   const [parsing, setParsing]         = useState(false)
+  // setParsing(state)は次のレンダーまで反映されないため、連打防止は同期的なrefで行う
+  const parsingRef = useRef(false)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
   const load = useCallback(async () => {
@@ -331,6 +329,9 @@ export default function NotebookScreen() {
 
   async function handleSave() {
     if (!freeText.trim()) return
+    // 二重タップ防止（setParsingは非同期反映なのでrefで同期的に防ぐ。button側のdisabledだけでは連打を防ぎきれない）
+    if (parsingRef.current) return
+    parsingRef.current = true
     setParsing(true)
 
     const today = todayLocalISO()
@@ -341,27 +342,40 @@ export default function NotebookScreen() {
     // AIの解析結果で誤って上書きされないよう控えておく
     const explicitMult = parseDistanceAndReps(freeText)
 
-    // ── Step 2: AIでより正確に解析（成功すればフォールバックを上書き） ─
+    // ── Step 2: AIでより正確に解析（無料枠/チケットがある時だけ。無ければ正規表現解析のまま保存する） ─
     try {
-      const _nb_apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
-      const _nb_endpoint = `${_nb_apiBase}/api/analyze`
-      const res = await fetchWithTimeout(_nb_endpoint, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001', max_tokens: 500,
-          messages: [{ role: 'user', content: `陸上競技の練習記録テキストを正確にJSONに変換してください。今日の日付は${today}です。\n\n入力テキスト:\n"${freeText}"\n\nルール:\n- session_type: interval(本数+レスト), tempo(ペース走), easy(ジョグ/LSD), long(長距離), sprint(全力短距離), drill(ドリル), strength(ウェイト/筋トレ), race(試合/大会), rest(休養)\n- time_ms: タイムをミリ秒整数に変換。「46秒80」→46800, 「1:28.50」→88500。なければnull\n- distance_m: 合計距離をメートル整数に変換。本数(reps)がある場合は「1本あたりの距離 × 本数」の合計値を入れること。例:「300m×6本」「300×6」→ distance_m=1800（300ではない）。「10km」→ distance_m=10000。なければnull\n- reps: 本数の整数。なければnull\n- fatigue_level: 疲労度1〜10の整数（明記なければ雰囲気から推定）\n- condition_level: 体調1〜10の整数（明記なければ6）\n- event: 100m/200m/400m/800m/1500m/3000m/5000m/10000m/110mH/100mH/400mH/3000mSC/競歩/走幅跳/三段跳/走高跳/棒高跳/砲丸投/やり投/円盤投/ハンマー投 のいずれか、なければnull\n\nJSONのみ返答:\n{"session_date":"${today}","session_type":"...","event":"...orNull","time_ms":数値orNull,"distance_m":数値orNull,"reps":数値orNull,"fatigue_level":整数,"condition_level":整数}` }],
-        }),
-      }, 30000)
-      if (res.ok) {
-        const data = await res.json()
-        const rawText = data.content?.[0]?.text ?? ''
-        const jsonMatch = rawText.match(/\{[\s\S]*\}/)
-        if (jsonMatch) {
-          const aiParsed = JSON.parse(jsonMatch[0])
-          parsed = { ...parsed, ...aiParsed }
+      const gate = await checkAdGate('notebook_ai')
+      if (gate.allowed) {
+        const _nb_apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
+        const _nb_endpoint = `${_nb_apiBase}/api/analyze`
+        const res = await fetchWithTimeout(_nb_endpoint, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            model: 'claude-haiku-4-5-20251001', max_tokens: 500,
+            messages: [{ role: 'user', content: `陸上競技の練習記録テキストを正確にJSONに変換してください。今日の日付は${today}です。\n\n入力テキスト:\n"${freeText}"\n\nルール:\n- session_type: interval(本数+レスト), tempo(ペース走), easy(ジョグ/LSD), long(長距離), sprint(全力短距離), drill(ドリル), strength(ウェイト/筋トレ), race(試合/大会), rest(休養)\n- time_ms: タイムをミリ秒整数に変換。「46秒80」→46800, 「1:28.50」→88500。なければnull\n- distance_m: 合計距離をメートル整数に変換。本数(reps)がある場合は「1本あたりの距離 × 本数」の合計値を入れること。例:「300m×6本」「300×6」→ distance_m=1800（300ではない）。「10km」→ distance_m=10000。なければnull\n- reps: 本数の整数。なければnull\n- fatigue_level: 疲労度1〜10の整数（明記なければ雰囲気から推定）\n- condition_level: 体調1〜10の整数（明記なければ6）\n- event: 100m/200m/300m/400m/800m/1000m/1500m/3000m/5000m/10000m/110mH/100mH/300mH/400mH/3000mSC/競歩/走幅跳/三段跳/走高跳/棒高跳/砲丸投/やり投/円盤投/ハンマー投 のいずれか、なければnull\n\nJSONのみ返答:\n{"session_date":"${today}","session_type":"...","event":"...orNull","time_ms":数値orNull,"distance_m":数値orNull,"reps":数値orNull,"fatigue_level":整数,"condition_level":整数}` }],
+          }),
+        }, 30000)
+        if (res.ok) {
+          const data = await res.json()
+          const rawText = data.content?.[0]?.text ?? ''
+          const jsonMatch = rawText.match(/\{[\s\S]*\}/)
+          if (jsonMatch) {
+            const aiParsed = JSON.parse(jsonMatch[0])
+            // 種目・タイム・距離・本数は本文から一意に読み取れる客観的な値のため、
+            // 正規表現側が既に検出できていればそちらを優先する（AIの解釈揺れで
+            // 「書いた内容と違う結果になる」のを防ぐ）。AIはそれらが未検出の項目の
+            // 補完と、文脈判断が要る session_type/fatigue_level/condition_level に使う
+            for (const key of ['event', 'time_ms', 'distance_m', 'reps'] as const) {
+              if (parsed[key] !== null && parsed[key] !== undefined) delete aiParsed[key]
+            }
+            parsed = { ...parsed, ...aiParsed }
+            // AI解析に成功した場合のみ利用回数・チケットを消費する（失敗時に課金しないため）
+            await recordUsage('notebook_ai')
+          }
         }
       }
+      // gate.allowed=false（チケット不足等）の場合は正規表現解析のまま保存する（記録自体は止めない）
     } catch {
       // AI解析失敗 → fallbackParse の結果をそのまま使う
     }
@@ -386,23 +400,17 @@ export default function NotebookScreen() {
         condition_level: toNum(parsed.condition_level) ?? conditionMap[today] ?? 6,
         notes: freeText,
       }
-      // ストレージへの書き込みを確実に完了させてから状態更新
-      // （他タブのuseFocusEffectが先に走るレースコンディションを防ぐ）
-      const rawExisting = await AsyncStorage.getItem(SESSIONS_KEY)
-      let existing: TrainingSession[] = []
-      try { if (rawExisting) existing = JSON.parse(rawExisting) } catch {}  // データ破損でも新規保存を継続
-      const next = [newSession, ...existing]
-      await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(next))
+      // 直列化キュー経由で保存（他画面の削除・保存と競合して片方が消えることを防ぐ）
+      const next = await updateSessions(current => [newSession, ...current])
       setSessions(next)
       // 改善タスク生成
       saveImprovementTasks(newSession.session_type, newSession.fatigue_level ?? 5, freeText)
       Sounds.save()
       setFreeText(''); setModal(false)
       Toast.show({ type: 'success', text1: '練習を記録しました ✓', visibilityTime: 1500 })
-      showInterstitialAd().catch(() => {})
     } catch {
       Toast.show({ type: 'error', text1: '保存に失敗しました' })
-    } finally { setParsing(false) }
+    } finally { parsingRef.current = false; setParsing(false) }
   }
 
   const iconColor = colors.text
@@ -415,10 +423,24 @@ export default function NotebookScreen() {
         <View style={[st.header, { borderBottomColor: colors.border }]}>
           <Text style={[st.headerTitle, { color: colors.text }]}>陸上ノート</Text>
           <View style={st.headerActions}>
-            <HapticTouch haptic="whoosh" style={[st.iconBtn, { backgroundColor: colors.surface2, borderColor: colors.border }]} onPress={() => router.push('/gps-run')} activeOpacity={0.8}>
+            <HapticTouch
+              haptic="whoosh"
+              style={[st.iconBtn, { backgroundColor: colors.surface2, borderColor: colors.border }]}
+              onPress={() => router.push('/gps-run')}
+              activeOpacity={0.8}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="GPSラン計測"
+            >
               <Ionicons name="navigate-outline" size={18} color={iconColor} />
             </HapticTouch>
-            <HapticTouch haptic="whoosh" style={[st.iconBtn, { backgroundColor: colors.surface2, borderColor: colors.border }]} onPress={() => router.push('/calendar')} activeOpacity={0.8}>
+            <HapticTouch
+              haptic="whoosh"
+              style={[st.iconBtn, { backgroundColor: colors.surface2, borderColor: colors.border }]}
+              onPress={() => router.push('/calendar')}
+              activeOpacity={0.8}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="カレンダー"
+            >
               <Ionicons name="calendar-outline" size={18} color={iconColor} />
             </HapticTouch>
           </View>
@@ -453,7 +475,11 @@ export default function NotebookScreen() {
               <Text style={[st.sectionTitle, { color: colors.text }]}>練習ノート</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 {selectedDate && (
-                  <TouchableOpacity onPress={() => setSelectedDate(null)} style={{ backgroundColor: BRAND + '18', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 }}>
+                  <TouchableOpacity
+                    onPress={() => setSelectedDate(null)}
+                    style={{ backgroundColor: BRAND + '18', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 }}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
                     <Text style={{ color: BRAND, fontSize: 11, fontWeight: '700' }}>✕ {selectedDate.slice(5).replace('-', '/')}</Text>
                   </TouchableOpacity>
                 )}
@@ -467,7 +493,7 @@ export default function NotebookScreen() {
             ) : sessions.length === 0 ? (
               <View style={st.empty}>
                 <Ionicons name="book-outline" size={40} color={colors.textHint} />
-                <Text style={[st.emptyText, { color: colors.textHint }]}>まだ記録がありません</Text>
+                <Text style={[st.emptyText, { color: colors.textSec }]}>まだ記録がありません</Text>
                 <Text style={[st.emptySubText, { color: colors.textHint }]}>上のボタンから今日の練習を記録しよう</Text>
               </View>
             ) : (() => {
@@ -508,9 +534,14 @@ export default function NotebookScreen() {
                   <Text style={[st.modalTitle, { color: colors.text }]}>練習を記録</Text>
                   <View style={{ width: 60 }} />
                 </View>
-                <Text style={{ color: colors.textHint, fontSize: 13, marginBottom: 14, lineHeight: 18 }}>
-                  自由に書いてください — AIが自動で整理します
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                  <Text style={{ color: colors.textHint, fontSize: 13, lineHeight: 18, flex: 1, marginRight: 8 }}>
+                    自由に書いてください — AIが自動で整理します
+                  </Text>
+                  <View style={st.ticketBadge}>
+                    <Text style={st.ticketBadgeText}>🎫 {TICKET_COST.notebook_ai}枚</Text>
+                  </View>
+                </View>
                 <TextInput
                   style={[st.textInput, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border }]}
                   value={freeText}
@@ -580,4 +611,6 @@ const st = StyleSheet.create({
   textInput:     { flex: 1, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, lineHeight: 26, borderWidth: 1, marginBottom: 16 },
   saveBtn:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: BRAND, borderRadius: 21, paddingVertical: 16 },
   saveBtnText:   { color: '#fff', fontSize: 16, fontWeight: '700' },
+  ticketBadge:     { backgroundColor: 'rgba(245,158,11,0.14)', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(245,158,11,0.35)', paddingHorizontal: 8, paddingVertical: 3 },
+  ticketBadgeText: { fontSize: 11, fontWeight: '700', color: '#f59e0b' },
 })

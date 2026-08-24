@@ -344,14 +344,14 @@ function EventCard({
           <View style={{ flexDirection: 'row', gap: 12, marginTop: 5 }}>
             {event.event_time ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                <Ionicons name="time-outline" size={12} color={colors.textHint} />
-                <Text style={[s.cardMeta, { color: colors.textHint }]}>{event.event_time}</Text>
+                <Ionicons name="time-outline" size={12} color={colors.textSec} />
+                <Text style={[s.cardMeta, { color: colors.textSec }]}>{event.event_time}</Text>
               </View>
             ) : null}
             {event.location ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                <Ionicons name="location-outline" size={12} color={colors.textHint} />
-                <Text style={[s.cardMeta, { color: colors.textHint }]}>{event.location}</Text>
+                <Ionicons name="location-outline" size={12} color={colors.textSec} />
+                <Text style={[s.cardMeta, { color: colors.textSec }]}>{event.location}</Text>
               </View>
             ) : null}
           </View>

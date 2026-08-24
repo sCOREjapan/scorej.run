@@ -94,7 +94,7 @@ export function trackSessionRecord(sessionType: string) {
 
 /** AI機能使用 */
 export function trackFeatureUse(
-  feature: 'ai_analysis' | 'meal' | 'video' | 'csv' | 'recovery',
+  feature: 'ai_analysis' | 'meal' | 'video' | 'csv' | 'recovery' | 'meal_coach',
 ) {
   trackEvent('use_feature', { feature })
 }

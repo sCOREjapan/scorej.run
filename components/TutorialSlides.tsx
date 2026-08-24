@@ -48,6 +48,12 @@ const SLIDES: Slide[] = [
     color: '#8b5cf6',
   },
   {
+    emoji: '🎫',
+    title: 'AIチケットをプレゼント',
+    description: '動画分析やAIメニュー作成などは\nチケット制。今なら無料で10枚\nプレゼント中！広告視聴でも増えるよ🎁',
+    color: '#f59e0b',
+  },
+  {
     emoji: '🏁',
     title: '試合計画・怪我復帰',
     description: '「試合・怪我」タブでAIが\n試合までの練習計画や\n怪我回復プランを作ってくれるよ。',

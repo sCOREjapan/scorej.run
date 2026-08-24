@@ -1,6 +1,7 @@
 // lib/rewardedAd.ts — Google AdMob リワード広告
 // react-native-google-mobile-ads は遅延ロード（Expo Go / シミュレーターで crash しないよう）
 import { Platform } from 'react-native'
+import { isAnyAdShowing, setAnyAdShowing } from './adLock'
 
 // ── 広告ユニットID ────────────────────────────────────────────
 export const AD_UNIT_IDS = {
@@ -51,6 +52,9 @@ function showOneRewardedAdDetailed(): Promise<AdOutcome> {
     const lib = getAdLib()
     if (!lib) { resolve('no_ad'); return }
 
+    // 他の広告（インタースティシャル/App Open）が表示中なら多重起動しない
+    if (isAnyAdShowing()) { resolve('no_ad'); return }
+
     const { RewardedAd, RewardedAdEventType, AdEventType } = lib
     const ad = RewardedAd.createForAdRequest(REWARDED_AD_UNIT_ID, {
       requestNonPersonalizedAdsOnly: false,
@@ -61,7 +65,8 @@ function showOneRewardedAdDetailed(): Promise<AdOutcome> {
     let settled = false
     let timer: ReturnType<typeof setTimeout>
 
-    const cleanup = () => { try { unsubLoaded(); unsubEarned(); unsubClosed(); unsubError() } catch {} }
+    setAnyAdShowing(true)
+    const cleanup = () => { try { unsubLoaded(); unsubEarned(); unsubClosed(); unsubError() } catch {}; setAnyAdShowing(false) }
     const done = (result: AdOutcome) => {
       if (!settled) { settled = true; clearTimeout(timer); cleanup(); resolve(result) }
     }

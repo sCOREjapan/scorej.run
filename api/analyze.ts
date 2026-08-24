@@ -131,18 +131,31 @@ export default async function handler(req: any, res: any) {
       body.max_tokens = 3000
     }
 
-    // GEMINI_API_KEY があれば全リクエストを Gemini 2.5 Flash に振り分ける
+    // GEMINI_API_KEY があれば全リクエストを Gemini に振り分ける（コスト優先）。
+    // ただし無予告のモデル退役・一時障害でGeminiがエラーを返した場合は、
+    // その場でAnthropicへ自動フォールバックする（2026-07-25にgemini-2.5-flashが
+    // 無予告で404になった際、手動でモデル定数を書き換えるまで全AI機能が止まった
+    // 教訓を踏まえた対応。フォールバックは失敗時のみ発生するため通常時のコストは変わらない）。
     const geminiKey = process.env.GEMINI_API_KEY
+    const anthropicKey = process.env.ANTHROPIC_API_KEY ?? process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY
     let result: ProxyResult
     if (geminiKey) {
       result = await callGemini(body, geminiKey)
+      // ステータス200でもセーフティフィルタ等で本文が空のことがあり、その場合は
+      // クライアントが「空応答なのに課金・キャッシュされる」不具合の温床になるため
+      // エラー扱いと同様にAnthropicへフォールバックする。
+      const geminiText = (result.body as any)?.content?.[0]?.text
+      const isEmpty = result.status === 200 && (!geminiText || !String(geminiText).trim())
+      if ((result.status >= 400 || isEmpty) && anthropicKey) {
+        console.warn('[analyze] Gemini failed or returned empty content, falling back to Anthropic:', result.status)
+        result = await callAnthropic(body, anthropicKey)
+      }
     } else {
-      const apiKey = process.env.ANTHROPIC_API_KEY ?? process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY
-      if (!apiKey) {
+      if (!anthropicKey) {
         res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' })
         return
       }
-      result = await callAnthropic(body, apiKey)
+      result = await callAnthropic(body, anthropicKey)
     }
     res.status(result.status).json(result.body)
   } catch (e: any) {

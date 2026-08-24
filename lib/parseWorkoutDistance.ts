@@ -10,19 +10,30 @@ export function parseDistanceAndReps(t: string): { distance_m: number | null; re
   const mMatch  = t.match(/(\d+)\s*m(?!H|SC)\b/)
 
   // 距離×本数（例: 300×6 / 300m×6 / 300m×6本 / 1km×3）→ 1本あたりの距離×本数を合計距離として扱う
-  const multMatch = t.match(/(\d+(?:\.\d+)?)\s*(km|m)?\s*[×xX*]\s*(\d+)\s*(?:本|set|本セット)?/i)
+  // 「30×4、60×3、100×2」のように複数セットが並記されることがあるため、最初の1件だけでなく
+  // 出現する全パターンを合計する（global match。以前は最初の1件しか拾えず、
+  // 後続セットの距離が合計距離・怪我リスク計算から欠落するバグがあった）
+  const multMatches = Array.from(t.matchAll(/(\d+(?:\.\d+)?)\s*(km|m)?\s*[×xX*]\s*(\d+)\s*(?:本|set|本セット)?/gi))
 
   let distance_m: number | null = null
   let reps: number | null = null
   let multiplied = false
 
-  if (multMatch) {
-    const unit    = multMatch[2]?.toLowerCase()
-    const perUnit = unit === 'km' ? parseFloat(multMatch[1]) * 1000 : parseInt(multMatch[1], 10)
-    const count   = parseInt(multMatch[3], 10)
-    if (perUnit > 0 && count > 0) {
-      distance_m = Math.round(perUnit * count)
-      reps = count
+  if (multMatches.length > 0) {
+    let totalDistance = 0
+    let totalReps = 0
+    for (const m of multMatches) {
+      const unit    = m[2]?.toLowerCase()
+      const perUnit = unit === 'km' ? parseFloat(m[1]) * 1000 : parseInt(m[1], 10)
+      const count   = parseInt(m[3], 10)
+      if (perUnit > 0 && count > 0) {
+        totalDistance += perUnit * count
+        totalReps += count
+      }
+    }
+    if (totalDistance > 0) {
+      distance_m = Math.round(totalDistance)
+      reps = totalReps
       multiplied = true
     }
   }

@@ -231,6 +231,34 @@ const NATIVE_SOUND_DEFS: Record<string, NativeSoundDef> = {
       { freq: 260, startMs: 130, durMs: 160, vol: 0.32 },
     ],
   },
+  // ── スターター（On your marks / Set / 号砲）・トレーニングタイマー専用 ──
+  // これらは意味の違いを聞き分ける必要があるため、他の効果音と違いタブ切り替え音への
+  // 統一はせず、個別の音を鳴らす（Sounds オブジェクトとは別の再生経路）。
+  starterMarks: {
+    totalMs: 160,
+    tones: [{ freq: 880, startMs: 0, durMs: 160, vol: 0.55 }],
+  },
+  starterSet: {
+    totalMs: 160,
+    tones: [{ freq: 1175, startMs: 0, durMs: 160, vol: 0.55 }],
+  },
+  starterGun: {
+    totalMs: 180,
+    noise: true,
+    tones: [{ freq: 110, startMs: 0, durMs: 150, vol: 0.6 }],
+  },
+  timerBeep: {
+    totalMs: 140,
+    tones: [{ freq: 1000, startMs: 0, durMs: 140, vol: 0.5 }],
+  },
+  timerEnd: {
+    totalMs: 480,
+    tones: [
+      { freq: 784,  startMs: 0,   durMs: 220, vol: 0.5 },
+      { freq: 988,  startMs: 140, durMs: 220, vol: 0.5 },
+      { freq: 1319, startMs: 280, durMs: 260, vol: 0.55 },
+    ],
+  },
 }
 
 // expo-av / expo-file-system の遅延インポートキャッシュ
@@ -302,6 +330,64 @@ export async function preloadNativeSounds() {
   await cacheNativeSound('tabSwitch').catch(() => {})
 }
 
+// ── 差し替え用の実音声（mp3）。バンドルされているものはこちらを優先して使う ──
+// require() はMetroが静的解析するため呼び出し箇所を直接書く必要がある（変数化不可）。
+// 未対応（まだファイルが無い）キューは undefined のままWAV合成にフォールバックする。
+const CUSTOM_SOUND_ASSETS: Record<string, any> = {
+  starterMarks: require('../assets/sounds/starter-marks.mp3'),
+  starterSet:   require('../assets/sounds/starter-set.mp3'),
+  starterGun:   require('../assets/sounds/starter-gun.mp3'),
+}
+
+const _bundledSoundCache = new Map<string, import('expo-av').Audio.Sound>()
+
+async function playBundledSound(key: string): Promise<boolean> {
+  const asset = CUSTOM_SOUND_ASSETS[key]
+  if (!asset || !_soundEnabled) return false
+  try {
+    if (!_audioReady) await initNativeAudio()
+    if (!_Audio) return false
+    if (!_bundledSoundCache.has(key)) {
+      const { sound } = await _Audio.Sound.createAsync(asset, { shouldPlay: false })
+      _bundledSoundCache.set(key, sound)
+    }
+    const sound = _bundledSoundCache.get(key)!
+    await sound.setPositionAsync(0)
+    await sound.playAsync()
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function cacheBundledSound(key: string) {
+  const asset = CUSTOM_SOUND_ASSETS[key]
+  if (!asset || _bundledSoundCache.has(key)) return
+  try {
+    if (!_audioReady) await initNativeAudio()
+    if (!_Audio) return
+    const { sound } = await _Audio.Sound.createAsync(asset, { shouldPlay: false })
+    _bundledSoundCache.set(key, sound)
+  } catch {}
+}
+
+// スターター／トレーニングタイマー画面に入った時点で呼ぶ。
+// シーケンス進行中に初回生成の遅延が起きないよう事前にWAV/mp3をキャッシュしておく。
+export async function preloadStarterSounds() {
+  if (Platform.OS === 'web') return
+  await initNativeAudio()
+  await Promise.all([
+    cacheBundledSound('starterMarks'),
+    cacheBundledSound('starterSet'),
+    cacheBundledSound('starterGun'),
+    cacheNativeSound('starterMarks'),
+    cacheNativeSound('starterSet'),
+    cacheNativeSound('starterGun'),
+    cacheNativeSound('timerBeep'),
+    cacheNativeSound('timerEnd'),
+  ])
+}
+
 // ── ハプティクスショートカット ──────────────────────────────────
 const H = {
   light:   () => { if (!_hapticsEnabled) return; Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}) },
@@ -337,4 +423,41 @@ export const Sounds = {
   shutter:    () => { H.medium();  playTabSwitchTone() },
   ding:       () => { H.success(); playTabSwitchTone() },
   splashBoom: () => { H.heavy();   playTabSwitchTone() },
+}
+
+// ── スターター・トレーニングタイマー専用サウンド（意味を持つ音のため個別再生） ──
+// 実音声(mp3)が用意されている場合はそちらを優先し、無ければ合成音にフォールバックする。
+export function playStarterMarksCue() {
+  H.light()
+  if (Platform.OS !== 'web') {
+    playBundledSound('starterMarks').then(ok => { if (!ok) playNativeSound('starterMarks') })
+    return
+  }
+  ping(880, 0.16, 0.5)
+}
+export function playStarterSetCue() {
+  H.light()
+  if (Platform.OS !== 'web') {
+    playBundledSound('starterSet').then(ok => { if (!ok) playNativeSound('starterSet') })
+    return
+  }
+  ping(1175, 0.16, 0.5)
+}
+export function playStarterGunCue() {
+  H.heavy()
+  if (Platform.OS !== 'web') {
+    playBundledSound('starterGun').then(ok => { if (!ok) playNativeSound('starterGun') })
+    return
+  }
+  click(0.6, 0, 1800); ping(110, 0.15, 0.5)
+}
+export function playTimerBeep() {
+  H.light()
+  if (Platform.OS !== 'web') { playNativeSound('timerBeep'); return }
+  ping(1000, 0.14, 0.45)
+}
+export function playTimerEnd() {
+  H.success()
+  if (Platform.OS !== 'web') { playNativeSound('timerEnd'); return }
+  ping(784, 0.22, 0.45); ping(988, 0.22, 0.45, 0.14); ping(1319, 0.26, 0.5, 0.28)
 }

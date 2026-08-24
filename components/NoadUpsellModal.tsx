@@ -81,12 +81,12 @@ export default function NoadUpsellModal({ visible, onClose, onUpgrade }: Props) 
           </View>
           <View style={{ flex: 1, gap: 3 }}>
             <Text style={s.title}>広告なしで、もっと快適に</Text>
-            <Text style={s.sub}>月額¥980で全ての広告が消えます</Text>
+            <Text style={s.sub}>月額¥480で全ての広告が消えます</Text>
           </View>
         </View>
 
         <View style={s.benefits}>
-          {['バナー・動画広告が完全に消える', '広告の読み込み待ちがなくなる', '全機能の回数制限が解除される'].map(t => (
+          {['バナー・動画広告が完全に消える', '広告の読み込み待ちがなくなる', 'AI機能は引き続きチケットで利用（広告視聴で追加可）'].map(t => (
             <View key={t} style={s.benefitRow}>
               <Ionicons name="checkmark-circle" size={16} color="#166534" />
               <Text style={s.benefitText}>{t}</Text>
@@ -159,9 +159,9 @@ const s = StyleSheet.create({
     color: '#fff', fontSize: 16, fontWeight: '800',
   },
   subBtn: {
-    alignItems: 'center', paddingVertical: 4,
+    alignItems: 'center', paddingVertical: 12, minHeight: 44, justifyContent: 'center',
   },
   subBtnTxt: {
-    color: '#9ca3af', fontSize: 14,
+    color: '#6b7280', fontSize: 14,
   },
 })

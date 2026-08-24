@@ -19,9 +19,8 @@ import { Ionicons } from '@expo/vector-icons'
 import { BRAND, TEXT, SURFACE, SURFACE2, DIVIDER } from '../lib/theme'
 import type { TrainingSession } from '../types'
 import { autoSyncTeam } from '../lib/teamAutoSync'
-import { getTier } from '../lib/adGate'
+import { updateSessions } from '../lib/sessionsStore'
 import { todayLocalISO } from '../lib/dateLocal'
-import { shouldShowInterstitial, showInterstitialAd } from '../lib/admob'
 
 // ─── 定数 ──────────────────────────────────────────────────────────────
 const SESSIONS_KEY = 'trackmate_sessions'
@@ -220,9 +219,6 @@ export default function GpsRunScreen() {
 
   async function saveSession(distM: number, ms: number) {
     try {
-      const raw = await AsyncStorage.getItem(SESSIONS_KEY)
-      let existing: TrainingSession[] = []
-      try { if (raw) existing = JSON.parse(raw) } catch {}  // データ破損でも新規保存を継続
       const newSession: TrainingSession = {
         id: `gps_${Date.now()}`,
         user_id: (await AsyncStorage.getItem('userId').catch(() => null)) ?? 'local',
@@ -234,19 +230,9 @@ export default function GpsRunScreen() {
         condition_level: 7,
         created_at: new Date().toISOString(),
       }
-      const saved = [newSession, ...existing]
-      await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(saved))
+      const saved = await updateSessions(current => [newSession, ...current])
       autoSyncTeam(saved, { force: true }).catch(() => {})
       Toast.show({ type: 'success', text1: '練習を保存しました', text2: `${(distM / 1000).toFixed(2)} km / ${formatElapsed(ms)}` })
-
-      // フリープランのみ：2回に1回インタースティシャル広告を表示（広告エラーは無視）
-      try {
-        const tier = await getTier()
-        if (tier === 'free') {
-          const showAd = await shouldShowInterstitial()
-          if (showAd) await showInterstitialAd()
-        }
-      } catch {}
 
       resetAll()
       router.back()

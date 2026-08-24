@@ -1,7 +1,7 @@
 // components/PressableScale.tsx — バウンスアニメーション + ハプティクス + サウンド付きボタン
 
 import React, { useRef } from 'react'
-import { Animated, Pressable, ViewStyle, Platform } from 'react-native'
+import { Animated, Pressable, ViewStyle, Platform, Insets, AccessibilityRole } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { Sounds, unlockAudio } from '../lib/sounds'
 
@@ -12,6 +12,10 @@ interface Props {
   haptic?: 'light' | 'medium' | 'heavy' | 'selection' | 'none'
   scaleAmount?: number
   sound?: keyof typeof Sounds | 'none'
+  disabled?: boolean
+  hitSlop?: Insets | number
+  accessibilityLabel?: string
+  accessibilityRole?: AccessibilityRole
 }
 
 export default function PressableScale({
@@ -21,6 +25,10 @@ export default function PressableScale({
   haptic = 'light',
   scaleAmount = 0.96,
   sound = 'tap',
+  disabled,
+  hitSlop,
+  accessibilityLabel,
+  accessibilityRole,
 }: Props) {
   const scale = useRef(new Animated.Value(1)).current
 
@@ -70,7 +78,16 @@ export default function PressableScale({
   }
 
   return (
-    <Pressable onPressIn={handlePressIn} onPressOut={handlePressOut} onPress={handlePress} style={style}>
+    <Pressable
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onPress={handlePress}
+      style={style}
+      disabled={disabled}
+      hitSlop={hitSlop}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityRole={accessibilityRole}
+    >
       <Animated.View style={{ flex: 1, transform: [{ scale }] }}>
         {children}
       </Animated.View>

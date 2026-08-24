@@ -16,7 +16,12 @@ export default function SupportScreen() {
 
         {/* ヘッダー */}
         <View style={s.header}>
-          <TouchableOpacity onPress={() => isWeb ? Linking.openURL('https://scorej-run.vercel.app/coach-landing') : router.back()} style={s.back}>
+          <TouchableOpacity
+            onPress={() => isWeb ? Linking.openURL('https://scorej-run.vercel.app/coach-landing') : router.back()}
+            style={s.back}
+            hitSlop={8}
+            accessibilityLabel="戻る"
+          >
             <Ionicons name="chevron-back" size={22} color="#166534" />
           </TouchableOpacity>
           <Text style={s.logo}>sCORE</Text>

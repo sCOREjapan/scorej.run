@@ -4,6 +4,7 @@ import {
   Text, Modal, ScrollView, Linking, StyleSheet,
 } from 'react-native'
 import { Stack, useRouter, useSegments } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import Toast from 'react-native-toast-message'
 import * as Font from 'expo-font'
@@ -14,13 +15,16 @@ import { Ionicons } from '@expo/vector-icons'
 import { AuthProvider, useAuth } from '../context/AuthContext'
 import { ThemeProvider } from '../context/ThemeContext'
 import { PurchaseProvider } from '../context/PurchaseContext'
+import { LanguageProvider, useLanguage } from '../context/LanguageContext'
+import LanguagePickerModal from '../components/LanguagePickerModal'
 import SplashAnimation from '../components/SplashAnimation'
-import { TutorialProvider } from '../lib/tutorialContext'
+import { TutorialProvider, isTutorialDone } from '../lib/tutorialContext'
 import TutorialSlides from '../components/TutorialSlides'
 import LineCommunityBanner from '../components/LineCommunityBanner'
 import CoachPlanBanner from '../components/CoachPlanBanner'
 import { initOneSignal, requestPushPermission } from '../lib/notify'
 import { initAdmob, showAppOpenAd } from '../lib/admob'
+import { isAnyAdShowing, setAnyAdShowing } from '../lib/adLock'
 // expo-tracking-transparency: 動的インポートでバージョン非互換クラッシュを防ぐ
 
 // ── iOS 26 beta Hermes 0.81.5 クラッシュ回避 ───────────────────────
@@ -95,6 +99,7 @@ const COACH_BANNER_SEEN_KEY = 'coach_banner_seen_version'
 // ConsentModal — 初回起動時に利用規約・プライバシーポリシーへの同意を求める
 // ─────────────────────────────────────────────────────────
 function ConsentModal({ onAccept }: { onAccept: () => void }) {
+  const { t } = useTranslation()
   const [termsChecked,   setTermsChecked]   = useState(false)
   const [privacyChecked, setPrivacyChecked] = useState(false)
   // null=同意画面, 'terms'=利用規約全文, 'privacy'=プライバシーポリシー全文
@@ -125,10 +130,10 @@ function ConsentModal({ onAccept }: { onAccept: () => void }) {
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 <Ionicons name="chevron-back" size={22} color="#fff" />
-                <Text style={cs.docBackText}>同意画面に戻る</Text>
+                <Text style={cs.docBackText}>{t('consent.backToConsent')}</Text>
               </TouchableOpacity>
               <Text style={cs.docHeaderTitle}>
-                {innerDoc === 'terms' ? '利用規約' : 'プライバシーポリシー'}
+                {innerDoc === 'terms' ? t('consent.terms') : t('consent.privacy')}
               </Text>
               <View style={{ width: 80 }} />
             </View>
@@ -148,7 +153,7 @@ function ConsentModal({ onAccept }: { onAccept: () => void }) {
             >
               <Ionicons name="checkmark-circle" size={18} color="#fff" />
               <Text style={cs.docAgreeBtnText}>
-                {innerDoc === 'terms' ? '利用規約' : 'プライバシーポリシー'}に同意して戻る
+                {t('consent.agreeAndReturn', { doc: innerDoc === 'terms' ? t('consent.terms') : t('consent.privacy') })}
               </Text>
             </TouchableOpacity>
           </SafeAreaView>
@@ -168,10 +173,8 @@ function ConsentModal({ onAccept }: { onAccept: () => void }) {
             <View style={cs.iconWrap}>
               <Text style={{ fontSize: 32 }}>⚡️</Text>
             </View>
-            <Text style={cs.title}>sCOREへようこそ</Text>
-            <Text style={cs.subtitle}>
-              ご利用を開始する前に{'\n'}以下の規約をご確認ください
-            </Text>
+            <Text style={cs.title}>{t('consent.welcomeTitle')}</Text>
+            <Text style={cs.subtitle}>{t('consent.subtitle')}</Text>
 
             {/* ── 規約リンク（タップで全文を表示） ── */}
             <View style={cs.linksBox}>
@@ -181,7 +184,7 @@ function ConsentModal({ onAccept }: { onAccept: () => void }) {
                 activeOpacity={0.7}
               >
                 <Ionicons name="document-text-outline" size={18} color="#166534" />
-                <Text style={cs.linkText}>利用規約</Text>
+                <Text style={cs.linkText}>{t('consent.terms')}</Text>
                 <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
               </TouchableOpacity>
               <View style={cs.divider} />
@@ -191,7 +194,7 @@ function ConsentModal({ onAccept }: { onAccept: () => void }) {
                 activeOpacity={0.7}
               >
                 <Ionicons name="shield-checkmark-outline" size={18} color="#166534" />
-                <Text style={cs.linkText}>プライバシーポリシー</Text>
+                <Text style={cs.linkText}>{t('consent.privacy')}</Text>
                 <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
               </TouchableOpacity>
             </View>
@@ -206,12 +209,7 @@ function ConsentModal({ onAccept }: { onAccept: () => void }) {
                 <View style={[cs.checkbox, termsChecked && cs.checkboxActive]}>
                   {termsChecked && <Ionicons name="checkmark" size={14} color="#fff" />}
                 </View>
-                <Text style={cs.checkLabel}>
-                  <Text style={cs.checkLinkText} onPress={() => setInnerDoc('terms')}>
-                    利用規約
-                  </Text>
-                  に同意します
-                </Text>
+                <Text style={cs.checkLabel}>{t('consent.agreeToTerms')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -222,12 +220,7 @@ function ConsentModal({ onAccept }: { onAccept: () => void }) {
                 <View style={[cs.checkbox, privacyChecked && cs.checkboxActive]}>
                   {privacyChecked && <Ionicons name="checkmark" size={14} color="#fff" />}
                 </View>
-                <Text style={cs.checkLabel}>
-                  <Text style={cs.checkLinkText} onPress={() => setInnerDoc('privacy')}>
-                    プライバシーポリシー
-                  </Text>
-                  に同意します
-                </Text>
+                <Text style={cs.checkLabel}>{t('consent.agreeToPrivacy')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -239,13 +232,11 @@ function ConsentModal({ onAccept }: { onAccept: () => void }) {
               activeOpacity={0.85}
             >
               <Text style={[cs.acceptBtnText, !allChecked && { color: '#9ca3af' }]}>
-                同意してアプリを始める
+                {t('consent.startApp')}
               </Text>
             </TouchableOpacity>
 
-            <Text style={cs.footer}>
-              © 2026 trackmate. All rights reserved.
-            </Text>
+            <Text style={cs.footer}>{t('consent.footer')}</Text>
           </View>
         </SafeAreaView>
       </View>
@@ -446,6 +437,7 @@ const MIN_SPLASH_MS = 800
 // 認証ガード — 未ログイン・未ゲスト選択時は auth 画面へ
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { user, loading, isGuest, isOnboarded } = useAuth()
+  const { languageLoaded, hasSelectedLanguage } = useLanguage()
   const router   = useRouter()
   const segments = useSegments()
 
@@ -488,6 +480,18 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       if (queue.length) setBannerQueue(queue)
     })()
   }, [loading, isOnboarded, consentAccepted])
+
+  // 告知バナーは全て<Modal>でネイティブpresentationを伴うため、表示中はApp Open広告と
+  // 衝突しないよう共有ロックに反映する（lib/adLock.ts参照）。
+  // ロックは参照カウント式なので、実際に表示⇄非表示が切り替わった時だけ呼ぶ
+  // （毎レンダーで同じ値を渡すと二重にカウントされてロックが外れなくなる）
+  const bannerLockActiveRef = useRef(false)
+  useEffect(() => {
+    const anyBannerVisible = bannerQueue.length > 0
+    if (anyBannerVisible === bannerLockActiveRef.current) return
+    bannerLockActiveRef.current = anyBannerVisible
+    setAnyAdShowing(anyBannerVisible)
+  }, [bannerQueue])
 
   const dismissBanner = (key: 'line' | 'coach') => {
     const storageKey = key === 'line' ? LINE_BANNER_SEEN_KEY : COACH_BANNER_SEEN_KEY
@@ -561,7 +565,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     }
   }, [user, loading, isGuest, isOnboarded, segments, consentAccepted, router])
 
-  if (loading || consentAccepted === null) {
+  if (loading || !languageLoaded || consentAccepted === null) {
     return (
       <View style={{ flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color="#E53E3E" size="large" />
@@ -572,8 +576,12 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   return (
     <>
       {children}
-      {/* 同意モーダル — 未同意の場合すべての画面の上に表示（admin は除く） */}
-      {!consentAccepted && segments[0] !== 'admin' && (
+      {/* 言語選択モーダル — 同意モーダルより先に、初回のみ表示（admin は除く） */}
+      {!hasSelectedLanguage && segments[0] !== 'admin' && (
+        <LanguagePickerModal />
+      )}
+      {/* 同意モーダル — 言語選択済み・未同意の場合すべての画面の上に表示（admin は除く） */}
+      {hasSelectedLanguage && !consentAccepted && segments[0] !== 'admin' && (
         <ConsentModal onAccept={() => setConsentAccepted(true)} />
       )}
       {/* アプデ後告知バナー — 既存ユーザー・同意済みの場合のみ、キューの先頭を1つずつ表示 */}
@@ -589,6 +597,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
 function RootLayoutNav() {
   const router = useRouter()
+  const segments = useSegments()
 
   // アプリ起動時に OneSignal を初期化（許可ダイアログは初回のみ）
   useEffect(() => {
@@ -601,6 +610,10 @@ function RootLayoutNav() {
       }).catch(() => {})
     }
   }, [])
+
+  // 3秒後のタイマー発火時点で最新のsegmentsを参照するためのref（[]依存だと古い値のまま固定されてしまう）
+  const segmentsRef = useRef(segments)
+  segmentsRef.current = segments
 
   // ATT (App Tracking Transparency) 許可 → AdMob SDK 初期化
   // 動的インポートでバージョン非互換によるクラッシュを防ぐ
@@ -619,8 +632,15 @@ function RootLayoutNav() {
         } catch {}
       }
       await initAdmob().catch(() => {})
-      // 初期化完了後にApp Open広告（1日1回）
-      showAppOpenAd().catch(() => {})
+      // 初期化完了後にApp Open広告（1日1回）。オンボーディング/ログイン中は離脱率が上がるため表示しない。
+      // ホーム画面のチュートリアル演出や告知バナー（<Modal>）の最中も、ネイティブ広告の
+      // presentationと重なって画面が反応しなくなる不具合があったため、
+      // どちらも出ていない間だけ見送る（見送っても次回起動時に再チャレンジされるだけで実害はない）
+      const seg = segmentsRef.current[0]
+      if (seg !== 'onboarding' && seg !== 'auth') {
+        const tutorialDone = await isTutorialDone().catch(() => true)
+        if (tutorialDone && !isAnyAdShowing()) showAppOpenAd().catch(() => {})
+      }
     }, 3000)
     return () => clearTimeout(t)
   }, [])
@@ -743,6 +763,10 @@ function RootLayoutNav() {
             name="paywall"
             options={{ headerShown: false, presentation: 'modal' }}
           />
+          <Stack.Screen
+            name="tickets"
+            options={{ headerShown: false, presentation: 'modal' }}
+          />
           {/* 未登録スクリーン — 独自ヘッダーを持つため headerShown: false */}
           <Stack.Screen name="coupon"           options={{ headerShown: false }} />
           <Stack.Screen name="coach-landing"    options={{ headerShown: false }} />
@@ -753,6 +777,7 @@ function RootLayoutNav() {
           <Stack.Screen name="practice-input"   options={{ headerShown: false }} />
           <Stack.Screen name="stretch-recovery" options={{ headerShown: false }} />
           <Stack.Screen name="team-invite"      options={{ headerShown: false }} />
+          <Stack.Screen name="referral-challenge" options={{ headerShown: false }} />
           <Stack.Screen name="coach-view"       options={{ headerShown: false }} />
           <Stack.Screen name="level-roadmap"    options={{ headerShown: false }} />
         </Stack>
@@ -768,11 +793,13 @@ export default function RootLayout() {
   return (
     <AppErrorBoundary>
       <ThemeProvider>
-        <AuthProvider>
-          <PurchaseProvider>
-            <RootLayoutNav />
-          </PurchaseProvider>
-        </AuthProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            <PurchaseProvider>
+              <RootLayoutNav />
+            </PurchaseProvider>
+          </AuthProvider>
+        </LanguageProvider>
       </ThemeProvider>
     </AppErrorBoundary>
   )
