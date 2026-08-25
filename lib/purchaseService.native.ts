@@ -13,7 +13,7 @@ export const PRODUCT_IDS = {
   noad_yearly:    'score_noad_yearly_v2',      // ¥4,800/年
   coach_monthly:  'score_coach_monthly_v2',    // ¥1,980/月  コーチプラン
   coach_yearly:   'score_coach_yearly_v1',     // ¥19,800/年
-  ticket_monthly: 'score_ticket_monthly_v1',   // ¥1,280/月  チケット月額（広告なし＋毎月チケット100枚）
+  ticket_monthly: 'score_ticket_monthly_v1',   // ¥980/月  チケット月額（広告なし＋毎月チケット100枚）
   tickets_light:  'score_tickets_15_v1',       // ¥370  チケット15枚（消耗型）
   tickets_value:  'score_tickets_50_v1',       // ¥730  チケット50枚（消耗型）
 }

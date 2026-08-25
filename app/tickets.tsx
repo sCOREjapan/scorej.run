@@ -182,7 +182,7 @@ export default function TicketsScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={st.monthlyTitle}>よく使うなら チケット月額プラン</Text>
-              <Text style={st.monthlySub}>毎月{TICKET_MONTHLY_GRANT}枚自動付与＋広告なし ¥1,280/月</Text>
+              <Text style={st.monthlySub}>毎月{TICKET_MONTHLY_GRANT}枚自動付与＋広告なし ¥980/月</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={TEXT_HINT} />
           </TouchableOpacity>

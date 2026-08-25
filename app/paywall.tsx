@@ -63,7 +63,7 @@ function buildPlans(t: (key: string, opts?: any) => string): PlanConfig[] {
     {
       id: 'ticket_monthly', color: TIX, icon: '🎫',
       label: t('paywall.plans.ticket_monthly.label'), tagline: t('paywall.plans.ticket_monthly.tagline'),
-      monthly: { productId: PRODUCT_IDS.ticket_monthly, price: '¥1,280', period: perMonth },
+      monthly: { productId: PRODUCT_IDS.ticket_monthly, price: '¥980', period: perMonth },
       features: [
         t('paywall.plans.ticket_monthly.feature1'),
         t('paywall.plans.ticket_monthly.feature2', { count: TICKET_MONTHLY_GRANT }),

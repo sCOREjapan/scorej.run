@@ -13,6 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import Constants from 'expo-constants'
 import { Ionicons } from '@expo/vector-icons'
 import { AuthProvider, useAuth } from '../context/AuthContext'
+import { claimReferralRewards, REFERRAL_BONUS_TICKETS } from '../lib/referral'
 import { ThemeProvider } from '../context/ThemeContext'
 import { PurchaseProvider } from '../context/PurchaseContext'
 import { LanguageProvider, useLanguage } from '../context/LanguageContext'
@@ -480,6 +481,28 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       if (queue.length) setBannerQueue(queue)
     })()
   }, [loading, isOnboarded, consentAccepted])
+
+  // ── 友達招待の成立チェック（次回ログイン時に自動で反映） ──────────────
+  // 招待した側は、招待した相手がコードを使った時点では自分の端末を見ていないため、
+  // それまでは報酬が未反映のまま。次にアプリを開いた（ログイン状態が確定した）
+  // タイミングで claimReferralRewards() を呼び、未受け取り分があればまとめて付与し通知する。
+  // ゲストは紹介機能の対象外（アカウントに紐付くため）。
+  const referralCheckedRef = useRef(false)
+  useEffect(() => {
+    if (loading || isGuest || !user) return
+    if (referralCheckedRef.current) return
+    referralCheckedRef.current = true
+    claimReferralRewards().then(n => {
+      if (n > 0) {
+        Toast.show({
+          type: 'success',
+          text1: `🎫 チケット${REFERRAL_BONUS_TICKETS * n}枚が付与されました！`,
+          text2: '友達紹介が成立しました',
+          visibilityTime: 3500,
+        })
+      }
+    }).catch(() => {})
+  }, [loading, isGuest, user])
 
   // 告知バナーは全て<Modal>でネイティブpresentationを伴うため、表示中はApp Open広告と
   // 衝突しないよう共有ロックに反映する（lib/adLock.ts参照）。
