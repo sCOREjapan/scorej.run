@@ -343,13 +343,13 @@
     },
     "quickAccess": {
       "title": "Quick Access",
-      "videoAnalysis": "Video Analysis",
+      "videoAnalysis": "Video\nAnalysis",
       "menu": "Menu",
       "calendar": "Calendar",
-      "mealAnalysis": "Meal Analysis",
-      "competitionPlan": "Competition Plan",
+      "mealAnalysis": "Meal\nAnalysis",
+      "competitionPlan": "Race\nPlan",
       "starter": "Starter",
-      "combinedEvents": "Combined Events",
+      "combinedEvents": "Combined\nEvents",
       "trainingTimer": "Training\nTimer"
     },
     "practiceList": {

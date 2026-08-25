@@ -520,7 +520,12 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     const storageKey = key === 'line' ? LINE_BANNER_SEEN_KEY : COACH_BANNER_SEEN_KEY
     const currentVersion = Constants.expoConfig?.version ?? ''
     AsyncStorage.setItem(storageKey, currentVersion).catch(() => {})
-    setBannerQueue(q => q.slice(1))
+    // LineCommunityBanner/CoachPlanBannerは常にvisible=trueの<Modal>で、キューを
+    // 即座に進めると前のModalの閉じるアニメーションが終わる前に次のModalが
+    // presentされ、iOS側でネイティブpresentationが競合して画面が反応しなくなる
+    // (フリーズする)不具合があった。fadeアニメーション(既定300ms)が完了するまで
+    // 次のバナーの表示を遅らせることで回避する。
+    setTimeout(() => setBannerQueue(q => q.slice(1)), 400)
   }
 
   useEffect(() => {

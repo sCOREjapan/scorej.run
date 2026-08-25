@@ -45,7 +45,8 @@ import { fetchTeamEvents, sendCoachNotification, type TeamEventRow } from '../..
 import type { SleepRecord } from '../../types'
 import ReviewWall, { shouldShowReviewWall } from '../../components/ReviewWall'
 import NoadUpsellModal, { shouldShowNoadUpsell } from '../../components/NoadUpsellModal'
-import { hasDailyInsightClaimed, markDailyInsightClaimed, isAppOpenAdShowing } from '../../lib/admob'
+import { hasDailyInsightClaimed, markDailyInsightClaimed } from '../../lib/admob'
+import { isAnyAdShowing } from '../../lib/adLock'
 import { checkAdGate, recordUsage } from '../../lib/adGate'
 import TicketGateModal from '../../components/TicketGateModal'
 import { todayLocalISO, localDateStr } from '../../lib/dateLocal'
@@ -1483,14 +1484,15 @@ export default function DashboardScreen() {
   }, [])
 
   // レビューウォール：起動5回目以降に表示（4秒後に）
-  // チュートリアル中・App Open広告表示中は表示しない（複数の Modal/native広告が
+  // チュートリアル中・広告/告知バナー表示中（isAnyAdShowing。LINE/コーチのお知らせバナーも
+  // 同じ<Modal>ネイティブpresentationなのでここに含まれる）は表示しない（複数の Modal/native広告が
   // 同時に present されると、片方を閉じてももう片方の presentation が残って
   // 画面全体がタップ無反応になることがあるため、必ず1つずつ表示する）
   useEffect(() => {
     if (tutorialActive) return
     const t = setTimeout(async () => {
       try {
-        if (tutorialActive || isAppOpenAdShowing()) return
+        if (tutorialActive || isAnyAdShowing()) return
         const show = await shouldShowReviewWall()
         if (show) setReviewWallVisible(true)
       } catch {}
@@ -1499,12 +1501,12 @@ export default function DashboardScreen() {
   }, [tutorialActive])
 
   // 広告なしプランの案内：FREEユーザーのみ、週1回程度
-  // （チュートリアル中・レビューウォール表示中・App Open広告表示中は重ならないよう見送る）
+  // （チュートリアル中・レビューウォール表示中・広告/告知バナー表示中は重ならないよう見送る）
   useEffect(() => {
     if (purchaseTier !== 'free' || tutorialActive || reviewWallVisible) return
     const t = setTimeout(async () => {
       try {
-        if (tutorialActive || reviewWallVisible || isAppOpenAdShowing()) return
+        if (tutorialActive || reviewWallVisible || isAnyAdShowing()) return
         const show = await shouldShowNoadUpsell()
         if (show) setNoadUpsellVisible(true)
       } catch {}

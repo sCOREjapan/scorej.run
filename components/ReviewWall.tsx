@@ -10,13 +10,20 @@ import {
 } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Ionicons } from '@expo/vector-icons'
+import * as StoreReview from 'expo-store-review'
 import { todayLocalISO } from '../lib/dateLocal'
 
 // ── ストア URL ────────────────────────────────────────────────
 // itms-apps:// + ?action=write-review → App Storeのレビュー入力画面に直接飛ぶ（iOS専用）
+// ネイティブの評価ポップアップ(requestReview)が使えない環境向けのフォールバックとしてのみ使用する
 const APP_STORE_REVIEW_URL  = 'itms-apps://apps.apple.com/app/id6766394981?action=write-review'
 const APP_STORE_WEB_URL     = 'https://apps.apple.com/jp/app/score/id6766394981?action=write-review'
 const PLAY_STORE_URL        = 'https://play.google.com/store/apps/details?id=com.scorejapan.score&reviewId=0'
+
+// 低評価(1〜3星)の受け皿。公開のApp Store/Playレビューには送らず、こちらへ誘導する
+const FEEDBACK_EMAIL_URL =
+  'mailto:team.deepwork2026@gmail.com?subject=' + encodeURIComponent('sCORE アプリへのフィードバック') +
+  '&body=' + encodeURIComponent('気になった点・改善してほしい点を教えてください。\n\n')
 
 // ── AsyncStorage キー ─────────────────────────────────────────
 export const REVIEW_OPEN_COUNT_KEY = 'score_review_open_count'
@@ -98,22 +105,36 @@ export default function ReviewWall({ visible, onClose }: Props) {
     })
   }
 
-  async function openStore() {
-    setStarPressed(5)
+  // 4〜5星 → Apple/Googleのネイティブレビューポップアップ（Appストアの実評価に直結する公式UI）を呼ぶ。
+  // 端末側の制限（年数回まで等）で表示されないこともあるため、その場合のみストアページへのリンクにフォールバックする。
+  async function submitPositiveReview() {
     try {
-      if (Platform.OS === 'android') {
-        // Android → Play Storeのレビューページ
+      const available = await StoreReview.isAvailableAsync()
+      if (available) {
+        await StoreReview.requestReview()
+      } else if (Platform.OS === 'android') {
         await Linking.openURL(PLAY_STORE_URL)
       } else if (Platform.OS === 'ios') {
-        // iOS → itms-apps:// でApp Storeのレビュー入力欄に直接飛ぶ
         const canOpen = await Linking.canOpenURL(APP_STORE_REVIEW_URL)
         await Linking.openURL(canOpen ? APP_STORE_REVIEW_URL : APP_STORE_WEB_URL)
       } else {
-        // Web → App Storeページ（webではレビュー直接入力は不可）
         await Linking.openURL(APP_STORE_WEB_URL)
       }
     } catch {}
     dismiss('reviewed')
+  }
+
+  // 1〜3星 → 公開ストアレビューには送らず、内々のフィードバック窓口へ誘導する
+  async function sendFeedback() {
+    try {
+      await Linking.openURL(FEEDBACK_EMAIL_URL)
+    } catch {}
+    dismiss('reviewed')
+  }
+
+  function handlePrimaryPress() {
+    if (starPressed >= 4) submitPositiveReview()
+    else if (starPressed >= 1) sendFeedback()
   }
 
   if (!visible) return null
@@ -170,10 +191,19 @@ export default function ReviewWall({ visible, onClose }: Props) {
         )}
 
         {/* CTAボタン */}
-        <TouchableOpacity style={s.primaryBtn} onPress={openStore} activeOpacity={0.85}>
-          <Ionicons name="star" size={18} color="#fff" />
+        <TouchableOpacity
+          style={[s.primaryBtn, starPressed === 0 && s.primaryBtnDisabled]}
+          onPress={handlePrimaryPress}
+          activeOpacity={0.85}
+          disabled={starPressed === 0}
+        >
+          <Ionicons name={starPressed >= 4 ? 'star' : 'mail'} size={18} color="#fff" />
           <Text style={s.primaryBtnTxt}>
-            {Platform.OS === 'android' ? 'Google Play でレビューを書く' : 'App Store でレビューを書く'}
+            {starPressed === 0
+              ? '星を選んでください'
+              : starPressed >= 4
+                ? (Platform.OS === 'android' ? 'Google Play でレビューを書く' : 'App Store でレビューを書く')
+                : 'フィードバックを送る'}
           </Text>
         </TouchableOpacity>
 
@@ -241,6 +271,9 @@ const s = StyleSheet.create({
     borderRadius: 16, paddingVertical: 16,
     flexDirection: 'row', alignItems: 'center',
     justifyContent: 'center', gap: 8,
+  },
+  primaryBtnDisabled: {
+    opacity: 0.4,
   },
   primaryBtnTxt: {
     color: '#fff', fontSize: 16, fontWeight: '800',
