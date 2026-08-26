@@ -77,6 +77,14 @@ export async function getWalletSnapshot(): Promise<Wallet> {
   if (userId) {
     const { data } = await supabase.from('ticket_wallets').select('tickets').eq('user_id', userId).maybeSingle()
     if (data) return { tickets: data.tickets }
+    // サーバー側にまだ行が無い＝このアカウントで初めてサーバー同期する端末。
+    // 端末ローカルに残高があれば、それを引き継いでサーバー側の初期値にする
+    // （これをしないと、サーバー移行前に貯めていたチケットが消えたように見えてしまう）。
+    const local = await getWallet()
+    if (local.tickets > 0) {
+      const migrated = await grantTickets(local.tickets)
+      return { tickets: migrated }
+    }
     return { tickets: 0 }
   }
   return getWallet()

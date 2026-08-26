@@ -63,6 +63,19 @@ async function syncTicketMonthlyGrant(hasTicketMonthly: boolean, ticketMonthlyEx
   } catch {}
 }
 
+// getPackages() は端末側のRevenueCat SDKがまだ準備完了していないタイミング
+// （特に新規インストール・アップデート直後）で呼ばれると一時的に0件を返すことがある。
+// 従来は1回失敗したらそのまま諦めていたため、「商品が読み込めない」という
+// 再現性の低い不具合報告が繰り返されていた。ここで短い間隔を空けて数回リトライする。
+async function getPackagesWithRetry(maxAttempts = 3, delayMs = 1500): Promise<any[]> {
+  for (let i = 0; i < maxAttempts; i++) {
+    const pkgs = await getPackages()
+    if (pkgs.length > 0) return pkgs
+    if (i < maxAttempts - 1) await new Promise(resolve => setTimeout(resolve, delayMs))
+  }
+  return []
+}
+
 // プラン確定のたびに profiles.plan_tier / has_ticket_monthly を同期する。
 // 管理ダッシュボード（app/admin.tsx）の有料率集計はこの値を数えるだけなので、
 // ここで同期していないユーザーは「未課金」として計上される。ゲストは
@@ -135,7 +148,7 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
         syncTicketMonthlyGrant(status.hasTicketMonthly, status.ticketMonthlyExpiresAt)
         syncPlanTierToSupabase(currentId ?? undefined, status.tier, status.hasTicketMonthly)
       })
-      .then(() => getPackages())
+      .then(() => getPackagesWithRetry())
       .then(pkgs => { setPackages(pkgs); setPackagesDiagnostic(getLastPackagesDiagnostic()); setPackagesReady(true) })
       .catch(() => { setPackagesReady(true) })
 
@@ -157,7 +170,7 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
       await cacheSubscriptionStatus(status.tier, status.expiresAt, status.originalPurchaseDate, status.hasTicketMonthly, status.ticketMonthlyExpiresAt)
       await syncTicketMonthlyGrant(status.hasTicketMonthly, status.ticketMonthlyExpiresAt)
       await syncPlanTierToSupabase(user?.id, status.tier, status.hasTicketMonthly)
-      const pkgs = await getPackages()
+      const pkgs = await getPackagesWithRetry()
       setPackages(pkgs)
       setPackagesDiagnostic(getLastPackagesDiagnostic())
     } catch {} finally {
