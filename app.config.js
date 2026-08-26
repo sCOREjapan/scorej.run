@@ -24,7 +24,7 @@ module.exports = {
       requiresFullScreen: true,
       bundleIdentifier: 'com.scorejapan.score',
       usesAppleSignIn: true,
-      buildNumber: '33',
+      buildNumber: '34',
       infoPlist: {
         CFBundleURLTypes: [
           {
@@ -41,7 +41,7 @@ module.exports = {
     android: {
       adaptiveIcon: { backgroundColor: '#0a0a0a' },
       package: 'com.scorejapan.score',
-      versionCode: 1,
+      versionCode: 2,
       googleServicesFile: './google-services.json',
     },
     plugins: [

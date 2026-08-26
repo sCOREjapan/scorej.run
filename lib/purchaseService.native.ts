@@ -86,7 +86,11 @@ export async function initPurchases(userId?: string): Promise<void> {
         // configure() が一度も呼ばれないまま getOfferings 等が失敗し続けるバグがあった。
         const alreadyConfigured = await Purchases.isConfigured()
         if (!alreadyConfigured) {
-          Purchases.configure({ apiKey })
+          // configure() の完了を待たずに _configured = true にしていたため、
+          // ネイティブ側のセットアップが終わる前に getOfferings()/getCustomerInfo() が
+          // 呼ばれ「There is no singleton instance」で失敗することがあった
+          // （新ビルド導入直後の「商品が読み込めない」不具合の主因）。必ず待つ。
+          await Purchases.configure({ apiKey })
         }
         _configured = true
       }
