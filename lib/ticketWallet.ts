@@ -3,9 +3,17 @@
 // チケット: AI機能すべてを消費する唯一の通貨（無料10枚→単発パック→チケット月額プランで補充）。
 // チケット月額プラン: 更新のたびに100枚を自動付与する（lib/purchaseService の ticket_monthly エンタイトルメント）。
 // ストリーク: 連続起動日数に応じたボーナス付与（3日=チケット+1 / 7日=チケット+2 / 30日=チケット+5）。
+//
+// ログイン済みユーザーは Supabase の ticket_wallets テーブルを唯一の真実（source of truth）とする。
+// 以前は全てAsyncStorage（端末ローカル）のみで管理しており、別端末で開く・再インストールする
+// だけで「まだ付与していない」と誤判定され、月額100枚などが何度でも再付与できてしまう
+// 不具合があった（2026-08-26に実際に発生）。ゲスト（未ログイン）はサーバー側の本人確認手段が
+// 無いため、従来通り端末ローカルのみで動作する（悪用余地は残るが、アカウントが無い以上
+// サーバー側で防ぎようがないため許容する）。
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { todayLocalISO } from './dateLocal'
 import { TICKET_MONTHLY_GRANT } from './purchaseService'
+import { supabase } from './supabase'
 
 const WALLET_KEY           = 'score_ticket_wallet'
 const STREAK_KEY           = 'score_ticket_streak'
@@ -31,12 +39,23 @@ export const TICKET_COST: Record<TicketFeature, number> = {
 
 type Wallet = { tickets: number }
 
-// ── 書き込み直列化（adGate.ts と同じ作法。read-modify-writeの競合を防ぐ） ──
+// ── 書き込み直列化（adGate.ts と同じ作法。read-modify-writeの競合を防ぐ。ゲスト経路のみで使用） ──
 let _writeQueue: Promise<unknown> = Promise.resolve()
 function serialize<T>(fn: () => Promise<T>): Promise<T> {
   const run = _writeQueue.then(fn, fn)
   _writeQueue = run.then(() => undefined, () => undefined)
   return run
+}
+
+// ── ログイン状態の判定 ─────────────────────────────────────────
+// getSession() はローカルにキャッシュされたセッションを見るだけなのでネットワーク待ちが発生しない
+async function getCurrentUserId(): Promise<string | null> {
+  try {
+    const { data } = await supabase.auth.getSession()
+    return data?.session?.user?.id ?? null
+  } catch {
+    return null
+  }
 }
 
 async function getWallet(): Promise<Wallet> {
@@ -54,14 +73,26 @@ async function saveWallet(w: Wallet) {
 }
 
 export async function getWalletSnapshot(): Promise<Wallet> {
+  const userId = await getCurrentUserId()
+  if (userId) {
+    const { data } = await supabase.from('ticket_wallets').select('tickets').eq('user_id', userId).maybeSingle()
+    if (data) return { tickets: data.tickets }
+    return { tickets: 0 }
+  }
   return getWallet()
 }
 export async function getTicketBalance(): Promise<number> {
-  return (await getWallet()).tickets
+  return (await getWalletSnapshot()).tickets
 }
 
 /** チケットを付与する（IAP購入・ストリークボーナス・広告視聴共通） */
 export async function grantTickets(count: number): Promise<number> {
+  const userId = await getCurrentUserId()
+  if (userId) {
+    const { data, error } = await supabase.rpc('ticket_wallet_grant', { p_amount: count })
+    if (!error && typeof data === 'number') return data
+    // サーバー呼び出しに失敗した場合のみローカルにフォールバック（オフライン等）
+  }
   return serialize(async () => {
     const w = await getWallet()
     w.tickets += count
@@ -70,73 +101,68 @@ export async function grantTickets(count: number): Promise<number> {
   })
 }
 
+/** キー付き重複防止の付与。ログイン中はサーバーの ticket_wallet_grant_once で判定する */
+async function grantOnceGeneric(
+  amount: number,
+  markerName: string,
+  markerValue: string,
+  localKey: string,
+): Promise<boolean> {
+  const userId = await getCurrentUserId()
+  if (userId) {
+    const { data, error } = await supabase.rpc('ticket_wallet_grant_once', {
+      p_amount: amount, p_marker_name: markerName, p_marker_value: markerValue,
+    })
+    if (!error) return !!data
+  }
+  return serialize(async () => {
+    const last = await AsyncStorage.getItem(localKey).catch(() => null)
+    if (last === markerValue) return false
+    const w = await getWallet()
+    w.tickets += amount
+    await saveWallet(w)
+    await AsyncStorage.setItem(localKey, markerValue).catch(() => {})
+    return true
+  })
+}
+
 /** オンボーディング完了時に1回だけ初期チケットを付与する（2回目以降は何もしない） */
 export async function grantStarterTicketsIfNeeded(): Promise<void> {
-  return serialize(async () => {
-    const already = await AsyncStorage.getItem(STARTER_KEY)
-    if (already) return
-    const w = await getWallet()
-    w.tickets += STARTER_TICKETS
-    await saveWallet(w)
-    await AsyncStorage.setItem(STARTER_KEY, '1').catch(() => {})
-  })
+  await grantOnceGeneric(STARTER_TICKETS, 'starter', '1', STARTER_KEY)
 }
 
 /** シェアカード投稿でチケット1枚を付与（1日1回まで） */
 export async function grantShareBonusTicket(): Promise<{ granted: boolean; atCap: boolean }> {
-  return serialize(async () => {
-    const today = todayLocalISO()
-    const last = await AsyncStorage.getItem(SHARE_BONUS_KEY).catch(() => null)
-    if (last === today) return { granted: false, atCap: true }
-    await AsyncStorage.setItem(SHARE_BONUS_KEY, today).catch(() => {})
-    const w = await getWallet()
-    w.tickets += 1
-    await saveWallet(w)
-    return { granted: true, atCap: false }
-  })
+  const today = todayLocalISO()
+  const granted = await grantOnceGeneric(1, 'share_bonus', today, SHARE_BONUS_KEY)
+  return { granted, atCap: !granted }
 }
 
 /** プロフィール（種目・自己ベスト等）を初めて完成させたらチケットを1回だけ付与する */
 export async function grantProfileCompleteBonusIfNeeded(): Promise<{ granted: boolean }> {
-  return serialize(async () => {
-    const already = await AsyncStorage.getItem(MISSION_PROFILE_KEY)
-    if (already) return { granted: false }
-    await AsyncStorage.setItem(MISSION_PROFILE_KEY, '1').catch(() => {})
-    const w = await getWallet()
-    w.tickets += MISSION_BONUS
-    await saveWallet(w)
-    return { granted: true }
-  })
+  const granted = await grantOnceGeneric(MISSION_BONUS, 'mission_profile', '1', MISSION_PROFILE_KEY)
+  return { granted }
 }
 
 /** LINEオープンチャットへの参加ボタンを押したらチケットを1回だけ付与する（自己申告） */
 export async function grantLineJoinBonusIfNeeded(): Promise<{ granted: boolean }> {
-  return serialize(async () => {
-    const already = await AsyncStorage.getItem(MISSION_LINE_KEY)
-    if (already) return { granted: false }
-    await AsyncStorage.setItem(MISSION_LINE_KEY, '1').catch(() => {})
-    const w = await getWallet()
-    w.tickets += MISSION_BONUS
-    await saveWallet(w)
-    return { granted: true }
-  })
+  const granted = await grantOnceGeneric(MISSION_BONUS, 'mission_line', '1', MISSION_LINE_KEY)
+  return { granted }
 }
 
 /** 初めて目標を設定したらチケットを1回だけ付与する */
 export async function grantFirstGoalBonusIfNeeded(): Promise<{ granted: boolean }> {
-  return serialize(async () => {
-    const already = await AsyncStorage.getItem(MISSION_GOAL_KEY)
-    if (already) return { granted: false }
-    await AsyncStorage.setItem(MISSION_GOAL_KEY, '1').catch(() => {})
-    const w = await getWallet()
-    w.tickets += MISSION_BONUS
-    await saveWallet(w)
-    return { granted: true }
-  })
+  const granted = await grantOnceGeneric(MISSION_BONUS, 'mission_goal', '1', MISSION_GOAL_KEY)
+  return { granted }
 }
 
 /** チケットを消費する。残高不足なら何もせず false を返す */
 export async function spendTickets(count: number): Promise<boolean> {
+  const userId = await getCurrentUserId()
+  if (userId) {
+    const { data, error } = await supabase.rpc('ticket_wallet_spend', { p_amount: count })
+    if (!error) return !!data
+  }
   return serialize(async () => {
     const w = await getWallet()
     if (w.tickets < count) return false
@@ -152,6 +178,8 @@ export async function spendTicketsForFeature(feature: TicketFeature): Promise<bo
 }
 
 // ── 広告視聴でチケットを直接獲得（1日10回まで） ───────────────────
+// 1日の上限カウント自体は（乱用されても影響が小さいため）端末ローカルのままとするが、
+// 実際に加算されるチケット残高は grantTickets() 経由でログイン中はサーバーに反映される。
 const AD_TICKET_DAILY_CAP = 10
 const AD_TICKET_DAILY_KEY = 'score_ticket_ad_daily'
 
@@ -180,15 +208,13 @@ export async function earnTicketFromAd(): Promise<{ granted: boolean; atCap: boo
   return serialize(async () => {
     const daily = await getAdTicketDaily()
     if (daily.count >= AD_TICKET_DAILY_CAP) {
-      const w = await getWallet()
-      return { granted: false, atCap: true, tickets: w.tickets }
+      const tickets = await getTicketBalance()
+      return { granted: false, atCap: true, tickets }
     }
     daily.count += 1
     await saveAdTicketDaily(daily)
-    const w = await getWallet()
-    w.tickets += 1
-    await saveWallet(w)
-    return { granted: true, atCap: false, tickets: w.tickets }
+    const tickets = await grantTickets(1)
+    return { granted: true, atCap: false, tickets }
   })
 }
 
@@ -197,21 +223,17 @@ export async function earnTicketFromAd(): Promise<{ granted: boolean; atCap: boo
  * チケット月額プランが有効なとき、更新期日(periodExpiresAt)が前回付与時と変わっていれば
  * 100枚を追加付与する（残高リセットではなく加算——単発パックで買い足した分を消さないため）。
  * 同じ期日内での複数回呼び出しは何もしない（起動のたびに呼んでも安全）。
+ * ログイン中はサーバー側の重複防止マーカーを見るため、別端末・再インストールでも
+ * 二重付与されない。
  */
 export async function grantMonthlyTicketsIfNeeded(periodExpiresAt: string | undefined): Promise<boolean> {
   if (!periodExpiresAt) return false
-  return serialize(async () => {
-    const last = await AsyncStorage.getItem(MONTHLY_GRANT_KEY).catch(() => null)
-    if (last === periodExpiresAt) return false
-    const w = await getWallet()
-    w.tickets += TICKET_MONTHLY_GRANT
-    await saveWallet(w)
-    await AsyncStorage.setItem(MONTHLY_GRANT_KEY, periodExpiresAt).catch(() => {})
-    return true
-  })
+  return grantOnceGeneric(TICKET_MONTHLY_GRANT, 'monthly_grant', periodExpiresAt, MONTHLY_GRANT_KEY)
 }
 
 // ── ストリークボーナス（連続起動日数） ───────────────────────────
+// 連続日数のカウント自体は端末ローカルのままとするが（複数端末を行き来する使い方は
+// 想定外のため）、加算されるチケットは grantTickets() 経由でログイン中はサーバーに反映される。
 type StreakStore = { lastDate: string; streak: number; lastBonusStreak: number }
 type StreakBonus = { amount: number }
 
@@ -251,11 +273,9 @@ export async function checkInStreak(): Promise<{ streak: number; bonus: StreakBo
 
     let bonus: StreakBonus | null = null
     if (streak !== s.lastBonusStreak && (streak === 3 || streak === 7 || streak === 30)) {
-      const w = await getWallet()
       const amount = streak === 30 ? 5 : streak === 7 ? 2 : 1
-      w.tickets += amount
+      await grantTickets(amount)
       bonus = { amount }
-      await saveWallet(w)
       s.lastBonusStreak = streak
     }
     await saveStreakStore(s)

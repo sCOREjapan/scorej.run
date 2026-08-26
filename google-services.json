@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "48610912678",
+    "project_id": "score-app-7c39d",
+    "storage_bucket": "score-app-7c39d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:48610912678:android:3d4836de584cd2c7bd8767",
+        "android_client_info": {
+          "package_name": "com.scorejapan.score"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDm1DV5ji8NVieHS6JcpuWCSO_mY6WEyyY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

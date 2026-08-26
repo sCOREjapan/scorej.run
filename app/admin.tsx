@@ -85,7 +85,36 @@ interface AdminStats {
   prefecture_dist:   { prefecture: string; count: number }[]
   event_dist:        { event: string; count: number }[]
   weekly_sessions:   { week: string; count: number }[]
+  paid_pct:          number
+  total_teams:       number
+  total_members:     number
+  teams_weekly:      { week: string; count: number }[]
 }
+
+interface RetentionCohort {
+  signup_week: string
+  cohort_size: number
+  d1_pct:  number | null
+  d7_pct:  number | null
+  d30_pct: number | null
+}
+
+// チケット制課金の導入日（lib/adGate.ts の TICKET_SYSTEM_CUTOVER と一致させる）。
+// 週次グラフにこの日を含む週へ縦線を引き、施策と数字の変化を目視で結びつけられるようにする。
+const TICKET_CUTOVER_DATE = '2026-08-06'
+
+// SQL側の date_trunc('week', ...) はISO週（月曜始まり）なので、JS側でも同じ規則で
+// 「その日を含む週の月曜」を計算し、weekly_sessions/teams_weekly の 'MM/DD' ラベルと突き合わせる。
+function isoWeekMondayLabel(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00Z')
+  const day = d.getUTCDay() // 0=日曜
+  const diffToMonday = day === 0 ? 6 : day - 1
+  d.setUTCDate(d.getUTCDate() - diffToMonday)
+  const mm = String(d.getUTCMonth() + 1).padStart(2, '0')
+  const dd = String(d.getUTCDate()).padStart(2, '0')
+  return `${mm}/${dd}`
+}
+const TICKET_CUTOVER_WEEK = isoWeekMondayLabel(TICKET_CUTOVER_DATE)
 
 // ── カラースケール（0=グレー → 緑系） ────────────────────────
 function countToColor(count: number, max: number): string {
@@ -135,7 +164,11 @@ function BarRow({ label, count, max, color }: {
 }
 
 // ── 折れ線グラフ（SVG） ───────────────────────────────────────
-function LineChart({ data }: { data: { week: string; count: number }[] }) {
+function LineChart({ data, markerWeek, markerLabel }: {
+  data: { week: string; count: number }[]
+  markerWeek?: string
+  markerLabel?: string
+}) {
   if (!data || data.length < 2) return <Text style={{ color: '#6b7280', textAlign: 'center', marginTop: 20 }}>データなし</Text>
   const W = 280, H = 100, PAD = 10
   const maxVal = Math.max(...data.map(d => d.count), 1)
@@ -147,6 +180,7 @@ function LineChart({ data }: { data: { week: string; count: number }[] }) {
     count: d.count,
   }))
   const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ')
+  const markerIdx = markerWeek ? points.findIndex(p => p.label === markerWeek) : -1
 
   return (
     <Svg width={W} height={H + 20}>
@@ -158,6 +192,19 @@ function LineChart({ data }: { data: { week: string; count: number }[] }) {
           stroke="#2a2a3e" strokeWidth={1}
         />
       ))}
+      {/* 施策マーカー（例: チケット制導入日） */}
+      {markerIdx >= 0 && (
+        <G>
+          <Line
+            x1={points[markerIdx].x} y1={PAD}
+            x2={points[markerIdx].x} y2={H - PAD}
+            stroke="#f59e0b" strokeWidth={1.5} strokeDasharray="4,3"
+          />
+          <SvgText x={points[markerIdx].x} y={PAD - 2} fontSize={8} fill="#f59e0b" textAnchor="middle" fontWeight="700">
+            {markerLabel ?? '施策'}
+          </SvgText>
+        </G>
+      )}
       {/* ライン */}
       <Path d={pathD} fill="none" stroke="#16a34a" strokeWidth={2} strokeLinejoin="round" />
       {/* ドット */}
@@ -173,6 +220,34 @@ function LineChart({ data }: { data: { week: string; count: number }[] }) {
         </SvgText>
       ))}
     </Svg>
+  )
+}
+
+// ── リテンション行（D1/D7/D30の3本ミニバー） ───────────────────
+function RetentionRow({ cohort }: { cohort: RetentionCohort }) {
+  const bars: { label: string; pct: number | null; color: string }[] = [
+    { label: 'D1',  pct: cohort.d1_pct,  color: '#22c55e' },
+    { label: 'D7',  pct: cohort.d7_pct,  color: '#eab308' },
+    { label: 'D30', pct: cohort.d30_pct, color: '#ef4444' },
+  ]
+  return (
+    <View style={{ marginBottom: 14 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+        <Text style={{ color: '#9ca3af', fontSize: 12, fontWeight: '700' }}>{cohort.signup_week}週 登録</Text>
+        <Text style={{ color: '#6b7280', fontSize: 11 }}>{cohort.cohort_size}人</Text>
+      </View>
+      {bars.map(b => (
+        <View key={b.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+          <Text style={{ color: '#6b7280', fontSize: 10, width: 26 }}>{b.label}</Text>
+          <View style={{ flex: 1, height: 6, backgroundColor: '#2a2a3e', borderRadius: 3, overflow: 'hidden' }}>
+            <View style={{ width: `${b.pct ?? 0}%`, height: '100%', backgroundColor: b.color, borderRadius: 3 }} />
+          </View>
+          <Text style={{ color: '#6b7280', fontSize: 10, width: 34, textAlign: 'right' }}>
+            {b.pct === null ? '—' : `${b.pct}%`}
+          </Text>
+        </View>
+      ))}
+    </View>
   )
 }
 
@@ -287,7 +362,16 @@ export default function AdminScreen() {
   const [stats,   setStats]   = useState<AdminStats | null>(null)
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState('')
-  const [tab,     setTab]     = useState<'map' | 'sport' | 'trend'>('map')
+  const [tab,     setTab]     = useState<'map' | 'sport' | 'trend' | 'team' | 'retention' | 'export'>('map')
+
+  const [cohorts,        setCohorts]        = useState<RetentionCohort[]>([])
+  const [cohortsLoading, setCohortsLoading] = useState(false)
+
+  // CSV出力専用のシークレット（管理画面パスワードとは別物。JSバンドルに含まれず
+  // サーバー側 api/admin-churned-users.ts の ADMIN_EXPORT_SECRET と照合される）
+  const [exportSecret,  setExportSecret]  = useState('')
+  const [exporting,     setExporting]     = useState(false)
+  const [exportError,   setExportError]   = useState('')
 
   const loadStats = useCallback(async () => {
     setLoading(true)
@@ -302,6 +386,52 @@ export default function AdminScreen() {
       setLoading(false)
     }
   }, [])
+
+  const loadCohorts = useCallback(async () => {
+    setCohortsLoading(true)
+    try {
+      const { data, error: rpcErr } = await supabase.rpc('get_retention_cohorts')
+      if (rpcErr) throw rpcErr
+      setCohorts((data as RetentionCohort[]) ?? [])
+    } catch {
+      setCohorts([])
+    } finally {
+      setCohortsLoading(false)
+    }
+  }, [])
+
+  const handleExport = useCallback(async () => {
+    if (!exportSecret) { setExportError('CSV出力用のシークレットを入力してください'); return }
+    setExporting(true)
+    setExportError('')
+    try {
+      const res = await fetch('/api/admin-churned-users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Export-Secret': exportSecret },
+        body: JSON.stringify({ minSessions: 3, inactiveDays: 21 }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error ?? `HTTP ${res.status}`)
+      }
+      const csv = await res.text()
+      if (Platform.OS === 'web' && typeof document !== 'undefined') {
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+        const url  = URL.createObjectURL(blob)
+        const a    = document.createElement('a')
+        a.href = url
+        a.download = `churned_users_${new Date().toISOString().slice(0, 10)}.csv`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+      }
+    } catch (e: any) {
+      setExportError(e?.message ?? '出力に失敗しました')
+    } finally {
+      setExporting(false)
+    }
+  }, [exportSecret])
 
   const handleLogin = () => {
     if (pass === ADMIN_PASS) {
@@ -320,14 +450,14 @@ export default function AdminScreen() {
     )
   }
 
-  const prefDist  = stats?.prefecture_dist  ?? []
-  const eventDist = stats?.event_dist       ?? []
-  const weekly    = stats?.weekly_sessions  ?? []
-  const maxPref   = Math.max(...prefDist.map(d => d.count), 1)
-  const maxEvent  = Math.max(...eventDist.map(d => d.count), 1)
+  const prefDist    = stats?.prefecture_dist ?? []
+  const eventDist   = stats?.event_dist      ?? []
+  const weekly      = stats?.weekly_sessions ?? []
+  const teamsWeekly = stats?.teams_weekly    ?? []
+  const maxPref     = Math.max(...prefDist.map(d => d.count), 1)
+  const maxEvent    = Math.max(...eventDist.map(d => d.count), 1)
 
-  // プレミアム率（PRO+ELITE）は profiles 単体では取れないので placeholder
-  const premiumPct = stats ? '—' : '—'
+  const premiumPct = stats ? `${stats.paid_pct}%` : '—'
 
   return (
     <View style={{ flex: 1, backgroundColor: '#0a0a1a' }}>
@@ -365,21 +495,29 @@ export default function AdminScreen() {
           </View>
 
           {/* タブ */}
-          <View style={s.tabRow}>
-            {[
-              { key: 'map',   label: '🗾 地域マップ' },
-              { key: 'sport', label: '🏃 種目分布' },
-              { key: 'trend', label: '📈 週次推移' },
-            ].map(t => (
-              <TouchableOpacity
-                key={t.key}
-                onPress={() => setTab(t.key as any)}
-                style={[s.tab, tab === t.key && s.tabActive]}
-              >
-                <Text style={[s.tabText, tab === t.key && s.tabTextActive]}>{t.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={s.tabRow}>
+              {[
+                { key: 'map',       label: '🗾 地域マップ' },
+                { key: 'sport',     label: '🏃 種目分布' },
+                { key: 'trend',     label: '📈 週次推移' },
+                { key: 'team',      label: '🤝 チーム普及' },
+                { key: 'retention', label: '📊 リテンション' },
+                { key: 'export',    label: '📤 離脱者CSV' },
+              ].map(t => (
+                <TouchableOpacity
+                  key={t.key}
+                  onPress={() => {
+                    setTab(t.key as any)
+                    if (t.key === 'retention' && cohorts.length === 0) loadCohorts()
+                  }}
+                  style={[s.tab, tab === t.key && s.tabActive]}
+                >
+                  <Text style={[s.tabText, tab === t.key && s.tabTextActive]}>{t.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
 
           {/* 地域マップ */}
           {tab === 'map' && (
@@ -427,8 +565,74 @@ export default function AdminScreen() {
               <Text style={s.cardTitle}>週次練習記録数（過去12週）</Text>
               {loading
                 ? <ActivityIndicator color="#16a34a" style={{ marginTop: 40, marginBottom: 40 }} />
-                : <LineChart data={weekly} />
+                : <LineChart data={weekly} markerWeek={TICKET_CUTOVER_WEEK} markerLabel="チケット導入" />
               }
+            </View>
+          )}
+
+          {/* チーム普及 */}
+          {tab === 'team' && (
+            <View style={s.card}>
+              <Text style={s.cardTitle}>チーム機能の普及状況</Text>
+              {loading ? (
+                <ActivityIndicator color="#16a34a" style={{ marginTop: 40, marginBottom: 40 }} />
+              ) : (
+                <>
+                  <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
+                    <KpiCard label="チーム数" value={stats?.total_teams ?? '—'} icon="people-circle" color="#6366f1" />
+                    <KpiCard label="登録選手数" value={stats?.total_members ?? '—'} icon="person-add" color="#22c55e" />
+                  </View>
+                  <Text style={[s.cardTitle, { fontSize: 12, marginBottom: 8 }]}>週次チーム作成数（過去8週）</Text>
+                  <LineChart data={teamsWeekly} markerWeek={TICKET_CUTOVER_WEEK} markerLabel="チケット導入" />
+                </>
+              )}
+            </View>
+          )}
+
+          {/* リテンション */}
+          {tab === 'retention' && (
+            <View style={s.card}>
+              <Text style={s.cardTitle}>登録週別 継続率（D1/D7/D30・近似値）</Text>
+              {cohortsLoading ? (
+                <ActivityIndicator color="#16a34a" style={{ marginTop: 40, marginBottom: 40 }} />
+              ) : cohorts.length === 0 ? (
+                <Text style={s.empty}>データなし</Text>
+              ) : (
+                cohorts.map(c => <RetentionRow key={c.signup_week} cohort={c} />)
+              )}
+            </View>
+          )}
+
+          {/* 離脱者CSV出力 */}
+          {tab === 'export' && (
+            <View style={s.card}>
+              <Text style={s.cardTitle}>離脱ユーザーのCSV出力</Text>
+              <Text style={{ color: '#6b7280', fontSize: 12, marginBottom: 14, lineHeight: 18 }}>
+                3回以上利用したのに21日以上ノーアクセスのユーザーのメールアドレス一覧を出力します。
+                個人情報を含むため、管理画面のパスワードとは別のシークレットが必要です。
+              </Text>
+              <TextInput
+                style={{
+                  backgroundColor: '#0a0a1a', color: '#fff', borderRadius: 10, padding: 12,
+                  fontSize: 14, borderWidth: 1, borderColor: '#2a2a3e', marginBottom: 12,
+                }}
+                placeholder="CSV出力用シークレット"
+                placeholderTextColor="#374151"
+                value={exportSecret}
+                onChangeText={setExportSecret}
+                secureTextEntry
+              />
+              {exportError ? <Text style={{ color: '#ef4444', fontSize: 12, marginBottom: 10 }}>⚠ {exportError}</Text> : null}
+              <TouchableOpacity
+                style={[s.primaryBtn, exporting && { opacity: 0.6 }]}
+                onPress={handleExport}
+                disabled={exporting}
+              >
+                {exporting
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <Text style={s.primaryBtnText}>CSVをダウンロード</Text>
+                }
+              </TouchableOpacity>
             </View>
           )}
 
@@ -450,10 +654,12 @@ const s = StyleSheet.create({
   scroll:       { padding: 16, gap: 14, paddingBottom: 40 },
   errorBox:     { backgroundColor: '#1e1e2e', borderRadius: 10, padding: 14, borderWidth: 1, borderColor: '#ef444430' },
   tabRow:       { flexDirection: 'row', backgroundColor: '#1e1e2e', borderRadius: 12, padding: 4, gap: 4 },
-  tab:          { flex: 1, paddingVertical: 8, borderRadius: 9, alignItems: 'center' },
+  tab:          { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 9, alignItems: 'center' },
   tabActive:    { backgroundColor: '#16a34a20' },
   tabText:      { color: '#6b7280', fontSize: 12, fontWeight: '600' },
   tabTextActive:{ color: '#16a34a', fontWeight: '800' },
+  primaryBtn:     { backgroundColor: '#16a34a', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  primaryBtnText: { color: '#fff', fontSize: 14, fontWeight: '800' },
   card:         { backgroundColor: '#1e1e2e', borderRadius: 16, padding: 18 },
   cardTitle:    { color: '#fff', fontSize: 14, fontWeight: '800', marginBottom: 14 },
   empty:        { color: '#6b7280', textAlign: 'center', paddingVertical: 30 },

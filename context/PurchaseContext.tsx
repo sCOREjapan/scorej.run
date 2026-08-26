@@ -18,6 +18,7 @@ import { setAdSuppressed } from '../lib/admob'
 import { grantMonthlyTicketsIfNeeded } from '../lib/ticketWallet'
 import { trackUpgrade } from '../lib/analytics'
 import { useAuth } from './AuthContext'
+import { supabase } from '../lib/supabase'
 
 const PLAN_LABELS: Record<PlanTier, string> = {
   free: '', noad: '広告なしプラン', coach: 'コーチプラン',
@@ -59,6 +60,20 @@ async function syncTicketMonthlyGrant(hasTicketMonthly: boolean, ticketMonthlyEx
     if (granted) {
       Toast.show({ type: 'success', text1: '🎫 チケット100枚を付与しました', text2: 'チケット月額プランの更新分です' })
     }
+  } catch {}
+}
+
+// プラン確定のたびに profiles.plan_tier / has_ticket_monthly を同期する。
+// 管理ダッシュボード（app/admin.tsx）の有料率集計はこの値を数えるだけなので、
+// ここで同期していないユーザーは「未課金」として計上される。ゲストは
+// profiles 行を持たないため userId が無ければ何もしない。
+async function syncPlanTierToSupabase(userId: string | undefined, tier: PlanTier, hasTicketMonthly: boolean) {
+  if (!userId) return
+  try {
+    await supabase
+      .from('profiles')
+      .update({ plan_tier: tier, has_ticket_monthly: hasTicketMonthly, updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
   } catch {}
 }
 
@@ -118,6 +133,7 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
         setHasTicketMonthly(status.hasTicketMonthly); setTicketMonthlyExpiresAt(status.ticketMonthlyExpiresAt)
         cacheSubscriptionStatus(status.tier, status.expiresAt, status.originalPurchaseDate, status.hasTicketMonthly, status.ticketMonthlyExpiresAt)
         syncTicketMonthlyGrant(status.hasTicketMonthly, status.ticketMonthlyExpiresAt)
+        syncPlanTierToSupabase(currentId ?? undefined, status.tier, status.hasTicketMonthly)
       })
       .then(() => getPackages())
       .then(pkgs => { setPackages(pkgs); setPackagesDiagnostic(getLastPackagesDiagnostic()); setPackagesReady(true) })
@@ -140,6 +156,7 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
       setHasTicketMonthly(status.hasTicketMonthly); setTicketMonthlyExpiresAt(status.ticketMonthlyExpiresAt)
       await cacheSubscriptionStatus(status.tier, status.expiresAt, status.originalPurchaseDate, status.hasTicketMonthly, status.ticketMonthlyExpiresAt)
       await syncTicketMonthlyGrant(status.hasTicketMonthly, status.ticketMonthlyExpiresAt)
+      await syncPlanTierToSupabase(user?.id, status.tier, status.hasTicketMonthly)
       const pkgs = await getPackages()
       setPackages(pkgs)
       setPackagesDiagnostic(getLastPackagesDiagnostic())

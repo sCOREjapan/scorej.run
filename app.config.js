@@ -42,6 +42,7 @@ module.exports = {
       adaptiveIcon: { backgroundColor: '#0a0a0a' },
       package: 'com.scorejapan.score',
       versionCode: 1,
+      googleServicesFile: './google-services.json',
     },
     plugins: [
       'expo-router',

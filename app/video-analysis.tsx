@@ -1337,17 +1337,29 @@ dimensions:上記${dims.length}項目(${dimIdList})全て必須。focusは改善
           </TouchableOpacity>
         </View>
 
-        {/* 種目入力 */}
+        {/* 種目選択（自由入力にすると分析履歴のグルーピングキーが汚染される
+            ——例えば「レーン番号」欄と混同してここに「奥のレーン」等を入力してしまい、
+            種目タブに存在しない値がそのまま表示される不具合があった。Web版と同じ
+            固定チップ選択に統一する） */}
         <View style={{ marginBottom: 14 }}>
           <Text style={{ color: '#6b7280', fontSize: 11, fontWeight: '700', marginBottom: 6, letterSpacing: 0.8 }}>{t('videoAnalysis.native.eventLabel')}</Text>
-          <TextInput
-            style={{ backgroundColor: '#fff', color: '#111827', borderRadius: 12,
-              padding: 14, fontSize: 15, borderWidth: 1, borderColor: '#e5e7eb' }}
-            placeholder={t('videoAnalysis.native.eventPlaceholder')}
-            placeholderTextColor="#9ca3af"
-            value={event}
-            onChangeText={setEvent}
-          />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
+            {['', '100m','200m','300m','400m','800m','1000m','1500m','3000m','110mH','100mH','300mH','400mH','走幅跳','三段跳','走高跳','棒高跳','砲丸投','やり投','円盤投'].map(ev => (
+              <TouchableOpacity
+                key={ev || '指定なし'}
+                onPress={() => setEvent(ev)}
+                style={{
+                  paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12,
+                  backgroundColor: event === ev ? BRAND : '#fff',
+                  borderWidth: 1, borderColor: event === ev ? BRAND : '#e5e7eb',
+                }}
+              >
+                <Text style={{ color: event === ev ? '#fff' : '#111827', fontSize: 14, fontWeight: '700' }}>
+                  {ev ? getEventLabel(ev, language) : t('videoAnalysis.eventNone')}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
 
         {/* 分析対象の人物特定（複数人対応） */}
