@@ -12,13 +12,18 @@
 //   クライアント側（lib/claude.ts）は無改修 — リクエスト/レスポンスは Anthropic Messages API 形式のまま。
 //   GEMINI_API_KEY未設定時は自動的に全リクエストが従来のAnthropic経路にフォールバックする。
 //   ⚠️ 2026-07-25: gemini-2.5-flash が新規キーで404（新規ユーザーには提供終了）になったため
-//   gemini-3-flash-preview に切替済み。Geminiのモデル世代交代が非常に速いため、
-//   404が再発したら generativelanguage.googleapis.com/v1beta/models?key=... で
-//   実際に呼べるモデルを確認し、この定数だけ差し替えること。
+//   gemini-3-flash-preview に切替。→ その gemini-3-flash-preview も2026-07-15に廃止され、
+//   以降ずっと404を返し続けていたことが2026-08-27に発覚（Instagram DM経由のユーザー報告で判明。
+//   下のAnthropicフォールバックが機能していなかった/ANTHROPIC_API_KEY未設定だった可能性が高く、
+//   約1ヶ月間、動画分析等のAI機能が実質的に全滅していたとみられる）。gemini-3.5-flash に切替済み。
+//   Geminiのモデル世代交代が非常に速いため、404が再発したら
+//   generativelanguage.googleapis.com/v1beta/models?key=... で実際に呼べるモデルを確認し、
+//   この定数だけ差し替えること。あわせて、Anthropicフォールバックが実際に機能しているか
+//   （ANTHROPIC_API_KEYがVercelの環境変数に設定・有効か）も定期的に確認すること。
 export const config = { runtime: 'nodejs' }
 export const maxDuration = 60
 
-const GEMINI_MODEL = 'gemini-3-flash-preview'
+const GEMINI_MODEL = 'gemini-3.5-flash'
 
 type ContentBlock =
   | { type: 'text'; text: string }
