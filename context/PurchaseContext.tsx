@@ -67,11 +67,16 @@ async function syncTicketMonthlyGrant(hasTicketMonthly: boolean, ticketMonthlyEx
 // （特に新規インストール・アップデート直後）で呼ばれると一時的に0件を返すことがある。
 // 従来は1回失敗したらそのまま諦めていたため、「商品が読み込めない」という
 // 再現性の低い不具合報告が繰り返されていた。ここで短い間隔を空けて数回リトライする。
-async function getPackagesWithRetry(maxAttempts = 3, delayMs = 1500): Promise<any[]> {
+// getPackages()単体のリトライだけでなく、initPurchases()自体（＝configure()）が
+// 失敗していたケースにも効くよう、リトライのたびにinitPurchasesもやり直す。
+async function getPackagesWithRetry(userId: string | undefined, maxAttempts = 4, delayMs = 1500): Promise<any[]> {
   for (let i = 0; i < maxAttempts; i++) {
+    if (i > 0) {
+      await new Promise(resolve => setTimeout(resolve, delayMs))
+      await initPurchases(userId).catch(() => {})
+    }
     const pkgs = await getPackages()
     if (pkgs.length > 0) return pkgs
-    if (i < maxAttempts - 1) await new Promise(resolve => setTimeout(resolve, delayMs))
   }
   return []
 }
@@ -148,7 +153,7 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
         syncTicketMonthlyGrant(status.hasTicketMonthly, status.ticketMonthlyExpiresAt)
         syncPlanTierToSupabase(currentId ?? undefined, status.tier, status.hasTicketMonthly)
       })
-      .then(() => getPackagesWithRetry())
+      .then(() => getPackagesWithRetry(currentId ?? undefined))
       .then(pkgs => { setPackages(pkgs); setPackagesDiagnostic(getLastPackagesDiagnostic()); setPackagesReady(true) })
       .catch(() => { setPackagesReady(true) })
 
@@ -170,7 +175,7 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
       await cacheSubscriptionStatus(status.tier, status.expiresAt, status.originalPurchaseDate, status.hasTicketMonthly, status.ticketMonthlyExpiresAt)
       await syncTicketMonthlyGrant(status.hasTicketMonthly, status.ticketMonthlyExpiresAt)
       await syncPlanTierToSupabase(user?.id, status.tier, status.hasTicketMonthly)
-      const pkgs = await getPackagesWithRetry()
+      const pkgs = await getPackagesWithRetry(user?.id)
       setPackages(pkgs)
       setPackagesDiagnostic(getLastPackagesDiagnostic())
     } catch {} finally {

@@ -139,7 +139,16 @@ export async function getPackages(): Promise<PurchasesPackage[]> {
     return pkgs
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
-    _lastDiagnostic = `getOfferings失敗: ${msg}`
+    // 「There is no singleton instance」がconfigure()未完了によるものか、
+    // 別の原因かをその場で切り分けられるよう、JS側フラグとネイティブ側の実際の
+    // 状態の両方を診断メッセージに埋め込む（実機ログを見られない状況での原因特定用）
+    let nativeConfigured: string
+    try {
+      nativeConfigured = String(await Purchases.isConfigured())
+    } catch (e2) {
+      nativeConfigured = `確認失敗:${e2 instanceof Error ? e2.message : String(e2)}`
+    }
+    _lastDiagnostic = `getOfferings失敗: ${msg} [_configured=${_configured} / isConfigured()=${nativeConfigured}]`
     console.warn('[RevenueCat] getOfferings failed:', e)
     return []
   }
