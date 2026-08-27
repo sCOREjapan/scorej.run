@@ -74,6 +74,8 @@ function resolveTier(entitlements: { active: Record<string, { expirationDate?: s
 // 「商品の読み込みができない」不具合の原因）。configure/logIn を直列化して防ぐ。
 let _initChain: Promise<void> = Promise.resolve()
 let _configured = false
+let _configuredKeyPrefix: string | null = null   // 診断用：実際にどちらの鍵で configure したか（appl_ / goog_ の接頭辞のみ）
+let _lastConfigureError: string | null = null     // 診断用：configure() 自体が例外を投げていた場合の内容
 
 export async function initPurchases(userId?: string): Promise<void> {
   _initChain = _initChain.then(async () => {
@@ -86,13 +88,25 @@ export async function initPurchases(userId?: string): Promise<void> {
         // configure() が一度も呼ばれないまま getOfferings 等が失敗し続けるバグがあった。
         const alreadyConfigured = await Purchases.isConfigured()
         if (!alreadyConfigured) {
-          // configure() の完了を待たずに _configured = true にしていたため、
-          // ネイティブ側のセットアップが終わる前に getOfferings()/getCustomerInfo() が
-          // 呼ばれ「There is no singleton instance」で失敗することがあった
-          // （新ビルド導入直後の「商品が読み込めない」不具合の主因）。必ず待つ。
-          await Purchases.configure({ apiKey })
+          // 重要: Purchases.configure() は Promise を返さない同期(void)関数。
+          // 以前ここに await を付けていたが、そもそも待つ対象が無いため意味が
+          // 無かった（「There is no singleton instance」が直らなかった直接の原因）。
+          // 正しくは、configure() を呼んだ後に isConfigured()（本当にPromiseを返す）
+          // が実際に true になるまで短い間隔でポーリングして確認する。
+          Purchases.configure({ apiKey })
+          let confirmed = false
+          for (let i = 0; i < 10; i++) {
+            if (await Purchases.isConfigured()) { confirmed = true; break }
+            await new Promise(resolve => setTimeout(resolve, 200))
+          }
+          if (!confirmed) {
+            _lastConfigureError = 'configure()後にisConfigured()がtrueになりませんでした（タイムアウト2秒）'
+            throw new Error(_lastConfigureError)
+          }
+          _lastConfigureError = null
         }
         _configured = true
+        _configuredKeyPrefix = apiKey.split('_')[0] + '_'   // "appl_" or "goog_" のみ記録（鍵本体は含めない）
       }
       if (userId) {
         try { await Purchases.logIn(userId) } catch {}
@@ -148,7 +162,7 @@ export async function getPackages(): Promise<PurchasesPackage[]> {
     } catch (e2) {
       nativeConfigured = `確認失敗:${e2 instanceof Error ? e2.message : String(e2)}`
     }
-    _lastDiagnostic = `getOfferings失敗: ${msg} [_configured=${_configured} / isConfigured()=${nativeConfigured}]`
+    _lastDiagnostic = `getOfferings失敗: ${msg} [_configured=${_configured} / isConfigured()=${nativeConfigured} / key=${_configuredKeyPrefix ?? '未設定'} / configureErr=${_lastConfigureError ?? 'なし'}]`
     console.warn('[RevenueCat] getOfferings failed:', e)
     return []
   }
