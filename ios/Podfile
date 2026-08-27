@@ -23,6 +23,14 @@ prepare_react_native_project!
 target 'sCORE' do
   use_expo_modules!
 
+  # react-native-purchases: react-native.config.js でiOSのautolinkingから除外している
+  # （Androidのビルドを壊さないため）ため、iOSではここで直接リンクする必要がある。
+  # 2026-08-27発覚: この行が無いままだったため、autolinkingからは除外・手動リンクも無し、
+  # という「どちらの経路でも一切リンクされない」状態になっていた。これが「There is no
+  # singleton instance」がJS側の対策(await/ポーリング/自己修復)を何重にしても直らなかった
+  # 本当の原因（ネイティブモジュール自体がビルドに含まれていなかった）。
+  pod 'RNPurchases', :path => '../node_modules/react-native-purchases'
+
   if ENV['EXPO_USE_COMMUNITY_AUTOLINKING'] == '1'
     config_command = ['node', '-e', "process.argv=['', '', 'config'];require('@react-native-community/cli').run()"];
   else

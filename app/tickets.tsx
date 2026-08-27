@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -56,12 +56,18 @@ export default function TicketsScreen() {
   const handlePurchase = useCallback(async () => {
     if (purchaseLockRef.current) return
     if (!targetPkg) {
-      Toast.show({
-        type: 'error',
-        text1: '商品の読み込みに失敗しました',
-        text2: packagesDiagnostic ?? 'しばらく待ってから再試行してください',
-        visibilityTime: 6000,
-      })
+      // Toastは幅が狭く長い診断文字列が途中で切れて読めないため、
+      // 原因調査中はAlertで全文表示する（ボタンで消すまで残るのでスクショも撮りやすい）。
+      if (packagesDiagnostic) {
+        Alert.alert('商品の読み込みに失敗しました', packagesDiagnostic)
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: '商品の読み込みに失敗しました',
+          text2: 'しばらく待ってから再試行してください',
+          visibilityTime: 6000,
+        })
+      }
       return
     }
     purchaseLockRef.current = true

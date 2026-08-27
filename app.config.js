@@ -24,7 +24,7 @@ module.exports = {
       requiresFullScreen: true,
       bundleIdentifier: 'com.scorejapan.score',
       usesAppleSignIn: true,
-      buildNumber: '38',
+      buildNumber: '39',
       infoPlist: {
         CFBundleURLTypes: [
           {
@@ -36,12 +36,17 @@ module.exports = {
         // iOS 14+ でのパーソナライズ広告に必要（ATT: App Tracking Transparency）
         NSUserTrackingUsageDescription:
           'パーソナライズされた広告を表示するために広告識別子を使用します。',
+        // iOS 14+ でローカルネットワーク上の端末(開発時のMetroサーバー等)に接続するために必須。
+        // これが無いと許可ダイアログ自体が出ず、"Local network prohibited"エラーで
+        // 永久に接続がブロックされる（2026-08-27、Xcode実機デバッグ時に発覚）。
+        NSLocalNetworkUsageDescription:
+          '開発中のデバッグサーバーに接続するために使用します',
       }
     },
     android: {
       adaptiveIcon: { backgroundColor: '#0a0a0a' },
       package: 'com.scorejapan.score',
-      versionCode: 6,
+      versionCode: 7,
       googleServicesFile: './google-services.json',
     },
     plugins: [

@@ -34,7 +34,7 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>38</string>
+	<string>39</string>
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-6225795381877305~3874907264</string>
 	<key>GADDelayAppMeasurementInit</key>
@@ -52,6 +52,8 @@
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>フォーム分析のためカメラを使用します</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>開発中のデバッグサーバーに接続するために使用します</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>天気情報と怪我リスク計算のために現在地を使用します</string>
 	<key>NSLocationAlwaysUsageDescription</key>

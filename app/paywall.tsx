@@ -11,7 +11,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Platform, Animated, Linking,
+  ActivityIndicator, Platform, Animated, Linking, Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -160,12 +160,18 @@ export default function PaywallScreen() {
   const handlePurchase = useCallback(async () => {
     if (purchaseLockRef.current) return
     if (!targetPkg) {
-      Toast.show({
-        type: 'error',
-        text1: t('paywall.loadFailedTitle'),
-        text2: packagesDiagnostic ?? t('paywall.loadFailedRetry'),
-        visibilityTime: 6000,
-      })
+      // Toastは幅が狭く長い診断文字列が途中で切れて読めないため、
+      // 原因調査中はAlertで全文表示する（ボタンで消すまで残るのでスクショも撮りやすい）。
+      if (packagesDiagnostic) {
+        Alert.alert(t('paywall.loadFailedTitle'), packagesDiagnostic)
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: t('paywall.loadFailedTitle'),
+          text2: t('paywall.loadFailedRetry'),
+          visibilityTime: 6000,
+        })
+      }
       return
     }
     purchaseLockRef.current = true
