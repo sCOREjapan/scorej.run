@@ -123,7 +123,12 @@ export async function getPremiumStatus(): Promise<PremiumStatus> {
   try {
     const info = await Purchases.getCustomerInfo()
     return resolveTier(info.entitlements as any)
-  } catch {
+  } catch (e) {
+    // getPackages() と同じ自己修復: 未初期化系エラーなら次回作り直させる
+    if (isUninitializedError(e)) {
+      _configured = false
+      console.warn('[RevenueCat] getCustomerInfoで未初期化エラーを検知。_configuredをリセットします。')
+    }
     return { tier: 'free', hasTicketMonthly: false }
   }
 }
@@ -132,6 +137,16 @@ export async function getPremiumStatus(): Promise<PremiumStatus> {
 let _lastDiagnostic: string | null = null
 export function getLastPackagesDiagnostic(): string | null {
   return _lastDiagnostic
+}
+
+// 「There is no singleton instance」等、ネイティブ側の未初期化を示すエラーかどうかの判定。
+// これに該当する場合は、事前の対策（await/ポーリング）を重ねるのではなく、
+// エラーが実際に起きた瞬間に _configured を強制的にリセットして configure() から
+// やり直す方針に転換する（何が原因で未初期化状態になるのか特定できていないため、
+// 「起きたら即座に作り直す」自己修復を優先する）。
+function isUninitializedError(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : String(e)
+  return /singleton instance|not.*configured|configure.*Purchases/i.test(msg)
 }
 
 // ── 購入可能パッケージ一覧 ──────────────────────────────────────
@@ -153,9 +168,6 @@ export async function getPackages(): Promise<PurchasesPackage[]> {
     return pkgs
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
-    // 「There is no singleton instance」がconfigure()未完了によるものか、
-    // 別の原因かをその場で切り分けられるよう、JS側フラグとネイティブ側の実際の
-    // 状態の両方を診断メッセージに埋め込む（実機ログを見られない状況での原因特定用）
     let nativeConfigured: string
     try {
       nativeConfigured = String(await Purchases.isConfigured())
@@ -164,6 +176,15 @@ export async function getPackages(): Promise<PurchasesPackage[]> {
     }
     _lastDiagnostic = `getOfferings失敗: ${msg} [_configured=${_configured} / isConfigured()=${nativeConfigured} / key=${_configuredKeyPrefix ?? '未設定'} / configureErr=${_lastConfigureError ?? 'なし'}]`
     console.warn('[RevenueCat] getOfferings failed:', e)
+
+    // 自己修復: 未初期化系のエラーだった場合、JS側の状態を強制リセットして
+    // 次回 initPurchases() が呼ばれた時に configure() から完全にやり直させる。
+    // 呼び出し元（PurchaseContext の getPackagesWithRetry）が initPurchases を
+    // 挟んでリトライする作りになっているため、これだけで自動的に再試行される。
+    if (isUninitializedError(e)) {
+      _configured = false
+      console.warn('[RevenueCat] 未初期化エラーを検知。_configuredをリセットして再初期化を促します。')
+    }
     return []
   }
 }
