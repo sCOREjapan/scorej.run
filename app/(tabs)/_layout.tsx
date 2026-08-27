@@ -279,15 +279,20 @@ export default function TabLayout() {
   const showBanner = !isNoad   // 広告なしプラン以上はバナー非表示
 
   // ── タブバーのチケット残高バッジ（コーチプランは無制限のため非表示） ──
+  // 以前は5秒間隔のポーリングに加え、タブ切り替え(pathname変化)のたびにも即座に
+  // 再実行していたため、サーバー同期側に不具合があった際の被害が短時間で
+  // 桁違いに拡大する一因になっていた（2026-08-27）。残高はチケットを実際に
+  // 消費/付与する操作の直後にだけ変わるものなので、この画面滞在中は
+  // 緩やかな間隔の背景更新だけで十分。タブ切り替えのたびの即時再実行はやめる。
   const [ticketBalance, setTicketBalance] = useState<number | null>(null)
   useEffect(() => {
     if (isCoach) { setTicketBalance(null); return }
     let cancelled = false
     const refresh = () => { getTicketBalance().then(n => { if (!cancelled) setTicketBalance(n) }).catch(() => {}) }
     refresh()
-    const interval = setInterval(refresh, 5000)
+    const interval = setInterval(refresh, 30000)
     return () => { cancelled = true; clearInterval(interval) }
-  }, [isCoach, pathname])
+  }, [isCoach])
   const [bannerLoaded, setBannerLoaded] = useState(false)
   // バナー表示中はFABをその分上にずらす
   // バナー表示中は常にその分FABを上にずらす（読み込み状態に依存させない＝広告に重ねない）

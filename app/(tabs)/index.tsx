@@ -2286,8 +2286,8 @@ ${sleepText || 'データなし'}
                 contentContainerStyle={s.quickLinks}
               >
                 {[
-                  { icon: 'videocam-outline' as const,   label: t('home.quickAccess.videoAnalysis'),  route: '/video-analysis',     spotKey: undefined, highlighted: true },
-                  { icon: 'clipboard-outline' as const,  label: t('home.quickAccess.menu'),           route: '/workout-menu',       spotKey: 'notebook_menu_link' as const, highlighted: true },
+                  { icon: 'videocam-outline' as const,   label: t('home.quickAccess.videoAnalysis'),  route: '/video-analysis',     spotKey: undefined },
+                  { icon: 'clipboard-outline' as const,  label: t('home.quickAccess.menu'),           route: '/workout-menu',       spotKey: 'notebook_menu_link' as const },
                   { icon: 'calendar-outline' as const,   label: t('home.quickAccess.calendar'),       route: '/(tabs)/calendar',    spotKey: undefined },
                   { icon: 'restaurant-outline' as const, label: t('home.quickAccess.mealAnalysis'),   route: '/(tabs)/nutrition',   spotKey: undefined },
                   { icon: 'flag-outline' as const,       label: t('home.quickAccess.competitionPlan'), route: '/(tabs)/competition', spotKey: 'competition_tab' as const },
@@ -2302,11 +2302,7 @@ ${sleepText || 'データなし'}
                       scaleAmount={0.94}
                       onPress={() => { unlockAudio(); Sounds.tap(); router.push(item.route as any) }}
                     >
-                      <View style={[s.quickLink, {
-                        backgroundColor: colors.surface,
-                        borderColor: item.highlighted ? BRAND : colors.border,
-                        borderWidth: item.highlighted ? 1.5 : 0,
-                      }]}>
+                      <View style={[s.quickLink, { backgroundColor: colors.surface }]}>
                         <View style={s.quickLinkIconWrap}>
                           <Ionicons name={item.icon} size={22} color={BRAND} />
                         </View>

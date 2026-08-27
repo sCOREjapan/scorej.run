@@ -72,20 +72,43 @@ async function saveWallet(w: Wallet) {
   await AsyncStorage.setItem(WALLET_KEY, JSON.stringify(w)).catch(() => {})
 }
 
+// サーバーへのローカル残高引き継ぎは「一度だけ」しか行ってはいけない操作。
+// 以前はサーバー呼び出しが失敗するたびに grantTickets(local.tickets) を呼んでいたが、
+// grantTickets() 自体もサーバー失敗時にローカルへフォールバックして「w.tickets += count」
+// する作りだったため、local.tickets を自分自身に足す形になり、呼ばれるたびに残高が
+// 倍々に増えていく重大な不具合になっていた（2026-08-27に実機で発生・数値が天文学的になった）。
+const MIGRATED_KEY = 'score_ticket_server_migrated'
+
 export async function getWalletSnapshot(): Promise<Wallet> {
   const userId = await getCurrentUserId()
   if (userId) {
-    const { data } = await supabase.from('ticket_wallets').select('tickets').eq('user_id', userId).maybeSingle()
-    if (data) return { tickets: data.tickets }
-    // サーバー側にまだ行が無い＝このアカウントで初めてサーバー同期する端末。
-    // 端末ローカルに残高があれば、それを引き継いでサーバー側の初期値にする
-    // （これをしないと、サーバー移行前に貯めていたチケットが消えたように見えてしまう）。
-    const local = await getWallet()
-    if (local.tickets > 0) {
-      const migrated = await grantTickets(local.tickets)
-      return { tickets: migrated }
+    const { data, error } = await supabase.from('ticket_wallets').select('tickets').eq('user_id', userId).maybeSingle()
+    if (error) {
+      // サーバーに到達できない時は、残高を勝手に増減させず直近のローカルキャッシュ値を
+      // そのまま返すだけにする（ここで何かを足す処理は絶対に入れない）
+      return getWallet()
     }
-    return { tickets: 0 }
+    if (data) return { tickets: data.tickets }
+
+    // サーバー側にまだ行が無い＝このアカウントでまだ一度もサーバー同期していない端末。
+    // 端末ローカルの残高を「1回だけ」引き継ぐ（フラグで二重引き継ぎを防止し、
+    // 通常のgrantTickets()は経由しない＝ローカルへの二重加算経路に入らせない）。
+    // serialize()で直列化し、同一セッション内で複数箇所から同時に呼ばれても
+    // 移行処理が二重に走らないようにする（フラグの読み書き自体に競合の隙間があるため）
+    return serialize(async () => {
+      const alreadyMigrated = await AsyncStorage.getItem(MIGRATED_KEY)
+      if (alreadyMigrated) return { tickets: 0 }
+      await AsyncStorage.setItem(MIGRATED_KEY, '1').catch(() => {})
+      const local = await getWallet()
+      // 過去の不具合で端末側の残高が異常な値まで壊れているケースに備え、
+      // 現実的にあり得る上限を超える値はサーバーに引き継がず破棄する（安全弁）
+      const LOCAL_SANITY_CAP = 100000
+      if (local.tickets > 0 && local.tickets <= LOCAL_SANITY_CAP) {
+        const { data: granted, error: grantErr } = await supabase.rpc('ticket_wallet_grant', { p_amount: local.tickets })
+        if (!grantErr && typeof granted === 'number') return { tickets: granted }
+      }
+      return { tickets: 0 }
+    })
   }
   return getWallet()
 }
