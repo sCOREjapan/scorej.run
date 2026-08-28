@@ -935,7 +935,6 @@ function NativeVideoAnalysis() {
   const [upsellVisible,     setUpsellVisible]     = useState(false)
   const [historyList,       setHistoryList]       = useState<VideoAnalysisHistoryEntry[]>([])
   const [historyModal,      setHistoryModal]      = useState(false)
-  const [historyDetail,     setHistoryDetail]     = useState<VideoAnalysisHistoryEntry | null>(null)
   const [historyFilter,     setHistoryFilter]     = useState<string | null>(null)
   const { isGuest } = useAuth()
   const router = useRouter()
@@ -1854,42 +1853,110 @@ dimensions:上記${dims.length}項目(${dimIdList})全て必須。focusは改善
                       const prev = group.entries[i + 1]
                       const delta = prev ? h.score - prev.score : null
                       return (
-                        <TouchableOpacity
+                        <View
                           key={h.id}
-                          onPress={() => setHistoryDetail(h)}
-                          activeOpacity={0.8}
                           style={{
-                            flexDirection: 'row', alignItems: 'center', gap: 12,
-                            backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#e5e7eb', padding: 12,
+                            backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#e5e7eb', padding: 16, gap: 12,
                           }}
                         >
-                          {h.thumbBase64 ? (
-                            <Image source={{ uri: `data:image/jpeg;base64,${h.thumbBase64}` }} style={{ width: 52, height: 52, borderRadius: 10 }} />
-                          ) : (
-                            <View style={{ width: 52, height: 52, borderRadius: 10, backgroundColor: '#f0f2f5', alignItems: 'center', justifyContent: 'center' }}>
-                              <Ionicons name="videocam-outline" size={20} color="#9ca3af" />
-                            </View>
-                          )}
-                          <View style={{ flex: 1 }}>
-                            <Text style={{ color: '#111827', fontSize: 14, fontWeight: '700' }} numberOfLines={1}>{h.event === '種目未指定' ? t('videoAnalysis.native.eventUnspecified') : getEventLabel(h.event, language)}</Text>
-                            <Text style={{ color: '#6b7280', fontSize: 12, marginTop: 2 }} numberOfLines={1}>
-                              {new Date(h.shot_date ? h.shot_date + 'T00:00:00' : h.created_at).toLocaleDateString(language === 'ja' ? 'ja-JP' : 'en-US', { month: 'short', day: 'numeric', weekday: 'short' })}　{h.headline ?? h.overall ?? ''}
-                            </Text>
-                          </View>
-                          <View style={{ alignItems: 'center' }}>
-                            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: hColor + '18', alignItems: 'center', justifyContent: 'center' }}>
-                              <Text style={{ color: hColor, fontSize: 14, fontWeight: '900' }}>{h.score}</Text>
-                            </View>
-                            {delta !== null && delta !== 0 && (
-                              <Text style={{
-                                fontSize: 10, fontWeight: '800', marginTop: 3,
-                                color: delta > 0 ? '#34C759' : '#FF3B30',
-                              }}>
-                                {delta > 0 ? `▲${delta}` : `▼${Math.abs(delta)}`}
-                              </Text>
+                          {/* ── ヘッダー行（サムネイル・種目・日付・スコア・削除） ── */}
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                            {h.thumbBase64 ? (
+                              <Image source={{ uri: `data:image/jpeg;base64,${h.thumbBase64}` }} style={{ width: 44, height: 44, borderRadius: 10 }} />
+                            ) : (
+                              <View style={{ width: 44, height: 44, borderRadius: 10, backgroundColor: '#f0f2f5', alignItems: 'center', justifyContent: 'center' }}>
+                                <Ionicons name="videocam-outline" size={18} color="#9ca3af" />
+                              </View>
                             )}
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ color: '#111827', fontSize: 14, fontWeight: '700' }} numberOfLines={1}>{h.event === '種目未指定' ? t('videoAnalysis.native.eventUnspecified') : getEventLabel(h.event, language)}</Text>
+                              <Text style={{ color: '#6b7280', fontSize: 12, marginTop: 2 }} numberOfLines={1}>
+                                {new Date(h.shot_date ? h.shot_date + 'T00:00:00' : h.created_at).toLocaleDateString(language === 'ja' ? 'ja-JP' : 'en-US', { month: 'short', day: 'numeric', weekday: 'short' })}
+                              </Text>
+                            </View>
+                            <View style={{ alignItems: 'center' }}>
+                              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: hColor + '18', alignItems: 'center', justifyContent: 'center' }}>
+                                <Text style={{ color: hColor, fontSize: 13, fontWeight: '900' }}>{h.score}</Text>
+                              </View>
+                              {delta !== null && delta !== 0 && (
+                                <Text style={{
+                                  fontSize: 10, fontWeight: '800', marginTop: 2,
+                                  color: delta > 0 ? '#34C759' : '#FF3B30',
+                                }}>
+                                  {delta > 0 ? `▲${delta}` : `▼${Math.abs(delta)}`}
+                                </Text>
+                              )}
+                            </View>
+                            <TouchableOpacity
+                              onPress={() => deleteVideoAnalysisHistory(h.id).then(setHistoryList).catch(() => {})}
+                              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                              accessibilityLabel={t('videoAnalysis.native.deleteHistory')}
+                            >
+                              <Ionicons name="trash-outline" size={16} color="#d1d5db" />
+                            </TouchableOpacity>
                           </View>
-                        </TouchableOpacity>
+
+                          <Text style={{ color: '#374151', fontSize: 13, lineHeight: 19, fontWeight: '700' }}>
+                            {h.headline ?? h.overall ?? ''}
+                          </Text>
+
+                          {/* ── 分析結果本体（詳細モーダルと同じ内容をそのまま展開表示） ── */}
+                          {h.dimensions && h.dimensions.length >= 3 ? (
+                            <View style={{ gap: 12 }}>
+                              <View style={{ alignItems: 'center' }}>
+                                <RadarChart dimensions={h.dimensions} size={200} />
+                              </View>
+                              {h.strength?.title && (
+                                <FeedbackCardView icon="⭐" label={t('videoAnalysis.native.todayStrength')} color="#16a34a" bg="#f0fdf4" card={h.strength} />
+                              )}
+                              {h.focus?.title && (
+                                <FeedbackCardView icon="🔥" label={t('videoAnalysis.native.todayTheme')} color="#d97706" bg="#fffbeb" card={h.focus} />
+                              )}
+                              {h.nextStep?.title && (
+                                <FeedbackCardView icon="🎯" label={t('videoAnalysis.native.nextStep')} color="#2563eb" bg="#eff6ff" card={h.nextStep} />
+                              )}
+                              {h.practice?.drill && (
+                                <View style={{ backgroundColor: '#f0f2f5', borderRadius: 10, padding: 12 }}>
+                                  <Text style={{ color: '#111827', fontSize: 13, fontWeight: '700' }}>{t('videoAnalysis.native.recommendedDrill', { name: h.practice.drill })}</Text>
+                                  {h.practice.drillDetail && (
+                                    <Text style={{ color: '#6b7280', fontSize: 12, marginTop: 2 }}>{h.practice.drillDetail}</Text>
+                                  )}
+                                </View>
+                              )}
+                            </View>
+                          ) : (
+                            <>
+                              {/* 旧スキーマの履歴（互換表示） */}
+                              {!!h.positives?.length && (
+                                <View style={{ backgroundColor: '#f0fdf415', borderRadius: 16, borderWidth: 1, borderColor: '#16a34a30', padding: 14 }}>
+                                  <Text style={{ color: '#16a34a', fontSize: 13, fontWeight: '800', marginBottom: 8 }}>{t('videoAnalysis.native.goodPoints')}</Text>
+                                  {h.positives.map((p, pi) => (
+                                    <Text key={pi} style={{ color: '#374151', fontSize: 13, lineHeight: 20 }}>・{p}</Text>
+                                  ))}
+                                </View>
+                              )}
+                              {!!h.improvements?.length && (
+                                <View style={{ backgroundColor: '#fffbeb', borderRadius: 16, borderWidth: 1, borderColor: '#fde68a', padding: 14 }}>
+                                  <Text style={{ color: '#d97706', fontSize: 13, fontWeight: '800', marginBottom: 8 }}>{t('videoAnalysis.native.improvements')}</Text>
+                                  {h.improvements.map((p, pi) => (
+                                    <Text key={pi} style={{ color: '#374151', fontSize: 13, lineHeight: 20 }}>・{p}</Text>
+                                  ))}
+                                </View>
+                              )}
+                              {!!h.menu?.length && (
+                                <View>
+                                  <Text style={{ color: '#6b7280', fontSize: 12, fontWeight: '700', marginBottom: 8 }}>{t('videoAnalysis.native.recommendedDrills')}</Text>
+                                  {h.menu.map((mn, mi) => (
+                                    <View key={mi} style={{ backgroundColor: '#f0f2f5', borderRadius: 10, padding: 12, marginBottom: 8 }}>
+                                      <Text style={{ color: '#111827', fontSize: 13, fontWeight: '700' }}>{mn.name}</Text>
+                                      <Text style={{ color: '#6b7280', fontSize: 12, marginTop: 2 }}>{mn.detail}</Text>
+                                    </View>
+                                  ))}
+                                </View>
+                              )}
+                            </>
+                          )}
+                        </View>
                       )
                     })}
                   </View>
@@ -1900,117 +1967,6 @@ dimensions:上記${dims.length}項目(${dimIdList})全て必須。focusは改善
         </View>
       </Modal>
 
-      {/* ── 分析履歴詳細モーダル ── */}
-      <Modal visible={!!historyDetail} transparent animationType="slide" onRequestClose={() => setHistoryDetail(null)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }} onPress={() => setHistoryDetail(null)}>
-          <Pressable onPress={() => {}}>
-            <View style={{ backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 36, maxHeight: '85%' }}>
-              {historyDetail && (
-                <>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: '#111827', fontSize: 17, fontWeight: '900' }}>{historyDetail.event === '種目未指定' ? t('videoAnalysis.native.eventUnspecified') : getEventLabel(historyDetail.event, language)}</Text>
-                      <Text style={{ color: '#6b7280', fontSize: 12, marginTop: 2 }}>
-                        {historyDetail.shot_date
-                          ? new Date(historyDetail.shot_date + 'T00:00:00').toLocaleDateString(language === 'ja' ? 'ja-JP' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-                          : new Date(historyDetail.created_at).toLocaleString(language === 'ja' ? 'ja-JP' : 'en-US')}
-                      </Text>
-                      {historyDetail.shot_date && historyDetail.shot_date !== historyDetail.created_at.slice(0, 10) && (
-                        <Text style={{ color: '#9ca3af', fontSize: 11, marginTop: 1 }}>
-                          {t('videoAnalysis.native.analyzedOn', { date: new Date(historyDetail.created_at).toLocaleDateString(language === 'ja' ? 'ja-JP' : 'en-US') })}
-                        </Text>
-                      )}
-                    </View>
-                    <TouchableOpacity onPress={() => setHistoryDetail(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={t('videoAnalysis.native.closeLabel')}>
-                      <Ionicons name="close" size={22} color="#6b7280" />
-                    </TouchableOpacity>
-                  </View>
-                  <ScrollView showsVerticalScrollIndicator={false}>
-                    <View style={{ alignItems: 'center', paddingVertical: 10 }}>
-                      <Text style={{
-                        color: historyDetail.score >= 80 ? '#34C759' : historyDetail.score >= 60 ? '#FF9500' : '#FF3B30',
-                        fontSize: 40, fontWeight: '900',
-                      }}>{historyDetail.score}<Text style={{ fontSize: 14, color: '#9ca3af' }}> / 100</Text></Text>
-                    </View>
-                    <Text style={{ color: '#374151', fontSize: 14, lineHeight: 21, marginBottom: 16, textAlign: 'center', fontWeight: '700' }}>
-                      {historyDetail.headline ?? historyDetail.overall ?? ''}
-                    </Text>
-
-                    {historyDetail.dimensions && historyDetail.dimensions.length >= 3 ? (
-                      <View style={{ gap: 14 }}>
-                        <View style={{ alignItems: 'center' }}>
-                          <RadarChart dimensions={historyDetail.dimensions} size={240} />
-                        </View>
-                        {historyDetail.strength?.title && (
-                          <FeedbackCardView icon="⭐" label={t('videoAnalysis.native.todayStrength')} color="#16a34a" bg="#f0fdf4" card={historyDetail.strength} />
-                        )}
-                        {historyDetail.focus?.title && (
-                          <FeedbackCardView icon="🔥" label={t('videoAnalysis.native.todayTheme')} color="#d97706" bg="#fffbeb" card={historyDetail.focus} />
-                        )}
-                        {historyDetail.nextStep?.title && (
-                          <FeedbackCardView icon="🎯" label={t('videoAnalysis.native.nextStep')} color="#2563eb" bg="#eff6ff" card={historyDetail.nextStep} />
-                        )}
-                        {historyDetail.practice?.drill && (
-                          <View style={{ backgroundColor: '#f0f2f5', borderRadius: 10, padding: 12 }}>
-                            <Text style={{ color: '#111827', fontSize: 13, fontWeight: '700' }}>{t('videoAnalysis.native.recommendedDrill', { name: historyDetail.practice.drill })}</Text>
-                            {historyDetail.practice.drillDetail && (
-                              <Text style={{ color: '#6b7280', fontSize: 12, marginTop: 2 }}>{historyDetail.practice.drillDetail}</Text>
-                            )}
-                          </View>
-                        )}
-                      </View>
-                    ) : (
-                      <>
-                        {/* 旧スキーマの履歴（互換表示） */}
-                        {!!historyDetail.positives?.length && (
-                          <View style={{ backgroundColor: '#f0fdf415', borderRadius: 16, borderWidth: 1, borderColor: '#16a34a30', padding: 14, marginBottom: 10 }}>
-                            <Text style={{ color: '#16a34a', fontSize: 13, fontWeight: '800', marginBottom: 8 }}>{t('videoAnalysis.native.goodPoints')}</Text>
-                            {historyDetail.positives.map((p, i) => (
-                              <Text key={i} style={{ color: '#374151', fontSize: 13, lineHeight: 20 }}>・{p}</Text>
-                            ))}
-                          </View>
-                        )}
-                        {!!historyDetail.improvements?.length && (
-                          <View style={{ backgroundColor: '#fffbeb', borderRadius: 16, borderWidth: 1, borderColor: '#fde68a', padding: 14, marginBottom: 10 }}>
-                            <Text style={{ color: '#d97706', fontSize: 13, fontWeight: '800', marginBottom: 8 }}>{t('videoAnalysis.native.improvements')}</Text>
-                            {historyDetail.improvements.map((p, i) => (
-                              <Text key={i} style={{ color: '#374151', fontSize: 13, lineHeight: 20 }}>・{p}</Text>
-                            ))}
-                          </View>
-                        )}
-                        {!!historyDetail.menu?.length && (
-                          <View style={{ marginTop: 4 }}>
-                            <Text style={{ color: '#6b7280', fontSize: 12, fontWeight: '700', marginBottom: 8 }}>{t('videoAnalysis.native.recommendedDrills')}</Text>
-                            {historyDetail.menu.map((mn, i) => (
-                              <View key={i} style={{ backgroundColor: '#f0f2f5', borderRadius: 10, padding: 12, marginBottom: 8 }}>
-                                <Text style={{ color: '#111827', fontSize: 13, fontWeight: '700' }}>{mn.name}</Text>
-                                <Text style={{ color: '#6b7280', fontSize: 12, marginTop: 2 }}>{mn.detail}</Text>
-                              </View>
-                            ))}
-                          </View>
-                        )}
-                      </>
-                    )}
-
-                    <TouchableOpacity
-                      onPress={() => {
-                        const id = historyDetail.id
-                        setHistoryDetail(null)
-                        deleteVideoAnalysisHistory(id).then(setHistoryList).catch(() => {})
-                      }}
-                      style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 14, marginTop: 8 }}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="trash-outline" size={15} color="#FF3B30" />
-                      <Text style={{ color: '#FF3B30', fontSize: 13, fontWeight: '700' }}>{t('videoAnalysis.native.deleteHistory')}</Text>
-                    </TouchableOpacity>
-                  </ScrollView>
-                </>
-              )}
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </View>
   )
 }
