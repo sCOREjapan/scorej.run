@@ -1740,11 +1740,11 @@ dimensions:上記${dims.length}項目(${dimIdList})全て必須。focusは改善
         onClose={() => setAdGateVisible(false)}
         onAdWatched={async () => {
           setAdGateVisible(false)
-          await recordUsage('video')
-          trackFeatureUse('video')
+          // チケット消費は analyze() 内部の「分析成功時のみ」ロジックに任せる
+          // （ここで先にrecordUsage()すると、分析が失敗してもチケットが戻らない不具合になる）。
           adCreditRef.current = true  // 広告視聴済みクレジット付与（失敗時リトライも許可）
           setError(''); setResult(null); setRawText(''); setReportedWrongPerson(false)
-          analyze(true, true)  // forceRefresh=true で必ず新規分析を実行
+          analyze(false, true)  // forceRefresh=true で必ず新規分析を実行。skipGate=falseでゲート内の成功判定に任せる
         }}
         onUpgrade={() => { setAdGateVisible(false); router.push('/paywall') }}
       />
