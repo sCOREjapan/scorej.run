@@ -38,7 +38,7 @@ export type PremiumStatus = {
 export type PurchaseResult = { tier: PlanTier; hasTicketMonthly: boolean } | false
 
 const RC_IOS_KEY     = 'appl_iBIPuhRoGelxcbQXFMKglAFPyMs'
-const RC_ANDROID_KEY = 'goog_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
+const RC_ANDROID_KEY = 'goog_KyXgRwWIIGphPyBkhtGUKvuDolK'
 
 const ENT_NOAD           = 'noad'
 const ENT_COACH          = 'coach'
