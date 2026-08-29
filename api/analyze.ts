@@ -131,9 +131,13 @@ export default async function handler(req: any, res: any) {
 
   try {
     const body = (typeof req.body === 'string' ? JSON.parse(req.body) : req.body) as AnthropicRequestBody
-    // max_tokens を 3000 に上限設定（意図しない高コスト呼び出しを防止／出力は入力の5倍高いため上限を絞る）
-    if (body && typeof body.max_tokens === 'number' && body.max_tokens > 3000) {
-      body.max_tokens = 3000
+    // max_tokens を 4096 に上限設定（意図しない高コスト呼び出しを防止／出力は入力の5倍高いため上限を絞る）。
+    // 2026-08-29: 3000のままだと、動画分析のレーダーチャート方式スキーマ(7項目×詳細な理由文+
+    // strength/focus/nextStep/practice)で、実際の走行フォーム画像(情報量が多い)を渡すと応答が
+    // 途中で切れてJSONパース失敗になる不具合が発生。gemini-3.5-flashへの切替でモデルの応答の
+    // 冗長さが変わったことも一因とみられる。4096に引き上げて余裕を持たせる。
+    if (body && typeof body.max_tokens === 'number' && body.max_tokens > 4096) {
+      body.max_tokens = 4096
     }
 
     // GEMINI_API_KEY があれば全リクエストを Gemini に振り分ける（コスト優先）。
