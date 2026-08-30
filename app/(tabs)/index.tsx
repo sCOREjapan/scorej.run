@@ -2142,7 +2142,7 @@ ${sleepText || 'データなし'}
                     )
                   }
                   return daySessions.map((sess, idx) => {
-                    const typeInfo = sessionTypeInfo(sess.session_type)
+                    const typeInfo = sessionTypeInfo(sess.session_type, language)
                     const fat = sess.fatigue_level ?? 5
                     const fatColor = fat >= 8 ? '#FF6B6B' : fat >= 6 ? '#FF9500' : '#4ECDC4'
                     return (
@@ -2353,7 +2353,7 @@ ${sleepText || 'データなし'}
                 </View>
               ) : (() => {
                 const renderRow = (sess: typeof sessions[0], idx: number) => {
-                  const typeInfo = sessionTypeInfo(sess.session_type)
+                  const typeInfo = sessionTypeInfo(sess.session_type, language)
                   const fat = sess.fatigue_level ?? 5
                   const fatColor = fat >= 8 ? '#FF6B6B' : fat >= 6 ? '#FF9500' : '#4ECDC4'
                   const openShare = () => {
