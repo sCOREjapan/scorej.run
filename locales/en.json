@@ -3548,5 +3548,40 @@
       "strengthRecovery": "Allow 48 hours of muscle recovery time after strength training",
       "painCheck": "If pain or discomfort persists, see a doctor soon"
     }
+  },
+  "quickConditionModal": {
+    "titleToday": "Log Today's Condition",
+    "titleDate": "Log Condition for {{date}}",
+    "close": "Close",
+    "fatigueLabel": "Fatigue",
+    "fatigueOptions": {
+      "energetic": "Fresh",
+      "normal": "Normal",
+      "somewhat": "A bit tired",
+      "heavy": "Heavy",
+      "limit": "Exhausted"
+    },
+    "sleepLabel": "Sleep (approx.)",
+    "sleepUnit": "hrs",
+    "sleepHint": "For bedtime/wake time and notes, use the Sleep tab — logging here won't overwrite that record",
+    "conditionLabel": "Condition",
+    "conditionOptions": {
+      "bad": "Bad",
+      "soso": "Meh",
+      "okay": "Okay",
+      "good": "Good",
+      "great": "Great"
+    },
+    "optToggleOpen": "Also log practice & weight (optional)",
+    "optToggleClose": "Close extra fields",
+    "menuLabel": "Workout",
+    "menuPlaceholder": "e.g.: Jog 8km, Intervals 400m×5...",
+    "weightLabel": "Weight (kg)",
+    "weightPlaceholder": "e.g.: 62.5",
+    "save": "Save",
+    "toastSaveSuccessToday": "Today's condition logged ✓",
+    "toastSaveSuccessDate": "Condition for {{date}} logged ✓",
+    "toastSaveErrorTitle": "Failed to save",
+    "toastSaveErrorBody": "Please try again"
   }
 }

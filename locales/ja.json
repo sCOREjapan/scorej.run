@@ -3548,5 +3548,40 @@
       "strengthRecovery": "筋トレ後は48時間の筋肉回復時間を確保しよう",
       "painCheck": "痛みや違和感が続く場合は早めに医師に相談しよう"
     }
+  },
+  "quickConditionModal": {
+    "titleToday": "今日の状態を記録",
+    "titleDate": "{{date}}の状態を記録",
+    "close": "閉じる",
+    "fatigueLabel": "疲労度",
+    "fatigueOptions": {
+      "energetic": "元気",
+      "normal": "普通",
+      "somewhat": "やや",
+      "heavy": "重い",
+      "limit": "限界"
+    },
+    "sleepLabel": "睡眠時間（ざっくり）",
+    "sleepUnit": "時間",
+    "sleepHint": "就寝・起床時刻やメモまで記録したい時は「睡眠」タブから。ここでの記録はそちらを上書きしません",
+    "conditionLabel": "体調",
+    "conditionOptions": {
+      "bad": "悪い",
+      "soso": "イマイチ",
+      "okay": "まあまあ",
+      "good": "好調",
+      "great": "最高"
+    },
+    "optToggleOpen": "練習・体重も記録する（任意）",
+    "optToggleClose": "追加項目を閉じる",
+    "menuLabel": "練習メニュー",
+    "menuPlaceholder": "例: ジョグ8km、インターバル400m×5本...",
+    "weightLabel": "体重 (kg)",
+    "weightPlaceholder": "例: 62.5",
+    "save": "記録する",
+    "toastSaveSuccessToday": "今日の状態を記録しました ✓",
+    "toastSaveSuccessDate": "{{date}}の状態を記録しました ✓",
+    "toastSaveErrorTitle": "保存に失敗しました",
+    "toastSaveErrorBody": "もう一度試してください"
   }
 }

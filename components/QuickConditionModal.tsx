@@ -17,6 +17,7 @@ import { updateSessions } from '../lib/sessionsStore'
 import { getConditionMap, updateConditionMap } from '../lib/conditionStore'
 import { getSleepRecords, updateSleepRecords } from '../lib/sleepStore'
 import { updateWeights } from '../lib/weightStore'
+import { useTranslation } from 'react-i18next'
 
 const SESSIONS_KEY      = 'trackmate_sessions'
 const DRAFT_KEY         = 'trackmate_quick_condition_draft'
@@ -36,20 +37,21 @@ function localDateStr() {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 }
 
+// label は locales/quickConditionModal 経由で言語対応
 const FATIGUE_OPTIONS = [
-  { emoji: '😊', label: '元気', value: 2 },
-  { emoji: '😐', label: '普通', value: 4 },
-  { emoji: '😓', label: 'やや', value: 6 },
-  { emoji: '😫', label: '重い', value: 8 },
-  { emoji: '🥵', label: '限界', value: 10 },
+  { emoji: '😊', key: 'energetic', value: 2 },
+  { emoji: '😐', key: 'normal', value: 4 },
+  { emoji: '😓', key: 'somewhat', value: 6 },
+  { emoji: '😫', key: 'heavy', value: 8 },
+  { emoji: '🥵', key: 'limit', value: 10 },
 ]
 
 const CONDITION_OPTIONS = [
-  { emoji: '🤕', label: '悪い',     value: 2 },
-  { emoji: '😔', label: 'イマイチ', value: 4 },
-  { emoji: '😊', label: 'まあまあ', value: 6 },
-  { emoji: '💪', label: '好調',     value: 8 },
-  { emoji: '🔥', label: '最高',     value: 10 },
+  { emoji: '🤕', key: 'bad', value: 2 },
+  { emoji: '😔', key: 'soso', value: 4 },
+  { emoji: '😊', key: 'okay', value: 6 },
+  { emoji: '💪', key: 'good', value: 8 },
+  { emoji: '🔥', key: 'great', value: 10 },
 ]
 
 interface Props {
@@ -61,6 +63,7 @@ interface Props {
 }
 
 export default function QuickConditionModal({ visible, onClose, onSaved, date }: Props) {
+  const { t } = useTranslation()
   const targetDate = date ?? localDateStr()
   const isToday = targetDate === localDateStr()
   const [fatigue,   setFatigue]   = useState(4)
@@ -131,11 +134,11 @@ export default function QuickConditionModal({ visible, onClose, onSaved, date }:
   // 保存せずにアプリを閉じても、次に開いたときに入力内容を復元できるようにする。
   React.useEffect(() => {
     if (!visible || restoringRef.current) return
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       const draft: Draft = { targetDate, fatigue, sleepH, condition, menuText, weightStr, showOpt }
       AsyncStorage.setItem(DRAFT_KEY, JSON.stringify(draft)).catch(() => {})
     }, 400)
-    return () => clearTimeout(t)
+    return () => clearTimeout(timer)
   }, [visible, targetDate, fatigue, sleepH, condition, menuText, weightStr, showOpt])
 
   function adjustSleep(delta: number) {
@@ -204,17 +207,17 @@ export default function QuickConditionModal({ visible, onClose, onSaved, date }:
       successNotify()
       Toast.show({
         type: 'success',
-        text1: isToday ? '今日の状態を記録しました ✓' : `${targetDate.slice(5).replace('-', '/')}の状態を記録しました ✓`,
+        text1: isToday ? t('quickConditionModal.toastSaveSuccessToday') : t('quickConditionModal.toastSaveSuccessDate', { date: targetDate.slice(5).replace('-', '/') }),
         visibilityTime: 1800,
       })
       onSaved?.()
       onClose()
     } catch {
-      Toast.show({ type: 'error', text1: '保存に失敗しました', text2: 'もう一度試してください' })
+      Toast.show({ type: 'error', text1: t('quickConditionModal.toastSaveErrorTitle'), text2: t('quickConditionModal.toastSaveErrorBody') })
     } finally {
       setSaving(false)
     }
-  }, [saving, fatigue, sleepH, condition, menuText, weightStr, targetDate, isToday])
+  }, [saving, fatigue, sleepH, condition, menuText, weightStr, targetDate, isToday, t])
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
@@ -227,8 +230,8 @@ export default function QuickConditionModal({ visible, onClose, onSaved, date }:
         <Animated.View style={[st.sheet, { transform: [{ translateY: slideAnim }] }]}>
           <View style={st.handle} />
           <View style={st.header}>
-            <Text style={st.title}>{isToday ? '今日の状態を記録' : `${targetDate.slice(5).replace('-', '/')}の状態を記録`}</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="閉じる" accessibilityRole="button">
+            <Text style={st.title}>{isToday ? t('quickConditionModal.titleToday') : t('quickConditionModal.titleDate', { date: targetDate.slice(5).replace('-', '/') })}</Text>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={t('quickConditionModal.close')} accessibilityRole="button">
               <Ionicons name="close" size={22} color={TEXT.secondary} />
             </TouchableOpacity>
           </View>
@@ -236,7 +239,7 @@ export default function QuickConditionModal({ visible, onClose, onSaved, date }:
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
             {/* ── 疲労度 ── */}
-            <Text style={st.sectionLabel}>疲労度</Text>
+            <Text style={st.sectionLabel}>{t('quickConditionModal.fatigueLabel')}</Text>
             <View style={st.emojiRow}>
               {FATIGUE_OPTIONS.map(opt => (
                 <TouchableOpacity
@@ -246,29 +249,29 @@ export default function QuickConditionModal({ visible, onClose, onSaved, date }:
                   activeOpacity={0.75}
                 >
                   <Text style={st.emojiIcon}>{opt.emoji}</Text>
-                  <Text style={[st.emojiLabel, fatigue === opt.value && { color: BRAND }]}>{opt.label}</Text>
+                  <Text style={[st.emojiLabel, fatigue === opt.value && { color: BRAND }]}>{t(`quickConditionModal.fatigueOptions.${opt.key}`)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
             {/* ── 睡眠時間 ── */}
-            <Text style={st.sectionLabel}>睡眠時間（ざっくり）</Text>
+            <Text style={st.sectionLabel}>{t('quickConditionModal.sleepLabel')}</Text>
             <View style={st.sleepRow}>
               <TouchableOpacity style={st.sleepAdj} onPress={() => adjustSleep(-0.5)} activeOpacity={0.7}>
                 <Ionicons name="remove" size={20} color={TEXT.primary} />
               </TouchableOpacity>
               <View style={st.sleepDisplay}>
                 <Text style={st.sleepVal}>{sleepH.toFixed(1)}</Text>
-                <Text style={st.sleepUnit}>時間</Text>
+                <Text style={st.sleepUnit}>{t('quickConditionModal.sleepUnit')}</Text>
               </View>
               <TouchableOpacity style={st.sleepAdj} onPress={() => adjustSleep(0.5)} activeOpacity={0.7}>
                 <Ionicons name="add" size={20} color={TEXT.primary} />
               </TouchableOpacity>
             </View>
-            <Text style={st.sleepHint}>就寝・起床時刻やメモまで記録したい時は「睡眠」タブから。ここでの記録はそちらを上書きしません</Text>
+            <Text style={st.sleepHint}>{t('quickConditionModal.sleepHint')}</Text>
 
             {/* ── 体調 ── */}
-            <Text style={st.sectionLabel}>体調</Text>
+            <Text style={st.sectionLabel}>{t('quickConditionModal.conditionLabel')}</Text>
             <View style={st.emojiRow}>
               {CONDITION_OPTIONS.map(opt => (
                 <TouchableOpacity
@@ -278,7 +281,7 @@ export default function QuickConditionModal({ visible, onClose, onSaved, date }:
                   activeOpacity={0.75}
                 >
                   <Text style={st.emojiIcon}>{opt.emoji}</Text>
-                  <Text style={[st.emojiLabel, condition === opt.value && { color: BRAND }]}>{opt.label}</Text>
+                  <Text style={[st.emojiLabel, condition === opt.value && { color: BRAND }]}>{t(`quickConditionModal.conditionOptions.${opt.key}`)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -290,27 +293,27 @@ export default function QuickConditionModal({ visible, onClose, onSaved, date }:
               activeOpacity={0.7}
             >
               <Ionicons name={showOpt ? 'chevron-up' : 'add-circle-outline'} size={16} color={BRAND} />
-              <Text style={st.optToggleText}>{showOpt ? '追加項目を閉じる' : '練習・体重も記録する（任意）'}</Text>
+              <Text style={st.optToggleText}>{showOpt ? t('quickConditionModal.optToggleClose') : t('quickConditionModal.optToggleOpen')}</Text>
             </TouchableOpacity>
 
             {showOpt && (
               <View style={st.optBody}>
-                <Text style={st.sectionLabel}>練習メニュー</Text>
+                <Text style={st.sectionLabel}>{t('quickConditionModal.menuLabel')}</Text>
                 <TextInput
                   value={menuText}
                   onChangeText={setMenuText}
-                  placeholder="例: ジョグ8km、インターバル400m×5本..."
+                  placeholder={t('quickConditionModal.menuPlaceholder')}
                   placeholderTextColor={TEXT.hint}
                   multiline
                   style={st.menuInput}
                   textAlignVertical="top"
                 />
 
-                <Text style={[st.sectionLabel, { marginTop: 12 }]}>体重 (kg)</Text>
+                <Text style={[st.sectionLabel, { marginTop: 12 }]}>{t('quickConditionModal.weightLabel')}</Text>
                 <TextInput
                   value={weightStr}
                   onChangeText={setWeightStr}
-                  placeholder="例: 62.5"
+                  placeholder={t('quickConditionModal.weightPlaceholder')}
                   placeholderTextColor={TEXT.hint}
                   keyboardType="decimal-pad"
                   style={st.weightInput}
@@ -327,7 +330,7 @@ export default function QuickConditionModal({ visible, onClose, onSaved, date }:
               activeOpacity={0.85}
             >
               <Ionicons name="checkmark-circle" size={18} color="#fff" />
-              <Text style={st.saveBtnText}>記録する</Text>
+              <Text style={st.saveBtnText}>{t('quickConditionModal.save')}</Text>
             </HapticTouch>
           </ScrollView>
         </Animated.View>
