@@ -1830,5 +1830,45 @@
       "nextWeek": "Maintain your current pace and gradually increase intensity"
     },
     "noContentFallback": "There wasn't enough data for a detailed analysis."
+  },
+  "mypage": {
+    "headerTitle": "Profile",
+    "defaultName": "Athlete",
+    "backLabel": "Back",
+    "levelSub": "{{count}} sessions total · {{toNext}} more to next level",
+    "pbTitle": "Personal Bests",
+    "pbEmpty": "Register a race in the Records tab to see your personal bests by event here.",
+    "statTotal": "Total",
+    "statThisWeek": "This week",
+    "statMonthDistance": "Distance (mo)",
+    "unitTimes": "{{count}}",
+    "notifications": "Notifications",
+    "settings": "Settings"
+  },
+  "tickets": {
+    "headerTitle": "Buy Tickets",
+    "closeLabel": "Close",
+    "currentBalance": "Current Balance",
+    "balanceUnit": "",
+    "packLight": "Light",
+    "packValue": "Best Value",
+    "packCountSuffix": "{{count}}",
+    "perLight": "¥24.7 / ticket",
+    "perValue": "¥14.6 / ticket (~41% off)",
+    "popular": "Popular",
+    "legendTitle": "What tickets are used for",
+    "legendBody": "All AI features share one ticket pool: Video Analysis (3), AI Menu Generation (2), AI Meal Analysis (1), and more.",
+    "purchaseBtn": "Buy {{pack}} {{count}} for {{price}}",
+    "adBtn": "Watch an ad for 1 ticket ({{n}} left today)",
+    "monthlyTitle": "Use it a lot? Ticket Monthly Plan",
+    "monthlySub": "{{n}} tickets auto-granted every month + no ads, ¥980/mo",
+    "loadFailedTitle": "Failed to load products",
+    "loadFailedBody": "Please wait a moment and try again",
+    "purchaseAddedToast": "🎫 Added {{n}} ticket(s)",
+    "purchaseErrorTitle": "Purchase error",
+    "purchaseErrorFallback": "The purchase failed",
+    "adLimitTitle": "You've reached today's earning limit",
+    "adLimitBody": "You can watch again tomorrow",
+    "adEarnedToast": "🎫 Earned 1 ticket!"
   }
 }

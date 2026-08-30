@@ -13,6 +13,7 @@ import { PRODUCT_IDS, purchaseConsumable, TICKET_MONTHLY_GRANT } from '../lib/pu
 import { getWalletSnapshot, grantTickets, earnTicketFromAd, getAdTicketRemainingToday } from '../lib/ticketWallet'
 import { watchAdsForReward } from '../lib/rewardedAd'
 import Toast from 'react-native-toast-message'
+import { useTranslation } from 'react-i18next'
 
 const TIX    = '#f59e0b'
 const BRAND  = '#16a34a'
@@ -23,13 +24,15 @@ const TEXT_PRIMARY   = '#111827'
 const TEXT_SECONDARY = '#6b7280'
 const TEXT_HINT      = '#9ca3af'
 
+// per/labelKeyはロケール依存のためキーだけ持ち、実際の文言はレンダー時にt()で解決する
 const PACKS = [
-  { id: 'light' as const, productId: PRODUCT_IDS.tickets_light, count: 15, price: '¥370', per: '¥24.7 / 枚', popular: false },
-  { id: 'value' as const, productId: PRODUCT_IDS.tickets_value, count: 50, price: '¥730', per: '¥14.6 / 枚（約41%お得）', popular: true },
+  { id: 'light' as const, productId: PRODUCT_IDS.tickets_light, count: 15, price: '¥370', perKey: 'tickets.perLight', labelKey: 'tickets.packLight', popular: false },
+  { id: 'value' as const, productId: PRODUCT_IDS.tickets_value, count: 50, price: '¥730', perKey: 'tickets.perValue', labelKey: 'tickets.packValue', popular: true },
 ]
 
 export default function TicketsScreen() {
   const router = useRouter()
+  const { t } = useTranslation()
   const { packages, packagesReady, packagesDiagnostic, hasTicketMonthly } = usePurchase()
 
   const [tickets, setTickets]   = useState(0)
@@ -59,12 +62,12 @@ export default function TicketsScreen() {
       // Toastは幅が狭く長い診断文字列が途中で切れて読めないため、
       // 原因調査中はAlertで全文表示する（ボタンで消すまで残るのでスクショも撮りやすい）。
       if (packagesDiagnostic) {
-        Alert.alert('商品の読み込みに失敗しました', packagesDiagnostic)
+        Alert.alert(t('tickets.loadFailedTitle'), packagesDiagnostic)
       } else {
         Toast.show({
           type: 'error',
-          text1: '商品の読み込みに失敗しました',
-          text2: 'しばらく待ってから再試行してください',
+          text1: t('tickets.loadFailedTitle'),
+          text2: t('tickets.loadFailedBody'),
           visibilityTime: 6000,
         })
       }
@@ -77,20 +80,20 @@ export default function TicketsScreen() {
       if (granted) {
         await grantTickets(granted)
         await refresh()
-        Toast.show({ type: 'success', text1: `🎫 チケット${granted}枚を追加しました` })
+        Toast.show({ type: 'success', text1: t('tickets.purchaseAddedToast', { n: granted }) })
       }
     } catch (e: any) {
-      Toast.show({ type: 'error', text1: '購入エラー', text2: e?.message ?? '購入に失敗しました' })
+      Toast.show({ type: 'error', text1: t('tickets.purchaseErrorTitle'), text2: e?.message ?? t('tickets.purchaseErrorFallback') })
     } finally {
       setPurchasing(false)
       purchaseLockRef.current = false
     }
-  }, [targetPkg, packagesDiagnostic, refresh])
+  }, [targetPkg, packagesDiagnostic, refresh, t])
 
   const handleWatchAd = useCallback(async () => {
     if (adLockRef.current) return
     if (adTicketsLeft <= 0) {
-      Toast.show({ type: 'info', text1: '本日の獲得上限に達しました', text2: '明日また視聴できます' })
+      Toast.show({ type: 'info', text1: t('tickets.adLimitTitle'), text2: t('tickets.adLimitBody') })
       return
     }
     adLockRef.current = true
@@ -101,28 +104,28 @@ export default function TicketsScreen() {
       const r = await earnTicketFromAd()
       await refresh()
       if (r.granted) {
-        Toast.show({ type: 'success', text1: '🎫 チケット1枚を獲得しました！' })
+        Toast.show({ type: 'success', text1: t('tickets.adEarnedToast') })
       }
     } finally {
       setWatchingAd(false)
       adLockRef.current = false
     }
-  }, [adTicketsLeft, refresh])
+  }, [adTicketsLeft, refresh, t])
 
   return (
     <SafeAreaView style={st.safe} edges={['top', 'bottom']}>
       <View style={st.header}>
-        <TouchableOpacity onPress={() => router.back()} style={st.closeBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="閉じる" accessibilityRole="button">
+        <TouchableOpacity onPress={() => router.back()} style={st.closeBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel={t('tickets.closeLabel')} accessibilityRole="button">
           <Ionicons name="close" size={24} color={TEXT_PRIMARY} />
         </TouchableOpacity>
-        <Text style={st.headerTitle}>チケットを購入</Text>
+        <Text style={st.headerTitle}>{t('tickets.headerTitle')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <ScrollView contentContainerStyle={st.scroll}>
         <View style={st.balanceCard}>
-          <Text style={st.balanceLabel}>現在の残高</Text>
-          <Text style={st.balanceNum}>🎫 {tickets}<Text style={st.balanceUnit}>枚</Text></Text>
+          <Text style={st.balanceLabel}>{t('tickets.currentBalance')}</Text>
+          <Text style={st.balanceNum}>🎫 {tickets}<Text style={st.balanceUnit}>{t('tickets.balanceUnit')}</Text></Text>
         </View>
 
         {PACKS.map(pack => {
@@ -135,12 +138,12 @@ export default function TicketsScreen() {
               style={[st.packCard, isSelected && { borderColor: TIX, borderWidth: 1.7 }, pack.popular && { marginTop: 14 }]}
             >
               {pack.popular && (
-                <View style={st.popBadge}><Text style={st.popBadgeTxt}>人気</Text></View>
+                <View style={st.popBadge}><Text style={st.popBadgeTxt}>{t('tickets.popular')}</Text></View>
               )}
               <Text style={{ fontSize: 26, width: 44, textAlign: 'center' }}>{pack.popular ? '🎟️' : '🎫'}</Text>
               <View style={{ flex: 1 }}>
-                <Text style={st.packCount}>{pack.id === 'light' ? 'ライト' : 'お得'} {pack.count}枚</Text>
-                <Text style={st.packPer}>{pack.per}</Text>
+                <Text style={st.packCount}>{t(pack.labelKey)} {t('tickets.packCountSuffix', { count: pack.count })}</Text>
+                <Text style={st.packPer}>{t(pack.perKey)}</Text>
               </View>
               <Text style={st.packPrice}>{pack.price}</Text>
             </TouchableOpacity>
@@ -148,8 +151,8 @@ export default function TicketsScreen() {
         })}
 
         <View style={st.legend}>
-          <Text style={st.legendTitle}>チケットの使い道</Text>
-          <Text style={st.legendBody}>動画分析3枚／AIメニュー作成2枚／AI食事分析1枚 など、AI機能はすべて共通のチケットを消費します</Text>
+          <Text style={st.legendTitle}>{t('tickets.legendTitle')}</Text>
+          <Text style={st.legendBody}>{t('tickets.legendBody')}</Text>
         </View>
 
         <TouchableOpacity
@@ -159,7 +162,7 @@ export default function TicketsScreen() {
           style={[st.purchaseBtn, (purchasing || !packagesReady) && { opacity: 0.55 }]}
         >
           {purchasing ? <ActivityIndicator color="#241300" /> : (
-            <Text style={st.purchaseBtnTxt}>{selectedPack.id === 'light' ? 'ライト' : 'お得'} {selectedPack.count}枚 を購入 {selectedPack.price}</Text>
+            <Text style={st.purchaseBtnTxt}>{t('tickets.purchaseBtn', { pack: t(selectedPack.labelKey), count: selectedPack.count, price: selectedPack.price })}</Text>
           )}
         </TouchableOpacity>
 
@@ -172,7 +175,7 @@ export default function TicketsScreen() {
           {watchingAd ? <ActivityIndicator color={TIX} size="small" /> : (
             <>
               <Ionicons name="play-circle-outline" size={16} color={TIX} />
-              <Text style={st.adBtnTxt}>広告を見てチケット1枚を獲得（本日あと{adTicketsLeft}回）</Text>
+              <Text style={st.adBtnTxt}>{t('tickets.adBtn', { n: adTicketsLeft })}</Text>
             </>
           )}
         </TouchableOpacity>
@@ -187,8 +190,8 @@ export default function TicketsScreen() {
               <Ionicons name="refresh-circle" size={26} color={TIX} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={st.monthlyTitle}>よく使うなら チケット月額プラン</Text>
-              <Text style={st.monthlySub}>毎月{TICKET_MONTHLY_GRANT}枚自動付与＋広告なし ¥980/月</Text>
+              <Text style={st.monthlyTitle}>{t('tickets.monthlyTitle')}</Text>
+              <Text style={st.monthlySub}>{t('tickets.monthlySub', { n: TICKET_MONTHLY_GRANT })}</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={TEXT_HINT} />
           </TouchableOpacity>

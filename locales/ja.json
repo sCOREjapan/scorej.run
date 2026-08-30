@@ -1830,5 +1830,45 @@
       "nextWeek": "現在のペースを維持しながら、徐々に強度を上げていきましょう"
     },
     "noContentFallback": "データが不足しているため詳細な分析ができませんでした。"
+  },
+  "mypage": {
+    "headerTitle": "プロフィール",
+    "defaultName": "アスリート",
+    "backLabel": "戻る",
+    "levelSub": "総練習 {{count}}回 · 次のレベルまであと{{toNext}}回",
+    "pbTitle": "種目別ベスト",
+    "pbEmpty": "記録タブでレースを登録すると、種目ごとの自己ベストがここに表示されます",
+    "statTotal": "総練習",
+    "statThisWeek": "今週",
+    "statMonthDistance": "今月距離",
+    "unitTimes": "{{count}}回",
+    "notifications": "お知らせ",
+    "settings": "設定"
+  },
+  "tickets": {
+    "headerTitle": "チケットを購入",
+    "closeLabel": "閉じる",
+    "currentBalance": "現在の残高",
+    "balanceUnit": "枚",
+    "packLight": "ライト",
+    "packValue": "お得",
+    "packCountSuffix": "{{count}}枚",
+    "perLight": "¥24.7 / 枚",
+    "perValue": "¥14.6 / 枚（約41%お得）",
+    "popular": "人気",
+    "legendTitle": "チケットの使い道",
+    "legendBody": "動画分析3枚／AIメニュー作成2枚／AI食事分析1枚 など、AI機能はすべて共通のチケットを消費します",
+    "purchaseBtn": "{{pack}} {{count}}枚 を購入 {{price}}",
+    "adBtn": "広告を見てチケット1枚を獲得（本日あと{{n}}回）",
+    "monthlyTitle": "よく使うなら チケット月額プラン",
+    "monthlySub": "毎月{{n}}枚自動付与＋広告なし ¥980/月",
+    "loadFailedTitle": "商品の読み込みに失敗しました",
+    "loadFailedBody": "しばらく待ってから再試行してください",
+    "purchaseAddedToast": "🎫 チケット{{n}}枚を追加しました",
+    "purchaseErrorTitle": "購入エラー",
+    "purchaseErrorFallback": "購入に失敗しました",
+    "adLimitTitle": "本日の獲得上限に達しました",
+    "adLimitBody": "明日また視聴できます",
+    "adEarnedToast": "🎫 チケット1枚を獲得しました！"
   }
 }

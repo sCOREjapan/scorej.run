@@ -13,6 +13,9 @@ import { useTheme } from '../../context/ThemeContext'
 import { Sounds, unlockAudio } from '../../lib/sounds'
 import HapticTouch from '../../components/HapticTouch'
 import { localDateStr } from '../../lib/dateLocal'
+import { useTranslation } from 'react-i18next'
+import { useLanguage } from '../../context/LanguageContext'
+import { getEventLabel } from '../../lib/eventLabels'
 import type { RaceRecord } from '../../types'
 
 const PROFILE_KEY = 'trackmate_my_profile'
@@ -27,6 +30,8 @@ interface MyProfile {
 export default function MyPageScreen() {
   const router = useRouter()
   const { colors } = useTheme()
+  const { t } = useTranslation()
+  const { language } = useLanguage()
   const { sessions, fetchSessions } = useTrainingSessions()
   const [profile, setProfile] = useState<MyProfile>({ name: '', primary_event: '400m' })
   const [records, setRecords] = useState<RaceRecord[]>([])
@@ -49,7 +54,7 @@ export default function MyPageScreen() {
     fetchSessions('')
   }, [fetchSessions]))
 
-  const displayName = profile.name || 'アスリート'
+  const displayName = profile.name || t('mypage.defaultName')
   const initials    = displayName.slice(0, 2)
   const levelInfo   = calcLevelInfo(sessions.length)
 
@@ -66,10 +71,10 @@ export default function MyPageScreen() {
 
         {/* ── ヘッダー ── */}
         <View style={[s.header, { borderBottomColor: colors.border }]}>
-          <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="戻る">
+          <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel={t('mypage.backLabel')}>
             <Ionicons name="chevron-back" size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text style={[s.headerTitle, { color: colors.text }]}>プロフィール</Text>
+          <Text style={[s.headerTitle, { color: colors.text }]}>{t('mypage.headerTitle')}</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -83,7 +88,7 @@ export default function MyPageScreen() {
             <Text style={[s.name, { color: colors.text }]}>{displayName}</Text>
             {profile.primary_event ? (
               <View style={[s.eventBadge, { backgroundColor: colors.surface }]}>
-                <Text style={[s.eventText, { color: colors.textSec }]}>{profile.primary_event}</Text>
+                <Text style={[s.eventText, { color: colors.textSec }]}>{getEventLabel(profile.primary_event, language)}</Text>
               </View>
             ) : null}
             {profile.grade ? (
@@ -103,7 +108,7 @@ export default function MyPageScreen() {
                 <View style={[s.barFill, { width: `${Math.round(levelInfo.progress * 100)}%` as any }]} />
               </View>
               <Text style={[s.levelSub, { color: colors.textHint }]}>
-                総練習 {sessions.length}回 · 次のレベルまであと{Math.ceil(levelInfo.xpToNext / 100)}回
+                {t('mypage.levelSub', { count: sessions.length, toNext: Math.ceil(levelInfo.xpToNext / 100) })}
               </Text>
             </View>
           </View>
@@ -112,20 +117,20 @@ export default function MyPageScreen() {
           <View style={[s.pbCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={s.pbHeader}>
               <Ionicons name="trophy-outline" size={16} color={BRAND} />
-              <Text style={[s.pbTitle, { color: colors.text }]}>種目別ベスト</Text>
+              <Text style={[s.pbTitle, { color: colors.text }]}>{t('mypage.pbTitle')}</Text>
             </View>
             {eventPBs.length > 0 ? (
               <View style={s.pbGrid}>
                 {eventPBs.map(r => (
                   <View key={r.id} style={[s.pbItem, { backgroundColor: colors.surface2 }]}>
-                    <Text style={[s.pbEvent, { color: colors.textSec }]}>{r.event}</Text>
+                    <Text style={[s.pbEvent, { color: colors.textSec }]}>{getEventLabel(r.event, language)}</Text>
                     <Text style={[s.pbResult, { color: colors.text }]}>{r.result_display}</Text>
                   </View>
                 ))}
               </View>
             ) : (
               <Text style={[s.pbEmpty, { color: colors.textHint }]}>
-                記録タブでレースを登録すると、種目ごとの自己ベストがここに表示されます
+                {t('mypage.pbEmpty')}
               </Text>
             )}
           </View>
@@ -133,9 +138,9 @@ export default function MyPageScreen() {
           {/* ── 統計 ── */}
           <View style={[s.statsRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             {[
-              { label: '総練習', value: `${sessions.length}回` },
-              { label: '今週', value: `${sessions.filter(s => s.session_date >= localDateStr(new Date(Date.now() - 7 * 86400000))).length}回` },
-              { label: '今月距離', value: (() => { const km = sessions.filter(s => s.session_date >= localDateStr(new Date(Date.now() - 30 * 86400000))).reduce((a, s) => a + (s.distance_m ?? 0), 0) / 1000; return km > 0 ? `${km.toFixed(0)}km` : '—' })() },
+              { label: t('mypage.statTotal'), value: t('mypage.unitTimes', { count: sessions.length }) },
+              { label: t('mypage.statThisWeek'), value: t('mypage.unitTimes', { count: sessions.filter(s => s.session_date >= localDateStr(new Date(Date.now() - 7 * 86400000))).length }) },
+              { label: t('mypage.statMonthDistance'), value: (() => { const km = sessions.filter(s => s.session_date >= localDateStr(new Date(Date.now() - 30 * 86400000))).reduce((a, s) => a + (s.distance_m ?? 0), 0) / 1000; return km > 0 ? `${km.toFixed(0)}km` : '—' })() },
             ].map((item, i) => (
               <View key={i} style={[s.statCell, i > 0 && { borderLeftWidth: 1, borderLeftColor: colors.border }]}>
                 <Text style={[s.statValue, { color: colors.text }]}>{item.value}</Text>
@@ -152,7 +157,7 @@ export default function MyPageScreen() {
             activeOpacity={0.8}
           >
             <Ionicons name="notifications-outline" size={20} color={colors.textSec} />
-            <Text style={[s.settingsBtnText, { color: colors.text }]}>お知らせ</Text>
+            <Text style={[s.settingsBtnText, { color: colors.text }]}>{t('mypage.notifications')}</Text>
             <Ionicons name="chevron-forward" size={16} color={colors.textHint} style={{ marginLeft: 'auto' as any }} />
           </HapticTouch>
 
@@ -164,7 +169,7 @@ export default function MyPageScreen() {
             activeOpacity={0.8}
           >
             <Ionicons name="settings-outline" size={20} color={colors.textSec} />
-            <Text style={[s.settingsBtnText, { color: colors.text }]}>設定</Text>
+            <Text style={[s.settingsBtnText, { color: colors.text }]}>{t('mypage.settings')}</Text>
             <Ionicons name="chevron-forward" size={16} color={colors.textHint} style={{ marginLeft: 'auto' as any }} />
           </HapticTouch>
 
