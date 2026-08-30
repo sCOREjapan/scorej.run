@@ -17,6 +17,9 @@ import {
   getCompetitions, saveCompetition, deleteCompetition, getPersonalBests, getGoals, setGoal,
   type SavedCompetition, type CombinedCategory,
 } from '../lib/combinedEventsStore'
+import { useTranslation } from 'react-i18next'
+import { useLanguage } from '../context/LanguageContext'
+import { getEventLabel } from '../lib/eventLabels'
 
 const BRAND = '#16a34a'
 const BG = '#f6f6f8'
@@ -30,6 +33,8 @@ type SubTab = 'calc' | 'match' | 'pb'
 
 export default function CombinedEventsScreen() {
   const router = useRouter()
+  const { t } = useTranslation()
+  const { language } = useLanguage()
   const [category, setCategory] = useState<CombinedCategory>('men')
   const [subTab, setSubTab] = useState<SubTab>('calc')
   const [marks, setMarks] = useState<Record<string, string>>({})
@@ -70,7 +75,7 @@ export default function CombinedEventsScreen() {
 
   const handleSave = useCallback(async () => {
     if (filledCount === 0) {
-      Toast.show({ type: 'info', text1: '記録を1種目以上入力してください' })
+      Toast.show({ type: 'info', text1: t('combinedEvents.saveNeedsOneEvent') })
       return
     }
     unlockAudio(); Sounds.save()
@@ -83,15 +88,15 @@ export default function CombinedEventsScreen() {
     }
     await saveCompetition(entry)
     await refresh(category)
-    Toast.show({ type: 'success', text1: `✅ 記録を保存しました（${totalScore}点）` })
-  }, [category, numericMarks, totalScore, filledCount, refresh])
+    Toast.show({ type: 'success', text1: t('combinedEvents.saveSuccessToast', { score: totalScore }) })
+  }, [category, numericMarks, totalScore, filledCount, refresh, t])
 
   const handleDeleteCompetition = useCallback((id: string) => {
-    Alert.alert('削除しますか？', 'この試合記録を削除します', [
-      { text: 'キャンセル', style: 'cancel' },
-      { text: '削除', style: 'destructive', onPress: async () => { await deleteCompetition(id); await refresh(category) } },
+    Alert.alert(t('combinedEvents.deleteConfirmTitle'), t('combinedEvents.deleteConfirmBody'), [
+      { text: t('combinedEvents.deleteCancel'), style: 'cancel' },
+      { text: t('combinedEvents.deleteConfirm'), style: 'destructive', onPress: async () => { await deleteCompetition(id); await refresh(category) } },
     ])
-  }, [category, refresh])
+  }, [category, refresh, t])
 
   const loadCompetition = useCallback((comp: SavedCompetition) => {
     const next: Record<string, string> = {}
@@ -109,18 +114,18 @@ export default function CombinedEventsScreen() {
   return (
     <SafeAreaView style={ce.safe} edges={['top', 'bottom']}>
       <View style={ce.header}>
-        <TouchableOpacity onPress={() => router.back()} style={ce.iconBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="戻る">
+        <TouchableOpacity onPress={() => router.back()} style={ce.iconBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel={t('combinedEvents.backLabel')}>
           <Ionicons name="chevron-back" size={26} color={TEXT_PRIMARY} />
         </TouchableOpacity>
-        <Text style={ce.headerTitle}>混成競技ツール</Text>
+        <Text style={ce.headerTitle}>{t('combinedEvents.headerTitle')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
       {/* ── 男女切り替え ── */}
       <View style={ce.segment}>
         {([
-          { key: 'men' as const,   label: '十種競技（男子）' },
-          { key: 'women' as const, label: '七種競技（女子）' },
+          { key: 'men' as const,   label: t('combinedEvents.menCategory') },
+          { key: 'women' as const, label: t('combinedEvents.womenCategory') },
         ]).map(o => (
           <TouchableOpacity
             key={o.key}
@@ -136,17 +141,17 @@ export default function CombinedEventsScreen() {
       {/* ── サブタブ ── */}
       <View style={ce.tabBar}>
         {([
-          { key: 'calc' as const,  label: '得点計算' },
-          { key: 'match' as const, label: '試合' },
-          { key: 'pb' as const,    label: 'PB・目標' },
-        ]).map(t => (
+          { key: 'calc' as const,  label: t('combinedEvents.tabCalc') },
+          { key: 'match' as const, label: t('combinedEvents.tabMatch') },
+          { key: 'pb' as const,    label: t('combinedEvents.tabPb') },
+        ]).map(tab => (
           <TouchableOpacity
-            key={t.key}
-            style={[ce.tabItem, subTab === t.key && ce.tabItemActive]}
-            onPress={() => { unlockAudio(); Sounds.tabSwitch(); setSubTab(t.key) }}
+            key={tab.key}
+            style={[ce.tabItem, subTab === tab.key && ce.tabItemActive]}
+            onPress={() => { unlockAudio(); Sounds.tabSwitch(); setSubTab(tab.key) }}
             activeOpacity={0.8}
           >
-            <Text style={[ce.tabLabel, subTab === t.key && ce.tabLabelActive]}>{t.label}</Text>
+            <Text style={[ce.tabLabel, subTab === tab.key && ce.tabLabelActive]}>{tab.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -155,9 +160,9 @@ export default function CombinedEventsScreen() {
         {subTab === 'calc' && (
           <>
             <View style={ce.totalCard}>
-              <Text style={ce.totalLabel}>合計点</Text>
+              <Text style={ce.totalLabel}>{t('combinedEvents.totalScore')}</Text>
               <Text style={ce.totalNum}>{totalScore}</Text>
-              <Text style={ce.totalSub}>{filledCount}/{events.length} 種目入力済み</Text>
+              <Text style={ce.totalSub}>{t('combinedEvents.filledCount', { filled: filledCount, total: events.length })}</Text>
             </View>
 
             {events.map((e, i) => {
@@ -167,19 +172,19 @@ export default function CombinedEventsScreen() {
                 <View key={e.key} style={ce.eventCard}>
                   <View style={ce.eventHeaderRow}>
                     <View style={ce.eventIndex}><Text style={ce.eventIndexText}>{i + 1}</Text></View>
-                    <Text style={ce.eventLabel}>{e.label}</Text>
-                    <Text style={[ce.eventPts, mark > 0 && { color: BRAND }]}>{mark > 0 ? `${pts} pt` : '--- pt'}</Text>
+                    <Text style={ce.eventLabel}>{getEventLabel(e.label, language)}</Text>
+                    <Text style={[ce.eventPts, mark > 0 && { color: BRAND }]}>{mark > 0 ? `${pts} pt` : t('combinedEvents.ptsUnfilled')}</Text>
                   </View>
                   <View style={ce.eventInputRow}>
                     <TextInput
                       style={ce.eventInput}
-                      placeholder={e.unit === 'sec' ? '例: 10.85' : e.unit === 'cm' ? '例: 700' : '例: 15.50'}
+                      placeholder={e.unit === 'sec' ? t('combinedEvents.placeholderSec') : e.unit === 'cm' ? t('combinedEvents.placeholderCm') : t('combinedEvents.placeholderM')}
                       placeholderTextColor={TEXT_HINT}
                       keyboardType="decimal-pad"
                       value={marks[e.key] ?? ''}
-                      onChangeText={(t) => setMarks(prev => ({ ...prev, [e.key]: t }))}
+                      onChangeText={(txt) => setMarks(prev => ({ ...prev, [e.key]: txt }))}
                     />
-                    <View style={ce.unitTag}><Text style={ce.unitTagText}>{unitLabel(e.unit)}</Text></View>
+                    <View style={ce.unitTag}><Text style={ce.unitTagText}>{unitLabel(e.unit, language)}</Text></View>
                   </View>
                 </View>
               )
@@ -187,7 +192,7 @@ export default function CombinedEventsScreen() {
 
             <TouchableOpacity style={ce.saveBtn} onPress={handleSave} activeOpacity={0.85}>
               <Ionicons name="save-outline" size={18} color="#fff" />
-              <Text style={ce.saveBtnText}>この記録を保存</Text>
+              <Text style={ce.saveBtnText}>{t('combinedEvents.saveBtn')}</Text>
             </TouchableOpacity>
           </>
         )}
@@ -196,16 +201,16 @@ export default function CombinedEventsScreen() {
           competitions.length === 0 ? (
             <View style={ce.emptyWrap}>
               <Ionicons name="trophy-outline" size={36} color={TEXT_HINT} />
-              <Text style={ce.emptyText}>まだ保存された記録がありません</Text>
+              <Text style={ce.emptyText}>{t('combinedEvents.noSavedRecords')}</Text>
             </View>
           ) : (
             competitions.map(comp => (
               <TouchableOpacity key={comp.id} style={ce.matchRow} onPress={() => loadCompetition(comp)} activeOpacity={0.8}>
                 <View style={{ flex: 1 }}>
                   <Text style={ce.matchDate}>{comp.date}</Text>
-                  <Text style={ce.matchSub}>{Object.values(comp.marks).filter(v => v > 0).length}種目入力</Text>
+                  <Text style={ce.matchSub}>{t('combinedEvents.eventsFilled', { count: Object.values(comp.marks).filter(v => v > 0).length })}</Text>
                 </View>
-                <Text style={ce.matchScore}>{comp.totalScore}点</Text>
+                <Text style={ce.matchScore}>{t('combinedEvents.pointsSuffix', { score: comp.totalScore })}</Text>
                 <TouchableOpacity onPress={() => handleDeleteCompetition(comp.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ marginLeft: 8 }}>
                   <Ionicons name="trash-outline" size={18} color={TEXT_HINT} />
                 </TouchableOpacity>
@@ -220,17 +225,17 @@ export default function CombinedEventsScreen() {
             const goal = goals[e.key]
             return (
               <View key={e.key} style={ce.pbCard}>
-                <Text style={ce.eventLabel}>{e.label}</Text>
+                <Text style={ce.eventLabel}>{getEventLabel(e.label, language)}</Text>
                 <View style={ce.pbRow}>
                   <View style={{ flex: 1 }}>
-                    <Text style={ce.pbCaption}>自己ベスト</Text>
-                    <Text style={ce.pbValue}>{pb !== undefined ? `${pb} ${unitLabel(e.unit)}` : '未記録'}</Text>
+                    <Text style={ce.pbCaption}>{t('combinedEvents.personalBest')}</Text>
+                    <Text style={ce.pbValue}>{pb !== undefined ? `${pb} ${unitLabel(e.unit, language)}` : t('combinedEvents.notRecorded')}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={ce.pbCaption}>目標</Text>
+                    <Text style={ce.pbCaption}>{t('combinedEvents.goal')}</Text>
                     <TextInput
                       style={ce.goalInput}
-                      placeholder="未設定"
+                      placeholder={t('combinedEvents.goalUnset')}
                       placeholderTextColor={TEXT_HINT}
                       keyboardType="decimal-pad"
                       defaultValue={goal ? String(goal) : ''}

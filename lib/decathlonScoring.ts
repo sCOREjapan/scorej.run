@@ -56,8 +56,8 @@ export function calcTotalScore(events: EventDef[], marks: Record<string, number 
   return events.reduce((sum, e) => sum + calcEventScore(e, marks[e.key] ?? 0), 0)
 }
 
-export function unitLabel(unit: ScoringUnit): string {
-  if (unit === 'sec') return '秒'
+export function unitLabel(unit: ScoringUnit, lang: 'ja' | 'en' = 'ja'): string {
+  if (unit === 'sec') return lang === 'en' ? 's' : '秒'
   if (unit === 'cm')  return 'cm'
   return 'm'
 }
