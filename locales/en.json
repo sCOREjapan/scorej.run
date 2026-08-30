@@ -3644,5 +3644,16 @@
     "buyTickets": "Buy Tickets",
     "monthlyPlan": "Get 100 tickets/month with the Ticket Plan",
     "notNow": "Not now"
+  },
+  "noadUpsellModal": {
+    "title": "Go Ad-Free for a Smoother Experience",
+    "sub": "Remove all ads for ¥480/month",
+    "benefits": [
+      "Banner and video ads completely removed",
+      "No more waiting for ads to load",
+      "AI features still use tickets (earn more by watching ads)"
+    ],
+    "cta": "View No-Ads Plan",
+    "notNow": "Not now"
   }
 }

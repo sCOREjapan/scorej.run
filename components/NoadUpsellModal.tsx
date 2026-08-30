@@ -11,6 +11,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Ionicons } from '@expo/vector-icons'
 import { todayLocalISO } from '../lib/dateLocal'
+import { useTranslation } from 'react-i18next'
 
 const LAST_SHOWN_KEY = 'score_noad_upsell_last_shown'
 const INTERVAL_MS = 7 * 24 * 60 * 60 * 1000
@@ -38,6 +39,7 @@ interface Props {
 }
 
 export default function NoadUpsellModal({ visible, onClose, onUpgrade }: Props) {
+  const { t } = useTranslation()
   const slideY    = useRef(new Animated.Value(500)).current
   const bgOpacity = useRef(new Animated.Value(0)).current
 
@@ -80,26 +82,26 @@ export default function NoadUpsellModal({ visible, onClose, onUpgrade }: Props) 
             <Ionicons name="shield-checkmark" size={26} color="#166534" />
           </View>
           <View style={{ flex: 1, gap: 3 }}>
-            <Text style={s.title}>広告なしで、もっと快適に</Text>
-            <Text style={s.sub}>月額¥480で全ての広告が消えます</Text>
+            <Text style={s.title}>{t('noadUpsellModal.title')}</Text>
+            <Text style={s.sub}>{t('noadUpsellModal.sub')}</Text>
           </View>
         </View>
 
         <View style={s.benefits}>
-          {['バナー・動画広告が完全に消える', '広告の読み込み待ちがなくなる', 'AI機能は引き続きチケットで利用（広告視聴で追加可）'].map(t => (
-            <View key={t} style={s.benefitRow}>
+          {(t('noadUpsellModal.benefits', { returnObjects: true }) as string[]).map(benefit => (
+            <View key={benefit} style={s.benefitRow}>
               <Ionicons name="checkmark-circle" size={16} color="#166534" />
-              <Text style={s.benefitText}>{t}</Text>
+              <Text style={s.benefitText}>{benefit}</Text>
             </View>
           ))}
         </View>
 
         <TouchableOpacity style={s.primaryBtn} onPress={() => dismiss(onUpgrade)} activeOpacity={0.85}>
-          <Text style={s.primaryBtnTxt}>広告なしプランを見る</Text>
+          <Text style={s.primaryBtnTxt}>{t('noadUpsellModal.cta')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => dismiss()} style={s.subBtn}>
-          <Text style={s.subBtnTxt}>今は結構です</Text>
+          <Text style={s.subBtnTxt}>{t('noadUpsellModal.notNow')}</Text>
         </TouchableOpacity>
       </Animated.View>
     </Modal>
