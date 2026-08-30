@@ -3378,5 +3378,66 @@
       "empty": "No coach notes yet",
       "emptyHint": "Add them from the Team screen"
     }
+  },
+  "stretchRecovery": {
+    "back": "Back",
+    "mainTitle": "Let's Stretch",
+    "bodyParts": {
+      "shoulder_neck": "Shoulders & Neck",
+      "chest_scapula": "Chest & Shoulder Blades",
+      "lower_back": "Lower Back",
+      "core": "Core & Obliques",
+      "hip": "Hips",
+      "glutes": "Glutes",
+      "adductor": "Adductors",
+      "quad": "Quads",
+      "hamstring": "Hamstrings",
+      "calf_achilles": "Calves & Achilles",
+      "ankle": "Ankles",
+      "wrist_forearm": "Wrist & Forearm"
+    },
+    "delete": "Delete",
+    "select": {
+      "title": "What do you want to stretch?",
+      "editDone": "Done",
+      "editReorder": "Reorder",
+      "recommend": "Recommended",
+      "customPlaceholder": "Enter a body part",
+      "cancel": "Cancel",
+      "add": "Add",
+      "addCustom": "Add your own",
+      "startButton": "Start {{n}} part(s)"
+    },
+    "stretch": {
+      "timeFree": "⏱ Free",
+      "timeSeconds": "⏱ {{n}}s",
+      "optFree": "Free",
+      "optSeconds": "{{n}}s",
+      "manualHint": "Press \"Done\" when you're finished",
+      "left": "Left",
+      "right": "Right",
+      "startLeft": "Start Left",
+      "startRight": "Start Right",
+      "start": "Start",
+      "skip": "Skip",
+      "pause": "Pause",
+      "resume": "Resume",
+      "completeLeft": "Left Done →",
+      "complete": "Done"
+    },
+    "complete": {
+      "title": "Great work!",
+      "parts": "Parts",
+      "totalTime": "Total Time",
+      "riskLabel": "Injury Risk Score",
+      "delta": "-{{n}} points",
+      "atLimit": "You've reached today's reduction limit",
+      "nearLimit": "(approaching today's limit)",
+      "home": "Back to Home"
+    },
+    "fmtTime": {
+      "minSec": "{{m}}m {{s}}s",
+      "secOnly": "{{s}}s"
+    }
   }
 }

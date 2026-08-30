@@ -3378,5 +3378,66 @@
       "empty": "コーチメモがまだありません",
       "emptyHint": "チーム画面から追加できます"
     }
+  },
+  "stretchRecovery": {
+    "back": "戻る",
+    "mainTitle": "ストレッチを始めよう",
+    "bodyParts": {
+      "shoulder_neck": "肩・首",
+      "chest_scapula": "胸・肩甲骨",
+      "lower_back": "腰・背中",
+      "core": "体幹・腹斜筋",
+      "hip": "股関節",
+      "glutes": "お尻",
+      "adductor": "内転筋",
+      "quad": "太もも前面",
+      "hamstring": "ハムストリング",
+      "calf_achilles": "ふくらはぎ",
+      "ankle": "足首",
+      "wrist_forearm": "手首・前腕"
+    },
+    "delete": "削除",
+    "select": {
+      "title": "どこを伸ばしますか？",
+      "editDone": "完了",
+      "editReorder": "並び替え",
+      "recommend": "おすすめ",
+      "customPlaceholder": "部位名を入力",
+      "cancel": "キャンセル",
+      "add": "追加",
+      "addCustom": "自分で追加",
+      "startButton": "{{n}}部位を始める"
+    },
+    "stretch": {
+      "timeFree": "⏱ 自由",
+      "timeSeconds": "⏱ {{n}}秒",
+      "optFree": "自由",
+      "optSeconds": "{{n}}秒",
+      "manualHint": "終わったら「完了」を押してください",
+      "left": "左",
+      "right": "右",
+      "startLeft": "左スタート",
+      "startRight": "右スタート",
+      "start": "スタート",
+      "skip": "スキップ",
+      "pause": "一時停止",
+      "resume": "再開",
+      "completeLeft": "左完了 →",
+      "complete": "完了"
+    },
+    "complete": {
+      "title": "お疲れさまでした",
+      "parts": "部位",
+      "totalTime": "合計時間",
+      "riskLabel": "怪我リスクスコア",
+      "delta": "-{{n}}ポイント",
+      "atLimit": "本日の減少上限に達しています",
+      "nearLimit": "(本日の上限に近づいています)",
+      "home": "ホームに戻る"
+    },
+    "fmtTime": {
+      "minSec": "{{m}}分{{s}}秒",
+      "secOnly": "{{s}}秒"
+    }
   }
 }

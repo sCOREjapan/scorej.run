@@ -16,6 +16,7 @@ import * as Haptics from 'expo-haptics'
 import { Sounds, unlockAudio } from '../lib/sounds'
 import { todayLocalISO } from '../lib/dateLocal'
 import { updateStretchResult } from '../lib/stretchResultStore'
+import { useTranslation } from 'react-i18next'
 
 const CUSTOM_PARTS_KEY     = 'trackmate_stretch_custom_parts'
 const PART_ORDER_KEY       = 'trackmate_stretch_part_order'
@@ -61,10 +62,17 @@ function calcRecoveryReduction(totalSeconds: number, skippedCount: number): numb
   return Math.max(base - skippedCount, 1)
 }
 
-function fmtTime(sec: number): string {
+function fmtTime(sec: number, t: (key: string, opts?: any) => string): string {
   const m = Math.floor(sec / 60)
   const s = sec % 60
-  return m > 0 ? `${m}分${s}秒` : `${s}秒`
+  return m > 0 ? t('stretchRecovery.fmtTime.minSec', { m, s }) : t('stretchRecovery.fmtTime.secOnly', { s })
+}
+
+// カスタム部位(id: `custom_...`)はユーザーが自分で入力した名前なので言語対応せずそのまま表示。
+// プリセット部位は locales/stretchRecovery.bodyParts 経由で言語対応する。
+function getPartName(part: BodyPart, t: (key: string, opts?: any) => string): string {
+  if (part.id.startsWith('custom_')) return part.name
+  return t(`stretchRecovery.bodyParts.${part.id}`, { defaultValue: part.name })
 }
 
 // 1日の上限を考慮して実際に適用される減少量を返す
@@ -131,6 +139,7 @@ function ReorderRow({
   onDragEnd:   () => void
   onDelete:    () => void
 }) {
+  const { t } = useTranslation()
   const onDragStartRef = useRef(onDragStart)
   const onDragMoveRef  = useRef(onDragMove)
   const onDragEndRef   = useRef(onDragEnd)
@@ -163,8 +172,8 @@ function ReorderRow({
         <Ionicons name="reorder-three" size={22} color="#bbb" />
       </View>
       <Text style={{ fontSize: 22, marginRight: 10 }}>{part.icon}</Text>
-      <Text style={rl.rowName}>{part.name}</Text>
-      <TouchableOpacity onPress={onDelete} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="削除">
+      <Text style={rl.rowName}>{getPartName(part, t)}</Text>
+      <TouchableOpacity onPress={onDelete} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={t('stretchRecovery.delete')}>
         <Ionicons name="trash-outline" size={18} color="#C8102E" />
       </TouchableOpacity>
     </View>
@@ -292,6 +301,7 @@ function PartSelectScreen({
   onReorder:    (ids: string[]) => void
   onDeletePart: (id: string) => void
 }) {
+  const { t } = useTranslation()
   const [adding, setAdding]         = useState(false)
   const [customName, setCustomName] = useState('')
   const [editMode, setEditMode]     = useState(false)
@@ -308,10 +318,10 @@ function PartSelectScreen({
   return (
     <ScrollView contentContainerStyle={ps.content} showsVerticalScrollIndicator={false} scrollEnabled={!dragging}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-        <Text style={[ps.title, { marginBottom: 0 }]}>どこを伸ばしますか？</Text>
+        <Text style={[ps.title, { marginBottom: 0 }]}>{t('stretchRecovery.select.title')}</Text>
         <TouchableOpacity onPress={() => setEditMode(v => !v)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
           <Ionicons name={editMode ? 'checkmark' : 'swap-vertical'} size={16} color="#666" />
-          <Text style={{ fontSize: 13, fontWeight: '700', color: '#666' }}>{editMode ? '完了' : '並び替え'}</Text>
+          <Text style={{ fontSize: 13, fontWeight: '700', color: '#666' }}>{editMode ? t('stretchRecovery.select.editDone') : t('stretchRecovery.select.editReorder')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -331,11 +341,11 @@ function PartSelectScreen({
             >
               {isRecommend && (
                 <View style={ps.badge}>
-                  <Text style={ps.badgeText}>おすすめ</Text>
+                  <Text style={ps.badgeText}>{t('stretchRecovery.select.recommend')}</Text>
                 </View>
               )}
               <Text style={{ fontSize: 32, marginBottom: 8 }}>{part.icon}</Text>
-              <Text style={[ps.partName, isSelected && { color: '#C8102E' }]}>{part.name}</Text>
+              <Text style={[ps.partName, isSelected && { color: '#C8102E' }]}>{getPartName(part, t)}</Text>
             </TouchableOpacity>
           )
         })}
@@ -345,7 +355,7 @@ function PartSelectScreen({
             <TextInput
               value={customName}
               onChangeText={setCustomName}
-              placeholder="部位名を入力"
+              placeholder={t('stretchRecovery.select.customPlaceholder')}
               placeholderTextColor="#ccc"
               autoFocus
               onSubmitEditing={submitCustom}
@@ -353,10 +363,10 @@ function PartSelectScreen({
             />
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, justifyContent: 'center' }}>
               <TouchableOpacity onPress={() => { setAdding(false); setCustomName('') }}>
-                <Text style={{ color: '#999', fontWeight: '700', fontSize: 13 }}>キャンセル</Text>
+                <Text style={{ color: '#999', fontWeight: '700', fontSize: 13 }}>{t('stretchRecovery.select.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={submitCustom}>
-                <Text style={{ color: '#C8102E', fontWeight: '800', fontSize: 13 }}>追加</Text>
+                <Text style={{ color: '#C8102E', fontWeight: '800', fontSize: 13 }}>{t('stretchRecovery.select.add')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -367,7 +377,7 @@ function PartSelectScreen({
             activeOpacity={0.75}
           >
             <Ionicons name="add-circle-outline" size={28} color="#999" style={{ marginBottom: 8 }} />
-            <Text style={[ps.partName, { color: '#999' }]}>自分で追加</Text>
+            <Text style={[ps.partName, { color: '#999' }]}>{t('stretchRecovery.select.addCustom')}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -379,7 +389,7 @@ function PartSelectScreen({
         disabled={selected.size === 0}
         activeOpacity={0.85}
       >
-        <Text style={ps.startBtnText}>{selected.size}部位を始める</Text>
+        <Text style={ps.startBtnText}>{t('stretchRecovery.select.startButton', { n: selected.size })}</Text>
         <Ionicons name="arrow-forward" size={20} color="#fff" />
       </TouchableOpacity>
     </ScrollView>
@@ -433,6 +443,7 @@ function StretchScreen({
   onBack:            () => void
   onChangeSeconds:   (s: number) => void
 }) {
+  const { t } = useTranslation()
   const [currentIndex,    setCurrentIndex]    = useState(0)
   const [secondsLeft,     setSecondsLeft]     = useState(secondsPerStretch > 0 ? secondsPerStretch : 0)
   const [isPaused,        setIsPaused]        = useState(false)
@@ -489,16 +500,16 @@ function StretchScreen({
         // 左側タイマー終了 → 右側へ切り替え
         Sounds.ding()
         setLeftElapsed(secondsPerStretch)
-        const t = setTimeout(() => setSide('right'), 700)
-        return () => clearTimeout(t)
+        const timer = setTimeout(() => setSide('right'), 700)
+        return () => clearTimeout(timer)
       } else {
         // 右側 or 片側 → 完了
         Sounds.save()
         const elapsed = side === 'right'
           ? leftElapsed + secondsPerStretch
           : secondsPerStretch
-        const t = setTimeout(() => advanceNext(false, elapsed), 700)
-        return () => clearTimeout(t)
+        const timer = setTimeout(() => advanceNext(false, elapsed), 700)
+        return () => clearTimeout(timer)
       }
     }
 
@@ -570,7 +581,7 @@ function StretchScreen({
     secondsLeft > 20 ? '#C8102E' :
     secondsLeft > 10 ? '#F5A623' : '#34C759'
 
-  const completeLabel = side === 'left' ? '左完了 →' : '完了'
+  const completeLabel = side === 'left' ? t('stretchRecovery.stretch.completeLeft') : t('stretchRecovery.stretch.complete')
 
   if (!part) return null
 
@@ -585,7 +596,7 @@ function StretchScreen({
           activeOpacity={0.7}
         >
           <Text style={ss.timeBadgeText}>
-            {isManual ? '⏱ 自由' : `⏱ ${secondsPerStretch}秒`}
+            {isManual ? t('stretchRecovery.stretch.timeFree') : t('stretchRecovery.stretch.timeSeconds', { n: secondsPerStretch })}
           </Text>
         </TouchableOpacity>
       </View>
@@ -593,15 +604,15 @@ function StretchScreen({
       {/* 秒数選択シート */}
       {showTimePicker && (
         <View style={ss.timePicker}>
-          {TIME_OPTIONS.map(t => (
+          {TIME_OPTIONS.map(opt => (
             <TouchableOpacity
-              key={t}
-              style={[ss.timeOpt, t === secondsPerStretch && ss.timeOptActive]}
-              onPress={() => { onChangeSeconds(t); setShowTimePicker(false) }}
+              key={opt}
+              style={[ss.timeOpt, opt === secondsPerStretch && ss.timeOptActive]}
+              onPress={() => { onChangeSeconds(opt); setShowTimePicker(false) }}
               activeOpacity={0.7}
             >
-              <Text style={[ss.timeOptText, t === secondsPerStretch && { color: '#C8102E' }]}>
-                {t === 0 ? '自由' : `${t}秒`}
+              <Text style={[ss.timeOptText, opt === secondsPerStretch && { color: '#C8102E' }]}>
+                {opt === 0 ? t('stretchRecovery.stretch.optFree') : t('stretchRecovery.stretch.optSeconds', { n: opt })}
               </Text>
             </TouchableOpacity>
           ))}
@@ -611,17 +622,17 @@ function StretchScreen({
       <ScrollView contentContainerStyle={ss.content} showsVerticalScrollIndicator={false}>
         {/* 部位名 */}
         <Text style={ss.partIcon}>{part.icon}</Text>
-        <Text style={ss.partName}>{part.name}</Text>
+        <Text style={ss.partName}>{getPartName(part, t)}</Text>
 
         {/* 左右インジケーター（bilateral のみ） */}
         {side !== null && (
           <View style={ss.sideIndicator}>
             <View style={[ss.sideStep, side === 'left' && ss.sideStepActive]}>
-              <Text style={[ss.sideStepText, side === 'left' && { color: '#fff' }]}>左</Text>
+              <Text style={[ss.sideStepText, side === 'left' && { color: '#fff' }]}>{t('stretchRecovery.stretch.left')}</Text>
             </View>
             <Ionicons name="arrow-forward" size={14} color="#c4b5b5" style={{ marginHorizontal: 4 }} />
             <View style={[ss.sideStep, side === 'right' && ss.sideStepActive]}>
-              <Text style={[ss.sideStepText, side === 'right' && { color: '#fff' }]}>右</Text>
+              <Text style={[ss.sideStepText, side === 'right' && { color: '#fff' }]}>{t('stretchRecovery.stretch.right')}</Text>
             </View>
           </View>
         )}
@@ -638,14 +649,14 @@ function StretchScreen({
         ) : (
           <View style={{ alignItems: 'center', marginVertical: 28 }}>
             <Ionicons name="timer-outline" size={64} color="#d1d5db" />
-            <Text style={ss.manualHint}>終わったら「完了」を押してください</Text>
+            <Text style={ss.manualHint}>{t('stretchRecovery.stretch.manualHint')}</Text>
           </View>
         )}
 
         {/* ── スタート前（タイマーモード）── */}
         {!isStarted && !isManual && (
           <View style={ss.btnRow}>
-            <TouchableOpacity style={ss.subBtn} onPress={handleBack} activeOpacity={0.7} accessibilityLabel="戻る">
+            <TouchableOpacity style={ss.subBtn} onPress={handleBack} activeOpacity={0.7} accessibilityLabel={t('stretchRecovery.back')}>
               <Ionicons name="arrow-back" size={20} color="#9ca3af" />
             </TouchableOpacity>
             <TouchableOpacity
@@ -658,11 +669,11 @@ function StretchScreen({
             >
               <Ionicons name="play" size={20} color="#fff" />
               <Text style={ss.mainBtnText}>
-                {side === 'left' ? '左スタート' : side === 'right' ? '右スタート' : 'スタート'}
+                {side === 'left' ? t('stretchRecovery.stretch.startLeft') : side === 'right' ? t('stretchRecovery.stretch.startRight') : t('stretchRecovery.stretch.start')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity style={ss.subBtn} onPress={() => advanceNext(true)} activeOpacity={0.7}>
-              <Text style={ss.skipText}>スキップ</Text>
+              <Text style={ss.skipText}>{t('stretchRecovery.stretch.skip')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -670,7 +681,7 @@ function StretchScreen({
         {/* ── 手動モード（タイマーなし）── */}
         {isManual && (
           <View style={ss.btnRow}>
-            <TouchableOpacity style={ss.subBtn} onPress={handleBack} activeOpacity={0.7} accessibilityLabel="戻る">
+            <TouchableOpacity style={ss.subBtn} onPress={handleBack} activeOpacity={0.7} accessibilityLabel={t('stretchRecovery.back')}>
               <Ionicons name="arrow-back" size={20} color="#9ca3af" />
             </TouchableOpacity>
             <TouchableOpacity
@@ -682,7 +693,7 @@ function StretchScreen({
               <Text style={ss.mainBtnText}>{completeLabel}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={ss.subBtn} onPress={() => advanceNext(true)} activeOpacity={0.7}>
-              <Text style={ss.skipText}>スキップ</Text>
+              <Text style={ss.skipText}>{t('stretchRecovery.stretch.skip')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -690,7 +701,7 @@ function StretchScreen({
         {/* ── 実施中（タイマーモード）── */}
         {isStarted && !isManual && (
           <View style={ss.btnRow}>
-            <TouchableOpacity style={ss.subBtn} onPress={handleBack} activeOpacity={0.7} accessibilityLabel="戻る">
+            <TouchableOpacity style={ss.subBtn} onPress={handleBack} activeOpacity={0.7} accessibilityLabel={t('stretchRecovery.back')}>
               <Ionicons name="arrow-back" size={20} color="#9ca3af" />
             </TouchableOpacity>
             <TouchableOpacity
@@ -699,7 +710,7 @@ function StretchScreen({
               activeOpacity={0.85}
             >
               <Ionicons name={isPaused ? 'play' : 'pause'} size={18} color="#fff" />
-              <Text style={ss.mainBtnText}>{isPaused ? '再開' : '一時停止'}</Text>
+              <Text style={ss.mainBtnText}>{isPaused ? t('stretchRecovery.stretch.resume') : t('stretchRecovery.stretch.pause')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[ss.subBtn2, { backgroundColor: '#C8102E' }]}
@@ -800,44 +811,45 @@ function CompleteScreen({
   totalSeconds:   number
   onHome:         () => void
 }) {
+  const { t } = useTranslation()
   const riskAfter = Math.max(0, riskBefore - applied)
 
   return (
     <ScrollView contentContainerStyle={cs.content} showsVerticalScrollIndicator={false}>
       <View style={cs.card}>
         <Ionicons name="checkmark-circle" size={56} color="#34C759" style={{ marginBottom: 8 }} />
-        <Text style={cs.title}>お疲れさまでした</Text>
+        <Text style={cs.title}>{t('stretchRecovery.complete.title')}</Text>
 
         <View style={cs.statsRow}>
           <View style={cs.stat}>
             <Text style={cs.statNum}>{completedParts}</Text>
-            <Text style={cs.statLabel}>部位</Text>
+            <Text style={cs.statLabel}>{t('stretchRecovery.complete.parts')}</Text>
           </View>
           <View style={cs.divider} />
           <View style={cs.stat}>
-            <Text style={cs.statNum}>{fmtTime(totalSeconds)}</Text>
-            <Text style={cs.statLabel}>合計時間</Text>
+            <Text style={cs.statNum}>{fmtTime(totalSeconds, t)}</Text>
+            <Text style={cs.statLabel}>{t('stretchRecovery.complete.totalTime')}</Text>
           </View>
         </View>
 
-        <Text style={cs.riskLabel}>怪我リスクスコア</Text>
+        <Text style={cs.riskLabel}>{t('stretchRecovery.complete.riskLabel')}</Text>
         <View style={cs.riskRow}>
           <Text style={cs.riskBefore}>{riskBefore}</Text>
           <Ionicons name="arrow-forward" size={22} color="#888" style={{ marginHorizontal: 10 }} />
           <Text style={cs.riskAfter}>{riskAfter}</Text>
         </View>
         {applied > 0 ? (
-          <Text style={cs.riskDelta}>-{applied}ポイント</Text>
+          <Text style={cs.riskDelta}>{t('stretchRecovery.complete.delta', { n: applied })}</Text>
         ) : (
-          <Text style={cs.riskCapped}>本日の減少上限に達しています</Text>
+          <Text style={cs.riskCapped}>{t('stretchRecovery.complete.atLimit')}</Text>
         )}
         {applied > 0 && capped && (
-          <Text style={cs.riskCapped}>(本日の上限に近づいています)</Text>
+          <Text style={cs.riskCapped}>{t('stretchRecovery.complete.nearLimit')}</Text>
         )}
       </View>
 
       <TouchableOpacity style={cs.homeBtn} onPress={onHome} activeOpacity={0.85}>
-        <Text style={cs.homeBtnText}>ホームに戻る</Text>
+        <Text style={cs.homeBtnText}>{t('stretchRecovery.complete.home')}</Text>
       </TouchableOpacity>
     </ScrollView>
   )
@@ -877,6 +889,7 @@ type Phase = 'select' | 'stretch' | 'complete'
 
 export default function StretchRecoveryScreen() {
   const router = useRouter()
+  const { t } = useTranslation()
   const { riskScore: riskScoreStr } = useLocalSearchParams<{ riskScore: string }>()
   const riskScore = parseInt(riskScoreStr ?? '50', 10)
 
@@ -988,7 +1001,7 @@ export default function StretchRecoveryScreen() {
   }
 
   const titleMap: Record<Phase, string> = {
-    select:   'ストレッチを始めよう',
+    select:   t('stretchRecovery.mainTitle'),
     stretch:  '',
     complete: '',
   }
@@ -1003,7 +1016,7 @@ export default function StretchRecoveryScreen() {
             style={ms.backBtn}
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityLabel="戻る"
+            accessibilityLabel={t('stretchRecovery.back')}
           >
             <Ionicons name="chevron-back" size={22} color="#6b7280" />
           </TouchableOpacity>
