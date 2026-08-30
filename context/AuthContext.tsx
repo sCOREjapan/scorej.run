@@ -13,6 +13,7 @@ import * as AuthSession from 'expo-auth-session'
 import * as AppleAuthentication from 'expo-apple-authentication'
 import * as Crypto from 'expo-crypto'
 import { GoogleSignin, statusCodes as GoogleStatusCodes } from '@react-native-google-signin/google-signin'
+import { useTranslation } from 'react-i18next'
 
 // expo-web-browser の結果を Supabase が処理できるよう登録
 // iOS 26 で稀に throw するため try-catch で保護
@@ -96,6 +97,7 @@ const AuthContext = createContext<AuthContextType>({
 })
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation()
   const [user,        setUser]        = useState<User | null>(null)
   const [session,     setSession]     = useState<Session | null>(null)
   const [loading,     setLoading]     = useState(true)
@@ -229,7 +231,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           options: { redirectTo: SITE_URL, skipBrowserRedirect: true },
         })
         if (error || !data?.url) {
-          Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: error?.message ?? 'URL取得失敗' })
+          Toast.show({ type: 'error', text1: t('auth.googleLoginFailed'), text2: error?.message ?? t('auth.urlFetchFailed') })
           return
         }
         if (typeof window !== 'undefined') window.location.href = data.url
@@ -248,7 +250,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { idToken } = await GoogleSignin.getTokens()
 
       if (!idToken) {
-        Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: 'IDトークンを取得できませんでした' })
+        Toast.show({ type: 'error', text1: t('auth.googleLoginFailed'), text2: t('auth.idTokenFailed') })
         return
       }
 
@@ -257,15 +259,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         token: idToken,
       })
       if (error) {
-        Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: error.message, visibilityTime: 5000 })
+        Toast.show({ type: 'error', text1: t('auth.googleLoginFailed'), text2: error.message, visibilityTime: 5000 })
       }
     } catch (e: any) {
       if (e?.code === GoogleStatusCodes.SIGN_IN_CANCELLED) return  // ユーザーキャンセル
       if (e?.code === GoogleStatusCodes.IN_PROGRESS) return        // 既に処理中
-      const msg = e?.message ?? 'エラーが発生しました'
-      Toast.show({ type: 'error', text1: 'Googleログイン失敗', text2: msg, visibilityTime: 5000 })
+      const msg = e?.message ?? t('auth.genericError')
+      Toast.show({ type: 'error', text1: t('auth.googleLoginFailed'), text2: msg, visibilityTime: 5000 })
     }
-  }, [])
+  }, [t])
 
   // ── Apple Sign In ─────────────────────────────────────────
   const signInWithApple = useCallback(async () => {
@@ -290,7 +292,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             nonce: hashedNonce,
           })
           if (!credential.identityToken) {
-            Toast.show({ type: 'error', text1: 'Appleログイン失敗', text2: 'トークンを取得できませんでした' })
+            Toast.show({ type: 'error', text1: t('auth.appleLoginFailed'), text2: t('auth.appleTokenFailed') })
             return
           }
           const { error } = await (supabase.auth as any).signInWithIdToken({
@@ -298,7 +300,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             token:    credential.identityToken,
             nonce:    rawNonce,
           })
-          if (error) Toast.show({ type: 'error', text1: 'Appleログイン失敗', text2: error.message })
+          if (error) Toast.show({ type: 'error', text1: t('auth.appleLoginFailed'), text2: error.message })
         } else {
           // Expo Go などネイティブ機能なし → ブラウザ経由で Web の auth ページへ
           await WebBrowser.openBrowserAsync(SITE_URL + '?auth=apple')
@@ -311,21 +313,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           options:  { redirectTo: SITE_URL, skipBrowserRedirect: false },
         })
         if (error) {
-          Toast.show({ type: 'error', text1: 'Appleログイン失敗', text2: error.message })
+          Toast.show({ type: 'error', text1: t('auth.appleLoginFailed'), text2: error.message })
           return
         }
         if (data?.url && typeof window !== 'undefined') {
           window.location.href = data.url
         }
       } else {
-        Toast.show({ type: 'info', text1: 'Appleログインは iOS のみ対応しています' })
+        Toast.show({ type: 'info', text1: t('auth.appleIosOnly') })
       }
     } catch (e: any) {
       if (e?.code !== 'ERR_CANCELED') {
-        Toast.show({ type: 'error', text1: 'Appleログイン失敗', text2: e?.message ?? 'エラーが発生しました' })
+        Toast.show({ type: 'error', text1: t('auth.appleLoginFailed'), text2: e?.message ?? t('auth.genericError') })
       }
     }
-  }, [])
+  }, [t])
 
   // ── メール/パスワード ログイン ────────────────────────────
   const signInWithEmail = useCallback(async (email: string, password: string): Promise<boolean> => {
@@ -334,11 +336,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) {
         const msg =
           error.message?.includes('Invalid login') || error.message?.includes('invalid_credentials')
-            ? 'メールアドレスかパスワードが違います'
+            ? t('auth.invalidCredentials')
           : error.message?.includes('Email not confirmed')
-            ? 'メールアドレスの認証が完了していません\n受信箱を確認してください'
-          : error.message ?? 'ログインに失敗しました'
-        Toast.show({ type: 'error', text1: 'ログイン失敗', text2: msg })
+            ? t('auth.emailNotConfirmed')
+          : error.message ?? t('auth.loginGenericError')
+        Toast.show({ type: 'error', text1: t('auth.loginFailed'), text2: msg })
         return false
       }
       if (data?.session) {
@@ -348,10 +350,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return true
     } catch (e: any) {
-      Toast.show({ type: 'error', text1: 'ログイン失敗', text2: e?.message ?? 'エラーが発生しました' })
+      Toast.show({ type: 'error', text1: t('auth.loginFailed'), text2: e?.message ?? t('auth.genericError') })
       return false
     }
-  }, [])
+  }, [t])
 
   // ── 新規登録 ──────────────────────────────────────────────
   const signUpWithEmail = useCallback(
@@ -370,11 +372,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (error) {
           const msg =
             error.message?.includes('already registered') || error.message?.includes('already exists')
-              ? 'このメールアドレスは既に登録されています'
+              ? t('auth.emailAlreadyRegistered')
             : error.message?.includes('Password')
-              ? 'パスワードは6文字以上にしてください'
-            : error.message ?? '登録に失敗しました'
-          Toast.show({ type: 'error', text1: '登録失敗', text2: msg })
+              ? t('auth.passwordTooShort')
+            : error.message ?? t('auth.signupGenericError')
+          Toast.show({ type: 'error', text1: t('auth.signupFailed'), text2: msg })
           return false
         }
         // 確認メール不要（auto confirm ON）の場合は即ログイン
@@ -382,23 +384,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSession(data.session)
           setUser(data.session.user)
           setIsGuest(false)
-          Toast.show({ type: 'success', text1: '登録完了！', text2: 'アカウントが作成されました' })
+          Toast.show({ type: 'success', text1: t('auth.signupCompleteTitle'), text2: t('auth.signupCompleteBody') })
           return 'signed_in'
         }
         // 確認メール必要の場合
         Toast.show({
           type: 'success',
-          text1: '確認メールを送信しました ✉️',
-          text2: 'メールの認証リンクをクリックするとログインできます',
+          text1: t('auth.confirmEmailSentTitle'),
+          text2: t('auth.confirmEmailSentBody'),
           visibilityTime: 5000,
         })
         return 'confirm_email'
       } catch (e: any) {
-        Toast.show({ type: 'error', text1: '登録失敗', text2: e?.message ?? 'エラーが発生しました' })
+        Toast.show({ type: 'error', text1: t('auth.signupFailed'), text2: e?.message ?? t('auth.genericError') })
         return false
       }
     },
-    [],
+    [t],
   )
 
   // ── OTP 送信（メールに6桁コード） ────────────────────────
@@ -410,18 +412,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       if (error) {
         const msg = error.message?.includes('rate') || error.message?.includes('limit') || error.message?.includes('too many')
-          ? '送信制限中です（1時間に数回まで）\n迷惑メールフォルダも確認してください'
-          : error.message ?? 'コードの送信に失敗しました'
-        Toast.show({ type: 'error', text1: '送信失敗', text2: msg })
+          ? t('auth.otpRateLimited')
+          : error.message ?? t('auth.otpSendFailed')
+        Toast.show({ type: 'error', text1: t('auth.sendFailed'), text2: msg })
         return false
       }
-      Toast.show({ type: 'success', text1: 'コードを送信しました ✉️', text2: 'メールに届いた6桁のコードを入力してください' })
+      Toast.show({ type: 'success', text1: t('auth.otpSentTitle'), text2: t('auth.otpSentBody') })
       return true
     } catch (e: any) {
-      Toast.show({ type: 'error', text1: '送信失敗', text2: e?.message ?? 'エラーが発生しました' })
+      Toast.show({ type: 'error', text1: t('auth.sendFailed'), text2: e?.message ?? t('auth.genericError') })
       return false
     }
-  }, [])
+  }, [t])
 
   // ── OTP 検証 ─────────────────────────────────────────────
   const verifyOtp = useCallback(async (email: string, token: string): Promise<boolean> => {
@@ -433,11 +435,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       if (error) {
         const msg = error.message?.includes('expired')
-          ? 'コードの有効期限が切れています。再送してください'
+          ? t('auth.otpExpired')
           : error.message?.includes('invalid') || error.message?.includes('Invalid')
-          ? 'コードが間違っています'
-          : error.message ?? '認証に失敗しました'
-        Toast.show({ type: 'error', text1: '認証失敗', text2: msg })
+          ? t('auth.otpInvalid')
+          : error.message ?? t('auth.authGenericError')
+        Toast.show({ type: 'error', text1: t('auth.authFailed'), text2: msg })
         return false
       }
       if (data?.session) {
@@ -447,10 +449,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return true
     } catch (e: any) {
-      Toast.show({ type: 'error', text1: '認証失敗', text2: e?.message ?? 'エラーが発生しました' })
+      Toast.show({ type: 'error', text1: t('auth.authFailed'), text2: e?.message ?? t('auth.genericError') })
       return false
     }
-  }, [])
+  }, [t])
 
   // ── 確認メール再送 ────────────────────────────────────────
   const resendConfirmationEmail = useCallback(async (email: string): Promise<boolean> => {
@@ -464,16 +466,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         options: { emailRedirectTo },
       })
       if (error) {
-        Toast.show({ type: 'error', text1: '再送失敗', text2: error.message ?? 'しばらく待ってから再試行してください' })
+        Toast.show({ type: 'error', text1: t('auth.resendFailed'), text2: error.message ?? t('auth.resendFailedRetry') })
         return false
       }
-      Toast.show({ type: 'success', text1: '確認メールを再送しました ✉️', text2: '受信箱を確認してください' })
+      Toast.show({ type: 'success', text1: t('auth.resendSuccessTitle'), text2: t('auth.resendSuccessBody') })
       return true
     } catch (e: any) {
-      Toast.show({ type: 'error', text1: '再送失敗', text2: e?.message ?? 'エラーが発生しました' })
+      Toast.show({ type: 'error', text1: t('auth.resendFailed'), text2: e?.message ?? t('auth.genericError') })
       return false
     }
-  }, [])
+  }, [t])
 
   // ── ログアウト ────────────────────────────────────────────
   const signOut = useCallback(async () => {
