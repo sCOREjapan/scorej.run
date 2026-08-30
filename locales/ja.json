@@ -3521,5 +3521,32 @@
     },
     "selectRecord": "記録を選択",
     "windLabel": "wind"
+  },
+  "quickLogModal": {
+    "titleEdit": "✏️ 自由入力を編集",
+    "titleNew": "✏️ 自由入力で記録",
+    "close": "閉じる",
+    "editDateNotice": "編集中の日付: {{date}}（下のボタンを押すと変更されます）",
+    "dateToday": "今日",
+    "dateYesterday": "昨日",
+    "dateTwoDaysAgo": "一昨日",
+    "hint": "練習内容を自由に入力してください（日付は上のボタンで選択）",
+    "placeholder": "例:\n400m × 5本 レスト3分 68秒\n疲労7 脚が重かった\n\n「ジョグ10km」だけでもOK",
+    "save": "記録する",
+    "update": "更新する",
+    "toastUpdateSuccess": "練習を更新しました ✓",
+    "toastSaveSuccess": "練習を記録しました ✓",
+    "toastSaveErrorTitle": "保存に失敗しました",
+    "toastSaveErrorBody": "もう一度試してください",
+    "tasks": {
+      "sleep": "今夜は7時間以上の睡眠を確保しよう",
+      "iceBath": "アイスバスまたは軽いストレッチで回復を促そう",
+      "stretch": "練習後のストレッチを10分しっかり行おう",
+      "restDay": "次の練習は軽いジョグか休養にしよう（インターバル翌日）",
+      "longRunFuel": "長距離後は糖質+たんぱく質の補給を忘れずに",
+      "raceRecovery": "レース後は2〜3日間は強度を落として調整しよう",
+      "strengthRecovery": "筋トレ後は48時間の筋肉回復時間を確保しよう",
+      "painCheck": "痛みや違和感が続く場合は早めに医師に相談しよう"
+    }
   }
 }

@@ -19,6 +19,9 @@ import { successNotify } from '../lib/haptics'
 import { parseDistanceAndReps } from '../lib/parseWorkoutDistance'
 import PracticeShareCard, { PracticeShareData } from './PracticeShareCard'
 import type { TrainingSession } from '../types'
+import { useTranslation } from 'react-i18next'
+import { useLanguage } from '../context/LanguageContext'
+import { getSessionTypeLabel } from '../lib/sessionTypeLabels'
 
 const SESSIONS_KEY = 'trackmate_sessions'
 
@@ -38,8 +41,9 @@ function dateOffset(days: number): string {
 }
 
 /** YYYY-MM-DD → 表示文字列 */
-function formatDateLabel(iso: string): string {
+function formatDateLabel(iso: string, lang: 'ja' | 'en' = 'ja'): string {
   const d = new Date(iso + 'T12:00:00')
+  if (lang === 'en') return d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', weekday: 'short' })
   const weekdays = ['日', '月', '火', '水', '木', '金', '土']
   return `${d.getMonth() + 1}/${d.getDate()}（${weekdays[d.getDay()]}）`
 }
@@ -52,13 +56,13 @@ function fallbackParse(text: string, today: string): Record<string, any> {
   // 同じ文章でも入力画面によって分類結果が食い違うバグの原因になるため）
   let session_type = 'easy'
   if (/インターバル|interval|本.*レスト|レスト.*本/i.test(t)) session_type = 'interval'
-  else if (/テンポ|ペース走|ビルドアップ/i.test(t)) session_type = 'tempo'
-  else if (/スプリント|全力|100m.*走|ダッシュ|坂道|流し|タイムトライアル|\bTT\b/i.test(t)) session_type = 'sprint'
-  else if (/ロング|長距離|LSD/i.test(t)) session_type = 'long'
-  else if (/ドリル|ハードル|ABCドリル/i.test(t)) session_type = 'drill'
-  else if (/ウェイト|筋トレ|ジム|スクワット|デッド/i.test(t)) session_type = 'strength'
-  else if (/試合|大会|記録会|レース/i.test(t)) session_type = 'race'
-  else if (/休養|オフ|休み|レスト|\brest\b/i.test(t)) session_type = 'rest'
+  else if (/テンポ|ペース走|ビルドアップ|tempo|pace run|build.?up/i.test(t)) session_type = 'tempo'
+  else if (/スプリント|全力|100m.*走|ダッシュ|坂道|流し|タイムトライアル|\bTT\b|sprint|hill/i.test(t)) session_type = 'sprint'
+  else if (/ロング|長距離|LSD|long run|long jog/i.test(t)) session_type = 'long'
+  else if (/ドリル|ハードル|ABCドリル|drill|hurdle/i.test(t)) session_type = 'drill'
+  else if (/ウェイト|筋トレ|ジム|スクワット|デッド|weight|gym|squat|strength/i.test(t)) session_type = 'strength'
+  else if (/試合|大会|記録会|レース|race|competition|meet/i.test(t)) session_type = 'race'
+  else if (/休養|オフ|休み|レスト|\brest\b|day off/i.test(t)) session_type = 'rest'
   else if (/ジョグ|jog|easy/i.test(t)) session_type = 'easy'
   // 「ポイント練習」単体では種類が特定できないため、上記のどれにも一致しなかった場合のみ
   // インターバル系（質の高い練習の代表）として扱う。他のキーワードが既にあれば、そちらを優先する。
@@ -86,42 +90,42 @@ function fallbackParse(text: string, today: string): Record<string, any> {
   const { distance_m, reps } = parseDistanceAndReps(t)
 
   // 疲労度
-  const fatMatch = t.match(/疲労\s*[：:=]?\s*(\d+)|疲[れ労]\s*(\d+)/)
-  const fatigue_level = fatMatch ? parseInt(fatMatch[1] ?? fatMatch[2]) : 5
+  const fatMatch = t.match(/疲労\s*[：:=]?\s*(\d+)|疲[れ労]\s*(\d+)|fatigue\s*[：:=]?\s*(\d+)/i)
+  const fatigue_level = fatMatch ? parseInt(fatMatch[1] ?? fatMatch[2] ?? fatMatch[3]) : 5
 
   // 体調
-  const condMatch = t.match(/体調\s*[：:=]?\s*(\d+)/)
-  const condition_level = condMatch ? parseInt(condMatch[1]) : 6
+  const condMatch = t.match(/体調\s*[：:=]?\s*(\d+)|condition\s*[：:=]?\s*(\d+)/i)
+  const condition_level = condMatch ? parseInt(condMatch[1] ?? condMatch[2]) : 6
 
   return { session_date: today, session_type, event, time_ms, distance_m, reps, fatigue_level, condition_level }
 }
 
 /** セッション内容に基づいてルールベースの改善タスクを生成 */
-function generateTasks(sessionType: string, fatigueLevel: number, notes: string): string[] {
+function generateTasks(sessionType: string, fatigueLevel: number, notes: string, t: (key: string) => string): string[] {
   const tasks: string[] = []
 
   // 疲労が高い → 回復系タスク
   if (fatigueLevel >= 8) {
-    tasks.push('今夜は7時間以上の睡眠を確保しよう')
-    tasks.push('アイスバスまたは軽いストレッチで回復を促そう')
+    tasks.push(t('quickLogModal.tasks.sleep'))
+    tasks.push(t('quickLogModal.tasks.iceBath'))
   } else if (fatigueLevel >= 6) {
-    tasks.push('練習後のストレッチを10分しっかり行おう')
+    tasks.push(t('quickLogModal.tasks.stretch'))
   }
 
   // 種目別タスク
   if (sessionType === 'interval' || sessionType === 'sprint') {
-    tasks.push('次の練習は軽いジョグか休養にしよう（インターバル翌日）')
+    tasks.push(t('quickLogModal.tasks.restDay'))
   } else if (sessionType === 'long') {
-    tasks.push('長距離後は糖質+たんぱく質の補給を忘れずに')
+    tasks.push(t('quickLogModal.tasks.longRunFuel'))
   } else if (sessionType === 'race') {
-    tasks.push('レース後は2〜3日間は強度を落として調整しよう')
+    tasks.push(t('quickLogModal.tasks.raceRecovery'))
   } else if (sessionType === 'strength') {
-    tasks.push('筋トレ後は48時間の筋肉回復時間を確保しよう')
+    tasks.push(t('quickLogModal.tasks.strengthRecovery'))
   }
 
   // ノートに特定キーワードがあれば
-  if (notes.includes('痛') || notes.includes('違和感')) {
-    tasks.push('痛みや違和感が続く場合は早めに医師に相談しよう')
+  if (notes.includes('痛') || notes.includes('違和感') || /\bpain\b|\bsore(ness)?\b|\bhurt(s|ing)?\b/i.test(notes)) {
+    tasks.push(t('quickLogModal.tasks.painCheck'))
   }
 
   return tasks.slice(0, 3)
@@ -142,16 +146,6 @@ interface Props {
   editSession?: TrainingSession | null
 }
 
-// セッションタイプを日本語に変換
-function sessionTypeLabel(t: string): string {
-  const m: Record<string, string> = {
-    interval: 'インターバル', tempo: 'テンポ走', sprint: 'スプリント',
-    long: 'ロング走', drill: 'ドリル', strength: '筋トレ',
-    race: 'レース', rest: '休養', easy: 'ジョグ',
-  }
-  return m[t] || t
-}
-
 // ms → 表示タイム
 function formatTimeMs(ms: number): string {
   const totalSec = ms / 1000
@@ -164,6 +158,8 @@ function formatTimeMs(ms: number): string {
 }
 
 export default function QuickLogModal({ visible, onClose, onSaved, editSession }: Props) {
+  const { t } = useTranslation()
+  const { language } = useLanguage()
   const isEdit = !!editSession
   const [freeText, setFreeText]         = useState('')
   const [parsing, setParsing]           = useState(false)
@@ -230,7 +226,7 @@ export default function QuickLogModal({ visible, onClose, onSaved, editSession }
         autoSyncTeam(sessions, { force: true }).catch(() => {})
         Sounds.save()
         successNotify()
-        Toast.show({ type: 'success', text1: '練習を更新しました ✓', visibilityTime: 1500 })
+        Toast.show({ type: 'success', text1: t('quickLogModal.toastUpdateSuccess'), visibilityTime: 1500 })
         setFreeText('')
         onSaved?.()
         onClose()
@@ -252,17 +248,20 @@ export default function QuickLogModal({ visible, onClose, onSaved, editSession }
         parsed.session_type || 'easy',
         parsed.fatigue_level || 5,
         freeText,
+        t,
       )
       await saveTasks(taskTexts)
 
       Sounds.save()
       successNotify()
-      Toast.show({ type: 'success', text1: '練習を記録しました ✓', visibilityTime: 1800 })
+      Toast.show({ type: 'success', text1: t('quickLogModal.toastSaveSuccess'), visibilityTime: 1800 })
 
       // シェアカード用データを組み立て
       const d = new Date()
       const weekdays = ['日', '月', '火', '水', '木', '金', '土']
-      const dateLabel = `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${weekdays[d.getDay()]}）`
+      const dateLabel = language === 'en'
+        ? d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', weekday: 'short' })
+        : `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${weekdays[d.getDay()]}）`
       const drills: string[] = []
       const drillRegex = /([A-Za-zぁ-んァ-ン一-龥]+ドリル|Aスキップ|Bスキップ|バウンディング|ハイニー|もも上げ|ランジ|サーキット)/g
       let m: RegExpExecArray | null
@@ -270,7 +269,7 @@ export default function QuickLogModal({ visible, onClose, onSaved, editSession }
 
       setShareData({
         date:      dateLabel,
-        title:     sessionTypeLabel(parsed.session_type || 'easy'),
+        title:     getSessionTypeLabel(parsed.session_type || 'easy', language),
         menu:      freeText.trim(),
         drills,
         distance:  parsed.distance_m ? parsed.distance_m / 1000 : undefined,
@@ -283,7 +282,7 @@ export default function QuickLogModal({ visible, onClose, onSaved, editSession }
       setFreeText('')
       onSaved?.()
     } catch {
-      Toast.show({ type: 'error', text1: '保存に失敗しました', text2: 'もう一度試してください' })
+      Toast.show({ type: 'error', text1: t('quickLogModal.toastSaveErrorTitle'), text2: t('quickLogModal.toastSaveErrorBody') })
     } finally {
       setParsing(false)
     }
@@ -291,17 +290,23 @@ export default function QuickLogModal({ visible, onClose, onSaved, editSession }
 
   return (
     <Modal visible={visible || showShare} transparent={!showShare} animationType={showShare ? 'slide' : 'none'} onRequestClose={() => { if (showShare) { setShowShare(false); onClose() } else { handleClose() } }}>
-      <TouchableOpacity style={st.overlay} activeOpacity={1} onPress={handleClose} />
+      {/* 背景タップで閉じるのは「まだ何も入力していない」時だけに限定する。
+          入力済みの状態で誤タップして全文を無確認で失うバグ報告があったため
+          （Androidはキーボードで入力欄が隠れやすく誤タップしやすい → 下のKeyboardAvoidingView修正も参照） */}
+      <TouchableOpacity style={st.overlay} activeOpacity={1} onPress={() => { if (!freeText.trim()) handleClose() }} />
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        // Android: undefined(何もしない)だと<Modal transparent>特有の制約でキーボードが
+        // 入力欄にそのまま覆いかぶさり、「打ち込めてるか見えない」バグになっていた。
+        // 'height'にするとキーボード表示分だけシートの高さを縮めて押し上げてくれる
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={st.kvWrapper}
         pointerEvents="box-none"
       >
         <Animated.View style={[st.sheet, { transform: [{ translateY: slideAnim }] }]}>
           <View style={st.handle} />
           <View style={st.header}>
-            <Text style={st.title}>{isEdit ? '✏️ 自由入力を編集' : '✏️ 自由入力で記録'}</Text>
-            <TouchableOpacity onPress={handleClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="閉じる" accessibilityRole="button">
+            <Text style={st.title}>{isEdit ? t('quickLogModal.titleEdit') : t('quickLogModal.titleNew')}</Text>
+            <TouchableOpacity onPress={handleClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={t('quickLogModal.close')} accessibilityRole="button">
               <Ionicons name="close" size={22} color={TEXT.secondary} />
             </TouchableOpacity>
           </View>
@@ -313,13 +318,13 @@ export default function QuickLogModal({ visible, onClose, onSaved, editSession }
           {isEdit && !([0, 1, 2] as const).some(o => dateOffset(o) === selectedDate) && (
             <View style={st.editDateNotice}>
               <Ionicons name="calendar-outline" size={13} color={TEXT.secondary} />
-              <Text style={st.editDateNoticeTxt}>編集中の日付: {selectedDate}（下のボタンを押すと変更されます）</Text>
+              <Text style={st.editDateNoticeTxt}>{t('quickLogModal.editDateNotice', { date: selectedDate })}</Text>
             </View>
           )}
           <View style={st.dateRow}>
             {([0, 1, 2] as const).map(offset => {
               const d = dateOffset(offset)
-              const labels = ['今日', '昨日', '一昨日']
+              const labelKeys = ['quickLogModal.dateToday', 'quickLogModal.dateYesterday', 'quickLogModal.dateTwoDaysAgo']
               const active = selectedDate === d
               return (
                 <TouchableOpacity
@@ -329,10 +334,10 @@ export default function QuickLogModal({ visible, onClose, onSaved, editSession }
                   activeOpacity={0.75}
                 >
                   <Text style={[st.dateBtnTxt, active && st.dateBtnTxtActive]}>
-                    {labels[offset]}
+                    {t(labelKeys[offset])}
                   </Text>
                   {active && (
-                    <Text style={st.dateBtnSub}>{formatDateLabel(d)}</Text>
+                    <Text style={st.dateBtnSub}>{formatDateLabel(d, language)}</Text>
                   )}
                 </TouchableOpacity>
               )
@@ -340,7 +345,7 @@ export default function QuickLogModal({ visible, onClose, onSaved, editSession }
           </View>
 
           <Text style={st.hint}>
-            練習内容を自由に入力してください（日付は上のボタンで選択）
+            {t('quickLogModal.hint')}
           </Text>
 
           <TextInput
@@ -351,7 +356,7 @@ export default function QuickLogModal({ visible, onClose, onSaved, editSession }
             autoFocus
             autoCorrect={false}
             spellCheck={false}
-            placeholder={'例:\n400m × 5本 レスト3分 68秒\n疲労7 脚が重かった\n\n「ジョグ10km」だけでもOK'}
+            placeholder={t('quickLogModal.placeholder')}
             placeholderTextColor={TEXT.hint}
             textAlignVertical="top"
           />
@@ -368,7 +373,7 @@ export default function QuickLogModal({ visible, onClose, onSaved, editSession }
             ) : (
               <>
                 <Ionicons name="checkmark-circle" size={18} color="#fff" />
-                <Text style={st.saveBtnText}>{isEdit ? '更新する' : '記録する'}</Text>
+                <Text style={st.saveBtnText}>{isEdit ? t('quickLogModal.update') : t('quickLogModal.save')}</Text>
               </>
             )}
           </HapticTouch>

@@ -3521,5 +3521,32 @@
     },
     "selectRecord": "Select a Record",
     "windLabel": "wind"
+  },
+  "quickLogModal": {
+    "titleEdit": "✏️ Edit Free Entry",
+    "titleNew": "✏️ Free Entry",
+    "close": "Close",
+    "editDateNotice": "Editing date: {{date}} (tapping a button below will change it)",
+    "dateToday": "Today",
+    "dateYesterday": "Yesterday",
+    "dateTwoDaysAgo": "2 days ago",
+    "hint": "Freely describe your practice (choose the date with the buttons above)",
+    "placeholder": "e.g.:\n400m × 5 reps, 3min rest, 68s\nFatigue 7, legs felt heavy\n\n\"Jog 10km\" alone is fine too",
+    "save": "Save",
+    "update": "Update",
+    "toastUpdateSuccess": "Practice updated ✓",
+    "toastSaveSuccess": "Practice recorded ✓",
+    "toastSaveErrorTitle": "Failed to save",
+    "toastSaveErrorBody": "Please try again",
+    "tasks": {
+      "sleep": "Get at least 7 hours of sleep tonight",
+      "iceBath": "Promote recovery with an ice bath or light stretching",
+      "stretch": "Do a thorough 10-minute stretch after practice",
+      "restDay": "Make your next session an easy jog or rest day (day after intervals)",
+      "longRunFuel": "After a long run, remember to refuel with carbs and protein",
+      "raceRecovery": "Ease off intensity for 2-3 days after a race to recover",
+      "strengthRecovery": "Allow 48 hours of muscle recovery time after strength training",
+      "painCheck": "If pain or discomfort persists, see a doctor soon"
+    }
   }
 }
