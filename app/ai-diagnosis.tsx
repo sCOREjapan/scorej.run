@@ -4,6 +4,7 @@ import {
   ActivityIndicator, Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useTranslation } from 'react-i18next'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -51,21 +52,33 @@ const FATIGUE_BADGE_COLOR: Record<FatigueLevel, string> = {
   '注意': '#FF3B30',
 }
 
+// 内部値(日本語)→表示ラベルのキー。lib/eventLabels.ts と同じ考え方で、
+// データの実体(FatigueLevel型・保存済み履歴)は日本語のまま保持し、表示だけ翻訳する
+const FATIGUE_LABEL_KEY: Record<FatigueLevel, string> = {
+  '低': 'aiDiagnosis.fatigueLevels.low',
+  '中': 'aiDiagnosis.fatigueLevels.medium',
+  '高': 'aiDiagnosis.fatigueLevels.high',
+  '注意': 'aiDiagnosis.fatigueLevels.caution',
+}
+
 function FatigueBadge({ level }: { level: FatigueLevel }) {
+  const { t } = useTranslation()
   const color = FATIGUE_BADGE_COLOR[level]
   return (
     <View style={[styles.fatigueBadge, { backgroundColor: color + '22', borderColor: color }]}>
-      <Text style={[styles.fatigueBadgeText, { color }]}>{level}</Text>
+      <Text style={[styles.fatigueBadgeText, { color }]}>{t(FATIGUE_LABEL_KEY[level])}</Text>
     </View>
   )
 }
 
 function DiagnosisCard({ result }: { result: DiagnosisResult }) {
+  const { t } = useTranslation()
+  const { language } = useLanguage()
   return (
     <View style={styles.diagCard}>
       <View style={styles.diagCardHeader}>
         <Text style={styles.diagTimestamp}>
-          {new Date(result.timestamp).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+          {new Date(result.timestamp).toLocaleDateString(language === 'en' ? 'en-US' : 'ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
         </Text>
         <FatigueBadge level={result.fatigueLevel} />
       </View>
@@ -82,7 +95,7 @@ function DiagnosisCard({ result }: { result: DiagnosisResult }) {
       )}
       {result.nextWeekIntensity ? (
         <View style={styles.nextWeekBox}>
-          <Text style={styles.nextWeekLabel}>来週の推奨強度</Text>
+          <Text style={styles.nextWeekLabel}>{t('aiDiagnosis.nextWeekLabelShort')}</Text>
           <Text style={styles.nextWeekValue}>{result.nextWeekIntensity}</Text>
         </View>
       ) : null}
@@ -91,13 +104,16 @@ function DiagnosisCard({ result }: { result: DiagnosisResult }) {
 }
 
 function parseDiagnosisFromText(text: string, timestamp: string): DiagnosisResult {
-  // 疲労レベルを抽出
+  // 疲労レベルを抽出（英語設定では自由記述部分が英語で返るため、
+  // 日本語の合図語だけでなく英語の同義表現もあわせて見る。
+  // fatigueLevel自体の語彙(低/中/高/注意)はプロンプト側で維持を指示しているので、
+  // 素直な日本語一致がまず効くはずだが、AIが従わなかった場合の保険として英語も見る）
   let fatigueLevel: FatigueLevel = '中'
-  if (/疲労.*注意|注意.*疲労|オーバートレーニング|限界に近|休養.*必要/.test(text)) {
+  if (/疲労.*注意|注意.*疲労|オーバートレーニング|限界に近|休養.*必要|overtrain|near.{0,20}limit|need.{0,10}rest|caution|警戒/i.test(text)) {
     fatigueLevel = '注意'
-  } else if (/疲労.*高|高.*疲労|かなり疲れ|相当.*疲労/.test(text)) {
+  } else if (/疲労.*高|高.*疲労|かなり疲れ|相当.*疲労|high fatigue|quite tired|significant(ly)? fatigue/i.test(text)) {
     fatigueLevel = '高'
-  } else if (/疲労.*低|低.*疲労|余裕|十分.*回復|良好|絶好調/.test(text)) {
+  } else if (/疲労.*低|低.*疲労|余裕|十分.*回復|良好|絶好調|low fatigue|well recovered|great condition|plenty of (energy|margin)/i.test(text)) {
     fatigueLevel = '低'
   }
 
@@ -113,7 +129,7 @@ function parseDiagnosisFromText(text: string, timestamp: string): DiagnosisResul
     if (/^[-・•]\s/.test(trimmed) || /^\d+\.\s/.test(trimmed)) {
       recommendations.push(trimmed.replace(/^[-・•\d\.]\s*/, ''))
       inRec = true
-    } else if (/来週|次週/.test(trimmed) && !nextWeekIntensity) {
+    } else if (/来週|次週|next week/i.test(trimmed) && !nextWeekIntensity) {
       nextWeekIntensity = trimmed
     } else if (!inRec && !comment && trimmed.length > 10) {
       comment = trimmed
@@ -145,6 +161,7 @@ export default function AIDiagnosisScreen() {
   const [ticketGateBalance, setTicketGateBalance] = useState(0)
   const { isGuest } = useAuth()
   const { language } = useLanguage()
+  const { t } = useTranslation()
   const router = useRouter()
   // AdGate async チェック中の二重タップ防止
   const diagnosingRef = React.useRef(false)
@@ -241,6 +258,15 @@ export default function AIDiagnosisScreen() {
       const _apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
       const _endpoint = `${_apiBase}/api/analyze`
 
+      // プロンプトの土台は日本語で組み立てる（JSONスキーマ的な指示部分・疲労レベルの
+      // 固定語彙(低/中/高/注意)はデータの実体として日本語のまま保つ必要があるため）。
+      // 自由記述の文体だけ英語にしたい場合は、末尾に矛盾する指示を足すのではなく、
+      // 「日本語で」の一文自体を言語に応じて出し分ける（「日本語で」と言い切った直後に
+      // 英語で書けと追記すると、モデルへの指示として一貫性がなく守られないことがある）
+      const languageLine = language === 'en'
+        ? 'Write the free-text comment/recommendations/next-week fields in natural, fluent English. Keep the fatigue level itself as one of 低/中/高/注意 exactly as listed (do not translate it).'
+        : '回答は日本語で、選手が理解しやすい言葉を使ってください。'
+
       const response = await fetchWithTimeout(_endpoint, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -250,7 +276,7 @@ export default function AIDiagnosisScreen() {
           messages: [
             {
               role: 'user',
-              content: `あなたは陸上競技の専門トレーナーです。以下のトレーニングデータを分析して、日本語で詳細なフィードバックをしてください。
+              content: `あなたは陸上競技の専門トレーナーです。以下のトレーニングデータを分析して、詳細なフィードバックをしてください。
 
 ## 直近7日間のトレーニングデータ
 ${JSON.stringify(trainingData, null, 2)}
@@ -261,7 +287,7 @@ ${JSON.stringify(trainingData, null, 2)}
 3. 改善のための具体的な提案（箇条書き3〜5点）
 4. 来週の練習強度の推奨（1文）
 
-回答は日本語で、選手が理解しやすい言葉を使ってください。${narrativeLanguageInstruction(language)}`,
+${languageLine}${narrativeLanguageInstruction(language)}`,
             },
           ],
         }),
@@ -273,7 +299,7 @@ ${JSON.stringify(trainingData, null, 2)}
       }
 
       const data = await response.json()
-      const text = data.content?.[0]?.text ?? 'データが不足しているため詳細な分析ができませんでした。'
+      const text = data.content?.[0]?.text ?? t('aiDiagnosis.noContentFallback')
       const timestamp = new Date().toISOString()
       const parsed = parseDiagnosisFromText(text, timestamp)
 
@@ -290,7 +316,7 @@ ${JSON.stringify(trainingData, null, 2)}
       // 分析に成功した場合のみ利用回数・チケットを消費する（失敗時に課金しないため）
       await recordUsage('ai_analysis')
       trackFeatureUse('ai_analysis')
-      if (ticketCostUsed > 0) Toast.show({ type: 'info', text1: `🎫 チケットを${ticketCostUsed}枚使用しました`, visibilityTime: 1800 })
+      if (ticketCostUsed > 0) Toast.show({ type: 'info', text1: t('aiDiagnosis.ticketUsedToast', { n: ticketCostUsed }), visibilityTime: 1800 })
     } catch (err: any) {
       Sounds.error()
       // フォールバック表示
@@ -298,20 +324,22 @@ ${JSON.stringify(trainingData, null, 2)}
         id: `diag_fallback_${Date.now()}`,
         timestamp: new Date().toISOString(),
         fatigueLevel: '中',
-        comment: 'AI分析を利用できませんでした。APIキーが設定されているか確認してください。練習データを蓄積することで精度が上がります。',
+        comment: t('aiDiagnosis.fallback.comment'),
         recommendations: [
-          '毎日の練習記録を欠かさず入力しましょう',
-          '疲労度・体重の体調記録も継続してください',
-          '睡眠記録も合わせて管理することをお勧めします',
+          t('aiDiagnosis.fallback.rec1'),
+          t('aiDiagnosis.fallback.rec2'),
+          t('aiDiagnosis.fallback.rec3'),
         ],
-        nextWeekIntensity: '現在のペースを維持しながら、徐々に強度を上げていきましょう',
+        nextWeekIntensity: t('aiDiagnosis.fallback.nextWeek'),
       }
       setResult(fallback)
-      Toast.show({ type: 'error', text1: 'AI接続エラー', text2: 'フォールバックメッセージを表示しています' })
+      Toast.show({ type: 'error', text1: t('aiDiagnosis.errorToastTitle'), text2: t('aiDiagnosis.errorToastBody') })
     } finally {
       setLoading(false)
     }
-  }, [])
+    // language/t は元は[]依存で固定されており、マウント後の言語切替が
+    // プロンプト・フォールバック文言に反映されない不具合があったため追加
+  }, [language, t])
 
   return (
     <View style={{ flex: 1 }}>
@@ -323,14 +351,14 @@ ${JSON.stringify(trainingData, null, 2)}
           <View style={styles.card}>
             <View style={styles.cardHeader}>
               <Text style={styles.cardIcon}>🤖</Text>
-              <Text style={styles.cardTitle}>AIトレーニング診断</Text>
+              <Text style={styles.cardTitle}>{t('aiDiagnosis.title')}</Text>
             </View>
             <Text style={styles.cardDesc}>
-              直近7日間の練習記録・体調・睡眠データをもとに、AIが疲労状態を分析して改善提案を行います。
+              {t('aiDiagnosis.description')}
             </Text>
             {/* チケット消費数バッジ */}
             <View style={styles.ticketCostBadge}>
-              <Text style={styles.ticketCostBadgeText}>🎫 {TICKET_COST.ai_analysis}枚</Text>
+              <Text style={styles.ticketCostBadgeText}>{t('aiDiagnosis.ticketCost', { n: TICKET_COST.ai_analysis })}</Text>
             </View>
             <TouchableOpacity
               style={[styles.analyzeBtn, loading && { opacity: 0.6 }]}
@@ -341,12 +369,12 @@ ${JSON.stringify(trainingData, null, 2)}
               {loading ? (
                 <>
                   <ActivityIndicator size="small" color="#fff" />
-                  <Text style={styles.analyzeBtnText}>分析中...</Text>
+                  <Text style={styles.analyzeBtnText}>{t('aiDiagnosis.analyzing')}</Text>
                 </>
               ) : (
                 <>
                   <Ionicons name="analytics-outline" size={18} color="#fff" />
-                  <Text style={styles.analyzeBtnText}>今週の練習を分析する</Text>
+                  <Text style={styles.analyzeBtnText}>{t('aiDiagnosis.analyzeBtn')}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -357,7 +385,7 @@ ${JSON.stringify(trainingData, null, 2)}
             <View style={styles.card}>
               <View style={styles.cardHeader}>
                 <Ionicons name="checkmark-circle" size={18} color={NEON.green} />
-                <Text style={styles.cardTitle}>分析結果</Text>
+                <Text style={styles.cardTitle}>{t('aiDiagnosis.resultTitle')}</Text>
                 <FatigueBadge level={result.fatigueLevel} />
               </View>
 
@@ -365,7 +393,7 @@ ${JSON.stringify(trainingData, null, 2)}
 
               {result.recommendations.length > 0 && (
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>推奨事項</Text>
+                  <Text style={styles.sectionTitle}>{t('aiDiagnosis.recommendationsTitle')}</Text>
                   <View style={styles.recList}>
                     {result.recommendations.map((rec, i) => (
                       <View key={i} style={styles.recItem}>
@@ -379,7 +407,7 @@ ${JSON.stringify(trainingData, null, 2)}
 
               {result.nextWeekIntensity ? (
                 <View style={styles.nextWeekBox}>
-                  <Text style={styles.nextWeekLabel}>来週の練習強度提案</Text>
+                  <Text style={styles.nextWeekLabel}>{t('aiDiagnosis.nextWeekLabelFull')}</Text>
                   <Text style={styles.nextWeekValue}>{result.nextWeekIntensity}</Text>
                 </View>
               ) : null}
@@ -391,8 +419,8 @@ ${JSON.stringify(trainingData, null, 2)}
             <View style={styles.card}>
               <View style={styles.cardHeader}>
                 <Ionicons name="time-outline" size={16} color={TEXT.hint} />
-                <Text style={styles.cardTitle}>診断履歴</Text>
-                <Text style={{ color: TEXT.hint, fontSize: 12 }}>直近{history.length}件</Text>
+                <Text style={styles.cardTitle}>{t('aiDiagnosis.historyTitle')}</Text>
+                <Text style={{ color: TEXT.hint, fontSize: 12 }}>{t('aiDiagnosis.historyCount', { count: history.length })}</Text>
               </View>
               <View style={{ gap: 10 }}>
                 {history.map(h => (

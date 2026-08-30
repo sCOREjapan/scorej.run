@@ -1800,5 +1800,35 @@
     "body": "New features and improvements have been added.\n\nPlease update to the latest version on the App Store.",
     "openStore": "Open App Store",
     "later": "Later"
+  },
+  "aiDiagnosis": {
+    "title": "AI Training Diagnosis",
+    "description": "Based on your training logs, condition, and sleep data from the last 7 days, AI analyzes your fatigue level and suggests improvements.",
+    "ticketCost": "🎫 {{n}}",
+    "analyzeBtn": "Analyze this week's training",
+    "analyzing": "Analyzing...",
+    "resultTitle": "Result",
+    "recommendationsTitle": "Recommendations",
+    "nextWeekLabelShort": "Recommended intensity for next week",
+    "nextWeekLabelFull": "Suggested training intensity for next week",
+    "historyTitle": "Diagnosis History",
+    "historyCount": "Last {{count}}",
+    "ticketUsedToast": "🎫 Used {{n}} ticket(s)",
+    "errorToastTitle": "AI connection error",
+    "errorToastBody": "Showing a fallback message",
+    "fatigueLevels": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "caution": "Caution"
+    },
+    "fallback": {
+      "comment": "AI analysis wasn't available. Please check that the API key is configured. Accuracy improves as you log more training data.",
+      "rec1": "Keep logging your daily training without gaps",
+      "rec2": "Keep tracking your fatigue level and weight as well",
+      "rec3": "Managing your sleep data alongside this is recommended",
+      "nextWeek": "Maintain your current pace and gradually increase intensity"
+    },
+    "noContentFallback": "There wasn't enough data for a detailed analysis."
   }
 }

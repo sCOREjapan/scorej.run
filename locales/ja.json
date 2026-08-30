@@ -1800,5 +1800,35 @@
     "body": "新機能・改善が追加されました。\n\nApp Storeで最新版に更新してください。",
     "openStore": "App Storeを開く",
     "later": "あとで"
+  },
+  "aiDiagnosis": {
+    "title": "AIトレーニング診断",
+    "description": "直近7日間の練習記録・体調・睡眠データをもとに、AIが疲労状態を分析して改善提案を行います。",
+    "ticketCost": "🎫 {{n}}枚",
+    "analyzeBtn": "今週の練習を分析する",
+    "analyzing": "分析中...",
+    "resultTitle": "分析結果",
+    "recommendationsTitle": "推奨事項",
+    "nextWeekLabelShort": "来週の推奨強度",
+    "nextWeekLabelFull": "来週の練習強度提案",
+    "historyTitle": "診断履歴",
+    "historyCount": "直近{{count}}件",
+    "ticketUsedToast": "🎫 チケットを{{n}}枚使用しました",
+    "errorToastTitle": "AI接続エラー",
+    "errorToastBody": "フォールバックメッセージを表示しています",
+    "fatigueLevels": {
+      "low": "低",
+      "medium": "中",
+      "high": "高",
+      "caution": "注意"
+    },
+    "fallback": {
+      "comment": "AI分析を利用できませんでした。APIキーが設定されているか確認してください。練習データを蓄積することで精度が上がります。",
+      "rec1": "毎日の練習記録を欠かさず入力しましょう",
+      "rec2": "疲労度・体重の体調記録も継続してください",
+      "rec3": "睡眠記録も合わせて管理することをお勧めします",
+      "nextWeek": "現在のペースを維持しながら、徐々に強度を上げていきましょう"
+    },
+    "noContentFallback": "データが不足しているため詳細な分析ができませんでした。"
   }
 }
