@@ -2982,5 +2982,76 @@
       "raceRecovery": "Ease off intensity for 2-3 days after a race to recover",
       "painCheck": "If pain or discomfort persists, see a doctor soon"
     }
+  },
+  "calendarTab": {
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "monthTitle": "{{month}} {{year}}",
+    "chipTraining": "Training: {{n}}",
+    "chipRest": "Rest: {{n}}",
+    "dotLabels": {
+      "race": "Time Trial",
+      "gps": "GPS Training",
+      "workout": "Workout Menu",
+      "competition": "Competition",
+      "event": "Event"
+    },
+    "intensity": {
+      "light": "Light",
+      "medium": "Med",
+      "hard": "Hard",
+      "extreme": "Max",
+      "none": "None"
+    },
+    "detailTitle": "Events & Records for {{date}}",
+    "addEvent": "Add Event",
+    "edit": "Edit",
+    "delete": "Delete",
+    "close": "Close",
+    "noRecords": "No records for this day",
+    "noRecordsHint": "Tap \"Add Event\" to add anything freely",
+    "summaryTitle": "{{month}} Summary",
+    "summary": {
+      "activeDays": {
+        "label": "Active days",
+        "unit": ""
+      },
+      "training": {
+        "label": "Training",
+        "unit": ""
+      },
+      "events": {
+        "label": "Events",
+        "unit": ""
+      },
+      "competition": {
+        "label": "Meets",
+        "unit": ""
+      }
+    },
+    "modal": {
+      "editTitle": "Edit Event",
+      "addTitle": "Add Event",
+      "category": "Category",
+      "title": "Title",
+      "titlePlaceholder": "e.g. State meet, core training, hospital visit",
+      "notes": "Notes (optional)",
+      "notesPlaceholder": "Details, location, items to bring...",
+      "saving": "Saving...",
+      "update": "Update",
+      "add": "Add",
+      "titleRequired": "Please enter a title",
+      "updateSuccess": "Event updated ✓",
+      "addSuccess": "Event added ✓",
+      "saveError": "Failed to save",
+      "deleteSuccess": "Event deleted"
+    },
+    "categories": {
+      "memo": "Practice Memo",
+      "competition": "Meet / Time Trial",
+      "rest": "Rest Day",
+      "medical": "Medical",
+      "other": "Other"
+    }
   }
 }

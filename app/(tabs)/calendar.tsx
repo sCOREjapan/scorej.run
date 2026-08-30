@@ -12,10 +12,13 @@ import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as Crypto from 'expo-crypto'
 import { Sounds, unlockAudio } from '../../lib/sounds'
-import { SESSION_TYPE_LABEL } from '../../lib/sessionTypeLabels'
+import { getSessionTypeLabel } from '../../lib/sessionTypeLabels'
 import HapticTouch from '../../components/HapticTouch'
 import Toast from 'react-native-toast-message'
 import { scheduleEventReminders, cancelEventReminders } from '../../lib/notifications'
+import { useTranslation } from 'react-i18next'
+import { useLanguage } from '../../context/LanguageContext'
+import { getEventLabel } from '../../lib/eventLabels'
 
 // ── ストレージキー ──────────────────────────────────────────
 const SESSIONS_KEY    = 'trackmate_sessions'
@@ -47,12 +50,14 @@ type DayRecord = {
 }
 
 // ── カテゴリ定義 ────────────────────────────────────────────
-const EVENT_CATEGORIES: { value: EventCategory; label: string; emoji: string; color: string }[] = [
-  { value: 'memo',        label: '練習メモ',   emoji: '📝', color: '#9B6BFF' },
-  { value: 'competition', label: '大会・記録会', emoji: '🏁', color: '#FFD700' },
-  { value: 'rest',        label: '休養日',     emoji: '😴', color: '#4A9FFF' },
-  { value: 'medical',     label: '通院・治療', emoji: '🏥', color: '#FF3B30' },
-  { value: 'other',       label: 'その他',     emoji: '✨', color: '#888'    },
+// label は locales/calendarTab.categories 経由で言語対応(ここでは
+// 言語非依存の value/emoji/color のみ保持)
+const EVENT_CATEGORIES: { value: EventCategory; emoji: string; color: string }[] = [
+  { value: 'memo',        emoji: '📝', color: '#9B6BFF' },
+  { value: 'competition', emoji: '🏁', color: '#FFD700' },
+  { value: 'rest',        emoji: '😴', color: '#4A9FFF' },
+  { value: 'medical',     emoji: '🏥', color: '#FF3B30' },
+  { value: 'other',       emoji: '✨', color: '#888'    },
 ]
 
 function getCatInfo(cat: EventCategory) {
@@ -67,13 +72,6 @@ const DOT_COLORS: Record<DotType, string> = {
   competition: '#FFC107',
   event:       '#9B6BFF',
 }
-const DOT_LABELS: Record<DotType, string> = {
-  race:        'タイム計測',
-  gps:         'GPS練習',
-  workout:     '練習メニュー',
-  competition: '大会',
-  event:       '予定',
-}
 const DOT_ICONS: Record<DotType, string> = {
   race:        'timer-outline',
   gps:         'navigate-outline',
@@ -82,7 +80,9 @@ const DOT_ICONS: Record<DotType, string> = {
   event:       'calendar-outline',
 }
 
-const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
+const WEEKDAYS_JA = ['日', '月', '火', '水', '木', '金', '土']
+const WEEKDAYS_EN = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
+const MONTH_NAMES_EN = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
 function toYMD(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -111,6 +111,7 @@ function AddEventModal({
   onClose: () => void
   onSaved: () => void
 }) {
+  const { t } = useTranslation()
   const [title,    setTitle]    = useState('')
   const [category, setCategory] = useState<EventCategory>('memo')
   const [notes,    setNotes]    = useState('')
@@ -134,7 +135,7 @@ function AddEventModal({
 
   async function handleSave() {
     if (!title.trim()) {
-      Toast.show({ type: 'error', text1: 'タイトルを入力してください' })
+      Toast.show({ type: 'error', text1: t('calendarTab.modal.titleRequired') })
       return
     }
     unlockAudio(); setSaving(true)
@@ -163,10 +164,10 @@ function AddEventModal({
       // 前日夜＋当日朝のリマインダーを予約（休養日・大会・通院など全予定対象）
       scheduleEventReminders(savedId, savedDate, title.trim()).catch(() => {})
       Sounds.save()
-      Toast.show({ type: 'success', text1: editEvent ? '予定を更新しました ✓' : '予定を追加しました ✓', visibilityTime: 1600 })
+      Toast.show({ type: 'success', text1: editEvent ? t('calendarTab.modal.updateSuccess') : t('calendarTab.modal.addSuccess'), visibilityTime: 1600 })
       onSaved(); onClose()
     } catch {
-      Toast.show({ type: 'error', text1: '保存に失敗しました' })
+      Toast.show({ type: 'error', text1: t('calendarTab.modal.saveError') })
     } finally { setSaving(false) }
   }
 
@@ -186,17 +187,17 @@ function AddEventModal({
           {/* ヘッダー */}
           <View style={m.header}>
             <View>
-              <Text style={m.title}>{editEvent ? '予定を編集' : '予定を追加'}</Text>
+              <Text style={m.title}>{editEvent ? t('calendarTab.modal.editTitle') : t('calendarTab.modal.addTitle')}</Text>
               <Text style={m.dateLbl}>{formattedDate}</Text>
             </View>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="閉じる">
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={t('calendarTab.close')}>
               <Ionicons name="close" size={22} color={TEXT.secondary} />
             </TouchableOpacity>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {/* カテゴリ */}
-            <Text style={m.label}>カテゴリ</Text>
+            <Text style={m.label}>{t('calendarTab.modal.category')}</Text>
             <View style={m.catRow}>
               {EVENT_CATEGORIES.map(cat => {
                 const active = category === cat.value
@@ -209,31 +210,31 @@ function AddEventModal({
                     style={[m.catBtn, active && { backgroundColor: cat.color + '22', borderColor: cat.color }]}
                   >
                     <Text style={m.catEmoji}>{cat.emoji}</Text>
-                    <Text style={[m.catLabel, { color: active ? cat.color : TEXT.secondary }]}>{cat.label}</Text>
+                    <Text style={[m.catLabel, { color: active ? cat.color : TEXT.secondary }]}>{t(`calendarTab.categories.${cat.value}`)}</Text>
                   </HapticTouch>
                 )
               })}
             </View>
 
             {/* タイトル */}
-            <Text style={m.label}>タイトル</Text>
+            <Text style={m.label}>{t('calendarTab.modal.title')}</Text>
             <TextInput
               style={m.input}
               value={title}
               onChangeText={setTitle}
-              placeholder="例: 県大会・体幹トレ・病院 など"
+              placeholder={t('calendarTab.modal.titlePlaceholder')}
               placeholderTextColor={TEXT.hint}
               maxLength={50}
               autoFocus
             />
 
             {/* メモ */}
-            <Text style={m.label}>メモ（任意）</Text>
+            <Text style={m.label}>{t('calendarTab.modal.notes')}</Text>
             <TextInput
               style={[m.input, m.inputMulti]}
               value={notes}
               onChangeText={setNotes}
-              placeholder="詳細・場所・持ち物など..."
+              placeholder={t('calendarTab.modal.notesPlaceholder')}
               placeholderTextColor={TEXT.hint}
               multiline
               numberOfLines={3}
@@ -249,7 +250,7 @@ function AddEventModal({
               disabled={saving}
             >
               <Ionicons name="checkmark-circle" size={20} color="#fff" />
-              <Text style={m.saveTxt}>{saving ? '保存中...' : editEvent ? '更新する' : '追加する'}</Text>
+              <Text style={m.saveTxt}>{saving ? t('calendarTab.modal.saving') : editEvent ? t('calendarTab.modal.update') : t('calendarTab.modal.add')}</Text>
             </HapticTouch>
           </ScrollView>
         </Animated.View>
@@ -262,6 +263,9 @@ function AddEventModal({
 // CalendarScreen
 // ────────────────────────────────────────────────────────────
 export default function CalendarScreen() {
+  const { t } = useTranslation()
+  const { language } = useLanguage()
+  const WEEKDAYS = language === 'en' ? WEEKDAYS_EN : WEEKDAYS_JA
   const today = new Date()
   const [year,         setYear]         = useState(today.getFullYear())
   const [month,        setMonth]        = useState(today.getMonth())
@@ -303,9 +307,13 @@ export default function CalendarScreen() {
         try {
           (JSON.parse(sessionsRaw) as any[]).forEach(s => {
             const fatigue = s.fatigue_level ?? 5
+            const label = s.event
+              ? getEventLabel(s.event, language)
+              : s.session_type
+                ? getSessionTypeLabel(s.session_type, language)
+                : t('calendarTab.dotLabels.gps')
             addDot(
-              s.session_date ?? s.created_at, 'gps',
-              (s.session_type && SESSION_TYPE_LABEL[s.session_type]) ?? 'GPS練習',
+              s.session_date ?? s.created_at, 'gps', label,
               s.distance_m ? `${(s.distance_m / 1000).toFixed(1)}km` : undefined,
               undefined, fatigue,
             )
@@ -321,7 +329,7 @@ export default function CalendarScreen() {
       if (raceRaw) {
         try {
           (JSON.parse(raceRaw) as any[]).forEach(r =>
-            addDot(r.date ?? r.created_at, 'race', r.event ?? 'タイム計測', r.time)
+            addDot(r.date ?? r.created_at, 'race', r.event ? getEventLabel(r.event, language) : t('calendarTab.dotLabels.race'), r.time)
           )
         } catch {}
       }
@@ -329,7 +337,7 @@ export default function CalendarScreen() {
       if (workoutRaw) {
         try {
           (JSON.parse(workoutRaw) as any[]).forEach(w =>
-            addDot(w.date ?? w.created_at, 'workout', w.title ?? '練習メニュー')
+            addDot(w.date ?? w.created_at, 'workout', w.title ?? t('calendarTab.dotLabels.workout'))
           )
         } catch {}
       }
@@ -337,7 +345,7 @@ export default function CalendarScreen() {
       if (compRaw) {
         try {
           (JSON.parse(compRaw) as any[]).forEach(c =>
-            addDot(c.date ?? c.competition_date ?? c.created_at, 'competition', c.name ?? '大会', c.event)
+            addDot(c.date ?? c.competition_date ?? c.created_at, 'competition', c.name ?? t('calendarTab.dotLabels.competition'), c.event)
           )
         } catch {}
       }
@@ -355,7 +363,7 @@ export default function CalendarScreen() {
       setRecordMap(newRecordMap)
       setColorMap(newColorMap)
     } catch { /* ignore */ }
-  }, [])
+  }, [language, t])
 
   useEffect(() => { load() }, [load])
 
@@ -370,7 +378,7 @@ export default function CalendarScreen() {
       await AsyncStorage.setItem(EVENTS_KEY, JSON.stringify(events.filter(e => e.id !== eventId)))
       cancelEventReminders(eventId).catch(() => {})
       Sounds.delete()
-      Toast.show({ type: 'success', text1: '予定を削除しました', visibilityTime: 1400 })
+      Toast.show({ type: 'success', text1: t('calendarTab.modal.deleteSuccess'), visibilityTime: 1400 })
       load()
     } catch { /* ignore */ }
   }
@@ -435,11 +443,13 @@ export default function CalendarScreen() {
 
           {/* ── 月ナビ ── */}
           <View style={st.monthNav}>
-            <HapticTouch haptic="tabSwitch" onPress={() => changeMonth(-1)} style={[st.navBtn, { backgroundColor: colors.surface2, borderColor: colors.border, opacity: isAtMin ? 0.3 : 1 }]} activeOpacity={0.7} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} accessibilityLabel="前の月">
+            <HapticTouch haptic="tabSwitch" onPress={() => changeMonth(-1)} style={[st.navBtn, { backgroundColor: colors.surface2, borderColor: colors.border, opacity: isAtMin ? 0.3 : 1 }]} activeOpacity={0.7} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} accessibilityLabel={t('calendarTab.prevMonth')}>
               <Ionicons name="chevron-back" size={22} color={colors.text} />
             </HapticTouch>
-            <Text style={[st.monthTitle, { color: colors.text }]}>{year}年{month + 1}月</Text>
-            <HapticTouch haptic="tabSwitch" onPress={() => changeMonth(1)} style={[st.navBtn, { backgroundColor: colors.surface2, borderColor: colors.border, opacity: isAtMax ? 0.3 : 1 }]} activeOpacity={0.7} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} accessibilityLabel="次の月">
+            <Text style={[st.monthTitle, { color: colors.text }]}>
+              {language === 'en' ? `${MONTH_NAMES_EN[month]} ${year}` : `${year}年${month + 1}月`}
+            </Text>
+            <HapticTouch haptic="tabSwitch" onPress={() => changeMonth(1)} style={[st.navBtn, { backgroundColor: colors.surface2, borderColor: colors.border, opacity: isAtMax ? 0.3 : 1 }]} activeOpacity={0.7} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} accessibilityLabel={t('calendarTab.nextMonth')}>
               <Ionicons name="chevron-forward" size={22} color={colors.text} />
             </HapticTouch>
           </View>
@@ -451,11 +461,11 @@ export default function CalendarScreen() {
             <View style={st.summaryChips}>
               <View style={st.chipTraining}>
                 <Ionicons name="flash" size={13} color="#F59E0B" />
-                <Text style={st.chipTrainingTxt}>Training: {trainingCount}</Text>
+                <Text style={st.chipTrainingTxt}>{t('calendarTab.chipTraining', { n: trainingCount })}</Text>
               </View>
               <View style={st.chipRest}>
                 <Ionicons name="bed-outline" size={13} color="#3B82F6" />
-                <Text style={st.chipRestTxt}>Rest: {restCount}</Text>
+                <Text style={st.chipRestTxt}>{t('calendarTab.chipRest', { n: restCount })}</Text>
               </View>
             </View>
 
@@ -496,19 +506,19 @@ export default function CalendarScreen() {
             {/* 強度凡例 */}
             <View style={st.intensityLegend}>
               {[
-                { label: '軽', color: '#DCFCE7' },
-                { label: '中', color: '#FEF9C3' },
-                { label: '強', color: '#FED7AA' },
-                { label: '超', color: '#FECACA' },
-              ].map(({ label, color }) => (
-                <View key={label} style={st.intensityItem}>
+                { key: 'light',  color: '#DCFCE7' },
+                { key: 'medium', color: '#FEF9C3' },
+                { key: 'hard',   color: '#FED7AA' },
+                { key: 'extreme',color: '#FECACA' },
+              ].map(({ key, color }) => (
+                <View key={key} style={st.intensityItem}>
                   <View style={[st.intensityBox, { backgroundColor: color }]} />
-                  <Text style={st.intensityTxt}>{label}</Text>
+                  <Text style={st.intensityTxt}>{t(`calendarTab.intensity.${key}`)}</Text>
                 </View>
               ))}
               <View style={st.intensityItem}>
                 <View style={[st.intensityBox, { backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB' }]} />
-                <Text style={st.intensityTxt}>なし</Text>
+                <Text style={st.intensityTxt}>{t('calendarTab.intensity.none')}</Text>
               </View>
             </View>
           </Animated.View>
@@ -517,7 +527,7 @@ export default function CalendarScreen() {
           <View style={[st.detailCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={st.detailHeader}>
               <Ionicons name="calendar-outline" size={16} color={colors.textHint} />
-              <Text style={[st.detailTitle, { color: colors.text }]}>{selectedDate.replace(/-/g, '/')} の予定・記録</Text>
+              <Text style={[st.detailTitle, { color: colors.text }]}>{t('calendarTab.detailTitle', { date: selectedDate.replace(/-/g, '/') })}</Text>
               <HapticTouch
                 haptic="whoosh"
                 style={st.addBtn}
@@ -525,15 +535,15 @@ export default function CalendarScreen() {
                 onPress={() => { unlockAudio(); setEditEvent(null); setModalVisible(true) }}
               >
                 <Ionicons name="add" size={16} color="#fff" />
-                <Text style={st.addBtnTxt}>予定を追加</Text>
+                <Text style={st.addBtnTxt}>{t('calendarTab.addEvent')}</Text>
               </HapticTouch>
             </View>
 
             {selectedRecords.length === 0 ? (
               <View style={st.emptyBox}>
                 <Text style={st.emptyEmoji}>📅</Text>
-                <Text style={[st.emptyTxt, { color: colors.textSec }]}>この日の記録はありません</Text>
-                <Text style={[st.emptySub, { color: colors.textHint }]}>「予定を追加」で自由に入力できます</Text>
+                <Text style={[st.emptyTxt, { color: colors.textSec }]}>{t('calendarTab.noRecords')}</Text>
+                <Text style={[st.emptySub, { color: colors.textHint }]}>{t('calendarTab.noRecordsHint')}</Text>
               </View>
             ) : (
               <ScrollView
@@ -559,21 +569,21 @@ export default function CalendarScreen() {
                           <TouchableOpacity
                             onPress={() => openEdit(rec.eventId!)}
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            accessibilityLabel="編集"
+                            accessibilityLabel={t('calendarTab.edit')}
                           >
                             <Ionicons name="pencil-outline" size={16} color={TEXT.secondary} />
                           </TouchableOpacity>
                           <TouchableOpacity
                             onPress={() => deleteEvent(rec.eventId!)}
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            accessibilityLabel="削除"
+                            accessibilityLabel={t('calendarTab.delete')}
                           >
                             <Ionicons name="trash-outline" size={16} color="#FF3B30" />
                           </TouchableOpacity>
                         </View>
                       ) : (
                         <View style={[st.badge, { backgroundColor: dotColor + '22', borderColor: dotColor }]}>
-                          <Text style={[st.badgeTxt, { color: dotColor }]}>{DOT_LABELS[rec.type]}</Text>
+                          <Text style={[st.badgeTxt, { color: dotColor }]}>{t(`calendarTab.dotLabels.${rec.type}`)}</Text>
                         </View>
                       )}
                     </View>
@@ -585,12 +595,14 @@ export default function CalendarScreen() {
 
           {/* ── 月間サマリー ── */}
           <View style={st.summaryCard}>
-            <Text style={st.summaryTitle}>{month + 1}月のサマリー</Text>
+            <Text style={st.summaryTitle}>
+              {t('calendarTab.summaryTitle', { month: language === 'en' ? MONTH_NAMES_EN[month] : month + 1 })}
+            </Text>
             <View style={st.summaryRow}>
-              <SummaryItem icon="flame-outline"    color="#E53935" value={monthEntries.length}                                                           label="活動日数"  unit="日" />
-              <SummaryItem icon="navigate-outline" color="#2196F3" value={monthEntries.filter(([, d]) => d.includes('gps')).length}         label="練習"      unit="回" />
-              <SummaryItem icon="calendar-outline" color="#9B6BFF" value={monthEntries.filter(([, d]) => d.includes('event')).length}       label="予定"      unit="件" />
-              <SummaryItem icon="trophy-outline"   color="#FFC107" value={monthEntries.filter(([, d]) => d.includes('competition')).length} label="大会"      unit="回" />
+              <SummaryItem icon="flame-outline"    color="#E53935" value={monthEntries.length}                                                           label={t('calendarTab.summary.activeDays.label')} unit={t('calendarTab.summary.activeDays.unit')} />
+              <SummaryItem icon="navigate-outline" color="#2196F3" value={monthEntries.filter(([, d]) => d.includes('gps')).length}         label={t('calendarTab.summary.training.label')} unit={t('calendarTab.summary.training.unit')} />
+              <SummaryItem icon="calendar-outline" color="#9B6BFF" value={monthEntries.filter(([, d]) => d.includes('event')).length}       label={t('calendarTab.summary.events.label')} unit={t('calendarTab.summary.events.unit')} />
+              <SummaryItem icon="trophy-outline"   color="#FFC107" value={monthEntries.filter(([, d]) => d.includes('competition')).length} label={t('calendarTab.summary.competition.label')} unit={t('calendarTab.summary.competition.unit')} />
             </View>
           </View>
 

@@ -2982,5 +2982,76 @@
       "raceRecovery": "レース後は2〜3日間は強度を落として調整しよう",
       "painCheck": "痛みや違和感が続く場合は早めに医師に相談しよう"
     }
+  },
+  "calendarTab": {
+    "prevMonth": "前の月",
+    "nextMonth": "次の月",
+    "monthTitle": "{{year}}年{{month}}月",
+    "chipTraining": "Training: {{n}}",
+    "chipRest": "Rest: {{n}}",
+    "dotLabels": {
+      "race": "タイム計測",
+      "gps": "GPS練習",
+      "workout": "練習メニュー",
+      "competition": "大会",
+      "event": "予定"
+    },
+    "intensity": {
+      "light": "軽",
+      "medium": "中",
+      "hard": "強",
+      "extreme": "超",
+      "none": "なし"
+    },
+    "detailTitle": "{{date}} の予定・記録",
+    "addEvent": "予定を追加",
+    "edit": "編集",
+    "delete": "削除",
+    "close": "閉じる",
+    "noRecords": "この日の記録はありません",
+    "noRecordsHint": "「予定を追加」で自由に入力できます",
+    "summaryTitle": "{{month}}月のサマリー",
+    "summary": {
+      "activeDays": {
+        "label": "活動日数",
+        "unit": "日"
+      },
+      "training": {
+        "label": "練習",
+        "unit": "回"
+      },
+      "events": {
+        "label": "予定",
+        "unit": "件"
+      },
+      "competition": {
+        "label": "大会",
+        "unit": "回"
+      }
+    },
+    "modal": {
+      "editTitle": "予定を編集",
+      "addTitle": "予定を追加",
+      "category": "カテゴリ",
+      "title": "タイトル",
+      "titlePlaceholder": "例: 県大会・体幹トレ・病院 など",
+      "notes": "メモ（任意）",
+      "notesPlaceholder": "詳細・場所・持ち物など...",
+      "saving": "保存中...",
+      "update": "更新する",
+      "add": "追加する",
+      "titleRequired": "タイトルを入力してください",
+      "updateSuccess": "予定を更新しました ✓",
+      "addSuccess": "予定を追加しました ✓",
+      "saveError": "保存に失敗しました",
+      "deleteSuccess": "予定を削除しました"
+    },
+    "categories": {
+      "memo": "練習メモ",
+      "competition": "大会・記録会",
+      "rest": "休養日",
+      "medical": "通院・治療",
+      "other": "その他"
+    }
   }
 }
