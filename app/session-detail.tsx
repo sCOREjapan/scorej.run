@@ -16,6 +16,9 @@ import { useTrainingSessions } from '../hooks/useTrainingSessions'
 import AIFeedbackCard from '../components/AIFeedbackCard'
 import ConditionBadge from '../components/ConditionBadge'
 import type { TrainingSession } from '../types'
+import { useTranslation } from 'react-i18next'
+import { useLanguage } from '../context/LanguageContext'
+import { getEventLabel } from '../lib/eventLabels'
 
 // ─── Skeleton ─────────────────────────────────────────────────────────
 const SkeletonRect: React.FC<{ height?: number; width?: number | string }> = ({
@@ -50,42 +53,35 @@ const DetailRow: React.FC<{ label: string; value: React.ReactNode }> = ({ label,
   </View>
 )
 
-function formatMs(ms: number): string {
+function formatMs(ms: number, lang: 'ja' | 'en' = 'ja'): string {
   const totalSec = ms / 1000
-  if (totalSec < 60) return `${totalSec.toFixed(2)}秒`
+  if (totalSec < 60) return `${totalSec.toFixed(2)}${lang === 'en' ? 's' : '秒'}`
   const min = Math.floor(totalSec / 60)
   const sec = (totalSec % 60).toFixed(2).padStart(5, '0')
   return `${min}:${sec}`
 }
 
-const SESSION_TYPE_LABELS: Record<string, string> = {
-  interval: 'インターバル走',
-  tempo: 'テンポ走',
-  easy: 'イージージョグ',
-  long: 'ロング走',
-  sprint: 'スプリント',
-  drill: 'ドリル',
-  strength: 'ウェイト・補強',
-  race: '試合',
-  rest: '休養',
-}
-
 // ─── Video Player Placeholder ─────────────────────────────────────────
 // Full expo-video integration requires native setup; showing placeholder
-const VideoPlayerPlaceholder: React.FC<{ uri: string }> = ({ uri }) => (
-  <View style={styles.videoPlaceholder}>
-    <Text style={styles.videoPlaceholderIcon}>🎬</Text>
-    <Text style={styles.videoPlaceholderText}>
-      動画: {uri.split('/').pop()}
-    </Text>
-    <Text style={styles.videoPlaceholderNote}>
-      (動画再生はexpo-videoが必要です)
-    </Text>
-  </View>
-)
+const VideoPlayerPlaceholder: React.FC<{ uri: string }> = ({ uri }) => {
+  const { t } = useTranslation()
+  return (
+    <View style={styles.videoPlaceholder}>
+      <Text style={styles.videoPlaceholderIcon}>🎬</Text>
+      <Text style={styles.videoPlaceholderText}>
+        {t('sessionDetail.videoLabel', { name: uri.split('/').pop() })}
+      </Text>
+      <Text style={styles.videoPlaceholderNote}>
+        {t('sessionDetail.videoNote')}
+      </Text>
+    </View>
+  )
+}
 
 export default function SessionDetailScreen() {
   const router = useRouter()
+  const { t } = useTranslation()
+  const { language } = useLanguage()
   const { id } = useLocalSearchParams<{ id: string }>()
   const { sessions, loading, fetchSessions } = useTrainingSessions()
   const [session, setSession] = useState<TrainingSession | undefined>(undefined)
@@ -124,9 +120,9 @@ export default function SessionDetailScreen() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.notFound}>
           <Text style={styles.notFoundIcon}>🔍</Text>
-          <Text style={styles.notFoundText}>練習記録が見つかりませんでした</Text>
+          <Text style={styles.notFoundText}>{t('sessionDetail.notFound')}</Text>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Text style={styles.backBtnText}>← 戻る</Text>
+            <Text style={styles.backBtnText}>{t('sessionDetail.backBtn')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -145,41 +141,41 @@ export default function SessionDetailScreen() {
           <View>
             <Text style={styles.sessionDate}>{session.session_date}</Text>
             <Text style={styles.sessionType}>
-              {SESSION_TYPE_LABELS[session.session_type] ?? session.session_type}
+              {t(`sessionDetail.sessionTypes.${session.session_type}`, { defaultValue: session.session_type })}
             </Text>
           </View>
           {session.time_ms && (
-            <Text style={styles.sessionTimeHero}>{formatMs(session.time_ms)}</Text>
+            <Text style={styles.sessionTimeHero}>{formatMs(session.time_ms, language)}</Text>
           )}
         </View>
 
         {/* Main details */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>練習詳細</Text>
+          <Text style={styles.cardTitle}>{t('sessionDetail.cardTitleDetail')}</Text>
 
           {session.event && (
-            <DetailRow label="種目" value={session.event} />
+            <DetailRow label={t('sessionDetail.labelEvent')} value={getEventLabel(session.event, language)} />
           )}
           {session.time_ms && (
-            <DetailRow label="タイム" value={formatMs(session.time_ms)} />
+            <DetailRow label={t('sessionDetail.labelTime')} value={formatMs(session.time_ms, language)} />
           )}
           {session.distance_m && (
-            <DetailRow label="距離" value={`${session.distance_m} m`} />
+            <DetailRow label={t('sessionDetail.labelDistance')} value={t('sessionDetail.distanceValue', { n: session.distance_m })} />
           )}
           {session.reps && (
-            <DetailRow label="本数" value={`${session.reps}本`} />
+            <DetailRow label={t('sessionDetail.labelReps')} value={t('sessionDetail.repsValue', { n: session.reps })} />
           )}
           {session.sets && (
-            <DetailRow label="セット数" value={`${session.sets}セット`} />
+            <DetailRow label={t('sessionDetail.labelSets')} value={t('sessionDetail.setsValue', { n: session.sets })} />
           )}
           {session.rest_sec && (
-            <DetailRow label="レスト" value={`${session.rest_sec}秒`} />
+            <DetailRow label={t('sessionDetail.labelRest')} value={t('sessionDetail.restValue', { n: session.rest_sec })} />
           )}
 
           <View style={styles.divider} />
 
           <DetailRow
-            label="疲労度"
+            label={t('sessionDetail.labelFatigue')}
             value={
               <View style={styles.levelRow}>
                 <Text style={styles.detailValue}>{session.fatigue_level}/10</Text>
@@ -196,22 +192,22 @@ export default function SessionDetailScreen() {
             }
           />
           <DetailRow
-            label="体調"
+            label={t('sessionDetail.labelCondition')}
             value={<ConditionBadge condition={session.condition_level} size="sm" />}
           />
 
           {session.weather && (
-            <DetailRow label="天気" value={session.weather} />
+            <DetailRow label={t('sessionDetail.labelWeather')} value={session.weather} />
           )}
           {session.temperature !== undefined && (
-            <DetailRow label="気温" value={`${session.temperature}°C`} />
+            <DetailRow label={t('sessionDetail.labelTemperature')} value={`${session.temperature}°C`} />
           )}
         </View>
 
         {/* Notes */}
         {session.notes && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>メモ</Text>
+            <Text style={styles.cardTitle}>{t('sessionDetail.cardTitleNotes')}</Text>
             <Text style={styles.notesText}>{session.notes}</Text>
           </View>
         )}
@@ -219,14 +215,14 @@ export default function SessionDetailScreen() {
         {/* Video */}
         {session.video_url && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>動画</Text>
+            <Text style={styles.cardTitle}>{t('sessionDetail.cardTitleVideo')}</Text>
             <VideoPlayerPlaceholder uri={session.video_url} />
             <TouchableOpacity
               style={styles.videoAnalysisBtn}
               onPress={() => router.push('/video-analysis')}
               activeOpacity={0.8}
             >
-              <Text style={styles.videoAnalysisBtnText}>🎬 動画でフォーム分析</Text>
+              <Text style={styles.videoAnalysisBtnText}>{t('sessionDetail.videoAnalysisBtn')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -235,13 +231,13 @@ export default function SessionDetailScreen() {
         {session.ai_feedback && (
           <AIFeedbackCard
             feedback={session.ai_feedback}
-            title="AIコーチのフィードバック"
+            title={t('sessionDetail.aiFeedbackTitle')}
           />
         )}
 
         {/* Meta */}
         <View style={styles.metaRow}>
-          <Text style={styles.metaText}>記録日時: {new Date(session.created_at).toLocaleString('ja-JP')}</Text>
+          <Text style={styles.metaText}>{t('sessionDetail.recordedAt', { datetime: new Date(session.created_at).toLocaleString(language === 'en' ? 'en-US' : 'ja-JP') })}</Text>
         </View>
       </ScrollView>
     </SafeAreaView>

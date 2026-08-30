@@ -2172,5 +2172,42 @@
     "promptLanguageLine": "",
     "headerPoints": "🍚 **今、意識したいポイント**",
     "headerNote": "💬 **一言**"
+  },
+  "sessionDetail": {
+    "notFound": "練習記録が見つかりませんでした",
+    "backBtn": "← 戻る",
+    "cardTitleDetail": "練習詳細",
+    "labelEvent": "種目",
+    "labelTime": "タイム",
+    "labelDistance": "距離",
+    "distanceValue": "{{n}} m",
+    "labelReps": "本数",
+    "repsValue": "{{n}}本",
+    "labelSets": "セット数",
+    "setsValue": "{{n}}セット",
+    "labelRest": "レスト",
+    "restValue": "{{n}}秒",
+    "labelFatigue": "疲労度",
+    "labelCondition": "体調",
+    "labelWeather": "天気",
+    "labelTemperature": "気温",
+    "cardTitleNotes": "メモ",
+    "cardTitleVideo": "動画",
+    "videoLabel": "動画: {{name}}",
+    "videoNote": "(動画再生はexpo-videoが必要です)",
+    "videoAnalysisBtn": "🎬 動画でフォーム分析",
+    "aiFeedbackTitle": "AIコーチのフィードバック",
+    "recordedAt": "記録日時: {{datetime}}",
+    "sessionTypes": {
+      "interval": "インターバル走",
+      "tempo": "テンポ走",
+      "easy": "イージージョグ",
+      "long": "ロング走",
+      "sprint": "スプリント",
+      "drill": "ドリル",
+      "strength": "ウェイト・補強",
+      "race": "試合",
+      "rest": "休養"
+    }
   }
 }

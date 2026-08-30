@@ -2172,5 +2172,42 @@
     "promptLanguageLine": "Please write your entire reply in natural, fluent English.",
     "headerPoints": "🍚 **Points to keep in mind right now**",
     "headerNote": "💬 **A note**"
+  },
+  "sessionDetail": {
+    "notFound": "This training record could not be found",
+    "backBtn": "← Back",
+    "cardTitleDetail": "Session Details",
+    "labelEvent": "Event",
+    "labelTime": "Time",
+    "labelDistance": "Distance",
+    "distanceValue": "{{n}} m",
+    "labelReps": "Reps",
+    "repsValue": "{{n}}",
+    "labelSets": "Sets",
+    "setsValue": "{{n}}",
+    "labelRest": "Rest",
+    "restValue": "{{n}}s",
+    "labelFatigue": "Fatigue",
+    "labelCondition": "Condition",
+    "labelWeather": "Weather",
+    "labelTemperature": "Temperature",
+    "cardTitleNotes": "Notes",
+    "cardTitleVideo": "Video",
+    "videoLabel": "Video: {{name}}",
+    "videoNote": "(Video playback requires expo-video)",
+    "videoAnalysisBtn": "🎬 Analyze form from video",
+    "aiFeedbackTitle": "AI Coach Feedback",
+    "recordedAt": "Recorded: {{datetime}}",
+    "sessionTypes": {
+      "interval": "Interval",
+      "tempo": "Tempo run",
+      "easy": "Easy jog",
+      "long": "Long run",
+      "sprint": "Sprint",
+      "drill": "Drill",
+      "strength": "Strength/weights",
+      "race": "Race",
+      "rest": "Rest"
+    }
   }
 }
