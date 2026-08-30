@@ -5,10 +5,12 @@
 import React, { useEffect, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Platform } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { useTranslation } from 'react-i18next'
 
 const DISMISSED_KEY = 'pwa_dismissed'
 
 export default function PWAInstallPrompt() {
+  const { t } = useTranslation()
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   const [visible, setVisible] = useState(false)
   const slideAnim = React.useRef(new Animated.Value(120)).current
@@ -77,14 +79,14 @@ export default function PWAInstallPrompt() {
         <Ionicons name="phone-portrait-outline" size={28} color="#fff" />
       </View>
       <View style={styles.textWrap}>
-        <Text style={styles.title}>ホーム画面に追加</Text>
-        <Text style={styles.subtitle}>オフラインでも使えます</Text>
+        <Text style={styles.title}>{t('pwaInstallPrompt.title')}</Text>
+        <Text style={styles.subtitle}>{t('pwaInstallPrompt.subtitle')}</Text>
       </View>
       <TouchableOpacity style={styles.installBtn} onPress={handleInstall} activeOpacity={0.85}>
-        <Text style={styles.installBtnText}>追加</Text>
+        <Text style={styles.installBtnText}>{t('pwaInstallPrompt.install')}</Text>
       </TouchableOpacity>
       <TouchableOpacity style={styles.laterBtn} onPress={handleDismiss} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-        <Text style={styles.laterText}>あとで</Text>
+        <Text style={styles.laterText}>{t('pwaInstallPrompt.later')}</Text>
       </TouchableOpacity>
     </Animated.View>
   )

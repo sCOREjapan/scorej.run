@@ -3799,5 +3799,11 @@
     "ctaSendFeedback": "Send Feedback",
     "later": "Later",
     "never": "Don't show again"
+  },
+  "pwaInstallPrompt": {
+    "title": "Add to Home Screen",
+    "subtitle": "Works offline too",
+    "install": "Add",
+    "later": "Later"
   }
 }

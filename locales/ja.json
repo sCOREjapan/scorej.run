@@ -3799,5 +3799,11 @@
     "ctaSendFeedback": "フィードバックを送る",
     "later": "あとで",
     "never": "表示しない"
+  },
+  "pwaInstallPrompt": {
+    "title": "ホーム画面に追加",
+    "subtitle": "オフラインでも使えます",
+    "install": "追加",
+    "later": "あとで"
   }
 }
