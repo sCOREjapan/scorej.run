@@ -13,6 +13,9 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { BG_GRADIENT, TEXT, SURFACE, DIVIDER, SURFACE2 } from '../lib/theme'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { useTranslation } from 'react-i18next'
+import { useLanguage } from '../context/LanguageContext'
+import { getEventLabel } from '../lib/eventLabels'
 
 // ── ストレージキー ────────────────────────────────────────────────
 const SESSIONS_KEY      = 'trackmate_sessions'
@@ -42,13 +45,6 @@ const DOT_COLORS: Record<DotType, string> = {
   competition: '#FFC107',
 }
 
-const DOT_LABELS: Record<DotType, string> = {
-  race:        'タイム計測',
-  gps:         'GPS練習',
-  workout:     '練習メニュー',
-  competition: '大会',
-}
-
 const DOT_ICONS: Record<DotType, string> = {
   race:        'timer-outline',
   gps:         'navigate-outline',
@@ -56,7 +52,9 @@ const DOT_ICONS: Record<DotType, string> = {
   competition: 'trophy-outline',
 }
 
-const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
+const WEEKDAYS_JA = ['日', '月', '火', '水', '木', '金', '土']
+const WEEKDAYS_EN = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
+const MONTH_NAMES_EN = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
 // ── ユーティリティ ───────────────────────────────────────────────
 function toYMD(d: Date): string {
@@ -75,8 +73,28 @@ function getFirstDayOfWeek(year: number, month: number): number {
   return new Date(year, month, 1).getDay()
 }
 
+// session_type は内部enum(日本語固定値)。practice-input.tsx / QuickLogModal.tsx の
+// sessionTypeLabel と同じ変換テーブル。
+function sessionTypeToLabel(type: string, lang: 'ja' | 'en'): string {
+  const ja: Record<string, string> = {
+    interval: 'インターバル', tempo: 'テンポ走', sprint: 'スプリント',
+    long: 'ロング走', drill: 'ドリル', strength: '筋トレ',
+    race: 'レース', rest: '休養', easy: 'ジョグ',
+  }
+  const en: Record<string, string> = {
+    interval: 'Interval', tempo: 'Tempo run', sprint: 'Sprint',
+    long: 'Long run', drill: 'Drill', strength: 'Strength',
+    race: 'Race', rest: 'Rest', easy: 'Easy jog',
+  }
+  const m = lang === 'en' ? en : ja
+  return m[type] || type
+}
+
 // ── メインコンポーネント ──────────────────────────────────────────
 export default function CalendarScreen() {
+  const { t } = useTranslation()
+  const { language } = useLanguage()
+  const WEEKDAYS = language === 'en' ? WEEKDAYS_EN : WEEKDAYS_JA
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
@@ -112,7 +130,14 @@ export default function CalendarScreen() {
         try {
           const sessions: any[] = JSON.parse(sessionsRaw)
           sessions.forEach((s: any) => {
-            const label = s.session_type ?? 'GPS練習'
+            // event(種目)があればそれを、なければ session_type(内部enum。日本語固定値)を
+            // 翻訳ラベルに変換して表示する。生の enum 文字列をそのまま出すと英語モードでも
+            // 'interval' 等が表示されてしまうため、必ずラベル変換を通す。
+            const label = s.event
+              ? getEventLabel(s.event, language)
+              : s.session_type
+                ? sessionTypeToLabel(s.session_type, language)
+                : t('calendar.dotLabels.gps')
             const sub = s.distance_m ? `${(s.distance_m / 1000).toFixed(1)}km` : undefined
             addDot(s.session_date ?? s.created_at, 'gps', label, sub)
           })
@@ -124,7 +149,7 @@ export default function CalendarScreen() {
         try {
           const races: any[] = JSON.parse(raceRaw)
           races.forEach((r: any) => {
-            const label = r.event ?? 'タイム計測'
+            const label = r.event ? getEventLabel(r.event, language) : t('calendar.dotLabels.race')
             const sub = r.time ? r.time : undefined
             addDot(r.date ?? r.created_at, 'race', label, sub)
           })
@@ -136,7 +161,7 @@ export default function CalendarScreen() {
         try {
           const workouts: any[] = JSON.parse(workoutRaw)
           workouts.forEach((w: any) => {
-            addDot(w.date ?? w.created_at, 'workout', w.title ?? '練習メニュー', undefined)
+            addDot(w.date ?? w.created_at, 'workout', w.title ?? t('calendar.dotLabels.workout'), undefined)
           })
         } catch {}
       }
@@ -146,7 +171,7 @@ export default function CalendarScreen() {
         try {
           const comps: any[] = JSON.parse(compRaw)
           comps.forEach((c: any) => {
-            addDot(c.date ?? c.competition_date ?? c.created_at, 'competition', c.name ?? '大会', c.event)
+            addDot(c.date ?? c.competition_date ?? c.created_at, 'competition', c.name ?? t('calendar.dotLabels.competition'), c.event)
           })
         } catch {}
       }
@@ -154,7 +179,7 @@ export default function CalendarScreen() {
       setDayMap(newDayMap)
       setRecordMap(newRecordMap)
     } catch { /* ignore */ }
-  }, [])
+  }, [language, t])
 
   useEffect(() => { load() }, [load])
 
@@ -212,11 +237,13 @@ export default function CalendarScreen() {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           {/* 月ナビゲーション */}
           <View style={styles.monthNav}>
-            <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.navBtn} activeOpacity={0.7} hitSlop={10} accessibilityLabel="前の月">
+            <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.navBtn} activeOpacity={0.7} hitSlop={10} accessibilityLabel={t('calendar.prevMonth')}>
               <Ionicons name="chevron-back" size={22} color={TEXT.primary} />
             </TouchableOpacity>
-            <Text style={styles.monthTitle}>{year}年{month + 1}月</Text>
-            <TouchableOpacity onPress={() => changeMonth(1)} style={styles.navBtn} activeOpacity={0.7} hitSlop={10} accessibilityLabel="次の月">
+            <Text style={styles.monthTitle}>
+              {language === 'en' ? `${MONTH_NAMES_EN[month]} ${year}` : `${year}年${month + 1}月`}
+            </Text>
+            <TouchableOpacity onPress={() => changeMonth(1)} style={styles.navBtn} activeOpacity={0.7} hitSlop={10} accessibilityLabel={t('calendar.nextMonth')}>
               <Ionicons name="chevron-forward" size={22} color={TEXT.primary} />
             </TouchableOpacity>
           </View>
@@ -226,7 +253,7 @@ export default function CalendarScreen() {
             {(Object.entries(DOT_COLORS) as [DotType, string][]).map(([type, color]) => (
               <View key={type} style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: color }]} />
-                <Text style={styles.legendText}>{DOT_LABELS[type]}</Text>
+                <Text style={styles.legendText}>{t(`calendar.dotLabels.${type}`)}</Text>
               </View>
             ))}
           </View>
@@ -282,12 +309,12 @@ export default function CalendarScreen() {
             <View style={styles.detailHeader}>
               <Ionicons name="calendar-outline" size={16} color={TEXT.secondary} />
               <Text style={styles.detailTitle}>
-                {selectedDate.replace(/-/g, '/')} の記録
+                {t('calendar.detailTitle', { date: selectedDate.replace(/-/g, '/') })}
               </Text>
-              <Text style={styles.detailCount}>{selectedRecords.length}件</Text>
+              <Text style={styles.detailCount}>{t('calendar.recordCount', { n: selectedRecords.length })}</Text>
             </View>
             {selectedRecords.length === 0 ? (
-              <Text style={styles.noRecords}>この日の記録はありません</Text>
+              <Text style={styles.noRecords}>{t('calendar.noRecords')}</Text>
             ) : (
               <View style={{ gap: 8 }}>
                 {selectedRecords.map((rec, idx) => (
@@ -300,7 +327,7 @@ export default function CalendarScreen() {
                       {rec.sub ? <Text style={styles.recordSub}>{rec.sub}</Text> : null}
                     </View>
                     <View style={[styles.recordBadge, { backgroundColor: DOT_COLORS[rec.type] + '22', borderColor: DOT_COLORS[rec.type] }]}>
-                      <Text style={[styles.recordBadgeText, { color: DOT_COLORS[rec.type] }]}>{DOT_LABELS[rec.type]}</Text>
+                      <Text style={[styles.recordBadgeText, { color: DOT_COLORS[rec.type] }]}>{t(`calendar.dotLabels.${rec.type}`)}</Text>
                     </View>
                   </View>
                 ))}
@@ -310,12 +337,14 @@ export default function CalendarScreen() {
 
           {/* 月間サマリー */}
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryTitle}>{month + 1}月のサマリー</Text>
+            <Text style={styles.summaryTitle}>
+              {t('calendar.summaryTitle', { month: language === 'en' ? MONTH_NAMES_EN[month] : month + 1 })}
+            </Text>
             <View style={styles.summaryRow}>
-              <SummaryItem icon="flame-outline" color="#E53935" value={monthDays} label="練習日数" unit="日" />
-              <SummaryItem icon="navigate-outline" color="#2196F3" value={monthGPS} label="GPS練習" unit="回" />
-              <SummaryItem icon="barbell-outline" color="#4CAF50" value={monthEntries.filter(([, d]) => d.includes('workout')).length} label="メニュー" unit="件" />
-              <SummaryItem icon="trophy-outline" color="#FFC107" value={monthEntries.filter(([, d]) => d.includes('competition')).length} label="大会" unit="回" />
+              <SummaryItem icon="flame-outline" color="#E53935" value={monthDays} label={t('calendar.summary.practiceDays.label')} unit={t('calendar.summary.practiceDays.unit')} />
+              <SummaryItem icon="navigate-outline" color="#2196F3" value={monthGPS} label={t('calendar.summary.gpsTraining.label')} unit={t('calendar.summary.gpsTraining.unit')} />
+              <SummaryItem icon="barbell-outline" color="#4CAF50" value={monthEntries.filter(([, d]) => d.includes('workout')).length} label={t('calendar.summary.menu.label')} unit={t('calendar.summary.menu.unit')} />
+              <SummaryItem icon="trophy-outline" color="#FFC107" value={monthEntries.filter(([, d]) => d.includes('competition')).length} label={t('calendar.summary.competition.label')} unit={t('calendar.summary.competition.unit')} />
             </View>
           </View>
         </ScrollView>

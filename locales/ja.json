@@ -2892,5 +2892,38 @@
       "rest": "休養",
       "easy": "ジョグ"
     }
+  },
+  "calendar": {
+    "prevMonth": "前の月",
+    "nextMonth": "次の月",
+    "monthTitle": "{{year}}年{{month}}月",
+    "summaryTitle": "{{month}}月のサマリー",
+    "dotLabels": {
+      "race": "タイム計測",
+      "gps": "GPS練習",
+      "workout": "練習メニュー",
+      "competition": "大会"
+    },
+    "detailTitle": "{{date}} の記録",
+    "recordCount": "{{n}}件",
+    "noRecords": "この日の記録はありません",
+    "summary": {
+      "practiceDays": {
+        "label": "練習日数",
+        "unit": "日"
+      },
+      "gpsTraining": {
+        "label": "GPS練習",
+        "unit": "回"
+      },
+      "menu": {
+        "label": "メニュー",
+        "unit": "件"
+      },
+      "competition": {
+        "label": "大会",
+        "unit": "回"
+      }
+    }
   }
 }

@@ -2892,5 +2892,38 @@
       "rest": "Rest",
       "easy": "Easy jog"
     }
+  },
+  "calendar": {
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "monthTitle": "{{month}} {{year}}",
+    "summaryTitle": "{{month}} Summary",
+    "dotLabels": {
+      "race": "Time Trial",
+      "gps": "GPS Training",
+      "workout": "Workout Menu",
+      "competition": "Competition"
+    },
+    "detailTitle": "Records for {{date}}",
+    "recordCount": "{{n}} entries",
+    "noRecords": "No records for this day",
+    "summary": {
+      "practiceDays": {
+        "label": "Practice days",
+        "unit": "d"
+      },
+      "gpsTraining": {
+        "label": "GPS runs",
+        "unit": ""
+      },
+      "menu": {
+        "label": "Menu",
+        "unit": ""
+      },
+      "competition": {
+        "label": "Meets",
+        "unit": ""
+      }
+    }
   }
 }
