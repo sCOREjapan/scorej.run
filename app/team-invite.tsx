@@ -18,6 +18,7 @@ import { useRouter } from 'expo-router'
 import { BRAND, NEON, TEXT } from '../lib/theme'
 import { Sounds } from '../lib/sounds'
 import AnimatedSection from '../components/AnimatedSection'
+import { useTranslation } from 'react-i18next'
 
 
 const TEAM_KEY = 'trackmate_team'
@@ -43,6 +44,7 @@ async function copyToClipboard(text: string): Promise<boolean> {
 
 export default function TeamInviteScreen() {
   const router = useRouter()
+  const { t } = useTranslation()
   const [myCode, setMyCode] = useState('')
   const [joinCode, setJoinCode] = useState('')
   const [copied, setCopied] = useState(false)
@@ -86,12 +88,12 @@ export default function TeamInviteScreen() {
     const ok = await copyToClipboard(myCode)
     if (ok) {
       setCopied(true)
-      Toast.show({ type: 'success', text1: 'コードをコピーしました' })
+      Toast.show({ type: 'success', text1: t('teamInvite.copiedToast') })
       setTimeout(() => setCopied(false), 2500)
     } else {
-      Toast.show({ type: 'error', text1: 'コピーに失敗しました' })
+      Toast.show({ type: 'error', text1: t('teamInvite.copyFailedToast') })
     }
-  }, [myCode])
+  }, [myCode, t])
 
   // ── 再生成 ───────────────────────────────────────────────────────
   const handleRegenerate = useCallback(() => {
@@ -99,14 +101,14 @@ export default function TeamInviteScreen() {
     const code = generateCode()
     setMyCode(code)
     setCopied(false)
-    Toast.show({ type: 'info', text1: '新しい招待コードを生成しました' })
-  }, [])
+    Toast.show({ type: 'info', text1: t('teamInvite.regeneratedToast') })
+  }, [t])
 
   // ── 参加 ─────────────────────────────────────────────────────────
   const handleJoin = useCallback(async () => {
     const trimmed = joinCode.trim().toUpperCase()
     if (trimmed.length !== 6) {
-      Toast.show({ type: 'error', text1: '6文字のコードを入力してください' })
+      Toast.show({ type: 'error', text1: t('teamInvite.joinTooShortToast') })
       return
     }
     Sounds.save()
@@ -114,12 +116,12 @@ export default function TeamInviteScreen() {
       const raw = await AsyncStorage.getItem(TEAM_KEY)
       const team = raw ? JSON.parse(raw) : {}
       await AsyncStorage.setItem(TEAM_KEY, JSON.stringify({ ...team, joined_code: trimmed }))
-      Toast.show({ type: 'success', text1: `チーム「${trimmed}」に参加リクエストを送りました` })
+      Toast.show({ type: 'success', text1: t('teamInvite.joinSuccessToast', { code: trimmed }) })
       setJoinCode('')
     } catch {
-      Toast.show({ type: 'error', text1: '参加処理に失敗しました' })
+      Toast.show({ type: 'error', text1: t('teamInvite.joinFailedToast') })
     }
-  }, [joinCode])
+  }, [joinCode, t])
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f6f6f8' }}>
@@ -127,10 +129,10 @@ export default function TeamInviteScreen() {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           {/* ヘッダー */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => { Sounds.tap(); router.back() }} style={styles.backBtn} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} accessibilityLabel="戻る">
+            <TouchableOpacity onPress={() => { Sounds.tap(); router.back() }} style={styles.backBtn} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} accessibilityLabel={t('teamInvite.backLabel')}>
               <Ionicons name="chevron-back" size={22} color={TEXT.primary} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>チーム招待</Text>
+            <Text style={styles.headerTitle}>{t('teamInvite.headerTitle')}</Text>
             <View style={{ width: 40 }} />
           </View>
 
@@ -141,10 +143,10 @@ export default function TeamInviteScreen() {
               <View style={styles.card}>
                 <View style={styles.sectionHeader}>
                   <Ionicons name="link" size={18} color={NEON.blue} />
-                  <Text style={styles.sectionTitle}>あなたの招待コード</Text>
+                  <Text style={styles.sectionTitle}>{t('teamInvite.yourCodeTitle')}</Text>
                 </View>
                 <Text style={styles.subText}>
-                  このコードをチームメンバーに共有して、一緒に練習記録を管理しましょう
+                  {t('teamInvite.yourCodeSub')}
                 </Text>
 
                 {/* 大きなコード表示 */}
@@ -165,7 +167,7 @@ export default function TeamInviteScreen() {
                       color="#fff"
                     />
                     <Text style={styles.copyBtnText}>
-                      {copied ? 'コピー済み' : 'コピー'}
+                      {copied ? t('teamInvite.copied') : t('teamInvite.copy')}
                     </Text>
                   </TouchableOpacity>
 
@@ -175,7 +177,7 @@ export default function TeamInviteScreen() {
                     activeOpacity={0.8}
                   >
                     <Ionicons name="refresh-outline" size={16} color={TEXT.secondary} />
-                    <Text style={styles.regenBtnText}>再生成</Text>
+                    <Text style={styles.regenBtnText}>{t('teamInvite.regenerate')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -186,17 +188,17 @@ export default function TeamInviteScreen() {
               <View style={styles.card}>
                 <View style={styles.sectionHeader}>
                   <Ionicons name="people" size={18} color={NEON.green} />
-                  <Text style={styles.sectionTitle}>招待コードで参加</Text>
+                  <Text style={styles.sectionTitle}>{t('teamInvite.joinTitle')}</Text>
                 </View>
                 <Text style={styles.subText}>
-                  チームリーダーから共有された6文字のコードを入力してください
+                  {t('teamInvite.joinSub')}
                 </Text>
 
                 <TextInput
                   style={styles.codeInput}
                   value={joinCode}
                   onChangeText={text => setJoinCode(text.toUpperCase().slice(0, 6))}
-                  placeholder="例: AB12CD"
+                  placeholder={t('teamInvite.joinPlaceholder')}
                   placeholderTextColor={TEXT.hint}
                   autoCapitalize="characters"
                   maxLength={6}
@@ -210,7 +212,7 @@ export default function TeamInviteScreen() {
                   disabled={joinCode.length !== 6}
                 >
                   <Ionicons name="person-add-outline" size={18} color="#fff" />
-                  <Text style={styles.joinBtnText}>チームに参加する</Text>
+                  <Text style={styles.joinBtnText}>{t('teamInvite.joinBtn')}</Text>
                 </TouchableOpacity>
               </View>
             </AnimatedSection>
@@ -220,7 +222,7 @@ export default function TeamInviteScreen() {
               <View style={styles.infoBox}>
                 <Ionicons name="information-circle-outline" size={16} color={TEXT.hint} />
                 <Text style={styles.infoText}>
-                  招待コードはページを開いている間のみ有効です。リアルタイム同期はサーバー連携後に利用可能になります。
+                  {t('teamInvite.infoText')}
                 </Text>
               </View>
             </AnimatedSection>

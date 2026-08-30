@@ -2069,5 +2069,25 @@
     "notRecorded": "未記録",
     "goal": "目標",
     "goalUnset": "未設定"
+  },
+  "teamInvite": {
+    "backLabel": "戻る",
+    "headerTitle": "チーム招待",
+    "yourCodeTitle": "あなたの招待コード",
+    "yourCodeSub": "このコードをチームメンバーに共有して、一緒に練習記録を管理しましょう",
+    "copied": "コピー済み",
+    "copy": "コピー",
+    "regenerate": "再生成",
+    "joinTitle": "招待コードで参加",
+    "joinSub": "チームリーダーから共有された6文字のコードを入力してください",
+    "joinPlaceholder": "例: AB12CD",
+    "joinBtn": "チームに参加する",
+    "infoText": "招待コードはページを開いている間のみ有効です。リアルタイム同期はサーバー連携後に利用可能になります。",
+    "copiedToast": "コードをコピーしました",
+    "copyFailedToast": "コピーに失敗しました",
+    "regeneratedToast": "新しい招待コードを生成しました",
+    "joinTooShortToast": "6文字のコードを入力してください",
+    "joinSuccessToast": "チーム「{{code}}」に参加リクエストを送りました",
+    "joinFailedToast": "参加処理に失敗しました"
   }
 }

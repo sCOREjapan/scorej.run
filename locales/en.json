@@ -2069,5 +2069,25 @@
     "notRecorded": "Not recorded",
     "goal": "Goal",
     "goalUnset": "Not set"
+  },
+  "teamInvite": {
+    "backLabel": "Back",
+    "headerTitle": "Team Invite",
+    "yourCodeTitle": "Your invite code",
+    "yourCodeSub": "Share this code with your teammates to manage training logs together",
+    "copied": "Copied",
+    "copy": "Copy",
+    "regenerate": "Regenerate",
+    "joinTitle": "Join with an invite code",
+    "joinSub": "Enter the 6-character code shared by your team leader",
+    "joinPlaceholder": "e.g. AB12CD",
+    "joinBtn": "Join team",
+    "infoText": "The invite code is only valid while this page is open. Real-time sync will be available once server integration is complete.",
+    "copiedToast": "Code copied",
+    "copyFailedToast": "Failed to copy",
+    "regeneratedToast": "Generated a new invite code",
+    "joinTooShortToast": "Enter a 6-character code",
+    "joinSuccessToast": "Sent a join request to team \"{{code}}\"",
+    "joinFailedToast": "Failed to join"
   }
 }
