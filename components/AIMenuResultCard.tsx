@@ -2,6 +2,7 @@ import React, { useMemo } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { TEXT, BRAND, DIVIDER } from '../lib/theme'
+import { useTranslation } from 'react-i18next'
 
 // AIコーチのメニュー生成プロンプト（workout-menu.tsx）が返す固定フォーマット
 // （📋 今日のメニュー／🔥 ウォームアップ／⚡ メイン練習／🌊 クールダウン／💬 コーチから）
@@ -139,10 +140,11 @@ export default function AIMenuResultCard({
 }
 
 function RegenerateBtn({ loading, onPress }: { loading?: boolean; onPress: () => void }) {
+  const { t } = useTranslation()
   return (
     <TouchableOpacity style={[r.regenBtn, loading && { opacity: 0.5 }]} onPress={onPress} activeOpacity={0.75} disabled={loading}>
       {loading ? <ActivityIndicator size="small" color={BRAND} /> : <Ionicons name="refresh" size={14} color={BRAND} />}
-      <Text style={{ color: BRAND, fontSize: 13, fontWeight: '600' }}>{loading ? '再生成中...' : '再生成'}</Text>
+      <Text style={{ color: BRAND, fontSize: 13, fontWeight: '600' }}>{loading ? t('aiMenuResultCard.regenerating') : t('aiMenuResultCard.regenerate')}</Text>
     </TouchableOpacity>
   )
 }

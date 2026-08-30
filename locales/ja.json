@@ -3703,5 +3703,9 @@
   },
   "aiFeedbackCard": {
     "defaultTitle": "AIコーチからのフィードバック"
+  },
+  "aiMenuResultCard": {
+    "regenerating": "再生成中...",
+    "regenerate": "再生成"
   }
 }

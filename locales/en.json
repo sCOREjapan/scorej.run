@@ -3703,5 +3703,9 @@
   },
   "aiFeedbackCard": {
     "defaultTitle": "Feedback from Your AI Coach"
+  },
+  "aiMenuResultCard": {
+    "regenerating": "Regenerating...",
+    "regenerate": "Regenerate"
   }
 }
