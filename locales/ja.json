@@ -3700,5 +3700,8 @@
     "saveErrorBody": "保存に失敗しました",
     "shareErrorBody": "共有に失敗しました",
     "shareMessage": "{{date}}の練習 #sCORE #陸上"
+  },
+  "aiFeedbackCard": {
+    "defaultTitle": "AIコーチからのフィードバック"
   }
 }

@@ -3700,5 +3700,8 @@
     "saveErrorBody": "Failed to save",
     "shareErrorBody": "Failed to share",
     "shareMessage": "{{date}}'s practice #sCORE #trackandfield"
+  },
+  "aiFeedbackCard": {
+    "defaultTitle": "Feedback from Your AI Coach"
   }
 }

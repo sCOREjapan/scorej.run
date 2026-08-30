@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react'
 import { View, Text, Animated, StyleSheet } from 'react-native'
+import { useTranslation } from 'react-i18next'
 
 interface Props {
   feedback: string
@@ -42,8 +43,10 @@ const SkeletonLine: React.FC<{ width: string | number }> = ({ width }) => {
 const AIFeedbackCard: React.FC<Props> = ({
   feedback,
   isLoading = false,
-  title = 'AIコーチからのフィードバック',
+  title,
 }) => {
+  const { t } = useTranslation()
+  const resolvedTitle = title ?? t('aiFeedbackCard.defaultTitle')
   return (
     <View style={styles.card}>
       {/* Orange left border accent */}
@@ -53,7 +56,7 @@ const AIFeedbackCard: React.FC<Props> = ({
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.icon}>🤖</Text>
-          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.title}>{resolvedTitle}</Text>
         </View>
 
         {/* Body */}
