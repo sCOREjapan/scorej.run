@@ -3780,5 +3780,24 @@
         "description": "Log every day to learn about your\nbody. Consistency is the fastest\npath to a new personal best 🏆"
       }
     }
+  },
+  "reviewWall": {
+    "feedbackEmailSubject": "Feedback for the sCORE app",
+    "feedbackEmailBody": "Please let us know what's on your mind or what we could improve.\n\n",
+    "title": "How are you liking sCORE?",
+    "sub": "Your review helps the app grow 🙏",
+    "starLabel": {
+      "star5": "That's amazing! Thank you so much 🎉",
+      "star4": "We're glad! Please tell us more",
+      "star3": "We'd love to hear your thoughts",
+      "starLow": "Please tell us what's bothering you"
+    },
+    "starAccessibility": "{{n}} star(s)",
+    "ctaChooseStars": "Please choose a star rating",
+    "ctaWriteReviewAndroid": "Write a Review on Google Play",
+    "ctaWriteReviewIOS": "Write a Review on the App Store",
+    "ctaSendFeedback": "Send Feedback",
+    "later": "Later",
+    "never": "Don't show again"
   }
 }

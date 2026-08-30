@@ -12,6 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Ionicons } from '@expo/vector-icons'
 import * as StoreReview from 'expo-store-review'
 import { todayLocalISO } from '../lib/dateLocal'
+import { useTranslation } from 'react-i18next'
 
 // ── ストア URL ────────────────────────────────────────────────
 // itms-apps:// + ?action=write-review → App Storeのレビュー入力画面に直接飛ぶ（iOS専用）
@@ -21,9 +22,10 @@ const APP_STORE_WEB_URL     = 'https://apps.apple.com/jp/app/score/id6766394981?
 const PLAY_STORE_URL        = 'https://play.google.com/store/apps/details?id=com.scorejapan.score&reviewId=0'
 
 // 低評価(1〜3星)の受け皿。公開のApp Store/Playレビューには送らず、こちらへ誘導する
-const FEEDBACK_EMAIL_URL =
-  'mailto:team.deepwork2026@gmail.com?subject=' + encodeURIComponent('sCORE アプリへのフィードバック') +
-  '&body=' + encodeURIComponent('気になった点・改善してほしい点を教えてください。\n\n')
+function feedbackEmailUrl(t: (key: string) => string): string {
+  return 'mailto:team.deepwork2026@gmail.com?subject=' + encodeURIComponent(t('reviewWall.feedbackEmailSubject')) +
+    '&body=' + encodeURIComponent(t('reviewWall.feedbackEmailBody'))
+}
 
 // ── AsyncStorage キー ─────────────────────────────────────────
 export const REVIEW_OPEN_COUNT_KEY = 'score_review_open_count'
@@ -72,6 +74,7 @@ interface Props {
 }
 
 export default function ReviewWall({ visible, onClose }: Props) {
+  const { t } = useTranslation()
   const slideY    = useRef(new Animated.Value(500)).current
   const bgOpacity = useRef(new Animated.Value(0)).current
   const [starPressed, setStarPressed] = useState(0)
@@ -127,7 +130,7 @@ export default function ReviewWall({ visible, onClose }: Props) {
   // 1〜3星 → 公開ストアレビューには送らず、内々のフィードバック窓口へ誘導する
   async function sendFeedback() {
     try {
-      await Linking.openURL(FEEDBACK_EMAIL_URL)
+      await Linking.openURL(feedbackEmailUrl(t))
     } catch {}
     dismiss('reviewed')
   }
@@ -157,8 +160,8 @@ export default function ReviewWall({ visible, onClose }: Props) {
             <Text style={{ fontSize: 28 }}>🏃</Text>
           </View>
           <View style={{ flex: 1, gap: 3 }}>
-            <Text style={s.title}>sCORE を使ってみていかがですか？</Text>
-            <Text style={s.sub}>レビューがアプリの成長を支えます🙏</Text>
+            <Text style={s.title}>{t('reviewWall.title')}</Text>
+            <Text style={s.sub}>{t('reviewWall.sub')}</Text>
           </View>
         </View>
 
@@ -170,7 +173,7 @@ export default function ReviewWall({ visible, onClose }: Props) {
               onPress={() => setStarPressed(n)}
               activeOpacity={0.7}
               hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
-              accessibilityLabel={`星${n}`}
+              accessibilityLabel={t('reviewWall.starAccessibility', { n })}
               accessibilityRole="button"
             >
               <Ionicons
@@ -183,10 +186,10 @@ export default function ReviewWall({ visible, onClose }: Props) {
         </View>
         {starPressed > 0 && (
           <Text style={s.starLabel}>
-            {starPressed === 5 ? '最高です！ありがとうございます 🎉' :
-             starPressed >= 4 ? '嬉しいです！ぜひ教えてください' :
-             starPressed >= 3 ? 'ご意見をお聞かせください' :
-             'ご不満な点をぜひ教えてください'}
+            {starPressed === 5 ? t('reviewWall.starLabel.star5') :
+             starPressed >= 4 ? t('reviewWall.starLabel.star4') :
+             starPressed >= 3 ? t('reviewWall.starLabel.star3') :
+             t('reviewWall.starLabel.starLow')}
           </Text>
         )}
 
@@ -200,21 +203,21 @@ export default function ReviewWall({ visible, onClose }: Props) {
           <Ionicons name={starPressed >= 4 ? 'star' : 'mail'} size={18} color="#fff" />
           <Text style={s.primaryBtnTxt}>
             {starPressed === 0
-              ? '星を選んでください'
+              ? t('reviewWall.ctaChooseStars')
               : starPressed >= 4
-                ? (Platform.OS === 'android' ? 'Google Play でレビューを書く' : 'App Store でレビューを書く')
-                : 'フィードバックを送る'}
+                ? (Platform.OS === 'android' ? t('reviewWall.ctaWriteReviewAndroid') : t('reviewWall.ctaWriteReviewIOS'))
+                : t('reviewWall.ctaSendFeedback')}
           </Text>
         </TouchableOpacity>
 
         {/* サブアクション */}
         <View style={s.subRow}>
           <TouchableOpacity onPress={() => dismiss('later')} style={s.subBtn}>
-            <Text style={s.subBtnTxt}>あとで</Text>
+            <Text style={s.subBtnTxt}>{t('reviewWall.later')}</Text>
           </TouchableOpacity>
           <View style={s.subDivider} />
           <TouchableOpacity onPress={() => dismiss('never')} style={s.subBtn}>
-            <Text style={[s.subBtnTxt, { color: 'rgba(255,255,255,0.25)' }]}>表示しない</Text>
+            <Text style={[s.subBtnTxt, { color: 'rgba(255,255,255,0.25)' }]}>{t('reviewWall.never')}</Text>
           </TouchableOpacity>
         </View>
       </Animated.View>

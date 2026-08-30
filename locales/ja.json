@@ -3780,5 +3780,24 @@
         "description": "毎日記録して自分の体を知ろう。\n継続が自己ベスト更新への\n一番の近道だよ 🏆"
       }
     }
+  },
+  "reviewWall": {
+    "feedbackEmailSubject": "sCORE アプリへのフィードバック",
+    "feedbackEmailBody": "気になった点・改善してほしい点を教えてください。\n\n",
+    "title": "sCORE を使ってみていかがですか？",
+    "sub": "レビューがアプリの成長を支えます🙏",
+    "starLabel": {
+      "star5": "最高です！ありがとうございます 🎉",
+      "star4": "嬉しいです！ぜひ教えてください",
+      "star3": "ご意見をお聞かせください",
+      "starLow": "ご不満な点をぜひ教えてください"
+    },
+    "starAccessibility": "星{{n}}",
+    "ctaChooseStars": "星を選んでください",
+    "ctaWriteReviewAndroid": "Google Play でレビューを書く",
+    "ctaWriteReviewIOS": "App Store でレビューを書く",
+    "ctaSendFeedback": "フィードバックを送る",
+    "later": "あとで",
+    "never": "表示しない"
   }
 }
