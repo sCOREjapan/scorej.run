@@ -3707,5 +3707,19 @@
   "aiMenuResultCard": {
     "regenerating": "Regenerating...",
     "regenerate": "Regenerate"
+  },
+  "nutritionShareCard": {
+    "transparentHint": "Transparent PNG — overlay it on a photo to share",
+    "footer": "Powered by sCORE — free download",
+    "save": "Save",
+    "share": "Share",
+    "permissionTitle": "Permission Required",
+    "permissionBody": "Please allow access to your camera roll",
+    "saveSuccessTitle": "✅ Saved",
+    "saveSuccessBody": "Transparent PNG saved to your camera roll",
+    "errorTitle": "Error",
+    "saveErrorBody": "Failed to save",
+    "shareErrorBody": "Failed to share",
+    "shareMessage": "{{date}}'s meal log #sCORE #trackandfield"
   }
 }

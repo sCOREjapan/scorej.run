@@ -3707,5 +3707,19 @@
   "aiMenuResultCard": {
     "regenerating": "再生成中...",
     "regenerate": "再生成"
+  },
+  "nutritionShareCard": {
+    "transparentHint": "背景透過PNG — 写真の上に貼ってシェアできます",
+    "footer": "sCORE 無料ダウンロード中",
+    "save": "保存",
+    "share": "シェア",
+    "permissionTitle": "権限が必要です",
+    "permissionBody": "カメラロールへのアクセスを許可してください",
+    "saveSuccessTitle": "✅ 保存しました",
+    "saveSuccessBody": "背景透過PNGをカメラロールに保存しました",
+    "errorTitle": "エラー",
+    "saveErrorBody": "保存に失敗しました",
+    "shareErrorBody": "共有に失敗しました",
+    "shareMessage": "{{date}}の食事記録 #sCORE #陸上"
   }
 }

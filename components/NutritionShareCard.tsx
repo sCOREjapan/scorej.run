@@ -8,6 +8,7 @@ import {
 import ViewShot, { captureRef } from 'react-native-view-shot'
 import * as MediaLibrary from 'expo-media-library'
 import { Ionicons } from '@expo/vector-icons'
+import { useTranslation } from 'react-i18next'
 
 const W = Math.min(Dimensions.get('window').width - 32, 360)
 const ORANGE = '#FF6B35'
@@ -61,23 +62,24 @@ function CornerBrackets({ color = ORANGE, size = 14, thickness = 2 }: { color?: 
 }
 
 export default function NutritionShareCard({ data, visible = true, onClose }: Props) {
+  const { t } = useTranslation()
   const cardRef = useRef<any>(null)
 
   const handleSave = async () => {
     try {
       const { status } = await MediaLibrary.requestPermissionsAsync()
-      if (status !== 'granted') { Alert.alert('権限が必要です', 'カメラロールへのアクセスを許可してください'); return }
+      if (status !== 'granted') { Alert.alert(t('nutritionShareCard.permissionTitle'), t('nutritionShareCard.permissionBody')); return }
       const uri = await captureRef(cardRef, { format: 'png', quality: 1.0, transparent: true } as any)
       await MediaLibrary.saveToLibraryAsync(uri)
-      Alert.alert('✅ 保存しました', '背景透過PNGをカメラロールに保存しました')
-    } catch { Alert.alert('エラー', '保存に失敗しました') }
+      Alert.alert(t('nutritionShareCard.saveSuccessTitle'), t('nutritionShareCard.saveSuccessBody'))
+    } catch { Alert.alert(t('nutritionShareCard.errorTitle'), t('nutritionShareCard.saveErrorBody')) }
   }
 
   const handleShare = async () => {
     try {
       const uri = await captureRef(cardRef, { format: 'png', quality: 1.0, transparent: true } as any)
-      await Share.share({ url: uri, message: `${data.date}の食事記録 #sCORE #陸上` })
-    } catch { Alert.alert('エラー', '共有に失敗しました') }
+      await Share.share({ url: uri, message: t('nutritionShareCard.shareMessage', { date: data.date }) })
+    } catch { Alert.alert(t('nutritionShareCard.errorTitle'), t('nutritionShareCard.shareErrorBody')) }
   }
 
   if (!visible) return null
@@ -96,7 +98,7 @@ export default function NutritionShareCard({ data, visible = true, onClose }: Pr
 
         <View style={st.transparentHint}>
           <Ionicons name="image-outline" size={13} color="rgba(255,255,255,0.55)" />
-          <Text style={st.transparentHintText}>背景透過PNG — 写真の上に貼ってシェアできます</Text>
+          <Text style={st.transparentHintText}>{t('nutritionShareCard.transparentHint')}</Text>
         </View>
 
         <ViewShot ref={cardRef} options={{ format: 'png', quality: 1.0, transparent: true } as any}
@@ -166,7 +168,7 @@ export default function NutritionShareCard({ data, visible = true, onClose }: Pr
 
             <View style={st.footerRow}>
               <View style={st.footerTick} />
-              <Text style={st.downloadText}>sCORE 無料ダウンロード中</Text>
+              <Text style={st.downloadText}>{t('nutritionShareCard.footer')}</Text>
               <View style={st.footerTick} />
             </View>
 
@@ -176,11 +178,11 @@ export default function NutritionShareCard({ data, visible = true, onClose }: Pr
         <View style={st.btnRow}>
           <TouchableOpacity style={st.saveBtn} onPress={handleSave} activeOpacity={0.85}>
             <Ionicons name="download-outline" size={18} color="#fff" />
-            <Text style={st.btnText}>保存</Text>
+            <Text style={st.btnText}>{t('nutritionShareCard.save')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={st.shareBtn} onPress={handleShare} activeOpacity={0.85}>
             <Ionicons name="share-social-outline" size={18} color="#fff" />
-            <Text style={st.btnText}>シェア</Text>
+            <Text style={st.btnText}>{t('nutritionShareCard.share')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
