@@ -2925,5 +2925,62 @@
         "unit": "回"
       }
     }
+  },
+  "notebook": {
+    "title": "陸上ノート",
+    "gpsRun": "GPSラン計測",
+    "calendar": "カレンダー",
+    "stats": {
+      "total": "総記録",
+      "thisWeek": "今週",
+      "monthDistance": "今月距離",
+      "weekFatigue": "今週疲労"
+    },
+    "recordButton": "今日の練習を記録する",
+    "sectionTitle": "練習ノート",
+    "recordCount": "{{n}}件",
+    "emptyTitle": "まだ記録がありません",
+    "emptySub": "上のボタンから今日の練習を記録しよう",
+    "modal": {
+      "cancel": "キャンセル",
+      "title": "練習を記録",
+      "hint": "自由に書いてください — AIが自動で整理します",
+      "ticketBadge": "🎫 {{n}}枚",
+      "placeholder": "例:\n400m × 5本 レスト3分 68秒\n疲労7 脚が重かった\n\n「ジョグ10km」だけでもOK",
+      "save": "AIで記録する"
+    },
+    "toastSuccess": "練習を記録しました ✓",
+    "toastError": "保存に失敗しました",
+    "sessionCard": {
+      "fatigue": "疲労 {{n}}/10",
+      "condition": "体調{{n}}/10",
+      "reps": "{{n}}本",
+      "detailTime": "⏱ タイム: {{v}}",
+      "detailDistance": "📏 距離: {{v}}",
+      "detailReps": "🔁 本数: {{n}}本",
+      "detailEvent": "🏟️ 種目: {{v}}",
+      "detailFatigue": "💪 疲労度: {{n}}/10",
+      "detailCondition": "{{emoji}} 体調: {{n}}/10",
+      "detailRecordedAt": "記録: {{v}}"
+    },
+    "typeLabels": {
+      "interval": "インターバル",
+      "tempo": "テンポ走",
+      "easy": "ジョグ",
+      "long": "ロング走",
+      "sprint": "スプリント",
+      "drill": "ドリル",
+      "strength": "ウェイト",
+      "race": "試合",
+      "rest": "休養"
+    },
+    "tasks": {
+      "sleep": "今夜は7時間以上の睡眠を確保しよう",
+      "stretch": "練習後のストレッチを10分しっかり行おう",
+      "restDay": "次の練習は軽いジョグか休養にしよう（インターバル翌日）",
+      "longRunFuel": "長距離後は糖質+たんぱく質の補給を忘れずに",
+      "raceRecovery": "レース後は2〜3日間は強度を落として調整しよう",
+      "painCheck": "痛みや違和感が続く場合は早めに医師に相談しよう"
+    }
   }
 }

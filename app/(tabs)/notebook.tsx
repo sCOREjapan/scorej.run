@@ -21,6 +21,9 @@ import type { TrainingSession } from '../../types'
 import { localDateStr, todayLocalISO } from '../../lib/dateLocal'
 import { updateSessions } from '../../lib/sessionsStore'
 import { addTasks } from '../../lib/tasksStore'
+import { useTranslation } from 'react-i18next'
+import { useLanguage } from '../../context/LanguageContext'
+import { getEventLabel } from '../../lib/eventLabels'
 
 const SESSIONS_KEY    = 'trackmate_sessions'
 
@@ -38,14 +41,18 @@ function fetchWithTimeout(url: string, options: RequestInit, ms: number): Promis
 function fallbackParse(text: string, today: string): Record<string, any> {
   const t = text
   let session_type = 'easy'
+  // practice-input.tsx の fallbackParse と同一のキーワード判定に統一
+  // (旧実装は坂道・タイムトライアル・ハードル・デッド等の一部キーワードが
+  // 抜けており、同じ文章でも入力画面によって分類結果が食い違うバグの原因になっていた)
   if (/インターバル|interval|本.*レスト|レスト.*本/i.test(t)) session_type = 'interval'
-  else if (/テンポ|ペース走/i.test(t)) session_type = 'tempo'
-  else if (/スプリント|全力|ダッシュ/i.test(t)) session_type = 'sprint'
-  else if (/ロング|長距離|LSD/i.test(t)) session_type = 'long'
-  else if (/ドリル|ABCドリル/i.test(t)) session_type = 'drill'
-  else if (/ウェイト|筋トレ|ジム|スクワット/i.test(t)) session_type = 'strength'
-  else if (/試合|大会|記録会|レース/i.test(t)) session_type = 'race'
-  else if (/休養|オフ|休み|レスト|\brest\b/i.test(t)) session_type = 'rest'
+  else if (/テンポ|ペース走|ビルドアップ|tempo|pace run|build.?up/i.test(t)) session_type = 'tempo'
+  else if (/スプリント|全力|100m.*走|ダッシュ|坂道|流し|タイムトライアル|\bTT\b|sprint|hill/i.test(t)) session_type = 'sprint'
+  else if (/ロング|長距離|LSD|long run|long jog/i.test(t)) session_type = 'long'
+  else if (/ドリル|ハードル|ABCドリル|drill|hurdle/i.test(t)) session_type = 'drill'
+  else if (/ウェイト|筋トレ|ジム|スクワット|デッド|weight|gym|squat|strength/i.test(t)) session_type = 'strength'
+  else if (/試合|大会|記録会|レース|race|competition|meet/i.test(t)) session_type = 'race'
+  else if (/休養|オフ|休み|レスト|\brest\b|day off/i.test(t)) session_type = 'rest'
+  else if (/ポイント練習|ポイント練/i.test(t)) session_type = 'interval'
 
   const eventMatch = t.match(/\b(100m|200m|300m|400m|800m|1000m|1500m|3000m|5000m|10000m|110mH|100mH|300mH|400mH|3000mSC)\b/i)
   const event = eventMatch ? eventMatch[1] : null
@@ -60,27 +67,27 @@ function fallbackParse(text: string, today: string): Record<string, any> {
 
   const { distance_m, reps } = parseDistanceAndReps(t)
 
-  const fatMatch = t.match(/疲労\s*[：:=]?\s*(\d+)|疲[れ労]\s*(\d+)/)
-  const fatigue_level = fatMatch ? parseInt(fatMatch[1] ?? fatMatch[2]) : 5
+  const fatMatch = t.match(/疲労\s*[：:=]?\s*(\d+)|疲[れ労]\s*(\d+)|fatigue\s*[：:=]?\s*(\d+)/i)
+  const fatigue_level = fatMatch ? parseInt(fatMatch[1] ?? fatMatch[2] ?? fatMatch[3]) : 5
 
-  const condMatch = t.match(/体調\s*[：:=]?\s*(\d+)/)
-  const condition_level = condMatch ? parseInt(condMatch[1]) : 6
+  const condMatch = t.match(/体調\s*[：:=]?\s*(\d+)|condition\s*[：:=]?\s*(\d+)/i)
+  const condition_level = condMatch ? parseInt(condMatch[1] ?? condMatch[2]) : 6
 
   return { session_date: today, session_type, event, time_ms, distance_m, reps, fatigue_level, condition_level }
 }
 const CONDITION_MAP_KEY = 'trackmate_condition_map'
 const BRAND           = '#166534'
 
-async function saveImprovementTasks(sessionType: string, fatigue: number, notes: string) {
+async function saveImprovementTasks(sessionType: string, fatigue: number, notes: string, t: (key: string) => string) {
   const texts: string[] = []
-  if (fatigue >= 8) texts.push('今夜は7時間以上の睡眠を確保しよう')
-  if (fatigue >= 6) texts.push('練習後のストレッチを10分しっかり行おう')
+  if (fatigue >= 8) texts.push(t('notebook.tasks.sleep'))
+  if (fatigue >= 6) texts.push(t('notebook.tasks.stretch'))
   if (sessionType === 'interval' || sessionType === 'sprint')
-    texts.push('次の練習は軽いジョグか休養にしよう（インターバル翌日）')
-  if (sessionType === 'long') texts.push('長距離後は糖質+たんぱく質の補給を忘れずに')
-  if (sessionType === 'race') texts.push('レース後は2〜3日間は強度を落として調整しよう')
-  if (notes.includes('痛') || notes.includes('違和感'))
-    texts.push('痛みや違和感が続く場合は早めに医師に相談しよう')
+    texts.push(t('notebook.tasks.restDay'))
+  if (sessionType === 'long') texts.push(t('notebook.tasks.longRunFuel'))
+  if (sessionType === 'race') texts.push(t('notebook.tasks.raceRecovery'))
+  if (notes.includes('痛') || notes.includes('違和感') || /\bpain\b|\bsore(ness)?\b|\bhurt(s|ing)?\b/i.test(notes))
+    texts.push(t('notebook.tasks.painCheck'))
 
   if (texts.length === 0) return
   try {
@@ -88,16 +95,9 @@ async function saveImprovementTasks(sessionType: string, fatigue: number, notes:
   } catch { /* ignore */ }
 }
 
-const TYPE_INFO: Record<string, { label: string; color: string }> = {
-  interval: { label: 'インターバル', color: '#f97316' },
-  tempo:    { label: 'テンポ走',     color: '#FF9500' },
-  easy:     { label: 'ジョグ',       color: '#34C759' },
-  long:     { label: 'ロング走',     color: '#5AC8FA' },
-  sprint:   { label: 'スプリント',   color: '#FF3B30' },
-  drill:    { label: 'ドリル',       color: '#AF52DE' },
-  strength: { label: 'ウェイト',     color: '#FF6B35' },
-  race:     { label: '試合',         color: '#FFD700' },
-  rest:     { label: '休養',         color: '#5a5a8a' },
+const TYPE_COLORS: Record<string, string> = {
+  interval: '#f97316', tempo: '#FF9500', easy: '#34C759', long: '#5AC8FA',
+  sprint: '#FF3B30', drill: '#AF52DE', strength: '#FF6B35', race: '#FFD700', rest: '#5a5a8a',
 }
 
 function fmtTime(ms: number) {
@@ -121,16 +121,19 @@ const CAL_TYPE_COLORS: Record<string,string> = {
   sprint:'#FF3B30', drill:'#AF52DE', strength:'#FF6B35', race:'#FFD700', rest:'#94a3b8',
 }
 
+const MONTH_NAMES_EN = ['January','February','March','April','May','June','July','August','September','October','November','December']
+
 function MiniCalendar({ sessions, onDayPress }: {
   sessions: TrainingSession[]
   onDayPress?: (date: string) => void
 }) {
   const { colors } = useTheme()
+  const { language } = useLanguage()
   const now = new Date()
   const [viewYear,  setViewYear]  = useState(now.getFullYear())
   const [viewMonth, setViewMonth] = useState(now.getMonth())
 
-  const DOW = ['日','月','火','水','木','金','土']
+  const DOW = language === 'en' ? ['Su','Mo','Tu','We','Th','Fr','Sa'] : ['日','月','火','水','木','金','土']
 
   // date → first session color
   const dayMap: Record<string, string> = {}
@@ -163,7 +166,7 @@ function MiniCalendar({ sessions, onDayPress }: {
           <Ionicons name="chevron-back" size={18} color={colors.textSec} />
         </TouchableOpacity>
         <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800' }}>
-          {viewYear}年 {viewMonth + 1}月
+          {language === 'en' ? `${MONTH_NAMES_EN[viewMonth]} ${viewYear}` : `${viewYear}年 ${viewMonth + 1}月`}
         </Text>
         <TouchableOpacity onPress={nextMonth} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ opacity: canNext ? 1 : 0.3 }}>
           <Ionicons name="chevron-forward" size={18} color={colors.textSec} />
@@ -235,8 +238,11 @@ function MiniCalendar({ sessions, onDayPress }: {
 
 function SessionCard({ session, conditionMap }: { session: TrainingSession; conditionMap: Record<string,number> }) {
   const { colors } = useTheme()
+  const { t } = useTranslation()
+  const { language } = useLanguage()
   const [expanded, setExpanded] = useState(false)
-  const info = TYPE_INFO[session.session_type] ?? { label: session.session_type, color: '#888' }
+  const typeLabel = t(`notebook.typeLabels.${session.session_type}`, { defaultValue: session.session_type })
+  const typeColor = TYPE_COLORS[session.session_type] ?? '#888'
   const cond = session.condition_level ?? conditionMap[session.session_date]
   return (
     <TouchableOpacity
@@ -244,11 +250,11 @@ function SessionCard({ session, conditionMap }: { session: TrainingSession; cond
       onPress={() => setExpanded(e => !e)}
       style={[st.sessionCard, { backgroundColor: colors.surface2, borderColor: colors.border }]}
     >
-      <View style={[st.typeBar, { backgroundColor: info.color }]} />
+      <View style={[st.typeBar, { backgroundColor: typeColor }]} />
       <View style={st.sessionBody}>
         <View style={st.sessionRow}>
-          <Text style={[st.typeLabel, { color: info.color }]}>{info.label}</Text>
-          {session.event ? <Text style={[st.eventLabel, { color: colors.textSec }]}>{session.event}</Text> : null}
+          <Text style={[st.typeLabel, { color: typeColor }]}>{typeLabel}</Text>
+          {session.event ? <Text style={[st.eventLabel, { color: colors.textSec }]}>{getEventLabel(session.event, language)}</Text> : null}
           <Text style={[st.dateLabel, { color: colors.textHint }]}>{session.session_date}</Text>
           <Ionicons
             name={expanded ? 'chevron-up' : 'chevron-down'}
@@ -260,13 +266,13 @@ function SessionCard({ session, conditionMap }: { session: TrainingSession; cond
         <View style={st.sessionRow}>
           {session.time_ms   ? <Text style={[st.sessionStat, { color: colors.text }]}>{fmtTime(session.time_ms)}</Text>   : null}
           {session.distance_m? <Text style={[st.sessionStat, { color: colors.text }]}>{fmtDist(session.distance_m)}</Text> : null}
-          {session.reps      ? <Text style={[st.sessionStat, { color: colors.text }]}>{session.reps}本</Text>              : null}
+          {session.reps      ? <Text style={[st.sessionStat, { color: colors.text }]}>{t('notebook.sessionCard.reps', { n: session.reps })}</Text> : null}
           <View style={[st.fatiguePill, { backgroundColor: colors.inputBg }]}>
-            <Text style={[st.fatigueNum, { color: colors.textSec }]}>疲労 {session.fatigue_level}/10</Text>
+            <Text style={[st.fatigueNum, { color: colors.textSec }]}>{t('notebook.sessionCard.fatigue', { n: session.fatigue_level })}</Text>
           </View>
           {cond != null && (
             <View style={[st.fatiguePill, { backgroundColor: colors.inputBg }]}>
-              <Text style={[st.fatigueNum, { color: colors.textSec }]}>{conditionEmoji(cond)} 体調{cond}/10</Text>
+              <Text style={[st.fatigueNum, { color: colors.textSec }]}>{conditionEmoji(cond)} {t('notebook.sessionCard.condition', { n: cond })}</Text>
             </View>
           )}
         </View>
@@ -277,13 +283,13 @@ function SessionCard({ session, conditionMap }: { session: TrainingSession; cond
         ) : null}
         {expanded && (
           <View style={[st.expandedDetail, { borderTopColor: colors.border }]}>
-            {session.time_ms    ? <Text style={[st.detailRow, { color: colors.textSec }]}>⏱ タイム: {fmtTime(session.time_ms)}</Text>    : null}
-            {session.distance_m ? <Text style={[st.detailRow, { color: colors.textSec }]}>📏 距離: {fmtDist(session.distance_m)}</Text>   : null}
-            {session.reps       ? <Text style={[st.detailRow, { color: colors.textSec }]}>🔁 本数: {session.reps}本</Text>                : null}
-            {session.event      ? <Text style={[st.detailRow, { color: colors.textSec }]}>🏟️ 種目: {session.event}</Text>                : null}
-            <Text style={[st.detailRow, { color: colors.textSec }]}>💪 疲労度: {session.fatigue_level}/10</Text>
-            {cond != null ? <Text style={[st.detailRow, { color: colors.textSec }]}>{conditionEmoji(cond)} 体調: {cond}/10</Text> : null}
-            <Text style={[st.detailRow, { color: colors.textHint, fontSize: 10 }]}>記録: {session.created_at?.slice(0,16).replace('T',' ') ?? ''}</Text>
+            {session.time_ms    ? <Text style={[st.detailRow, { color: colors.textSec }]}>{t('notebook.sessionCard.detailTime', { v: fmtTime(session.time_ms) })}</Text>    : null}
+            {session.distance_m ? <Text style={[st.detailRow, { color: colors.textSec }]}>{t('notebook.sessionCard.detailDistance', { v: fmtDist(session.distance_m) })}</Text>   : null}
+            {session.reps       ? <Text style={[st.detailRow, { color: colors.textSec }]}>{t('notebook.sessionCard.detailReps', { n: session.reps })}</Text>                : null}
+            {session.event      ? <Text style={[st.detailRow, { color: colors.textSec }]}>{t('notebook.sessionCard.detailEvent', { v: getEventLabel(session.event, language) })}</Text> : null}
+            <Text style={[st.detailRow, { color: colors.textSec }]}>{t('notebook.sessionCard.detailFatigue', { n: session.fatigue_level })}</Text>
+            {cond != null ? <Text style={[st.detailRow, { color: colors.textSec }]}>{t('notebook.sessionCard.detailCondition', { emoji: conditionEmoji(cond), n: cond })}</Text> : null}
+            <Text style={[st.detailRow, { color: colors.textHint, fontSize: 10 }]}>{t('notebook.sessionCard.detailRecordedAt', { v: session.created_at?.slice(0,16).replace('T',' ') ?? '' })}</Text>
           </View>
         )}
       </View>
@@ -294,6 +300,8 @@ function SessionCard({ session, conditionMap }: { session: TrainingSession; cond
 export default function NotebookScreen() {
   const router = useRouter()
   const { colors } = useTheme()
+  const { t } = useTranslation()
+  const { language } = useLanguage()
   const [sessions, setSessions]       = useState<TrainingSession[]>([])
   const [conditionMap, setConditionMap] = useState<Record<string,number>>({})
   const [loading, setLoading]         = useState(true)
@@ -404,12 +412,12 @@ export default function NotebookScreen() {
       const next = await updateSessions(current => [newSession, ...current])
       setSessions(next)
       // 改善タスク生成
-      saveImprovementTasks(newSession.session_type, newSession.fatigue_level ?? 5, freeText)
+      saveImprovementTasks(newSession.session_type, newSession.fatigue_level ?? 5, freeText, t)
       Sounds.save()
       setFreeText(''); setModal(false)
-      Toast.show({ type: 'success', text1: '練習を記録しました ✓', visibilityTime: 1500 })
+      Toast.show({ type: 'success', text1: t('notebook.toastSuccess'), visibilityTime: 1500 })
     } catch {
-      Toast.show({ type: 'error', text1: '保存に失敗しました' })
+      Toast.show({ type: 'error', text1: t('notebook.toastError') })
     } finally { parsingRef.current = false; setParsing(false) }
   }
 
@@ -421,7 +429,7 @@ export default function NotebookScreen() {
 
         {/* ── ヘッダー ── */}
         <View style={[st.header, { borderBottomColor: colors.border }]}>
-          <Text style={[st.headerTitle, { color: colors.text }]}>陸上ノート</Text>
+          <Text style={[st.headerTitle, { color: colors.text }]}>{t('notebook.title')}</Text>
           <View style={st.headerActions}>
             <HapticTouch
               haptic="whoosh"
@@ -429,7 +437,7 @@ export default function NotebookScreen() {
               onPress={() => router.push('/gps-run')}
               activeOpacity={0.8}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityLabel="GPSラン計測"
+              accessibilityLabel={t('notebook.gpsRun')}
             >
               <Ionicons name="navigate-outline" size={18} color={iconColor} />
             </HapticTouch>
@@ -439,7 +447,7 @@ export default function NotebookScreen() {
               onPress={() => router.push('/calendar')}
               activeOpacity={0.8}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityLabel="カレンダー"
+              accessibilityLabel={t('notebook.calendar')}
             >
               <Ionicons name="calendar-outline" size={18} color={iconColor} />
             </HapticTouch>
@@ -451,10 +459,10 @@ export default function NotebookScreen() {
           {/* ── 統計バー ── */}
           <View style={[st.statsRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             {[
-              { num: String(sessions.length), label: '総記録' },
-              { num: String(thisWeek.length), label: '今週' },
-              { num: totalKm > 0 ? `${totalKm.toFixed(0)}km` : '—', label: '今月距離' },
-              { num: String(avgFatigue), label: '今週疲労' },
+              { num: String(sessions.length), label: t('notebook.stats.total') },
+              { num: String(thisWeek.length), label: t('notebook.stats.thisWeek') },
+              { num: totalKm > 0 ? `${totalKm.toFixed(0)}km` : '—', label: t('notebook.stats.monthDistance') },
+              { num: String(avgFatigue), label: t('notebook.stats.weekFatigue') },
             ].map((item, i) => (
               <View key={i} style={[st.statBox, i > 0 && { borderLeftWidth: 1, borderLeftColor: colors.border }]}>
                 <Text style={[st.statNum, { color: colors.text }]}>{item.num}</Text>
@@ -466,13 +474,13 @@ export default function NotebookScreen() {
           {/* ── 記録ボタン ── */}
           <HapticTouch haptic="whoosh" style={st.recordBtn} onPress={() => { unlockAudio(); Sounds.whoosh(); setModal(true) }} activeOpacity={0.85}>
             <Ionicons name="add-circle" size={20} color="#fff" />
-            <Text style={st.recordBtnText}>今日の練習を記録する</Text>
+            <Text style={st.recordBtnText}>{t('notebook.recordButton')}</Text>
           </HapticTouch>
 
           {/* ── 練習記録（枠組み・スクロール） ── */}
           <View style={[st.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={st.sectionHeader}>
-              <Text style={[st.sectionTitle, { color: colors.text }]}>練習ノート</Text>
+              <Text style={[st.sectionTitle, { color: colors.text }]}>{t('notebook.sectionTitle')}</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 {selectedDate && (
                   <TouchableOpacity
@@ -483,7 +491,7 @@ export default function NotebookScreen() {
                     <Text style={{ color: BRAND, fontSize: 11, fontWeight: '700' }}>✕ {selectedDate.slice(5).replace('-', '/')}</Text>
                   </TouchableOpacity>
                 )}
-                <Text style={[st.sectionCount, { color: colors.textHint }]}>{sessions.length}件</Text>
+                <Text style={[st.sectionCount, { color: colors.textHint }]}>{t('notebook.recordCount', { n: sessions.length })}</Text>
               </View>
             </View>
             {loading ? (
@@ -493,8 +501,8 @@ export default function NotebookScreen() {
             ) : sessions.length === 0 ? (
               <View style={st.empty}>
                 <Ionicons name="book-outline" size={40} color={colors.textHint} />
-                <Text style={[st.emptyText, { color: colors.textSec }]}>まだ記録がありません</Text>
-                <Text style={[st.emptySubText, { color: colors.textHint }]}>上のボタンから今日の練習を記録しよう</Text>
+                <Text style={[st.emptyText, { color: colors.textSec }]}>{t('notebook.emptyTitle')}</Text>
+                <Text style={[st.emptySubText, { color: colors.textHint }]}>{t('notebook.emptySub')}</Text>
               </View>
             ) : (() => {
               const filtered = selectedDate
@@ -529,17 +537,17 @@ export default function NotebookScreen() {
               <View style={st.modalContent}>
                 <View style={st.modalHeader}>
                   <TouchableOpacity onPress={() => { setModal(false); setFreeText('') }}>
-                    <Text style={{ color: colors.textSec, fontSize: 16 }}>キャンセル</Text>
+                    <Text style={{ color: colors.textSec, fontSize: 16 }}>{t('notebook.modal.cancel')}</Text>
                   </TouchableOpacity>
-                  <Text style={[st.modalTitle, { color: colors.text }]}>練習を記録</Text>
+                  <Text style={[st.modalTitle, { color: colors.text }]}>{t('notebook.modal.title')}</Text>
                   <View style={{ width: 60 }} />
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                   <Text style={{ color: colors.textHint, fontSize: 13, lineHeight: 18, flex: 1, marginRight: 8 }}>
-                    自由に書いてください — AIが自動で整理します
+                    {t('notebook.modal.hint')}
                   </Text>
                   <View style={st.ticketBadge}>
-                    <Text style={st.ticketBadgeText}>🎫 {TICKET_COST.notebook_ai}枚</Text>
+                    <Text style={st.ticketBadgeText}>{t('notebook.modal.ticketBadge', { n: TICKET_COST.notebook_ai })}</Text>
                   </View>
                 </View>
                 <TextInput
@@ -549,7 +557,7 @@ export default function NotebookScreen() {
                   multiline autoFocus
                   autoCorrect={false}
                   spellCheck={false}
-                  placeholder={'例:\n400m × 5本 レスト3分 68秒\n疲労7 脚が重かった\n\n「ジョグ10km」だけでもOK'}
+                  placeholder={t('notebook.modal.placeholder')}
                   placeholderTextColor={colors.textHint}
                   textAlignVertical="top"
                 />
@@ -560,7 +568,7 @@ export default function NotebookScreen() {
                 >
                   {parsing
                     ? <ActivityIndicator color="#fff" size="small" />
-                    : <><Ionicons name="sparkles" size={18} color="#fff" /><Text style={st.saveBtnText}>AIで記録する</Text></>
+                    : <><Ionicons name="sparkles" size={18} color="#fff" /><Text style={st.saveBtnText}>{t('notebook.modal.save')}</Text></>
                   }
                 </HapticTouch>
               </View>

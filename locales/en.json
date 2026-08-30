@@ -2925,5 +2925,62 @@
         "unit": ""
       }
     }
+  },
+  "notebook": {
+    "title": "Track Notebook",
+    "gpsRun": "GPS Run Tracking",
+    "calendar": "Calendar",
+    "stats": {
+      "total": "Total",
+      "thisWeek": "This week",
+      "monthDistance": "This month",
+      "weekFatigue": "Week fatigue"
+    },
+    "recordButton": "Record today's practice",
+    "sectionTitle": "Practice Notes",
+    "recordCount": "{{n}}",
+    "emptyTitle": "No records yet",
+    "emptySub": "Tap the button above to record today's practice",
+    "modal": {
+      "cancel": "Cancel",
+      "title": "Record Practice",
+      "hint": "Write freely — AI will organize it automatically",
+      "ticketBadge": "🎫 {{n}}",
+      "placeholder": "e.g.:\n400m × 5 reps, 3min rest, 68s\nFatigue 7, legs felt heavy\n\n\"Jog 10km\" alone is fine too",
+      "save": "Record with AI"
+    },
+    "toastSuccess": "Practice recorded ✓",
+    "toastError": "Failed to save",
+    "sessionCard": {
+      "fatigue": "Fatigue {{n}}/10",
+      "condition": "Cond. {{n}}/10",
+      "reps": "×{{n}}",
+      "detailTime": "⏱ Time: {{v}}",
+      "detailDistance": "📏 Distance: {{v}}",
+      "detailReps": "🔁 Reps: {{n}}",
+      "detailEvent": "🏟️ Event: {{v}}",
+      "detailFatigue": "💪 Fatigue: {{n}}/10",
+      "detailCondition": "{{emoji}} Condition: {{n}}/10",
+      "detailRecordedAt": "Recorded: {{v}}"
+    },
+    "typeLabels": {
+      "interval": "Interval",
+      "tempo": "Tempo run",
+      "easy": "Easy jog",
+      "long": "Long run",
+      "sprint": "Sprint",
+      "drill": "Drill",
+      "strength": "Strength",
+      "race": "Race",
+      "rest": "Rest"
+    },
+    "tasks": {
+      "sleep": "Get at least 7 hours of sleep tonight",
+      "stretch": "Do a thorough 10-minute stretch after practice",
+      "restDay": "Make your next session an easy jog or rest day (day after intervals)",
+      "longRunFuel": "After a long run, remember to refuel with carbs and protein",
+      "raceRecovery": "Ease off intensity for 2-3 days after a race to recover",
+      "painCheck": "If pain or discomfort persists, see a doctor soon"
+    }
   }
 }
