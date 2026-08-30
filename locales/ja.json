@@ -3317,5 +3317,66 @@
     "bodyweightNoteHeader": "【自重トレーニング】",
     "repTimesNoteHeader": "【本数ごとのタイム】",
     "repTimeLine": "{{n}}本目: {{time}}"
+  },
+  "coachView": {
+    "back": "戻る",
+    "title": "コーチビュー",
+    "notifications": {
+      "title": "通知",
+      "period": "過去7日間",
+      "empty": "通知はまだありません",
+      "emptyHint": "選手がアクションを起こすとここに表示されます"
+    },
+    "notifLabels": {
+      "absence": "{{name}}が休みを報告しました",
+      "video": "{{name}}がフォーム分析を送信しました",
+      "risk_alert": "{{name}}の怪我リスクが高くなっています",
+      "message": "{{name}}がメッセージを送りました"
+    },
+    "defaultPlayerName": "選手",
+    "timeAgo": {
+      "justNow": "たった今",
+      "minutesAgo": "{{n}}分前",
+      "hoursAgo": "{{n}}時間前",
+      "daysAgo": "{{n}}日前"
+    },
+    "weekSummary": {
+      "title": "今週の練習サマリー",
+      "period": "過去7日間",
+      "sessions": "セッション数",
+      "avgFatigue": "疲労度 平均",
+      "frequency": "頻度評価",
+      "fatigueLabel": "疲労 {{n}}/10",
+      "moreCount": "+{{n}}件"
+    },
+    "pb": {
+      "title": "PB一覧",
+      "empty": "PB記録がまだありません"
+    },
+    "sleep": {
+      "title": "睡眠品質トレンド",
+      "period": "過去7日間",
+      "empty": "睡眠データがまだありません",
+      "legend": {
+        "good": "良好 (7+)",
+        "normal": "普通 (5-6)",
+        "caution": "要注意 (～4)"
+      }
+    },
+    "videos": {
+      "title": "送られた動画",
+      "empty": "まだ動画が届いていません",
+      "emptyHint": "選手が「コーチに送る」から動画を送ると\nここに表示されます",
+      "noMessage": "（メモなし）",
+      "markChecked": "確認済み",
+      "checkedLabel": "✓ 確認済み",
+      "deleteAccessibility": "動画を削除"
+    },
+    "notes": {
+      "title": "コーチメモ",
+      "latestCount": "最新{{n}}件",
+      "empty": "コーチメモがまだありません",
+      "emptyHint": "チーム画面から追加できます"
+    }
   }
 }

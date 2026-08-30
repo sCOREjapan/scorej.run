@@ -25,8 +25,11 @@ import {
 } from '../lib/supabaseTeam'
 import { supabase } from '../lib/supabase'
 import { localDateStr } from '../lib/dateLocal'
-import { SESSION_TYPE_LABEL } from '../lib/sessionTypeLabels'
+import { getSessionTypeLabel } from '../lib/sessionTypeLabels'
 import { getCoachVideoRequests, updateCoachVideoRequests, type CoachVideoRequest } from '../lib/coachReqStore'
+import { getEventLabel } from '../lib/eventLabels'
+import { useTranslation } from 'react-i18next'
+import { useLanguage } from '../context/LanguageContext'
 
 const JOINED_KEY_CV = 'trackmate_team_joined'
 
@@ -113,35 +116,34 @@ function notifIcon(type: CoachNotifType): string {
   return map[type]
 }
 
-function notifLabel(type: CoachNotifType, playerName: string): string {
-  switch (type) {
-    case 'absence':    return `${playerName}が休みを報告しました`
-    case 'video':      return `${playerName}がフォーム分析を送信しました`
-    case 'risk_alert': return `${playerName}の怪我リスクが高くなっています`
-    case 'message':    return `${playerName}がメッセージを送りました`
-  }
+function notifLabel(type: CoachNotifType, playerName: string, t: (key: string, opts?: any) => string): string {
+  return t(`coachView.notifLabels.${type}`, { name: playerName })
 }
 
-function timeAgo(iso: string): string {
+function timeAgo(iso: string, t: (key: string, opts?: any) => string): string {
   const diffMs = Date.now() - new Date(iso).getTime()
   const mins  = Math.floor(diffMs / 60000)
   const hours = Math.floor(diffMs / 3600000)
   const days  = Math.floor(diffMs / 86400000)
-  if (mins < 1)  return 'たった今'
-  if (mins < 60) return `${mins}分前`
-  if (hours < 24) return `${hours}時間前`
-  return `${days}日前`
+  if (mins < 1)  return t('coachView.timeAgo.justNow')
+  if (mins < 60) return t('coachView.timeAgo.minutesAgo', { n: mins })
+  if (hours < 24) return t('coachView.timeAgo.hoursAgo', { n: hours })
+  return t('coachView.timeAgo.daysAgo', { n: days })
 }
 
-function extractPlayerName(content: string): string {
+function extractPlayerName(content: string, t: (key: string) => string): string {
   // "[TYPE] playerName が..." → first word before が
+  // (通知本文は他画面で生成される固定の日本語テンプレート文なので、
+  //  抽出用の正規表現自体は表示言語に関わらず変更不要)
   const body = content.replace(/^\[[A-Z_]+\]\s*/, '')
   const m = body.match(/^([^\sがを（]+)/)
-  return m ? m[1] : '選手'
+  return m ? m[1] : t('coachView.defaultPlayerName')
 }
 
 export default function CoachViewScreen() {
   const router = useRouter()
+  const { t } = useTranslation()
+  const { language } = useLanguage()
   const [loading, setLoading] = useState(true)
 
   // データ
@@ -314,10 +316,10 @@ export default function CoachViewScreen() {
 
         {/* ヘッダー */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => { Sounds.tap(); router.back() }} style={styles.backBtn} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} accessibilityLabel="戻る">
+          <TouchableOpacity onPress={() => { Sounds.tap(); router.back() }} style={styles.backBtn} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} accessibilityLabel={t('coachView.back')}>
             <Ionicons name="chevron-back" size={22} color={TEXT.primary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>コーチビュー</Text>
+          <Text style={styles.headerTitle}>{t('coachView.title')}</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -328,32 +330,32 @@ export default function CoachViewScreen() {
             <View style={styles.card}>
               <View style={styles.cardHeader}>
                 <Ionicons name="notifications-outline" size={18} color={BRAND} />
-                <Text style={styles.cardTitle}>通知</Text>
+                <Text style={styles.cardTitle}>{t('coachView.notifications.title')}</Text>
                 {notifUnreadCount > 0 && (
                   <View style={styles.badge}>
                     <Text style={styles.badgeText}>{notifUnreadCount}</Text>
                   </View>
                 )}
-                <Text style={styles.cardSub}>過去7日間</Text>
+                <Text style={styles.cardSub}>{t('coachView.notifications.period')}</Text>
               </View>
               {coachNotifs.length === 0 ? (
                 <View style={styles.empty}>
                   <Ionicons name="notifications-outline" size={36} color={TEXT.hint} />
-                  <Text style={styles.emptyText}>通知はまだありません</Text>
-                  <Text style={styles.emptyHint}>選手がアクションを起こすとここに表示されます</Text>
+                  <Text style={styles.emptyText}>{t('coachView.notifications.empty')}</Text>
+                  <Text style={styles.emptyHint}>{t('coachView.notifications.emptyHint')}</Text>
                 </View>
               ) : (
                 <View style={{ gap: 8 }}>
                   {coachNotifs.map(n => {
                     const type = parseNotifType(n.content)
-                    const playerName = extractPlayerName(n.content)
+                    const playerName = extractPlayerName(n.content, t)
                     const isNew = Date.now() - new Date(n.created_at).getTime() < 24 * 60 * 60 * 1000
                     return (
                       <View key={n.id} style={[styles.notifCard, isNew && styles.notifCardNew]}>
                         <Text style={styles.notifIcon}>{notifIcon(type)}</Text>
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.notifText}>{notifLabel(type, playerName)}</Text>
-                          <Text style={styles.notifTime}>{timeAgo(n.created_at)}</Text>
+                          <Text style={styles.notifText}>{notifLabel(type, playerName, t)}</Text>
+                          <Text style={styles.notifTime}>{timeAgo(n.created_at, t)}</Text>
                         </View>
                         {isNew && (
                           <View style={styles.newBadge}>
@@ -373,8 +375,8 @@ export default function CoachViewScreen() {
             <View style={styles.card}>
               <View style={styles.cardHeader}>
                 <Ionicons name="barbell-outline" size={18} color={NEON.blue} />
-                <Text style={styles.cardTitle}>今週の練習サマリー</Text>
-                <Text style={styles.cardSub}>過去7日間</Text>
+                <Text style={styles.cardTitle}>{t('coachView.weekSummary.title')}</Text>
+                <Text style={styles.cardSub}>{t('coachView.weekSummary.period')}</Text>
               </View>
               {loading ? (
                 <View style={{ gap: 8 }}>
@@ -385,19 +387,19 @@ export default function CoachViewScreen() {
                 <View style={styles.summaryRow}>
                   <View style={styles.summaryItem}>
                     <Text style={[styles.summaryNum, { color: NEON.blue }]}>{sessionCount}</Text>
-                    <Text style={styles.summaryLabel}>セッション数</Text>
+                    <Text style={styles.summaryLabel}>{t('coachView.weekSummary.sessions')}</Text>
                   </View>
                   <View style={styles.summaryDivider} />
                   <View style={styles.summaryItem}>
                     <Text style={[styles.summaryNum, { color: fatigueColor }]}>{sessionCount > 0 ? avgFatigue : '—'}</Text>
-                    <Text style={styles.summaryLabel}>疲労度 平均</Text>
+                    <Text style={styles.summaryLabel}>{t('coachView.weekSummary.avgFatigue')}</Text>
                   </View>
                   <View style={styles.summaryDivider} />
                   <View style={styles.summaryItem}>
                     <Text style={[styles.summaryNum, { color: NEON.green }]}>
                       {sessionCount === 0 ? '—' : sessionCount >= 5 ? '◎' : sessionCount >= 3 ? '○' : '△'}
                     </Text>
-                    <Text style={styles.summaryLabel}>頻度評価</Text>
+                    <Text style={styles.summaryLabel}>{t('coachView.weekSummary.frequency')}</Text>
                   </View>
                 </View>
               )}
@@ -409,12 +411,12 @@ export default function CoachViewScreen() {
                         backgroundColor: s.fatigue_level >= 7 ? BRAND : s.fatigue_level >= 5 ? NEON.amber : NEON.green,
                       }]} />
                       <Text style={styles.sessionDate}>{s.session_date.slice(5)}</Text>
-                      <Text style={styles.sessionType}>{SESSION_TYPE_LABEL[s.session_type] ?? s.session_type}</Text>
-                      <Text style={styles.sessionFatigue}>疲労 {s.fatigue_level}/10</Text>
+                      <Text style={styles.sessionType}>{getSessionTypeLabel(s.session_type, language)}</Text>
+                      <Text style={styles.sessionFatigue}>{t('coachView.weekSummary.fatigueLabel', { n: s.fatigue_level })}</Text>
                     </View>
                   ))}
                   {recentSessions.length > 3 && (
-                    <Text style={styles.moreText}>+{recentSessions.length - 3}件</Text>
+                    <Text style={styles.moreText}>{t('coachView.weekSummary.moreCount', { n: recentSessions.length - 3 })}</Text>
                   )}
                 </View>
               )}
@@ -426,7 +428,7 @@ export default function CoachViewScreen() {
             <View style={styles.card}>
               <View style={styles.cardHeader}>
                 <Ionicons name="trophy-outline" size={18} color={NEON.amber} />
-                <Text style={styles.cardTitle}>PB一覧</Text>
+                <Text style={styles.cardTitle}>{t('coachView.pb.title')}</Text>
               </View>
               {loading ? (
                 <View style={{ gap: 8 }}>
@@ -436,12 +438,12 @@ export default function CoachViewScreen() {
               ) : pbList.length === 0 ? (
                 <View style={styles.empty}>
                   <Ionicons name="trophy-outline" size={36} color={TEXT.hint} />
-                  <Text style={styles.emptyText}>PB記録がまだありません</Text>
+                  <Text style={styles.emptyText}>{t('coachView.pb.empty')}</Text>
                 </View>
               ) : (
                 <View style={styles.pbGrid}>
                   {pbList.map(pb => (
-                    <PbItem key={pb.event} event={pb.event} display={pb.display} />
+                    <PbItem key={pb.event} event={getEventLabel(pb.event, language)} display={pb.display} />
                   ))}
                 </View>
               )}
@@ -453,15 +455,15 @@ export default function CoachViewScreen() {
             <View style={styles.card}>
               <View style={styles.cardHeader}>
                 <Ionicons name="moon-outline" size={18} color={NEON.blue} />
-                <Text style={styles.cardTitle}>睡眠品質トレンド</Text>
-                <Text style={styles.cardSub}>過去7日間</Text>
+                <Text style={styles.cardTitle}>{t('coachView.sleep.title')}</Text>
+                <Text style={styles.cardSub}>{t('coachView.sleep.period')}</Text>
               </View>
               {loading ? (
                 <Skeleton h={100} />
               ) : sleepData.length === 0 ? (
                 <View style={styles.empty}>
                   <Ionicons name="moon-outline" size={36} color={TEXT.hint} />
-                  <Text style={styles.emptyText}>睡眠データがまだありません</Text>
+                  <Text style={styles.emptyText}>{t('coachView.sleep.empty')}</Text>
                 </View>
               ) : (
                 <>
@@ -473,13 +475,13 @@ export default function CoachViewScreen() {
                   {sleepData.length > 0 && (
                     <View style={styles.sleepLegend}>
                       {[
-                        { label: '良好 (7+)', color: NEON.green },
-                        { label: '普通 (5-6)', color: NEON.amber },
-                        { label: '要注意 (～4)', color: BRAND },
+                        { key: 'good', color: NEON.green },
+                        { key: 'normal', color: NEON.amber },
+                        { key: 'caution', color: BRAND },
                       ].map(l => (
-                        <View key={l.label} style={styles.legendItem}>
+                        <View key={l.key} style={styles.legendItem}>
                           <View style={[styles.legendDot, { backgroundColor: l.color }]} />
-                          <Text style={styles.legendText}>{l.label}</Text>
+                          <Text style={styles.legendText}>{t(`coachView.sleep.legend.${l.key}`)}</Text>
                         </View>
                       ))}
                     </View>
@@ -494,7 +496,7 @@ export default function CoachViewScreen() {
             <View style={styles.card}>
               <View style={styles.cardHeader}>
                 <Ionicons name="videocam-outline" size={18} color={NEON.green} />
-                <Text style={styles.cardTitle}>送られた動画</Text>
+                <Text style={styles.cardTitle}>{t('coachView.videos.title')}</Text>
                 {uncheckedCount > 0 && (
                   <View style={styles.badge}>
                     <Text style={styles.badgeText}>{uncheckedCount}</Text>
@@ -510,8 +512,8 @@ export default function CoachViewScreen() {
               ) : videoRequests.length === 0 ? (
                 <View style={styles.empty}>
                   <Ionicons name="videocam-outline" size={36} color={TEXT.hint} />
-                  <Text style={styles.emptyText}>まだ動画が届いていません</Text>
-                  <Text style={styles.emptyHint}>選手が「コーチに送る」から動画を送ると{'\n'}ここに表示されます</Text>
+                  <Text style={styles.emptyText}>{t('coachView.videos.empty')}</Text>
+                  <Text style={styles.emptyHint}>{t('coachView.videos.emptyHint')}</Text>
                 </View>
               ) : (
                 <View style={{ gap: 10 }}>
@@ -537,7 +539,7 @@ export default function CoachViewScreen() {
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                             {req.event ? (
                               <View style={styles.eventBadge}>
-                                <Text style={styles.eventBadgeText}>{req.event}</Text>
+                                <Text style={styles.eventBadgeText}>{getEventLabel(req.event, language)}</Text>
                               </View>
                             ) : null}
                             {!req.checked && (
@@ -547,10 +549,10 @@ export default function CoachViewScreen() {
                             )}
                           </View>
                           <Text style={styles.videoMessage} numberOfLines={2}>
-                            {req.message || '（メモなし）'}
+                            {req.message || t('coachView.videos.noMessage')}
                           </Text>
                           <Text style={styles.videoDate}>
-                            {new Date(req.sentAt).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            {new Date(req.sentAt).toLocaleDateString(language === 'en' ? 'en-US' : 'ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                           </Text>
                         </View>
                       </View>
@@ -564,18 +566,18 @@ export default function CoachViewScreen() {
                             activeOpacity={0.8}
                           >
                             <Ionicons name="checkmark" size={14} color="#fff" />
-                            <Text style={styles.checkedBtnText}>確認済み</Text>
+                            <Text style={styles.checkedBtnText}>{t('coachView.videos.markChecked')}</Text>
                           </TouchableOpacity>
                         )}
                         {req.checked && (
-                          <Text style={styles.checkedLabel}>✓ 確認済み</Text>
+                          <Text style={styles.checkedLabel}>{t('coachView.videos.checkedLabel')}</Text>
                         )}
                         <TouchableOpacity
                           style={styles.deleteBtn}
                           onPress={() => deleteVideoRequest(req.id)}
                           activeOpacity={0.8}
                           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                          accessibilityLabel="動画を削除"
+                          accessibilityLabel={t('coachView.videos.deleteAccessibility')}
                         >
                           <Ionicons name="trash-outline" size={14} color="#ef4444" />
                         </TouchableOpacity>
@@ -592,8 +594,8 @@ export default function CoachViewScreen() {
             <View style={styles.card}>
               <View style={styles.cardHeader}>
                 <Ionicons name="chatbox-outline" size={18} color={NEON.amber} />
-                <Text style={styles.cardTitle}>コーチメモ</Text>
-                <Text style={styles.cardSub}>最新{coachNotes.length}件</Text>
+                <Text style={styles.cardTitle}>{t('coachView.notes.title')}</Text>
+                <Text style={styles.cardSub}>{t('coachView.notes.latestCount', { n: coachNotes.length })}</Text>
               </View>
               {loading ? (
                 <View style={{ gap: 8 }}>
@@ -603,8 +605,8 @@ export default function CoachViewScreen() {
               ) : coachNotes.length === 0 ? (
                 <View style={styles.empty}>
                   <Ionicons name="chatbox-outline" size={36} color={TEXT.hint} />
-                  <Text style={styles.emptyText}>コーチメモがまだありません</Text>
-                  <Text style={styles.emptyHint}>チーム画面から追加できます</Text>
+                  <Text style={styles.emptyText}>{t('coachView.notes.empty')}</Text>
+                  <Text style={styles.emptyHint}>{t('coachView.notes.emptyHint')}</Text>
                 </View>
               ) : (
                 <View style={{ gap: 8 }}>

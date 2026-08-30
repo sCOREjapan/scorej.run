@@ -3317,5 +3317,66 @@
     "bodyweightNoteHeader": "[Bodyweight Training]",
     "repTimesNoteHeader": "[Time per Rep]",
     "repTimeLine": "Rep {{n}}: {{time}}"
+  },
+  "coachView": {
+    "back": "Back",
+    "title": "Coach View",
+    "notifications": {
+      "title": "Notifications",
+      "period": "Last 7 days",
+      "empty": "No notifications yet",
+      "emptyHint": "Shows up here when a player takes action"
+    },
+    "notifLabels": {
+      "absence": "{{name}} reported a rest day",
+      "video": "{{name}} sent a form analysis video",
+      "risk_alert": "{{name}}'s injury risk has increased",
+      "message": "{{name}} sent a message"
+    },
+    "defaultPlayerName": "Player",
+    "timeAgo": {
+      "justNow": "just now",
+      "minutesAgo": "{{n}}m ago",
+      "hoursAgo": "{{n}}h ago",
+      "daysAgo": "{{n}}d ago"
+    },
+    "weekSummary": {
+      "title": "This Week's Training Summary",
+      "period": "Last 7 days",
+      "sessions": "Sessions",
+      "avgFatigue": "Avg Fatigue",
+      "frequency": "Frequency",
+      "fatigueLabel": "Fatigue {{n}}/10",
+      "moreCount": "+{{n}} more"
+    },
+    "pb": {
+      "title": "Personal Bests",
+      "empty": "No PBs recorded yet"
+    },
+    "sleep": {
+      "title": "Sleep Quality Trend",
+      "period": "Last 7 days",
+      "empty": "No sleep data yet",
+      "legend": {
+        "good": "Good (7+)",
+        "normal": "Normal (5-6)",
+        "caution": "Needs attention (≤4)"
+      }
+    },
+    "videos": {
+      "title": "Videos Sent",
+      "empty": "No videos received yet",
+      "emptyHint": "Videos players send via \"Send to Coach\"\nwill appear here",
+      "noMessage": "(No note)",
+      "markChecked": "Checked",
+      "checkedLabel": "✓ Checked",
+      "deleteAccessibility": "Delete video"
+    },
+    "notes": {
+      "title": "Coach's Notes",
+      "latestCount": "Latest {{n}}",
+      "empty": "No coach notes yet",
+      "emptyHint": "Add them from the Team screen"
+    }
   }
 }
