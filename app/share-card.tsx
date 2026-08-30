@@ -21,11 +21,18 @@ import * as MediaLibrary from 'expo-media-library'
 import * as Sharing from 'expo-sharing'
 import { grantShareBonusTicket } from '../lib/ticketWallet'
 import { usePurchase } from '../context/PurchaseContext'
+import { useTranslation } from 'react-i18next'
+import { useLanguage } from '../context/LanguageContext'
+import type { Language } from '../context/LanguageContext'
+import { getEventLabel } from '../lib/eventLabels'
 
 const RECORDS_KEY = 'trackmate_race_records'
 
-function formatDateJP(s: string) {
+function formatDateJP(s: string, lang: Language = 'ja') {
   const [y, m, d] = s.split('-')
+  if (lang === 'en') {
+    return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+  }
   return `${y}年${m}月${d}日`
 }
 
@@ -40,14 +47,15 @@ function hexA(hex: string, a: number): string {
 }
 
 // ── カードテーマ定義 ──────────────────────────────────────────────────────────
+// label は locales/shareCard.themes 経由で言語対応
 const CARD_THEMES = [
-  { id: 'ocean',    label: 'オーシャン',   colors: ['#0f2027', '#203a43', '#2c5364'] as const, dot: '#5bc8f5' },
-  { id: 'fire',     label: 'ファイア',     colors: ['#1a0800', '#5c1a00', '#c0392b'] as const, dot: '#ff6b35' },
-  { id: 'forest',   label: 'フォレスト',   colors: ['#001a0a', '#073d1f', '#145a32'] as const, dot: '#2ecc71' },
-  { id: 'galaxy',   label: 'ギャラクシー', colors: ['#0d0019', '#1a0033', '#4a0080'] as const, dot: '#c39bd3' },
-  { id: 'gold',     label: 'ゴールド',     colors: ['#1a1000', '#3d2800', '#7d5a00'] as const, dot: '#f1c40f' },
-  { id: 'midnight', label: 'ミッドナイト', colors: ['#0a0a0a', '#1a1a2e', '#16213e'] as const, dot: '#a0a8c0' },
-  { id: 'clear',    label: '透明',         colors: ['#1a1a1a', '#1a1a1a', '#1a1a1a'] as const, dot: '#ffffff' },
+  { id: 'ocean',    colors: ['#0f2027', '#203a43', '#2c5364'] as const, dot: '#5bc8f5' },
+  { id: 'fire',     colors: ['#1a0800', '#5c1a00', '#c0392b'] as const, dot: '#ff6b35' },
+  { id: 'forest',   colors: ['#001a0a', '#073d1f', '#145a32'] as const, dot: '#2ecc71' },
+  { id: 'galaxy',   colors: ['#0d0019', '#1a0033', '#4a0080'] as const, dot: '#c39bd3' },
+  { id: 'gold',     colors: ['#1a1000', '#3d2800', '#7d5a00'] as const, dot: '#f1c40f' },
+  { id: 'midnight', colors: ['#0a0a0a', '#1a1a2e', '#16213e'] as const, dot: '#a0a8c0' },
+  { id: 'clear',    colors: ['#1a1a1a', '#1a1a1a', '#1a1a1a'] as const, dot: '#ffffff' },
 ] as const
 type ThemeId    = typeof CARD_THEMES[number]['id']
 type CardVariant = 'card' | 'glass' | 'transparent'
@@ -157,9 +165,9 @@ function icoWind(c: CanvasRenderingContext2D, x: number, y: number, s: number, c
 }
 
 /** メタ情報の行（日付は常に、大会名・風速は任意） */
-function metaRows(record: RaceRecord): Array<{ ico: typeof icoCal; txt: string }> {
+function metaRows(record: RaceRecord, lang: Language = 'ja'): Array<{ ico: typeof icoCal; txt: string }> {
   const rows: Array<{ ico: typeof icoCal; txt: string }> = [
-    { ico: icoCal, txt: formatDateJP(record.race_date) },
+    { ico: icoCal, txt: formatDateJP(record.race_date, lang) },
   ]
   if (record.competition_name) rows.push({ ico: icoFlag, txt: record.competition_name })
   if (record.wind_ms !== undefined) {
@@ -179,13 +187,14 @@ function drawPlainCard(
   W: number, H: number,
   orientation: CardOrientation,
   glass: boolean,
+  lang: Language = 'ja',
 ) {
   const { w: bw, h: bh } = CARD_SIZE[orientation]
   const bx = (W - bw) / 2
   const by = (H - bh) / 2
   const tx = bx + 64
   const isPB = record.is_pb
-  const rows = metaRows(record)
+  const rows = metaRows(record, lang)
   const sh = (blur: number, col: string, oy = 0) => { c.shadowColor = col; c.shadowBlur = blur; c.shadowOffsetY = oy }
   const ns = () => { c.shadowColor = 'transparent'; c.shadowBlur = 0; c.shadowOffsetX = 0; c.shadowOffsetY = 0 }
 
@@ -204,7 +213,7 @@ function drawPlainCard(
   let y = by + 80
   sh(12, 'rgba(0,0,0,0.9)', 4)
   c.font = '700 40px system-ui, sans-serif'; c.fillStyle = '#ffffff'
-  c.fillText(record.event, tx, y); ns()
+  c.fillText(getEventLabel(record.event, lang), tx, y); ns()
   y += 40 + 80
 
   let fs = 200
@@ -218,7 +227,7 @@ function drawPlainCard(
   y += fs + 60
 
   if (isPB || record.is_sb) {
-    const label = isPB ? '★ 自己ベスト！' : '★ シーズンベスト！'
+    const label = isPB ? (lang === 'en' ? '★ Personal Best!' : '★ 自己ベスト！') : (lang === 'en' ? '★ Season Best!' : '★ シーズンベスト！')
     c.font = '700 30px system-ui, sans-serif'
     const badgeW = c.measureText(label).width + 44
     sh(16, 'rgba(0,0,0,0.6)', 4)
@@ -264,6 +273,7 @@ function drawCard(
   orientation: CardOrientation = 'portrait',
   bgAlpha = 0.80,
   borderAlpha = 0.85,
+  lang: Language = 'ja',
 ) {
   const dotRgb = hexRgb(theme.dot)
   const sh = (blur: number, col: string, oy = 0) => { c.shadowColor = col; c.shadowBlur = blur; c.shadowOffsetY = oy }
@@ -276,7 +286,7 @@ function drawCard(
   const by = (H - bh) / 2
   const tx = bx + 64
   const isPB = record.is_pb
-  const rows = metaRows(record)
+  const rows = metaRows(record, lang)
 
   c.textBaseline = 'top'
   c.textAlign = 'left'
@@ -344,7 +354,7 @@ function drawCard(
   /** PB/SBバッジ。戻り値は描いた高さ（無ければ0） */
   const drawBadge = (x: number, y: number) => {
     if (!isPB && !record.is_sb) return 0
-    const label = isPB ? '★ 自己ベスト！' : '★ シーズンベスト！'
+    const label = isPB ? (lang === 'en' ? '★ Personal Best!' : '★ 自己ベスト！') : (lang === 'en' ? '★ Season Best!' : '★ シーズンベスト！')
     ls('1px')
     c.font = '700 30px system-ui, sans-serif'
     const badgeW = c.measureText(label).width + 44
@@ -403,7 +413,7 @@ function drawCard(
     ls('1.5px')
     c.font = '700 40px system-ui, sans-serif'
     c.fillStyle = '#ffffff'
-    c.fillText(record.event, tx, y)
+    c.fillText(getEventLabel(record.event, lang), tx, y)
     ns(); ls('0px')
     y += 40 + 80
 
@@ -453,7 +463,7 @@ function drawCard(
   ls('1.5px')
   c.font = '700 40px system-ui, sans-serif'
   c.fillStyle = '#ffffff'
-  c.fillText(record.event, tx, ly)
+  c.fillText(getEventLabel(record.event, lang), tx, ly)
   ns(); ls('0px')
   ly += 40 + 30
 
@@ -472,7 +482,7 @@ function drawCard(
 // ── PNG Export — カードのみ、背景完全透過 ────────────────────────────────────
 function exportOverlayPNG(
   record: RaceRecord, themeId: ThemeId, orientation: CardOrientation,
-  variant: CardVariant, isNoad: boolean,
+  variant: CardVariant, isNoad: boolean, lang: Language = 'ja',
 ) {
   if (typeof document === 'undefined') return
   const W = 1080, H = 1920
@@ -484,9 +494,9 @@ function exportOverlayPNG(
   // （UIの選択肢は既に制限しているが、Web書き出しはここでも二重に防御する）
   if (variant === 'card' && isNoad) {
     const theme = CARD_THEMES.find(t => t.id === themeId) ?? CARD_THEMES[0]
-    drawCard(c, record, theme, W, H, orientation, 0.80, 0.85)
+    drawCard(c, record, theme, W, H, orientation, 0.80, 0.85, lang)
   } else {
-    drawPlainCard(c, record, W, H, orientation, variant === 'glass')
+    drawPlainCard(c, record, W, H, orientation, variant === 'glass', lang)
   }
   const a = document.createElement('a')
   a.download = `score-${record.event.replace(/[^a-z0-9]/gi, '')}-${orientation}.png`
@@ -557,10 +567,12 @@ function DotGrid({ color }: { color: string }) {
 
 /** 種目・記録・バッジ（両向き共通のヒーロー部分） */
 function HeroBlock({ record, accent, land }: { record: RaceRecord; accent: string; land?: boolean }) {
+  const { t } = useTranslation()
+  const { language } = useLanguage()
   const isPB = record.is_pb
   return (
     <>
-      <Text style={pv.event}>{record.event}</Text>
+      <Text style={pv.event}>{getEventLabel(record.event, language)}</Text>
       <Text
         style={[
           pv.result,
@@ -576,7 +588,7 @@ function HeroBlock({ record, accent, land }: { record: RaceRecord; accent: strin
         <View style={[pv.badgeRow, land && { marginTop: 11 }]}>
           <View style={pv.badge}>
             <Ionicons name={isPB ? 'trophy' : 'star'} size={10} color="#ffffff" />
-            <Text style={pv.badgeTxt}>{isPB ? '自己ベスト！' : 'シーズンベスト！'}</Text>
+            <Text style={pv.badgeTxt}>{isPB ? t('shareCard.pb') : t('shareCard.sb')}</Text>
           </View>
         </View>
       )}
@@ -586,11 +598,12 @@ function HeroBlock({ record, accent, land }: { record: RaceRecord; accent: strin
 
 /** メタ情報（日付・大会名・風速） */
 function MetaList({ record, accent, land }: { record: RaceRecord; accent: string; land?: boolean }) {
+  const { language } = useLanguage()
   return (
     <View style={pv.metaList}>
       <View style={pv.metaRow}>
         <Ionicons name="calendar-outline" size={11} color={accent} />
-        <Text style={[pv.metaTxt, land && pv.metaTxtLand]}>{formatDateJP(record.race_date)}</Text>
+        <Text style={[pv.metaTxt, land && pv.metaTxtLand]}>{formatDateJP(record.race_date, language)}</Text>
       </View>
       {record.competition_name != null && (
         <View style={pv.metaRow}>
@@ -706,6 +719,8 @@ function OverlayPreview({ record, themeId, variant, orientation }: {
 // ── メインスクリーン ──────────────────────────────────────────────────────────
 export default function ShareCardScreen() {
   const router = useRouter()
+  const { t } = useTranslation()
+  const { language } = useLanguage()
   const { recordId } = useLocalSearchParams<{ recordId?: string }>()
   const { isNoad } = usePurchase()
 
@@ -748,39 +763,39 @@ export default function ShareCardScreen() {
     }
     setExporting(true)
     try {
-      exportOverlayPNG(selected, themeId, orientation, cardVariant, isNoad)
+      exportOverlayPNG(selected, themeId, orientation, cardVariant, isNoad, language)
       Toast.show({
         type: 'success',
-        text1: '透過PNGをダウンロードしました',
-        text2: 'インスタのストーリーで動画の上に重ねて使えます',
+        text1: t('shareCard.toast.downloadSuccess'),
+        text2: t('shareCard.toast.downloadSuccessSub'),
         visibilityTime: 2800,
       })
     } catch {
-      Toast.show({ type: 'error', text1: 'ダウンロードに失敗しました' })
+      Toast.show({ type: 'error', text1: t('shareCard.toast.downloadError') })
     } finally {
       setExporting(false)
     }
-  }, [selected, themeId, orientation, cardVariant, isNoad, router])
+  }, [selected, themeId, orientation, cardVariant, isNoad, router, language, t])
 
   const handleCopyText = useCallback(async () => {
     if (!selected) return
     const lines = [
-      `${selected.event}  ${selected.result_display}`,
-      selected.is_pb ? '🏆 自己ベスト更新！' : selected.is_sb ? '⭐ シーズンベスト！' : '',
-      formatDateJP(selected.race_date),
+      `${getEventLabel(selected.event, language)}  ${selected.result_display}`,
+      selected.is_pb ? t('shareCard.copyPbUpdated') : selected.is_sb ? t('shareCard.copySbUpdated') : '',
+      formatDateJP(selected.race_date, language),
       selected.competition_name ?? '',
       '',
-      'scorej.run で記録管理',
+      t('shareCard.copyFooter'),
     ].filter(Boolean).join('\n')
     try {
       if (typeof navigator !== 'undefined' && navigator.clipboard) {
         await navigator.clipboard.writeText(lines)
       }
-      Toast.show({ type: 'success', text1: 'テキストをコピーしました', visibilityTime: 1800 })
+      Toast.show({ type: 'success', text1: t('shareCard.toast.copySuccess'), visibilityTime: 1800 })
     } catch {
-      Toast.show({ type: 'error', text1: 'コピーに失敗しました' })
+      Toast.show({ type: 'error', text1: t('shareCard.toast.copyError') })
     }
-  }, [selected])
+  }, [selected, language, t])
 
   // ── ネイティブ: カメラロールに保存 ─────────────────────────────
   const handleNativeSave = useCallback(async () => {
@@ -793,7 +808,7 @@ export default function ShareCardScreen() {
     try {
       const { status } = await MediaLibrary.requestPermissionsAsync()
       if (status !== 'granted') {
-        Toast.show({ type: 'error', text1: '写真ライブラリへのアクセスを許可してください' })
+        Toast.show({ type: 'error', text1: t('shareCard.toast.photoPermission') })
         return
       }
       // グラス・透明バリアントは transparent:true で背景透過PNG を保存
@@ -805,15 +820,15 @@ export default function ShareCardScreen() {
       })
       await MediaLibrary.saveToLibraryAsync(uri)
       const msg = isTransparentVariant
-        ? '背景透過PNGを保存しました 📸'
-        : 'カメラロールに保存しました 📸'
+        ? t('shareCard.toast.transparentSaved')
+        : t('shareCard.toast.cameraRollSaved')
       Toast.show({ type: 'success', text1: msg, visibilityTime: 2000 })
     } catch {
-      Toast.show({ type: 'error', text1: '保存に失敗しました' })
+      Toast.show({ type: 'error', text1: t('shareCard.toast.saveError') })
     } finally {
       setExporting(false)
     }
-  }, [cardVariant, isNoad, router])
+  }, [cardVariant, isNoad, router, t])
 
   // ── シェアして動画分析1回無料 ─────────────────────────────────
   const handleShare = useCallback(async () => {
@@ -823,7 +838,7 @@ export default function ShareCardScreen() {
       return
     }
     if (!(await Sharing.isAvailableAsync())) {
-      Toast.show({ type: 'error', text1: 'この端末ではシェアできません' })
+      Toast.show({ type: 'error', text1: t('shareCard.toast.shareUnavailable') })
       return
     }
     setExporting(true)
@@ -834,20 +849,20 @@ export default function ShareCardScreen() {
         quality: 1,
         ...(isTransparentVariant ? { transparent: true } as any : {}),
       })
-      await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'シェアカードを投稿' })
+      await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: t('shareCard.shareDialogTitle') })
       // シェアシートを開いた段階でボーナス付与（iOSは実投稿を検知できないため）
       const r = await grantShareBonusTicket()
       if (r.granted) {
-        Toast.show({ type: 'success', text1: '🎁 チケット1枚を獲得！', text2: 'AI機能に使えます', visibilityTime: 2600 })
+        Toast.show({ type: 'success', text1: t('shareCard.toast.ticketGranted'), text2: t('shareCard.toast.ticketGrantedSub'), visibilityTime: 2600 })
       } else if (r.atCap) {
-        Toast.show({ type: 'info', text1: 'シェアありがとう！', text2: '無料獲得は1日1回までです', visibilityTime: 2400 })
+        Toast.show({ type: 'info', text1: t('shareCard.toast.shareThanks'), text2: t('shareCard.toast.shareCapReached'), visibilityTime: 2400 })
       }
     } catch {
       // ユーザーがシェアをキャンセルした場合も含む（エラー表示は出さない）
     } finally {
       setExporting(false)
     }
-  }, [cardVariant, isNoad, router])
+  }, [cardVariant, isNoad, router, t])
 
   return (
     <View style={s.screen}>
@@ -855,10 +870,10 @@ export default function ShareCardScreen() {
 
         {/* ヘッダー */}
         <View style={s.header}>
-          <TouchableOpacity style={s.backBtn} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')} accessibilityLabel="戻る">
+          <TouchableOpacity style={s.backBtn} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')} accessibilityLabel={t('shareCard.back')}>
             <Ionicons name="chevron-back" size={26} color="rgba(255,255,255,0.75)" />
           </TouchableOpacity>
-          <Text style={s.headerTitle}>シェアカード</Text>
+          <Text style={s.headerTitle}>{t('shareCard.title')}</Text>
           <View style={{ width: 44 }} />
         </View>
 
@@ -869,10 +884,10 @@ export default function ShareCardScreen() {
         ) : records.length === 0 ? (
           <View style={s.center}>
             <Ionicons name="timer-outline" size={60} color="rgba(255,255,255,0.18)" />
-            <Text style={s.emptyTitle}>記録がありません</Text>
-            <Text style={s.emptySub}>「記録管理」タブで記録を追加してください</Text>
+            <Text style={s.emptyTitle}>{t('shareCard.empty.title')}</Text>
+            <Text style={s.emptySub}>{t('shareCard.empty.sub')}</Text>
             <TouchableOpacity style={s.goBack} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')}>
-              <Text style={s.goBackTxt}>戻る</Text>
+              <Text style={s.goBackTxt}>{t('shareCard.empty.back')}</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -881,8 +896,8 @@ export default function ShareCardScreen() {
             {/* 縦向き / 横向き 切替 */}
             <View style={s.modeToggle}>
               {([
-                { id: 'portrait',  label: '縦向き', icon: 'phone-portrait-outline' },
-                { id: 'landscape', label: '横向き', icon: 'phone-landscape-outline' },
+                { id: 'portrait',  labelKey: 'portrait',  icon: 'phone-portrait-outline' },
+                { id: 'landscape', labelKey: 'landscape', icon: 'phone-landscape-outline' },
               ] as const).map(o => {
                 const active = orientation === o.id
                 return (
@@ -893,7 +908,7 @@ export default function ShareCardScreen() {
                     activeOpacity={0.8}
                   >
                     <Ionicons name={o.icon} size={15} color={active ? '#fff' : 'rgba(255,255,255,0.45)'} />
-                    <Text style={[s.modeTxt, active && { color: '#fff' }]}>{o.label}</Text>
+                    <Text style={[s.modeTxt, active && { color: '#fff' }]}>{t(`shareCard.orientation.${o.labelKey}`)}</Text>
                   </TouchableOpacity>
                 )
               })}
@@ -903,19 +918,19 @@ export default function ShareCardScreen() {
             <View style={s.hintRow}>
               <Ionicons name="layers-outline" size={14} color={BRAND} />
               <Text style={s.hintTxt}>
-                背景透過のPNGを書き出します — インスタのストーリーで動画の上に重ねて投稿できます
+                {t('shareCard.hint')}
               </Text>
             </View>
 
             {/* カードスタイル選択 — 誰でも自由に選んでプレビューできる。
                 保存/シェア時にのみ課金チェックする（見せずに売る、を避けるため） */}
             <View style={{ gap: 8 }}>
-              <Text style={s.selectorLabel}>カードスタイル</Text>
+              <Text style={s.selectorLabel}>{t('shareCard.cardStyleLabel')}</Text>
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 {([
-                  { id: 'card',        label: 'カード',   icon: 'color-palette-outline',  desc: 'テーマカラー', premium: true },
-                  { id: 'glass',       label: 'グラス',   icon: 'square-outline',          desc: '透明ガラス',   premium: false },
-                  { id: 'transparent', label: '完全透明', icon: 'contrast-outline',        desc: 'テキストのみ', premium: false },
+                  { id: 'card',        icon: 'color-palette-outline',  premium: true },
+                  { id: 'glass',       icon: 'square-outline',          premium: false },
+                  { id: 'transparent', icon: 'contrast-outline',        premium: false },
                 ] as const).map(v => {
                   const active = cardVariant === v.id
                   const showBadge = v.premium && !isNoad
@@ -938,8 +953,8 @@ export default function ShareCardScreen() {
                         </View>
                       )}
                       <Ionicons name={v.icon} size={18} color={active ? BRAND : showBadge ? GOLD : 'rgba(255,255,255,0.4)'} />
-                      <Text style={{ color: active ? BRAND : showBadge ? GOLD : 'rgba(255,255,255,0.45)', fontSize: 10, fontWeight: active ? '800' : '500' }}>{v.label}</Text>
-                      <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 9 }}>{v.desc}</Text>
+                      <Text style={{ color: active ? BRAND : showBadge ? GOLD : 'rgba(255,255,255,0.45)', fontSize: 10, fontWeight: active ? '800' : '500' }}>{t(`shareCard.cardStyles.${v.id}.label`)}</Text>
+                      <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 9 }}>{t(`shareCard.cardStyles.${v.id}.desc`)}</Text>
                     </TouchableOpacity>
                   )
                 })}
@@ -956,31 +971,31 @@ export default function ShareCardScreen() {
             {/* テーマ選択（カードスタイルのみ表示） */}
             {cardVariant === 'card' && (
             <View style={{ gap: 8 }}>
-              <Text style={s.selectorLabel}>背景テーマ</Text>
+              <Text style={s.selectorLabel}>{t('shareCard.themeLabel')}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 2 }}>
-                {CARD_THEMES.map(t => {
-                  const active = t.id === themeId
+                {CARD_THEMES.map(theme => {
+                  const active = theme.id === themeId
                   return (
                     <TouchableOpacity
-                      key={t.id}
-                      onPress={() => setThemeId(t.id)}
+                      key={theme.id}
+                      onPress={() => setThemeId(theme.id)}
                       activeOpacity={0.8}
                       style={{
                         alignItems: 'center', gap: 5,
                         paddingHorizontal: 10, paddingVertical: 7,
                         borderRadius: 12,
                         borderWidth: active ? 1.5 : 1,
-                        borderColor: active ? t.dot : 'rgba(255,255,255,0.1)',
-                        backgroundColor: active ? t.dot + '22' : 'rgba(255,255,255,0.05)',
+                        borderColor: active ? theme.dot : 'rgba(255,255,255,0.1)',
+                        backgroundColor: active ? theme.dot + '22' : 'rgba(255,255,255,0.05)',
                       }}
                     >
                       <LinearGradient
-                        colors={t.colors as unknown as [string, string, ...string[]]}
+                        colors={theme.colors as unknown as [string, string, ...string[]]}
                         style={{ width: 36, height: 36, borderRadius: 10 }}
                         start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                       />
-                      <Text style={{ color: active ? t.dot : 'rgba(255,255,255,0.45)', fontSize: 10, fontWeight: active ? '800' : '500' }}>
-                        {t.label}
+                      <Text style={{ color: active ? theme.dot : 'rgba(255,255,255,0.45)', fontSize: 10, fontWeight: active ? '800' : '500' }}>
+                        {t(`shareCard.themes.${theme.id}`)}
                       </Text>
                     </TouchableOpacity>
                   )
@@ -1006,7 +1021,7 @@ export default function ShareCardScreen() {
                     : <Ionicons name={isLocked ? 'lock-open-outline' : 'download-outline'} size={20} color="#fff" />
                   }
                   <Text style={s.dlTxt}>
-                    {exporting ? 'ダウンロード中...' : isLocked ? 'アンロックして保存' : '透過PNGをダウンロード'}
+                    {exporting ? t('shareCard.downloading') : isLocked ? t('shareCard.unlockToSave') : t('shareCard.downloadPng')}
                   </Text>
                 </TouchableOpacity>
               ) : (
@@ -1020,7 +1035,7 @@ export default function ShareCardScreen() {
                     ? <ActivityIndicator color="#fff" size="small" />
                     : <Ionicons name={isLocked ? 'lock-open-outline' : 'download-outline'} size={20} color="#fff" />
                   }
-                  <Text style={s.dlTxt}>{exporting ? '保存中...' : isLocked ? 'アンロックして保存' : 'カメラロールに保存'}</Text>
+                  <Text style={s.dlTxt}>{exporting ? t('shareCard.saving') : isLocked ? t('shareCard.unlockToSave') : t('shareCard.saveToCameraRoll')}</Text>
                 </TouchableOpacity>
               )}
               {Platform.OS !== 'web' && (
@@ -1032,13 +1047,13 @@ export default function ShareCardScreen() {
                 >
                   <Ionicons name={isLocked ? 'lock-open-outline' : 'share-social-outline'} size={19} color={isLocked ? '#fff' : '#063'} />
                   <Text style={[s.shareTxt, isLocked && { color: '#fff' }]}>
-                    {isLocked ? 'アンロックしてシェア' : 'シェアして動画分析1回無料 🎁'}
+                    {isLocked ? t('shareCard.unlockToShare') : t('shareCard.shareForFreeAnalysis')}
                   </Text>
                 </TouchableOpacity>
               )}
               {isLocked && (
                 <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, textAlign: 'center', marginTop: -2 }}>
-                  このデザインの保存・シェアには広告なしプランが必要です
+                  {t('shareCard.lockedNote')}
                 </Text>
               )}
               <TouchableOpacity
@@ -1048,7 +1063,7 @@ export default function ShareCardScreen() {
                 activeOpacity={0.8}
               >
                 <Ionicons name="copy-outline" size={18} color="rgba(255,255,255,0.65)" />
-                <Text style={s.copyTxt}>テキストをコピー</Text>
+                <Text style={s.copyTxt}>{t('shareCard.copyText')}</Text>
               </TouchableOpacity>
             </View>
               )
@@ -1057,20 +1072,20 @@ export default function ShareCardScreen() {
             {/* 使い方ガイド */}
             <View style={s.guide}>
               {[
-                { n: '1', t: Platform.OS === 'web' ? 'PNGをダウンロード' : 'カメラロールに保存' },
-                { n: '2', t: 'インスタでストーリーを開き、動画を背景に設定' },
-                { n: '3', t: 'スタンプ追加 → 「ギャラリー」からPNGを選択' },
-                { n: '4', t: '好きな位置・大きさに調整して投稿' },
+                { n: '1', txt: Platform.OS === 'web' ? t('shareCard.guide.step1Web') : t('shareCard.guide.step1Native') },
+                { n: '2', txt: t('shareCard.guide.step2') },
+                { n: '3', txt: t('shareCard.guide.step3') },
+                { n: '4', txt: t('shareCard.guide.step4') },
               ].map(step => (
                 <View key={step.n} style={s.guideRow}>
                   <View style={s.guideNum}><Text style={s.guideNumTxt}>{step.n}</Text></View>
-                  <Text style={s.guideTxt}>{step.t}</Text>
+                  <Text style={s.guideTxt}>{step.txt}</Text>
                 </View>
               ))}
             </View>
 
             {/* 記録セレクター */}
-            <Text style={s.selectorLabel}>記録を選択</Text>
+            <Text style={s.selectorLabel}>{t('shareCard.selectRecord')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>
               {records.map(r => (
                 <TouchableOpacity
@@ -1080,9 +1095,9 @@ export default function ShareCardScreen() {
                   activeOpacity={0.8}
                 >
                   {r.is_pb && (
-                    <View style={s.pbDot}><Text style={s.pbDotTxt}>自己ベスト</Text></View>
+                    <View style={s.pbDot}><Text style={s.pbDotTxt}>{t('shareCard.pbShort')}</Text></View>
                   )}
-                  <Text style={[s.chipEvent, selected?.id === r.id && { color: '#fff' }]}>{r.event}</Text>
+                  <Text style={[s.chipEvent, selected?.id === r.id && { color: '#fff' }]}>{getEventLabel(r.event, language)}</Text>
                   <Text style={[s.chipResult, selected?.id === r.id && { color: '#fff' }]}>{r.result_display}</Text>
                 </TouchableOpacity>
               ))}

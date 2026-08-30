@@ -3439,5 +3439,87 @@
       "minSec": "{{m}}分{{s}}秒",
       "secOnly": "{{s}}秒"
     }
+  },
+  "shareCard": {
+    "back": "戻る",
+    "title": "シェアカード",
+    "empty": {
+      "title": "記録がありません",
+      "sub": "「記録管理」タブで記録を追加してください",
+      "back": "戻る"
+    },
+    "orientation": {
+      "portrait": "縦向き",
+      "landscape": "横向き"
+    },
+    "hint": "背景透過のPNGを書き出します — インスタのストーリーで動画の上に重ねて投稿できます",
+    "cardStyleLabel": "カードスタイル",
+    "cardStyles": {
+      "card": {
+        "label": "カード",
+        "desc": "テーマカラー"
+      },
+      "glass": {
+        "label": "グラス",
+        "desc": "透明ガラス"
+      },
+      "transparent": {
+        "label": "完全透明",
+        "desc": "テキストのみ"
+      }
+    },
+    "themeLabel": "背景テーマ",
+    "themes": {
+      "ocean": "オーシャン",
+      "fire": "ファイア",
+      "forest": "フォレスト",
+      "galaxy": "ギャラクシー",
+      "gold": "ゴールド",
+      "midnight": "ミッドナイト",
+      "clear": "透明"
+    },
+    "pb": "自己ベスト！",
+    "sb": "シーズンベスト！",
+    "pbShort": "自己ベスト",
+    "pbBadgeCanvas": "★ 自己ベスト！",
+    "sbBadgeCanvas": "★ シーズンベスト！",
+    "downloading": "ダウンロード中...",
+    "unlockToSave": "アンロックして保存",
+    "downloadPng": "透過PNGをダウンロード",
+    "saving": "保存中...",
+    "saveToCameraRoll": "カメラロールに保存",
+    "unlockToShare": "アンロックしてシェア",
+    "shareForFreeAnalysis": "シェアして動画分析1回無料 🎁",
+    "lockedNote": "このデザインの保存・シェアには広告なしプランが必要です",
+    "copyText": "テキストをコピー",
+    "toast": {
+      "downloadSuccess": "透過PNGをダウンロードしました",
+      "downloadSuccessSub": "インスタのストーリーで動画の上に重ねて使えます",
+      "downloadError": "ダウンロードに失敗しました",
+      "copySuccess": "テキストをコピーしました",
+      "copyError": "コピーに失敗しました",
+      "photoPermission": "写真ライブラリへのアクセスを許可してください",
+      "transparentSaved": "背景透過PNGを保存しました 📸",
+      "cameraRollSaved": "カメラロールに保存しました 📸",
+      "saveError": "保存に失敗しました",
+      "shareUnavailable": "この端末ではシェアできません",
+      "ticketGranted": "🎁 チケット1枚を獲得！",
+      "ticketGrantedSub": "AI機能に使えます",
+      "shareThanks": "シェアありがとう！",
+      "shareCapReached": "無料獲得は1日1回までです"
+    },
+    "shareDialogTitle": "シェアカードを投稿",
+    "copyPbUpdated": "🏆 自己ベスト更新！",
+    "copySbUpdated": "⭐ シーズンベスト！",
+    "copyFooter": "scorej.run で記録管理",
+    "guide": {
+      "step1Web": "PNGをダウンロード",
+      "step1Native": "カメラロールに保存",
+      "step2": "インスタでストーリーを開き、動画を背景に設定",
+      "step3": "スタンプ追加 → 「ギャラリー」からPNGを選択",
+      "step4": "好きな位置・大きさに調整して投稿"
+    },
+    "selectRecord": "記録を選択",
+    "windLabel": "wind"
   }
 }

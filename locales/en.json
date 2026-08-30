@@ -3439,5 +3439,87 @@
       "minSec": "{{m}}m {{s}}s",
       "secOnly": "{{s}}s"
     }
+  },
+  "shareCard": {
+    "back": "Back",
+    "title": "Share Card",
+    "empty": {
+      "title": "No records yet",
+      "sub": "Add records from the \"Records\" tab",
+      "back": "Back"
+    },
+    "orientation": {
+      "portrait": "Portrait",
+      "landscape": "Landscape"
+    },
+    "hint": "Exports a transparent PNG — overlay it on your Instagram Story video",
+    "cardStyleLabel": "Card Style",
+    "cardStyles": {
+      "card": {
+        "label": "Card",
+        "desc": "Theme colors"
+      },
+      "glass": {
+        "label": "Glass",
+        "desc": "Translucent"
+      },
+      "transparent": {
+        "label": "Transparent",
+        "desc": "Text only"
+      }
+    },
+    "themeLabel": "Background Theme",
+    "themes": {
+      "ocean": "Ocean",
+      "fire": "Fire",
+      "forest": "Forest",
+      "galaxy": "Galaxy",
+      "gold": "Gold",
+      "midnight": "Midnight",
+      "clear": "Clear"
+    },
+    "pb": "Personal Best!",
+    "sb": "Season Best!",
+    "pbShort": "PB",
+    "pbBadgeCanvas": "★ Personal Best!",
+    "sbBadgeCanvas": "★ Season Best!",
+    "downloading": "Downloading...",
+    "unlockToSave": "Unlock to Save",
+    "downloadPng": "Download Transparent PNG",
+    "saving": "Saving...",
+    "saveToCameraRoll": "Save to Camera Roll",
+    "unlockToShare": "Unlock to Share",
+    "shareForFreeAnalysis": "Share for 1 free video analysis 🎁",
+    "lockedNote": "Saving/sharing this design requires the no-ads plan",
+    "copyText": "Copy Text",
+    "toast": {
+      "downloadSuccess": "Transparent PNG downloaded",
+      "downloadSuccessSub": "Overlay it on your Instagram Story video",
+      "downloadError": "Download failed",
+      "copySuccess": "Text copied",
+      "copyError": "Failed to copy",
+      "photoPermission": "Please allow access to your photo library",
+      "transparentSaved": "Transparent PNG saved 📸",
+      "cameraRollSaved": "Saved to camera roll 📸",
+      "saveError": "Failed to save",
+      "shareUnavailable": "Sharing isn't available on this device",
+      "ticketGranted": "🎁 Earned 1 ticket!",
+      "ticketGrantedSub": "Use it for AI features",
+      "shareThanks": "Thanks for sharing!",
+      "shareCapReached": "Free tickets are limited to once per day"
+    },
+    "shareDialogTitle": "Post your share card",
+    "copyPbUpdated": "🏆 New Personal Best!",
+    "copySbUpdated": "⭐ Season Best!",
+    "copyFooter": "Tracked with scorej.run",
+    "guide": {
+      "step1Web": "Download the PNG",
+      "step1Native": "Save to camera roll",
+      "step2": "Open Instagram Story and set your video as the background",
+      "step3": "Add a sticker → choose the PNG from \"Gallery\"",
+      "step4": "Position and resize it, then post"
+    },
+    "selectRecord": "Select a Record",
+    "windLabel": "wind"
   }
 }
