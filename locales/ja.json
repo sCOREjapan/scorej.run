@@ -3655,5 +3655,11 @@
     ],
     "cta": "広告なしプランを見る",
     "notNow": "今は結構です"
+  },
+  "dateSelector": {
+    "today": "今日  ({{date}})",
+    "yesterday": "昨日  ({{date}})",
+    "tapHint": "タップで日付選択",
+    "todayBtn": "今日"
   }
 }

@@ -3655,5 +3655,11 @@
     ],
     "cta": "View No-Ads Plan",
     "notNow": "Not now"
+  },
+  "dateSelector": {
+    "today": "Today  ({{date}})",
+    "yesterday": "Yesterday  ({{date}})",
+    "tapHint": "Tap to pick a date",
+    "todayBtn": "Today"
   }
 }

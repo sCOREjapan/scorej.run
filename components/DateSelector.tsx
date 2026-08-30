@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { TEXT, BRAND } from '../lib/theme'
 import { localDateStr, todayLocalISO } from '../lib/dateLocal'
+import { useTranslation } from 'react-i18next'
+import { useLanguage } from '../context/LanguageContext'
 
 interface Props {
   date: string          // YYYY-MM-DD
@@ -16,11 +18,11 @@ function addDays(dateStr: string, days: number): string {
   return localDateStr(d)
 }
 
-function formatLabel(dateStr: string): string {
+function formatLabel(dateStr: string, t: (key: string, opts?: any) => string): string {
   const today     = todayLocalISO()
   const yesterday = addDays(today, -1)
-  if (dateStr === today)     return `今日  (${dateStr})`
-  if (dateStr === yesterday) return `昨日  (${dateStr})`
+  if (dateStr === today)     return t('dateSelector.today', { date: dateStr })
+  if (dateStr === yesterday) return t('dateSelector.yesterday', { date: dateStr })
   return dateStr
 }
 
@@ -32,9 +34,14 @@ function getFirstDayOfWeek(year: number, month: number): number {
   return new Date(year, month, 1).getDay()
 }
 
-const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
+const WEEKDAYS_JA = ['日', '月', '火', '水', '木', '金', '土']
+const WEEKDAYS_EN = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
+const MONTH_NAMES_EN = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
 export default function DateSelector({ date, onChange, maxDate }: Props) {
+  const { t } = useTranslation()
+  const { language } = useLanguage()
+  const WEEKDAYS = language === 'en' ? WEEKDAYS_EN : WEEKDAYS_JA
   const today = todayLocalISO()
   const max   = maxDate ?? today
   const canNext = date < max
@@ -93,8 +100,8 @@ export default function DateSelector({ date, onChange, maxDate }: Props) {
 
         {/* 中央：タップでカレンダー */}
         <TouchableOpacity style={styles.center} onPress={openCalendar} activeOpacity={0.7}>
-          <Text style={styles.label}>{formatLabel(date)}</Text>
-          <Text style={styles.calHint}>タップで日付選択</Text>
+          <Text style={styles.label}>{formatLabel(date, t)}</Text>
+          <Text style={styles.calHint}>{t('dateSelector.tapHint')}</Text>
         </TouchableOpacity>
 
         {/* 翌日 */}
@@ -118,7 +125,7 @@ export default function DateSelector({ date, onChange, maxDate }: Props) {
                 <TouchableOpacity onPress={prevMonth} style={cal.monthArrow} activeOpacity={0.7}>
                   <Ionicons name="chevron-back" size={20} color="#6b7280" />
                 </TouchableOpacity>
-                <Text style={cal.monthLabel}>{calYear}年 {calMonth + 1}月</Text>
+                <Text style={cal.monthLabel}>{language === 'en' ? `${MONTH_NAMES_EN[calMonth]} ${calYear}` : `${calYear}年 ${calMonth + 1}月`}</Text>
                 <TouchableOpacity
                   onPress={nextMonth}
                   style={[cal.monthArrow, !canNextMonth && { opacity: 0.3 }]}
@@ -185,7 +192,7 @@ export default function DateSelector({ date, onChange, maxDate }: Props) {
                 onPress={() => { onChange(today); setCalVisible(false) }}
                 activeOpacity={0.8}
               >
-                <Text style={cal.todayText}>今日</Text>
+                <Text style={cal.todayText}>{t('dateSelector.todayBtn')}</Text>
               </TouchableOpacity>
 
             </View>
