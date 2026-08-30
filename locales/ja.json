@@ -2457,5 +2457,33 @@
     "loadChartTitle": "週間走行距離",
     "loadEmpty": "週2件以上の練習記録が溜まると、トレンドが見られるようになります",
     "noValue": "―"
+  },
+  "gpsRun": {
+    "headerTitle": "GPS練習記録",
+    "locationErrorTitle": "位置情報エラー",
+    "locationErrorBody": "GPS追跡には位置情報の権限が必要です。設定から有効にしてください。",
+    "endConfirmTitle": "練習を終了しますか？",
+    "endConfirmBody": "距離: {{km}} km\n時間: {{time}}",
+    "cancel": "キャンセル",
+    "save": "保存",
+    "discard": "破棄",
+    "savedToast": "練習を保存しました",
+    "saveFailedToast": "保存に失敗しました",
+    "permissionDeniedTitle": "位置情報が無効です",
+    "permissionDeniedBody": "GPS追跡を使用するには、設定アプリから sCORE の位置情報アクセスを許可してください。",
+    "backBtn": "← 戻る",
+    "runningConfirmTitle": "練習中です",
+    "runningConfirmBody": "戻ると練習データが失われます。",
+    "discardAndBack": "破棄して戻る",
+    "labelDistance": "距離",
+    "labelPace": "ペース",
+    "labelCalories": "消費カロリー",
+    "gpsTracking": "GPS追跡中",
+    "start": "開始",
+    "pause": "一時停止",
+    "stop": "停止",
+    "resume": "再開",
+    "stopAndSave": "停止・保存",
+    "outdoorHint": "※ GPS精度の確保のため、屋外での使用を推奨します"
   }
 }

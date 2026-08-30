@@ -2457,5 +2457,33 @@
     "loadChartTitle": "Weekly Distance",
     "loadEmpty": "The trend will appear once you have 2+ training logs a week",
     "noValue": "—"
+  },
+  "gpsRun": {
+    "headerTitle": "GPS Run",
+    "locationErrorTitle": "Location Error",
+    "locationErrorBody": "GPS tracking needs location permission. Please enable it in Settings.",
+    "endConfirmTitle": "End this session?",
+    "endConfirmBody": "Distance: {{km}} km\nTime: {{time}}",
+    "cancel": "Cancel",
+    "save": "Save",
+    "discard": "Discard",
+    "savedToast": "Training saved",
+    "saveFailedToast": "Failed to save",
+    "permissionDeniedTitle": "Location is disabled",
+    "permissionDeniedBody": "To use GPS tracking, please allow sCORE to access your location from the Settings app.",
+    "backBtn": "← Back",
+    "runningConfirmTitle": "Session in progress",
+    "runningConfirmBody": "Going back will lose your training data.",
+    "discardAndBack": "Discard and go back",
+    "labelDistance": "Distance",
+    "labelPace": "Pace",
+    "labelCalories": "Calories",
+    "gpsTracking": "GPS tracking",
+    "start": "Start",
+    "pause": "Pause",
+    "stop": "Stop",
+    "resume": "Resume",
+    "stopAndSave": "Stop & Save",
+    "outdoorHint": "※ For best GPS accuracy, outdoor use is recommended"
   }
 }

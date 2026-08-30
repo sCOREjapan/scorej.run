@@ -21,6 +21,7 @@ import type { TrainingSession } from '../types'
 import { autoSyncTeam } from '../lib/teamAutoSync'
 import { updateSessions } from '../lib/sessionsStore'
 import { todayLocalISO } from '../lib/dateLocal'
+import { useTranslation } from 'react-i18next'
 
 // ─── 定数 ──────────────────────────────────────────────────────────────
 const SESSIONS_KEY = 'trackmate_sessions'
@@ -71,6 +72,7 @@ interface Coord {
 // ─── メイン ─────────────────────────────────────────────────────────────
 export default function GpsRunScreen() {
   const router = useRouter()
+  const { t } = useTranslation()
 
   const [runState, setRunState] = useState<RunState>('idle')
   const [permissionStatus, setPermissionStatus] = useState<'unknown' | 'granted' | 'denied'>('unknown')
@@ -163,13 +165,13 @@ export default function GpsRunScreen() {
   // ─── ボタン操作 ─────────────────────────────────────────────────
   const handleStart = useCallback(async () => {
     if (permissionStatus !== 'granted') {
-      Alert.alert('位置情報エラー', 'GPS追跡には位置情報の権限が必要です。設定から有効にしてください。')
+      Alert.alert(t('gpsRun.locationErrorTitle'), t('gpsRun.locationErrorBody'))
       return
     }
     setRunState('running')
     startTimer()
     await startLocationWatch()
-  }, [permissionStatus])
+  }, [permissionStatus, t])
 
   const handlePause = useCallback(() => {
     setRunState('paused')
@@ -191,11 +193,11 @@ export default function GpsRunScreen() {
     const finalDistM = distanceMRef.current
 
     Alert.alert(
-      '練習を終了しますか？',
-      `距離: ${(finalDistM / 1000).toFixed(2)} km\n時間: ${formatElapsed(finalMs)}`,
+      t('gpsRun.endConfirmTitle'),
+      t('gpsRun.endConfirmBody', { km: (finalDistM / 1000).toFixed(2), time: formatElapsed(finalMs) }),
       [
         {
-          text: 'キャンセル',
+          text: t('gpsRun.cancel'),
           style: 'cancel',
           onPress: () => {
             // stopTimer()で経過時間をaccumulatedMsRefに退避済みのため
@@ -204,18 +206,18 @@ export default function GpsRunScreen() {
           },
         },
         {
-          text: '保存',
+          text: t('gpsRun.save'),
           style: 'default',
           onPress: () => saveSession(finalDistM, finalMs),
         },
         {
-          text: '破棄',
+          text: t('gpsRun.discard'),
           style: 'destructive',
           onPress: resetAll,
         },
       ]
     )
-  }, [])
+  }, [t])
 
   async function saveSession(distM: number, ms: number) {
     try {
@@ -232,12 +234,12 @@ export default function GpsRunScreen() {
       }
       const saved = await updateSessions(current => [newSession, ...current])
       autoSyncTeam(saved, { force: true }).catch(() => {})
-      Toast.show({ type: 'success', text1: '練習を保存しました', text2: `${(distM / 1000).toFixed(2)} km / ${formatElapsed(ms)}` })
+      Toast.show({ type: 'success', text1: t('gpsRun.savedToast'), text2: `${(distM / 1000).toFixed(2)} km / ${formatElapsed(ms)}` })
 
       resetAll()
       router.back()
     } catch {
-      Toast.show({ type: 'error', text1: '保存に失敗しました' })
+      Toast.show({ type: 'error', text1: t('gpsRun.saveFailedToast') })
       resetAll()
     }
   }
@@ -263,12 +265,12 @@ export default function GpsRunScreen() {
         <StatusBar barStyle="light-content" backgroundColor="#000000" />
         <View style={styles.errorContainer}>
           <Ionicons name="location-outline" size={64} color={TEXT.hint} />
-          <Text style={styles.errorTitle}>位置情報が無効です</Text>
+          <Text style={styles.errorTitle}>{t('gpsRun.permissionDeniedTitle')}</Text>
           <Text style={styles.errorBody}>
-            GPS追跡を使用するには、設定アプリから sCORE の位置情報アクセスを許可してください。
+            {t('gpsRun.permissionDeniedBody')}
           </Text>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <Text style={styles.backButtonText}>← 戻る</Text>
+            <Text style={styles.backButtonText}>{t('gpsRun.backBtn')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -283,9 +285,9 @@ export default function GpsRunScreen() {
       <View style={styles.header}>
         <TouchableOpacity onPress={() => {
           if (runState !== 'idle') {
-            Alert.alert('練習中です', '戻ると練習データが失われます。', [
-              { text: 'キャンセル', style: 'cancel' },
-              { text: '破棄して戻る', style: 'destructive', onPress: () => { stopTimer(); stopLocationWatch(); router.back() } },
+            Alert.alert(t('gpsRun.runningConfirmTitle'), t('gpsRun.runningConfirmBody'), [
+              { text: t('gpsRun.cancel'), style: 'cancel' },
+              { text: t('gpsRun.discardAndBack'), style: 'destructive', onPress: () => { stopTimer(); stopLocationWatch(); router.back() } },
             ])
           } else {
             router.back()
@@ -293,7 +295,7 @@ export default function GpsRunScreen() {
         }} style={styles.headerBack}>
           <Ionicons name="chevron-down" size={28} color={TEXT.secondary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>GPS練習記録</Text>
+        <Text style={styles.headerTitle}>{t('gpsRun.headerTitle')}</Text>
         <View style={{ width: 44 }} />
       </View>
 
@@ -308,7 +310,7 @@ export default function GpsRunScreen() {
         <View style={styles.metricCard}>
           <Text style={styles.metricValue}>{distKm.toFixed(2)}</Text>
           <Text style={styles.metricUnit}>km</Text>
-          <Text style={styles.metricLabel}>距離</Text>
+          <Text style={styles.metricLabel}>{t('gpsRun.labelDistance')}</Text>
         </View>
 
         <View style={styles.metricDivider} />
@@ -316,7 +318,7 @@ export default function GpsRunScreen() {
         <View style={styles.metricCard}>
           <Text style={styles.metricValue}>{paceStr}</Text>
           <Text style={styles.metricUnit}>min/km</Text>
-          <Text style={styles.metricLabel}>ペース</Text>
+          <Text style={styles.metricLabel}>{t('gpsRun.labelPace')}</Text>
         </View>
 
         <View style={styles.metricDivider} />
@@ -324,7 +326,7 @@ export default function GpsRunScreen() {
         <View style={styles.metricCard}>
           <Text style={styles.metricValue}>{calories}</Text>
           <Text style={styles.metricUnit}>kcal</Text>
-          <Text style={styles.metricLabel}>消費カロリー</Text>
+          <Text style={styles.metricLabel}>{t('gpsRun.labelCalories')}</Text>
         </View>
       </View>
 
@@ -332,7 +334,7 @@ export default function GpsRunScreen() {
       {runState === 'running' && (
         <View style={styles.gpsIndicator}>
           <Ionicons name="locate" size={14} color={BRAND} />
-          <Text style={styles.gpsIndicatorText}>GPS追跡中</Text>
+          <Text style={styles.gpsIndicatorText}>{t('gpsRun.gpsTracking')}</Text>
         </View>
       )}
 
@@ -345,7 +347,7 @@ export default function GpsRunScreen() {
             activeOpacity={0.85}
           >
             <Ionicons name="play" size={28} color="#FFFFFF" />
-            <Text style={styles.primaryButtonText}>開始</Text>
+            <Text style={styles.primaryButtonText}>{t('gpsRun.start')}</Text>
           </TouchableOpacity>
         )}
 
@@ -357,7 +359,7 @@ export default function GpsRunScreen() {
               activeOpacity={0.85}
             >
               <Ionicons name="pause" size={24} color={TEXT.primary} />
-              <Text style={styles.secondaryButtonText}>一時停止</Text>
+              <Text style={styles.secondaryButtonText}>{t('gpsRun.pause')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.primaryButton, styles.stopButton]}
@@ -365,7 +367,7 @@ export default function GpsRunScreen() {
               activeOpacity={0.85}
             >
               <Ionicons name="stop" size={24} color="#FFFFFF" />
-              <Text style={styles.primaryButtonText}>停止</Text>
+              <Text style={styles.primaryButtonText}>{t('gpsRun.stop')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -378,7 +380,7 @@ export default function GpsRunScreen() {
               activeOpacity={0.85}
             >
               <Ionicons name="play" size={24} color="#FFFFFF" />
-              <Text style={styles.primaryButtonText}>再開</Text>
+              <Text style={styles.primaryButtonText}>{t('gpsRun.resume')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.secondaryButton]}
@@ -386,7 +388,7 @@ export default function GpsRunScreen() {
               activeOpacity={0.85}
             >
               <Ionicons name="stop" size={24} color={TEXT.primary} />
-              <Text style={styles.secondaryButtonText}>停止・保存</Text>
+              <Text style={styles.secondaryButtonText}>{t('gpsRun.stopAndSave')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -395,7 +397,7 @@ export default function GpsRunScreen() {
       {/* 注意書き */}
       {runState === 'idle' && (
         <Text style={styles.hint}>
-          ※ GPS精度の確保のため、屋外での使用を推奨します
+          {t('gpsRun.outdoorHint')}
         </Text>
       )}
     </SafeAreaView>
