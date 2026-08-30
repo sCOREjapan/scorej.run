@@ -836,7 +836,7 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
   const buildShare = (sess: TrainingSession): PracticeShareData => {
     const dt = new Date(sess.session_date + 'T00:00:00')
     const weekdays = ['日','月','火','水','木','金','土']
-    const levelInfo = calcLevelInfo(sessions.length)
+    const levelInfo = calcLevelInfo(sessions.length, language)
     const dateLabel = language === 'ja'
       ? `${dt.getFullYear()}年${dt.getMonth()+1}月${dt.getDate()}日（${weekdays[dt.getDay()]}）`
       : dt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })

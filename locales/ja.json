@@ -1996,5 +1996,22 @@
     },
     "doneBtnActive": "ウォームアップ完了！練習へ",
     "doneBtnIdle": "準備OKなら練習へ →"
+  },
+  "levelRoadmap": {
+    "backLabel": "戻る",
+    "headerTitleOther": "{{name}}のロードマップ",
+    "headerTitleMine": "レベルロードマップ",
+    "totalXp": "TOTAL XP",
+    "totalSessions": "累計練習 {{count}}回",
+    "toNextRank": "次のランクまで あと{{count}}回",
+    "milestonesOf": "📋 {{tier}}のマイルストーン",
+    "allRanks": "🗺️ 全ランク一覧",
+    "lvRangeStart": "スタート",
+    "lvRangeFrom": "　累計{{count}}回〜",
+    "locked": "🔒 まだロック中",
+    "now": "NOW",
+    "nextRankHint": "次は「{{tier}}」を目指そう",
+    "nextRankSub": "あと{{count}}回練習を記録すれば到達できる",
+    "maxRankTitle": "最高ランク到達おめでとう！"
   }
 }

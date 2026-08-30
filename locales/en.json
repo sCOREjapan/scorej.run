@@ -1996,5 +1996,22 @@
     },
     "doneBtnActive": "Warm-up complete! Head to practice",
     "doneBtnIdle": "Ready? Head to practice →"
+  },
+  "levelRoadmap": {
+    "backLabel": "Back",
+    "headerTitleOther": "{{name}}'s Roadmap",
+    "headerTitleMine": "Level Roadmap",
+    "totalXp": "TOTAL XP",
+    "totalSessions": "{{count}} sessions total",
+    "toNextRank": "{{count}} more to next rank",
+    "milestonesOf": "📋 {{tier}} Milestones",
+    "allRanks": "🗺️ All Ranks",
+    "lvRangeStart": "Start",
+    "lvRangeFrom": " — {{count}}+ sessions",
+    "locked": "🔒 Still locked",
+    "now": "NOW",
+    "nextRankHint": "Aim for \"{{tier}}\" next",
+    "nextRankSub": "{{count}} more sessions to get there",
+    "maxRankTitle": "Congrats, you've reached the top rank!"
   }
 }

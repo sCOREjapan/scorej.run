@@ -274,7 +274,8 @@ const wb = StyleSheet.create({
 // LevelBadge — ヘッダー右側のレベル表示
 // ────────────────────────────────────────────────────────
 function LevelBadge({ sessionCount }: { sessionCount: number }) {
-  const info = calcLevelInfo(sessionCount)
+  const { language } = useLanguage()
+  const info = calcLevelInfo(sessionCount, language)
   return (
     <View style={lb.wrap}>
       <Text style={lb.emoji}>{info.emoji}</Text>
@@ -2370,7 +2371,7 @@ ${sleepText || 'データなし'}
                       condition: sess.condition_level,
                       weather:   sess.weather ?? undefined,
                       streak:    (() => { let sk=0; const ds=new Set(sessions.map(s=>s.session_date)); for(let i=0;i<365;i++){const d=new Date();d.setDate(d.getDate()-i);if(ds.has(localDateStr(d)))sk++;else if(i>0)break}; return sk })(),
-                      rank:      `${calcLevelInfo(sessions.length).emoji} ${calcLevelInfo(sessions.length).title}`,
+                      rank:      `${calcLevelInfo(sessions.length, language).emoji} ${calcLevelInfo(sessions.length, language).title}`,
                     })
                   }
                   return (

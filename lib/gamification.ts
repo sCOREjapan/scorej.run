@@ -1,4 +1,5 @@
 // lib/gamification.ts — シンプル育成ゲームシステム
+import type { Language } from '../context/LanguageContext'
 
 export interface LevelInfo {
   level: number
@@ -101,7 +102,73 @@ const LEVEL_TITLES: TitleEntry[] = RANK_TIERS.map(r => ({ min: r.min, title: r.t
 const XP_PER_SESSION = 100
 const XP_PER_LEVEL   = 500
 
-export function calcLevelInfo(totalSessions: number): LevelInfo {
+// ── 表示テキストの英訳（データの実体である日本語titleをキーに引く） ──────
+// RANK_TIERS.title/description/milestonesは各所のcalcLevelInfo呼び出しに
+// 直接埋め込まれて表示されており(team.tsx/index.tsx/records.tsx/mypage.tsx/
+// level-roadmap.tsx)、英語設定でもここが日本語のまま返ってきていた不具合を
+// 2026-08-30に発見・修正。lib/eventLabels.tsと同じ「内部値は日本語のまま・
+// 表示だけ関数経由で翻訳する」方式に揃える。
+const TIER_TITLE_EN: Record<string, string> = {
+  'ビギナー': 'Beginner', 'ランナー': 'Runner', '中級者': 'Intermediate',
+  '上級者': 'Advanced', 'エリート': 'Elite', 'レジェンド': 'Legend',
+}
+const TIER_DESC_EN: Record<string, string> = {
+  'ビギナー': 'Just getting started with logging. Keep it up every day.',
+  'ランナー': 'Logging is becoming a habit — data is piling up and analysis is starting to kick in.',
+  '中級者': 'Data is really accumulating now. The injury risk score is starting to work well.',
+  '上級者': 'Training consistently over the long term, with quality and volume in balance.',
+  'エリート': "You're in true-athlete territory, with data management fully second nature.",
+  'レジェンド': 'Legendary territory — an athlete who reaches this level is the real deal.',
+}
+const TIER_MILESTONES_EN: Record<string, string[]> = {
+  'ビギナー': [
+    'Log 1 training session',
+    'Log 3 days in a row',
+    'Log your condition for 5 days',
+    'Try logging your sleep',
+  ],
+  'ランナー': [
+    'Log 20 training sessions (total)',
+    'Get 1 piece of AI coach advice',
+    'Log a timed result',
+    'Review a week on the calendar',
+  ],
+  '中級者': [
+    'Log 45 training sessions (total)',
+    'Check your injury risk score weekly',
+    'Try the recovery AI',
+    'Create 1 competition plan',
+  ],
+  '上級者': [
+    'Log 95 training sessions (total)',
+    'Set a new personal best',
+    'Get a video form analysis',
+    'Share training logs with your team',
+  ],
+  'エリート': [
+    'Log 170 training sessions (total)',
+    'Keep logging for 3 months straight',
+    'Log meals, sleep, and training — all of them',
+    'Set a PB at a competition',
+  ],
+  'レジェンド': [
+    'Log 245 training sessions (total)',
+    'Keep logging for a full year',
+    'Become a role model for your teammates',
+  ],
+}
+
+export function getTierTitle(jaTitle: string, lang: Language): string {
+  return lang === 'en' ? (TIER_TITLE_EN[jaTitle] ?? jaTitle) : jaTitle
+}
+export function getTierDescription(jaTitle: string, lang: Language): string {
+  return lang === 'en' ? (TIER_DESC_EN[jaTitle] ?? jaTitle) : jaTitle
+}
+export function getTierMilestones(jaTitle: string, lang: Language): string[] {
+  return lang === 'en' ? (TIER_MILESTONES_EN[jaTitle] ?? []) : []
+}
+
+export function calcLevelInfo(totalSessions: number, lang: Language = 'ja'): LevelInfo {
   const xp        = totalSessions * XP_PER_SESSION
   const level     = Math.floor(xp / XP_PER_LEVEL) + 1
   const xpInLevel = xp - (level - 1) * XP_PER_LEVEL
@@ -113,7 +180,7 @@ export function calcLevelInfo(totalSessions: number): LevelInfo {
 
   return {
     level,
-    title: titleInfo.title,
+    title: getTierTitle(titleInfo.title, lang),
     emoji: titleInfo.emoji,
     xp,
     xpToNext,
@@ -122,11 +189,13 @@ export function calcLevelInfo(totalSessions: number): LevelInfo {
 }
 
 /** セッション保存時に呼ぶ。レベルアップしたらメッセージを返す */
-export function checkLevelUp(prevCount: number, newCount: number): string | null {
-  const prev = calcLevelInfo(prevCount)
-  const next  = calcLevelInfo(newCount)
+export function checkLevelUp(prevCount: number, newCount: number, lang: Language = 'ja'): string | null {
+  const prev = calcLevelInfo(prevCount, lang)
+  const next  = calcLevelInfo(newCount, lang)
   if (next.level > prev.level) {
-    return `${next.emoji} Lv.${next.level} ${next.title} に昇格！`
+    return lang === 'en'
+      ? `${next.emoji} Reached Lv.${next.level} ${next.title}!`
+      : `${next.emoji} Lv.${next.level} ${next.title} に昇格！`
   }
   return null
 }

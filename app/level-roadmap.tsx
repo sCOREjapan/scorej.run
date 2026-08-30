@@ -7,8 +7,10 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { calcLevelInfo, RANK_TIERS } from '../lib/gamification'
+import { calcLevelInfo, RANK_TIERS, getTierTitle, getTierDescription, getTierMilestones } from '../lib/gamification'
 import { useTheme } from '../context/ThemeContext'
+import { useTranslation } from 'react-i18next'
+import { useLanguage } from '../context/LanguageContext'
 
 const SESSIONS_KEY = 'trackmate_sessions'
 
@@ -17,6 +19,8 @@ export default function LevelRoadmapScreen() {
   const router = useRouter()
   const params = useLocalSearchParams<{ name?: string; sessions?: string }>()
   const { colors } = useTheme()
+  const { t } = useTranslation()
+  const { language } = useLanguage()
 
   const [sessionCount, setSessionCount] = useState(0)
   const [displayName,  setDisplayName]  = useState('')
@@ -37,7 +41,7 @@ export default function LevelRoadmapScreen() {
     }
   }, [params.sessions, params.name])
 
-  const info        = calcLevelInfo(sessionCount)
+  const info        = calcLevelInfo(sessionCount, language)
   const currentTier = RANK_TIERS.find(t => info.level >= t.min && info.level < t.max) ?? RANK_TIERS[0]
   const nextTier    = RANK_TIERS.find(t => t.min === currentTier.max) ?? null
   const isViewing   = !!params.name
@@ -52,11 +56,11 @@ export default function LevelRoadmapScreen() {
       <SafeAreaView style={{ flex: 1 }}>
         {/* ヘッダー */}
         <View style={st.header}>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="戻る">
+          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={t('levelRoadmap.backLabel')}>
             <Ionicons name="chevron-back" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={[st.headerTitle, { color: colors.text }]}>
-            {isViewing ? `${displayName}のロードマップ` : 'レベルロードマップ'}
+            {isViewing ? t('levelRoadmap.headerTitleOther', { name: displayName }) : t('levelRoadmap.headerTitleMine')}
           </Text>
           <View style={{ width: 24 }} />
         </View>
@@ -67,29 +71,29 @@ export default function LevelRoadmapScreen() {
           <View style={[st.currentCard, { borderColor: currentTier.color + '55', backgroundColor: currentTier.color + '11' }]}>
             <Text style={{ fontSize: 52 }}>{currentTier.emoji}</Text>
             <View style={{ flex: 1 }}>
-              <Text style={[st.currentRank, { color: currentTier.color }]}>{currentTier.title}</Text>
+              <Text style={[st.currentRank, { color: currentTier.color }]}>{getTierTitle(currentTier.title, language)}</Text>
               <Text style={[st.currentLv, { color: colors.text }]}>Lv.{info.level}</Text>
               {displayName ? (
                 <Text style={[st.currentName, { color: colors.textSec }]}>{displayName}</Text>
               ) : null}
-              <Text style={[st.currentDesc, { color: colors.textSec }]}>{currentTier.description}</Text>
+              <Text style={[st.currentDesc, { color: colors.textSec }]}>{getTierDescription(currentTier.description, language)}</Text>
             </View>
           </View>
 
           {/* XP プログレスバー */}
           <View style={[st.xpCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={st.xpRow}>
-              <Text style={[st.xpLabel, { color: colors.textHint }]}>TOTAL XP</Text>
+              <Text style={[st.xpLabel, { color: colors.textHint }]}>{t('levelRoadmap.totalXp')}</Text>
               <Text style={[st.xpVal, { color: colors.text }]}>{info.xp.toLocaleString()} XP</Text>
             </View>
             <View style={[st.barBg, { backgroundColor: colors.surface2 }]}>
               <View style={[st.barFill, { width: `${Math.round(info.progress * 100)}%` as any, backgroundColor: currentTier.color }]} />
             </View>
             <View style={st.xpRow}>
-              <Text style={[st.xpSub, { color: colors.textSec }]}>累計練習 {sessionCount}回</Text>
+              <Text style={[st.xpSub, { color: colors.textSec }]}>{t('levelRoadmap.totalSessions', { count: sessionCount })}</Text>
               {nextTier && (
                 <Text style={[st.xpSub, { color: colors.textSec }]}>
-                  次のランクまで あと{sessionsToNextRank}回
+                  {t('levelRoadmap.toNextRank', { count: sessionsToNextRank })}
                 </Text>
               )}
             </View>
@@ -97,10 +101,15 @@ export default function LevelRoadmapScreen() {
 
           {/* 現在ランクのマイルストーン */}
           <Text style={[st.sectionTitle, { color: colors.textHint }]}>
-            📋 {currentTier.title}のマイルストーン
+            {t('levelRoadmap.milestonesOf', { tier: getTierTitle(currentTier.title, language) })}
           </Text>
           <View style={[st.milestoneCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            {currentTier.milestones.map((m, i) => {
+            {(() => {
+              // 英語設定ではRANK_TIERS.milestonesではなくgetTierMilestonesの訳文を使う
+              // (該当する日本語配列と1:1対応。件数が異なることはない前提)
+              const milestones = language === 'en' ? getTierMilestones(currentTier.title, language) : currentTier.milestones
+              return milestones
+            })().map((m, i) => {
               // 簡易達成チェック（セッション数ベース）
               const done = i === 0
                 ? sessionCount >= 1
@@ -122,7 +131,7 @@ export default function LevelRoadmapScreen() {
           </View>
 
           {/* 全ランク一覧 */}
-          <Text style={[st.sectionTitle, { color: colors.textHint }]}>🗺️ 全ランク一覧</Text>
+          <Text style={[st.sectionTitle, { color: colors.textHint }]}>{t('levelRoadmap.allRanks')}</Text>
 
           {RANK_TIERS.map((tier, idx) => {
             const isCurrentTier  = info.level >= tier.min && info.level < tier.max
@@ -160,19 +169,19 @@ export default function LevelRoadmapScreen() {
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <Text style={[st.tierTitle, {
                       color: isLocked ? colors.textHint : isCurrentTier ? tier.color : colors.text,
-                    }]}>{tier.title}</Text>
+                    }]}>{getTierTitle(tier.title, language)}</Text>
                     {isCurrentTier && (
                       <View style={[st.nowBadge, { backgroundColor: tier.color }]}>
-                        <Text style={st.nowBadgeTxt}>NOW</Text>
+                        <Text style={st.nowBadgeTxt}>{t('levelRoadmap.now')}</Text>
                       </View>
                     )}
                   </View>
                   <Text style={[st.tierLvRange, { color: colors.textSec }]}>
                     Lv.{tier.min}〜{tier.max === 9999 ? '' : tier.max - 1}
-                    {tier.min > 0 ? `　累計${tier.sessionsRequired}回〜` : '　スタート'}
+                    {tier.min > 0 ? t('levelRoadmap.lvRangeFrom', { count: tier.sessionsRequired }) : `　${t('levelRoadmap.lvRangeStart')}`}
                   </Text>
                   <Text style={[st.tierDesc, { color: isLocked ? colors.textHint : colors.textSec }]} numberOfLines={2}>
-                    {isLocked ? '🔒 まだロック中' : tier.description}
+                    {isLocked ? t('levelRoadmap.locked') : getTierDescription(tier.description, language)}
                   </Text>
                 </View>
 
@@ -190,10 +199,10 @@ export default function LevelRoadmapScreen() {
               <Text style={{ fontSize: 20 }}>{nextTier.emoji}</Text>
               <View style={{ flex: 1, gap: 4 }}>
                 <Text style={[st.hintTitle, { color: nextTier.color }]}>
-                  次は「{nextTier.title}」を目指そう
+                  {t('levelRoadmap.nextRankHint', { tier: getTierTitle(nextTier.title, language) })}
                 </Text>
                 <Text style={[st.hintSub, { color: colors.textSec }]}>
-                  あと{sessionsToNextRank}回練習を記録すれば到達できる
+                  {t('levelRoadmap.nextRankSub', { count: sessionsToNextRank })}
                 </Text>
               </View>
             </View>
@@ -203,7 +212,7 @@ export default function LevelRoadmapScreen() {
             <View style={[st.hintCard, { backgroundColor: '#FFD70011', borderColor: '#FFD70044' }]}>
               <Text style={{ fontSize: 24 }}>👑</Text>
               <Text style={[st.hintTitle, { color: '#FFD700', flex: 1 }]}>
-                最高ランク到達おめでとう！
+                {t('levelRoadmap.maxRankTitle')}
               </Text>
             </View>
           )}

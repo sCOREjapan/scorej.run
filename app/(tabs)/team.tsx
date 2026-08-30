@@ -19,7 +19,8 @@ import Toast from 'react-native-toast-message'
 import { BRAND, TEXT } from '../../lib/theme'
 import AnimatedSection from '../../components/AnimatedSection'
 import { calcInjuryRisk, type InjuryRiskResult } from '../../lib/injuryRisk'
-import { calcLevelInfo, RANK_TIERS } from '../../lib/gamification'
+import { calcLevelInfo, RANK_TIERS, getTierTitle } from '../../lib/gamification'
+import { getEventLabel } from '../../lib/eventLabels'
 import { getCachedWeather } from '../../lib/weather'
 import { calcWeatherRiskBonus } from '../../lib/weatherRisk'
 import type { TrainingSession, SleepRecord } from '../../types'
@@ -2226,6 +2227,7 @@ function MemberDetailSheet({ member, preCalcRisk, onClose, onAck }: {
   onAck?: () => void
 }) {
   const { t } = useTranslation()
+  const { language } = useLanguage()
   const RISK_CFG = buildRiskCfg(t)
   const LOAD_CFG = buildLoadCfg(t)
   // リスト画面と同じ計算式で算出済みのリスクを優先使用
@@ -2235,7 +2237,7 @@ function MemberDetailSheet({ member, preCalcRisk, onClose, onAck }: {
   const lCfg        = LOAD_CFG[loadCfgKey(calcWeeklyLoad(member.sessions))]
   const hasUnacked  = (member.painParts?.length ?? 0) > 0 && !member.ackedByCoach
   const hasAcked    = (member.painParts?.length ?? 0) > 0 && member.ackedByCoach
-  const lvInfo      = calcLevelInfo(member.sessions.length)
+  const lvInfo      = calcLevelInfo(member.sessions.length, language)
   const lvTier      = RANK_TIERS.find(t => lvInfo.level >= t.min && lvInfo.level < t.max) ?? RANK_TIERS[0]
 
   return (
@@ -2365,7 +2367,8 @@ function TeammateProfileSheet({ member, stats, sessions, onClose }: {
   onClose: () => void
 }) {
   const { t } = useTranslation()
-  const lvInfo = calcLevelInfo(stats?.level ?? 1)
+  const { language } = useLanguage()
+  const lvInfo = calcLevelInfo(stats?.level ?? 1, language)
   const lvTier = RANK_TIERS.find(t => lvInfo.level >= t.min && lvInfo.level < t.max) ?? RANK_TIERS[0]
   const event  = stats?.event || member.event || ''
   const pb     = stats?.pb_display || ''
@@ -2382,7 +2385,7 @@ function TeammateProfileSheet({ member, stats, sessions, onClose }: {
         <View style={{alignItems:'center',gap:10,marginBottom:24}}>
           <Avatar name={member.player_name} size={72} color={avatarColor(member.player_name)}/>
           <Text style={{color:'#111827',fontSize:22,fontWeight:'800'}}>{member.player_name}</Text>
-          {event ? <Text style={{color:TEXT.secondary,fontSize:14}}>{event}</Text> : null}
+          {event ? <Text style={{color:TEXT.secondary,fontSize:14}}>{getEventLabel(event, language)}</Text> : null}
         </View>
 
         {/* ─ ランク・PBカード ─ */}
@@ -2391,7 +2394,7 @@ function TeammateProfileSheet({ member, stats, sessions, onClose }: {
           <View style={{flex:1,alignItems:'center',backgroundColor:lvTier.color+'12',borderRadius:16,borderWidth:1.5,borderColor:lvTier.color+'40',paddingVertical:20,gap:6}}>
             <Text style={{fontSize:32}}>{lvTier.emoji}</Text>
             <Text style={{color:lvTier.color,fontSize:24,fontWeight:'900'}}>Lv.{lvInfo.level}</Text>
-            <Text style={{color:lvTier.color,fontSize:12,fontWeight:'700'}}>{lvTier.title}</Text>
+            <Text style={{color:lvTier.color,fontSize:12,fontWeight:'700'}}>{getTierTitle(lvTier.title, language)}</Text>
             <Text style={{color:'#888',fontSize:10}}>{t('team.teammateProfile.level')}</Text>
           </View>
           {/* 自己ベスト */}
@@ -2444,6 +2447,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
   joined: JoinedTeam; onSwitchRole: () => void; onLeaveTeam: () => void; canSwitchRole?: boolean
 }) {
   const { t } = useTranslation()
+  const { language } = useLanguage()
   const DAY_NAMES = t('home.dayNames', { returnObjects: true }) as unknown as string[]
   const [sessions,          setSessions]          = useState<TrainingSession[]>([])
   const [messages,          setMessages]          = useState<TeamMessage[]>([])
@@ -2568,7 +2572,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
     }
     // shareLv === 0 は同期しない
     // レベル + 最新コンディションを自動同期
-    const lvInfo = calcLevelInfo(loadedSessions.length)
+    const lvInfo = calcLevelInfo(loadedSessions.length, language)
     const cutoff30 = localDateStr(new Date(Date.now() - 30*24*60*60*1000))
     const recent30 = loadedSessions.filter(s => s.session_date >= cutoff30)
     const lastSess = loadedSessions[0]
@@ -2691,7 +2695,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
   }, [joined.code])
 
   async function saveStats() {
-    const lvInfo = calcLevelInfo(sessions.length)
+    const lvInfo = calcLevelInfo(sessions.length, language)
     const lastSess = sessions[0]
     const cutoff30 = localDateStr(new Date(Date.now() - 30*24*60*60*1000))
     const recent30 = sessions.filter(s => s.session_date >= cutoff30)
@@ -3171,7 +3175,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                   <View style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',overflow:'hidden'}}>
                     {teammates.map((m, i) => {
                       const stat      = playerStats.find(s => s.player_name === m.player_name)
-                      const lvInfo    = calcLevelInfo(stat?.level ?? 1)
+                      const lvInfo    = calcLevelInfo(stat?.level ?? 1, language)
                       const lvTier    = RANK_TIERS.find(t => lvInfo.level >= t.min && lvInfo.level < t.max) ?? RANK_TIERS[0]
                       const tmSessions = teamSessionsMap[m.player_name] ?? []
                       // stat.streak が保存済みであればそちらを優先（より正確・リアルタイム）
@@ -3207,8 +3211,8 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                               </View>
                               <View style={{flexDirection:'row',alignItems:'center',gap:5}}>
                                 <Text style={{fontSize:12}}>{lvTier.emoji}</Text>
-                                <Text style={{color:lvTier.color,fontSize:12,fontWeight:'700'}}>{lvTier.title}</Text>
-                                {event ? <Text style={{color:'#9ca3af',fontSize:11}}>· {event}</Text> : null}
+                                <Text style={{color:lvTier.color,fontSize:12,fontWeight:'700'}}>{getTierTitle(lvTier.title, language)}</Text>
+                                {event ? <Text style={{color:'#9ca3af',fontSize:11}}>· {getEventLabel(event, language)}</Text> : null}
                               </View>
                             </View>
                             <View style={{alignItems:'flex-end',gap:4}}>

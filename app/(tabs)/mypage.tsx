@@ -56,7 +56,7 @@ export default function MyPageScreen() {
 
   const displayName = profile.name || t('mypage.defaultName')
   const initials    = displayName.slice(0, 2)
-  const levelInfo   = calcLevelInfo(sessions.length)
+  const levelInfo   = calcLevelInfo(sessions.length, language)
 
   // 種目ごとの自己ベスト（記録タブのデータをそのまま使う。ここでは入力欄を増やさない）
   const eventPBs = (() => {
