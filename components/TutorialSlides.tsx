@@ -9,81 +9,33 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import { useTutorial } from '../lib/tutorialContext'
+import { useTranslation } from 'react-i18next'
 
 const BRAND = '#16a34a'
 
 interface Slide {
   emoji: string
-  title: string
-  description: string
+  key: string
   color: string
   /** タップで指定タブへ移動するボタンを表示する */
   navigateTo?: string
-  navigateLabel?: string
 }
 
+// title/description/navigateLabel は locales/tutorialSlides.slides 経由で言語対応
 const SLIDES: Slide[] = [
-  {
-    emoji: '🏃',
-    title: 'sCORE へようこそ！',
-    description: '陸上競技者のための練習記録・\nコンディション管理アプリです。\n基本の使い方を確認しましょう。',
-    color: BRAND,
-  },
-  {
-    emoji: '📝',
-    title: 'サクッと入力',
-    description: 'ホーム下の「サクッと入力」をタップして\n今日の疲労度・コンディションを\n毎日記録しよう。',
-    color: '#3b82f6',
-  },
-  {
-    emoji: '⚠️',
-    title: '怪我リスクをチェック',
-    description: '疲労・睡眠・天気から怪我リスクを\n自動計算。スコアが高いときは\n無理せず練習しよう。',
-    color: '#ef4444',
-  },
-  {
-    emoji: '🧘',
-    title: 'ストレッチでスコアを下げる',
-    description: 'ホームの「ストレッチでスコアを下げる」\nバナーをタップするとストレッチ開始。\n終わるとスコアが変化するよ 💪',
-    color: '#8b5cf6',
-  },
-  {
-    emoji: '🎫',
-    title: 'AIチケットをプレゼント',
-    description: '動画分析やAIメニュー作成などは\nチケット制。今なら無料で10枚\nプレゼント中！広告視聴でも増えるよ🎁',
-    color: '#f59e0b',
-  },
-  {
-    emoji: '🏁',
-    title: '試合計画・怪我復帰',
-    description: '「試合・怪我」タブでAIが\n試合までの練習計画や\n怪我回復プランを作ってくれるよ。',
-    color: '#f59e0b',
-    navigateTo: '/(tabs)/competition',
-    navigateLabel: '試合・怪我タブを見る →',
-  },
-  {
-    emoji: '📋',
-    title: '練習メニューを管理',
-    description: '「ホーム → メニュー」から今日の\n練習内容を確認・記録できるよ。\nAI生成メニューも使えます。',
-    color: '#06b6d4',
-  },
-  {
-    emoji: '📸',
-    title: '記録をシェアしよう',
-    description: '「記録」タブの右上ボタンから\nおしゃれなシェアカードを作成。\nInstagramに投稿して仲間を増やそう！',
-    color: '#ec4899',
-    navigateTo: '/(tabs)/records',
-    navigateLabel: '記録タブを見る →',
-  },
-  {
-    emoji: '🎉',
-    title: 'チュートリアル完了！',
-    description: '毎日記録して自分の体を知ろう。\n継続が自己ベスト更新への\n一番の近道だよ 🏆',
-    color: BRAND,
-  },
+  { emoji: '🏃', key: 's1', color: BRAND },
+  { emoji: '📝', key: 's2', color: '#3b82f6' },
+  { emoji: '⚠️', key: 's3', color: '#ef4444' },
+  { emoji: '🧘', key: 's4', color: '#8b5cf6' },
+  { emoji: '🎫', key: 's5', color: '#f59e0b' },
+  { emoji: '🏁', key: 's6', color: '#f59e0b', navigateTo: '/(tabs)/competition' },
+  { emoji: '📋', key: 's7', color: '#06b6d4' },
+  { emoji: '📸', key: 's8', color: '#ec4899', navigateTo: '/(tabs)/records' },
+  { emoji: '🎉', key: 's9', color: BRAND },
 ]
 
 export default function TutorialSlides() {
+  const { t } = useTranslation()
   const { active, skipTutorial } = useTutorial()
   const insets = useSafeAreaInsets()
   const router = useRouter()
@@ -157,8 +109,8 @@ export default function TutorialSlides() {
         </View>
 
         {/* タイトル・説明 */}
-        <Text style={s.title}>{slide.title}</Text>
-        <Text style={s.desc}>{slide.description}</Text>
+        <Text style={s.title}>{t(`tutorialSlides.slides.${slide.key}.title`)}</Text>
+        <Text style={s.desc}>{t(`tutorialSlides.slides.${slide.key}.description`)}</Text>
 
         {/* タブ遷移ボタン */}
         {slide.navigateTo && (
@@ -167,7 +119,7 @@ export default function TutorialSlides() {
             style={[s.navBtn, { borderColor: slide.color }]}
             activeOpacity={0.75}
           >
-            <Text style={[s.navBtnText, { color: slide.color }]}>{slide.navigateLabel}</Text>
+            <Text style={[s.navBtnText, { color: slide.color }]}>{t(`tutorialSlides.slides.${slide.key}.navigateLabel`)}</Text>
           </TouchableOpacity>
         )}
 
@@ -189,7 +141,7 @@ export default function TutorialSlides() {
         {/* ボタン行 */}
         <View style={s.btnRow}>
           <TouchableOpacity onPress={skipTutorial} style={s.skipBtn} activeOpacity={0.7}>
-            <Text style={s.skipTxt}>スキップ</Text>
+            <Text style={s.skipTxt}>{t('tutorialSlides.skip')}</Text>
           </TouchableOpacity>
 
           {step > 0 && (
@@ -203,7 +155,7 @@ export default function TutorialSlides() {
             style={[s.nextBtn, { backgroundColor: slide.color }]}
             activeOpacity={0.85}
           >
-            <Text style={s.nextTxt}>{isLast ? 'はじめる 🎉' : '次へ'}</Text>
+            <Text style={s.nextTxt}>{isLast ? t('tutorialSlides.start') : t('tutorialSlides.next')}</Text>
             {!isLast && <Ionicons name="chevron-forward" size={16} color="#fff" />}
           </TouchableOpacity>
         </View>

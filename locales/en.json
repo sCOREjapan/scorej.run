@@ -3735,5 +3735,50 @@
   "stretchHoldButton": {
     "urgent": "🔴 Press and hold to start stretching!",
     "normal": "🟡 Press and hold to start stretching"
+  },
+  "tutorialSlides": {
+    "skip": "Skip",
+    "next": "Next",
+    "start": "Get Started 🎉",
+    "slides": {
+      "s1": {
+        "title": "Welcome to sCORE!",
+        "description": "A training log and condition\nmanagement app for track & field\nathletes. Let's walk through the basics."
+      },
+      "s2": {
+        "title": "Quick Log",
+        "description": "Tap \"Quick Log\" below the home\nscreen to record your fatigue and\ncondition every day."
+      },
+      "s3": {
+        "title": "Check Your Injury Risk",
+        "description": "We automatically calculate injury\nrisk from your fatigue, sleep, and\nweather. Take it easy when the score is high."
+      },
+      "s4": {
+        "title": "Stretch to Lower Your Score",
+        "description": "Tap the \"Stretch to Lower Score\"\nbanner on the home screen to start\nstretching. Your score changes when you finish 💪"
+      },
+      "s5": {
+        "title": "Free AI Tickets",
+        "description": "Video analysis and AI menu\ngeneration use tickets. We're giving\nyou 10 free right now! Watch ads to earn more 🎁"
+      },
+      "s6": {
+        "title": "Competition Plans & Recovery",
+        "description": "In the \"Compete/Injury\" tab, AI\nbuilds your training plan for an\nupcoming meet or your recovery plan.",
+        "navigateLabel": "View Compete/Injury tab →"
+      },
+      "s7": {
+        "title": "Manage Your Workout Menu",
+        "description": "Check and log today's workout\nfrom \"Home → Menu\". AI-generated\nmenus are available too."
+      },
+      "s8": {
+        "title": "Share Your Records",
+        "description": "Create a stylish share card from the\ntop-right button on the \"Records\"\ntab. Post it on Instagram and grow your following!",
+        "navigateLabel": "View Records tab →"
+      },
+      "s9": {
+        "title": "Tutorial Complete!",
+        "description": "Log every day to learn about your\nbody. Consistency is the fastest\npath to a new personal best 🏆"
+      }
+    }
   }
 }
