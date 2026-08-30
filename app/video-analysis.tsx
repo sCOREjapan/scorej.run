@@ -2585,7 +2585,12 @@ ${summary}
                 {activeAnn.advice.improvements.map((p, i) => <Text key={i} style={s.adviceItem}>• {p}</Text>)}
               </>
             ) : null}
-            {activeAnn.advice.injuryRisk && activeAnn.advice.injuryRisk !== 'リスク低' && (
+            {/* injuryRiskは「低リスクなら"リスク低"という固定文言を返す」というプロンプト上の
+                取り決めに依存した判定だったが、英語設定ではnarrativeLanguageInstructionの指示で
+                AIが"Low risk"等の英語で返すことがあり、完全一致判定が外れて低リスクなのに
+                警告ボックスが表示される不具合があった。日英どちらの表現でも低リスクと
+                認識できるよう正規表現に変更(2026-08-30) */}
+            {activeAnn.advice.injuryRisk && !/^(リスク低|low(\s+risk)?)\s*$/i.test(activeAnn.advice.injuryRisk.trim()) && (
               <View style={{ marginTop: 8, backgroundColor: '#FFF1F2', borderRadius: 8, padding: 8, borderLeftWidth: 3, borderLeftColor: '#F43F5E' }}>
                 <Text style={{ color: '#BE123C', fontSize: 11, fontWeight: '700', marginBottom: 2 }}>{t('videoAnalysis.web.injuryRisk')}</Text>
                 <Text style={{ color: '#9F1239', fontSize: 12 }}>{activeAnn.advice.injuryRisk}</Text>

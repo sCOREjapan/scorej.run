@@ -1874,10 +1874,6 @@ ${sleepText || 'データなし'}
     return () => { unregisterHomeScroll(); clearQuickLogListener() }
   }, [])
 
-  const todayStr = new Date().toLocaleDateString('ja-JP', {
-    year: 'numeric', month: 'long', day: 'numeric', weekday: 'short',
-  })
-
   return (
     <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
       <SafeAreaView style={{ flex: 1 }}>
