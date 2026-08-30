@@ -3,9 +3,11 @@ import React from 'react'
 import { Modal, View, Text, TouchableOpacity, ImageBackground, StyleSheet, SafeAreaView } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 
 export default function CoachPlanBanner({ onDismiss }: { onDismiss: () => void }) {
   const router = useRouter()
+  const { t } = useTranslation()
 
   const handleView = () => {
     onDismiss()
@@ -33,8 +35,8 @@ export default function CoachPlanBanner({ onDismiss }: { onDismiss: () => void }
           {/* 見出し */}
           <View style={styles.headline}>
             <View style={styles.headlinePill}>
-              <Text style={styles.priceTag}>月額¥1,980に値下げ</Text>
-              <Text style={styles.headlineText}>コーチプランが{'\n'}お求めやすくなりました</Text>
+              <Text style={styles.priceTag}>{t('coachPlanBanner.priceTag')}</Text>
+              <Text style={styles.headlineText}>{t('coachPlanBanner.headline')}</Text>
             </View>
           </View>
 
@@ -42,15 +44,15 @@ export default function CoachPlanBanner({ onDismiss }: { onDismiss: () => void }
           <View style={styles.footer}>
             <View style={styles.descPill}>
               <Text style={styles.desc}>
-                チーム全員のコンディション・怪我リスクを一括管理。{'\n'}選手を招待して、チームの「今日」を見える化しよう。
+                {t('coachPlanBanner.desc')}
               </Text>
             </View>
             <TouchableOpacity style={styles.viewBtn} onPress={handleView} activeOpacity={0.85}>
               <Ionicons name="trophy" size={18} color="#fff" />
-              <Text style={styles.viewBtnText}>コーチプランを見る</Text>
+              <Text style={styles.viewBtnText}>{t('coachPlanBanner.cta')}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={onDismiss} activeOpacity={0.7}>
-              <Text style={styles.laterText}>あとで</Text>
+              <Text style={styles.laterText}>{t('coachPlanBanner.later')}</Text>
             </TouchableOpacity>
           </View>
         </SafeAreaView>

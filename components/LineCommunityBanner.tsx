@@ -4,16 +4,18 @@ import { Modal, View, Text, TouchableOpacity, ImageBackground, StyleSheet, Linki
 import { Ionicons } from '@expo/vector-icons'
 import Toast from 'react-native-toast-message'
 import { grantLineJoinBonusIfNeeded } from '../lib/ticketWallet'
+import { useTranslation } from 'react-i18next'
 
 const LINE_OPENCHAT_URL =
   'https://line.me/ti/g2/jLaBKGHQlJ6xlPaNYBhI_6N0O8OAPvVefJ2Lsw?utm_source=invitation&utm_medium=link_copy&utm_campaign=default'
 
 export default function LineCommunityBanner({ onDismiss }: { onDismiss: () => void }) {
+  const { t } = useTranslation()
   const handleJoin = () => {
     Linking.openURL(LINE_OPENCHAT_URL).catch(() => {})
     // 参加ボタンを押した時点で自己申告としてチケットを1回だけ付与
     grantLineJoinBonusIfNeeded().then(({ granted }) => {
-      if (granted) Toast.show({ type: 'success', text1: '🎫 LINE参加でチケット5枚を獲得しました' })
+      if (granted) Toast.show({ type: 'success', text1: t('lineCommunityBanner.ticketGranted') })
     }).catch(() => {})
     onDismiss()
   }
@@ -39,8 +41,8 @@ export default function LineCommunityBanner({ onDismiss }: { onDismiss: () => vo
           {/* 見出し（イラストと重なっても読めるよう背景ピルを敷く） */}
           <View style={styles.headline}>
             <View style={styles.headlinePill}>
-              <Text style={styles.headlineText}>LINEコミュニティ誕生！</Text>
-              <Text style={styles.subText}>陸上仲間と繋がろう</Text>
+              <Text style={styles.headlineText}>{t('lineCommunityBanner.headline')}</Text>
+              <Text style={styles.subText}>{t('lineCommunityBanner.sub')}</Text>
             </View>
           </View>
 
@@ -48,15 +50,15 @@ export default function LineCommunityBanner({ onDismiss }: { onDismiss: () => vo
           <View style={styles.footer}>
             <View style={styles.descPill}>
               <Text style={styles.desc}>
-                マンスリードロップチャレンジやアプデ情報、{'\n'}イベント情報をいち早くお届けします
+                {t('lineCommunityBanner.desc')}
               </Text>
             </View>
             <TouchableOpacity style={styles.joinBtn} onPress={handleJoin} activeOpacity={0.85}>
               <Ionicons name="chatbubbles" size={18} color="#fff" />
-              <Text style={styles.joinBtnText}>オープンチャットに参加する</Text>
+              <Text style={styles.joinBtnText}>{t('lineCommunityBanner.cta')}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={onDismiss} activeOpacity={0.7}>
-              <Text style={styles.laterText}>あとで</Text>
+              <Text style={styles.laterText}>{t('lineCommunityBanner.later')}</Text>
             </TouchableOpacity>
           </View>
         </SafeAreaView>

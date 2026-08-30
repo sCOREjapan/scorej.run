@@ -3661,5 +3661,20 @@
     "yesterday": "Yesterday  ({{date}})",
     "tapHint": "Tap to pick a date",
     "todayBtn": "Today"
+  },
+  "coachPlanBanner": {
+    "priceTag": "Now ¥1,980/month",
+    "headline": "The Coach Plan\njust got more affordable",
+    "desc": "Manage your whole team's condition and injury risk in one place.\nInvite athletes and see your team's \"today\" at a glance.",
+    "cta": "View Coach Plan",
+    "later": "Later"
+  },
+  "lineCommunityBanner": {
+    "headline": "Our LINE Community is Here!",
+    "sub": "Connect with fellow athletes",
+    "desc": "Get monthly drop challenges, update news,\nand event info first",
+    "cta": "Join the Open Chat",
+    "later": "Later",
+    "ticketGranted": "🎫 Earned 5 tickets for joining LINE"
   }
 }
