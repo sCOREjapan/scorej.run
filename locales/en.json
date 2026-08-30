@@ -3731,5 +3731,9 @@
     "normal": "Normal",
     "good": "Good",
     "great": "Great"
+  },
+  "stretchHoldButton": {
+    "urgent": "🔴 Press and hold to start stretching!",
+    "normal": "🟡 Press and hold to start stretching"
   }
 }

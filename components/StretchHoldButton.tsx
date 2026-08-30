@@ -3,6 +3,7 @@
 import React, { useRef } from 'react'
 import { View, Text, StyleSheet, Animated, Easing, Pressable } from 'react-native'
 import * as Haptics from 'expo-haptics'
+import { useTranslation } from 'react-i18next'
 
 const HOLD_DURATION = 1500
 
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export default function StretchHoldButton({ riskScore, onComplete }: Props) {
+  const { t } = useTranslation()
   const progress  = useRef(new Animated.Value(0)).current
   const blink     = useRef(new Animated.Value(1)).current
   const isHolding = useRef(false)
@@ -69,7 +71,7 @@ export default function StretchHoldButton({ riskScore, onComplete }: Props) {
           <Animated.View style={[s.bar, { width: barWidth, backgroundColor: color + 'BB' }]} />
           <View style={s.content}>
             <Text style={[s.label, { color }]}>
-              {riskScore >= 70 ? '🔴 長押しでストレッチ開始！' : '🟡 長押しでストレッチ開始'}
+              {riskScore >= 70 ? t('stretchHoldButton.urgent') : t('stretchHoldButton.normal')}
             </Text>
             <Text style={{ color, fontSize: 14, fontWeight: '700' }}>→</Text>
           </View>

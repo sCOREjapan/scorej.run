@@ -3731,5 +3731,9 @@
     "normal": "普通",
     "good": "良好",
     "great": "最高"
+  },
+  "stretchHoldButton": {
+    "urgent": "🔴 長押しでストレッチ開始！",
+    "normal": "🟡 長押しでストレッチ開始"
   }
 }
