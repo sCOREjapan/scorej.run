@@ -2850,5 +2850,47 @@
     "secReference": "Reference",
     "reBtn": "Enter a different symptom",
     "promptLanguageLine": "Write all text content in natural, fluent English. Keep the JSON field names and the severity enum value (mild/moderate/severe) exactly as specified — do not translate those."
+  },
+  "practiceInput": {
+    "title": "Free Entry",
+    "back": "Back",
+    "selectDate": "Select date",
+    "selectFromMenu": "Choose from menu",
+    "addToInput": "Add to input",
+    "editContent": "Enter / edit content",
+    "placeholder": "e.g.:\n400m × 5 reps, 3min rest, 68s\nFatigue 7, legs felt heavy\n\n\"Jog 10km\" alone is fine too",
+    "hint1": "💡 Include fatigue level and time to auto-fill your record",
+    "hint2": "💡 For quality sessions, write reps/distance/type like \"400m×5\", \"5km tempo run\", or \"hill sprints\" for automatic classification",
+    "save": "Save",
+    "emptyLibraryHint": "Register exercises in your menu library to pick them from here",
+    "toastSuccess": "Practice recorded ✓",
+    "toastErrorTitle": "Failed to save",
+    "toastErrorBody": "Please try again",
+    "taskSleep": "Get at least 7 hours of sleep tonight",
+    "taskStretch": "Do a thorough 10-minute stretch after practice",
+    "taskRestDay": "Make your next session an easy jog or rest day (day after intervals)",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "monthLabelEn": "{{month}} {{year}}",
+    "dow": [
+      "Su",
+      "Mo",
+      "Tu",
+      "We",
+      "Th",
+      "Fr",
+      "Sa"
+    ],
+    "sessionTypeLabels": {
+      "interval": "Interval",
+      "tempo": "Tempo run",
+      "sprint": "Sprint",
+      "long": "Long run",
+      "drill": "Drill",
+      "strength": "Strength",
+      "race": "Race",
+      "rest": "Rest",
+      "easy": "Easy jog"
+    }
   }
 }

@@ -2850,5 +2850,47 @@
     "secReference": "参考情報",
     "reBtn": "別の症状を入力する",
     "promptLanguageLine": ""
+  },
+  "practiceInput": {
+    "title": "自由入力",
+    "back": "戻る",
+    "selectDate": "日付を選ぶ",
+    "selectFromMenu": "メニューから選ぶ",
+    "addToInput": "入力欄に追加",
+    "editContent": "内容を入力・編集",
+    "placeholder": "例:\n400m × 5本 レスト3分 68秒\n疲労7 脚が重かった\n\n「ジョグ10km」だけでもOK",
+    "hint1": "💡 疲労度・タイムを含めると自動で記録に反映されます",
+    "hint2": "💡 ポイント練習は「400m×5本」「テンポ走5km」「坂道ダッシュ」のように、本数・距離・種類を書くと自動で分類されます",
+    "save": "記録する",
+    "emptyLibraryHint": "メニューライブラリに種目を登録すると、ここから選べます",
+    "toastSuccess": "練習を記録しました ✓",
+    "toastErrorTitle": "保存に失敗しました",
+    "toastErrorBody": "もう一度試してください",
+    "taskSleep": "今夜は7時間以上の睡眠を確保しよう",
+    "taskStretch": "練習後のストレッチを10分しっかり行おう",
+    "taskRestDay": "次の練習は軽いジョグか休養にしよう（インターバル翌日）",
+    "prevMonth": "前の月",
+    "nextMonth": "次の月",
+    "monthLabelJa": "{{year}}年 {{month}}月",
+    "dow": [
+      "日",
+      "月",
+      "火",
+      "水",
+      "木",
+      "金",
+      "土"
+    ],
+    "sessionTypeLabels": {
+      "interval": "インターバル",
+      "tempo": "テンポ走",
+      "sprint": "スプリント",
+      "long": "ロング走",
+      "drill": "ドリル",
+      "strength": "筋トレ",
+      "race": "レース",
+      "rest": "休養",
+      "easy": "ジョグ"
+    }
   }
 }

@@ -9,7 +9,9 @@ import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import Toast from 'react-native-toast-message'
+import { useTranslation } from 'react-i18next'
 import { useTheme } from '../context/ThemeContext'
+import { useLanguage } from '../context/LanguageContext'
 import { BRAND, TEXT } from '../lib/theme'
 import { Sounds, unlockAudio } from '../lib/sounds'
 import HapticTouch from '../components/HapticTouch'
@@ -25,7 +27,11 @@ import { addTasks } from '../lib/tasksStore'
 const SESSIONS_KEY = 'trackmate_sessions'
 const LIBRARY_KEY  = 'trackmate_exercise_library'
 
+const MONTH_NAMES_EN = ['January','February','March','April','May','June','July','August','September','October','November','December']
+
 function CalendarPicker({ value, onChange }: { value: string; onChange: (d: string) => void }) {
+  const { t } = useTranslation()
+  const { language } = useLanguage()
   const today = new Date()
   const [viewYear,  setViewYear]  = useState(() => parseInt(value.slice(0, 4)))
   const [viewMonth, setViewMonth] = useState(() => parseInt(value.slice(5, 7)) - 1)
@@ -52,16 +58,17 @@ function CalendarPicker({ value, onChange }: { value: string; onChange: (d: stri
   ]
   while (cells.length % 7 !== 0) cells.push(null)
 
-  const DOW = ['日','月','火','水','木','金','土']
+  const DOW = t('practiceInput.dow', { returnObjects: true }) as string[]
+  const monthLabel = language === 'en' ? `${MONTH_NAMES_EN[viewMonth]} ${viewYear}` : `${viewYear}年 ${viewMonth + 1}月`
 
   return (
     <View style={cal.wrap}>
       <View style={cal.header}>
-        <HapticTouch haptic="tap" onPress={prevMonth} style={cal.arrow} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="前の月">
+        <HapticTouch haptic="tap" onPress={prevMonth} style={cal.arrow} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel={t('practiceInput.prevMonth')}>
           <Ionicons name="chevron-back" size={18} color="#6b7280" />
         </HapticTouch>
-        <Text style={cal.monthLabel}>{viewYear}年 {viewMonth + 1}月</Text>
-        <HapticTouch haptic="tap" onPress={nextMonth} style={cal.arrow} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="次の月">
+        <Text style={cal.monthLabel}>{monthLabel}</Text>
+        <HapticTouch haptic="tap" onPress={nextMonth} style={cal.arrow} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel={t('practiceInput.nextMonth')}>
           <Ionicons name="chevron-forward" size={18} color="#6b7280" />
         </HapticTouch>
       </View>
@@ -131,23 +138,17 @@ function dateOffset(days: number): string {
   return localDateStr(d)
 }
 
-function formatDateLabel(iso: string): string {
-  const d = new Date(iso + 'T12:00:00')
-  const weekdays = ['日', '月', '火', '水', '木', '金', '土']
-  return `${d.getMonth() + 1}/${d.getDate()}（${weekdays[d.getDay()]}）`
-}
-
 function fallbackParse(text: string, today: string): Record<string, any> {
   const t = text
   let session_type = 'easy'
   if (/インターバル|interval|本.*レスト|レスト.*本/i.test(t)) session_type = 'interval'
-  else if (/テンポ|ペース走|ビルドアップ/i.test(t)) session_type = 'tempo'
-  else if (/スプリント|全力|100m.*走|ダッシュ|坂道|流し|タイムトライアル|\bTT\b/i.test(t)) session_type = 'sprint'
-  else if (/ロング|長距離|LSD/i.test(t)) session_type = 'long'
-  else if (/ドリル|ハードル|ABCドリル/i.test(t)) session_type = 'drill'
-  else if (/ウェイト|筋トレ|ジム|スクワット|デッド/i.test(t)) session_type = 'strength'
-  else if (/試合|大会|記録会|レース/i.test(t)) session_type = 'race'
-  else if (/休養|オフ|休み|レスト|\brest\b/i.test(t)) session_type = 'rest'
+  else if (/テンポ|ペース走|ビルドアップ|tempo|pace run|build.?up/i.test(t)) session_type = 'tempo'
+  else if (/スプリント|全力|100m.*走|ダッシュ|坂道|流し|タイムトライアル|\bTT\b|sprint|hill/i.test(t)) session_type = 'sprint'
+  else if (/ロング|長距離|LSD|long run|long jog/i.test(t)) session_type = 'long'
+  else if (/ドリル|ハードル|ABCドリル|drill|hurdle/i.test(t)) session_type = 'drill'
+  else if (/ウェイト|筋トレ|ジム|スクワット|デッド|weight|gym|squat|strength/i.test(t)) session_type = 'strength'
+  else if (/試合|大会|記録会|レース|race|competition|meet/i.test(t)) session_type = 'race'
+  else if (/休養|オフ|休み|レスト|\brest\b|day off/i.test(t)) session_type = 'rest'
   // 「ポイント練習」単体では種類が特定できないため、上記のどれにも一致しなかった場合のみ
   // インターバル系（質の高い練習の代表）として扱う。他のキーワードが既にあれば、そちらを優先する。
   else if (/ポイント練習|ポイント練/i.test(t)) session_type = 'interval'
@@ -166,22 +167,28 @@ function fallbackParse(text: string, today: string): Record<string, any> {
 
   const { distance_m, reps } = parseDistanceAndReps(t)
 
-  const fatMatch = t.match(/疲労\s*[：:=]?\s*(\d+)|疲[れ労]\s*(\d+)/)
-  const fatigue_level = fatMatch ? parseInt(fatMatch[1] ?? fatMatch[2]) : 5
+  const fatMatch = t.match(/疲労\s*[：:=]?\s*(\d+)|疲[れ労]\s*(\d+)|fatigue\s*[：:=]?\s*(\d+)/i)
+  const fatigue_level = fatMatch ? parseInt(fatMatch[1] ?? fatMatch[2] ?? fatMatch[3]) : 5
 
-  const condMatch = t.match(/体調\s*[：:=]?\s*(\d+)/)
-  const condition_level = condMatch ? parseInt(condMatch[1]) : 6
+  const condMatch = t.match(/体調\s*[：:=]?\s*(\d+)|condition\s*[：:=]?\s*(\d+)/i)
+  const condition_level = condMatch ? parseInt(condMatch[1] ?? condMatch[2]) : 6
 
   return { session_date: today, session_type, event, time_ms, distance_m, reps, fatigue_level, condition_level }
 }
 
-function sessionTypeLabel(t: string): string {
-  const m: Record<string, string> = {
+function sessionTypeLabel(type: string, lang: 'ja' | 'en' = 'ja'): string {
+  const ja: Record<string, string> = {
     interval: 'インターバル', tempo: 'テンポ走', sprint: 'スプリント',
     long: 'ロング走', drill: 'ドリル', strength: '筋トレ',
     race: 'レース', rest: '休養', easy: 'ジョグ',
   }
-  return m[t] || t
+  const en: Record<string, string> = {
+    interval: 'Interval', tempo: 'Tempo run', sprint: 'Sprint',
+    long: 'Long run', drill: 'Drill', strength: 'Strength',
+    race: 'Race', rest: 'Rest', easy: 'Easy jog',
+  }
+  const m = lang === 'en' ? en : ja
+  return m[type] || type
 }
 
 function formatTimeMs(ms: number): string {
@@ -204,6 +211,8 @@ async function saveTasks(newTexts: string[]) {
 export default function PracticeInputScreen() {
   const router = useRouter()
   const { colors } = useTheme()
+  const { t } = useTranslation()
+  const { language } = useLanguage()
 
   const [freeText, setFreeText]           = useState('')
   const [selectedDate, setSelectedDate]   = useState(dateOffset(0))
@@ -264,25 +273,28 @@ export default function PracticeInputScreen() {
       trackSessionRecord(parsed.session_type || 'easy')
 
       const taskTexts: string[] = []
-      if (parsed.fatigue_level >= 8) taskTexts.push('今夜は7時間以上の睡眠を確保しよう')
-      else if (parsed.fatigue_level >= 6) taskTexts.push('練習後のストレッチを10分しっかり行おう')
+      if (parsed.fatigue_level >= 8) taskTexts.push(t('practiceInput.taskSleep'))
+      else if (parsed.fatigue_level >= 6) taskTexts.push(t('practiceInput.taskStretch'))
       if (parsed.session_type === 'interval' || parsed.session_type === 'sprint')
-        taskTexts.push('次の練習は軽いジョグか休養にしよう（インターバル翌日）')
+        taskTexts.push(t('practiceInput.taskRestDay'))
       await saveTasks(taskTexts.slice(0, 3))
 
       Sounds.save()
       successNotify()
-      Toast.show({ type: 'success', text1: '練習を記録しました ✓', visibilityTime: 1800 })
+      Toast.show({ type: 'success', text1: t('practiceInput.toastSuccess'), visibilityTime: 1800 })
 
       const d = new Date()
       const weekdays = ['日', '月', '火', '水', '木', '金', '土']
+      const dateLabel = language === 'en'
+        ? d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', weekday: 'short' })
+        : `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${weekdays[d.getDay()]}）`
       const drills: string[] = []
       const drillRegex = /([A-Za-zぁ-んァ-ン一-龥]+ドリル|Aスキップ|Bスキップ|バウンディング|ハイニー|もも上げ|ランジ|サーキット)/g
       let mr: RegExpExecArray | null
       while ((mr = drillRegex.exec(freeText)) !== null) drills.push(mr[1])
       setShareData({
-        date:      `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${weekdays[d.getDay()]}）`,
-        title:     sessionTypeLabel(parsed.session_type || 'easy'),
+        date:      dateLabel,
+        title:     sessionTypeLabel(parsed.session_type || 'easy', language),
         menu:      freeText.trim(), drills,
         distance:  parsed.distance_m ? parsed.distance_m / 1000 : undefined,
         sets:      parsed.reps       ? Number(parsed.reps)       : undefined,
@@ -293,11 +305,11 @@ export default function PracticeInputScreen() {
       setFreeText('')
       setShowShare(true)
     } catch {
-      Toast.show({ type: 'error', text1: '保存に失敗しました', text2: 'もう一度試してください' })
+      Toast.show({ type: 'error', text1: t('practiceInput.toastErrorTitle'), text2: t('practiceInput.toastErrorBody') })
     } finally {
       setSaving(false)
     }
-  }, [freeText, selectedDate, saving])
+  }, [freeText, selectedDate, saving, language, t])
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -308,10 +320,10 @@ export default function PracticeInputScreen() {
         >
           {/* ── ヘッダー ── */}
           <View style={[s.header, { borderBottomColor: colors.border }]}>
-            <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="戻る">
+            <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={t('practiceInput.back')}>
               <Ionicons name="chevron-back" size={24} color={colors.text} />
             </TouchableOpacity>
-            <Text style={[s.title, { color: colors.text }]}>自由入力</Text>
+            <Text style={[s.title, { color: colors.text }]}>{t('practiceInput.title')}</Text>
             <View style={{ width: 40 }} />
           </View>
 
@@ -321,7 +333,7 @@ export default function PracticeInputScreen() {
             keyboardShouldPersistTaps="handled"
           >
             {/* ── 日付セレクター ── */}
-            <Text style={[s.sectionLabel, { color: colors.textHint, marginBottom: 8 }]}>日付を選ぶ</Text>
+            <Text style={[s.sectionLabel, { color: colors.textHint, marginBottom: 8 }]}>{t('practiceInput.selectDate')}</Text>
             <View style={{ marginBottom: 20 }}>
               <CalendarPicker value={selectedDate} onChange={setSelectedDate} />
             </View>
@@ -329,7 +341,7 @@ export default function PracticeInputScreen() {
             {/* ── メニューライブラリ（フォルダ選択） ── */}
             {folders.length > 0 && (
               <View style={{ marginBottom: 16 }}>
-                <Text style={[s.sectionLabel, { color: colors.textHint }]}>メニューから選ぶ</Text>
+                <Text style={[s.sectionLabel, { color: colors.textHint }]}>{t('practiceInput.selectFromMenu')}</Text>
 
                 {/* フォルダチップ横スクロール */}
                 <ScrollView
@@ -399,7 +411,7 @@ export default function PracticeInputScreen() {
                       onPress={applyPicked}
                       activeOpacity={0.85}
                     >
-                      <Text style={s.applyBtnText}>入力欄に追加</Text>
+                      <Text style={s.applyBtnText}>{t('practiceInput.addToInput')}</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -407,7 +419,7 @@ export default function PracticeInputScreen() {
             )}
 
             {/* ── テキスト入力 ── */}
-            <Text style={[s.sectionLabel, { color: colors.textHint }]}>内容を入力・編集</Text>
+            <Text style={[s.sectionLabel, { color: colors.textHint }]}>{t('practiceInput.editContent')}</Text>
             <TextInput
               style={[s.input, { backgroundColor: colors.surface2, color: colors.text, borderColor: colors.border }]}
               value={freeText}
@@ -415,13 +427,13 @@ export default function PracticeInputScreen() {
               multiline
               autoCorrect={false}
               spellCheck={false}
-              placeholder={'例:\n400m × 5本 レスト3分 68秒\n疲労7 脚が重かった\n\n「ジョグ10km」だけでもOK'}
+              placeholder={t('practiceInput.placeholder')}
               placeholderTextColor={colors.textHint}
               textAlignVertical="top"
             />
             <Text style={[s.hint, { color: colors.textSec }]}>
-              💡 疲労度・タイムを含めると自動で記録に反映されます{'\n'}
-              💡 ポイント練習は「400m×5本」「テンポ走5km」「坂道ダッシュ」のように、本数・距離・種類を書くと自動で分類されます
+              {t('practiceInput.hint1')}{'\n'}
+              {t('practiceInput.hint2')}
             </Text>
 
             {/* ── 保存ボタン ── */}
@@ -436,7 +448,7 @@ export default function PracticeInputScreen() {
               ) : (
                 <>
                   <Ionicons name="checkmark-circle" size={18} color="#fff" />
-                  <Text style={s.saveBtnText}>記録する</Text>
+                  <Text style={s.saveBtnText}>{t('practiceInput.save')}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -449,7 +461,7 @@ export default function PracticeInputScreen() {
               >
                 <Ionicons name="folder-outline" size={14} color={colors.textHint} />
                 <Text style={[s.emptyLibraryText, { color: colors.textSec }]}>
-                  メニューライブラリに種目を登録すると、ここから選べます
+                  {t('practiceInput.emptyLibraryHint')}
                 </Text>
                 <Ionicons name="chevron-forward" size={14} color={colors.textHint} />
               </TouchableOpacity>
