@@ -22,6 +22,9 @@ import { localDateStr } from '../lib/dateLocal'
 import { usePurchase } from '../context/PurchaseContext'
 import { BRAND } from '../lib/theme'
 import type { RaceRecord, TrainingSession, SleepRecord, ChartDataPoint, AthleticsEvent } from '../types'
+import { useTranslation } from 'react-i18next'
+import { useLanguage } from '../context/LanguageContext'
+import { getEventLabel } from '../lib/eventLabels'
 
 // ── 入場アニメーション用ヘルパー: フェード+下からスライド+ふわっと拡大 ──
 function entranceStyle(anim: Animated.Value) {
@@ -79,6 +82,7 @@ function GrowthWidgetCard({
   /** trueの場合、値が小さいほど上に表示する（タイム種目など「小さい=良い記録」向け） */
   invert?: boolean
 }) {
+  const { t } = useTranslation()
   const [w, setW] = useState(300)
   const H = 64
   const gradId = `wgrad-${title}`
@@ -126,7 +130,7 @@ function GrowthWidgetCard({
         <View style={wc.valueRow}>
           <Text style={[wc.value, { color: valueColor }]}>{value}</Text>
         </View>
-        <Text style={wc.trend} numberOfLines={1}>{trend ?? 'データを蓄積中'}</Text>
+        <Text style={wc.trend} numberOfLines={1}>{trend ?? t('growthReport.accumulating')}</Text>
 
         <View style={wc.chartWrap} onLayout={onLayout}>
           {chart ? (
@@ -142,7 +146,7 @@ function GrowthWidgetCard({
             </Svg>
           ) : (
             <View style={wc.chartEmpty}>
-              <Text style={wc.chartEmptyTxt}>記録が増えるとグラフが表示されます</Text>
+              <Text style={wc.chartEmptyTxt}>{t('growthReport.chartEmpty')}</Text>
             </View>
           )}
         </View>
@@ -153,6 +157,8 @@ function GrowthWidgetCard({
 
 export default function GrowthReportScreen() {
   const router = useRouter()
+  const { t } = useTranslation()
+  const { language } = useLanguage()
   const { isNoad, loading: purchaseLoading } = usePurchase()
 
   const [view, setView] = useState<ViewMode>('list')
@@ -257,9 +263,9 @@ export default function GrowthReportScreen() {
     const recent = riskHistory.slice(-5).reduce((a, p) => a + p.value, 0) / Math.min(5, riskHistory.length)
     const early   = riskHistory.slice(0, 5).reduce((a, p) => a + p.value, 0) / Math.min(5, riskHistory.length)
     const diff = Math.round(recent - early)
-    if (Math.abs(diff) < 3) return '怪我リスクは横ばいです'
-    return diff < 0 ? `90日前より ${Math.abs(diff)}pt 下がっています` : `90日前より ${diff}pt 上がっています`
-  }, [riskHistory])
+    if (Math.abs(diff) < 3) return t('growthReport.riskFlat')
+    return diff < 0 ? t('growthReport.riskDown', { n: Math.abs(diff) }) : t('growthReport.riskUp', { n: diff })
+  }, [riskHistory, t])
 
   const highRiskDays = useMemo(
     () => riskHistory.filter(p => p.value >= 70).length,
@@ -289,18 +295,18 @@ export default function GrowthReportScreen() {
     const prev = weeklyVolume[weeklyVolume.length - 2].value
     if (prev < 0.5) return null
     const pct = Math.round(((last - prev) / prev) * 100)
-    if (Math.abs(pct) < 10) return '練習量は先週と同程度です'
-    return pct > 0 ? `先週より ${pct}% 増えています` : `先週より ${Math.abs(pct)}% 減っています`
-  }, [weeklyVolume])
+    if (Math.abs(pct) < 10) return t('growthReport.loadFlat')
+    return pct > 0 ? t('growthReport.loadUp', { n: pct }) : t('growthReport.loadDown', { n: Math.abs(pct) })
+  }, [weeklyVolume, t])
 
   // ── ウィジェットカード用の要約値 ─────────────────────────────────────
-  const pbValue = pbChartData.length > 0 ? pbChartData[pbChartData.length - 1].label ?? '' : '―'
+  const pbValue = pbChartData.length > 0 ? pbChartData[pbChartData.length - 1].label ?? '' : t('growthReport.noValue')
   const pbTrend = pbChartData.length > 0
-    ? `${selectedEvent ?? ''}・自己ベスト更新 ${pbCount}回`
-    : (eventList.length > 0 ? 'この種目の記録がまだ2件未満です' : null)
+    ? t('growthReport.pbTrendCount', { event: getEventLabel(selectedEvent ?? '', language), n: pbCount })
+    : (eventList.length > 0 ? t('growthReport.pbTrendNeedMore') : null)
 
-  const riskValue = riskHistory.length > 0 ? `${riskHistory[riskHistory.length - 1].value}pt` : '―'
-  const loadValue = weeklyVolume.length > 0 ? `${weeklyVolume[weeklyVolume.length - 1].value}km/週` : '―'
+  const riskValue = riskHistory.length > 0 ? t('growthReport.riskPt', { n: riskHistory[riskHistory.length - 1].value }) : t('growthReport.noValue')
+  const loadValue = weeklyVolume.length > 0 ? t('growthReport.loadPerWeek', { n: weeklyVolume[weeklyVolume.length - 1].value }) : t('growthReport.noValue')
 
   // ── ペイウォールガード ──────────────────────────────────────────────
   if (purchaseLoading || loading) {
@@ -316,18 +322,18 @@ export default function GrowthReportScreen() {
       <LinearGradient colors={SCREEN_BG} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.screen}>
         <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
           <View style={st.header}>
-            <TouchableOpacity style={st.backBtn} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/records')} accessibilityLabel="戻る">
+            <TouchableOpacity style={st.backBtn} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/records')} accessibilityLabel={t('growthReport.backLabel')}>
               <Ionicons name="chevron-back" size={26} color={'#ffffff'} />
             </TouchableOpacity>
-            <Text style={st.headerTitle}>成長レポート</Text>
+            <Text style={st.headerTitle}>{t('growthReport.headerTitle')}</Text>
             <View style={{ width: 44 }} />
           </View>
           <View style={[st.center, { paddingHorizontal: 32 }]}>
             <Ionicons name="lock-closed" size={40} color={GOLD} />
-            <Text style={st.lockTitle}>成長レポートは広告なしプラン限定です</Text>
-            <Text style={st.lockSub}>自己ベストの推移・怪我リスクの90日間の履歴・練習負荷のトレンドを、いつでも振り返れます</Text>
+            <Text style={st.lockTitle}>{t('growthReport.lockTitle')}</Text>
+            <Text style={st.lockSub}>{t('growthReport.lockSub')}</Text>
             <TouchableOpacity style={st.unlockBtn} onPress={() => router.push('/paywall?plan=noad')} activeOpacity={0.85}>
-              <Text style={st.unlockBtnTxt}>アンロックする</Text>
+              <Text style={st.unlockBtnTxt}>{t('growthReport.unlockBtn')}</Text>
             </TouchableOpacity>
           </View>
         </SafeAreaView>
@@ -336,9 +342,9 @@ export default function GrowthReportScreen() {
   }
 
   const detailTitle: Record<Exclude<ViewMode, 'list'>, string> = {
-    pb:   '自己ベストの推移',
-    risk: '怪我リスクの90日間',
-    load: '練習負荷のトレンド',
+    pb:   t('growthReport.detailTitlePb'),
+    risk: t('growthReport.detailTitleRisk'),
+    load: t('growthReport.detailTitleLoad'),
   }
 
   return (
@@ -351,11 +357,11 @@ export default function GrowthReportScreen() {
               if (view !== 'list') { setView('list'); return }
               router.canGoBack() ? router.back() : router.replace('/(tabs)/records')
             }}
-            accessibilityLabel="戻る"
+            accessibilityLabel={t('growthReport.backLabel')}
           >
             <Ionicons name="chevron-back" size={26} color={'#ffffff'} />
           </TouchableOpacity>
-          <Text style={st.headerTitle}>{view === 'list' ? '成長レポート' : detailTitle[view]}</Text>
+          <Text style={st.headerTitle}>{view === 'list' ? t('growthReport.headerTitle') : detailTitle[view]}</Text>
           <View style={{ width: 44 }} />
         </View>
 
@@ -364,7 +370,7 @@ export default function GrowthReportScreen() {
             <Animated.View style={entranceStyle(cardAnim1)}>
             <GrowthWidgetCard
               icon="🏅"
-              title="自己ベストの推移"
+              title={t('growthReport.widgetPbTitle')}
               value={pbValue}
               valueColor={BRAND}
               trend={pbTrend}
@@ -377,7 +383,7 @@ export default function GrowthReportScreen() {
             <Animated.View style={entranceStyle(cardAnim2)}>
             <GrowthWidgetCard
               icon="🩹"
-              title="怪我リスク"
+              title={t('growthReport.widgetRiskTitle')}
               value={riskValue}
               valueColor={RISK_COLOR}
               trend={riskTrendLabel}
@@ -389,7 +395,7 @@ export default function GrowthReportScreen() {
             <Animated.View style={entranceStyle(cardAnim3)}>
             <GrowthWidgetCard
               icon="📈"
-              title="練習負荷"
+              title={t('growthReport.widgetLoadTitle')}
               value={loadValue}
               valueColor={LOAD_COLOR}
               trend={loadTrendLabel}
@@ -399,7 +405,7 @@ export default function GrowthReportScreen() {
             />
             </Animated.View>
             <Text style={st.footnote}>
-              このレポートは、これまでに記録した練習・睡眠・大会記録から自動的に計算されています。AIは使用していません。
+              {t('growthReport.footnote')}
             </Text>
           </ScrollView>
         )}
@@ -416,7 +422,7 @@ export default function GrowthReportScreen() {
                       onPress={() => setSelectedEvent(ev)}
                       style={[st.eventChip, selectedEvent === ev && st.eventChipActive]}
                     >
-                      <Text style={[st.eventChipTxt, selectedEvent === ev && st.eventChipTxtActive]}>{ev}</Text>
+                      <Text style={[st.eventChipTxt, selectedEvent === ev && st.eventChipTxtActive]}>{getEventLabel(ev, language)}</Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
@@ -425,7 +431,7 @@ export default function GrowthReportScreen() {
                 <>
                   <TrainingChart
                     data={pbChartData}
-                    title={selectedEvent ?? ''}
+                    title={getEventLabel(selectedEvent ?? '', language)}
                     color={BRAND}
                     unit={isFieldEvent ? 'm' : ''}
                     invertY={!isFieldEvent}
@@ -433,11 +439,11 @@ export default function GrowthReportScreen() {
                     showYear
                   />
                   <Text style={st.summaryTxt}>
-                    {selectedEvent} の自己ベスト更新: {pbCount}回(全{pbChartData.length}記録中)
+                    {t('growthReport.pbSummary', { event: getEventLabel(selectedEvent ?? '', language), n: pbCount, total: pbChartData.length })}
                   </Text>
                 </>
               ) : (
-                <Text style={st.emptyTxt}>この種目の記録がまだ2件未満です。大会記録を追加すると推移が見られます</Text>
+                <Text style={st.emptyTxt}>{t('growthReport.pbEmpty')}</Text>
               )}
             </LinearGradient>
             </Animated.View>
@@ -452,16 +458,16 @@ export default function GrowthReportScreen() {
                 <>
                   <TrainingChart
                     data={riskHistory}
-                    title="リスクスコア"
+                    title={t('growthReport.riskChartTitle')}
                     color={RISK_COLOR}
                     unit="pt"
                     maxPoints={30}
                   />
                   {riskTrendLabel && <Text style={st.summaryTxt}>{riskTrendLabel}</Text>}
-                  <Text style={st.summarySub}>高リスク(70pt以上)だった日: {highRiskDays}日</Text>
+                  <Text style={st.summarySub}>{t('growthReport.highRiskDays', { n: highRiskDays })}</Text>
                 </>
               ) : (
-                <Text style={st.emptyTxt}>練習記録が増えると、リスクの推移が見られるようになります</Text>
+                <Text style={st.emptyTxt}>{t('growthReport.riskEmpty')}</Text>
               )}
             </LinearGradient>
             </Animated.View>
@@ -476,7 +482,7 @@ export default function GrowthReportScreen() {
                 <>
                   <TrainingChart
                     data={weeklyVolume}
-                    title="週間走行距離"
+                    title={t('growthReport.loadChartTitle')}
                     color={LOAD_COLOR}
                     unit="km"
                     maxPoints={12}
@@ -484,7 +490,7 @@ export default function GrowthReportScreen() {
                   {loadTrendLabel && <Text style={st.summaryTxt}>{loadTrendLabel}</Text>}
                 </>
               ) : (
-                <Text style={st.emptyTxt}>週2件以上の練習記録が溜まると、トレンドが見られるようになります</Text>
+                <Text style={st.emptyTxt}>{t('growthReport.loadEmpty')}</Text>
               )}
             </LinearGradient>
             </Animated.View>
