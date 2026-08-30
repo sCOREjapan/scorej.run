@@ -2485,5 +2485,30 @@
     "resume": "再開",
     "stopAndSave": "停止・保存",
     "outdoorHint": "※ GPS精度の確保のため、屋外での使用を推奨します"
+  },
+  "timer": {
+    "closeLabel": "閉じる",
+    "headerTitle": "タイム計測",
+    "save": "保存",
+    "saving": "保存中...",
+    "runningConfirmTitle": "タイマー動作中",
+    "runningConfirmBody": "戻ると計測が失われます。",
+    "cancel": "キャンセル",
+    "back": "戻る",
+    "split": "スプリット",
+    "reset": "リセット",
+    "pauseLabel": "一時停止",
+    "resumeLabel": "再開",
+    "startLabel": "スタート",
+    "splitsEmptyText": "スプリットボタンを押してラップを記録",
+    "splitHeaderLap": "Lap",
+    "splitHeaderLapTime": "ラップ",
+    "splitHeaderTotal": "累計",
+    "noRecordToast": "記録がありません",
+    "saveFailedToast": "保存に失敗しました",
+    "savedToast": "{{event}}  {{time}} を練習記録に保存しました",
+    "modalTitle": "種目を選択して保存",
+    "confirmTimeLabel": "記録するタイム（Lap 1）",
+    "modalLabelEvent": "種目"
   }
 }

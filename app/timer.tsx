@@ -21,6 +21,7 @@ import { todayLocalISO } from '../lib/dateLocal'
 import type { AthleticsEvent, TrainingSession } from '../types'
 import { autoSyncTeam } from '../lib/teamAutoSync'
 import { updateSessions } from '../lib/sessionsStore'
+import { useTranslation } from 'react-i18next'
 
 // ─── 定数 ───────────────────────────────────────────────────────────────
 const SESSIONS_KEY = 'trackmate_sessions'
@@ -36,14 +37,6 @@ function formatStopwatch(ms: number): string {
   const seconds = Math.floor((totalMs % 60000) / 1000)
   const centiseconds = Math.floor((totalMs % 1000) / 10)
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(centiseconds).padStart(2, '0')}`
-}
-
-function formatMs(ms: number): string {
-  const totalSec = ms / 1000
-  if (totalSec < 60) return `${totalSec.toFixed(2)}秒`
-  const min = Math.floor(totalSec / 60)
-  const sec = (totalSec % 60).toFixed(2).padStart(5, '0')
-  return `${min}:${sec}`
 }
 
 interface Split {
@@ -73,6 +66,7 @@ const SplitRow: React.FC<{ split: Split; highlight: boolean }> = ({ split, highl
 export default function TimerScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
+  const { t } = useTranslation()
 
   const [timerState, setTimerState] = useState<TimerState>('idle')
   const [displayMs, setDisplayMs]   = useState(0)
@@ -147,11 +141,11 @@ export default function TimerScreen() {
   // ─── 保存 ────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
     if (splits.length === 0 && displayMs === 0) {
-      Toast.show({ type: 'error', text1: '記録がありません' })
+      Toast.show({ type: 'error', text1: t('timer.noRecordToast') })
       return
     }
     setSaveModalVisible(true)
-  }, [splits, displayMs])
+  }, [splits, displayMs, t])
 
   const confirmSave = useCallback(async () => {
     setSaving(true)
@@ -184,17 +178,17 @@ export default function TimerScreen() {
 
       Toast.show({
         type: 'success',
-        text1: `${selectedEvent}  ${display} を練習記録に保存しました`,
+        text1: t('timer.savedToast', { event: selectedEvent, time: display }),
       })
       setSaveModalVisible(false)
       handleReset()
       router.back()
     } catch {
-      Toast.show({ type: 'error', text1: '保存に失敗しました' })
+      Toast.show({ type: 'error', text1: t('timer.saveFailedToast') })
     } finally {
       setSaving(false)
     }
-  }, [splits, displayMs, selectedEvent, handleReset])
+  }, [splits, displayMs, selectedEvent, handleReset, t])
 
   const fastestLap = splits.length > 0
     ? splits.reduce((a, b) => (a.lapMs < b.lapMs ? a : b)).lap
@@ -209,12 +203,12 @@ export default function TimerScreen() {
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity
           style={styles.headerBack}
-          accessibilityLabel="閉じる"
+          accessibilityLabel={t('timer.closeLabel')}
           onPress={() => {
             if (timerState !== 'idle') {
-              Alert.alert('タイマー動作中', '戻ると計測が失われます。', [
-                { text: 'キャンセル', style: 'cancel' },
-                { text: '戻る', style: 'destructive', onPress: () => { stopTick(); router.back() } },
+              Alert.alert(t('timer.runningConfirmTitle'), t('timer.runningConfirmBody'), [
+                { text: t('timer.cancel'), style: 'cancel' },
+                { text: t('timer.back'), style: 'destructive', onPress: () => { stopTick(); router.back() } },
               ])
             } else {
               router.back()
@@ -223,7 +217,7 @@ export default function TimerScreen() {
         >
           <Ionicons name="chevron-down" size={28} color={TEXT.secondary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>タイム計測</Text>
+        <Text style={styles.headerTitle}>{t('timer.headerTitle')}</Text>
         <TouchableOpacity
           style={styles.saveHeaderBtn}
           onPress={handleSave}
@@ -233,7 +227,7 @@ export default function TimerScreen() {
             styles.saveHeaderBtnText,
             (timerState === 'idle' && splits.length === 0) && { opacity: 0.3 },
           ]}>
-            保存
+            {t('timer.save')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -252,14 +246,14 @@ export default function TimerScreen() {
           <TouchableOpacity style={styles.sideButton} onPress={handleSplit} activeOpacity={0.8}>
             <View style={styles.splitBtn}>
               <Ionicons name="flag" size={22} color={TEXT.primary} />
-              <Text style={styles.sideButtonText}>スプリット</Text>
+              <Text style={styles.sideButtonText}>{t('timer.split')}</Text>
             </View>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity style={styles.sideButton} onPress={handleReset} activeOpacity={0.8}>
             <View style={styles.resetBtn}>
               <Ionicons name="refresh" size={22} color={TEXT.primary} />
-              <Text style={styles.sideButtonText}>リセット</Text>
+              <Text style={styles.sideButtonText}>{t('timer.reset')}</Text>
             </View>
           </TouchableOpacity>
         )}
@@ -276,7 +270,7 @@ export default function TimerScreen() {
             : handleResume
           }
           activeOpacity={0.85}
-          accessibilityLabel={timerState === 'running' ? '一時停止' : timerState === 'paused' ? '再開' : 'スタート'}
+          accessibilityLabel={timerState === 'running' ? t('timer.pauseLabel') : timerState === 'paused' ? t('timer.resumeLabel') : t('timer.startLabel')}
         >
           <Ionicons
             name={timerState === 'running' ? 'pause' : 'play'}
@@ -298,15 +292,15 @@ export default function TimerScreen() {
         {splits.length === 0 ? (
           <View style={styles.splitsEmpty}>
             <Ionicons name="flag-outline" size={32} color={TEXT.hint} />
-            <Text style={styles.splitsEmptyText}>スプリットボタンを押してラップを記録</Text>
+            <Text style={styles.splitsEmptyText}>{t('timer.splitsEmptyText')}</Text>
           </View>
         ) : (
           <>
             {/* ヘッダー行 */}
             <View style={styles.splitHeader}>
-              <Text style={styles.splitHeaderText}>Lap</Text>
-              <Text style={styles.splitHeaderText}>ラップ</Text>
-              <Text style={styles.splitHeaderText}>累計</Text>
+              <Text style={styles.splitHeaderText}>{t('timer.splitHeaderLap')}</Text>
+              <Text style={styles.splitHeaderText}>{t('timer.splitHeaderLapTime')}</Text>
+              <Text style={styles.splitHeaderText}>{t('timer.splitHeaderTotal')}</Text>
             </View>
             {splits.map((s) => (
               <SplitRow
@@ -329,26 +323,26 @@ export default function TimerScreen() {
         <SafeAreaView style={styles.modalSafe}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setSaveModalVisible(false)}>
-              <Text style={styles.modalCancel}>キャンセル</Text>
+              <Text style={styles.modalCancel}>{t('timer.cancel')}</Text>
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>種目を選択して保存</Text>
+            <Text style={styles.modalTitle}>{t('timer.modalTitle')}</Text>
             <TouchableOpacity onPress={confirmSave} disabled={saving}>
               <Text style={[styles.modalSave, saving && { opacity: 0.4 }]}>
-                {saving ? '保存中...' : '保存'}
+                {saving ? t('timer.saving') : t('timer.save')}
               </Text>
             </TouchableOpacity>
           </View>
 
           {/* タイム確認 */}
           <View style={styles.confirmTimeCard}>
-            <Text style={styles.confirmTimeLabel}>記録するタイム（Lap 1）</Text>
+            <Text style={styles.confirmTimeLabel}>{t('timer.confirmTimeLabel')}</Text>
             <Text style={styles.confirmTimeValue}>
               {formatStopwatch(splits.find(s => s.lap === 1)?.lapMs ?? displayMs)}
             </Text>
           </View>
 
           {/* 種目選択 */}
-          <Text style={styles.modalLabel}>種目</Text>
+          <Text style={styles.modalLabel}>{t('timer.modalLabelEvent')}</Text>
           <ScrollView
             contentContainerStyle={styles.eventGrid}
             showsVerticalScrollIndicator={false}

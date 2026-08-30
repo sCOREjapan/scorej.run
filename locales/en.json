@@ -2485,5 +2485,30 @@
     "resume": "Resume",
     "stopAndSave": "Stop & Save",
     "outdoorHint": "※ For best GPS accuracy, outdoor use is recommended"
+  },
+  "timer": {
+    "closeLabel": "Close",
+    "headerTitle": "Stopwatch",
+    "save": "Save",
+    "saving": "Saving...",
+    "runningConfirmTitle": "Timer is running",
+    "runningConfirmBody": "Going back will lose your timing.",
+    "cancel": "Cancel",
+    "back": "Back",
+    "split": "Split",
+    "reset": "Reset",
+    "pauseLabel": "Pause",
+    "resumeLabel": "Resume",
+    "startLabel": "Start",
+    "splitsEmptyText": "Press the split button to record a lap",
+    "splitHeaderLap": "Lap",
+    "splitHeaderLapTime": "Split",
+    "splitHeaderTotal": "Total",
+    "noRecordToast": "No time recorded",
+    "saveFailedToast": "Failed to save",
+    "savedToast": "Saved {{event}} {{time}} to your training log",
+    "modalTitle": "Choose an event to save",
+    "confirmTimeLabel": "Time to record (Lap 1)",
+    "modalLabelEvent": "Event"
   }
 }
