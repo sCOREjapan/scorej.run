@@ -2119,5 +2119,58 @@
     "noHistory": "No history yet",
     "historyInterval": "{{work}}s × {{reps}} × {{sets}} sets",
     "historyNormal": "Normal {{work}}s"
+  },
+  "mealCoach": {
+    "backLabel": "Back",
+    "headerTitle": "AI Meal Coach",
+    "proLockedTitle": "Days until competition is a Pro plan feature",
+    "proLockedBtn": "See Pro plan",
+    "noUpcomingCompetition": "No upcoming competitions",
+    "registerCompetitionLink": "Register a competition in your race plan →",
+    "daysLeft": "{{n}} days left",
+    "sectionTitle": "Who mainly prepares your meals?",
+    "providers": {
+      "self": {
+        "label": "I prepare my own",
+        "sub": "Cooking for yourself, living alone, etc."
+      },
+      "family": {
+        "label": "Family / parents",
+        "sub": "Living at home, etc."
+      },
+      "dorm": {
+        "label": "Dorm / training camp",
+        "sub": "There is a meal staff"
+      },
+      "convenience": {
+        "label": "Mostly convenience store / eating out",
+        "sub": "Don't cook much"
+      }
+    },
+    "audience": {
+      "self": "the athlete themselves",
+      "family": "a parent/guardian",
+      "dorm": "the dorm/camp meal staff",
+      "convenience": "the athlete themselves (mostly convenience store / eating out)"
+    },
+    "genBtnGenerating": "Generating...",
+    "genBtnSelf": "See meal tips",
+    "genBtnFor": "Create a message for {{audience}}",
+    "ticketBadge": "🎫 {{n}}",
+    "shareCopy": "Share / Copy",
+    "regenerate": "Regenerate",
+    "disclaimer": "※ The AI Meal Coach provides general information only. For concerns about your individual health or medical history, please consult a doctor or registered dietitian.",
+    "genericError": "Failed to generate",
+    "apiError": "API error ({{status}})",
+    "noContentFallback": "Could not generate a response",
+    "ticketUsedToast": "🎫 Used {{n}} ticket(s)",
+    "eventCategory": {
+      "sprint": "sprint",
+      "middle": "middle-distance",
+      "long": "long-distance"
+    },
+    "promptLanguageLine": "Please write your entire reply in natural, fluent English.",
+    "headerPoints": "🍚 **Points to keep in mind right now**",
+    "headerNote": "💬 **A note**"
   }
 }

@@ -22,6 +22,8 @@ import { checkAdGate, recordUsage } from '../lib/adGate'
 import { TICKET_COST } from '../lib/ticketWallet'
 import TicketGateModal from '../components/TicketGateModal'
 import { useAuth } from '../context/AuthContext'
+import { useTranslation } from 'react-i18next'
+import { useLanguage } from '../context/LanguageContext'
 
 const PROFILE_KEY = 'trackmate_my_profile'
 const COMP_KEY    = 'trackmate_competitions'
@@ -38,21 +40,20 @@ function fetchWithTimeout(url: string, options: RequestInit, ms: number): Promis
 
 type MealProvider = 'self' | 'family' | 'dorm' | 'convenience'
 
-const PROVIDER_OPTIONS: { value: MealProvider; label: string; sub: string; icon: string }[] = [
-  { value: 'self',        label: '自分で用意',         sub: '自炊・一人暮らしなど',   icon: '🧑‍🍳' },
-  { value: 'family',      label: '家族・親が用意',      sub: '実家暮らしなど',         icon: '👨‍👩‍👧' },
-  { value: 'dorm',        label: '寮・合宿所',          sub: '食事担当者がいる',       icon: '🏠' },
-  { value: 'convenience', label: 'コンビニ・外食中心',   sub: '自炊はあまりしない',     icon: '🏪' },
+// label/subは言語依存のためキーのみ保持し、t('mealCoach.providers.<value>.label'等)で解決する
+const PROVIDER_OPTIONS: { value: MealProvider; icon: string }[] = [
+  { value: 'self',        icon: '🧑‍🍳' },
+  { value: 'family',      icon: '👨‍👩‍👧' },
+  { value: 'dorm',        icon: '🏠' },
+  { value: 'convenience', icon: '🏪' },
 ]
-
-const AUDIENCE_LABEL: Record<MealProvider, string> = {
-  self: '選手本人', family: '保護者（親）', dorm: '寮・合宿所の食事担当者', convenience: '選手本人（コンビニ・外食中心）',
-}
 
 interface CompetitionInfo { name: string; date: string; event: string; daysLeft: number }
 
 export default function MealCoachScreen() {
   const router = useRouter()
+  const { t } = useTranslation()
+  const { language } = useLanguage()
   const { isNoad, isCoach } = usePurchase()
   const { isGuest } = useAuth()
   const [loading, setLoading]           = useState(true)
@@ -122,8 +123,15 @@ export default function MealCoachScreen() {
     try {
       const apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
       const endpoint = `${apiBase}/api/analyze`
-      const eventCategoryLabel = eventCategory === 'sprint' ? '短距離' : eventCategory === 'middle' ? '中距離' : '長距離'
-      const audienceLabel = AUDIENCE_LABEL[mealProvider]
+      const eventCategoryLabel = t(`mealCoach.eventCategory.${eventCategory}`)
+      const audienceLabel = t(`mealCoach.audience.${mealProvider}`)
+      // 英語設定では出力全体を英語で書かせ、セクション見出しも言語に応じて出し分ける
+      // (プロンプトに埋め込んだ固定見出しはnarrativeLanguageInstruction的な「自由記述だけ翻訳」の
+      // 対象にならず、英語化しても見出しだけ日本語のまま返ってくるバグがworkout-menu.tsx等で
+      // あったため、同じ問題を避けるためここでも見出し自体を言語別に用意する)
+      const promptLanguageLine = t('mealCoach.promptLanguageLine')
+      const headerPoints = t('mealCoach.headerPoints')
+      const headerNote = t('mealCoach.headerNote')
 
       const systemPrompt = `あなたは日本トップレベルの陸上競技専門の管理栄養士です。実業団・大学のトップ選手の栄養指導経験があり、種目特性に応じた実践的なアドバイスを得意とします。
 
@@ -146,13 +154,13 @@ ${audienceLabel}
 
 以下の形式で出力してください：
 
-🍚 **今、意識したいポイント**
+${headerPoints}
 （2〜3個、箇条書き。大会までの残り日数と種目特性を踏まえた内容にする）
 
-💬 **一言**
+${headerNote}
 （3〜4文。温かみのある結び）
 
-※本メッセージは一般的な情報提供です。個別の体調・既往症等については医師・管理栄養士にご相談ください、という一文を必ず最後に含める。`
+※本メッセージは一般的な情報提供です。個別の体調・既往症等については医師・管理栄養士にご相談ください、という一文を必ず最後に含める。${promptLanguageLine}`
 
       const res = await fetchWithTimeout(endpoint, {
         method: 'POST',
@@ -164,21 +172,21 @@ ${audienceLabel}
           messages: [{ role: 'user', content: prompt }],
         }),
       }, 45000)
-      if (!res.ok) throw new Error(`APIエラー (${res.status})`)
+      if (!res.ok) throw new Error(t('mealCoach.apiError', { status: res.status }))
       const data = await res.json()
-      const text = data.content?.[0]?.text ?? '生成できませんでした'
+      const text = data.content?.[0]?.text ?? t('mealCoach.noContentFallback')
       setMessage(text)
       trackFeatureUse('meal_coach')
 
       // 生成に成功した場合のみ利用回数・チケットを消費する（失敗時に課金しないため）
       await recordUsage('meal_coach')
-      if (gate.needsTicket) Toast.show({ type: 'info', text1: `🎫 チケットを${gate.ticketCost}枚使用しました`, visibilityTime: 1800 })
+      if (gate.needsTicket) Toast.show({ type: 'info', text1: t('mealCoach.ticketUsedToast', { n: gate.ticketCost }), visibilityTime: 1800 })
     } catch (e) {
-      Toast.show({ type: 'error', text1: '生成に失敗しました', text2: e instanceof Error ? e.message : '' })
+      Toast.show({ type: 'error', text1: t('mealCoach.genericError'), text2: e instanceof Error ? e.message : '' })
     } finally {
       setGenerating(false)
     }
-  }, [mealProvider, eventCategory, competition, isGuest, router])
+  }, [mealProvider, eventCategory, competition, isGuest, router, t])
 
   const shareMessage = useCallback(async () => {
     if (!message) return
@@ -189,10 +197,10 @@ ${audienceLabel}
     <View style={{ flex: 1, backgroundColor: '#f5f5f7' }}>
       <SafeAreaView style={{ flex: 1 }}>
         <View style={s.header}>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="戻る">
+          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={t('mealCoach.backLabel')}>
             <Ionicons name="chevron-back" size={24} color={TEXT.primary} />
           </TouchableOpacity>
-          <Text style={s.headerTitle}>AI食事コーチ</Text>
+          <Text style={s.headerTitle}>{t('mealCoach.headerTitle')}</Text>
           <View style={{ width: 24 }} />
         </View>
 
@@ -208,20 +216,20 @@ ${audienceLabel}
               <View style={[s.card, { overflow: 'hidden' }]}>
                 <View pointerEvents="none">
                   <Text style={s.cardLabel}>{competition.name}（{competition.event}）</Text>
-                  <Text style={s.countdown}>あと {competition.daysLeft} 日</Text>
+                  <Text style={s.countdown}>{t('mealCoach.daysLeft', { n: competition.daysLeft })}</Text>
                 </View>
                 <BlurView intensity={32} tint="light" style={StyleSheet.absoluteFill} />
                 <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', padding: 12 }]}>
                   <Ionicons name="lock-closed" size={18} color={TEXT.secondary} />
                   <Text style={{ color: TEXT.primary, fontSize: 12, fontWeight: '800', marginTop: 6, textAlign: 'center' }}>
-                    大会までの日数はプロプラン限定です
+                    {t('mealCoach.proLockedTitle')}
                   </Text>
                   <TouchableOpacity
                     onPress={() => router.push('/paywall')}
                     style={{ marginTop: 8, backgroundColor: BRAND, borderRadius: 50, paddingHorizontal: 16, paddingVertical: 7 }}
                     activeOpacity={0.85}
                   >
-                    <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' }}>プロプランを見る</Text>
+                    <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' }}>{t('mealCoach.proLockedBtn')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -230,13 +238,13 @@ ${audienceLabel}
                 {competition ? (
                   <>
                     <Text style={s.cardLabel}>{competition.name}（{competition.event}）</Text>
-                    <Text style={s.countdown}>あと {competition.daysLeft} 日</Text>
+                    <Text style={s.countdown}>{t('mealCoach.daysLeft', { n: competition.daysLeft })}</Text>
                   </>
                 ) : (
                   <>
-                    <Text style={s.cardLabel}>直近の大会予定はありません</Text>
+                    <Text style={s.cardLabel}>{t('mealCoach.noUpcomingCompetition')}</Text>
                     <TouchableOpacity onPress={() => router.push({ pathname: '/(tabs)/competition', params: { tab: 'race' } })} style={{ marginTop: 8 }}>
-                      <Text style={{ color: BRAND, fontSize: 13, fontWeight: '700' }}>試合計画から大会を登録する →</Text>
+                      <Text style={{ color: BRAND, fontSize: 13, fontWeight: '700' }}>{t('mealCoach.registerCompetitionLink')}</Text>
                     </TouchableOpacity>
                   </>
                 )}
@@ -244,7 +252,7 @@ ${audienceLabel}
             )}
 
             {/* 食事を主に用意するのは誰か */}
-            <Text style={s.sectionTitle}>食事を主に用意するのはどなたですか？</Text>
+            <Text style={s.sectionTitle}>{t('mealCoach.sectionTitle')}</Text>
             <View style={{ gap: 10, marginBottom: 20 }}>
               {PROVIDER_OPTIONS.map(opt => {
                 const selected = mealProvider === opt.value
@@ -257,8 +265,8 @@ ${audienceLabel}
                   >
                     <Text style={{ fontSize: 22 }}>{opt.icon}</Text>
                     <View style={{ flex: 1 }}>
-                      <Text style={[s.providerLabel, selected && { color: BRAND }]}>{opt.label}</Text>
-                      <Text style={s.providerSub}>{opt.sub}</Text>
+                      <Text style={[s.providerLabel, selected && { color: BRAND }]}>{t(`mealCoach.providers.${opt.value}.label`)}</Text>
+                      <Text style={s.providerSub}>{t(`mealCoach.providers.${opt.value}.sub`)}</Text>
                     </View>
                     {selected && <Ionicons name="checkmark-circle" size={22} color={BRAND} />}
                   </TouchableOpacity>
@@ -275,10 +283,10 @@ ${audienceLabel}
             >
               {generating ? <ActivityIndicator size="small" color="#fff" /> : <Text style={{ fontSize: 18 }}>🍚</Text>}
               <Text style={s.genBtnText}>
-                {generating ? '作成中...' : mealProvider === 'self' ? '食事のポイントを見る' : `${AUDIENCE_LABEL[mealProvider ?? 'self']}向けメッセージを作成`}
+                {generating ? t('mealCoach.genBtnGenerating') : mealProvider === 'self' ? t('mealCoach.genBtnSelf') : t('mealCoach.genBtnFor', { audience: t(`mealCoach.audience.${mealProvider ?? 'self'}`) })}
               </Text>
               {!isCoach && !generating && (
-                <View style={s.genBtnBadge}><Text style={s.genBtnBadgeText}>🎫 {TICKET_COST.meal_coach}枚</Text></View>
+                <View style={s.genBtnBadge}><Text style={s.genBtnBadgeText}>{t('mealCoach.ticketBadge', { n: TICKET_COST.meal_coach })}</Text></View>
               )}
             </TouchableOpacity>
 
@@ -296,18 +304,18 @@ ${audienceLabel}
                 <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
                   <TouchableOpacity style={s.shareBtn} onPress={shareMessage} activeOpacity={0.8}>
                     <Ionicons name="share-outline" size={15} color={BRAND} />
-                    <Text style={s.shareBtnText}>共有・コピー</Text>
+                    <Text style={s.shareBtnText}>{t('mealCoach.shareCopy')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={s.shareBtn} onPress={generateMessage} activeOpacity={0.8}>
                     <Ionicons name="refresh" size={15} color={BRAND} />
-                    <Text style={s.shareBtnText}>作り直す</Text>
+                    <Text style={s.shareBtnText}>{t('mealCoach.regenerate')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
             )}
 
             <Text style={s.disclaimer}>
-              ※ AI食事コーチは一般的な情報提供です。個別の体調・既往症等については医師・管理栄養士にご相談ください。
+              {t('mealCoach.disclaimer')}
             </Text>
           </ScrollView>
         )}

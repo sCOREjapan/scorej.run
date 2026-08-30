@@ -2119,5 +2119,58 @@
     "noHistory": "まだ履歴がありません",
     "historyInterval": "{{work}}秒 × {{reps}}回 × {{sets}}セット",
     "historyNormal": "通常 {{work}}秒"
+  },
+  "mealCoach": {
+    "backLabel": "戻る",
+    "headerTitle": "AI食事コーチ",
+    "proLockedTitle": "大会までの日数はプロプラン限定です",
+    "proLockedBtn": "プロプランを見る",
+    "noUpcomingCompetition": "直近の大会予定はありません",
+    "registerCompetitionLink": "試合計画から大会を登録する →",
+    "daysLeft": "あと {{n}} 日",
+    "sectionTitle": "食事を主に用意するのはどなたですか？",
+    "providers": {
+      "self": {
+        "label": "自分で用意",
+        "sub": "自炊・一人暮らしなど"
+      },
+      "family": {
+        "label": "家族・親が用意",
+        "sub": "実家暮らしなど"
+      },
+      "dorm": {
+        "label": "寮・合宿所",
+        "sub": "食事担当者がいる"
+      },
+      "convenience": {
+        "label": "コンビニ・外食中心",
+        "sub": "自炊はあまりしない"
+      }
+    },
+    "audience": {
+      "self": "選手本人",
+      "family": "保護者（親）",
+      "dorm": "寮・合宿所の食事担当者",
+      "convenience": "選手本人（コンビニ・外食中心）"
+    },
+    "genBtnGenerating": "作成中...",
+    "genBtnSelf": "食事のポイントを見る",
+    "genBtnFor": "{{audience}}向けメッセージを作成",
+    "ticketBadge": "🎫 {{n}}枚",
+    "shareCopy": "共有・コピー",
+    "regenerate": "作り直す",
+    "disclaimer": "※ AI食事コーチは一般的な情報提供です。個別の体調・既往症等については医師・管理栄養士にご相談ください。",
+    "genericError": "生成に失敗しました",
+    "apiError": "APIエラー ({{status}})",
+    "noContentFallback": "生成できませんでした",
+    "ticketUsedToast": "🎫 チケットを{{n}}枚使用しました",
+    "eventCategory": {
+      "sprint": "短距離",
+      "middle": "中距離",
+      "long": "長距離"
+    },
+    "promptLanguageLine": "",
+    "headerPoints": "🍚 **今、意識したいポイント**",
+    "headerNote": "💬 **一言**"
   }
 }
