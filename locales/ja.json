@@ -3633,5 +3633,16 @@
       "body": "最後まで視聴すると1回無料で使用できます。",
       "ok": "OK"
     }
+  },
+  "ticketGateModal": {
+    "title": "チケットが足りません",
+    "sub": "{{feature}}には{{cost}}枚必要です（現在{{balance}}枚・あと{{shortage}}枚）",
+    "watchAdLoading": "広告を読み込み中...",
+    "watchAdCta": "広告を見てチケット+1（本日あと{{n}}回）",
+    "watchAdCapReached": "本日の獲得上限に達しました",
+    "ticketEarned": "🎫 チケット1枚を獲得しました！",
+    "buyTickets": "チケットを購入する",
+    "monthlyPlan": "チケット月額プランで毎月100枚",
+    "notNow": "今はしない"
   }
 }

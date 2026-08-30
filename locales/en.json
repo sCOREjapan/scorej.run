@@ -3633,5 +3633,16 @@
       "body": "Watching to the end unlocks one free use.",
       "ok": "OK"
     }
+  },
+  "ticketGateModal": {
+    "title": "Not Enough Tickets",
+    "sub": "{{feature}} requires {{cost}} ticket(s) (you have {{balance}}, need {{shortage}} more)",
+    "watchAdLoading": "Loading ad...",
+    "watchAdCta": "Watch an ad for +1 ticket ({{n}} left today)",
+    "watchAdCapReached": "You've reached today's earning limit",
+    "ticketEarned": "🎫 Earned 1 ticket!",
+    "buyTickets": "Buy Tickets",
+    "monthlyPlan": "Get 100 tickets/month with the Ticket Plan",
+    "notNow": "Not now"
   }
 }

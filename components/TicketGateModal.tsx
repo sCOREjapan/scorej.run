@@ -11,22 +11,10 @@ import { earnTicketFromAd, getAdTicketRemainingToday, getTicketBalance } from '.
 import { watchAdsForReward } from '../lib/rewardedAd'
 import { trackPaywallView } from '../lib/analytics'
 import Toast from 'react-native-toast-message'
+import { useTranslation } from 'react-i18next'
 
 const TIX  = '#f59e0b'
 const PREM = '#7c3aed'
-
-const FEATURE_LABELS: Partial<Record<Feature, string>> = {
-  video:            '動画フォーム分析',
-  workout:          'AI練習メニュー生成',
-  meal:             'AI食事分析',
-  ai_analysis:      'AI練習分析コーチ',
-  recovery:         'AIリカバリー相談',
-  meal_coach:       'AI食事コーチ',
-  daily_insight:    '今日のAIアドバイス',
-  notebook_ai:      '練習ノートAI解析',
-  competition_plan: '大会プラン生成',
-  injury_recovery:  '復帰プラン生成',
-}
 
 interface Props {
   visible:       boolean
@@ -38,7 +26,8 @@ interface Props {
 
 export default function TicketGateModal({ visible, feature, ticketCost, ticketBalance, onClose }: Props) {
   const router = useRouter()
-  const featureName = FEATURE_LABELS[feature] ?? '機能'
+  const { t } = useTranslation()
+  const featureName = t(`adGateModal.features.${feature}`, { defaultValue: t('adGateModal.features.default') })
 
   // 広告視聴で増えた分をその場で反映するため、残高・不足枚数はローカルstateで持つ
   const [balance, setBalance] = useState(ticketBalance)
@@ -69,7 +58,7 @@ export default function TicketGateModal({ visible, feature, ticketCost, ticketBa
       if (r.granted) {
         setBalance(await getTicketBalance())
         setAdTicketsLeft(await getAdTicketRemainingToday())
-        Toast.show({ type: 'success', text1: '🎫 チケット1枚を獲得しました！' })
+        Toast.show({ type: 'success', text1: t('ticketGateModal.ticketEarned') })
       }
     } finally {
       setWatchingAd(false)
@@ -85,9 +74,9 @@ export default function TicketGateModal({ visible, feature, ticketCost, ticketBa
           <View style={[st.iconWrap, { backgroundColor: 'rgba(245,158,11,0.18)' }]}>
             <Text style={{ fontSize: 30 }}>🎫</Text>
           </View>
-          <Text style={st.title}>チケットが足りません</Text>
+          <Text style={st.title}>{t('ticketGateModal.title')}</Text>
           <Text style={st.sub}>
-            {featureName}には{ticketCost}枚必要です（現在{balance}枚・あと{shortage}枚）
+            {t('ticketGateModal.sub', { feature: featureName, cost: ticketCost, balance, shortage })}
           </Text>
 
           <TouchableOpacity
@@ -102,9 +91,9 @@ export default function TicketGateModal({ visible, feature, ticketCost, ticketBa
               <Ionicons name="play-circle" size={18} color="#fff" />
             )}
             <Text style={[st.primaryBtnTxt, { color: '#fff' }]}>
-              {watchingAd ? '広告を読み込み中...'
-                : adTicketsLeft > 0 ? `広告を見てチケット+1（本日あと${adTicketsLeft}回）`
-                : '本日の獲得上限に達しました'}
+              {watchingAd ? t('ticketGateModal.watchAdLoading')
+                : adTicketsLeft > 0 ? t('ticketGateModal.watchAdCta', { n: adTicketsLeft })
+                : t('ticketGateModal.watchAdCapReached')}
             </Text>
           </TouchableOpacity>
 
@@ -114,7 +103,7 @@ export default function TicketGateModal({ visible, feature, ticketCost, ticketBa
             activeOpacity={0.85}
           >
             <Text style={{ fontSize: 16 }}>🎫</Text>
-            <Text style={[st.secondaryBtnTxt, { color: TIX }]}>チケットを購入する</Text>
+            <Text style={[st.secondaryBtnTxt, { color: TIX }]}>{t('ticketGateModal.buyTickets')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -123,11 +112,11 @@ export default function TicketGateModal({ visible, feature, ticketCost, ticketBa
             activeOpacity={0.85}
           >
             <Ionicons name="refresh" size={16} color={PREM} />
-            <Text style={[st.secondaryBtnTxt, { color: PREM }]}>チケット月額プランで毎月100枚</Text>
+            <Text style={[st.secondaryBtnTxt, { color: PREM }]}>{t('ticketGateModal.monthlyPlan')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={st.cancelBtn} onPress={onClose} activeOpacity={0.7}>
-            <Text style={st.cancelTxt}>今はしない</Text>
+            <Text style={st.cancelTxt}>{t('ticketGateModal.notNow')}</Text>
           </TouchableOpacity>
         </View>
       </View>
