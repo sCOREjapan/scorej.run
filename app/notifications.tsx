@@ -12,6 +12,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTheme } from '../context/ThemeContext'
 import { BRAND } from '../lib/theme'
 import { fetchTeamEvents, type TeamEventRow } from '../lib/supabaseTeam'
+import { useTranslation } from 'react-i18next'
+import { useLanguage } from '../context/LanguageContext'
 
 // ─────────────────────────────────────────
 // 定数
@@ -20,87 +22,47 @@ const JOINED_KEY   = 'trackmate_team_joined'
 const READ_KEY     = 'notif_read_ids'
 
 // アプリからのお知らせ（固定リスト — バージョンアップ時に追記）
+// title/bodyは言語依存のためlocales側に移し、ここではid/date/badge/icon/colorのみ持つ
 interface AppNotice {
   id:      string
   date:    string   // YYYY-MM-DD
   badge?:  string   // 'NEW' | 'UPDATE' | 'TIP'
-  title:   string
-  body:    string
   icon:    string
   color:   string
 }
 const APP_NOTICES: AppNotice[] = [
-  {
-    id:    'v1.1.0-team-pro',
-    date:  '2026-05-23',
-    badge: 'NEW',
-    title: 'チームProプラン登場',
-    body:  'チーム管理機能＋AI全機能完全無制限をセットにした最上位プランが登場しました。コーチダッシュボードまたは設定画面からご確認ください。',
-    icon:  'trophy-outline',
-    color: '#7c3aed',
-  },
-  {
-    id:    'v1.0.1-date-fix',
-    date:  '2026-05-14',
-    badge: 'UPDATE',
-    title: '練習入力の日付バグを修正',
-    body:  '「10日」と入力した練習が9日に登録されてしまう問題を修正しました。今後は正しい日付に保存されます。',
-    icon:  'calendar-outline',
-    color: '#3b82f6',
-  },
-  {
-    id:    'v1.0.1-load-fix',
-    date:  '2026-05-14',
-    badge: 'UPDATE',
-    title: 'チーム負荷スコアの計算を改善',
-    body:  'インターバル・スプリント練習の負荷計算が実態に合っていなかった問題を修正。コーチ画面の「チーム負荷」が正しく表示されるようになりました。',
-    icon:  'barbell-outline',
-    color: BRAND,
-  },
-  {
-    id:    'v1.0.1-injury-model',
-    date:  '2026-05-14',
-    badge: 'UPDATE',
-    title: '怪我リスクモデルを大幅強化',
-    body:  '連続高強度日数・睡眠時間・休養日なしペナルティを新たに加味するよう改善。より精度の高い怪我リスク予測が可能になりました。',
-    icon:  'fitness-outline',
-    color: '#8b5cf6',
-  },
-  {
-    id:    'welcome-v1',
-    date:  '2026-04-01',
-    badge: 'TIP',
-    title: 'sCORE APPへようこそ！',
-    body:  'まずは毎日の練習記録から始めましょう。データが増えるほど怪我リスク予測の精度が上がります。わからないことがあれば設定からお問い合わせください。',
-    icon:  'rocket-outline',
-    color: '#FF9500',
-  },
+  { id: 'v1.1.0-team-pro',     date: '2026-05-23', badge: 'NEW',    icon: 'trophy-outline',  color: '#7c3aed' },
+  { id: 'v1.0.1-date-fix',     date: '2026-05-14', badge: 'UPDATE', icon: 'calendar-outline', color: '#3b82f6' },
+  { id: 'v1.0.1-load-fix',     date: '2026-05-14', badge: 'UPDATE', icon: 'barbell-outline',  color: BRAND },
+  { id: 'v1.0.1-injury-model', date: '2026-05-14', badge: 'UPDATE', icon: 'fitness-outline',  color: '#8b5cf6' },
+  { id: 'welcome-v1',          date: '2026-04-01', badge: 'TIP',    icon: 'rocket-outline',   color: '#FF9500' },
 ]
 
-// チームイベント種別の設定
-const EVENT_CFG: Record<string, { emoji: string; color: string; label: string }> = {
-  practice: { emoji: '🏃', color: '#34C759', label: '練習'   },
-  race:     { emoji: '🏁', color: BRAND,     label: '試合'   },
-  rest:     { emoji: '😴', color: '#5856D6', label: '休養'   },
-  meeting:  { emoji: '💬', color: '#FF9500', label: 'ミーティング' },
-  other:    { emoji: '📌', color: '#8E8E93', label: 'その他' },
+// チームイベント種別の設定（labelは言語依存のためt('notifications.eventTypes.<key>')で解決）
+const EVENT_CFG: Record<string, { emoji: string; color: string }> = {
+  practice: { emoji: '🏃', color: '#34C759' },
+  race:     { emoji: '🏁', color: BRAND     },
+  rest:     { emoji: '😴', color: '#5856D6' },
+  meeting:  { emoji: '💬', color: '#FF9500' },
+  other:    { emoji: '📌', color: '#8E8E93' },
 }
 
 // ─────────────────────────────────────────
 // ヘルパー
 // ─────────────────────────────────────────
-function fmtDate(dateStr: string): string {
+function fmtDate(dateStr: string, t: (key: string, opts?: any) => string, lang: 'ja' | 'en'): string {
   const d = new Date(dateStr + 'T00:00:00')
   const today = new Date(); today.setHours(0,0,0,0)
   const diff  = Math.round((d.getTime() - today.getTime()) / 86400000)
   const JP    = ['日','月','火','水','木','金','土']
-  const dow   = JP[d.getDay()]
-  const mmdd  = `${d.getMonth()+1}/${d.getDate()}(${dow})`
-  if (diff === 0)  return `今日 ${mmdd}`
-  if (diff === 1)  return `明日 ${mmdd}`
-  if (diff === -1) return `昨日 ${mmdd}`
-  if (diff > 0)   return `${diff}日後 ${mmdd}`
-  return `${Math.abs(diff)}日前 ${mmdd}`
+  const mmdd  = lang === 'en'
+    ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    : `${d.getMonth()+1}/${d.getDate()}(${JP[d.getDay()]})`
+  if (diff === 0)  return t('notifications.dateToday', { mmdd })
+  if (diff === 1)  return t('notifications.dateTomorrow', { mmdd })
+  if (diff === -1) return t('notifications.dateYesterday', { mmdd })
+  if (diff > 0)    return t('notifications.dateDaysAfter', { n: diff, mmdd })
+  return t('notifications.dateDaysAgo', { n: Math.abs(diff), mmdd })
 }
 
 function isWithin3Days(isoStr: string): boolean {
@@ -123,6 +85,8 @@ function Badge({ label, color }: { label: string; color: string }) {
 // ─────────────────────────────────────────
 export default function NotificationsScreen() {
   const { colors } = useTheme()
+  const { t } = useTranslation()
+  const { language } = useLanguage()
 
   const [teamEvents,   setTeamEvents]   = useState<TeamEventRow[]>([])
   const [teamName,     setTeamName]     = useState<string | null>(null)
@@ -189,21 +153,21 @@ export default function NotificationsScreen() {
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={12}>
           <Ionicons name="chevron-back" size={22} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[s.headerTitle, { color: colors.text }]}>通知</Text>
+        <Text style={[s.headerTitle, { color: colors.text }]}>{t('notifications.headerTitle')}</Text>
         <View style={{ width: 36 }} />
       </View>
 
       {/* タブ */}
       <View style={[s.tabBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        {(['team', 'app'] as const).map(t => {
-          const label = t === 'team' ? 'チームからの連絡' : 'アプリからのお知らせ'
-          const count = t === 'team' ? teamUnread : appUnread
-          const active = tab === t
+        {(['team', 'app'] as const).map(tabKey => {
+          const label = tabKey === 'team' ? t('notifications.tabTeam') : t('notifications.tabApp')
+          const count = tabKey === 'team' ? teamUnread : appUnread
+          const active = tab === tabKey
           return (
             <TouchableOpacity
-              key={t}
+              key={tabKey}
               style={[s.tab, active && { borderBottomColor: BRAND, borderBottomWidth: 2 }]}
-              onPress={() => setTab(t)}
+              onPress={() => setTab(tabKey)}
               activeOpacity={0.7}
             >
               <Text style={[s.tabText, { color: active ? BRAND : colors.textSec }, active && { fontWeight: '700' }]}>
@@ -251,13 +215,14 @@ function TeamTab({
   teamName: string | null
   colors: ReturnType<typeof useTheme>['colors']
 }) {
+  const { t } = useTranslation()
   if (!teamName) {
     return (
       <View style={s.empty}>
         <Ionicons name="people-outline" size={48} color={colors.textHint} />
-        <Text style={[s.emptyTitle, { color: colors.text }]}>チーム未加入</Text>
+        <Text style={[s.emptyTitle, { color: colors.text }]}>{t('notifications.noTeamTitle')}</Text>
         <Text style={[s.emptyBody, { color: colors.textSec }]}>
-          チームに加入するとコーチからの練習・試合の連絡がここに届きます
+          {t('notifications.noTeamBody')}
         </Text>
       </View>
     )
@@ -278,9 +243,9 @@ function TeamTab({
     return (
       <View style={s.empty}>
         <Ionicons name="mail-open-outline" size={48} color={colors.textHint} />
-        <Text style={[s.emptyTitle, { color: colors.text }]}>連絡はありません</Text>
+        <Text style={[s.emptyTitle, { color: colors.text }]}>{t('notifications.noEventsTitle')}</Text>
         <Text style={[s.emptyBody, { color: colors.textSec }]}>
-          コーチが練習・試合・休養の予定を登録するとここに表示されます
+          {t('notifications.noEventsBody')}
         </Text>
       </View>
     )
@@ -296,14 +261,14 @@ function TeamTab({
 
       {upcoming.length > 0 && (
         <>
-          <Text style={[s.sectionLabel, { color: colors.textSec }]}>今後の予定</Text>
+          <Text style={[s.sectionLabel, { color: colors.textSec }]}>{t('notifications.upcomingLabel')}</Text>
           {upcoming.map(e => <EventCard key={e.id} event={e} colors={colors} />)}
         </>
       )}
 
       {past.length > 0 && (
         <>
-          <Text style={[s.sectionLabel, { color: colors.textSec, marginTop: upcoming.length ? 20 : 0 }]}>過去の連絡</Text>
+          <Text style={[s.sectionLabel, { color: colors.textSec, marginTop: upcoming.length ? 20 : 0 }]}>{t('notifications.pastLabel')}</Text>
           {past.map(e => <EventCard key={e.id} event={e} colors={colors} muted />)}
         </>
       )}
@@ -318,7 +283,10 @@ function EventCard({
   colors: ReturnType<typeof useTheme>['colors']
   muted?: boolean
 }) {
+  const { t } = useTranslation()
+  const { language } = useLanguage()
   const cfg  = EVENT_CFG[event.event_type] ?? EVENT_CFG.other
+  const cfgLabel = t(`notifications.eventTypes.${EVENT_CFG[event.event_type] ? event.event_type : 'other'}`)
   const isNew = isWithin3Days(event.created_at)
 
   return (
@@ -330,10 +298,10 @@ function EventCard({
         {/* 上段：種別バッジ + 日付 + NEW */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
           <View style={[s.eventTypeBadge, { backgroundColor: cfg.color + '20' }]}>
-            <Text style={{ fontSize: 11, fontWeight: '700', color: cfg.color }}>{cfg.emoji} {cfg.label}</Text>
+            <Text style={{ fontSize: 11, fontWeight: '700', color: cfg.color }}>{cfg.emoji} {cfgLabel}</Text>
           </View>
-          <Text style={[s.eventDate, { color: colors.textSec }]}>{fmtDate(event.event_date)}</Text>
-          {isNew && !muted && <Badge label="NEW" color="#FF3B30" />}
+          <Text style={[s.eventDate, { color: colors.textSec }]}>{fmtDate(event.event_date, t, language)}</Text>
+          {isNew && !muted && <Badge label={t('notifications.newBadge')} color="#FF3B30" />}
         </View>
 
         {/* タイトル */}
@@ -377,15 +345,22 @@ function AppTab({
   notices: AppNotice[]
   colors: ReturnType<typeof useTheme>['colors']
 }) {
+  const { t } = useTranslation()
+  const { language } = useLanguage()
   const BADGE_COLOR: Record<string, string> = {
     NEW:    '#FF3B30',
     UPDATE: '#3b82f6',
     TIP:    '#FF9500',
   }
+  // title/bodyはlocalesの配列側から同じidで引く(id順は両言語で一致させてある)
+  const noticeContent = t('notifications.notices', { returnObjects: true }) as { id: string; title: string; body: string }[]
+  const contentOf = (id: string) => noticeContent.find(c => c.id === id) ?? { title: id, body: '' }
 
   return (
     <View>
-      {notices.map(n => (
+      {notices.map(n => {
+        const content = contentOf(n.id)
+        return (
         <View key={n.id} style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           {/* 左カラーバー */}
           <View style={[s.cardBar, { backgroundColor: n.color }]} />
@@ -398,15 +373,16 @@ function AppTab({
               </View>
               {n.badge && <Badge label={n.badge} color={BADGE_COLOR[n.badge] ?? n.color} />}
               <Text style={[s.eventDate, { color: colors.textSec }]}>
-                {new Date(n.date + 'T00:00:00').toLocaleDateString('ja-JP', { month: 'long', day: 'numeric' })}
+                {new Date(n.date + 'T00:00:00').toLocaleDateString(language === 'en' ? 'en-US' : 'ja-JP', { month: 'long', day: 'numeric' })}
               </Text>
             </View>
 
-            <Text style={[s.cardTitle, { color: colors.text }]}>{n.title}</Text>
-            <Text style={[s.cardBody, { color: colors.textSec }]}>{n.body}</Text>
+            <Text style={[s.cardTitle, { color: colors.text }]}>{content.title}</Text>
+            <Text style={[s.cardBody, { color: colors.textSec }]}>{content.body}</Text>
           </View>
         </View>
-      ))}
+        )
+      })}
     </View>
   )
 }

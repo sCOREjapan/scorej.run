@@ -2209,5 +2209,56 @@
       "race": "Race",
       "rest": "Rest"
     }
+  },
+  "notifications": {
+    "headerTitle": "Notifications",
+    "tabTeam": "From your team",
+    "tabApp": "App updates",
+    "noTeamTitle": "Not on a team",
+    "noTeamBody": "Once you join a team, practice and competition notices from your coach will appear here",
+    "noEventsTitle": "No notices",
+    "noEventsBody": "When your coach schedules practices, competitions, or rest days, they'll show up here",
+    "upcomingLabel": "Upcoming",
+    "pastLabel": "Past",
+    "newBadge": "NEW",
+    "eventTypes": {
+      "practice": "Practice",
+      "race": "Race",
+      "rest": "Rest",
+      "meeting": "Meeting",
+      "other": "Other"
+    },
+    "notices": [
+      {
+        "id": "v1.1.0-team-pro",
+        "title": "Introducing the Team Pro Plan",
+        "body": "Our top-tier plan is here, combining team management features with fully unlimited access to every AI feature. Check it out from the coach dashboard or Settings."
+      },
+      {
+        "id": "v1.0.1-date-fix",
+        "title": "Fixed a date bug in practice logging",
+        "body": "Fixed an issue where entering \"the 10th\" would save the session to the 9th instead. Dates now save correctly."
+      },
+      {
+        "id": "v1.0.1-load-fix",
+        "title": "Improved team load score calculation",
+        "body": "Fixed an issue where the load calculation for interval/sprint training did not match reality. \"Team Load\" on the coach screen now displays correctly."
+      },
+      {
+        "id": "v1.0.1-injury-model",
+        "title": "Major upgrade to the injury risk model",
+        "body": "Improved the model to also factor in consecutive high-intensity days, sleep hours, and a penalty for no rest days, for more accurate injury risk prediction."
+      },
+      {
+        "id": "welcome-v1",
+        "title": "Welcome to sCORE!",
+        "body": "Start by logging your daily training. The more data you add, the more accurate injury risk prediction becomes. If you have questions, reach out from Settings."
+      }
+    ],
+    "dateToday": "Today {{mmdd}}",
+    "dateTomorrow": "Tomorrow {{mmdd}}",
+    "dateYesterday": "Yesterday {{mmdd}}",
+    "dateDaysAfter": "In {{n}}d {{mmdd}}",
+    "dateDaysAgo": "{{n}}d ago {{mmdd}}"
   }
 }
