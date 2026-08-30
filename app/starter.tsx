@@ -9,6 +9,7 @@ import {
   playStarterMarksCue, playStarterSetCue, playStarterGunCue,
 } from '../lib/sounds'
 import { getStarterSettings, randomGunDelayMs, type StarterSettings, STARTER_DEFAULTS } from '../lib/starterSettings'
+import { useTranslation } from 'react-i18next'
 
 const BG = '#f6f6f8'
 const TEXT_PRIMARY = '#111827'
@@ -26,8 +27,10 @@ const STAGES: { key: Exclude<Phase, 'idle'>; label: string; color: string }[] = 
   { key: 'go',    label: 'GO!',           color: GO_COLOR },
 ]
 
+// idleだけ言語依存(他はOn your marks/Set/GO!という国際共通の陸上競技号令なので不変)。
+// t()はレンダー内でしか呼べないため、idleは空にしておきコンポーネント側で差し替える
 const PHASE_TEXT: Record<Phase, string> = {
-  idle:  'タップしてスタート',
+  idle:  '',
   marks: 'On your marks',
   set:   'Set',
   go:    'GO!',
@@ -38,6 +41,7 @@ const PHASE_COLOR: Record<Phase, string> = {
 
 export default function StarterScreen() {
   const router = useRouter()
+  const { t } = useTranslation()
   const [phase, setPhase] = useState<Phase>('idle')
   const [running, setRunning] = useState(false)
   const settingsRef = useRef<StarterSettings>(STARTER_DEFAULTS)
@@ -99,12 +103,12 @@ export default function StarterScreen() {
   return (
     <SafeAreaView style={ss.safe} edges={['top', 'bottom']}>
       <View style={ss.header}>
-        <TouchableOpacity onPress={() => router.back()} style={ss.iconBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="戻る">
+        <TouchableOpacity onPress={() => router.back()} style={ss.iconBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel={t('starter.backLabel')}>
           <Ionicons name="chevron-back" size={26} color={TEXT_PRIMARY} />
         </TouchableOpacity>
-        <Text style={ss.headerTitle}>スターター</Text>
+        <Text style={ss.headerTitle}>{t('starter.headerTitle')}</Text>
         <TouchableOpacity onPress={() => router.push('/starter-settings' as any)} style={ss.editBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-          <Text style={ss.editBtnText}>編集</Text>
+          <Text style={ss.editBtnText}>{t('starter.edit')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -115,10 +119,10 @@ export default function StarterScreen() {
           disabled={running}
           style={[ss.circle, { borderColor: color, backgroundColor: color + '14' }]}
         >
-          <Text style={[ss.circleText, { color }]}>{PHASE_TEXT[phase]}</Text>
+          <Text style={[ss.circleText, { color }]}>{phase === 'idle' ? t('starter.idle') : PHASE_TEXT[phase]}</Text>
           {running && (
             <TouchableOpacity onPress={handleCancel} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={ss.cancelText}>キャンセル</Text>
+              <Text style={ss.cancelText}>{t('starter.cancel')}</Text>
             </TouchableOpacity>
           )}
         </TouchableOpacity>

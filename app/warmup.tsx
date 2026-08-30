@@ -7,49 +7,39 @@ import { Ionicons } from '@expo/vector-icons'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { BRAND, TEXT, SURFACE, SURFACE2, DIVIDER, NEON } from '../lib/theme'
 import { Sounds, unlockAudio } from '../lib/sounds'
+import { useTranslation } from 'react-i18next'
 
 type Category = 'jog' | 'mobility' | 'drill' | 'sprint'
 type RiskLevel = 'low' | 'moderate' | 'high'
 
 interface WarmupItem {
   id: string
-  name: string
-  detail: string
   icon: string
   category: Category
   levels: RiskLevel[]  // which risk levels include this item
 }
 
+// name/detailは言語依存のため持たず、id経由でt('warmup.items.<id>.name'等)を引く
 const ITEMS: WarmupItem[] = [
-  { id: 'jog',        name: 'ジョグ',               detail: '5〜10分 — ゆっくり心拍数を上げる',      icon: '🏃', category: 'jog',      levels: ['low','moderate','high'] },
-  { id: 'calf',       name: 'ふくらはぎストレッチ',   detail: '壁押し 30秒×2・アキレス腱も丁寧に',    icon: '🦵', category: 'mobility', levels: ['low','moderate','high'] },
-  { id: 'hip',        name: '股関節回旋',             detail: '左右各10回 — 大きく円を描く',           icon: '⭕', category: 'mobility', levels: ['low','moderate','high'] },
-  { id: 'leg_swing',  name: 'レッグスウィング',       detail: '前後・横 各10回 — 支え壁を使う',        icon: '🔄', category: 'mobility', levels: ['low','moderate','high'] },
-  { id: 'dynamic',    name: '動的ストレッチ',         detail: 'もも前後・内転筋 各10回',               icon: '🤸', category: 'mobility', levels: ['low','moderate','high'] },
-  { id: 'lunge',      name: 'ランジウォーク',         detail: '20m×2 — 前足の股関節を意識',           icon: '🚶', category: 'drill',    levels: ['low','moderate'] },
-  { id: 'skip',       name: 'スキップ',               detail: '30m×2 — リズムよく高く',               icon: '⬆️', category: 'drill',    levels: ['low','moderate'] },
-  { id: 'carioca',    name: 'カリオカ',               detail: '20m×2 — 体幹の回旋を意識',             icon: '🔀', category: 'drill',    levels: ['low','moderate'] },
-  { id: 'bounding',   name: 'バウンディング',         detail: '30m×2 — 接地を素早く',                 icon: '💨', category: 'drill',    levels: ['low'] },
-  { id: 'strides',    name: '流し',                   detail: '50m×3 — 70〜80%強度で走感を確認',      icon: '🏁', category: 'sprint',   levels: ['low','moderate'] },
+  { id: 'jog',        icon: '🏃', category: 'jog',      levels: ['low','moderate','high'] },
+  { id: 'calf',       icon: '🦵', category: 'mobility', levels: ['low','moderate','high'] },
+  { id: 'hip',        icon: '⭕', category: 'mobility', levels: ['low','moderate','high'] },
+  { id: 'leg_swing',  icon: '🔄', category: 'mobility', levels: ['low','moderate','high'] },
+  { id: 'dynamic',    icon: '🤸', category: 'mobility', levels: ['low','moderate','high'] },
+  { id: 'lunge',      icon: '🚶', category: 'drill',    levels: ['low','moderate'] },
+  { id: 'skip',       icon: '⬆️', category: 'drill',    levels: ['low','moderate'] },
+  { id: 'carioca',    icon: '🔀', category: 'drill',    levels: ['low','moderate'] },
+  { id: 'bounding',   icon: '💨', category: 'drill',    levels: ['low'] },
+  { id: 'strides',    icon: '🏁', category: 'sprint',   levels: ['low','moderate'] },
 ]
 
-const CATEGORY_LABELS: Record<Category, string> = {
-  jog: '有酸素', mobility: '可動域', drill: 'ドリル', sprint: 'スプリント',
-}
 const CATEGORY_COLORS: Record<Category, string> = {
   jog: NEON.green, mobility: '#4A9FFF', drill: '#FF9500', sprint: '#FF3B30',
-}
-const RISK_LABEL: Record<RiskLevel, string> = {
-  low: '🟢 良好', moderate: '🟡 注意', high: '🔴 リスク高',
-}
-const RISK_NOTE: Record<RiskLevel, string> = {
-  low:      '今日は全メニューOK。体を十分に温めてから練習へ。',
-  moderate: '疲労や体調が気になる日。強度を落としてウォームアップを丁寧に。',
-  high:     '疲労・リスクが高い日。ジョグとストレッチだけで十分です。',
 }
 
 export default function WarmupScreen() {
   const router = useRouter()
+  const { t } = useTranslation()
   const params = useLocalSearchParams<{ risk?: string }>()
   const risk = (params.risk ?? 'low') as RiskLevel
 
@@ -81,17 +71,17 @@ export default function WarmupScreen() {
 
           {/* ── ヘッダー ── */}
           <View style={st.header}>
-            <Text style={st.title}>ウォームアップ</Text>
+            <Text style={st.title}>{t('warmup.title')}</Text>
             <View style={[st.riskBadge, { borderColor: risk === 'high' ? '#FF3B30' : risk === 'moderate' ? '#FF9500' : '#34C759' }]}>
               <Text style={{ color: risk === 'high' ? '#FF3B30' : risk === 'moderate' ? '#FF9500' : '#34C759', fontSize: 12, fontWeight: '700' }}>
-                {RISK_LABEL[risk]}
+                {t(`warmup.riskLabel.${risk}`)}
               </Text>
             </View>
           </View>
 
           {/* ── 今日のアドバイス ── */}
           <View style={st.noteCard}>
-            <Text style={st.noteText}>{RISK_NOTE[risk]}</Text>
+            <Text style={st.noteText}>{t(`warmup.riskNote.${risk}`)}</Text>
           </View>
 
           {/* ── プログレスバー ── */}
@@ -121,9 +111,9 @@ export default function WarmupScreen() {
                   <Text style={st.itemIcon}>{item.icon}</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={[st.itemName, isChecked && { color: TEXT.hint, textDecorationLine: 'line-through' }]}>
-                      {item.name}
+                      {t(`warmup.items.${item.id}.name`)}
                     </Text>
-                    <Text style={st.itemDetail}>{item.detail}</Text>
+                    <Text style={st.itemDetail}>{t(`warmup.items.${item.id}.detail`)}</Text>
                   </View>
                   <View style={[st.checkbox, isChecked && st.checkboxDone]}>
                     {isChecked && <Ionicons name="checkmark" size={16} color="#000" />}
@@ -135,10 +125,10 @@ export default function WarmupScreen() {
 
           {/* ── カテゴリ凡例 ── */}
           <View style={st.legend}>
-            {(Object.keys(CATEGORY_LABELS) as Category[]).map(cat => (
+            {(Object.keys(CATEGORY_COLORS) as Category[]).map(cat => (
               <View key={cat} style={st.legendItem}>
                 <View style={[st.legendDot, { backgroundColor: CATEGORY_COLORS[cat] }]} />
-                <Text style={st.legendText}>{CATEGORY_LABELS[cat]}</Text>
+                <Text style={st.legendText}>{t(`warmup.categories.${cat}`)}</Text>
               </View>
             ))}
           </View>
@@ -151,7 +141,7 @@ export default function WarmupScreen() {
           >
             <Ionicons name={done ? 'checkmark-circle' : 'play'} size={20} color="#fff" />
             <Text style={st.doneBtnText}>
-              {done ? 'ウォームアップ完了！練習へ' : '準備OKなら練習へ →'}
+              {done ? t('warmup.doneBtnActive') : t('warmup.doneBtnIdle')}
             </Text>
           </TouchableOpacity>
 

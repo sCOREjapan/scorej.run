@@ -1926,5 +1926,75 @@
     "footerPrivacy": "Privacy Policy",
     "footerSuffix": ".",
     "inAppBrowserAlert": "Google sign-in isn't available in an in-app browser.\n\nPlease open this page in Safari (or Chrome) and sign in from there.\n\nTap \"...\" in the bottom right, then \"Open in Safari\"."
+  },
+  "starter": {
+    "backLabel": "Back",
+    "headerTitle": "Starter",
+    "edit": "Edit",
+    "idle": "Tap to start",
+    "cancel": "Cancel"
+  },
+  "warmup": {
+    "title": "Warm-up",
+    "items": {
+      "jog": {
+        "name": "Jog",
+        "detail": "5-10 min — gently raise your heart rate"
+      },
+      "calf": {
+        "name": "Calf stretch",
+        "detail": "Wall push 30s×2 — take care with the Achilles too"
+      },
+      "hip": {
+        "name": "Hip rotations",
+        "detail": "10 reps each side — draw big circles"
+      },
+      "leg_swing": {
+        "name": "Leg swings",
+        "detail": "Front-back & side, 10 reps each — use a wall for support"
+      },
+      "dynamic": {
+        "name": "Dynamic stretches",
+        "detail": "Front/back thigh & adductors, 10 reps each"
+      },
+      "lunge": {
+        "name": "Lunge walk",
+        "detail": "20m×2 — focus on the front hip"
+      },
+      "skip": {
+        "name": "Skipping",
+        "detail": "30m×2 — high and rhythmic"
+      },
+      "carioca": {
+        "name": "Carioca",
+        "detail": "20m×2 — focus on trunk rotation"
+      },
+      "bounding": {
+        "name": "Bounding",
+        "detail": "30m×2 — quick ground contact"
+      },
+      "strides": {
+        "name": "Strides",
+        "detail": "50m×3 — check your running feel at 70-80% effort"
+      }
+    },
+    "categories": {
+      "jog": "Aerobic",
+      "mobility": "Mobility",
+      "drill": "Drill",
+      "sprint": "Sprint"
+    },
+    "riskLabel": {
+      "low": "🟢 Good",
+      "moderate": "🟡 Caution",
+      "high": "🔴 High Risk"
+    },
+    "riskNote": {
+      "low": "You're clear for the full menu today. Warm up well before training.",
+      "moderate": "A day to watch your fatigue/condition. Lower the intensity and warm up carefully.",
+      "high": "High fatigue/risk today. Jogging and stretching alone is enough."
+    },
+    "doneBtnActive": "Warm-up complete! Head to practice",
+    "doneBtnIdle": "Ready? Head to practice →"
   }
 }

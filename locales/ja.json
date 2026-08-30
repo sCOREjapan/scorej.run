@@ -1926,5 +1926,75 @@
     "footerPrivacy": "プライバシーポリシー",
     "footerSuffix": "に同意したことになります",
     "inAppBrowserAlert": "Googleログインはアプリ内ブラウザでは使用できません。\n\nSafari（または Chrome）でこのページを開いてからログインしてください。\n\n右下の「...」→「Safariで開く」をタップしてください。"
+  },
+  "starter": {
+    "backLabel": "戻る",
+    "headerTitle": "スターター",
+    "edit": "編集",
+    "idle": "タップしてスタート",
+    "cancel": "キャンセル"
+  },
+  "warmup": {
+    "title": "ウォームアップ",
+    "items": {
+      "jog": {
+        "name": "ジョグ",
+        "detail": "5〜10分 — ゆっくり心拍数を上げる"
+      },
+      "calf": {
+        "name": "ふくらはぎストレッチ",
+        "detail": "壁押し 30秒×2・アキレス腱も丁寧に"
+      },
+      "hip": {
+        "name": "股関節回旋",
+        "detail": "左右各10回 — 大きく円を描く"
+      },
+      "leg_swing": {
+        "name": "レッグスウィング",
+        "detail": "前後・横 各10回 — 支え壁を使う"
+      },
+      "dynamic": {
+        "name": "動的ストレッチ",
+        "detail": "もも前後・内転筋 各10回"
+      },
+      "lunge": {
+        "name": "ランジウォーク",
+        "detail": "20m×2 — 前足の股関節を意識"
+      },
+      "skip": {
+        "name": "スキップ",
+        "detail": "30m×2 — リズムよく高く"
+      },
+      "carioca": {
+        "name": "カリオカ",
+        "detail": "20m×2 — 体幹の回旋を意識"
+      },
+      "bounding": {
+        "name": "バウンディング",
+        "detail": "30m×2 — 接地を素早く"
+      },
+      "strides": {
+        "name": "流し",
+        "detail": "50m×3 — 70〜80%強度で走感を確認"
+      }
+    },
+    "categories": {
+      "jog": "有酸素",
+      "mobility": "可動域",
+      "drill": "ドリル",
+      "sprint": "スプリント"
+    },
+    "riskLabel": {
+      "low": "🟢 良好",
+      "moderate": "🟡 注意",
+      "high": "🔴 リスク高"
+    },
+    "riskNote": {
+      "low": "今日は全メニューOK。体を十分に温めてから練習へ。",
+      "moderate": "疲労や体調が気になる日。強度を落としてウォームアップを丁寧に。",
+      "high": "疲労・リスクが高い日。ジョグとストレッチだけで十分です。"
+    },
+    "doneBtnActive": "ウォームアップ完了！練習へ",
+    "doneBtnIdle": "準備OKなら練習へ →"
   }
 }
