@@ -3201,5 +3201,121 @@
     "emptyText": "Start logging your sleep",
     "emptyBtn": "Log tonight's sleep",
     "trendChart": "Sleep Duration Trend"
+  },
+  "manualLog": {
+    "title": "Manual Entry",
+    "editTitle": "Edit Record",
+    "back": "Back",
+    "save": "Save",
+    "update": "Update",
+    "saving": "Saving...",
+    "sections": {
+      "date": "Date",
+      "sessionType": "Session Type",
+      "event": "Event (optional)",
+      "hurdleHeight": "Hurdle Height",
+      "time": "Time (optional)",
+      "trainingType": "Training Type",
+      "bodyweight": "Exercises & Reps",
+      "repsAndTime": "Reps & Time (optional)",
+      "reps": "Reps",
+      "distance": "Distance (m)",
+      "fatigue": "Fatigue",
+      "menu": "Workout & Notes (optional)"
+    },
+    "selectedToday": "Today ({{date}})",
+    "selectedLabel": "Selected: ",
+    "sessionTypeHint": "\"Quality session\" refers to training focused on intensity, like intervals, tempo runs, or sprints. Pick whichever is closest.",
+    "sessionTypes": {
+      "sprint": "Sprint",
+      "interval": "Interval",
+      "tempo": "Tempo run",
+      "easy": "Easy jog",
+      "long": "Long run",
+      "drill": "Drill",
+      "strength": "Strength",
+      "race": "Race",
+      "rest": "Rest"
+    },
+    "clearEvent": "Clear event selection",
+    "eventCategories": {
+      "sprint": "Sprint",
+      "middle": "Middle Dist.",
+      "long": "Long Dist.",
+      "hurdle": "Hurdles",
+      "steeplechase": "Steeplechase",
+      "jump": "Jumps",
+      "throw": "Throws",
+      "combined": "Combined",
+      "relay": "Relay"
+    },
+    "close": "Close",
+    "timeFields": {
+      "min": "min",
+      "sec": "sec",
+      "cs": "cs"
+    },
+    "strengthMode": {
+      "weight": "Weighted",
+      "bodyweight": "Bodyweight"
+    },
+    "bodyweightExercises": {
+      "situp": "Sit-ups",
+      "pushup": "Push-ups",
+      "squat": "Squats",
+      "plank": "Plank",
+      "lunge": "Lunges",
+      "backExtension": "Back Extensions",
+      "hipLift": "Hip Lifts",
+      "crunch": "Crunches",
+      "burpee": "Burpees",
+      "mountainClimber": "Mountain Climbers",
+      "jumpingJack": "Jumping Jacks",
+      "diagonal": "Diagonals",
+      "kneeToElbow": "Knee-to-Elbow",
+      "sidePlank": "Side Plank",
+      "calfRaise": "Calf Raises"
+    },
+    "repsUnit": "reps",
+    "setsUnit": "sets",
+    "deleteExercise": "Delete {{name}}",
+    "decreaseReps": "Decrease reps",
+    "increaseReps": "Increase reps",
+    "repUnit": "reps",
+    "repN": "Rep {{n}}",
+    "repTimeMin": "min",
+    "repTimeSec": "sec",
+    "distancePlaceholder": "e.g. 5000",
+    "fatigueLevels": {
+      "2": "Fresh",
+      "4": "Light",
+      "6": "Normal",
+      "8": "Tough",
+      "10": "Max"
+    },
+    "notesPlaceholder": "Warm-up → Drills → Main set → Cool-down...",
+    "saveAsTemplate": "Save as Template",
+    "templateSaved": "\"{{name}}\" saved",
+    "deleteTemplateTitle": "Delete",
+    "deleteTemplateBody": "Delete \"{{name}}\"?",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "continueLogging": "Save & log another event",
+    "toastUpdateSuccess": "Practice updated ✓",
+    "toastContinueSuccess": "Saved ✓ You can log another event now",
+    "toastSaveSuccess": "Practice recorded ✓",
+    "toastSaveError": "Failed to save",
+    "templateModal": {
+      "title": "Save as Template",
+      "hint": "Enter a name for this template",
+      "placeholder": "e.g. Standard interval workout"
+    },
+    "calendar": {
+      "prevMonth": "Previous month",
+      "nextMonth": "Next month"
+    },
+    "bodyweightNoteHeader": "[Bodyweight Training]",
+    "repTimesNoteHeader": "[Time per Rep]",
+    "repTimeLine": "Rep {{n}}: {{time}}"
   }
 }

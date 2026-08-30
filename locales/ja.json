@@ -3201,5 +3201,121 @@
     "emptyText": "睡眠を記録しましょう",
     "emptyBtn": "今夜の睡眠を記録",
     "trendChart": "睡眠時間の推移"
+  },
+  "manualLog": {
+    "title": "手動入力",
+    "editTitle": "記録を編集",
+    "back": "戻る",
+    "save": "保存",
+    "update": "更新",
+    "saving": "保存中...",
+    "sections": {
+      "date": "日付",
+      "sessionType": "練習タイプ",
+      "event": "種目（任意）",
+      "hurdleHeight": "ハードルの高さ",
+      "time": "タイム（任意）",
+      "trainingType": "トレーニング種別",
+      "bodyweight": "種目・回数",
+      "repsAndTime": "本数・タイム（任意）",
+      "reps": "本数",
+      "distance": "距離（m）",
+      "fatigue": "疲労度",
+      "menu": "練習メニュー・メモ（任意）"
+    },
+    "selectedToday": "今日 ({{date}})",
+    "selectedLabel": "選択中: ",
+    "sessionTypeHint": "「ポイント練習」は、インターバル・テンポ走・スプリントなど質を重視する練習のことです。内容に近いものを選んでください。",
+    "sessionTypes": {
+      "sprint": "スプリント",
+      "interval": "インターバル",
+      "tempo": "テンポ走",
+      "easy": "ジョグ",
+      "long": "ロング走",
+      "drill": "ドリル",
+      "strength": "ウェイト",
+      "race": "試合",
+      "rest": "休養"
+    },
+    "clearEvent": "種目の選択を解除",
+    "eventCategories": {
+      "sprint": "スプリント",
+      "middle": "中距離",
+      "long": "長距離",
+      "hurdle": "ハードル",
+      "steeplechase": "障害",
+      "jump": "跳躍",
+      "throw": "投擲",
+      "combined": "混成",
+      "relay": "リレー"
+    },
+    "close": "閉じる",
+    "timeFields": {
+      "min": "分",
+      "sec": "秒",
+      "cs": "CS"
+    },
+    "strengthMode": {
+      "weight": "器具ウェイト",
+      "bodyweight": "自重"
+    },
+    "bodyweightExercises": {
+      "situp": "腹筋",
+      "pushup": "腕立て伏せ",
+      "squat": "スクワット",
+      "plank": "プランク",
+      "lunge": "ランジ",
+      "backExtension": "背筋",
+      "hipLift": "ヒップリフト",
+      "crunch": "クランチ",
+      "burpee": "バーピー",
+      "mountainClimber": "マウンテンクライマー",
+      "jumpingJack": "ジャンピングジャック",
+      "diagonal": "ダイアゴナル",
+      "kneeToElbow": "ニートゥーエルボー",
+      "sidePlank": "サイドプランク",
+      "calfRaise": "カーフレイズ"
+    },
+    "repsUnit": "回",
+    "setsUnit": "セット",
+    "deleteExercise": "{{name}}を削除",
+    "decreaseReps": "本数を減らす",
+    "increaseReps": "本数を増やす",
+    "repUnit": "本",
+    "repN": "{{n}}本目",
+    "repTimeMin": "分",
+    "repTimeSec": "秒",
+    "distancePlaceholder": "例: 5000",
+    "fatigueLevels": {
+      "2": "完全元気",
+      "4": "軽め",
+      "6": "普通",
+      "8": "キツい",
+      "10": "限界"
+    },
+    "notesPlaceholder": "アップ→ドリル→メイン練習→ダウン...",
+    "saveAsTemplate": "テンプレートとして保存",
+    "templateSaved": "「{{name}}」を保存しました",
+    "deleteTemplateTitle": "削除",
+    "deleteTemplateBody": "「{{name}}」を削除しますか？",
+    "cancel": "キャンセル",
+    "delete": "削除",
+    "continueLogging": "保存して続けて別の種目を記録",
+    "toastUpdateSuccess": "練習を更新しました ✓",
+    "toastContinueSuccess": "記録しました ✓ 続けて次の種目を入力できます",
+    "toastSaveSuccess": "練習を記録しました ✓",
+    "toastSaveError": "保存に失敗しました",
+    "templateModal": {
+      "title": "テンプレートとして保存",
+      "hint": "テンプレート名を入力してください",
+      "placeholder": "例: インターバル定番メニュー"
+    },
+    "calendar": {
+      "prevMonth": "前の月",
+      "nextMonth": "次の月"
+    },
+    "bodyweightNoteHeader": "【自重トレーニング】",
+    "repTimesNoteHeader": "【本数ごとのタイム】",
+    "repTimeLine": "{{n}}本目: {{time}}"
   }
 }

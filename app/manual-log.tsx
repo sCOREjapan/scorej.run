@@ -18,6 +18,9 @@ import { updateSessions } from '../lib/sessionsStore'
 import { todayLocalISO } from '../lib/dateLocal'
 import { STANDARD_HURDLE_HEIGHTS, isHurdleEvent } from '../lib/hurdleHeights'
 import { BRAND } from '../lib/theme'
+import { useTranslation } from 'react-i18next'
+import { useLanguage } from '../context/LanguageContext'
+import { getEventLabel } from '../lib/eventLabels'
 
 const SESSIONS_KEY      = 'trackmate_sessions'
 const CONDITION_MAP_KEY = 'trackmate_condition_map'
@@ -26,67 +29,70 @@ const MENU_TEMPLATES_KEY = 'trackmate_menu_templates'
 type MenuTemplate = { id: string; name: string; content: string }
 
 // ── 種目定義 ──────────────────────────────────────────────
+// label は locales/manualLog.sessionTypes 経由で言語対応
 const SESSION_TYPES = [
-  { key: 'sprint',   label: 'スプリント',  ionicon: 'flash',     color: '#FF6B6B' },
-  { key: 'interval', label: 'インターバル', ionicon: 'sync',      color: '#E53935' },
-  { key: 'tempo',    label: 'テンポ走',    ionicon: 'walk',      color: '#FF9500' },
-  { key: 'easy',     label: 'ジョグ',      ionicon: 'leaf',      color: '#4ECDC4' },
-  { key: 'long',     label: 'ロング走',    ionicon: 'map',       color: '#5AC8FA' },
-  { key: 'drill',    label: 'ドリル',      ionicon: 'construct', color: '#AF52DE' },
-  { key: 'strength', label: 'ウェイト',    ionicon: 'barbell',   color: '#FF6B35' },
-  { key: 'race',     label: '試合',        ionicon: 'trophy',    color: '#FFD700' },
-  { key: 'rest',     label: '休養',        ionicon: 'moon',      color: '#666'    },
+  { key: 'sprint',   ionicon: 'flash',     color: '#FF6B6B' },
+  { key: 'interval', ionicon: 'sync',      color: '#E53935' },
+  { key: 'tempo',    ionicon: 'walk',      color: '#FF9500' },
+  { key: 'easy',     ionicon: 'leaf',      color: '#4ECDC4' },
+  { key: 'long',     ionicon: 'map',       color: '#5AC8FA' },
+  { key: 'drill',    ionicon: 'construct', color: '#AF52DE' },
+  { key: 'strength', ionicon: 'barbell',   color: '#FF6B35' },
+  { key: 'race',     ionicon: 'trophy',    color: '#FFD700' },
+  { key: 'rest',     ionicon: 'moon',      color: '#666'    },
 ] as const
 
 // ── 種目を分類分け（モーダル用） ──────────────────────────
-const EVENT_CATEGORIES: { label: string; events: AthleticsEvent[] }[] = [
-  { label: 'スプリント', events: ['100m','200m','300m','400m','300mH'] },
-  { label: '中距離',    events: ['800m','1000m','1500m','3000m'] },
-  { label: '長距離',    events: ['5000m','10000m','half_marathon','marathon','競歩'] },
-  { label: 'ハードル',  events: ['100mH','110mH','400mH'] },
-  { label: '障害',      events: ['3000mSC'] },
-  { label: '跳躍',      events: ['走幅跳','三段跳','走高跳','棒高跳'] },
-  { label: '投擲',      events: ['砲丸投','やり投','円盤投'] },
-  { label: '混成',      events: ['十種競技','七種競技','八種競技'] },
-  { label: 'リレー',    events: ['4×100mR','4×400mR'] },
+// label は locales/manualLog.eventCategories 経由で言語対応
+const EVENT_CATEGORIES: { key: string; events: AthleticsEvent[] }[] = [
+  { key: 'sprint',       events: ['100m','200m','300m','400m','300mH'] },
+  { key: 'middle',       events: ['800m','1000m','1500m','3000m'] },
+  { key: 'long',         events: ['5000m','10000m','half_marathon','marathon','競歩'] },
+  { key: 'hurdle',       events: ['100mH','110mH','400mH'] },
+  { key: 'steeplechase', events: ['3000mSC'] },
+  { key: 'jump',         events: ['走幅跳','三段跳','走高跳','棒高跳'] },
+  { key: 'throw',        events: ['砲丸投','やり投','円盤投'] },
+  { key: 'combined',     events: ['十種競技','七種競技','八種競技'] },
+  { key: 'relay',        events: ['4×100mR','4×400mR'] },
 ]
-function eventLabel(ev: AthleticsEvent): string {
-  if (ev === 'half_marathon') return 'ハーフ'
-  if (ev === 'marathon') return 'マラソン'
-  return ev
-}
 
 // ── 自重トレーニング種目 ──────────────────────────────────
+// name は locales/manualLog.bodyweightExercises 経由で言語対応(idで参照)
 const BODYWEIGHT_EXERCISES = [
-  { name: '腹筋',               emoji: '💪' },
-  { name: '腕立て伏せ',         emoji: '🤸' },
-  { name: 'スクワット',         emoji: '🦵' },
-  { name: 'プランク',           emoji: '🧘' },
-  { name: 'ランジ',             emoji: '🏃' },
-  { name: '背筋',               emoji: '🔥' },
-  { name: 'ヒップリフト',       emoji: '🍑' },
-  { name: 'クランチ',           emoji: '💢' },
-  { name: 'バーピー',           emoji: '⚡' },
-  { name: 'マウンテンクライマー', emoji: '🧗' },
-  { name: 'ジャンピングジャック', emoji: '⭐' },
-  { name: 'ダイアゴナル',       emoji: '✨' },
-  { name: 'ニートゥーエルボー', emoji: '🔄' },
-  { name: 'サイドプランク',     emoji: '↔️' },
-  { name: 'カーフレイズ',       emoji: '👟' },
+  { id: 'situp',           emoji: '💪' },
+  { id: 'pushup',          emoji: '🤸' },
+  { id: 'squat',           emoji: '🦵' },
+  { id: 'plank',           emoji: '🧘' },
+  { id: 'lunge',           emoji: '🏃' },
+  { id: 'backExtension',   emoji: '🔥' },
+  { id: 'hipLift',         emoji: '🍑' },
+  { id: 'crunch',          emoji: '💢' },
+  { id: 'burpee',          emoji: '⚡' },
+  { id: 'mountainClimber', emoji: '🧗' },
+  { id: 'jumpingJack',     emoji: '⭐' },
+  { id: 'diagonal',        emoji: '✨' },
+  { id: 'kneeToElbow',     emoji: '🔄' },
+  { id: 'sidePlank',       emoji: '↔️' },
+  { id: 'calfRaise',       emoji: '👟' },
 ]
 
-type BwSet = { name: string; reps: string; sets: string }
+type BwSet = { id: string; reps: string; sets: string }
 
+// label は locales/manualLog.fatigueLevels 経由で言語対応(vをキーに)
 const FATIGUE = [
-  { v: 2,  emoji: '😴', label: '完全元気' },
-  { v: 4,  emoji: '😊', label: '軽め'     },
-  { v: 6,  emoji: '😐', label: '普通'     },
-  { v: 8,  emoji: '😰', label: 'キツい'   },
-  { v: 10, emoji: '🤯', label: '限界'     },
+  { v: 2,  emoji: '😴' },
+  { v: 4,  emoji: '😊' },
+  { v: 6,  emoji: '😐' },
+  { v: 8,  emoji: '😰' },
+  { v: 10, emoji: '🤯' },
 ]
+
+const MANUAL_LOG_MONTH_NAMES_EN = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
 // ── カレンダーピッカー ────────────────────────────────────
 function CalendarPicker({ value, onChange }: { value: string; onChange: (d: string) => void }) {
+  const { t } = useTranslation()
+  const { language } = useLanguage()
   const today = new Date()
   const [viewYear,  setViewYear]  = useState(() => parseInt(value.slice(0, 4)))
   const [viewMonth, setViewMonth] = useState(() => parseInt(value.slice(5, 7)) - 1)
@@ -115,17 +121,18 @@ function CalendarPicker({ value, onChange }: { value: string; onChange: (d: stri
   // pad to full weeks
   while (cells.length % 7 !== 0) cells.push(null)
 
-  const DOW = ['日','月','火','水','木','金','土']
+  const DOW = language === 'en' ? ['Su','Mo','Tu','We','Th','Fr','Sa'] : ['日','月','火','水','木','金','土']
+  const monthLabel = language === 'en' ? `${MANUAL_LOG_MONTH_NAMES_EN[viewMonth]} ${viewYear}` : `${viewYear}年 ${viewMonth + 1}月`
 
   return (
     <View style={cal.wrap}>
       {/* ヘッダー（月移動） */}
       <View style={cal.header}>
-        <HapticTouch haptic="tap" onPress={prevMonth} style={cal.arrow} hitSlop={8} accessibilityLabel="前の月">
+        <HapticTouch haptic="tap" onPress={prevMonth} style={cal.arrow} hitSlop={8} accessibilityLabel={t('manualLog.calendar.prevMonth')}>
           <Ionicons name="chevron-back" size={18} color="#6b7280" />
         </HapticTouch>
-        <Text style={cal.monthLabel}>{viewYear}年 {viewMonth + 1}月</Text>
-        <HapticTouch haptic="tap" onPress={nextMonth} style={cal.arrow} hitSlop={8} accessibilityLabel="次の月">
+        <Text style={cal.monthLabel}>{monthLabel}</Text>
+        <HapticTouch haptic="tap" onPress={nextMonth} style={cal.arrow} hitSlop={8} accessibilityLabel={t('manualLog.calendar.nextMonth')}>
           <Ionicons name="chevron-forward" size={18} color="#6b7280" />
         </HapticTouch>
       </View>
@@ -228,6 +235,8 @@ function fmtRepTime(ms: number): string {
 export default function ManualLogScreen() {
   const router = useRouter()
   const { colors } = useTheme()
+  const { t } = useTranslation()
+  const { language } = useLanguage()
   const { id: editId } = useLocalSearchParams<{ id?: string }>()
   const isEdit = !!editId
   const today = todayLocalISO()
@@ -274,16 +283,16 @@ export default function ManualLogScreen() {
     const trimmed = notes.trim()
     const name = tplNameInput.trim()
     if (!trimmed || !name) return
-    const t: MenuTemplate = { id: `tpl_${Date.now()}`, name, content: trimmed }
-    const next = [t, ...menuTemplates]
+    const tpl: MenuTemplate = { id: `tpl_${Date.now()}`, name, content: trimmed }
+    const next = [tpl, ...menuTemplates]
     setMenuTemplates(next)
     AsyncStorage.setItem(MENU_TEMPLATES_KEY, JSON.stringify(next)).catch(() => {})
-    Toast.show({ type: 'success', text1: `「${name}」を保存しました` })
+    Toast.show({ type: 'success', text1: t('manualLog.templateSaved', { name }) })
     setTplNameModal(false)
-  }, [notes, tplNameInput, menuTemplates])
+  }, [notes, tplNameInput, menuTemplates, t])
 
   const deleteTemplate = useCallback((id: string) => {
-    const next = menuTemplates.filter(t => t.id !== id)
+    const next = menuTemplates.filter(tpl => tpl.id !== id)
     setMenuTemplates(next)
     AsyncStorage.setItem(MENU_TEMPLATES_KEY, JSON.stringify(next)).catch(() => {})
   }, [menuTemplates])
@@ -336,7 +345,7 @@ export default function ManualLogScreen() {
     }).catch(() => {})
   }, [editId])
 
-  const typeInfo = SESSION_TYPES.find(t => t.key === sessionType)!
+  const typeInfo = SESSION_TYPES.find(st => st.key === sessionType)!
   const hasTime  = sessionType !== 'rest' && sessionType !== 'strength'
   const hasReps  = ['sprint','interval','drill','strength'].includes(sessionType)
   // 本数分だけタイム入力欄を並べる（スプリント・インターバル・ドリル）。ウェイトは本数=セット数のみでタイム欄は出さない
@@ -370,9 +379,9 @@ export default function ManualLogScreen() {
           time_ms = Math.min(...valid)
           if (repCount > 1) {
             const lines = parsedTimes
-              .map((ms, i) => ms != null ? `${i + 1}本目: ${fmtRepTime(ms)}` : null)
+              .map((ms, i) => ms != null ? t('manualLog.repTimeLine', { n: i + 1, time: fmtRepTime(ms) }) : null)
               .filter((l): l is string => l != null)
-            if (lines.length > 0) repTimesNote = `【本数ごとのタイム】\n${lines.join('\n')}`
+            if (lines.length > 0) repTimesNote = `${t('manualLog.repTimesNoteHeader')}\n${lines.join('\n')}`
           }
         }
       } else if (hasTime) {
@@ -382,10 +391,10 @@ export default function ManualLogScreen() {
       // 自重モード／本数ごとのタイムは、notesに構造化テキストとして変換する（既存メモがあれば末尾に追記）
       let finalNotes = notes.trim()
       if (sessionType === 'strength' && strengthMode === 'bodyweight' && bwSets.length > 0) {
-        const valid = bwSets.filter(s => s.name && s.reps)
+        const valid = bwSets.filter(s => s.id && s.reps)
         if (valid.length > 0) {
-          const bwText = '【自重トレーニング】\n' + valid.map(s =>
-            `${s.name}　${s.reps}回 × ${s.sets || '1'}セット`
+          const bwText = t('manualLog.bodyweightNoteHeader') + '\n' + valid.map(s =>
+            `${t(`manualLog.bodyweightExercises.${s.id}`)}　${s.reps}${t('manualLog.repsUnit')} × ${s.sets || '1'}${t('manualLog.setsUnit')}`
           ).join('\n')
           finalNotes = finalNotes ? `${bwText}\n\n${finalNotes}` : bwText
         }
@@ -416,7 +425,7 @@ export default function ManualLogScreen() {
           current.map(sx => (sx.id === editId ? { ...sx, ...fields } : sx))
         )
         autoSyncTeam(sessions, { force: true }).catch(() => {})
-        Toast.show({ type: 'success', text1: '練習を更新しました ✓', visibilityTime: 1500 })
+        Toast.show({ type: 'success', text1: t('manualLog.toastUpdateSuccess'), visibilityTime: 1500 })
         setTimeout(() => router.back(), 400)
         return
       }
@@ -434,7 +443,7 @@ export default function ManualLogScreen() {
       if (continueLogging) {
         // 同じ日付・練習タイプのまま、種目ごとの入力だけをリセットして
         // 続けて次の種目を記録できるようにする（試合や1回の練習で複数種目を記録したい場合）
-        Toast.show({ type: 'success', text1: '記録しました ✓ 続けて次の種目を入力できます', visibilityTime: 1800 })
+        Toast.show({ type: 'success', text1: t('manualLog.toastContinueSuccess'), visibilityTime: 1800 })
         setSelectedEvent(null)
         setHurdleHeight(null)
         setTimeMin(''); setTimeSec(''); setTimeCs('')
@@ -446,11 +455,11 @@ export default function ManualLogScreen() {
         return
       }
 
-      Toast.show({ type: 'success', text1: '練習を記録しました ✓', visibilityTime: 1500 })
+      Toast.show({ type: 'success', text1: t('manualLog.toastSaveSuccess'), visibilityTime: 1500 })
 
       setTimeout(() => router.back(), 400)
     } catch {
-      Toast.show({ type: 'error', text1: '保存に失敗しました', visibilityTime: 2000 })
+      Toast.show({ type: 'error', text1: t('manualLog.toastSaveError'), visibilityTime: 2000 })
     } finally {
       setSaving(false)
     }
@@ -462,48 +471,48 @@ export default function ManualLogScreen() {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           {/* ── ヘッダー ── */}
           <View style={[s.header, { borderBottomColor: colors.border }]}>
-            <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={10} accessibilityLabel="戻る">
+            <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={10} accessibilityLabel={t('manualLog.back')}>
               <Ionicons name="chevron-back" size={24} color={colors.text} />
             </TouchableOpacity>
-            <Text style={[s.headerTitle, { color: colors.text }]}>{isEdit ? '記録を編集' : '手動入力'}</Text>
+            <Text style={[s.headerTitle, { color: colors.text }]}>{isEdit ? t('manualLog.editTitle') : t('manualLog.title')}</Text>
             <TouchableOpacity
               onPress={() => handleSave()}
               disabled={saving}
               style={[s.saveBtn, { backgroundColor: '#1c1c1e', opacity: saving ? 0.6 : 1 }]}
             >
-              <Text style={s.saveBtnText}>{saving ? '保存中...' : isEdit ? '更新' : '保存'}</Text>
+              <Text style={s.saveBtnText}>{saving ? t('manualLog.saving') : isEdit ? t('manualLog.update') : t('manualLog.save')}</Text>
             </TouchableOpacity>
           </View>
 
           <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
 
             {/* ── 日付選択（カレンダー） ── */}
-            <Section title="日付">
+            <Section title={t('manualLog.sections.date')}>
               <Text style={{ color: '#6b7280', fontSize: 12, marginBottom: 6 }}>
-                選択中: <Text style={{ color: '#111827', fontWeight: '700' }}>{date === today ? `今日 (${date})` : date}</Text>
+                {t('manualLog.selectedLabel')}<Text style={{ color: '#111827', fontWeight: '700' }}>{date === today ? t('manualLog.selectedToday', { date }) : date}</Text>
               </Text>
               <CalendarPicker value={date} onChange={setDate} />
             </Section>
 
             {/* ── 練習タイプ ── */}
-            <Section title="練習タイプ">
+            <Section title={t('manualLog.sections.sessionType')}>
               <Text style={{ color: colors.textSec, fontSize: 12, marginBottom: 8 }}>
-                「ポイント練習」は、インターバル・テンポ走・スプリントなど質を重視する練習のことです。内容に近いものを選んでください。
+                {t('manualLog.sessionTypeHint')}
               </Text>
               <View style={s.typeGrid}>
-                {SESSION_TYPES.map(t => (
+                {SESSION_TYPES.map(st => (
                   <TouchableOpacity
-                    key={t.key}
-                    onPress={() => { setSessionType(t.key); Sounds.tap() }}
+                    key={st.key}
+                    onPress={() => { setSessionType(st.key); Sounds.tap() }}
                     style={[
                       s.typeBtn,
-                      { borderColor: t.color + '44' },
-                      sessionType === t.key && { backgroundColor: t.color + '22', borderColor: t.color },
+                      { borderColor: st.color + '44' },
+                      sessionType === st.key && { backgroundColor: st.color + '22', borderColor: st.color },
                     ]}
                   >
-                    <Ionicons name={t.ionicon as any} size={18} color={sessionType === t.key ? t.color : colors.textSec} />
-                    <Text style={[s.typeBtnLabel, { color: sessionType === t.key ? t.color : colors.textSec }]}>
-                      {t.label}
+                    <Ionicons name={st.ionicon as any} size={18} color={sessionType === st.key ? st.color : colors.textSec} />
+                    <Text style={[s.typeBtnLabel, { color: sessionType === st.key ? st.color : colors.textSec }]}>
+                      {t(`manualLog.sessionTypes.${st.key}`)}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -512,13 +521,13 @@ export default function ManualLogScreen() {
 
             {/* ── 種目選択（スプリント・インターバル・試合の時） ── */}
             {['sprint','interval','race','tempo'].includes(sessionType) && (
-              <Section title="種目（任意）">
+              <Section title={t('manualLog.sections.event')}>
                 {selectedEvent && (
                   <View style={[s.eventSelectedRow]}>
                     <View style={[s.eventChip, { backgroundColor: typeInfo.color + '22', borderColor: typeInfo.color }]}>
-                      <Text style={[s.eventChipText, { color: typeInfo.color }]}>{eventLabel(selectedEvent)}</Text>
+                      <Text style={[s.eventChipText, { color: typeInfo.color }]}>{getEventLabel(selectedEvent, language)}</Text>
                     </View>
-                    <TouchableOpacity onPress={() => { setSelectedEvent(null); Sounds.tap() }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="種目の選択を解除">
+                    <TouchableOpacity onPress={() => { setSelectedEvent(null); Sounds.tap() }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel={t('manualLog.clearEvent')}>
                       <Ionicons name="close-circle" size={18} color={colors.textHint} />
                     </TouchableOpacity>
                   </View>
@@ -528,15 +537,15 @@ export default function ManualLogScreen() {
                     const active = cat.events.includes(selectedEvent as AthleticsEvent)
                     return (
                       <TouchableOpacity
-                        key={cat.label}
-                        onPress={() => { setEventCategoryModal(cat.label); Sounds.tap() }}
+                        key={cat.key}
+                        onPress={() => { setEventCategoryModal(cat.key); Sounds.tap() }}
                         style={[
                           s.eventChip,
                           active && { backgroundColor: typeInfo.color + '22', borderColor: typeInfo.color },
                         ]}
                       >
                         <Text style={[s.eventChipText, { color: active ? typeInfo.color : colors.textSec }]}>
-                          {cat.label}
+                          {t(`manualLog.eventCategories.${cat.key}`)}
                         </Text>
                         <Ionicons name="chevron-down" size={12} color={active ? typeInfo.color : colors.textHint} style={{ marginLeft: 4 }} />
                       </TouchableOpacity>
@@ -548,7 +557,7 @@ export default function ManualLogScreen() {
 
             {/* ── ハードルの高さ ── */}
             {selectedEvent && isHurdleEvent(selectedEvent) && (
-              <Section title="ハードルの高さ">
+              <Section title={t('manualLog.sections.hurdleHeight')}>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                   {STANDARD_HURDLE_HEIGHTS.map(h => {
                     const active = hurdleHeight === h.cm
@@ -575,9 +584,9 @@ export default function ManualLogScreen() {
             <Modal visible={!!eventCategoryModal} transparent animationType="fade" onRequestClose={() => setEventCategoryModal(null)}>
               <TouchableOpacity style={s.eventModalBackdrop} activeOpacity={1} onPress={() => setEventCategoryModal(null)}>
                 <TouchableOpacity activeOpacity={1} style={[s.eventModalSheet, { backgroundColor: colors.surface }]}>
-                  <Text style={[s.eventModalTitle, { color: colors.text }]}>{eventCategoryModal}</Text>
+                  <Text style={[s.eventModalTitle, { color: colors.text }]}>{eventCategoryModal ? t(`manualLog.eventCategories.${eventCategoryModal}`) : ''}</Text>
                   <View style={s.eventModalGrid}>
-                    {(EVENT_CATEGORIES.find(c => c.label === eventCategoryModal)?.events ?? []).map(ev => (
+                    {(EVENT_CATEGORIES.find(c => c.key === eventCategoryModal)?.events ?? []).map(ev => (
                       <TouchableOpacity
                         key={ev}
                         onPress={() => { setSelectedEvent(ev); setEventCategoryModal(null); Sounds.tap() }}
@@ -587,13 +596,13 @@ export default function ManualLogScreen() {
                         ]}
                       >
                         <Text style={[s.eventChipText, { color: selectedEvent === ev ? typeInfo.color : colors.textSec }]}>
-                          {eventLabel(ev)}
+                          {getEventLabel(ev, language)}
                         </Text>
                       </TouchableOpacity>
                     ))}
                   </View>
                   <TouchableOpacity style={s.eventModalClose} onPress={() => setEventCategoryModal(null)}>
-                    <Text style={{ color: colors.textSec, fontSize: 14, fontWeight: '700' }}>閉じる</Text>
+                    <Text style={{ color: colors.textSec, fontSize: 14, fontWeight: '700' }}>{t('manualLog.close')}</Text>
                   </TouchableOpacity>
                 </TouchableOpacity>
               </TouchableOpacity>
@@ -601,20 +610,20 @@ export default function ManualLogScreen() {
 
             {/* ── タイム入力（本数を持たない種目のみ。本数がある種目は下の「本数」セクションにまとめる） ── */}
             {!hasReps && hasTime && (
-              <Section title="タイム（任意）">
+              <Section title={t('manualLog.sections.time')}>
                 <View style={s.timeRow}>
-                  <TimeField value={timeMin} onChange={setTimeMin} placeholder="0" label="分" colors={colors} />
+                  <TimeField value={timeMin} onChange={setTimeMin} placeholder="0" label={t('manualLog.timeFields.min')} colors={colors} />
                   <Text style={[s.timeSep, { color: colors.textHint }]}>:</Text>
-                  <TimeField value={timeSec} onChange={setTimeSec} placeholder="00" label="秒" colors={colors} />
+                  <TimeField value={timeSec} onChange={setTimeSec} placeholder="00" label={t('manualLog.timeFields.sec')} colors={colors} />
                   <Text style={[s.timeSep, { color: colors.textHint }]}>.</Text>
-                  <TimeField value={timeCs}  onChange={setTimeCs}  placeholder="00" label="CS" colors={colors} />
+                  <TimeField value={timeCs}  onChange={setTimeCs}  placeholder="00" label={t('manualLog.timeFields.cs')} colors={colors} />
                 </View>
               </Section>
             )}
 
             {/* ── ウェイト: 器具 / 自重 切り替え ── */}
             {sessionType === 'strength' && (
-              <Section title="トレーニング種別">
+              <Section title={t('manualLog.sections.trainingType')}>
                 <View style={s.modeToggleRow}>
                   {(['weight', 'bodyweight'] as const).map(m => (
                     <TouchableOpacity
@@ -624,7 +633,7 @@ export default function ManualLogScreen() {
                     >
                       <Text style={{ fontSize: 16 }}>{m === 'weight' ? '🏋️' : '🤸'}</Text>
                       <Text style={[s.modeToggleBtnText, { color: strengthMode === m ? '#fff' : colors.textSec }]}>
-                        {m === 'weight' ? '器具ウェイト' : '自重'}
+                        {t(`manualLog.strengthMode.${m}`)}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -634,20 +643,21 @@ export default function ManualLogScreen() {
 
             {/* ── 自重トレーニングビルダー ── */}
             {sessionType === 'strength' && strengthMode === 'bodyweight' && (
-              <Section title="種目・回数">
+              <Section title={t('manualLog.sections.bodyweight')}>
                 {/* 種目選択チップ */}
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingBottom: 8 }}>
                   {BODYWEIGHT_EXERCISES.map(ex => {
-                    const already = bwSets.some(s => s.name === ex.name)
+                    const already = bwSets.some(s => s.id === ex.id)
+                    const exLabel = t(`manualLog.bodyweightExercises.${ex.id}`)
                     return (
                       <TouchableOpacity
-                        key={ex.name}
+                        key={ex.id}
                         onPress={() => {
                           Sounds.tap()
                           if (already) {
-                            setBwSets(prev => prev.filter(s => s.name !== ex.name))
+                            setBwSets(prev => prev.filter(s => s.id !== ex.id))
                           } else {
-                            setBwSets(prev => [...prev, { name: ex.name, reps: '', sets: '3' }])
+                            setBwSets(prev => [...prev, { id: ex.id, reps: '', sets: '3' }])
                           }
                         }}
                         style={[
@@ -656,7 +666,7 @@ export default function ManualLogScreen() {
                         ]}
                       >
                         <Text style={{ fontSize: 14 }}>{ex.emoji}</Text>
-                        <Text style={[s.bwChipText, { color: already ? '#FF6B35' : colors.textSec }]}>{ex.name}</Text>
+                        <Text style={[s.bwChipText, { color: already ? '#FF6B35' : colors.textSec }]}>{exLabel}</Text>
                         {already && <Ionicons name="checkmark-circle" size={14} color="#FF6B35" />}
                       </TouchableOpacity>
                     )
@@ -666,20 +676,22 @@ export default function ManualLogScreen() {
                 {/* 選択済み種目のセット・回数入力 */}
                 {bwSets.length > 0 && (
                   <View style={{ gap: 8, marginTop: 4 }}>
-                    {bwSets.map((bw, idx) => (
-                      <View key={bw.name} style={[s.bwSetRow, { backgroundColor: colors.surface2 }]}>
-                        <Text style={[s.bwSetName, { color: colors.text }]}>{bw.name}</Text>
+                    {bwSets.map((bw, idx) => {
+                      const bwLabel = t(`manualLog.bodyweightExercises.${bw.id}`)
+                      return (
+                      <View key={bw.id} style={[s.bwSetRow, { backgroundColor: colors.surface2 }]}>
+                        <Text style={[s.bwSetName, { color: colors.text }]}>{bwLabel}</Text>
                         <View style={s.bwInputGroup}>
                           <TextInput
                             value={bw.reps}
                             onChangeText={v => setBwSets(prev => prev.map((x, i) => i === idx ? { ...x, reps: v.replace(/[^0-9]/g, '') } : x))}
-                            placeholder="回数"
+                            placeholder={t('manualLog.repsUnit')}
                             placeholderTextColor={colors.textHint}
                             keyboardType="numeric"
                             style={[s.bwNumInput, { backgroundColor: colors.surface, color: colors.text }]}
                             textAlign="center"
                           />
-                          <Text style={[s.bwUnit, { color: colors.textSec }]}>回</Text>
+                          <Text style={[s.bwUnit, { color: colors.textSec }]}>{t('manualLog.repsUnit')}</Text>
                           <Text style={[s.bwSep, { color: colors.textHint }]}>×</Text>
                           <TextInput
                             value={bw.sets}
@@ -690,17 +702,18 @@ export default function ManualLogScreen() {
                             style={[s.bwNumInput, { backgroundColor: colors.surface, color: colors.text }]}
                             textAlign="center"
                           />
-                          <Text style={[s.bwUnit, { color: colors.textSec }]}>セット</Text>
+                          <Text style={[s.bwUnit, { color: colors.textSec }]}>{t('manualLog.setsUnit')}</Text>
                         </View>
                         <TouchableOpacity
                           onPress={() => { setBwSets(prev => prev.filter((_, i) => i !== idx)); Sounds.tap() }}
                           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                          accessibilityLabel={`${bw.name}を削除`}
+                          accessibilityLabel={t('manualLog.deleteExercise', { name: bwLabel })}
                         >
                           <Ionicons name="close-circle" size={20} color={colors.textHint} />
                         </TouchableOpacity>
                       </View>
-                    ))}
+                      )
+                    })}
                   </View>
                 )}
               </Section>
@@ -708,7 +721,7 @@ export default function ManualLogScreen() {
 
             {/* ── 本数（＋で増やすとその本数分だけタイム欄が並ぶ／ウェイト以外 or 器具ウェイト） ── */}
             {hasReps && !(sessionType === 'strength' && strengthMode === 'bodyweight') && (
-              <Section title={hasRepTimes ? '本数・タイム（任意）' : '本数'}>
+              <Section title={hasRepTimes ? t('manualLog.sections.repsAndTime') : t('manualLog.sections.reps')}>
                 <View style={s.stepperRow}>
                   <HapticTouch
                     haptic="tap"
@@ -716,18 +729,18 @@ export default function ManualLogScreen() {
                     disabled={repCount <= 1}
                     style={[s.stepperBtn, { backgroundColor: colors.surface2, opacity: repCount <= 1 ? 0.4 : 1 }]}
                     hitSlop={4}
-                    accessibilityLabel="本数を減らす"
+                    accessibilityLabel={t('manualLog.decreaseReps')}
                   >
                     <Ionicons name="remove" size={18} color={colors.text} />
                   </HapticTouch>
                   <Text style={[s.stepperCount, { color: colors.text }]}>{repCount}</Text>
-                  <Text style={[s.unitLabel, { color: colors.textSec }]}>本</Text>
+                  <Text style={[s.unitLabel, { color: colors.textSec }]}>{t('manualLog.repUnit')}</Text>
                   <HapticTouch
                     haptic="tap"
                     onPress={() => changeRepCount(repCount + 1)}
                     style={[s.stepperBtn, { backgroundColor: BRAND + '18' }]}
                     hitSlop={4}
-                    accessibilityLabel="本数を増やす"
+                    accessibilityLabel={t('manualLog.increaseReps')}
                   >
                     <Ionicons name="add" size={18} color={BRAND} />
                   </HapticTouch>
@@ -738,25 +751,25 @@ export default function ManualLogScreen() {
                     {Array.from({ length: repCount }, (_, i) => (
                       <View key={i} style={s.repRow}>
                         {repCount > 1 && (
-                          <Text style={[s.repRowLabel, { color: colors.textSec }]}>{i + 1}本目</Text>
+                          <Text style={[s.repRowLabel, { color: colors.textSec }]}>{t('manualLog.repN', { n: i + 1 })}</Text>
                         )}
                         <View style={s.repTimeGroup}>
                           <TextInput
                             value={repMins[i] ?? ''}
-                            onChangeText={t => setRepMins(prev => prev.map((v, idx) => idx === i ? t.replace(/[^0-9]/g, '') : v))}
+                            onChangeText={v => setRepMins(prev => prev.map((val, idx) => idx === i ? v.replace(/[^0-9]/g, '') : val))}
                             placeholder="0" placeholderTextColor={colors.textHint}
                             keyboardType="number-pad" maxLength={2} textAlign="center"
                             style={[s.repTimeInput, { width: 44, backgroundColor: colors.surface2, color: colors.text }]}
                           />
-                          <Text style={[s.repTimeSep, { color: colors.textSec }]}>分</Text>
+                          <Text style={[s.repTimeSep, { color: colors.textSec }]}>{t('manualLog.repTimeMin')}</Text>
                           <TextInput
                             value={repSecs[i] ?? ''}
-                            onChangeText={t => setRepSecs(prev => prev.map((v, idx) => idx === i ? t.replace(/[^0-9.]/g, '') : v))}
+                            onChangeText={v => setRepSecs(prev => prev.map((val, idx) => idx === i ? v.replace(/[^0-9.]/g, '') : val))}
                             placeholder="12.34" placeholderTextColor={colors.textHint}
                             keyboardType="decimal-pad" maxLength={5} textAlign="center"
                             style={[s.repTimeInput, { flex: 1, backgroundColor: colors.surface2, color: colors.text }]}
                           />
-                          <Text style={[s.repTimeSep, { color: colors.textSec }]}>秒</Text>
+                          <Text style={[s.repTimeSep, { color: colors.textSec }]}>{t('manualLog.repTimeSec')}</Text>
                         </View>
                       </View>
                     ))}
@@ -767,12 +780,12 @@ export default function ManualLogScreen() {
 
             {/* ── 距離 ── */}
             {hasDist && (
-              <Section title="距離（m）">
+              <Section title={t('manualLog.sections.distance')}>
                 <View style={s.inlineRow}>
                   <TextInput
                     value={distanceM}
                     onChangeText={v => setDistanceM(v.replace(/[^0-9]/g, ''))}
-                    placeholder="例: 5000"
+                    placeholder={t('manualLog.distancePlaceholder')}
                     placeholderTextColor={colors.textHint}
                     keyboardType="numeric"
                     style={[s.shortInput, { backgroundColor: colors.surface2, color: colors.text }]}
@@ -783,7 +796,7 @@ export default function ManualLogScreen() {
             )}
 
             {/* ── 疲労度 ── */}
-            <Section title="疲労度">
+            <Section title={t('manualLog.sections.fatigue')}>
               <View style={s.fatigueRow}>
                 {FATIGUE.map(f => (
                   <TouchableOpacity
@@ -792,14 +805,14 @@ export default function ManualLogScreen() {
                     style={[s.fatigueBtn, fatigue === f.v && { backgroundColor: BRAND + '22', borderColor: BRAND }]}
                   >
                     <Text style={{ fontSize: 22 }}>{f.emoji}</Text>
-                    <Text style={[s.fatigueBtnLabel, { color: fatigue === f.v ? BRAND : colors.textHint }]}>{f.label}</Text>
+                    <Text style={[s.fatigueBtnLabel, { color: fatigue === f.v ? BRAND : colors.textHint }]}>{t(`manualLog.fatigueLevels.${f.v}`)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
             </Section>
 
             {/* ── 練習メニュー ── */}
-            <Section title="練習メニュー・メモ（任意）">
+            <Section title={t('manualLog.sections.menu')}>
               {menuTemplates.length > 0 && (
                 <ScrollView
                   horizontal
@@ -807,18 +820,18 @@ export default function ManualLogScreen() {
                   style={{ marginBottom: 8 }}
                   contentContainerStyle={{ gap: 8, paddingHorizontal: 2 }}
                 >
-                  {menuTemplates.map(t => (
+                  {menuTemplates.map(tpl => (
                     <TouchableOpacity
-                      key={t.id}
+                      key={tpl.id}
                       style={[s.tplChip, { backgroundColor: colors.surface2, borderColor: colors.border }]}
-                      onPress={() => setNotes(t.content)}
-                      onLongPress={() => Alert.alert('削除', `「${t.name}」を削除しますか？`, [
-                        { text: 'キャンセル', style: 'cancel' },
-                        { text: '削除', style: 'destructive', onPress: () => deleteTemplate(t.id) },
+                      onPress={() => setNotes(tpl.content)}
+                      onLongPress={() => Alert.alert(t('manualLog.deleteTemplateTitle'), t('manualLog.deleteTemplateBody', { name: tpl.name }), [
+                        { text: t('manualLog.cancel'), style: 'cancel' },
+                        { text: t('manualLog.delete'), style: 'destructive', onPress: () => deleteTemplate(tpl.id) },
                       ])}
                       activeOpacity={0.7}
                     >
-                      <Text style={[s.tplChipText, { color: colors.text }]} numberOfLines={1}>{t.name}</Text>
+                      <Text style={[s.tplChipText, { color: colors.text }]} numberOfLines={1}>{tpl.name}</Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
@@ -826,7 +839,7 @@ export default function ManualLogScreen() {
               <TextInput
                 value={notes}
                 onChangeText={setNotes}
-                placeholder="アップ→ドリル→メイン練習→ダウン..."
+                placeholder={t('manualLog.notesPlaceholder')}
                 placeholderTextColor={colors.textHint}
                 multiline
                 numberOfLines={4}
@@ -837,7 +850,7 @@ export default function ManualLogScreen() {
               {notes.trim().length > 0 && (
                 <TouchableOpacity style={s.saveTplBtn} onPress={saveTemplate} activeOpacity={0.8}>
                   <Ionicons name="bookmark-outline" size={14} color={BRAND} />
-                  <Text style={s.saveTplBtnText}>テンプレートとして保存</Text>
+                  <Text style={s.saveTplBtnText}>{t('manualLog.saveAsTemplate')}</Text>
                 </TouchableOpacity>
               )}
             </Section>
@@ -851,7 +864,7 @@ export default function ManualLogScreen() {
                 activeOpacity={0.8}
               >
                 <Ionicons name="add-circle-outline" size={16} color={BRAND} />
-                <Text style={[s.continueBtnText, { color: BRAND }]}>保存して続けて別の種目を記録</Text>
+                <Text style={[s.continueBtnText, { color: BRAND }]}>{t('manualLog.continueLogging')}</Text>
               </TouchableOpacity>
             )}
 
@@ -864,26 +877,26 @@ export default function ManualLogScreen() {
       <Modal visible={tplNameModal} transparent animationType="fade" onRequestClose={() => setTplNameModal(false)}>
         <TouchableOpacity style={s.eventModalBackdrop} activeOpacity={1} onPress={() => setTplNameModal(false)}>
           <TouchableOpacity activeOpacity={1} style={[s.tplModalSheet, { backgroundColor: colors.surface }]}>
-            <Text style={[s.eventModalTitle, { color: colors.text }]}>テンプレートとして保存</Text>
-            <Text style={{ color: colors.textSec, fontSize: 13 }}>テンプレート名を入力してください</Text>
+            <Text style={[s.eventModalTitle, { color: colors.text }]}>{t('manualLog.templateModal.title')}</Text>
+            <Text style={{ color: colors.textSec, fontSize: 13 }}>{t('manualLog.templateModal.hint')}</Text>
             <TextInput
               value={tplNameInput}
               onChangeText={setTplNameInput}
-              placeholder="例: インターバル定番メニュー"
+              placeholder={t('manualLog.templateModal.placeholder')}
               placeholderTextColor={colors.textHint}
               autoFocus
               style={[s.tplModalInput, { backgroundColor: colors.surface2, color: colors.text }]}
             />
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
               <TouchableOpacity style={[s.tplModalBtn, { backgroundColor: colors.surface2 }]} onPress={() => setTplNameModal(false)}>
-                <Text style={{ color: colors.textSec, fontSize: 14, fontWeight: '700' }}>キャンセル</Text>
+                <Text style={{ color: colors.textSec, fontSize: 14, fontWeight: '700' }}>{t('manualLog.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.tplModalBtn, { backgroundColor: BRAND, opacity: tplNameInput.trim() ? 1 : 0.5 }]}
                 onPress={confirmSaveTemplate}
                 disabled={!tplNameInput.trim()}
               >
-                <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>保存</Text>
+                <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>{t('manualLog.save')}</Text>
               </TouchableOpacity>
             </View>
           </TouchableOpacity>

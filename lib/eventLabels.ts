@@ -13,9 +13,15 @@ const EVENT_LABEL_EN: Partial<Record<string, string>> = {
   'half_marathon': 'Half Marathon', 'marathon': 'Marathon',
 }
 
+// half_marathon/marathon は AthleticsEvent 型上の内部値が英語トークンのため
+// （他の種目は'走幅跳'等の日本語がそのまま内部値）、ja表示でも変換が必要。
+const EVENT_LABEL_JA_OVERRIDE: Partial<Record<string, string>> = {
+  'half_marathon': 'ハーフ', 'marathon': 'マラソン',
+}
+
 // 100m/800m等の数字+単位の距離種目は言語非依存なので EVENT_LABEL_EN に含めず、
 // 未登録キーはそのまま返すフォールバックに任せる。
 export function getEventLabel(event: AthleticsEvent | string, lang: Language): string {
-  if (lang === 'ja') return event
+  if (lang === 'ja') return EVENT_LABEL_JA_OVERRIDE[event] ?? event
   return EVENT_LABEL_EN[event] ?? event
 }
