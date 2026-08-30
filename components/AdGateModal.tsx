@@ -9,26 +9,12 @@ import { useRouter } from 'expo-router'
 import type { Feature } from '../lib/adGate'
 import { watchAdsForReward } from '../lib/rewardedAd'
 import { trackPaywallView } from '../lib/analytics'
+import { useTranslation } from 'react-i18next'
 
 const MEAL_PAYWALL_BG = require('../assets/banners/meal-paywall-bg.png')
 
 const BRAND      = '#166534'
 const ADS_NEEDED = 2   // 2本の広告視聴でAI機能1回解放
-
-// ── 機能名マップ ──────────────────────────────────────────────
-const FEATURE_LABELS: Record<Feature, string> = {
-  ai_analysis:      'AI練習分析コーチ',
-  video:            '動画フォーム分析',
-  meal:             'AI食事分析',
-  csv:              'CSVエクスポート',
-  recovery:         'AIリカバリー相談',
-  workout:          'AI練習メニュー生成',
-  meal_coach:       'AI食事コーチ',
-  daily_insight:    '今日のAIアドバイス',
-  notebook_ai:      '練習ノートAI解析',
-  competition_plan: '大会プラン生成',
-  injury_recovery:  '復帰プラン生成',
-}
 
 interface Props {
   visible:      boolean
@@ -46,7 +32,8 @@ export default function AdGateModal({
   visible, feature, isGuest = false, hardLimited = false, limitType = 'daily', onClose, onAdWatched,
 }: Props) {
   const router = useRouter()
-  const featureName = FEATURE_LABELS[feature] ?? '機能'
+  const { t } = useTranslation()
+  const featureName = t(`adGateModal.features.${feature}`, { defaultValue: t('adGateModal.features.default') })
 
   // 広告視聴中の状態
   const [watching, setWatching]     = useState(false)
@@ -74,9 +61,9 @@ export default function AdGateModal({
       onAdWatched()   // 親に通知 → 処理実行
     } else {
       Alert.alert(
-        '広告を最後まで見てください',
-        '最後まで視聴すると1回無料で使用できます。',
-        [{ text: 'OK' }]
+        t('adGateModal.adAlert.title'),
+        t('adGateModal.adAlert.body'),
+        [{ text: t('adGateModal.adAlert.ok') }]
       )
       setAdProgress(0)
     }
@@ -92,18 +79,18 @@ export default function AdGateModal({
             <View style={[st.iconWrap, { backgroundColor: 'rgba(37,99,235,0.2)' }]}>
               <Ionicons name="person-circle-outline" size={36} color="#60a5fa" />
             </View>
-            <Text style={st.title}>ログインが必要です</Text>
-            <Text style={st.sub}>{featureName}はアカウントが必要な機能です。{'\n'}無料で登録できます。</Text>
+            <Text style={st.title}>{t('adGateModal.guest.title')}</Text>
+            <Text style={st.sub}>{t('adGateModal.guest.sub', { feature: featureName })}</Text>
             <TouchableOpacity
               style={[st.primaryBtn, { backgroundColor: '#2563EB' }]}
               onPress={() => { onClose(); router.replace('/auth') }}
               activeOpacity={0.85}
             >
               <Ionicons name="log-in-outline" size={18} color="#fff" />
-              <Text style={st.primaryBtnTxt}>ログイン / 新規登録（無料）</Text>
+              <Text style={st.primaryBtnTxt}>{t('adGateModal.guest.cta')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={st.cancelBtn} onPress={onClose} activeOpacity={0.7}>
-              <Text style={st.cancelTxt}>キャンセル</Text>
+              <Text style={st.cancelTxt}>{t('adGateModal.guest.cancel')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -126,18 +113,18 @@ export default function AdGateModal({
             <View style={[st.iconWrap, { backgroundColor: 'rgba(22,101,52,0.15)' }]}>
               <Ionicons name="star" size={32} color={BRAND} />
             </View>
-            <Text style={st.title}>無料枠を使い切りました</Text>
-            <Text style={st.sub}>{featureName}の無料利用回数は終了しました。{'\n'}引き続きご利用いただくには、プロプランへの登録が必要です。</Text>
+            <Text style={st.title}>{t('adGateModal.totalLimit.title')}</Text>
+            <Text style={st.sub}>{t('adGateModal.totalLimit.sub', { feature: featureName })}</Text>
             <TouchableOpacity
               style={[st.primaryBtn, { backgroundColor: BRAND }]}
               onPress={() => { onClose(); router.push('/paywall') }}
               activeOpacity={0.85}
             >
               <Ionicons name="star" size={18} color="#fff" />
-              <Text style={st.primaryBtnTxt}>プロプランを見る</Text>
+              <Text style={st.primaryBtnTxt}>{t('adGateModal.totalLimit.cta')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={st.cancelBtn} onPress={onClose} activeOpacity={0.7}>
-              <Text style={st.cancelTxt}>今はしない</Text>
+              <Text style={st.cancelTxt}>{t('adGateModal.totalLimit.notNow')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -155,14 +142,14 @@ export default function AdGateModal({
             <View style={[st.iconWrap, { backgroundColor: 'rgba(245,158,11,0.2)' }]}>
               <Ionicons name="time-outline" size={36} color="#f59e0b" />
             </View>
-            <Text style={st.title}>{limitType === 'monthly' ? '今月のご利用上限に達しました' : '本日のご利用上限に達しました'}</Text>
+            <Text style={st.title}>{limitType === 'monthly' ? t('adGateModal.hardLimit.titleMonthly') : t('adGateModal.hardLimit.titleDaily')}</Text>
             <Text style={st.sub}>
               {limitType === 'monthly'
-                ? `${featureName}は来月また使えるようになります。`
-                : `${featureName}は明日また使えるようになります。`}
+                ? t('adGateModal.hardLimit.subMonthly', { feature: featureName })
+                : t('adGateModal.hardLimit.subDaily', { feature: featureName })}
             </Text>
             <TouchableOpacity style={[st.primaryBtn, { backgroundColor: '#374151' }]} onPress={onClose} activeOpacity={0.85}>
-              <Text style={st.primaryBtnTxt}>閉じる</Text>
+              <Text style={st.primaryBtnTxt}>{t('adGateModal.hardLimit.close')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -180,8 +167,8 @@ export default function AdGateModal({
             <View style={[st.iconWrap, { backgroundColor: 'rgba(22,101,52,0.3)' }]}>
               <Ionicons name="play-circle" size={36} color="#4ade80" />
             </View>
-            <Text style={st.title}>広告を視聴中...</Text>
-            <Text style={st.sub}>最後まで見ると{featureName}が1回使えます{'\n'}（{adProgress} / {ADS_NEEDED} 本）</Text>
+            <Text style={st.title}>{t('adGateModal.watching.title')}</Text>
+            <Text style={st.sub}>{t('adGateModal.watching.sub', { feature: featureName, watched: adProgress, needed: ADS_NEEDED })}</Text>
             <ActivityIndicator size="large" color={BRAND} style={{ marginTop: 8 }} />
           </View>
         </View>
@@ -199,8 +186,8 @@ export default function AdGateModal({
             <Ionicons name="play-circle-outline" size={36} color="#60a5fa" />
           </View>
 
-          <Text style={st.title}>広告を見て使う 🎬</Text>
-          <Text style={st.sub}>{featureName}は、広告{ADS_NEEDED}本の視聴で何度でも無料で使えます。{'\n'}使うたびに広告を見れば、回数制限はありません。</Text>
+          <Text style={st.title}>{t('adGateModal.main.title')}</Text>
+          <Text style={st.sub}>{t('adGateModal.main.sub', { feature: featureName, needed: ADS_NEEDED })}</Text>
 
           {/* 広告視聴ボタン */}
           <TouchableOpacity
@@ -209,11 +196,11 @@ export default function AdGateModal({
             activeOpacity={0.85}
           >
             <Ionicons name="play-circle-outline" size={18} color="#fff" />
-            <Text style={st.primaryBtnTxt}>広告 {ADS_NEEDED} 本を見て使う（無料）</Text>
+            <Text style={st.primaryBtnTxt}>{t('adGateModal.main.cta', { needed: ADS_NEEDED })}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={st.cancelBtn} onPress={onClose} activeOpacity={0.7}>
-            <Text style={st.cancelTxt}>今はしない</Text>
+            <Text style={st.cancelTxt}>{t('adGateModal.main.notNow')}</Text>
           </TouchableOpacity>
         </View>
       </View>

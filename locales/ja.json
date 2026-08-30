@@ -3583,5 +3583,55 @@
     "toastSaveSuccessDate": "{{date}}の状態を記録しました ✓",
     "toastSaveErrorTitle": "保存に失敗しました",
     "toastSaveErrorBody": "もう一度試してください"
+  },
+  "adGateModal": {
+    "features": {
+      "ai_analysis": "AI練習分析コーチ",
+      "video": "動画フォーム分析",
+      "meal": "AI食事分析",
+      "csv": "CSVエクスポート",
+      "recovery": "AIリカバリー相談",
+      "workout": "AI練習メニュー生成",
+      "meal_coach": "AI食事コーチ",
+      "daily_insight": "今日のAIアドバイス",
+      "notebook_ai": "練習ノートAI解析",
+      "competition_plan": "大会プラン生成",
+      "injury_recovery": "復帰プラン生成",
+      "default": "機能"
+    },
+    "guest": {
+      "title": "ログインが必要です",
+      "sub": "{{feature}}はアカウントが必要な機能です。\n無料で登録できます。",
+      "cta": "ログイン / 新規登録（無料）",
+      "cancel": "キャンセル"
+    },
+    "totalLimit": {
+      "title": "無料枠を使い切りました",
+      "sub": "{{feature}}の無料利用回数は終了しました。\n引き続きご利用いただくには、プロプランへの登録が必要です。",
+      "cta": "プロプランを見る",
+      "notNow": "今はしない"
+    },
+    "hardLimit": {
+      "titleMonthly": "今月のご利用上限に達しました",
+      "titleDaily": "本日のご利用上限に達しました",
+      "subMonthly": "{{feature}}は来月また使えるようになります。",
+      "subDaily": "{{feature}}は明日また使えるようになります。",
+      "close": "閉じる"
+    },
+    "watching": {
+      "title": "広告を視聴中...",
+      "sub": "最後まで見ると{{feature}}が1回使えます\n（{{watched}} / {{needed}} 本）"
+    },
+    "main": {
+      "title": "広告を見て使う 🎬",
+      "sub": "{{feature}}は、広告{{needed}}本の視聴で何度でも無料で使えます。\n使うたびに広告を見れば、回数制限はありません。",
+      "cta": "広告 {{needed}} 本を見て使う（無料）",
+      "notNow": "今はしない"
+    },
+    "adAlert": {
+      "title": "広告を最後まで見てください",
+      "body": "最後まで視聴すると1回無料で使用できます。",
+      "ok": "OK"
+    }
   }
 }

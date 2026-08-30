@@ -3583,5 +3583,55 @@
     "toastSaveSuccessDate": "Condition for {{date}} logged ✓",
     "toastSaveErrorTitle": "Failed to save",
     "toastSaveErrorBody": "Please try again"
+  },
+  "adGateModal": {
+    "features": {
+      "ai_analysis": "AI Training Coach",
+      "video": "Video Form Analysis",
+      "meal": "AI Meal Analysis",
+      "csv": "CSV Export",
+      "recovery": "AI Recovery Consultation",
+      "workout": "AI Workout Menu Generator",
+      "meal_coach": "AI Meal Coach",
+      "daily_insight": "Today's AI Advice",
+      "notebook_ai": "Notebook AI Analysis",
+      "competition_plan": "Competition Plan Generator",
+      "injury_recovery": "Return-to-Play Plan Generator",
+      "default": "this feature"
+    },
+    "guest": {
+      "title": "Login Required",
+      "sub": "{{feature}} requires an account.\nYou can sign up for free.",
+      "cta": "Log In / Sign Up (Free)",
+      "cancel": "Cancel"
+    },
+    "totalLimit": {
+      "title": "You've Used Your Free Allowance",
+      "sub": "Your free uses of {{feature}} are used up.\nTo keep using it, you'll need to subscribe to the Pro plan.",
+      "cta": "View Pro Plan",
+      "notNow": "Not now"
+    },
+    "hardLimit": {
+      "titleMonthly": "You've Reached This Month's Limit",
+      "titleDaily": "You've Reached Today's Limit",
+      "subMonthly": "{{feature}} will be available again next month.",
+      "subDaily": "{{feature}} will be available again tomorrow.",
+      "close": "Close"
+    },
+    "watching": {
+      "title": "Watching ad...",
+      "sub": "Watch to the end to use {{feature}} once\n({{watched}} / {{needed}})"
+    },
+    "main": {
+      "title": "Watch an Ad to Use 🎬",
+      "sub": "Watch {{needed}} ad(s) to use {{feature}} for free, as many times as you like.\nWatch an ad each time you use it — there's no limit.",
+      "cta": "Watch {{needed}} Ad(s) to Use (Free)",
+      "notNow": "Not now"
+    },
+    "adAlert": {
+      "title": "Please watch the ad to the end",
+      "body": "Watching to the end unlocks one free use.",
+      "ok": "OK"
+    }
   }
 }
