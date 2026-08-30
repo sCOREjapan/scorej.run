@@ -3676,5 +3676,29 @@
     "cta": "Join the Open Chat",
     "later": "Later",
     "ticketGranted": "🎫 Earned 5 tickets for joining LINE"
+  },
+  "practiceShareCard": {
+    "transparentHint": "Transparent PNG — overlay it on a photo to share",
+    "streakSuffix": "{{n}}-day streak",
+    "defaultTitle": "Practice",
+    "stats": {
+      "condition": "CONDITION",
+      "fatigue": "FATIGUE",
+      "distance": "DISTANCE",
+      "reps": "REPS",
+      "time": "TIME"
+    },
+    "repsUnit": "",
+    "footer": "Powered by sCORE — free download",
+    "save": "Save",
+    "share": "Share",
+    "permissionTitle": "Permission Required",
+    "permissionBody": "Please allow access to your camera roll",
+    "saveSuccessTitle": "✅ Saved",
+    "saveSuccessBody": "Transparent PNG saved to your camera roll",
+    "errorTitle": "Error",
+    "saveErrorBody": "Failed to save",
+    "shareErrorBody": "Failed to share",
+    "shareMessage": "{{date}}'s practice #sCORE #trackandfield"
   }
 }

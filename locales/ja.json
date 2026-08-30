@@ -3676,5 +3676,29 @@
     "cta": "オープンチャットに参加する",
     "later": "あとで",
     "ticketGranted": "🎫 LINE参加でチケット5枚を獲得しました"
+  },
+  "practiceShareCard": {
+    "transparentHint": "背景透過PNG — 写真の上に貼ってシェアできます",
+    "streakSuffix": "{{n}}日連続",
+    "defaultTitle": "練習",
+    "stats": {
+      "condition": "コンディション",
+      "fatigue": "疲労度",
+      "distance": "走行距離",
+      "reps": "REPS",
+      "time": "TIME"
+    },
+    "repsUnit": "本",
+    "footer": "sCORE 無料ダウンロード中",
+    "save": "保存",
+    "share": "シェア",
+    "permissionTitle": "権限が必要です",
+    "permissionBody": "カメラロールへのアクセスを許可してください",
+    "saveSuccessTitle": "✅ 保存しました",
+    "saveSuccessBody": "背景透過PNGをカメラロールに保存しました",
+    "errorTitle": "エラー",
+    "saveErrorBody": "保存に失敗しました",
+    "shareErrorBody": "共有に失敗しました",
+    "shareMessage": "{{date}}の練習 #sCORE #陸上"
   }
 }

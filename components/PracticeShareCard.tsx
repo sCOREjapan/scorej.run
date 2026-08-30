@@ -8,6 +8,7 @@ import {
 import ViewShot, { captureRef } from 'react-native-view-shot'
 import * as MediaLibrary from 'expo-media-library'
 import { Ionicons } from '@expo/vector-icons'
+import { useTranslation } from 'react-i18next'
 
 const W = Math.min(Dimensions.get('window').width - 32, 360)
 const ORANGE = '#FF6B35'
@@ -92,23 +93,24 @@ function buildHeadline(data: PracticeShareData): string | null {
 }
 
 export default function PracticeShareCard({ data, visible = true, onClose }: Props) {
+  const { t } = useTranslation()
   const cardRef = useRef<any>(null)
 
   const handleSave = async () => {
     try {
       const { status } = await MediaLibrary.requestPermissionsAsync()
-      if (status !== 'granted') { Alert.alert('権限が必要です', 'カメラロールへのアクセスを許可してください'); return }
+      if (status !== 'granted') { Alert.alert(t('practiceShareCard.permissionTitle'), t('practiceShareCard.permissionBody')); return }
       const uri = await captureRef(cardRef, { format: 'png', quality: 1.0, transparent: true } as any)
       await MediaLibrary.saveToLibraryAsync(uri)
-      Alert.alert('✅ 保存しました', '背景透過PNGをカメラロールに保存しました')
-    } catch { Alert.alert('エラー', '保存に失敗しました') }
+      Alert.alert(t('practiceShareCard.saveSuccessTitle'), t('practiceShareCard.saveSuccessBody'))
+    } catch { Alert.alert(t('practiceShareCard.errorTitle'), t('practiceShareCard.saveErrorBody')) }
   }
 
   const handleShare = async () => {
     try {
       const uri = await captureRef(cardRef, { format: 'png', quality: 1.0, transparent: true } as any)
-      await Share.share({ url: uri, message: `${data.date}の練習 #sCORE #陸上` })
-    } catch { Alert.alert('エラー', '共有に失敗しました') }
+      await Share.share({ url: uri, message: t('practiceShareCard.shareMessage', { date: data.date }) })
+    } catch { Alert.alert(t('practiceShareCard.errorTitle'), t('practiceShareCard.shareErrorBody')) }
   }
 
   if (!visible) return null
@@ -122,7 +124,7 @@ export default function PracticeShareCard({ data, visible = true, onClose }: Pro
 
   const headline = buildHeadline(data)
   // 見出しに使う数値が無ければ、種目名(title)自体を見出しとして大きく見せる
-  const mainText = headline ?? data.title ?? '練習'
+  const mainText = headline ?? data.title ?? t('practiceShareCard.defaultTitle')
   const captionText = headline ? data.title : null
 
   return (
@@ -138,7 +140,7 @@ export default function PracticeShareCard({ data, visible = true, onClose }: Pro
         {/* 透過PNG ヒント */}
         <View style={st.transparentHint}>
           <Ionicons name="image-outline" size={13} color="rgba(255,255,255,0.55)" />
-          <Text style={st.transparentHintText}>背景透過PNG — 写真の上に貼ってシェアできます</Text>
+          <Text style={st.transparentHintText}>{t('practiceShareCard.transparentHint')}</Text>
         </View>
 
         {/* ── キャプチャ対象カード（背景完全透過） ── */}
@@ -157,7 +159,7 @@ export default function PracticeShareCard({ data, visible = true, onClose }: Pro
               {data.streak != null ? (
                 <View style={st.metaPill}>
                   <Ionicons name="flame" size={12} color={ORANGE} />
-                  <Text style={st.streakText}>{data.streak}日連続</Text>
+                  <Text style={st.streakText}>{t('practiceShareCard.streakSuffix', { n: data.streak })}</Text>
                 </View>
               ) : null}
             </View>
@@ -190,7 +192,7 @@ export default function PracticeShareCard({ data, visible = true, onClose }: Pro
                   <View style={st.statItem}>
                     <View style={st.statLabelRow}>
                       <Ionicons name="heart" size={10} color="rgba(255,255,255,0.55)" />
-                      <Text style={st.statLabel}>コンディション</Text>
+                      <Text style={st.statLabel}>{t('practiceShareCard.stats.condition')}</Text>
                     </View>
                     <Text style={[st.statValue, { color: condColor(data.condition) }]}>
                       {data.condition}<Text style={st.statUnit}>/100</Text>
@@ -201,7 +203,7 @@ export default function PracticeShareCard({ data, visible = true, onClose }: Pro
                   <View style={st.statItem}>
                     <View style={st.statLabelRow}>
                       <Ionicons name="flash" size={10} color="rgba(255,255,255,0.55)" />
-                      <Text style={st.statLabel}>疲労度</Text>
+                      <Text style={st.statLabel}>{t('practiceShareCard.stats.fatigue')}</Text>
                     </View>
                     <Text style={[st.statValue, { color: fatigueColor(data.fatigue) }]}>
                       {data.fatigue}<Text style={st.statUnit}>/100</Text>
@@ -212,7 +214,7 @@ export default function PracticeShareCard({ data, visible = true, onClose }: Pro
                   <View style={st.statItem}>
                     <View style={st.statLabelRow}>
                       <Ionicons name="location" size={10} color="rgba(255,255,255,0.55)" />
-                      <Text style={st.statLabel}>走行距離</Text>
+                      <Text style={st.statLabel}>{t('practiceShareCard.stats.distance')}</Text>
                     </View>
                     <Text style={[st.statValue, { color: '#fff' }]}>
                       {data.distance.toFixed(1)}<Text style={st.statUnit}>km</Text>
@@ -223,10 +225,10 @@ export default function PracticeShareCard({ data, visible = true, onClose }: Pro
                   <View style={st.statItem}>
                     <View style={st.statLabelRow}>
                       <Ionicons name="repeat" size={10} color="rgba(255,255,255,0.55)" />
-                      <Text style={st.statLabel}>REPS</Text>
+                      <Text style={st.statLabel}>{t('practiceShareCard.stats.reps')}</Text>
                     </View>
                     <Text style={[st.statValue, { color: '#fff' }]}>
-                      {data.sets}<Text style={st.statUnit}>本</Text>
+                      {data.sets}<Text style={st.statUnit}>{t('practiceShareCard.repsUnit')}</Text>
                     </Text>
                   </View>
                 ) : null}
@@ -234,7 +236,7 @@ export default function PracticeShareCard({ data, visible = true, onClose }: Pro
                   <View style={st.statItem}>
                     <View style={st.statLabelRow}>
                       <Ionicons name="stopwatch-outline" size={10} color="rgba(255,255,255,0.55)" />
-                      <Text style={st.statLabel}>TIME</Text>
+                      <Text style={st.statLabel}>{t('practiceShareCard.stats.time')}</Text>
                     </View>
                     <Text style={[st.statValue, { color: '#fff' }]}>{data.time}</Text>
                   </View>
@@ -245,7 +247,7 @@ export default function PracticeShareCard({ data, visible = true, onClose }: Pro
             {/* フッター */}
             <View style={st.footerRow}>
               <View style={st.footerTick} />
-              <Text style={st.downloadText}>sCORE 無料ダウンロード中</Text>
+              <Text style={st.downloadText}>{t('practiceShareCard.footer')}</Text>
               <View style={st.footerTick} />
             </View>
 
@@ -256,11 +258,11 @@ export default function PracticeShareCard({ data, visible = true, onClose }: Pro
         <View style={st.btnRow}>
           <TouchableOpacity style={st.saveBtn} onPress={handleSave} activeOpacity={0.85}>
             <Ionicons name="download-outline" size={18} color="#fff" />
-            <Text style={st.btnText}>保存</Text>
+            <Text style={st.btnText}>{t('practiceShareCard.save')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={st.shareBtn} onPress={handleShare} activeOpacity={0.85}>
             <Ionicons name="share-social-outline" size={18} color="#fff" />
-            <Text style={st.btnText}>シェア</Text>
+            <Text style={st.btnText}>{t('practiceShareCard.share')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
