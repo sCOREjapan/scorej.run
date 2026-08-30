@@ -2527,5 +2527,209 @@
     "footerNote": "※ Only personal bests (PB) are shown. Names are anonymized to protect privacy.",
     "anonSuffix": "Athlete {{initial}}",
     "anonFallback": "Athlete"
+  },
+  "guide": {
+    "navFeatures": "Features",
+    "navGuideCurrent": "Guide",
+    "navPricing": "Pricing",
+    "navTrial": "Try free",
+    "tagGuide": "User Guide",
+    "tagTrack": "Track & Field",
+    "tagReadTime": "~10 min read",
+    "articleTitle": "The Complete sCORE Guide\n— From Training Logs to Condition Management",
+    "articleMeta": "Updated April 2026 · sCORE Japan Editorial",
+    "summaryTitle": "📌 sCORE in 3 Minutes",
+    "summaryItems": [
+      "Training logs, condition tracking, and injury risk all in one app. Just 1 minute a day makes your body visible as data.",
+      "AI generates advice matched to today's condition. Get scientifically sound training management even without a specialist coach.",
+      "A team feature for coaches and advisors to check every athlete in 1 minute each morning — no more paper or LINE-based management."
+    ],
+    "aboutTitle": "What is sCORE?",
+    "aboutBody1": "sCORE is an app that supports injury prevention for track and field athletes through training logs and condition tracking. Launched in 2024, it's used by a wide range of athletes from middle schoolers to working adults.",
+    "aboutBody2": "\"I want to log my training every day,\" \"I want fewer injuries,\" \"I want to manage my athletes as a coach\" — sCORE solves all of it in one app.",
+    "targets": [
+      {
+        "icon": "🏃",
+        "label": "Middle/high schoolers"
+      },
+      {
+        "icon": "🎓",
+        "label": "College track team"
+      },
+      {
+        "icon": "💼",
+        "label": "Adult runners"
+      },
+      {
+        "icon": "📋",
+        "label": "Advisors / coaches"
+      }
+    ],
+    "featuresSectionTitle": "Feature Guide",
+    "featuresSectionSub": "A detailed look at how to use 6 key features",
+    "features": [
+      {
+        "title": "Training Log & Condition Tracking",
+        "what": "Log distance, reps, time, fatigue, weather, and mood in one tap. Every day builds up into a chart.",
+        "tip": "Just open the app daily and log your condition. The accumulated data becomes an automatic report for your coach."
+      },
+      {
+        "title": "Injury Risk Score (AI-calculated)",
+        "what": "Combines sleep hours, accumulated fatigue, weather, temperature, and training load into a 0-100 injury risk score.",
+        "tip": "Don't push hard on days the score is 70+. It makes your body's own signals visible as data."
+      },
+      {
+        "title": "Team Feature (for coaches)",
+        "what": "Coach issues a code → athletes join. Manage every athlete's condition from one dashboard.",
+        "tip": "Check on athletes remotely even when you can't be at practice. Absences and feeling unwell are reported right in the app."
+      },
+      {
+        "title": "AI Coach Advice",
+        "what": "Based on today's condition, training history, and injury risk, AI generates advice on what to train or how to recover today.",
+        "tip": "A partner that puts \"I just feel kind of tired\" into words. A morning check can prevent overtraining."
+      },
+      {
+        "title": "Share Cards (social posts)",
+        "what": "Personal bests, streaks, and weekly load are auto-generated into stylish cards. Share to Instagram in one tap.",
+        "tip": "Showing friends and motivating each other is the key to sticking with it. Join the sCORE Monthly Challenge to get noticed officially."
+      },
+      {
+        "title": "Competition Records & PB Tracking",
+        "what": "Build up competition records by event — 100m, 200m, high jump, and more. A special effect and badge appear on a new PB.",
+        "tip": "Your personal best updates automatically just by logging. Great for reviewing past records before competition season."
+      }
+    ],
+    "featWhatLabel": "What it does",
+    "featTipLabel": "💡 Pro tip",
+    "personasSectionTitle": "Who is it for?",
+    "personas": [
+      {
+        "label": "High school sprinter",
+        "desc": "Wants to make growth visible through training logs, injury risk, and PB tracking"
+      },
+      {
+        "label": "Track advisor / coach",
+        "desc": "Wants to check 20+ athletes' condition in 1 minute a day and prevent injuries"
+      },
+      {
+        "label": "Adult runner",
+        "desc": "Wants to stay motivated with data-driven training and social sharing"
+      },
+      {
+        "label": "College track athlete",
+        "desc": "Wants to manage the whole team's condition and competition records in one place"
+      }
+    ],
+    "pricingSectionTitle": "Pricing",
+    "pricingSectionSub": "Start free. Upgrade or cancel anytime.",
+    "plans": [
+      {
+        "name": "FREE",
+        "period": "",
+        "features": [
+          "Training logs (unlimited)",
+          "Condition tracking",
+          "Personal best tracking",
+          "AI features (1-3/day, unlock by watching an ad)"
+        ]
+      },
+      {
+        "name": "No-Ads Plan",
+        "period": "/mo",
+        "features": [
+          "Every feature, as-is",
+          "Banner and video ads completely removed",
+          "Unlimited AI features, video analysis, and CSV export",
+          "No feature restrictions at all"
+        ],
+        "badge": "Popular"
+      },
+      {
+        "name": "Coach Plan",
+        "period": "/mo",
+        "features": [
+          "Everything in the No-Ads plan",
+          "Create teams & invite athletes",
+          "Team-wide injury risk dashboard",
+          "Coach notes & team sharing features"
+        ]
+      }
+    ],
+    "planNote": "※ Save about 20% with annual billing. Student discounts available (student ID required).",
+    "faqSectionTitle": "Frequently Asked Questions",
+    "faqs": [
+      {
+        "q": "Is sCORE free to use?",
+        "a": "Yes. The FREE plan is completely free and includes basic training logs, condition tracking, and personal best tracking. There is no forced upgrade to a paid plan."
+      },
+      {
+        "q": "What sports does it support?",
+        "a": "sCORE is built specifically for track and field. It supports the major events: 100m, 200m, 400m, 800m, 1500m, 5000m, 10000m, long jump, high jump, triple jump, pole vault, shot put, discus, javelin, and more."
+      },
+      {
+        "q": "How do I get started with the team feature?",
+        "a": "After subscribing to the Coach or Team Pro plan, create a team from the coach dashboard and share the invite code with your athletes. Athletes can join the team for free using that code."
+      },
+      {
+        "q": "How is the injury risk score calculated?",
+        "a": "It combines the last 7 days of training load, fatigue, sleep hours, temperature, humidity, and weather using a proprietary algorithm. A higher score means higher risk, and rest or lighter training is recommended."
+      },
+      {
+        "q": "How accurate is the AI coach advice?",
+        "a": "It uses Anthropic's Claude (latest model). Because it generates personalized advice based on your own past data, you can expect more precise advice than a generic fitness app."
+      },
+      {
+        "q": "Can I cancel anytime?",
+        "a": "Yes. You can cancel anytime from the subscription management screen in the App Store / Google Play. Paid features remain available until the end of the billing period."
+      },
+      {
+        "q": "Where is my data stored?",
+        "a": "All training logs and condition data are securely stored in the cloud (Supabase). All your data carries over when you sign in on a new device."
+      },
+      {
+        "q": "Does joining a team cost anything?",
+        "a": "Joining a team (as an athlete) is free. Once the coach subscribes to the Coach plan, athletes can use the team feature at no cost."
+      }
+    ],
+    "startedSectionTitle": "How to Get Started",
+    "started": [
+      {
+        "title": "Starting as an individual athlete",
+        "steps": [
+          "Install from the App Store or Google Play",
+          "Create an account (email or Google)",
+          "Set your profile and event",
+          "Log today's condition to get started"
+        ]
+      },
+      {
+        "title": "Starting as a team / club",
+        "steps": [
+          "Coach subscribes to the Coach plan",
+          "Create a team → issue an invite code",
+          "Share the invite code with athletes (LINE etc. is fine)",
+          "Athletes join for free and start logging"
+        ]
+      },
+      {
+        "title": "Using it for competition season",
+        "steps": [
+          "Register past personal bests in the competition tab",
+          "Check training load and injury risk daily",
+          "Reference AI coach advice during the peaking period",
+          "Share your PB update card after competing"
+        ]
+      }
+    ],
+    "ctaTitle": "Start sCORE Now",
+    "ctaSub": "Start free right now. No credit card required.",
+    "ctaAppStoreSub": "On the App Store",
+    "ctaGooglePlaySub": "On Google Play",
+    "ctaDownload": "Download",
+    "ctaWebLink": "Try the web version →",
+    "footerTerms": "Terms of Service",
+    "footerPrivacy": "Privacy Policy",
+    "footerCoach": "For Coaches",
+    "footerContact": "Contact"
   }
 }

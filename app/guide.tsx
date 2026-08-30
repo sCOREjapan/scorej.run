@@ -7,6 +7,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 
 const { width: W } = Dimensions.get('window')
 const isWeb = Platform.OS === 'web'
@@ -43,104 +44,22 @@ function useFadeUp(delay = 0) {
 }
 
 // ── 機能データ ───────────────────────────────────────────────────────
+// title/what/tipは言語依存のためlocales('guide.features')に移し、ここではicon/color/bgのみ保持
 const FEATURES = [
-  {
-    icon: 'fitness-outline' as const,
-    color: GREEN,
-    bg: GREEN_L,
-    title: '練習記録・コンディション管理',
-    what: '距離・本数・タイム・疲労度・天気・気分をワンタップで記録。毎日の練習を積み上げてグラフ化。',
-    tip: '毎日アプリを開いてコンディションを入力するだけでOK。蓄積されたデータがコーチへの自動レポートになります。',
-  },
-  {
-    icon: 'warning-outline' as const,
-    color: '#ef4444',
-    bg: '#fef2f2',
-    title: '怪我リスクスコア（AI自動算出）',
-    what: '睡眠時間・疲労蓄積・天気・気温・練習負荷を複合分析し、今日の怪我リスクを0〜100でスコア化。',
-    tip: 'スコアが70以上の日は無理をしない。自分の体の声をデータで「見える化」できます。',
-  },
-  {
-    icon: 'people-outline' as const,
-    color: '#3b82f6',
-    bg: '#eff6ff',
-    title: 'チーム機能（コーチ向け）',
-    what: 'コーチが専用コードを発行 → 選手が参加。全選手のコンディションをダッシュボードで一括管理。',
-    tip: '顧問・コーチ不在の練習中でも、選手の状態をリモートで確認。欠席・体調不良の報告もアプリ完結。',
-  },
-  {
-    icon: 'chatbubble-ellipses-outline' as const,
-    color: '#a855f7',
-    bg: '#faf5ff',
-    title: 'AIコーチアドバイス',
-    what: '今日のコンディション・練習履歴・怪我リスクを踏まえて、AIが今日やるべき練習・回復のアドバイスを生成。',
-    tip: '「なんとなく疲れてる」を言語化してくれる相棒。毎朝チェックすれば過トレーニングを防げます。',
-  },
-  {
-    icon: 'share-social-outline' as const,
-    color: '#f59e0b',
-    bg: '#fffbeb',
-    title: 'シェアカード（SNS投稿）',
-    what: '自己ベスト更新・連続記録・週間ロードをおしゃれなカードに自動生成。Instagramに1タップでシェア。',
-    tip: '仲間に見せて刺激し合うことが継続のコツ。sCORE Monthly Challengeに参加すれば公式からも注目されます。',
-  },
-  {
-    icon: 'trophy-outline' as const,
-    color: '#06b6d4',
-    bg: '#ecfeff',
-    title: '大会記録・自己ベスト管理',
-    what: '100m・200m・走高跳など種目別の大会記録を蓄積。PB更新時は特別なエフェクトとバッジが表示。',
-    tip: '入力するだけで自動的に自己ベストが更新される。大会シーズン前に過去記録を振り返るのに最適。',
-  },
-]
-
-// ── ペルソナ ─────────────────────────────────────────────────────────
-const PERSONAS = [
-  { emoji: '🏃', label: '高校生スプリンター', desc: '練習記録・怪我リスク・自己ベスト管理で成長を可視化したい' },
-  { emoji: '📋', label: '陸上部顧問・コーチ', desc: '20人以上の選手の体調を毎日1分で把握し、怪我を未然に防ぎたい' },
-  { emoji: '💼', label: '社会人ランナー', desc: 'データに基づいたトレーニングとSNSシェアでモチベーションを維持したい' },
-  { emoji: '🎓', label: '大学陸上部員', desc: 'チーム全体のコンディション管理と大会記録の一元管理をしたい' },
+  { icon: 'fitness-outline' as const,              color: GREEN,     bg: GREEN_L   },
+  { icon: 'warning-outline' as const,               color: '#ef4444', bg: '#fef2f2' },
+  { icon: 'people-outline' as const,                color: '#3b82f6', bg: '#eff6ff' },
+  { icon: 'chatbubble-ellipses-outline' as const,   color: '#a855f7', bg: '#faf5ff' },
+  { icon: 'share-social-outline' as const,          color: '#f59e0b', bg: '#fffbeb' },
+  { icon: 'trophy-outline' as const,                color: '#06b6d4', bg: '#ecfeff' },
 ]
 
 // ── 料金プラン（実際に販売中の2プランのみ。app/paywall.tsx の PLANS と一致させること） ──────
-const PLANS = [
-  {
-    name: 'FREE',
-    price: '¥0',
-    period: '',
-    color: GRAY,
-    bg: OFF2,
-    features: ['練習記録（無制限）', 'コンディション管理', '自己ベスト管理', 'AI機能（1日1〜3回・広告視聴で解放）'],
-  },
-  {
-    name: '広告なしプラン',
-    price: '¥480',
-    period: '/月',
-    color: GREEN,
-    bg: GREEN_L,
-    features: ['全ての機能がそのまま使える', 'バナー・動画広告が完全に消える', 'AI機能・動画分析・CSV出力が無制限', '機能制限は一切なし'],
-    badge: '人気',
-  },
-  {
-    name: 'コーチプラン',
-    price: '¥1,980',
-    period: '/月',
-    color: '#3b82f6',
-    bg: '#eff6ff',
-    features: ['広告なしプランの全機能', 'チーム作成・選手招待', 'チーム全体の怪我リスクダッシュボード', 'コーチノート・チーム内共有機能'],
-  },
-]
-
-// ── FAQ ──────────────────────────────────────────────────────────────
-const FAQS = [
-  { q: 'sCORE は無料で使えますか？', a: 'はい。FREE プランは完全無料で、基本的な練習記録・コンディション管理・自己ベスト管理が利用できます。有料プランへの強制移行はありません。' },
-  { q: 'どんなスポーツに対応していますか？', a: '陸上競技に特化したアプリです。100m・200m・400m・800m・1500m・5000m・10000m・走幅跳・走高跳・三段跳・棒高跳・砲丸投・円盤投・やり投など主要種目に対応しています。' },
-  { q: 'チーム機能はどうやって始めますか？', a: 'COACHプランまたはチームProプランに加入後、コーチダッシュボードからチームを作成し、招待コードを選手に共有するだけです。選手はそのコードを使って無料でチームに参加できます。' },
-  { q: '怪我リスクスコアはどう計算されますか？', a: '直近7日間の練習負荷・疲労度・睡眠時間・気温・湿度・天気などを独自アルゴリズムで複合分析します。スコアが高いほどリスクが高く、休養や軽めの練習が推奨されます。' },
-  { q: 'AIコーチアドバイスの精度はどのくらいですか？', a: 'Anthropic の Claude（最新モデル）を使用しています。あなたの過去データを踏まえて個別化されたアドバイスを生成するため、汎用的なフィットネスアプリより的確なアドバイスが期待できます。' },
-  { q: '解約はいつでもできますか？', a: 'はい。App Store / Google Play のサブスクリプション管理画面からいつでも解約できます。解約後も期間終了まで有料機能を利用できます。' },
-  { q: 'データはどこに保存されますか？', a: '練習記録・コンディションデータはすべてクラウド（Supabase）に安全に保存されます。機種変更後もログインすれば全データを引き継げます。' },
-  { q: 'チームに参加するのに費用はかかりますか？', a: 'チームへの参加（選手として）は無料です。コーチ側がCOACHプランを契約することで、選手は費用なしでチーム機能を利用できます。' },
+// name/period/features/badgeは言語依存のためlocales('guide.plans')に移し、ここではprice/color/bgのみ保持
+const PLAN_STYLES = [
+  { price: '¥0',     color: GRAY,     bg: OFF2   },
+  { price: '¥480',   color: GREEN,    bg: GREEN_L },
+  { price: '¥1,980', color: '#3b82f6', bg: '#eff6ff' },
 ]
 
 // ── FAQアイテム ───────────────────────────────────────────────────────
@@ -173,6 +92,16 @@ function FaqItem({ q, a }: { q: string; a: string }) {
 // ── メインコンポーネント ──────────────────────────────────────────────
 export default function GuidePage() {
   const router = useRouter()
+  const { t } = useTranslation()
+  const featureContent = t('guide.features', { returnObjects: true }) as { title: string; what: string; tip: string }[]
+  const personas        = t('guide.personas', { returnObjects: true }) as { label: string; desc: string }[]
+  const planContent     = t('guide.plans', { returnObjects: true }) as { name: string; period: string; features: string[]; badge?: string }[]
+  const faqs             = t('guide.faqs', { returnObjects: true }) as { q: string; a: string }[]
+  const started           = t('guide.started', { returnObjects: true }) as { title: string; steps: string[] }[]
+  const summaryItems      = t('guide.summaryItems', { returnObjects: true }) as string[]
+  const targets            = t('guide.targets', { returnObjects: true }) as { icon: string; label: string }[]
+  const STARTED_ICONS: Array<'person-outline' | 'people-outline' | 'trophy-outline'> = ['person-outline', 'people-outline', 'trophy-outline']
+  const STARTED_COLORS = [GREEN, '#3b82f6', '#a855f7']
 
   const handleDownload = (store: 'apple' | 'google') => {
     if (store === 'apple') {
@@ -200,15 +129,15 @@ export default function GuidePage() {
           </TouchableOpacity>
           <View style={g.navLinks}>
             <TouchableOpacity onPress={() => isWeb ? Linking.openURL('https://scorej-run.vercel.app/coach-landing') : router.push('/coach-landing')} activeOpacity={0.7}>
-              <Text style={g.navLink}>機能</Text>
+              <Text style={g.navLink}>{t('guide.navFeatures')}</Text>
             </TouchableOpacity>
-            <Text style={[g.navLink, { color: GREEN, fontWeight: '700' }]}>使い方</Text>
+            <Text style={[g.navLink, { color: GREEN, fontWeight: '700' }]}>{t('guide.navGuideCurrent')}</Text>
             <TouchableOpacity onPress={() => isWeb ? Linking.openURL('https://scorej-run.vercel.app/coach-landing') : router.push('/coach-landing')} activeOpacity={0.7}>
-              <Text style={g.navLink}>料金</Text>
+              <Text style={g.navLink}>{t('guide.navPricing')}</Text>
             </TouchableOpacity>
           </View>
           <TouchableOpacity style={g.navBtn} onPress={handleTrial} activeOpacity={0.85}>
-            <Text style={g.navBtnTxt}>無料で試す</Text>
+            <Text style={g.navBtnTxt}>{t('guide.navTrial')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -216,15 +145,14 @@ export default function GuidePage() {
         <View style={g.articleHeader}>
           <Animated.View style={[heroAnim, center]}>
             <View style={g.tagRow}>
-              <View style={g.tag}><Text style={g.tagTxt}>使い方ガイド</Text></View>
-              <View style={g.tag}><Text style={g.tagTxt}>陸上競技</Text></View>
-              <View style={[g.tag, { backgroundColor: '#fffbeb' }]}><Text style={[g.tagTxt, { color: '#92400e' }]}>読了 約10分</Text></View>
+              <View style={g.tag}><Text style={g.tagTxt}>{t('guide.tagGuide')}</Text></View>
+              <View style={g.tag}><Text style={g.tagTxt}>{t('guide.tagTrack')}</Text></View>
+              <View style={[g.tag, { backgroundColor: '#fffbeb' }]}><Text style={[g.tagTxt, { color: '#92400e' }]}>{t('guide.tagReadTime')}</Text></View>
             </View>
             <Text style={g.articleTitle}>
-              sCORE の使い方完全ガイド{'\n'}
-              — 練習記録からコンディション管理まで
+              {t('guide.articleTitle')}
             </Text>
-            <Text style={g.articleMeta}>2026年4月更新　sCORE Japan 編集部</Text>
+            <Text style={g.articleMeta}>{t('guide.articleMeta')}</Text>
           </Animated.View>
         </View>
 
@@ -232,15 +160,11 @@ export default function GuidePage() {
         <View style={g.section}>
           <View style={[g.inner, center]}>
             <View style={g.summaryBox}>
-              <Text style={g.summaryTitle}>📌 3分でわかる sCORE の特徴</Text>
-              {[
-                { n: '01', txt: '練習記録・コンディション管理・怪我リスクを1つのアプリで完結。毎日1分の入力だけで、自分の体を「数値で見える化」できる。' },
-                { n: '02', txt: 'AIが今日の体状況に合わせたアドバイスを生成。専門コーチがいなくても、科学的に正しいトレーニング管理が実現。' },
-                { n: '03', txt: 'コーチ・顧問向けのチーム機能で、全選手の状態を毎朝1分で把握。紙・LINEの管理から卒業できる。' },
-              ].map(item => (
-                <View key={item.n} style={g.summaryRow}>
-                  <View style={g.summaryNum}><Text style={g.summaryNumTxt}>{item.n}</Text></View>
-                  <Text style={g.summaryTxt}>{item.txt}</Text>
+              <Text style={g.summaryTitle}>{t('guide.summaryTitle')}</Text>
+              {summaryItems.map((txt, i) => (
+                <View key={i} style={g.summaryRow}>
+                  <View style={g.summaryNum}><Text style={g.summaryNumTxt}>{String(i + 1).padStart(2, '0')}</Text></View>
+                  <Text style={g.summaryTxt}>{txt}</Text>
                 </View>
               ))}
             </View>
@@ -251,24 +175,19 @@ export default function GuidePage() {
         <View style={[g.section, { backgroundColor: OFF }]}>
           <View style={[g.inner, center]}>
             <Text style={g.sectionLabel}>ABOUT</Text>
-            <Text style={g.sectionTitle}>sCORE とは何か</Text>
+            <Text style={g.sectionTitle}>{t('guide.aboutTitle')}</Text>
             <Text style={g.body}>
-              sCORE（スコア）は、陸上競技者のための練習記録・コンディション管理を通じて怪我予防をサポートするアプリです。2024年にローンチし、中学生から社会人アスリートまで幅広いユーザーに使用されています。
+              {t('guide.aboutBody1')}
             </Text>
             <Text style={[g.body, { marginTop: 12 }]}>
-              「毎日の練習を記録したい」「怪我を減らしたい」「コーチとして選手を管理したい」——そんな悩みをひとつのアプリで解決します。
+              {t('guide.aboutBody2')}
             </Text>
 
             <View style={g.targetGrid}>
-              {[
-                { icon: '🏃', label: '中学・高校生' },
-                { icon: '🎓', label: '大学陸上部' },
-                { icon: '💼', label: '社会人ランナー' },
-                { icon: '📋', label: '顧問・コーチ' },
-              ].map(t => (
-                <View key={t.label} style={g.targetChip}>
-                  <Text style={{ fontSize: 20 }}>{t.icon}</Text>
-                  <Text style={g.targetChipTxt}>{t.label}</Text>
+              {targets.map(tg => (
+                <View key={tg.label} style={g.targetChip}>
+                  <Text style={{ fontSize: 20 }}>{tg.icon}</Text>
+                  <Text style={g.targetChipTxt}>{tg.label}</Text>
                 </View>
               ))}
             </View>
@@ -279,8 +198,8 @@ export default function GuidePage() {
         <View style={g.section}>
           <View style={[g.inner, center]}>
             <Text style={g.sectionLabel}>FEATURES</Text>
-            <Text style={g.sectionTitle}>機能ガイド</Text>
-            <Text style={g.sectionSub}>6つの主要機能の詳細な使い方を紹介します</Text>
+            <Text style={g.sectionTitle}>{t('guide.featuresSectionTitle')}</Text>
+            <Text style={g.sectionSub}>{t('guide.featuresSectionSub')}</Text>
 
             {FEATURES.map((feat, i) => (
               <View key={i} style={g.featCard}>
@@ -288,16 +207,16 @@ export default function GuidePage() {
                   <View style={[g.featIcon, { backgroundColor: feat.bg }]}>
                     <Ionicons name={feat.icon} size={24} color={feat.color} />
                   </View>
-                  <Text style={[g.featCardTitle, { color: feat.color }]}>{feat.title}</Text>
+                  <Text style={[g.featCardTitle, { color: feat.color }]}>{featureContent[i].title}</Text>
                 </View>
                 <View style={g.featCardBody}>
                   <View style={g.featBlock}>
-                    <Text style={g.featBlockLabel}>できること</Text>
-                    <Text style={g.featBlockTxt}>{feat.what}</Text>
+                    <Text style={g.featBlockLabel}>{t('guide.featWhatLabel')}</Text>
+                    <Text style={g.featBlockTxt}>{featureContent[i].what}</Text>
                   </View>
                   <View style={[g.featBlock, { backgroundColor: feat.bg, borderRadius: 10, padding: 12 }]}>
-                    <Text style={[g.featBlockLabel, { color: feat.color }]}>💡 活用ポイント</Text>
-                    <Text style={[g.featBlockTxt, { color: BLACK }]}>{feat.tip}</Text>
+                    <Text style={[g.featBlockLabel, { color: feat.color }]}>{t('guide.featTipLabel')}</Text>
+                    <Text style={[g.featBlockTxt, { color: BLACK }]}>{featureContent[i].tip}</Text>
                   </View>
                 </View>
               </View>
@@ -309,12 +228,12 @@ export default function GuidePage() {
         <View style={[g.section, { backgroundColor: OFF }]}>
           <View style={[g.inner, center]}>
             <Text style={g.sectionLabel}>FOR WHO</Text>
-            <Text style={g.sectionTitle}>こんな人にオススメ</Text>
+            <Text style={g.sectionTitle}>{t('guide.personasSectionTitle')}</Text>
 
             <View style={g.personaGrid}>
-              {PERSONAS.map((p, i) => (
+              {personas.map((p, i) => (
                 <View key={i} style={g.personaCard}>
-                  <Text style={{ fontSize: 32, marginBottom: 8 }}>{p.emoji}</Text>
+                  <Text style={{ fontSize: 32, marginBottom: 8 }}>{['🏃','📋','💼','🎓'][i]}</Text>
                   <Text style={g.personaLabel}>{p.label}</Text>
                   <Text style={g.personaDesc}>{p.desc}</Text>
                 </View>
@@ -327,35 +246,38 @@ export default function GuidePage() {
         <View style={g.section}>
           <View style={[g.inner, center]}>
             <Text style={g.sectionLabel}>PRICING</Text>
-            <Text style={g.sectionTitle}>料金プラン</Text>
-            <Text style={g.sectionSub}>まずは無料で始められます。いつでもアップグレード・解約可能。</Text>
+            <Text style={g.sectionTitle}>{t('guide.pricingSectionTitle')}</Text>
+            <Text style={g.sectionSub}>{t('guide.pricingSectionSub')}</Text>
 
             <View style={g.planGrid}>
-              {PLANS.map((plan, i) => (
-                <View key={i} style={[g.planCard, { borderColor: plan.color }]}>
+              {PLAN_STYLES.map((style, i) => {
+                const plan = planContent[i]
+                return (
+                <View key={i} style={[g.planCard, { borderColor: style.color }]}>
                   {plan.badge && (
-                    <View style={[g.planBadge, { backgroundColor: plan.color }]}>
+                    <View style={[g.planBadge, { backgroundColor: style.color }]}>
                       <Text style={g.planBadgeTxt}>{plan.badge}</Text>
                     </View>
                   )}
-                  <Text style={[g.planName, { color: plan.color }]}>{plan.name}</Text>
+                  <Text style={[g.planName, { color: style.color }]}>{plan.name}</Text>
                   <View style={g.planPriceRow}>
-                    <Text style={[g.planPrice, { color: plan.color }]}>{plan.price}</Text>
+                    <Text style={[g.planPrice, { color: style.color }]}>{style.price}</Text>
                     {plan.period ? <Text style={g.planPeriod}>{plan.period}</Text> : null}
                   </View>
                   <View style={g.planFeatures}>
                     {plan.features.map((f, j) => (
                       <View key={j} style={g.planFeatureRow}>
-                        <Ionicons name="checkmark-circle" size={14} color={plan.color} />
+                        <Ionicons name="checkmark-circle" size={14} color={style.color} />
                         <Text style={g.planFeatureTxt}>{f}</Text>
                       </View>
                     ))}
                   </View>
                 </View>
-              ))}
+                )
+              })}
             </View>
 
-            <Text style={g.planNote}>※ 年払いにすると約20%お得。学生割引（要学生証）もご利用いただけます。</Text>
+            <Text style={g.planNote}>{t('guide.planNote')}</Text>
           </View>
         </View>
 
@@ -363,9 +285,9 @@ export default function GuidePage() {
         <View style={[g.section, { backgroundColor: OFF }]}>
           <View style={[g.inner, center]}>
             <Text style={g.sectionLabel}>FAQ</Text>
-            <Text style={g.sectionTitle}>よくある質問</Text>
+            <Text style={g.sectionTitle}>{t('guide.faqSectionTitle')}</Text>
 
-            {FAQS.map((item, i) => (
+            {faqs.map((item, i) => (
               <FaqItem key={i} q={item.q} a={item.a} />
             ))}
           </View>
@@ -375,38 +297,19 @@ export default function GuidePage() {
         <View style={g.section}>
           <View style={[g.inner, center]}>
             <Text style={g.sectionLabel}>GET STARTED</Text>
-            <Text style={g.sectionTitle}>目的別スタート方法</Text>
+            <Text style={g.sectionTitle}>{t('guide.startedSectionTitle')}</Text>
 
-            {[
-              {
-                icon: 'person-outline' as const,
-                color: GREEN,
-                title: '個人選手として始める',
-                steps: ['App Store または Google Play でインストール', 'アカウント作成（メール or Google）', 'プロフィール・種目を設定', '今日のコンディションを入力してスタート'],
-              },
-              {
-                icon: 'people-outline' as const,
-                color: '#3b82f6',
-                title: 'チーム・部活で始める',
-                steps: ['コーチ側が COACH プランに加入', 'チームを作成 → 招待コードを発行', '選手に招待コードを共有（LINE等でOK）', '選手は無料で参加・記録開始'],
-              },
-              {
-                icon: 'trophy-outline' as const,
-                color: '#a855f7',
-                title: '大会シーズンに向けて使う',
-                steps: ['大会記録タブに過去の自己ベストを登録', '練習負荷と怪我リスクを毎日チェック', 'ピーキング期は AIコーチアドバイスを参考に', '大会後は自己ベスト更新カードをシェア'],
-              },
-            ].map((item, i) => (
+            {started.map((item, i) => (
               <View key={i} style={g.startCard}>
                 <View style={g.startCardHeader}>
-                  <View style={[g.startIcon, { backgroundColor: item.color + '18' }]}>
-                    <Ionicons name={item.icon} size={20} color={item.color} />
+                  <View style={[g.startIcon, { backgroundColor: STARTED_COLORS[i] + '18' }]}>
+                    <Ionicons name={STARTED_ICONS[i]} size={20} color={STARTED_COLORS[i]} />
                   </View>
                   <Text style={g.startCardTitle}>{item.title}</Text>
                 </View>
                 {item.steps.map((step, j) => (
                   <View key={j} style={g.startStep}>
-                    <View style={[g.startStepNum, { backgroundColor: item.color }]}>
+                    <View style={[g.startStepNum, { backgroundColor: STARTED_COLORS[i] }]}>
                       <Text style={g.startStepNumTxt}>{j + 1}</Text>
                     </View>
                     <Text style={g.startStepTxt}>{step}</Text>
@@ -420,29 +323,29 @@ export default function GuidePage() {
         {/* ── CTA ───────────────────────────────────────────────── */}
         <View style={g.ctaSection}>
           <View style={[g.inner, center, { alignItems: 'center' }]}>
-            <Text style={g.ctaTitle}>今すぐ sCORE を始めよう</Text>
-            <Text style={g.ctaSub}>無料プランで今すぐスタート。クレジットカード不要。</Text>
+            <Text style={g.ctaTitle}>{t('guide.ctaTitle')}</Text>
+            <Text style={g.ctaSub}>{t('guide.ctaSub')}</Text>
 
             <View style={g.ctaBtns}>
               <TouchableOpacity style={g.ctaBtn} onPress={() => handleDownload('apple')} activeOpacity={0.85}>
                 <Ionicons name="logo-apple" size={20} color={WHITE} />
                 <View>
-                  <Text style={g.ctaBtnSub}>App Store で</Text>
-                  <Text style={g.ctaBtnMain}>ダウンロード</Text>
+                  <Text style={g.ctaBtnSub}>{t('guide.ctaAppStoreSub')}</Text>
+                  <Text style={g.ctaBtnMain}>{t('guide.ctaDownload')}</Text>
                 </View>
               </TouchableOpacity>
 
               <TouchableOpacity style={[g.ctaBtn, { backgroundColor: '#16a34a' }]} onPress={() => handleDownload('google')} activeOpacity={0.85}>
                 <Ionicons name="logo-google-playstore" size={20} color={WHITE} />
                 <View>
-                  <Text style={g.ctaBtnSub}>Google Play で</Text>
-                  <Text style={g.ctaBtnMain}>ダウンロード</Text>
+                  <Text style={g.ctaBtnSub}>{t('guide.ctaGooglePlaySub')}</Text>
+                  <Text style={g.ctaBtnMain}>{t('guide.ctaDownload')}</Text>
                 </View>
               </TouchableOpacity>
             </View>
 
             <TouchableOpacity onPress={handleTrial} activeOpacity={0.8} style={{ marginTop: 12 }}>
-              <Text style={g.ctaWebLink}>ブラウザ版で試す →</Text>
+              <Text style={g.ctaWebLink}>{t('guide.ctaWebLink')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -453,10 +356,10 @@ export default function GuidePage() {
             <Text style={g.footerLogo}>sCORE</Text>
             <View style={g.footerLinks}>
               {[
-                { label: '利用規約', url: 'https://scorej-run.vercel.app/terms' },
-                { label: 'プライバシーポリシー', url: 'https://scorej-run.vercel.app/privacy' },
-                { label: 'コーチ向け', url: 'https://scorej-run.vercel.app/coach-landing' },
-                { label: 'お問い合わせ', url: 'mailto:amuletbaby.shop@gmail.com' },
+                { label: t('guide.footerTerms'), url: 'https://scorej-run.vercel.app/terms' },
+                { label: t('guide.footerPrivacy'), url: 'https://scorej-run.vercel.app/privacy' },
+                { label: t('guide.footerCoach'), url: 'https://scorej-run.vercel.app/coach-landing' },
+                { label: t('guide.footerContact'), url: 'mailto:amuletbaby.shop@gmail.com' },
               ].map(link => (
                 <TouchableOpacity key={link.label} onPress={() => Linking.openURL(link.url)} activeOpacity={0.7}>
                   <Text style={g.footerLink}>{link.label}</Text>
