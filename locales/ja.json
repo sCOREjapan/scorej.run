@@ -3828,5 +3828,28 @@
   },
   "splashAnimation": {
     "tagline": "陸上競技のパートナー"
+  },
+  "purchase": {
+    "planLabels": {
+      "free": "",
+      "noad": "広告なしプラン",
+      "coach": "コーチプラン",
+      "ticketMonthly": "チケット月額プラン",
+      "default": "プラン"
+    },
+    "ticketMonthlyGranted": "🎫 チケット100枚を付与しました",
+    "ticketMonthlyGrantedSub": "チケット月額プランの更新分です",
+    "planActivated": "🎉 {{label}} 有効化！",
+    "coachUnlocked": "全機能が無制限で使えるようになりました",
+    "ticketMonthlyUnlocked": "広告が非表示になり、毎月チケットが届きます",
+    "noadUnlocked": "広告が非表示になりました",
+    "purchaseErrorTitle": "購入エラー",
+    "purchaseErrorBody": "購入に失敗しました",
+    "restoreSuccessTitle": "購入を復元しました ✅",
+    "restoreSuccessBody": "{{label}}が有効になりました",
+    "restoreNoneTitle": "復元できる購入がありません",
+    "restoreNoneBody": "以前の購入が見つかりませんでした",
+    "restoreErrorTitle": "復元エラー",
+    "restoreErrorBody": "復元に失敗しました"
   }
 }

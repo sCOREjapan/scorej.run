@@ -3828,5 +3828,28 @@
   },
   "splashAnimation": {
     "tagline": "Your Track & Field Partner"
+  },
+  "purchase": {
+    "planLabels": {
+      "free": "",
+      "noad": "No-Ads Plan",
+      "coach": "Coach Plan",
+      "ticketMonthly": "Ticket Monthly Plan",
+      "default": "Plan"
+    },
+    "ticketMonthlyGranted": "🎫 100 tickets granted",
+    "ticketMonthlyGrantedSub": "This month's Ticket Plan renewal",
+    "planActivated": "🎉 {{label}} activated!",
+    "coachUnlocked": "All features are now unlimited",
+    "ticketMonthlyUnlocked": "Ads are hidden and tickets arrive every month",
+    "noadUnlocked": "Ads are now hidden",
+    "purchaseErrorTitle": "Purchase Error",
+    "purchaseErrorBody": "Purchase failed",
+    "restoreSuccessTitle": "Purchase Restored ✅",
+    "restoreSuccessBody": "{{label}} is now active",
+    "restoreNoneTitle": "No Purchases to Restore",
+    "restoreNoneBody": "No previous purchase was found",
+    "restoreErrorTitle": "Restore Error",
+    "restoreErrorBody": "Failed to restore"
   }
 }

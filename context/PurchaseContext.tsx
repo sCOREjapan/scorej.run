@@ -19,9 +19,10 @@ import { grantMonthlyTicketsIfNeeded } from '../lib/ticketWallet'
 import { trackUpgrade } from '../lib/analytics'
 import { useAuth } from './AuthContext'
 import { supabase } from '../lib/supabase'
+import { useTranslation } from 'react-i18next'
 
-const PLAN_LABELS: Record<PlanTier, string> = {
-  free: '', noad: '広告なしプラン', coach: 'コーチプラン',
+function getPlanLabel(tier: PlanTier, t: (key: string, opts?: any) => string): string {
+  return t(`purchase.planLabels.${tier}`, { defaultValue: t('purchase.planLabels.default') })
 }
 
 interface PurchaseContextType {
@@ -53,12 +54,12 @@ const PurchaseContext = createContext<PurchaseContextType>({
 })
 
 // チケット月額の更新を検知したら wallet に付与し、付与されていればトーストで知らせる
-async function syncTicketMonthlyGrant(hasTicketMonthly: boolean, ticketMonthlyExpiresAt?: string) {
+async function syncTicketMonthlyGrant(hasTicketMonthly: boolean, t: (key: string, opts?: any) => string, ticketMonthlyExpiresAt?: string) {
   if (!hasTicketMonthly) return
   try {
     const granted = await grantMonthlyTicketsIfNeeded(ticketMonthlyExpiresAt)
     if (granted) {
-      Toast.show({ type: 'success', text1: '🎫 チケット100枚を付与しました', text2: 'チケット月額プランの更新分です' })
+      Toast.show({ type: 'success', text1: t('purchase.ticketMonthlyGranted'), text2: t('purchase.ticketMonthlyGrantedSub') })
     }
   } catch {}
 }
@@ -96,6 +97,7 @@ async function syncPlanTierToSupabase(userId: string | undefined, tier: PlanTier
 }
 
 export function PurchaseProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation()
   const { user } = useAuth()
   // undefined = 「まだ一度も初期化していない」の目印（null=ゲスト確定 と区別するため）
   const prevUserIdRef = useRef<string | null | undefined>(undefined)
@@ -128,7 +130,7 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
       if (cached.hasTicketMonthly) {
         setHasTicketMonthly(true)
         setTicketMonthlyExpiresAt(cached.ticketMonthlyExpiresAt)
-        syncTicketMonthlyGrant(true, cached.ticketMonthlyExpiresAt)
+        syncTicketMonthlyGrant(true, t, cached.ticketMonthlyExpiresAt)
       }
       setLoading(false)
     })()
@@ -150,7 +152,7 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
         setTier(status.tier); setExpiresAt(status.expiresAt)
         setHasTicketMonthly(status.hasTicketMonthly); setTicketMonthlyExpiresAt(status.ticketMonthlyExpiresAt)
         cacheSubscriptionStatus(status.tier, status.expiresAt, status.originalPurchaseDate, status.hasTicketMonthly, status.ticketMonthlyExpiresAt)
-        syncTicketMonthlyGrant(status.hasTicketMonthly, status.ticketMonthlyExpiresAt)
+        syncTicketMonthlyGrant(status.hasTicketMonthly, t, status.ticketMonthlyExpiresAt)
         syncPlanTierToSupabase(currentId ?? undefined, status.tier, status.hasTicketMonthly)
       })
       .then(() => getPackagesWithRetry(currentId ?? undefined))
@@ -173,7 +175,7 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
       setTier(status.tier); setExpiresAt(status.expiresAt)
       setHasTicketMonthly(status.hasTicketMonthly); setTicketMonthlyExpiresAt(status.ticketMonthlyExpiresAt)
       await cacheSubscriptionStatus(status.tier, status.expiresAt, status.originalPurchaseDate, status.hasTicketMonthly, status.ticketMonthlyExpiresAt)
-      await syncTicketMonthlyGrant(status.hasTicketMonthly, status.ticketMonthlyExpiresAt)
+      await syncTicketMonthlyGrant(status.hasTicketMonthly, t, status.ticketMonthlyExpiresAt)
       await syncPlanTierToSupabase(user?.id, status.tier, status.hasTicketMonthly)
       const pkgs = await getPackagesWithRetry(user?.id)
       setPackages(pkgs)
@@ -181,7 +183,7 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
     } catch {} finally {
       setPackagesReady(true)
     }
-  }, [user?.id])
+  }, [user?.id, t])
 
   const onUserChanged = useCallback(async (userId?: string) => {
     try {
@@ -207,16 +209,16 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
         const planKey = result.hasTicketMonthly && result.tier === 'free' ? 'ticket_monthly' : result.tier
         trackUpgrade(planKey)
         const label = result.hasTicketMonthly && result.tier === 'free'
-          ? 'チケット月額プラン'
-          : (PLAN_LABELS[result.tier] || 'プラン')
+          ? t('purchase.planLabels.ticketMonthly')
+          : getPlanLabel(result.tier, t)
         Toast.show({
           type: 'success',
-          text1: `🎉 ${label} 有効化！`,
+          text1: t('purchase.planActivated', { label }),
           text2: result.tier === 'coach'
-            ? '全機能が無制限で使えるようになりました'
+            ? t('purchase.coachUnlocked')
             : result.hasTicketMonthly
-              ? '広告が非表示になり、毎月チケットが届きます'
-              : '広告が非表示になりました',
+              ? t('purchase.ticketMonthlyUnlocked')
+              : t('purchase.noadUnlocked'),
         })
         return true
       }
@@ -227,10 +229,10 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
       // 決済自体は成立しているのにレシート検証等でエラーになるケースに備え、
       // 最新のエンタイトルメント状態を確認しておく（反映漏れの防止）
       refreshStatus().catch(() => {})
-      Toast.show({ type: 'error', text1: '購入エラー', text2: e?.message ?? '購入に失敗しました' })
+      Toast.show({ type: 'error', text1: t('purchase.purchaseErrorTitle'), text2: e?.message ?? t('purchase.purchaseErrorBody') })
       return false
     }
-  }, [refreshStatus])
+  }, [refreshStatus, t])
 
   const restore = useCallback(async (): Promise<{ tier: PlanTier; hasTicketMonthly: boolean } | false> => {
     try {
@@ -238,18 +240,18 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
       await refreshStatus()
       if (result) {
         const label = result.hasTicketMonthly && result.tier === 'free'
-          ? 'チケット月額プラン'
-          : (PLAN_LABELS[result.tier] || 'プラン')
-        Toast.show({ type: 'success', text1: '購入を復元しました ✅', text2: `${label}が有効になりました` })
+          ? t('purchase.planLabels.ticketMonthly')
+          : getPlanLabel(result.tier, t)
+        Toast.show({ type: 'success', text1: t('purchase.restoreSuccessTitle'), text2: t('purchase.restoreSuccessBody', { label }) })
       } else {
-        Toast.show({ type: 'info', text1: '復元できる購入がありません', text2: '以前の購入が見つかりませんでした' })
+        Toast.show({ type: 'info', text1: t('purchase.restoreNoneTitle'), text2: t('purchase.restoreNoneBody') })
       }
       return result
     } catch (e: any) {
-      Toast.show({ type: 'error', text1: '復元エラー', text2: e?.message ?? '復元に失敗しました' })
+      Toast.show({ type: 'error', text1: t('purchase.restoreErrorTitle'), text2: e?.message ?? t('purchase.restoreErrorBody') })
       return false
     }
-  }, [refreshStatus])
+  }, [refreshStatus, t])
 
   return (
     <PurchaseContext.Provider value={{
