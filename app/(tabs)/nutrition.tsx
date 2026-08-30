@@ -34,6 +34,8 @@ import { getWeights, type WeightRecord } from '../../lib/weightStore'
 import { createStorageQueue } from '../../lib/storageQueue'
 import { BlurView } from 'expo-blur'
 import { usePurchase } from '../../context/PurchaseContext'
+import { useTranslation } from 'react-i18next'
+import { useLanguage } from '../../context/LanguageContext'
 
 const STORAGE_KEY = 'trackmate_meals'
 const NUTRITION_STATS_VIEW_KEY = 'trackmate_nutrition_stats_views'
@@ -43,17 +45,18 @@ const NUTRITION_STATS_FREE_VIEWS = 2
 const mealsStore = createStorageQueue<MealRecord[]>(STORAGE_KEY, [])
 const PROFILE_KEY = 'trackmate_my_profile'
 
-const MEAL_TYPES: { value: MealType; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { value: 'breakfast', label: '朝食',  icon: 'partly-sunny-outline' },
-  { value: 'lunch',     label: '昼食',  icon: 'sunny-outline' },
-  { value: 'dinner',    label: '夕食',  icon: 'moon-outline' },
-  { value: 'snack',     label: '間食',  icon: 'nutrition-outline' },
-  { value: 'supplement',label: 'サプリ',icon: 'medical-outline' },
+// label は locales/nutrition.mealTypes / .timings 経由で言語対応
+const MEAL_TYPES: { value: MealType; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { value: 'breakfast', icon: 'partly-sunny-outline' },
+  { value: 'lunch',     icon: 'sunny-outline' },
+  { value: 'dinner',    icon: 'moon-outline' },
+  { value: 'snack',     icon: 'nutrition-outline' },
+  { value: 'supplement',icon: 'medical-outline' },
 ]
-const TIMINGS: { value: 'pre' | 'post' | 'none'; label: string }[] = [
-  { value: 'none', label: 'なし' },
-  { value: 'pre',  label: '練習前' },
-  { value: 'post', label: '練習後' },
+const TIMINGS: { value: 'pre' | 'post' | 'none' }[] = [
+  { value: 'none' },
+  { value: 'pre' },
+  { value: 'post' },
 ]
 
 // ─── Skeleton ──────────────────────────────────────────────────────────
@@ -71,6 +74,7 @@ function SkeletonRect({ height = 16, width = '100%' as string | number }) {
 
 // ─── 栄養素サマリー ─────────────────────────────────────────────────────
 function MacroRow({ calories, protein, carb, fat }: { calories: number; protein: number; carb: number; fat: number }) {
+  const { t } = useTranslation()
   return (
     <View style={styles.macroRow}>
       <View style={styles.macroMain}>
@@ -78,9 +82,9 @@ function MacroRow({ calories, protein, carb, fat }: { calories: number; protein:
         <Text style={styles.macroKcalLabel}>kcal</Text>
       </View>
       {[
-        { label: 'たんぱく質', value: protein, color: BRAND },
-        { label: '炭水化物',   value: carb,    color: '#5AC8FA' },
-        { label: '脂質',       value: fat,     color: '#FF9500' },
+        { label: t('nutrition.macroRow.protein'), value: protein, color: BRAND },
+        { label: t('nutrition.macroRow.carb'),    value: carb,    color: '#5AC8FA' },
+        { label: t('nutrition.macroRow.fat'),     value: fat,     color: '#FF9500' },
       ].map(m => (
         <View key={m.label} style={styles.macroItem}>
           <Text style={[styles.macroValue, { color: m.color }]}>{Math.round(m.value)}g</Text>
@@ -100,16 +104,17 @@ function NutritionPlanCard({ stats, onGoLogWeight }: {
   }
   onGoLogWeight: () => void
 }) {
+  const { t } = useTranslation()
   if (!stats.latestWeight || !stats.planTargets) {
     return (
       <View style={planStyles.card}>
         <View style={planStyles.headRow}>
           <Ionicons name="pie-chart-outline" size={15} color={TEXT.primary} />
-          <Text style={styles.cardTitle}>栄養プランの目安</Text>
+          <Text style={styles.cardTitle}>{t('nutrition.planCard.title')}</Text>
         </View>
-        <Text style={planStyles.emptyText}>体重を記録すると、あなたに合わせたたんぱく質・糖質・脂質の目安を計算します</Text>
+        <Text style={planStyles.emptyText}>{t('nutrition.planCard.emptyText')}</Text>
         <TouchableOpacity style={planStyles.emptyBtn} onPress={onGoLogWeight} activeOpacity={0.8}>
-          <Text style={planStyles.emptyBtnText}>体重を記録する</Text>
+          <Text style={planStyles.emptyBtnText}>{t('nutrition.planCard.emptyBtn')}</Text>
           <Ionicons name="chevron-forward" size={14} color={BRAND} />
         </TouchableOpacity>
       </View>
@@ -118,9 +123,9 @@ function NutritionPlanCard({ stats, onGoLogWeight }: {
 
   const { latestWeight, planTargets, planFulfillment } = stats
   const MACROS: { key: 'protein' | 'carb' | 'fat'; label: string }[] = [
-    { key: 'protein', label: 'たんぱく質' },
-    { key: 'carb',    label: '糖質' },
-    { key: 'fat',     label: '脂質' },
+    { key: 'protein', label: t('nutrition.planCard.macros.protein') },
+    { key: 'carb',    label: t('nutrition.planCard.macros.carb') },
+    { key: 'fat',     label: t('nutrition.planCard.macros.fat') },
   ]
   const worst = planFulfillment
     ? MACROS.map(m => ({ ...m, pct: planFulfillment[m.key] })).sort((a, b) => a.pct - b.pct)[0]
@@ -130,9 +135,11 @@ function NutritionPlanCard({ stats, onGoLogWeight }: {
     <View style={planStyles.card}>
       <View style={planStyles.headRow}>
         <Ionicons name="pie-chart-outline" size={15} color={TEXT.primary} />
-        <Text style={styles.cardTitle}>栄養プランの目安</Text>
+        <Text style={styles.cardTitle}>{t('nutrition.planCard.title')}</Text>
       </View>
-      <Text style={planStyles.sub}>体重{Math.round(latestWeight.weight_kg * 10) / 10}kg（{latestWeight.date}記録）をもとにした一般的な目安です</Text>
+      <Text style={planStyles.sub}>
+        {t('nutrition.planCard.sub', { weight: Math.round(latestWeight.weight_kg * 10) / 10, date: latestWeight.date })}
+      </Text>
 
       <View style={planStyles.macroGrid}>
         {MACROS.map(m => {
@@ -156,13 +163,13 @@ function NutritionPlanCard({ stats, onGoLogWeight }: {
       {planFulfillment ? (
         worst && worst.pct < 85 ? (
           <Text style={planStyles.insight}>
-            💡 <Text style={{ fontWeight: '700', color: TEXT.primary }}>{worst.label}が目安の{worst.pct}%</Text>です。意識して増やしてみましょう
+            {t('nutrition.planCard.insightWorst', { label: worst.label, pct: worst.pct })}
           </Text>
         ) : (
-          <Text style={planStyles.insight}>✅ 3要素ともバランス良く摂れています</Text>
+          <Text style={planStyles.insight}>{t('nutrition.planCard.insightGood')}</Text>
         )
       ) : (
-        <Text style={planStyles.insight}>写真ログを記録すると、目安に対する充足度が表示されます</Text>
+        <Text style={planStyles.insight}>{t('nutrition.planCard.insightNoData')}</Text>
       )}
     </View>
   )
@@ -188,6 +195,7 @@ const planStyles = StyleSheet.create({
 
 // ─── 統計セクション（直近7日間） ────────────────────────────────────────
 const WEEKDAY_JA = ['日', '月', '火', '水', '木', '金', '土']
+const WEEKDAY_EN = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
 
 function NutritionStatsSection({ stats }: {
   stats: {
@@ -201,11 +209,14 @@ function NutritionStatsSection({ stats }: {
     hasData: boolean
   }
 }) {
+  const { t } = useTranslation()
+  const { language } = useLanguage()
+  const WEEKDAY = language === 'en' ? WEEKDAY_EN : WEEKDAY_JA
   if (!stats.hasData) {
     return (
       <View style={styles.empty}>
         <Ionicons name="stats-chart-outline" size={32} color={TEXT.hint} />
-        <Text style={styles.emptyText}>記録が増えると、ここに週間の傾向が表示されます</Text>
+        <Text style={styles.emptyText}>{t('nutrition.statsEmpty')}</Text>
       </View>
     )
   }
@@ -218,19 +229,19 @@ function NutritionStatsSection({ stats }: {
       {stats.streak > 1 && (
         <View style={statsStyles.streakBadge}>
           <Ionicons name="flame-outline" size={14} color="#c2650a" />
-          <Text style={statsStyles.streakText}>{stats.streak}日連続で記録中</Text>
+          <Text style={statsStyles.streakText}>{t('nutrition.streakContinuing', { n: stats.streak })}</Text>
         </View>
       )}
 
       {/* 7日間カロリー推移 */}
       <View>
         <View style={statsStyles.rowBetween}>
-          <Text style={statsStyles.label}>1日あたりのカロリー</Text>
-          <Text style={statsStyles.labelValue}>平均 {Math.round(stats.avgCalories)} kcal</Text>
+          <Text style={statsStyles.label}>{t('nutrition.avgCaloriesPerDay')}</Text>
+          <Text style={statsStyles.labelValue}>{t('nutrition.avgLabel', { n: Math.round(stats.avgCalories) })}</Text>
         </View>
         <View style={statsStyles.barChartRow}>
           {stats.dayTotals.map(d => {
-            const dow = WEEKDAY_JA[new Date(d.date + 'T00:00:00').getDay()]
+            const dow = WEEKDAY[new Date(d.date + 'T00:00:00').getDay()]
             const h = d.logged ? Math.max((d.calories / maxCal) * 72, 4) : 0
             return (
               <View key={d.date} style={statsStyles.barCol}>
@@ -247,16 +258,16 @@ function NutritionStatsSection({ stats }: {
       {/* PFCバランス */}
       {stats.macroPct && (
         <View>
-          <Text style={statsStyles.label}>PFCバランス（週平均）</Text>
+          <Text style={statsStyles.label}>{t('nutrition.pfcBalance')}</Text>
           <View style={statsStyles.pfcBar}>
             <View style={{ flex: stats.macroPct.protein || 0.001, backgroundColor: BRAND }} />
             <View style={{ flex: stats.macroPct.carb    || 0.001, backgroundColor: '#5AC8FA' }} />
             <View style={{ flex: stats.macroPct.fat     || 0.001, backgroundColor: '#FF9500' }} />
           </View>
           <View style={statsStyles.pfcLegendRow}>
-            <Text style={[statsStyles.pfcLegend, { color: BRAND }]}>たんぱく質 {stats.macroPct.protein}%</Text>
-            <Text style={[statsStyles.pfcLegend, { color: '#3b9dc9' }]}>炭水化物 {stats.macroPct.carb}%</Text>
-            <Text style={[statsStyles.pfcLegend, { color: '#FF9500' }]}>脂質 {stats.macroPct.fat}%</Text>
+            <Text style={[statsStyles.pfcLegend, { color: BRAND }]}>{t('nutrition.planCard.macros.protein')} {stats.macroPct.protein}%</Text>
+            <Text style={[statsStyles.pfcLegend, { color: '#3b9dc9' }]}>{t('nutrition.planCard.macros.carb')} {stats.macroPct.carb}%</Text>
+            <Text style={[statsStyles.pfcLegend, { color: '#FF9500' }]}>{t('nutrition.planCard.macros.fat')} {stats.macroPct.fat}%</Text>
           </View>
         </View>
       )}
@@ -265,20 +276,20 @@ function NutritionStatsSection({ stats }: {
       <View style={statsStyles.metricRow}>
         <View style={statsStyles.metricBox}>
           <Text style={statsStyles.metricValue}>{Math.round(stats.avgProtein)}g</Text>
-          <Text style={statsStyles.metricLabel}>平均たんぱく質/日</Text>
+          <Text style={statsStyles.metricLabel}>{t('nutrition.avgProteinPerDay')}</Text>
           {stats.proteinPerKg != null && (
             <Text style={[
               statsStyles.metricSub,
               { color: stats.proteinPerKg >= 1.6 ? BRAND : '#FF9500' },
             ]}>
-              体重比 {stats.proteinPerKg.toFixed(1)}g/kg（目安1.6〜2.2）
+              {t('nutrition.proteinPerKg', { n: stats.proteinPerKg.toFixed(1) })}
             </Text>
           )}
         </View>
         {stats.timingRate != null && (
           <View style={statsStyles.metricBox}>
             <Text style={statsStyles.metricValue}>{stats.timingRate}%</Text>
-            <Text style={statsStyles.metricLabel}>練習前後の栄養記録率</Text>
+            <Text style={statsStyles.metricLabel}>{t('nutrition.timingRate')}</Text>
           </View>
         )}
       </View>
@@ -309,12 +320,14 @@ const statsStyles = StyleSheet.create({
 
 // ─── 食事履歴カード ─────────────────────────────────────────────────────
 function MealHistoryCard({ meal, showDate, onPress }: { meal: MealRecord; showDate?: boolean; onPress?: () => void }) {
-  const type = MEAL_TYPES.find(t => t.value === meal.meal_type)
+  const { t } = useTranslation()
+  const type = MEAL_TYPES.find(mt => mt.value === meal.meal_type)
+  const typeLabel = type ? t(`nutrition.mealTypes.${type.value}`) : meal.meal_type
   return (
     <TouchableOpacity style={styles.historyCard} onPress={onPress} activeOpacity={0.7} disabled={!onPress}>
       <View style={styles.historyCardHeader}>
         <Ionicons name={type?.icon ?? 'restaurant-outline'} size={16} color={TEXT.secondary} />
-        <Text style={styles.historyType}>{type?.label ?? meal.meal_type}</Text>
+        <Text style={styles.historyType}>{typeLabel}</Text>
         {showDate && <Text style={styles.historyDate}>{meal.meal_date}</Text>}
         <View style={styles.kcalBadge}>
           <Text style={styles.kcalBadgeText}>{Math.round(meal.total_calories)} kcal</Text>
@@ -327,7 +340,7 @@ function MealHistoryCard({ meal, showDate, onPress }: { meal: MealRecord; showDa
           <Text style={styles.historyFoodMacro}>({Math.round(f.calories)}kcal / P:{Math.round(f.protein)}g)</Text>
         </Text>
       ))}
-      {meal.foods.length > 3 && <Text style={styles.historyMore}>+{meal.foods.length - 3}品</Text>}
+      {meal.foods.length > 3 && <Text style={styles.historyMore}>{t('nutrition.moreItems', { n: meal.foods.length - 3 })}</Text>}
     </TouchableOpacity>
   )
 }
@@ -339,23 +352,24 @@ function MealEditModal({ meal, onClose, onChangeMealType, onDelete }: {
   onChangeMealType: (id: string, type: MealType) => void
   onDelete: (id: string) => void
 }) {
+  const { t } = useTranslation()
   if (!meal) return null
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.editModalBackdrop} onPress={onClose}>
         <Pressable style={styles.editModalSheet} onPress={() => {}}>
-          <Text style={styles.editModalTitle}>記録を編集</Text>
-          <Text style={styles.editModalLabel}>区分</Text>
+          <Text style={styles.editModalTitle}>{t('nutrition.editModal.title')}</Text>
+          <Text style={styles.editModalLabel}>{t('nutrition.editModal.category')}</Text>
           <View style={styles.editModalChipRow}>
-            {MEAL_TYPES.map(t => (
+            {MEAL_TYPES.map(mt => (
               <HapticTouch
-                key={t.value}
+                key={mt.value}
                 haptic="toggleOn"
-                style={[styles.chip, meal.meal_type === t.value && styles.chipActive]}
-                onPress={() => { onChangeMealType(meal.id, t.value); onClose() }}
+                style={[styles.chip, meal.meal_type === mt.value && styles.chipActive]}
+                onPress={() => { onChangeMealType(meal.id, mt.value); onClose() }}
               >
-                <Ionicons name={t.icon} size={15} color={meal.meal_type === t.value ? '#fff' : TEXT.secondary} />
-                <Text style={[styles.chipText, meal.meal_type === t.value && styles.chipTextActive]}>{t.label}</Text>
+                <Ionicons name={mt.icon} size={15} color={meal.meal_type === mt.value ? '#fff' : TEXT.secondary} />
+                <Text style={[styles.chipText, meal.meal_type === mt.value && styles.chipTextActive]}>{t(`nutrition.mealTypes.${mt.value}`)}</Text>
               </HapticTouch>
             ))}
           </View>
@@ -365,10 +379,10 @@ function MealEditModal({ meal, onClose, onChangeMealType, onDelete }: {
             activeOpacity={0.8}
           >
             <Ionicons name="trash-outline" size={15} color="#FF3B30" />
-            <Text style={styles.editModalDeleteText}>この記録を削除</Text>
+            <Text style={styles.editModalDeleteText}>{t('nutrition.editModal.delete')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.editModalCloseBtn} onPress={onClose} activeOpacity={0.7}>
-            <Text style={styles.editModalCloseText}>閉じる</Text>
+            <Text style={styles.editModalCloseText}>{t('nutrition.editModal.close')}</Text>
           </TouchableOpacity>
         </Pressable>
       </Pressable>
@@ -378,6 +392,8 @@ function MealEditModal({ meal, onClose, onChangeMealType, onDelete }: {
 
 // ─── メイン ────────────────────────────────────────────────────────────
 export default function NutritionScreen() {
+  const { t } = useTranslation()
+  const { language } = useLanguage()
   const [mealType, setMealType] = useState<MealType>('lunch')
   const [timing, setTiming] = useState<'pre' | 'post' | 'none'>('none')
   const [imageUri, setImageUri] = useState<string | null>(null)
@@ -531,16 +547,16 @@ export default function NutritionScreen() {
       let res: ImagePicker.ImagePickerResult
       if (source === 'camera') {
         const { status } = await ImagePicker.requestCameraPermissionsAsync()
-        if (status !== 'granted') { Toast.show({ type: 'error', text1: 'カメラの許可が必要です' }); return }
+        if (status !== 'granted') { Toast.show({ type: 'error', text1: t('nutrition.permission.camera') }); return }
         res = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.8 })
       } else {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-        if (status !== 'granted') { Toast.show({ type: 'error', text1: 'ライブラリの許可が必要です' }); return }
+        if (status !== 'granted') { Toast.show({ type: 'error', text1: t('nutrition.permission.library') }); return }
         res = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, quality: 0.8, mediaTypes: 'images' })
       }
       if (!res.canceled && res.assets[0]) { setImageUri(res.assets[0].uri); setResult(null) }
-    } catch { Toast.show({ type: 'error', text1: '画像の取得に失敗しました' }) }
-  }, [])
+    } catch { Toast.show({ type: 'error', text1: t('nutrition.permission.imageError') }) }
+  }, [t])
 
   // リサイズ（最大800px）＋ base64 変換（Web / ネイティブ両対応）
   // 食事分析は動画分析ほどの精細さを必要としないため、AIコスト削減のため控えめなサイズに設定
@@ -613,21 +629,21 @@ export default function NutritionScreen() {
         event_category: eventCategory as import('../../types').EventCategory,
         created_at: new Date().toISOString(),
       }
-      const res = await analyzeMeal(base64, profile, mealType, timing)
+      const res = await analyzeMeal(base64, profile, mealType, timing, language)
       if (!res || !Array.isArray(res.foods)) throw new Error('応答形式が不正です')
       mealCacheRef.current.set(cacheKey, res)
       setResult(res)
       // 分析に成功した場合のみ利用回数・チケットを消費する（失敗時に課金しないため）
       if (!skipGate) {
         await recordUsage('meal')
-        if (usesTicketThisRun) Toast.show({ type: 'info', text1: `🎫 チケットを${TICKET_COST.meal}枚使用しました`, visibilityTime: 1800 })
+        if (usesTicketThisRun) Toast.show({ type: 'info', text1: t('nutrition.ticketUsed', { n: TICKET_COST.meal }), visibilityTime: 1800 })
       }
       return true
     } catch (e) {
-      Toast.show({ type: 'error', text1: 'AI分析に失敗しました', text2: e instanceof Error ? e.message : '' })
+      Toast.show({ type: 'error', text1: t('nutrition.analyzeError'), text2: e instanceof Error ? e.message : '' })
       return false
     } finally { setAnalyzing(false) }
-  }, [imageUri, mealType, timing, user, eventCategory])
+  }, [imageUri, mealType, timing, user, eventCategory, language, t])
 
   const handleAnalyze = useCallback(async () => {
     if (analyzeCallRef.current) return  // 二重タップ防止
@@ -667,33 +683,33 @@ export default function NutritionScreen() {
       setResult(null)
       setImageUri(null)
       Sounds.save()
-      Toast.show({ type: 'success', text1: '✅ 食事を保存しました' })
+      Toast.show({ type: 'success', text1: t('nutrition.saveSuccess') })
     } catch (e) {
-      Toast.show({ type: 'error', text1: '保存に失敗しました', text2: e instanceof Error ? e.message : '' })
+      Toast.show({ type: 'error', text1: t('nutrition.saveError'), text2: e instanceof Error ? e.message : '' })
     } finally {
       setSaving(false)
     }
-  }, [result, mealType, timing, today, recordDate, user])
+  }, [result, mealType, timing, today, recordDate, user, t])
 
   // 記録済みの食事の区分（朝食/昼食/夕食など）を変更する
   const handleChangeMealType = useCallback(async (id: string, newType: MealType) => {
     const updated = await mealsStore.update(current => current.map(m => (m.id === id ? { ...m, meal_type: newType } : m)))
     setHistory(updated)
-    Toast.show({ type: 'success', text1: '区分を変更しました', visibilityTime: 1200 })
-  }, [])
+    Toast.show({ type: 'success', text1: t('nutrition.mealTypeChanged'), visibilityTime: 1200 })
+  }, [t])
 
   // 記録済みの食事を削除する
   const handleDeleteMeal = useCallback(async (id: string) => {
     const updated = await mealsStore.update(current => current.filter(m => m.id !== id))
     setHistory(updated)
-    Toast.show({ type: 'success', text1: '削除しました', visibilityTime: 1200 })
-  }, [])
+    Toast.show({ type: 'success', text1: t('nutrition.deleted'), visibilityTime: 1200 })
+  }, [t])
 
   // ── 手動入力の保存（写真・AI分析を使わず直接記録） ──────────────
   const handleManualSave = useCallback(async () => {
-    if (!manualName.trim()) { Toast.show({ type: 'error', text1: '食べたものを入力してください' }); return }
+    if (!manualName.trim()) { Toast.show({ type: 'error', text1: t('nutrition.manual.nameRequired') }); return }
     const calories = parseFloat(manualCalories) || 0
-    if (calories <= 0) { Toast.show({ type: 'error', text1: 'カロリーを入力してください' }); return }
+    if (calories <= 0) { Toast.show({ type: 'error', text1: t('nutrition.manual.caloriesRequired') }); return }
     // ゲストはログイン必須
     if (isGuest) { setAdGateRemaining(0); setAdGateHardLimited(false); setAdGateVisible(true); return }
     // 手動入力はAIを使わないためチケット不要（無料）
@@ -719,13 +735,13 @@ export default function NutritionScreen() {
       setHistory(updated)
       setManualName(''); setManualCalories(''); setManualProtein(''); setManualCarb(''); setManualFat('')
       Sounds.save()
-      Toast.show({ type: 'success', text1: '✅ 食事を保存しました' })
+      Toast.show({ type: 'success', text1: t('nutrition.saveSuccess') })
     } catch (e) {
-      Toast.show({ type: 'error', text1: '保存に失敗しました', text2: e instanceof Error ? e.message : '' })
+      Toast.show({ type: 'error', text1: t('nutrition.saveError'), text2: e instanceof Error ? e.message : '' })
     } finally {
       setManualSaving(false)
     }
-  }, [manualName, manualCalories, manualProtein, manualCarb, manualFat, mealType, timing, recordDate, user])
+  }, [manualName, manualCalories, manualProtein, manualCarb, manualFat, mealType, timing, recordDate, user, t])
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f6f6f8' }}>
@@ -733,7 +749,7 @@ export default function NutritionScreen() {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
         <View style={styles.header}>
-          <Text style={styles.title}>食事管理</Text>
+          <Text style={styles.title}>{t('nutrition.title')}</Text>
           <Text style={styles.date}>{today}</Text>
         </View>
 
@@ -745,7 +761,7 @@ export default function NutritionScreen() {
         {/* 今日の合計 */}
         <AnimatedSection delay={20} type="scale">
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>今日の合計</Text>
+          <Text style={styles.cardTitle}>{t('nutrition.todayTotal')}</Text>
           <MacroRow {...todayTotals} />
         </View>
         </AnimatedSection>
@@ -762,10 +778,10 @@ export default function NutritionScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={styles.coachEntryTitle}>AI食事コーチ</Text>
+              <Text style={styles.coachEntryTitle}>{t('nutrition.coach.title')}</Text>
               <View style={styles.coachEntryBadge}><Text style={styles.coachEntryBadgeText}>PRO</Text></View>
             </View>
-            <Text style={styles.coachEntrySub}>大会に向けた食事のポイントを提案</Text>
+            <Text style={styles.coachEntrySub}>{t('nutrition.coach.sub')}</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color={TEXT.hint} />
         </TouchableOpacity>
@@ -774,20 +790,20 @@ export default function NutritionScreen() {
         {/* 食事タイプ・タイミング */}
         <AnimatedSection delay={80} type="fade-up">
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>食事タイプ</Text>
+          <Text style={styles.cardTitle}>{t('nutrition.mealTypeCard')}</Text>
           <DateSelector date={recordDate} onChange={d => { setRecordDate(d); setResult(null); setImageUri(null) }} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-            {MEAL_TYPES.map(t => (
-              <HapticTouch key={t.value} haptic="toggleOn" style={[styles.chip, mealType === t.value && styles.chipActive]} onPress={() => setMealType(t.value)} activeOpacity={0.7}>
-                <Ionicons name={t.icon} size={18} color={mealType === t.value ? '#fff' : TEXT.secondary} />
-                <Text style={[styles.chipText, mealType === t.value && styles.chipTextActive]}>{t.label}</Text>
+            {MEAL_TYPES.map(mt => (
+              <HapticTouch key={mt.value} haptic="toggleOn" style={[styles.chip, mealType === mt.value && styles.chipActive]} onPress={() => setMealType(mt.value)} activeOpacity={0.7}>
+                <Ionicons name={mt.icon} size={18} color={mealType === mt.value ? '#fff' : TEXT.secondary} />
+                <Text style={[styles.chipText, mealType === mt.value && styles.chipTextActive]}>{t(`nutrition.mealTypes.${mt.value}`)}</Text>
               </HapticTouch>
             ))}
           </ScrollView>
           <View style={styles.timingRow}>
-            {TIMINGS.map(t => (
-              <HapticTouch key={t.value} haptic="toggleOn" style={[styles.timingBtn, timing === t.value && styles.timingBtnActive]} onPress={() => setTiming(t.value)} activeOpacity={0.7}>
-                <Text style={[styles.timingText, timing === t.value && styles.timingTextActive]}>{t.label}</Text>
+            {TIMINGS.map(tm => (
+              <HapticTouch key={tm.value} haptic="toggleOn" style={[styles.timingBtn, timing === tm.value && styles.timingBtnActive]} onPress={() => setTiming(tm.value)} activeOpacity={0.7}>
+                <Text style={[styles.timingText, timing === tm.value && styles.timingTextActive]}>{t(`nutrition.timings.${tm.value}`)}</Text>
               </HapticTouch>
             ))}
           </View>
@@ -800,11 +816,11 @@ export default function NutritionScreen() {
           <View style={styles.modeTabRow}>
             <HapticTouch haptic="toggleOn" style={[styles.modeTab, inputMode === 'photo' && styles.modeTabActive]} onPress={() => setInputMode('photo')} activeOpacity={0.7}>
               <Ionicons name="camera-outline" size={16} color={inputMode === 'photo' ? '#fff' : TEXT.secondary} />
-              <Text style={[styles.modeTabText, inputMode === 'photo' && styles.modeTabTextActive]}>写真で記録</Text>
+              <Text style={[styles.modeTabText, inputMode === 'photo' && styles.modeTabTextActive]}>{t('nutrition.inputMode.photo')}</Text>
             </HapticTouch>
             <HapticTouch haptic="toggleOn" style={[styles.modeTab, inputMode === 'manual' && styles.modeTabActive]} onPress={() => setInputMode('manual')} activeOpacity={0.7}>
               <Ionicons name="create-outline" size={16} color={inputMode === 'manual' ? '#fff' : TEXT.secondary} />
-              <Text style={[styles.modeTabText, inputMode === 'manual' && styles.modeTabTextActive]}>手動で入力</Text>
+              <Text style={[styles.modeTabText, inputMode === 'manual' && styles.modeTabTextActive]}>{t('nutrition.inputMode.manual')}</Text>
             </HapticTouch>
           </View>
 
@@ -817,7 +833,7 @@ export default function NutritionScreen() {
                     style={styles.imageClose}
                     onPress={() => setImageUri(null)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    accessibilityLabel="画像を削除"
+                    accessibilityLabel={t('nutrition.removeImage')}
                   >
                     <Ionicons name="close-circle" size={30} color="rgba(255,255,255,0.9)" />
                   </TouchableOpacity>
@@ -826,22 +842,22 @@ export default function NutritionScreen() {
                 <View style={styles.pickRow}>
                   <HapticTouch haptic="tap" style={styles.pickBtn} onPress={() => pickImage('camera')} activeOpacity={0.8}>
                     <Ionicons name="camera" size={22} color="#fff" />
-                    <Text style={styles.pickBtnText}>撮影する</Text>
+                    <Text style={styles.pickBtnText}>{t('nutrition.photoBtn')}</Text>
                   </HapticTouch>
                   <HapticTouch haptic="tap" style={[styles.pickBtn, styles.pickBtnSub]} onPress={() => pickImage('library')} activeOpacity={0.8}>
                     <Ionicons name="images" size={22} color="#374151" />
-                    <Text style={[styles.pickBtnText, {color:'#374151'}]}>ライブラリ</Text>
+                    <Text style={[styles.pickBtnText, {color:'#374151'}]}>{t('nutrition.libraryBtn')}</Text>
                   </HapticTouch>
                 </View>
               )}
               {imageUri && !result && (
                 <>
                   <View style={styles.ticketCostBadge}>
-                    <Text style={styles.ticketCostBadgeText}>🎫 分析時にチケット{TICKET_COST.meal}枚を消費します</Text>
+                    <Text style={styles.ticketCostBadgeText}>{t('nutrition.ticketCost', { n: TICKET_COST.meal })}</Text>
                   </View>
                   <HapticTouch haptic="whoosh" style={[styles.analyzeBtn, analyzing && { opacity: 0.6 }]} onPress={handleAnalyze} disabled={analyzing} activeOpacity={0.85}>
                     <Ionicons name="sparkles" size={20} color="#fff" />
-                    <Text style={styles.analyzeBtnText}>{analyzing ? '分析中...' : '分析する'}</Text>
+                    <Text style={styles.analyzeBtnText}>{analyzing ? t('nutrition.analyze.analyzing') : t('nutrition.analyze.button')}</Text>
                   </HapticTouch>
                 </>
               )}
@@ -850,7 +866,7 @@ export default function NutritionScreen() {
             <View style={{ gap: 10 }}>
               <TextInput
                 style={styles.manualInput}
-                placeholder="食べたもの（例：鶏胸肉のサラダ）"
+                placeholder={t('nutrition.manual.namePlaceholder')}
                 placeholderTextColor={TEXT.hint}
                 value={manualName}
                 onChangeText={setManualName}
@@ -858,7 +874,7 @@ export default function NutritionScreen() {
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 <TextInput
                   style={[styles.manualInput, { flex: 1 }]}
-                  placeholder="カロリー(kcal)"
+                  placeholder={t('nutrition.manual.caloriesPlaceholder')}
                   placeholderTextColor={TEXT.hint}
                   keyboardType="numeric"
                   value={manualCalories}
@@ -868,7 +884,7 @@ export default function NutritionScreen() {
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 <TextInput
                   style={[styles.manualInput, { flex: 1 }]}
-                  placeholder="P(g)"
+                  placeholder={t('nutrition.manual.proteinPlaceholder')}
                   placeholderTextColor={TEXT.hint}
                   keyboardType="numeric"
                   value={manualProtein}
@@ -876,7 +892,7 @@ export default function NutritionScreen() {
                 />
                 <TextInput
                   style={[styles.manualInput, { flex: 1 }]}
-                  placeholder="C(g)"
+                  placeholder={t('nutrition.manual.carbPlaceholder')}
                   placeholderTextColor={TEXT.hint}
                   keyboardType="numeric"
                   value={manualCarb}
@@ -884,7 +900,7 @@ export default function NutritionScreen() {
                 />
                 <TextInput
                   style={[styles.manualInput, { flex: 1 }]}
-                  placeholder="F(g)"
+                  placeholder={t('nutrition.manual.fatPlaceholder')}
                   placeholderTextColor={TEXT.hint}
                   keyboardType="numeric"
                   value={manualFat}
@@ -893,7 +909,7 @@ export default function NutritionScreen() {
               </View>
               <HapticTouch haptic="save" style={[styles.saveBtn, manualSaving && { opacity: 0.5 }]} onPress={handleManualSave} disabled={manualSaving} activeOpacity={0.85}>
                 <Ionicons name="save" size={18} color="#fff" />
-                <Text style={styles.saveBtnText}>{manualSaving ? '保存中...' : '保存する'}</Text>
+                <Text style={styles.saveBtnText}>{manualSaving ? t('nutrition.saving') : t('nutrition.save')}</Text>
               </HapticTouch>
             </View>
           )}
@@ -915,14 +931,16 @@ export default function NutritionScreen() {
           <AnimatedSection delay={0} type="scale">
           <View style={styles.card}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text style={styles.cardTitle}>分析結果</Text>
+              <Text style={styles.cardTitle}>{t('nutrition.analysisResult')}</Text>
               <TouchableOpacity
                 onPress={() => {
                   const dt = new Date(recordDate + 'T00:00:00')
-                  const weekdays = ['日', '月', '火', '水', '木', '金', '土']
+                  const dateLabel = language === 'en'
+                    ? dt.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', weekday: 'short' })
+                    : (() => { const weekdays = ['日', '月', '火', '水', '木', '金', '土']; return `${dt.getFullYear()}年${dt.getMonth() + 1}月${dt.getDate()}日（${weekdays[dt.getDay()]}）` })()
                   setShareData({
-                    date: `${dt.getFullYear()}年${dt.getMonth() + 1}月${dt.getDate()}日（${weekdays[dt.getDay()]}）`,
-                    mealType: MEAL_TYPES.find(t => t.value === mealType)?.label,
+                    date: dateLabel,
+                    mealType: t(`nutrition.mealTypes.${mealType}`),
                     totalCalories: result.total_calories,
                     protein: result.total_protein,
                     carb: result.total_carb,
@@ -949,7 +967,7 @@ export default function NutritionScreen() {
             ))}
             <View style={styles.divider} />
             <MacroRow calories={result.total_calories} protein={result.total_protein} carb={result.total_carb} fat={result.total_fat} />
-            <AIFeedbackCard feedback={result.advice} title="栄養アドバイス" />
+            <AIFeedbackCard feedback={result.advice} title={t('nutrition.nutritionAdvice')} />
             {result.hydration_reminder && (
               <View style={[styles.hydration, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
                 <Ionicons name="water-outline" size={14} color={NEON.cyan} />
@@ -958,10 +976,10 @@ export default function NutritionScreen() {
             )}
             <HapticTouch haptic="save" style={[styles.saveBtn, saving && { opacity: 0.5 }]} onPress={handleSave} disabled={saving} activeOpacity={0.85}>
               <Ionicons name="save" size={18} color="#fff" />
-              <Text style={styles.saveBtnText}>{saving ? '保存中...' : '保存する'}</Text>
+              <Text style={styles.saveBtnText}>{saving ? t('nutrition.saving') : t('nutrition.save')}</Text>
             </HapticTouch>
             <TouchableOpacity onPress={() => { setResult(null); setImageUri(null) }} style={{ alignSelf: 'center', padding: 8 }}>
-              <Text style={{ color: TEXT.secondary, fontSize: 13 }}>クリア</Text>
+              <Text style={{ color: TEXT.secondary, fontSize: 13 }}>{t('nutrition.clear')}</Text>
             </TouchableOpacity>
           </View>
           </AnimatedSection>
@@ -970,11 +988,11 @@ export default function NutritionScreen() {
         {/* 選択日の記録一覧 */}
         <AnimatedSection delay={240} type="fade-up">
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>{recordDate === today ? '今日' : recordDate}の食事記録</Text>
+          <Text style={styles.cardTitle}>{t('nutrition.mealRecords', { label: recordDate === today ? t('nutrition.recordsFor.today') : recordDate })}</Text>
           {history.filter(m => m.meal_date === recordDate).length === 0 ? (
             <View style={styles.empty}>
               <Ionicons name="restaurant-outline" size={32} color={TEXT.hint} />
-              <Text style={styles.emptyText}>まだ記録がありません</Text>
+              <Text style={styles.emptyText}>{t('nutrition.noRecords')}</Text>
             </View>
           ) : (
             history.filter(m => m.meal_date === recordDate).map(m => <MealHistoryCard key={m.id} meal={m} onPress={() => setEditingMeal(m)} />)
@@ -987,7 +1005,7 @@ export default function NutritionScreen() {
         <View style={styles.card}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Ionicons name="stats-chart-outline" size={15} color={TEXT.primary} />
-            <Text style={styles.cardTitle}>統計（直近7日間）</Text>
+            <Text style={styles.cardTitle}>{t('nutrition.weeklyStats')}</Text>
           </View>
           {!isNoad && statsViewCount > NUTRITION_STATS_FREE_VIEWS ? (
             <View style={{ minHeight: 240, borderRadius: 14, overflow: 'hidden' }}>
@@ -998,17 +1016,17 @@ export default function NutritionScreen() {
               <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', padding: 20 }]}>
                 <Ionicons name="lock-closed" size={24} color={TEXT.secondary} />
                 <Text style={{ color: TEXT.primary, fontSize: 14, fontWeight: '800', marginTop: 8, textAlign: 'center' }}>
-                  週間統計はプロプラン限定です
+                  {t('nutrition.proPlanOnly')}
                 </Text>
                 <Text style={{ color: TEXT.secondary, fontSize: 12, marginTop: 4, textAlign: 'center' }}>
-                  無料プランでは{NUTRITION_STATS_FREE_VIEWS}回まで閲覧できます
+                  {t('nutrition.proPlanHint', { n: NUTRITION_STATS_FREE_VIEWS })}
                 </Text>
                 <TouchableOpacity
                   onPress={() => router.push('/paywall')}
                   style={{ marginTop: 12, backgroundColor: BRAND, borderRadius: 50, paddingHorizontal: 20, paddingVertical: 10 }}
                   activeOpacity={0.85}
                 >
-                  <Text style={{ color: '#fff', fontSize: 13, fontWeight: '800' }}>プロプランを見る</Text>
+                  <Text style={{ color: '#fff', fontSize: 13, fontWeight: '800' }}>{t('nutrition.seeProPlan')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1022,7 +1040,7 @@ export default function NutritionScreen() {
         {history.length > 0 && (
           <AnimatedSection delay={280} type="fade-up">
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>過去の記録一覧</Text>
+            <Text style={styles.cardTitle}>{t('nutrition.allRecords')}</Text>
             {[...history]
               .sort((a, b) => (a.meal_date === b.meal_date
                 ? b.created_at.localeCompare(a.created_at)
@@ -1086,25 +1104,24 @@ export default function NutritionScreen() {
               <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)', alignSelf: 'center', marginBottom: 4 }} />
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                 <Ionicons name="star" size={24} color="#16a34a" />
-                <Text style={{ color: '#fff', fontSize: 17, fontWeight: '800' }}>広告なしプランにしませんか？</Text>
+                <Text style={{ color: '#fff', fontSize: 17, fontWeight: '800' }}>{t('nutrition.upsell.title')}</Text>
               </View>
               <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, lineHeight: 20 }}>
-                無料枠を使い切ると広告視聴が必要になります。{'\n'}
-                広告なしプランなら、食事分析もフォーム分析も広告なしで使い放題です。
+                {t('nutrition.upsell.body')}
               </Text>
               <View style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 14, gap: 8 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>FREE（今のプラン）</Text>
-                  <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>無料枠超過後は広告視聴</Text>
+                  <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>{t('nutrition.upsell.freePlan')}</Text>
+                  <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>{t('nutrition.upsell.freePlanNote')}</Text>
                 </View>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <View style={{ backgroundColor: '#166534', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
-                      <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800' }}>広告なし</Text>
+                      <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800' }}>{t('nutrition.upsell.noAdPlan')}</Text>
                     </View>
-                    <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>¥480/月</Text>
+                    <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>{t('nutrition.upsell.noAdPrice')}</Text>
                   </View>
-                  <Text style={{ color: '#4ade80', fontSize: 12, fontWeight: '700' }}>広告一切なし</Text>
+                  <Text style={{ color: '#4ade80', fontSize: 12, fontWeight: '700' }}>{t('nutrition.upsell.noAdNote')}</Text>
                 </View>
               </View>
               <TouchableOpacity
@@ -1112,10 +1129,10 @@ export default function NutritionScreen() {
                 onPress={() => { setUpsellVisible(false); router.push('/paywall?plan=noad' as any) }}
                 activeOpacity={0.85}
               >
-                <Text style={{ color: '#fff', fontSize: 15, fontWeight: '800' }}>広告なしプランを見る ¥480/月〜</Text>
+                <Text style={{ color: '#fff', fontSize: 15, fontWeight: '800' }}>{t('nutrition.upsell.cta')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={{ alignItems: 'center', paddingVertical: 4 }} onPress={() => setUpsellVisible(false)} activeOpacity={0.7}>
-                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>今はしない</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>{t('nutrition.upsell.notNow')}</Text>
               </TouchableOpacity>
             </View>
           </Pressable>

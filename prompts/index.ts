@@ -24,7 +24,7 @@ ${timingNote}
 {
   "foods": [
     {
-      "name": "食品名（日本語）",
+      "name": "食品名",
       "calories": カロリー（kcal、整数）,
       "protein": タンパク質（g、小数第1位）,
       "carb": 炭水化物（g、小数第1位）,

@@ -3053,5 +3053,119 @@
       "medical": "Medical",
       "other": "Other"
     }
+  },
+  "nutrition": {
+    "title": "Meal Log",
+    "mealTypes": {
+      "breakfast": "Breakfast",
+      "lunch": "Lunch",
+      "dinner": "Dinner",
+      "snack": "Snack",
+      "supplement": "Supplement"
+    },
+    "timings": {
+      "none": "None",
+      "pre": "Pre-workout",
+      "post": "Post-workout"
+    },
+    "planCard": {
+      "title": "Nutrition Plan Guide",
+      "emptyText": "Log your weight to calculate personalized protein, carb, and fat targets",
+      "emptyBtn": "Log weight",
+      "sub": "Based on your weight of {{weight}}kg (logged {{date}}), as a general guideline",
+      "macros": {
+        "protein": "Protein",
+        "carb": "Carbs",
+        "fat": "Fat"
+      },
+      "insightWorst": "💡 {{label}} is at {{pct}}% of target. Try to increase it a bit",
+      "insightGood": "✅ All three macros are well balanced",
+      "insightNoData": "Log a photo to see how close you are to your targets"
+    },
+    "todayTotal": "Today's Total",
+    "coach": {
+      "title": "AI Meal Coach",
+      "sub": "Get meal tips ahead of your competition"
+    },
+    "mealTypeCard": "Meal Type",
+    "inputMode": {
+      "photo": "Log with Photo",
+      "manual": "Manual Entry"
+    },
+    "permission": {
+      "camera": "Camera permission is required",
+      "library": "Library permission is required",
+      "imageError": "Failed to get image"
+    },
+    "removeImage": "Remove image",
+    "ticketCost": "🎫 Uses {{n}} ticket(s) to analyze",
+    "analyze": {
+      "button": "Analyze",
+      "analyzing": "Analyzing..."
+    },
+    "ticketUsed": "🎫 Used {{n}} ticket(s)",
+    "analyzeError": "AI analysis failed",
+    "manual": {
+      "namePlaceholder": "What you ate (e.g. Chicken breast salad)",
+      "caloriesPlaceholder": "Calories (kcal)",
+      "proteinPlaceholder": "P (g)",
+      "carbPlaceholder": "C (g)",
+      "fatPlaceholder": "F (g)",
+      "nameRequired": "Please enter what you ate",
+      "caloriesRequired": "Please enter the calories"
+    },
+    "save": "Save",
+    "saving": "Saving...",
+    "saveSuccess": "✅ Meal saved",
+    "saveError": "Failed to save",
+    "analysisResult": "Analysis Result",
+    "nutritionAdvice": "Nutrition Advice",
+    "clear": "Clear",
+    "mealTypeChanged": "Category updated",
+    "deleted": "Deleted",
+    "recordsFor": {
+      "today": "Today",
+      "other": "{{date}}"
+    },
+    "mealRecords": "{{label}}'s Meals",
+    "noRecords": "No records yet",
+    "weeklyStats": "Stats (Last 7 Days)",
+    "streakContinuing": "{{n}}-day streak",
+    "avgCaloriesPerDay": "Calories per day",
+    "avgLabel": "Avg {{n}} kcal",
+    "pfcBalance": "PFC Balance (Weekly Avg)",
+    "avgProteinPerDay": "Avg protein/day",
+    "proteinPerKg": "{{n}}g/kg body weight (target 1.6–2.2)",
+    "timingRate": "Pre/post workout logging rate",
+    "statsEmpty": "Weekly trends will appear here as you log more meals",
+    "proPlanOnly": "Weekly stats are Pro plan only",
+    "proPlanHint": "Free plan allows viewing up to {{n}} times",
+    "seeProPlan": "View Pro plan",
+    "allRecords": "All Records",
+    "editModal": {
+      "title": "Edit Record",
+      "category": "Category",
+      "delete": "Delete this record",
+      "close": "Close"
+    },
+    "upsell": {
+      "title": "Switch to the no-ads plan?",
+      "body": "Once you use up the free tier, you'll need to watch ads.\nWith the no-ads plan, meal analysis and form analysis are unlimited, ad-free.",
+      "freePlan": "FREE (current plan)",
+      "freePlanNote": "Watch ads after exceeding free tier",
+      "noAdPlan": "No Ads",
+      "noAdPrice": "¥480/mo",
+      "noAdNote": "Completely ad-free",
+      "cta": "View no-ads plan from ¥480/mo",
+      "notNow": "Not now"
+    },
+    "photoBtn": "Take Photo",
+    "libraryBtn": "Library",
+    "moreItems": "+{{n}} more",
+    "macroRow": {
+      "protein": "Protein",
+      "carb": "Carbs",
+      "fat": "Fat"
+    }
   }
 }

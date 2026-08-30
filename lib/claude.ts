@@ -180,9 +180,10 @@ export async function analyzeMeal(
   imageBase64: string,
   profile: UserProfile,
   mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'supplement',
-  trainingTiming: 'pre' | 'post' | 'none'
+  trainingTiming: 'pre' | 'post' | 'none',
+  language: Language = 'ja'
 ): Promise<MealAnalysisResult> {
-  const systemPrompt = getMealAnalysisPrompt(mealType, profile.event_category, trainingTiming)
+  const systemPrompt = getMealAnalysisPrompt(mealType, profile.event_category, trainingTiming) + narrativeLanguageInstruction(language)
 
   const text = await callClaude({
     model: MODEL,

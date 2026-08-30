@@ -3053,5 +3053,119 @@
       "medical": "通院・治療",
       "other": "その他"
     }
+  },
+  "nutrition": {
+    "title": "食事管理",
+    "mealTypes": {
+      "breakfast": "朝食",
+      "lunch": "昼食",
+      "dinner": "夕食",
+      "snack": "間食",
+      "supplement": "サプリ"
+    },
+    "timings": {
+      "none": "なし",
+      "pre": "練習前",
+      "post": "練習後"
+    },
+    "planCard": {
+      "title": "栄養プランの目安",
+      "emptyText": "体重を記録すると、あなたに合わせたたんぱく質・糖質・脂質の目安を計算します",
+      "emptyBtn": "体重を記録する",
+      "sub": "体重{{weight}}kg（{{date}}記録）をもとにした一般的な目安です",
+      "macros": {
+        "protein": "たんぱく質",
+        "carb": "糖質",
+        "fat": "脂質"
+      },
+      "insightWorst": "💡 {{label}}が目安の{{pct}}%です。意識して増やしてみましょう",
+      "insightGood": "✅ 3要素ともバランス良く摂れています",
+      "insightNoData": "写真ログを記録すると、目安に対する充足度が表示されます"
+    },
+    "todayTotal": "今日の合計",
+    "coach": {
+      "title": "AI食事コーチ",
+      "sub": "大会に向けた食事のポイントを提案"
+    },
+    "mealTypeCard": "食事タイプ",
+    "inputMode": {
+      "photo": "写真で記録",
+      "manual": "手動で入力"
+    },
+    "permission": {
+      "camera": "カメラの許可が必要です",
+      "library": "ライブラリの許可が必要です",
+      "imageError": "画像の取得に失敗しました"
+    },
+    "removeImage": "画像を削除",
+    "ticketCost": "🎫 分析時にチケット{{n}}枚を消費します",
+    "analyze": {
+      "button": "分析する",
+      "analyzing": "分析中..."
+    },
+    "ticketUsed": "🎫 チケットを{{n}}枚使用しました",
+    "analyzeError": "AI分析に失敗しました",
+    "manual": {
+      "namePlaceholder": "食べたもの（例：鶏胸肉のサラダ）",
+      "caloriesPlaceholder": "カロリー(kcal)",
+      "proteinPlaceholder": "P(g)",
+      "carbPlaceholder": "C(g)",
+      "fatPlaceholder": "F(g)",
+      "nameRequired": "食べたものを入力してください",
+      "caloriesRequired": "カロリーを入力してください"
+    },
+    "save": "保存する",
+    "saving": "保存中...",
+    "saveSuccess": "✅ 食事を保存しました",
+    "saveError": "保存に失敗しました",
+    "analysisResult": "分析結果",
+    "nutritionAdvice": "栄養アドバイス",
+    "clear": "クリア",
+    "mealTypeChanged": "区分を変更しました",
+    "deleted": "削除しました",
+    "recordsFor": {
+      "today": "今日",
+      "other": "{{date}}"
+    },
+    "mealRecords": "{{label}}の食事記録",
+    "noRecords": "まだ記録がありません",
+    "weeklyStats": "統計（直近7日間）",
+    "streakContinuing": "{{n}}日連続で記録中",
+    "avgCaloriesPerDay": "1日あたりのカロリー",
+    "avgLabel": "平均 {{n}} kcal",
+    "pfcBalance": "PFCバランス（週平均）",
+    "avgProteinPerDay": "平均たんぱく質/日",
+    "proteinPerKg": "体重比 {{n}}g/kg（目安1.6〜2.2）",
+    "timingRate": "練習前後の栄養記録率",
+    "statsEmpty": "記録が増えると、ここに週間の傾向が表示されます",
+    "proPlanOnly": "週間統計はプロプラン限定です",
+    "proPlanHint": "無料プランでは{{n}}回まで閲覧できます",
+    "seeProPlan": "プロプランを見る",
+    "allRecords": "過去の記録一覧",
+    "editModal": {
+      "title": "記録を編集",
+      "category": "区分",
+      "delete": "この記録を削除",
+      "close": "閉じる"
+    },
+    "upsell": {
+      "title": "広告なしプランにしませんか？",
+      "body": "無料枠を使い切ると広告視聴が必要になります。\n広告なしプランなら、食事分析もフォーム分析も広告なしで使い放題です。",
+      "freePlan": "FREE（今のプラン）",
+      "freePlanNote": "無料枠超過後は広告視聴",
+      "noAdPlan": "広告なし",
+      "noAdPrice": "¥480/月",
+      "noAdNote": "広告一切なし",
+      "cta": "広告なしプランを見る ¥480/月〜",
+      "notNow": "今はしない"
+    },
+    "photoBtn": "撮影する",
+    "libraryBtn": "ライブラリ",
+    "moreItems": "+{{n}}品",
+    "macroRow": {
+      "protein": "たんぱく質",
+      "carb": "炭水化物",
+      "fat": "脂質"
+    }
   }
 }
