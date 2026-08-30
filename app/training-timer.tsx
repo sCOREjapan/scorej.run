@@ -12,6 +12,7 @@ import {
   getTimerSettings, saveTimerSettings, TIMER_DEFAULTS, type TrainingTimerSettings, type TimerMode,
   getTimerHistory, addTimerHistory, type TimerHistoryEntry,
 } from '../lib/trainingTimerSettings'
+import { useTranslation } from 'react-i18next'
 
 const BRAND = '#16a34a'
 const REST_COLOR = '#f59e0b'
@@ -33,6 +34,7 @@ function formatTime(sec: number): string {
 
 export default function TrainingTimerScreen() {
   const router = useRouter()
+  const { t } = useTranslation()
   const [settings, setSettings] = useState<TrainingTimerSettings>(TIMER_DEFAULTS)
   const [loaded, setLoaded] = useState(false)
   const [phase, setPhase] = useState<Phase>('idle')
@@ -153,24 +155,24 @@ export default function TrainingTimerScreen() {
 
   const running = phase !== 'idle' && phase !== 'done'
   const phaseColor = phase === 'work' ? BRAND : phase === 'rest' ? REST_COLOR : phase === 'setRest' ? SET_REST_COLOR : phase === 'done' ? BRAND : TEXT_HINT
-  const phaseLabel = phase === 'work' ? 'トレーニング' : phase === 'rest' ? '休憩' : phase === 'setRest' ? 'セット間休憩' : phase === 'done' ? '完了！' : ''
+  const phaseLabel = phase === 'work' ? t('trainingTimer.phaseWork') : phase === 'rest' ? t('trainingTimer.phaseRest') : phase === 'setRest' ? t('trainingTimer.phaseSetRest') : phase === 'done' ? t('trainingTimer.phaseDone') : ''
 
   return (
     <SafeAreaView style={tt.safe} edges={['top', 'bottom']}>
       <View style={tt.header}>
-        <TouchableOpacity onPress={() => router.back()} style={tt.iconBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="戻る">
+        <TouchableOpacity onPress={() => router.back()} style={tt.iconBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel={t('trainingTimer.backLabel')}>
           <Ionicons name="chevron-back" size={26} color={TEXT_PRIMARY} />
         </TouchableOpacity>
-        <Text style={tt.headerTitle}>タイマー</Text>
+        <Text style={tt.headerTitle}>{t('trainingTimer.headerTitle')}</Text>
         <TouchableOpacity onPress={() => setSettingsVisible(true)} style={tt.editBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-          <Text style={tt.editBtnText}>編集</Text>
+          <Text style={tt.editBtnText}>{t('trainingTimer.edit')}</Text>
         </TouchableOpacity>
       </View>
 
       <View style={tt.modeRow}>
         {([
-          { key: 'interval' as TimerMode, label: 'インターバル' },
-          { key: 'normal' as TimerMode,   label: '通常' },
+          { key: 'interval' as TimerMode, label: t('trainingTimer.modeInterval') },
+          { key: 'normal' as TimerMode,   label: t('trainingTimer.modeNormal') },
         ]).map(m => (
           <TouchableOpacity
             key={m.key}
@@ -189,7 +191,7 @@ export default function TrainingTimerScreen() {
         <View style={[tt.circle, { borderColor: phaseColor, backgroundColor: phaseColor + '14' }]}>
           {phase === 'idle' ? (
             <>
-              <Text style={tt.idleSummary}>{settings.mode === 'interval' ? `${settings.workSec}秒 × ${settings.reps}回 × ${settings.sets}セット` : `${settings.workSec}秒`}</Text>
+              <Text style={tt.idleSummary}>{settings.mode === 'interval' ? t('trainingTimer.idleSummaryInterval', { work: settings.workSec, reps: settings.reps, sets: settings.sets }) : t('trainingTimer.idleSummaryNormal', { work: settings.workSec })}</Text>
               <TouchableOpacity style={tt.startBtn} onPress={handleStart} activeOpacity={0.85}>
                 <Ionicons name="play" size={22} color="#fff" />
               </TouchableOpacity>
@@ -201,15 +203,15 @@ export default function TrainingTimerScreen() {
 
         {settings.mode === 'interval' && phase !== 'idle' && (
           <View style={{ alignItems: 'center', gap: 2 }}>
-            <Text style={tt.progressText}>セット {curSet}/{settings.sets}</Text>
-            <Text style={tt.progressText}>{curRep}/{settings.reps} 回</Text>
+            <Text style={tt.progressText}>{t('trainingTimer.setProgress', { cur: curSet, total: settings.sets })}</Text>
+            <Text style={tt.progressText}>{t('trainingTimer.repProgress', { cur: curRep, total: settings.reps })}</Text>
           </View>
         )}
       </View>
 
       <View style={tt.btnRow}>
         <TouchableOpacity style={tt.secondaryBtn} onPress={handleReset} activeOpacity={0.8}>
-          <Text style={tt.secondaryBtnText}>リセット</Text>
+          <Text style={tt.secondaryBtnText}>{t('trainingTimer.reset')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[tt.primaryBtn, !running && { opacity: 0.4 }]}
@@ -217,10 +219,10 @@ export default function TrainingTimerScreen() {
           disabled={!running}
           activeOpacity={0.85}
         >
-          <Text style={tt.primaryBtnText}>{paused ? '再開' : '一時停止'}</Text>
+          <Text style={tt.primaryBtnText}>{paused ? t('trainingTimer.resume') : t('trainingTimer.pause')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={tt.secondaryBtn} onPress={openHistory} activeOpacity={0.8}>
-          <Text style={tt.secondaryBtnText}>履歴</Text>
+          <Text style={tt.secondaryBtnText}>{t('trainingTimer.history')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -229,19 +231,19 @@ export default function TrainingTimerScreen() {
         <View style={tt.modalOverlay}>
           <View style={tt.modalCard}>
             <View style={tt.modalHeader}>
-              <Text style={tt.modalTitle}>タイマー設定</Text>
+              <Text style={tt.modalTitle}>{t('trainingTimer.settingsTitle')}</Text>
               <TouchableOpacity onPress={() => setSettingsVisible(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Ionicons name="close" size={24} color={TEXT_PRIMARY} />
               </TouchableOpacity>
             </View>
             <ScrollView contentContainerStyle={{ gap: 18 }}>
-              <SettingSlider label="実施時間" value={settings.workSec} min={5} max={180} step={5} unit="秒" onChange={(v) => updateSettings({ workSec: v })} />
+              <SettingSlider label={t('trainingTimer.workDuration')} value={settings.workSec} min={5} max={180} step={5} unit={t('trainingTimer.sec')} onChange={(v) => updateSettings({ workSec: v })} />
               {settings.mode === 'interval' && (
                 <>
-                  <SettingStepper label="回数" value={settings.reps} min={1} max={30} onChange={(v) => updateSettings({ reps: v })} />
-                  <SettingSlider label="回の間の休憩" value={settings.restSec} min={0} max={180} step={5} unit="秒" onChange={(v) => updateSettings({ restSec: v })} />
-                  <SettingStepper label="セット数" value={settings.sets} min={1} max={10} onChange={(v) => updateSettings({ sets: v })} />
-                  <SettingSlider label="セット間の休憩" value={settings.restBetweenSetsSec} min={0} max={300} step={10} unit="秒" onChange={(v) => updateSettings({ restBetweenSetsSec: v })} />
+                  <SettingStepper label={t('trainingTimer.reps')} value={settings.reps} min={1} max={30} onChange={(v) => updateSettings({ reps: v })} />
+                  <SettingSlider label={t('trainingTimer.restBetweenReps')} value={settings.restSec} min={0} max={180} step={5} unit={t('trainingTimer.sec')} onChange={(v) => updateSettings({ restSec: v })} />
+                  <SettingStepper label={t('trainingTimer.sets')} value={settings.sets} min={1} max={10} onChange={(v) => updateSettings({ sets: v })} />
+                  <SettingSlider label={t('trainingTimer.restBetweenSets')} value={settings.restBetweenSetsSec} min={0} max={300} step={10} unit={t('trainingTimer.sec')} onChange={(v) => updateSettings({ restBetweenSetsSec: v })} />
                 </>
               )}
             </ScrollView>
@@ -254,19 +256,19 @@ export default function TrainingTimerScreen() {
         <View style={tt.modalOverlay}>
           <View style={tt.modalCard}>
             <View style={tt.modalHeader}>
-              <Text style={tt.modalTitle}>履歴</Text>
+              <Text style={tt.modalTitle}>{t('trainingTimer.historyTitle')}</Text>
               <TouchableOpacity onPress={() => setHistoryVisible(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Ionicons name="close" size={24} color={TEXT_PRIMARY} />
               </TouchableOpacity>
             </View>
             <ScrollView contentContainerStyle={{ gap: 8 }}>
               {history.length === 0 ? (
-                <Text style={{ color: TEXT_HINT, fontSize: 13, textAlign: 'center', paddingVertical: 30 }}>まだ履歴がありません</Text>
+                <Text style={{ color: TEXT_HINT, fontSize: 13, textAlign: 'center', paddingVertical: 30 }}>{t('trainingTimer.noHistory')}</Text>
               ) : history.map(h => (
                 <View key={h.id} style={tt.historyRow}>
                   <Text style={tt.historyDate}>{h.date}</Text>
                   <Text style={tt.historySub}>
-                    {h.mode === 'interval' ? `${h.workSec}秒 × ${h.reps}回 × ${h.sets}セット` : `通常 ${h.workSec}秒`}
+                    {h.mode === 'interval' ? t('trainingTimer.historyInterval', { work: h.workSec, reps: h.reps, sets: h.sets }) : t('trainingTimer.historyNormal', { work: h.workSec })}
                   </Text>
                 </View>
               ))}
