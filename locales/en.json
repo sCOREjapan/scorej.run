@@ -3805,5 +3805,8 @@
     "subtitle": "Works offline too",
     "install": "Add",
     "later": "Later"
+  },
+  "splashAnimation": {
+    "tagline": "Your Track & Field Partner"
   }
 }

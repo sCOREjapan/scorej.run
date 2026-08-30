@@ -3,6 +3,7 @@
 import React, { useEffect, useRef } from 'react'
 import { Animated, Easing, StyleSheet, Text, View, Dimensions, Platform } from 'react-native'
 import { Sounds } from '../lib/sounds'
+import { useTranslation } from 'react-i18next'
 
 const { width } = Dimensions.get('window')
 
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export default function SplashAnimation({ onFinish }: Props) {
+  const { t } = useTranslation()
   // ── アニメーション値 ──────────────────────────────
   const bgOpacity   = useRef(new Animated.Value(1)).current
   const logoScale   = useRef(new Animated.Value(0.6)).current
@@ -127,7 +129,7 @@ export default function SplashAnimation({ onFinish }: Props) {
 
         {/* タグライン */}
         <Animated.Text style={[styles.tag, { opacity: tagOpacity, transform: [{ translateY: tagY }] }]}>
-          陸上競技のパートナー
+          {t('splashAnimation.tagline')}
         </Animated.Text>
 
         {/* ドットインジケーター */}

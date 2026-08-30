@@ -3805,5 +3805,8 @@
     "subtitle": "オフラインでも使えます",
     "install": "追加",
     "later": "あとで"
+  },
+  "splashAnimation": {
+    "tagline": "陸上競技のパートナー"
   }
 }
