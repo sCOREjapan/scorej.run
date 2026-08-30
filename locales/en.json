@@ -2013,5 +2013,32 @@
     "nextRankHint": "Aim for \"{{tier}}\" next",
     "nextRankSub": "{{count}} more sessions to get there",
     "maxRankTitle": "Congrats, you've reached the top rank!"
+  },
+  "referral": {
+    "backLabel": "Back",
+    "headerTitle": "Refer a Friend",
+    "referralSuccessToast": "🎉 Referral complete! +{{n}} tickets",
+    "loginRequired": "Sign in to refer friends",
+    "loginRequiredSub": "Sign in to get your own referral code",
+    "loginBtn": "Sign in",
+    "inviteLead": "When a friend signs up and enters your code",
+    "inviteBonus": "You both get 🎫{{n}}",
+    "yourCode": "Your code",
+    "codeLoadFailed": "Failed to load",
+    "shareBtn": "Share with a friend",
+    "shareMessage": "Let's do sCORE together!\nSign up with referral code \"{{code}}\" and we'll both get {{n}} tickets 🎫\n\n{{url}}",
+    "copiedToast": "Copied. Send it to a friend",
+    "copyFailedToast": "Failed to copy",
+    "redeemSectionTitle": "Got a code?",
+    "redeemBtn": "Redeem",
+    "redeemBtnLoading": "...",
+    "infoText": "Valid only within 48 hours of sign-up · One redemption per account",
+    "redeemGranted": "🎫 You got {{n}} tickets!",
+    "redeemSelfCode": "You can't use your own code",
+    "redeemAlreadyUsed": "This account has already redeemed a code",
+    "redeemInvalidCode": "Code not found",
+    "redeemNotLoggedIn": "Please sign in before entering a code",
+    "redeemDefaultError": "Couldn't redeem (only valid within 48 hours of sign-up)",
+    "redeemNetworkError": "A network error occurred"
   }
 }

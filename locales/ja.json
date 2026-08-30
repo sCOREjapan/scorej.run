@@ -2013,5 +2013,32 @@
     "nextRankHint": "次は「{{tier}}」を目指そう",
     "nextRankSub": "あと{{count}}回練習を記録すれば到達できる",
     "maxRankTitle": "最高ランク到達おめでとう！"
+  },
+  "referral": {
+    "backLabel": "戻る",
+    "headerTitle": "友達紹介",
+    "referralSuccessToast": "🎉 紹介成立！チケット+{{n}}枚",
+    "loginRequired": "友達紹介にはログインが必要です",
+    "loginRequiredSub": "ログインすると自分だけの紹介コードがもらえます",
+    "loginBtn": "ログインする",
+    "inviteLead": "友達が登録してコードを入力すると",
+    "inviteBonus": "お互いに🎫{{n}}枚",
+    "yourCode": "あなたのコード",
+    "codeLoadFailed": "取得失敗",
+    "shareBtn": "友達にシェア",
+    "shareMessage": "sCOREで一緒に頑張ろう！\n紹介コード「{{code}}」を使って登録すると、お互いにチケット{{n}}枚もらえます🎫\n\n{{url}}",
+    "copiedToast": "コピーしました。友達に送ってください",
+    "copyFailedToast": "コピーに失敗しました",
+    "redeemSectionTitle": "コードをもらったら",
+    "redeemBtn": "受取る",
+    "redeemBtnLoading": "...",
+    "infoText": "登録から48時間以内の入力のみ有効・受け取りは1アカウント1回まで",
+    "redeemGranted": "🎫 チケット{{n}}枚もらいました！",
+    "redeemSelfCode": "自分のコードは使えません",
+    "redeemAlreadyUsed": "このアカウントは受け取り済みです",
+    "redeemInvalidCode": "コードが見つかりません",
+    "redeemNotLoggedIn": "ログインしてから入力してください",
+    "redeemDefaultError": "受け取れませんでした（登録から48時間以内のみ有効です）",
+    "redeemNetworkError": "通信エラーが発生しました"
   }
 }

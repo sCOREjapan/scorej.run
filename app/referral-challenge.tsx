@@ -25,6 +25,7 @@ import {
   claimReferralRewards,
   REFERRAL_BONUS_TICKETS,
 } from '../lib/referral'
+import { useTranslation } from 'react-i18next'
 
 const APP_STORE_URL = 'https://apps.apple.com/jp/app/score/id6766394981'
 
@@ -44,6 +45,7 @@ async function copyToClipboard(text: string): Promise<boolean> {
 
 export default function ReferralChallengeScreen() {
   const router = useRouter()
+  const { t } = useTranslation()
   const { user, isGuest } = useAuth()
   const loggedIn = !!user && !isGuest
   const [myCode, setMyCode] = useState<string | null>(null)
@@ -55,31 +57,31 @@ export default function ReferralChallengeScreen() {
     if (!loggedIn) { setLoadingCode(false); return }
     claimReferralRewards().then(n => {
       if (n > 0) {
-        Toast.show({ type: 'success', text1: `🎉 紹介成立！チケット+${REFERRAL_BONUS_TICKETS * n}枚`, visibilityTime: 3000 })
+        Toast.show({ type: 'success', text1: t('referral.referralSuccessToast', { n: REFERRAL_BONUS_TICKETS * n }), visibilityTime: 3000 })
       }
     }).catch(() => {})
     getMyReferralCode().then(code => {
       setMyCode(code)
       setLoadingCode(false)
     }).catch(() => setLoadingCode(false))
-  }, [loggedIn])
+  }, [loggedIn, t])
 
   const handleShare = useCallback(async () => {
     if (!myCode) return
     Sounds.tap()
-    const message = `sCOREで一緒に頑張ろう！\n紹介コード「${myCode}」を使って登録すると、お互いにチケット${REFERRAL_BONUS_TICKETS}枚もらえます🎫\n\n${APP_STORE_URL}`
+    const message = t('referral.shareMessage', { code: myCode, n: REFERRAL_BONUS_TICKETS, url: APP_STORE_URL })
     try {
       if (Platform.OS === 'web') {
         const ok = await copyToClipboard(message)
-        Toast.show({ type: ok ? 'success' : 'error', text1: ok ? 'コピーしました。友達に送ってください' : 'コピーに失敗しました' })
+        Toast.show({ type: ok ? 'success' : 'error', text1: ok ? t('referral.copiedToast') : t('referral.copyFailedToast') })
         return
       }
       await Share.share({ message })
     } catch {
       const ok = await copyToClipboard(message)
-      if (ok) Toast.show({ type: 'success', text1: 'コピーしました。友達に送ってください' })
+      if (ok) Toast.show({ type: 'success', text1: t('referral.copiedToast') })
     }
-  }, [myCode])
+  }, [myCode, t])
 
   const handleRedeem = useCallback(async () => {
     if (joinCode.trim().length !== 6 || redeeming) return
@@ -89,40 +91,40 @@ export default function ReferralChallengeScreen() {
       const result = await redeemReferralCode(joinCode)
       switch (result) {
         case 'granted':
-          Toast.show({ type: 'success', text1: `🎫 チケット${REFERRAL_BONUS_TICKETS}枚もらいました！`, visibilityTime: 2500 })
+          Toast.show({ type: 'success', text1: t('referral.redeemGranted', { n: REFERRAL_BONUS_TICKETS }), visibilityTime: 2500 })
           setJoinCode('')
           break
         case 'self_code':
-          Toast.show({ type: 'error', text1: '自分のコードは使えません' })
+          Toast.show({ type: 'error', text1: t('referral.redeemSelfCode') })
           break
         case 'already_used':
-          Toast.show({ type: 'error', text1: 'このアカウントは受け取り済みです' })
+          Toast.show({ type: 'error', text1: t('referral.redeemAlreadyUsed') })
           break
         case 'invalid_code':
-          Toast.show({ type: 'error', text1: 'コードが見つかりません' })
+          Toast.show({ type: 'error', text1: t('referral.redeemInvalidCode') })
           break
         case 'not_logged_in':
-          Toast.show({ type: 'error', text1: 'ログインしてから入力してください' })
+          Toast.show({ type: 'error', text1: t('referral.redeemNotLoggedIn') })
           break
         default:
-          Toast.show({ type: 'error', text1: '受け取れませんでした（登録から48時間以内のみ有効です）' })
+          Toast.show({ type: 'error', text1: t('referral.redeemDefaultError') })
       }
     } catch {
-      Toast.show({ type: 'error', text1: '通信エラーが発生しました' })
+      Toast.show({ type: 'error', text1: t('referral.redeemNetworkError') })
     } finally {
       setRedeeming(false)
     }
-  }, [joinCode, redeeming])
+  }, [joinCode, redeeming, t])
 
   return (
     <View style={{ flex: 1, backgroundColor: BG_GRADIENT[0] }}>
       <SafeAreaView style={styles.safe}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => { Sounds.tap(); router.back() }} style={styles.backBtn} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} accessibilityLabel="戻る">
+            <TouchableOpacity onPress={() => { Sounds.tap(); router.back() }} style={styles.backBtn} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} accessibilityLabel={t('referral.backLabel')}>
               <Ionicons name="chevron-back" size={22} color={TEXT.primary} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>友達紹介</Text>
+            <Text style={styles.headerTitle}>{t('referral.headerTitle')}</Text>
             <View style={{ width: 40 }} />
           </View>
 
@@ -132,28 +134,28 @@ export default function ReferralChallengeScreen() {
               <AnimatedSection delay={0} type="fade-up">
                 <View style={styles.card}>
                   <Text style={{ fontSize: 28, marginBottom: 10 }}>🔒</Text>
-                  <Text style={styles.leadText}>友達紹介にはログインが必要です</Text>
+                  <Text style={styles.leadText}>{t('referral.loginRequired')}</Text>
                   <Text style={[styles.leadText, { marginTop: 4, marginBottom: 18 }]}>
-                    ログインすると自分だけの紹介コードがもらえます
+                    {t('referral.loginRequiredSub')}
                   </Text>
                   <TouchableOpacity
                     style={styles.shareBtn}
                     onPress={() => { Sounds.tap(); router.push('/auth') }}
                     activeOpacity={0.85}
                   >
-                    <Text style={styles.shareBtnText}>ログインする</Text>
+                    <Text style={styles.shareBtnText}>{t('referral.loginBtn')}</Text>
                   </TouchableOpacity>
                 </View>
               </AnimatedSection>
             ) : (
             <AnimatedSection delay={0} type="fade-up">
               <View style={styles.card}>
-                <Text style={styles.leadText}>友達が登録してコードを入力すると</Text>
-                <Text style={styles.leadBonus}>お互いに🎫{REFERRAL_BONUS_TICKETS}枚</Text>
+                <Text style={styles.leadText}>{t('referral.inviteLead')}</Text>
+                <Text style={styles.leadBonus}>{t('referral.inviteBonus', { n: REFERRAL_BONUS_TICKETS })}</Text>
 
-                <Text style={styles.label}>あなたのコード</Text>
+                <Text style={styles.label}>{t('referral.yourCode')}</Text>
                 <Text style={styles.codeText} selectable>
-                  {loadingCode ? '------' : (myCode ?? '取得失敗')}
+                  {loadingCode ? '------' : (myCode ?? t('referral.codeLoadFailed'))}
                 </Text>
 
                 <TouchableOpacity
@@ -163,7 +165,7 @@ export default function ReferralChallengeScreen() {
                   disabled={!myCode}
                 >
                   <Ionicons name="share-social-outline" size={18} color="#fff" />
-                  <Text style={styles.shareBtnText}>友達にシェア</Text>
+                  <Text style={styles.shareBtnText}>{t('referral.shareBtn')}</Text>
                 </TouchableOpacity>
               </View>
             </AnimatedSection>
@@ -172,7 +174,7 @@ export default function ReferralChallengeScreen() {
             {loggedIn && (
             <AnimatedSection delay={100} type="fade-up">
               <View style={styles.card2}>
-                <Text style={styles.sectionTitle}>コードをもらったら</Text>
+                <Text style={styles.sectionTitle}>{t('referral.redeemSectionTitle')}</Text>
                 <View style={styles.redeemRow}>
                   <TextInput
                     style={styles.codeInput}
@@ -190,7 +192,7 @@ export default function ReferralChallengeScreen() {
                     activeOpacity={0.85}
                     disabled={joinCode.length !== 6 || redeeming}
                   >
-                    <Text style={styles.redeemBtnText}>{redeeming ? '...' : '受取る'}</Text>
+                    <Text style={styles.redeemBtnText}>{redeeming ? t('referral.redeemBtnLoading') : t('referral.redeemBtn')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -200,7 +202,7 @@ export default function ReferralChallengeScreen() {
             {loggedIn && (
             <AnimatedSection delay={180} type="fade">
               <Text style={styles.infoText}>
-                登録から48時間以内の入力のみ有効・受け取りは1アカウント1回まで
+                {t('referral.infoText')}
               </Text>
             </AnimatedSection>
             )}
