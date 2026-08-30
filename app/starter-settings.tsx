@@ -10,6 +10,7 @@ import {
   getStarterSettings, saveStarterSettings, STARTER_DEFAULTS,
   GUN_RANDOM_MIN, GUN_RANDOM_MAX, type StarterSettings,
 } from '../lib/starterSettings'
+import { useTranslation } from 'react-i18next'
 
 const BRAND = '#16a34a'
 const BG = '#f6f6f8'
@@ -21,6 +22,7 @@ const TEXT_HINT = '#9ca3af'
 
 export default function StarterSettingsScreen() {
   const router = useRouter()
+  const { t } = useTranslation()
   const [settings, setSettings] = useState<StarterSettings>(STARTER_DEFAULTS)
   const [loaded, setLoaded] = useState(false)
 
@@ -41,17 +43,17 @@ export default function StarterSettingsScreen() {
   return (
     <SafeAreaView style={st.safe} edges={['top', 'bottom']}>
       <View style={st.header}>
-        <TouchableOpacity onPress={() => router.back()} style={st.backBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="戻る">
+        <TouchableOpacity onPress={() => router.back()} style={st.backBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel={t('starterSettings.backLabel')}>
           <Ionicons name="chevron-back" size={26} color={TEXT_PRIMARY} />
         </TouchableOpacity>
-        <Text style={st.headerTitle}>タイミング設定</Text>
+        <Text style={st.headerTitle}>{t('starterSettings.headerTitle')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <ScrollView contentContainerStyle={st.scroll}>
         <View style={st.card}>
           <View style={st.row}>
-            <Text style={st.label}>スタート → On your marks</Text>
+            <Text style={st.label}>{t('starterSettings.startToMarks')}</Text>
             <Text style={st.value}>{settings.startToMarksSec.toFixed(1)} s</Text>
           </View>
           <SimpleSlider
@@ -66,7 +68,7 @@ export default function StarterSettingsScreen() {
           <View style={st.divider} />
 
           <View style={st.row}>
-            <Text style={st.label}>On your marks → Set</Text>
+            <Text style={st.label}>{t('starterSettings.marksToSet')}</Text>
             <Text style={st.value}>{settings.marksToSetSec.toFixed(1)} s</Text>
           </View>
           <SimpleSlider
@@ -81,9 +83,9 @@ export default function StarterSettingsScreen() {
 
         <View style={st.card}>
           <View style={st.switchRow}>
-            <Text style={st.label}>Set → 号砲</Text>
+            <Text style={st.label}>{t('starterSettings.setToGun')}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Text style={st.switchLabel}>ランダム</Text>
+              <Text style={st.switchLabel}>{t('starterSettings.random')}</Text>
               <Switch
                 value={settings.gunRandom}
                 onValueChange={(v) => { unlockAudio(); Sounds.toggleOn(); update({ gunRandom: v }) }}
@@ -94,11 +96,11 @@ export default function StarterSettingsScreen() {
           </View>
 
           {settings.gunRandom ? (
-            <Text style={st.hint}>ランダム時は {GUN_RANDOM_MIN}〜{GUN_RANDOM_MAX} 秒</Text>
+            <Text style={st.hint}>{t('starterSettings.randomHint', { min: GUN_RANDOM_MIN, max: GUN_RANDOM_MAX })}</Text>
           ) : (
             <>
               <View style={st.row}>
-                <Text style={st.label}>固定の待ち時間</Text>
+                <Text style={st.label}>{t('starterSettings.fixedWait')}</Text>
                 <Text style={st.value}>{settings.gunFixedSec.toFixed(1)} s</Text>
               </View>
               <SimpleSlider

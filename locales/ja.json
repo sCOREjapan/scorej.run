@@ -1870,5 +1870,61 @@
     "adLimitTitle": "本日の獲得上限に達しました",
     "adLimitBody": "明日また視聴できます",
     "adEarnedToast": "🎫 チケット1枚を獲得しました！"
+  },
+  "support": {
+    "backLabel": "戻る",
+    "title": "サポート・お問い合わせ",
+    "subtitle": "Support / Contact Us",
+    "emailCardTitle": "メールでのお問い合わせ",
+    "emailCardBody": "ご質問・ご要望・不具合報告はメールにてお気軽にご連絡ください。通常1〜3営業日以内にご返信いたします。",
+    "faqTitle": "よくあるご質問",
+    "faq": [
+      {
+        "q": "アカウントとデータを削除するには？",
+        "a": "「設定」→「データ」→「全データをリセット」からすべての記録を削除できます。アカウント自体の削除をご希望の場合は上記メールアドレスまでご連絡ください。"
+      },
+      {
+        "q": "Google / Appleログインのみですか？",
+        "a": "はい。現在はGoogle / Apple のソーシャルログインのみ対応しています。パスワード設定は不要です。"
+      },
+      {
+        "q": "AI機能の利用回数は？",
+        "a": "動画フォーム分析は1日1回、AI食事分析は初回が無料です。それ以降は短い広告を視聴いただくと続けてご利用いただけます。"
+      },
+      {
+        "q": "チーム機能はいつ使えますか？",
+        "a": "コーチ・選手間でコンディションを共有できるチーム機能は近日公開予定です。もうしばらくお待ちください。"
+      }
+    ],
+    "appInfoTitle": "アプリ情報",
+    "developerRow": "開発者：sCORE Japan",
+    "contactRow": "お問い合わせ：team.deepwork2026@gmail.com",
+    "bundleIdRow": "Bundle ID：com.scorejapan.score",
+    "privacyLink": "プライバシーポリシー",
+    "termsLink": "利用規約"
+  },
+  "starterSettings": {
+    "backLabel": "戻る",
+    "headerTitle": "タイミング設定",
+    "startToMarks": "スタート → On your marks",
+    "marksToSet": "On your marks → Set",
+    "setToGun": "Set → 号砲",
+    "random": "ランダム",
+    "randomHint": "ランダム時は {{min}}〜{{max}} 秒",
+    "fixedWait": "固定の待ち時間"
+  },
+  "auth": {
+    "tag": "GET STARTED",
+    "title": "無料で始める",
+    "subtitle": "登録無料・クレジットカード不要",
+    "googleLogin": "Google でログイン",
+    "appleLogin": "Apple でログイン",
+    "continueAsGuest": "ゲストとして続ける",
+    "footerPrefix": "ログインすることで ",
+    "footerTerms": "利用規約",
+    "footerAnd": " と ",
+    "footerPrivacy": "プライバシーポリシー",
+    "footerSuffix": "に同意したことになります",
+    "inAppBrowserAlert": "Googleログインはアプリ内ブラウザでは使用できません。\n\nSafari（または Chrome）でこのページを開いてからログインしてください。\n\n右下の「...」→「Safariで開く」をタップしてください。"
   }
 }

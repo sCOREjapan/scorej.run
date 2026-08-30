@@ -4,11 +4,14 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Linking, Platform
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 
 const isWeb = Platform.OS === 'web'
 
 export default function SupportScreen() {
   const router = useRouter()
+  const { t } = useTranslation()
+  const faq = t('support.faq', { returnObjects: true }) as { q: string; a: string }[]
 
   return (
     <SafeAreaView style={s.root}>
@@ -20,7 +23,7 @@ export default function SupportScreen() {
             onPress={() => isWeb ? Linking.openURL('https://scorej-run.vercel.app/coach-landing') : router.back()}
             style={s.back}
             hitSlop={8}
-            accessibilityLabel="戻る"
+            accessibilityLabel={t('support.backLabel')}
           >
             <Ionicons name="chevron-back" size={22} color="#166534" />
           </TouchableOpacity>
@@ -29,18 +32,17 @@ export default function SupportScreen() {
         </View>
 
         <View style={s.body}>
-          <Text style={s.title}>サポート・お問い合わせ</Text>
-          <Text style={s.subtitle}>Support / Contact Us</Text>
+          <Text style={s.title}>{t('support.title')}</Text>
+          <Text style={s.subtitle}>{t('support.subtitle')}</Text>
 
           {/* お問い合わせ方法 */}
           <View style={s.card}>
             <View style={s.cardHeader}>
               <Ionicons name="mail-outline" size={24} color="#166534" />
-              <Text style={s.cardTitle}>メールでのお問い合わせ</Text>
+              <Text style={s.cardTitle}>{t('support.emailCardTitle')}</Text>
             </View>
             <Text style={s.cardBody}>
-              ご質問・ご要望・不具合報告はメールにてお気軽にご連絡ください。
-              通常1〜3営業日以内にご返信いたします。
+              {t('support.emailCardBody')}
             </Text>
             <TouchableOpacity
               style={s.emailBtn}
@@ -55,15 +57,10 @@ export default function SupportScreen() {
           <View style={s.card}>
             <View style={s.cardHeader}>
               <Ionicons name="help-circle-outline" size={24} color="#166534" />
-              <Text style={s.cardTitle}>よくあるご質問</Text>
+              <Text style={s.cardTitle}>{t('support.faqTitle')}</Text>
             </View>
 
-            {[
-              { q: 'アカウントとデータを削除するには？', a: '「設定」→「データ」→「全データをリセット」からすべての記録を削除できます。アカウント自体の削除をご希望の場合は上記メールアドレスまでご連絡ください。' },
-              { q: 'Google / Appleログインのみですか？', a: 'はい。現在はGoogle / Apple のソーシャルログインのみ対応しています。パスワード設定は不要です。' },
-              { q: 'AI機能の利用回数は？', a: '動画フォーム分析は1日1回、AI食事分析は初回が無料です。それ以降は短い広告を視聴いただくと続けてご利用いただけます。' },
-              { q: 'チーム機能はいつ使えますか？', a: 'コーチ・選手間でコンディションを共有できるチーム機能は近日公開予定です。もうしばらくお待ちください。' },
-            ].map((item, i) => (
+            {faq.map((item, i) => (
               <View key={i} style={s.faq}>
                 <Text style={s.faqQ}>Q. {item.q}</Text>
                 <Text style={s.faqA}>A. {item.a}</Text>
@@ -75,18 +72,18 @@ export default function SupportScreen() {
           <View style={s.card}>
             <View style={s.cardHeader}>
               <Ionicons name="information-circle-outline" size={24} color="#166534" />
-              <Text style={s.cardTitle}>アプリ情報</Text>
+              <Text style={s.cardTitle}>{t('support.appInfoTitle')}</Text>
             </View>
-            <Text style={s.infoRow}>開発者：sCORE Japan</Text>
-            <Text style={s.infoRow}>お問い合わせ：team.deepwork2026@gmail.com</Text>
-            <Text style={s.infoRow}>Bundle ID：com.scorejapan.score</Text>
+            <Text style={s.infoRow}>{t('support.developerRow')}</Text>
+            <Text style={s.infoRow}>{t('support.contactRow')}</Text>
+            <Text style={s.infoRow}>{t('support.bundleIdRow')}</Text>
             <View style={s.links}>
               <TouchableOpacity onPress={() => isWeb ? Linking.openURL('https://scorej-run.vercel.app/privacy') : router.push('/privacy' as any)}>
-                <Text style={s.link}>プライバシーポリシー</Text>
+                <Text style={s.link}>{t('support.privacyLink')}</Text>
               </TouchableOpacity>
               <Text style={s.linkSep}>｜</Text>
               <TouchableOpacity onPress={() => isWeb ? Linking.openURL('https://scorej-run.vercel.app/terms') : router.push('/terms' as any)}>
-                <Text style={s.link}>利用規約</Text>
+                <Text style={s.link}>{t('support.termsLink')}</Text>
               </TouchableOpacity>
             </View>
           </View>

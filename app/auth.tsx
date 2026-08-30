@@ -12,6 +12,7 @@ import { router } from 'expo-router'
 import { useAuth } from '../context/AuthContext'
 import { BRAND, TEXT } from '../lib/theme'
 import { Sounds, unlockAudio } from '../lib/sounds'
+import { useTranslation } from 'react-i18next'
 
 const RED = BRAND   // アプリ全体のグリーンに統一（旧: 赤 #E53E3E）
 
@@ -28,6 +29,7 @@ function useFadeUp(delay = 0) {
 }
 
 export default function AuthScreen() {
+  const { t } = useTranslation()
   const { signInWithGoogle, signInWithApple, continueAsGuest } = useAuth()
   const [googleLoading, setGoogleLoading] = useState(false)
   const [appleLoading,  setAppleLoading]  = useState(false)
@@ -37,7 +39,7 @@ export default function AuthScreen() {
 
   const handleGoogle = () => {
     if (isInAppBrowser) {
-      alert('Googleログインはアプリ内ブラウザでは使用できません。\n\nSafari（または Chrome）でこのページを開いてからログインしてください。\n\n右下の「...」→「Safariで開く」をタップしてください。')
+      alert(t('auth.inAppBrowserAlert'))
       return
     }
     unlockAudio(); Sounds.pop()
@@ -62,9 +64,9 @@ export default function AuthScreen() {
 
           <Animated.View style={[{ width: '100%', alignItems: 'center', marginBottom: 32 }, header]}>
             <View style={lg.logoSmall}><Text style={lg.logoSmallS}>S</Text></View>
-            <Text style={sl.tag}>GET STARTED</Text>
-            <Text style={[sl.sectionTitle, { textAlign: 'center', fontSize: 28 }]}>無料で始める</Text>
-            <Text style={[sl.sectionSub, { textAlign: 'center' }]}>登録無料・クレジットカード不要</Text>
+            <Text style={sl.tag}>{t('auth.tag')}</Text>
+            <Text style={[sl.sectionTitle, { textAlign: 'center', fontSize: 28 }]}>{t('auth.title')}</Text>
+            <Text style={[sl.sectionSub, { textAlign: 'center' }]}>{t('auth.subtitle')}</Text>
           </Animated.View>
 
           <Animated.View style={[{ width: '100%' }, google]}>
@@ -72,7 +74,7 @@ export default function AuthScreen() {
               {googleLoading ? <ActivityIndicator color="#111" size="small" /> : (
                 <>
                   <View style={lg.gIconWrap}><Text style={lg.gIconText}>G</Text></View>
-                  <Text style={lg.googleText}>Google でログイン</Text>
+                  <Text style={lg.googleText}>{t('auth.googleLogin')}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -84,7 +86,7 @@ export default function AuthScreen() {
                 {appleLoading ? <ActivityIndicator color="#fff" size="small" /> : (
                   <>
                     <Ionicons name="logo-apple" size={20} color="#fff" />
-                    <Text style={lg.appleBtnText}>Apple でログイン</Text>
+                    <Text style={lg.appleBtnText}>{t('auth.appleLogin')}</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -94,14 +96,14 @@ export default function AuthScreen() {
           <Animated.View style={[{ width: '100%' }, guest]}>
             <TouchableOpacity style={lg.guestBtn} onPress={() => { unlockAudio(); Sounds.tap(); continueAsGuest() }} activeOpacity={0.7}>
               <Ionicons name="person-outline" size={16} color={TEXT.hint} />
-              <Text style={lg.guestText}>ゲストとして続ける</Text>
+              <Text style={lg.guestText}>{t('auth.continueAsGuest')}</Text>
             </TouchableOpacity>
             <Text style={lg.footer}>
-              {'ログインすることで '}
-              <Text style={{ textDecorationLine: 'underline' }} onPress={() => router.push('/terms' as any)}>利用規約</Text>
-              {' と '}
-              <Text style={{ textDecorationLine: 'underline' }} onPress={() => router.push('/privacy' as any)}>プライバシーポリシー</Text>
-              {'に同意したことになります'}
+              {t('auth.footerPrefix')}
+              <Text style={{ textDecorationLine: 'underline' }} onPress={() => router.push('/terms' as any)}>{t('auth.footerTerms')}</Text>
+              {t('auth.footerAnd')}
+              <Text style={{ textDecorationLine: 'underline' }} onPress={() => router.push('/privacy' as any)}>{t('auth.footerPrivacy')}</Text>
+              {t('auth.footerSuffix')}
             </Text>
           </Animated.View>
 
