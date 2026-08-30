@@ -19,6 +19,8 @@ import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useRouter } from 'expo-router'
 import { createStorageQueue } from '../lib/storageQueue'
+import { useTranslation } from 'react-i18next'
+import { useLanguage } from '../context/LanguageContext'
 
 /* ─── 型定義 ─────────────────────────────────── */
 type Severity = 'mild' | 'moderate' | 'severe'
@@ -38,8 +40,9 @@ type RecoveryResult = {
 type SavedRecord = { id: string; date: string; bodyParts: string[]; painLevel: number; result: RecoveryResult }
 
 /* ─── ゾーン定義（複数選択用） ─────────────────── */
+// labelは言語依存のためlocales('recovery.zones.<id>')に移し、ZoneDef自体はidのみ持つ
 type ZoneDef = {
-  id: string; label: string
+  id: string
   front?: ZoneShape; back?: ZoneShape
 }
 type ZoneShape =
@@ -60,51 +63,51 @@ function fetchWithTimeout(url: string, options: RequestInit, ms: number): Promis
 // 実測でフィットさせている。イラストを差し替えた場合はここも合わせて調整すること。
 // 2026-07-29: イラスト差し替え(通常の人体比率)に伴い、シルエットのピクセル解析に基づき全ゾーンを再calibrate。
 const ZONES: ZoneDef[] = [
-  { id:'head',        label:'頭・首',              front:{type:'circle', cx:110,cy:43,r:20},           back:{type:'circle', cx:110,cy:43,r:20} },
-  { id:'neck',        label:'首・頸部',             front:{type:'ellipse',cx:110,cy:61,rx:10,ry:6},    back:{type:'ellipse',cx:110,cy:61,rx:10,ry:6} },
-  { id:'shoulder_l',  label:'左肩',                front:{type:'ellipse',cx:79, cy:72, rx:18,ry:16},  back:{type:'ellipse',cx:79, cy:72, rx:18,ry:16} },
-  { id:'shoulder_r',  label:'右肩',                front:{type:'ellipse',cx:142,cy:72, rx:18,ry:16},  back:{type:'ellipse',cx:142,cy:72, rx:18,ry:16} },
-  { id:'chest',       label:'胸・肋骨',             front:{type:'ellipse',cx:110,cy:110,rx:40,ry:22} },
-  { id:'upper_back',  label:'背中（上）',            back:{type:'ellipse', cx:110,cy:110,rx:40,ry:22} },
-  { id:'belly',       label:'腹部',                front:{type:'ellipse',cx:110,cy:168,rx:30,ry:26} },
-  { id:'lower_back',  label:'腰・下背部',            back:{type:'ellipse', cx:110,cy:168,rx:30,ry:26} },
-  { id:'upper_arm_l', label:'左上腕',              front:{type:'ellipse',cx:72, cy:96, rx:13,ry:24},  back:{type:'ellipse',cx:72, cy:96, rx:13,ry:24} },
-  { id:'upper_arm_r', label:'右上腕',              front:{type:'ellipse',cx:149,cy:96, rx:13,ry:24},  back:{type:'ellipse',cx:149,cy:96, rx:13,ry:24} },
-  { id:'elbow_l',     label:'左肘',                front:{type:'ellipse',cx:64, cy:121,rx:11,ry:10},  back:{type:'ellipse',cx:64, cy:121,rx:11,ry:10} },
-  { id:'elbow_r',     label:'右肘',                front:{type:'ellipse',cx:156,cy:121,rx:11,ry:10},  back:{type:'ellipse',cx:156,cy:121,rx:11,ry:10} },
-  { id:'forearm_l',   label:'左前腕',              front:{type:'ellipse',cx:58, cy:145,rx:11,ry:24},  back:{type:'ellipse',cx:58, cy:145,rx:11,ry:24} },
-  { id:'forearm_r',   label:'右前腕',              front:{type:'ellipse',cx:163,cy:145,rx:11,ry:24},  back:{type:'ellipse',cx:163,cy:145,rx:11,ry:24} },
-  { id:'wrist_l',     label:'左手首',              front:{type:'ellipse',cx:52, cy:169,rx:9, ry:8},   back:{type:'ellipse',cx:52, cy:169,rx:9, ry:8} },
-  { id:'wrist_r',     label:'右手首',              front:{type:'ellipse',cx:169,cy:169,rx:9, ry:8},   back:{type:'ellipse',cx:169,cy:169,rx:9, ry:8} },
-  { id:'hip_l',       label:'左股関節',             front:{type:'ellipse',cx:90, cy:193,rx:16,ry:14},  back:{type:'ellipse',cx:90, cy:193,rx:16,ry:14} },
-  { id:'hip_r',       label:'右股関節',             front:{type:'ellipse',cx:130,cy:193,rx:16,ry:14},  back:{type:'ellipse',cx:130,cy:193,rx:16,ry:14} },
-  { id:'groin',       label:'鼠径部・内転筋',        front:{type:'ellipse',cx:110,cy:203,rx:12,ry:9} },
-  { id:'buttock',     label:'臀部・お尻',            back:{type:'ellipse', cx:110,cy:200,rx:30,ry:16} },
-  { id:'quad_l',      label:'大腿前（左）',           front:{type:'ellipse',cx:91, cy:224,rx:15,ry:27} },
-  { id:'quad_r',      label:'大腿前（右）',           front:{type:'ellipse',cx:129,cy:224,rx:15,ry:27} },
-  { id:'hamstring_l', label:'ハムストリング（左）',    back:{type:'ellipse', cx:91, cy:224,rx:15,ry:27} },
-  { id:'hamstring_r', label:'ハムストリング（右）',    back:{type:'ellipse', cx:129,cy:224,rx:15,ry:27} },
-  { id:'it_band_l',   label:'腸脛靭帯（左）',         front:{type:'ellipse',cx:76, cy:224,rx:6, ry:27},  back:{type:'ellipse',cx:76, cy:224,rx:6, ry:27} },
-  { id:'it_band_r',   label:'腸脛靭帯（右）',         front:{type:'ellipse',cx:144,cy:224,rx:6, ry:27},  back:{type:'ellipse',cx:144,cy:224,rx:6, ry:27} },
-  { id:'knee_l',      label:'左膝',                front:{type:'ellipse',cx:91, cy:253,rx:13,ry:11},  back:{type:'ellipse',cx:91, cy:253,rx:13,ry:11} },
-  { id:'knee_r',      label:'右膝',                front:{type:'ellipse',cx:129,cy:253,rx:13,ry:11},  back:{type:'ellipse',cx:129,cy:253,rx:13,ry:11} },
-  { id:'shin_l',      label:'すね（左）',             front:{type:'ellipse',cx:82, cy:292,rx:11,ry:32} },
-  { id:'shin_r',      label:'すね（右）',             front:{type:'ellipse',cx:138,cy:292,rx:11,ry:32} },
-  { id:'calf_l',      label:'ふくらはぎ（左）',        back:{type:'ellipse', cx:82, cy:292,rx:11,ry:32} },
-  { id:'calf_r',      label:'ふくらはぎ（右）',        back:{type:'ellipse', cx:138,cy:292,rx:11,ry:32} },
-  { id:'achilles_l',  label:'アキレス腱（左）',        back:{type:'ellipse', cx:77, cy:324,rx:7, ry:10} },
-  { id:'achilles_r',  label:'アキレス腱（右）',        back:{type:'ellipse', cx:143,cy:324,rx:7, ry:10} },
-  { id:'ankle_l',     label:'左足首',              front:{type:'ellipse',cx:77, cy:324,rx:8, ry:8},   back:{type:'ellipse',cx:77, cy:324,rx:8, ry:8} },
-  { id:'ankle_r',     label:'右足首',              front:{type:'ellipse',cx:143,cy:324,rx:8, ry:8},   back:{type:'ellipse',cx:143,cy:324,rx:8, ry:8} },
-  { id:'foot_l',      label:'左足・足底',            front:{type:'ellipse',cx:75, cy:337,rx:15,ry:8},   back:{type:'ellipse',cx:75, cy:337,rx:15,ry:8} },
-  { id:'foot_r',      label:'右足・足底',            front:{type:'ellipse',cx:145,cy:337,rx:15,ry:8},   back:{type:'ellipse',cx:145,cy:337,rx:15,ry:8} },
+  { id:'head',        front:{type:'circle', cx:110,cy:43,r:20},           back:{type:'circle', cx:110,cy:43,r:20} },
+  { id:'neck',        front:{type:'ellipse',cx:110,cy:61,rx:10,ry:6},    back:{type:'ellipse',cx:110,cy:61,rx:10,ry:6} },
+  { id:'shoulder_l',  front:{type:'ellipse',cx:79, cy:72, rx:18,ry:16},  back:{type:'ellipse',cx:79, cy:72, rx:18,ry:16} },
+  { id:'shoulder_r',  front:{type:'ellipse',cx:142,cy:72, rx:18,ry:16},  back:{type:'ellipse',cx:142,cy:72, rx:18,ry:16} },
+  { id:'chest',       front:{type:'ellipse',cx:110,cy:110,rx:40,ry:22} },
+  { id:'upper_back',  back:{type:'ellipse', cx:110,cy:110,rx:40,ry:22} },
+  { id:'belly',       front:{type:'ellipse',cx:110,cy:168,rx:30,ry:26} },
+  { id:'lower_back',  back:{type:'ellipse', cx:110,cy:168,rx:30,ry:26} },
+  { id:'upper_arm_l', front:{type:'ellipse',cx:72, cy:96, rx:13,ry:24},  back:{type:'ellipse',cx:72, cy:96, rx:13,ry:24} },
+  { id:'upper_arm_r', front:{type:'ellipse',cx:149,cy:96, rx:13,ry:24},  back:{type:'ellipse',cx:149,cy:96, rx:13,ry:24} },
+  { id:'elbow_l',     front:{type:'ellipse',cx:64, cy:121,rx:11,ry:10},  back:{type:'ellipse',cx:64, cy:121,rx:11,ry:10} },
+  { id:'elbow_r',     front:{type:'ellipse',cx:156,cy:121,rx:11,ry:10},  back:{type:'ellipse',cx:156,cy:121,rx:11,ry:10} },
+  { id:'forearm_l',   front:{type:'ellipse',cx:58, cy:145,rx:11,ry:24},  back:{type:'ellipse',cx:58, cy:145,rx:11,ry:24} },
+  { id:'forearm_r',   front:{type:'ellipse',cx:163,cy:145,rx:11,ry:24},  back:{type:'ellipse',cx:163,cy:145,rx:11,ry:24} },
+  { id:'wrist_l',     front:{type:'ellipse',cx:52, cy:169,rx:9, ry:8},   back:{type:'ellipse',cx:52, cy:169,rx:9, ry:8} },
+  { id:'wrist_r',     front:{type:'ellipse',cx:169,cy:169,rx:9, ry:8},   back:{type:'ellipse',cx:169,cy:169,rx:9, ry:8} },
+  { id:'hip_l',       front:{type:'ellipse',cx:90, cy:193,rx:16,ry:14},  back:{type:'ellipse',cx:90, cy:193,rx:16,ry:14} },
+  { id:'hip_r',       front:{type:'ellipse',cx:130,cy:193,rx:16,ry:14},  back:{type:'ellipse',cx:130,cy:193,rx:16,ry:14} },
+  { id:'groin',       front:{type:'ellipse',cx:110,cy:203,rx:12,ry:9} },
+  { id:'buttock',     back:{type:'ellipse', cx:110,cy:200,rx:30,ry:16} },
+  { id:'quad_l',      front:{type:'ellipse',cx:91, cy:224,rx:15,ry:27} },
+  { id:'quad_r',      front:{type:'ellipse',cx:129,cy:224,rx:15,ry:27} },
+  { id:'hamstring_l', back:{type:'ellipse', cx:91, cy:224,rx:15,ry:27} },
+  { id:'hamstring_r', back:{type:'ellipse', cx:129,cy:224,rx:15,ry:27} },
+  { id:'it_band_l',   front:{type:'ellipse',cx:76, cy:224,rx:6, ry:27},  back:{type:'ellipse',cx:76, cy:224,rx:6, ry:27} },
+  { id:'it_band_r',   front:{type:'ellipse',cx:144,cy:224,rx:6, ry:27},  back:{type:'ellipse',cx:144,cy:224,rx:6, ry:27} },
+  { id:'knee_l',      front:{type:'ellipse',cx:91, cy:253,rx:13,ry:11},  back:{type:'ellipse',cx:91, cy:253,rx:13,ry:11} },
+  { id:'knee_r',      front:{type:'ellipse',cx:129,cy:253,rx:13,ry:11},  back:{type:'ellipse',cx:129,cy:253,rx:13,ry:11} },
+  { id:'shin_l',      front:{type:'ellipse',cx:82, cy:292,rx:11,ry:32} },
+  { id:'shin_r',      front:{type:'ellipse',cx:138,cy:292,rx:11,ry:32} },
+  { id:'calf_l',      back:{type:'ellipse', cx:82, cy:292,rx:11,ry:32} },
+  { id:'calf_r',      back:{type:'ellipse', cx:138,cy:292,rx:11,ry:32} },
+  { id:'achilles_l',  back:{type:'ellipse', cx:77, cy:324,rx:7, ry:10} },
+  { id:'achilles_r',  back:{type:'ellipse', cx:143,cy:324,rx:7, ry:10} },
+  { id:'ankle_l',     front:{type:'ellipse',cx:77, cy:324,rx:8, ry:8},   back:{type:'ellipse',cx:77, cy:324,rx:8, ry:8} },
+  { id:'ankle_r',     front:{type:'ellipse',cx:143,cy:324,rx:8, ry:8},   back:{type:'ellipse',cx:143,cy:324,rx:8, ry:8} },
+  { id:'foot_l',      front:{type:'ellipse',cx:75, cy:337,rx:15,ry:8},   back:{type:'ellipse',cx:75, cy:337,rx:15,ry:8} },
+  { id:'foot_r',      front:{type:'ellipse',cx:145,cy:337,rx:15,ry:8},   back:{type:'ellipse',cx:145,cy:337,rx:15,ry:8} },
 ]
 
-const PAIN_TYPES     = [{id:'sharp',label:'鋭い・刺すような'},{id:'dull',label:'鈍い・重い'},{id:'burning',label:'燃えるような・しびれ'},{id:'aching',label:'じんじん・疼く'}]
-const TIMING_OPTIONS = [{id:'during',label:'運動中だけ'},{id:'after',label:'運動後だけ'},{id:'both',label:'運動中も後も'},{id:'constant',label:'常時'}]
-const DURATION_OPTIONS=[{id:'today',label:'今日初めて'},{id:'3days',label:'2〜3日前から'},{id:'week',label:'1週間前から'},{id:'month',label:'1ヶ月以上'}]
+// labelはlocales('recovery.painTypes'/'timingOptions'/'durationOptions'/'severity')側に移し、idのみ保持
+const PAIN_TYPES     = [{id:'sharp'},{id:'dull'},{id:'burning'},{id:'aching'}]
+const TIMING_OPTIONS = [{id:'during'},{id:'after'},{id:'both'},{id:'constant'}]
+const DURATION_OPTIONS=[{id:'today'},{id:'3days'},{id:'week'},{id:'month'}]
 const SEVERITY_COLOR = { mild:'#34C759', moderate:'#FF9500', severe:'#FF3B30' }
-const SEVERITY_LABEL = { mild:'軽度', moderate:'中程度', severe:'重度' }
 const STORAGE_KEY = 'trackmate_recovery_records'
 const RECOVERY_CACHE_KEY = 'trackmate_recovery_ai_cache_v1'
 // askAI(分析→保存)と deleteRecord(削除) が同じ history state を基点に非同期で
@@ -114,6 +117,8 @@ const recoveryStore = createStorageQueue<SavedRecord[]>(STORAGE_KEY, [])
 /* ════════════════════════════════════════════ */
 export default function RecoveryScreen() {
   const router = useRouter()
+  const { t } = useTranslation()
+  const { language } = useLanguage()
   const [bodyParts, setBodyParts] = useState<string[]>([])
   const [painLevel, setPainLevel] = useState(5)
   const [painType,  setPainType]  = useState('')
@@ -156,10 +161,11 @@ export default function RecoveryScreen() {
     setApiError('')
     setLoading(true)
 
-    const partLabels   = bodyParts.map(id => ZONES.find(z=>z.id===id)?.label ?? id).join('、')
-    const typeLabel    = PAIN_TYPES.find(p=>p.id===painType)?.label ?? ''
-    const timingLabel  = TIMING_OPTIONS.find(p=>p.id===timing)?.label ?? ''
-    const durLabel     = DURATION_OPTIONS.find(p=>p.id===duration)?.label ?? '不明'
+    const partLabels   = bodyParts.map(id => t(`recovery.zones.${id}`, { defaultValue: id })).join('、')
+    const typeLabel    = painType ? t(`recovery.painTypes.${painType}`) : ''
+    const timingLabel  = timing ? t(`recovery.timingOptions.${timing}`) : ''
+    const durLabel     = duration ? t(`recovery.durationOptions.${duration}`) : t('recovery.durationUnknown')
+    const promptLanguageLine = t('recovery.promptLanguageLine')
     const _apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
     const _endpoint = `${_apiBase}/api/analyze`
 
@@ -192,13 +198,16 @@ export default function RecoveryScreen() {
 追加:${notes||'なし'}
 
 以下JSONのみで返答（他テキスト不要）:
-{"suspected_condition":"傷害名","severity":"mild|moderate|severe","immediate_actions":["今すぐすること1","2","3"],"rice_protocol":{"rest":"安静方法","ice":"アイシング方法と時間","compression":"圧迫方法","elevation":"挙上方法"},"taping":{"purpose":"目的","method":"ステップバイステップの貼り方（テープの向き・角度・長さを具体的に）","tape_type":"推奨テープ種類"},"recovery_timeline":{"phase1":{"period":"0〜3日","description":"急性期の対応"},"phase2":{"period":"4〜14日","description":"回復期のリハビリ"},"phase3":{"period":"2〜8週","description":"競技復帰プロセス"}},"exercises":["エクササイズ1（回数・方法）","2","3"],"see_doctor_if":["病院受診サイン1","2","3"],"training_modification":"代替練習と注意点","medical_basis":"医学的根拠の説明"}`
+{"suspected_condition":"傷害名","severity":"mild|moderate|severe","immediate_actions":["今すぐすること1","2","3"],"rice_protocol":{"rest":"安静方法","ice":"アイシング方法と時間","compression":"圧迫方法","elevation":"挙上方法"},"taping":{"purpose":"目的","method":"ステップバイステップの貼り方（テープの向き・角度・長さを具体的に）","tape_type":"推奨テープ種類"},"recovery_timeline":{"phase1":{"period":"0〜3日","description":"急性期の対応"},"phase2":{"period":"4〜14日","description":"回復期のリハビリ"},"phase3":{"period":"2〜8週","description":"競技復帰プロセス"}},"exercises":["エクササイズ1（回数・方法）","2","3"],"see_doctor_if":["病院受診サイン1","2","3"],"training_modification":"代替練習と注意点","medical_basis":"医学的根拠の説明"}${promptLanguageLine ? '\n' + promptLanguageLine : ''}`
           }]
         }),
       }, 35000)
       if (!res.ok) {
-        const t = await res.text()
-        throw new Error(`HTTP ${res.status}: ${t.slice(0,120)}`)
+        // 変数名'errText': useTranslation()のt関数をシャドウイングしないよう明示的に改名
+        // (以前ここは const t = await res.text() だった。他の同種ファイルで実際にクラッシュを
+        // 引き起こした命名パターンのため、この画面のi18n対応時にあわせて修正)
+        const errText = await res.text()
+        throw new Error(`HTTP ${res.status}: ${errText.slice(0,120)}`)
       }
       const data  = await res.json()
       const text  = data.content?.[0]?.text ?? ''
@@ -212,7 +221,7 @@ export default function RecoveryScreen() {
       }
       setResult(parsed)
       const rec: SavedRecord = {
-        id:Date.now().toString(), date:new Date().toLocaleDateString('ja-JP'),
+        id:Date.now().toString(), date:new Date().toLocaleDateString(language === 'en' ? 'en-US' : 'ja-JP'),
         bodyParts, painLevel, result:parsed,
       }
       const upd = await recoveryStore.update(current => [rec, ...current].slice(0, 20))
@@ -220,7 +229,7 @@ export default function RecoveryScreen() {
 
       // AI相談に成功した場合のみ利用回数・チケットを消費する（失敗時に課金しないため）
       await recordUsage('recovery')
-      if (needsTicket) Toast.show({ type: 'info', text1: `🎫 チケットを${ticketCost}枚使用しました`, visibilityTime: 1800 })
+      if (needsTicket) Toast.show({ type: 'info', text1: t('recovery.ticketUsedToast', { n: ticketCost }), visibilityTime: 1800 })
       // 結果をキャッシュに保存（同一入力の再分析でAPIコストを発生させない）
       try {
         const _raw = await AsyncStorage.getItem(RECOVERY_CACHE_KEY)
@@ -230,15 +239,15 @@ export default function RecoveryScreen() {
       } catch {}
       setTab('result'); fadeIn()
     } catch(e: unknown) {
-      setApiError(`エラー: ${e instanceof Error ? e.message : String(e)}`)
+      setApiError(t('recovery.errGeneric', { message: e instanceof Error ? e.message : String(e) }))
     } finally { setLoading(false) }
   }
 
   const deleteRecord = (id: string) => {
-    Alert.alert('この記録を削除しますか？', 'この操作は取り消せません。', [
-      { text: 'キャンセル', style: 'cancel' },
+    Alert.alert(t('recovery.deleteConfirmTitle'), t('recovery.deleteConfirmBody'), [
+      { text: t('recovery.cancel'), style: 'cancel' },
       {
-        text: '削除する', style: 'destructive',
+        text: t('recovery.delete'), style: 'destructive',
         onPress: async () => {
           const upd = await recoveryStore.update(current => current.filter(r => r.id !== id))
           setHistory(upd)
@@ -249,9 +258,9 @@ export default function RecoveryScreen() {
 
   const askAI = async () => {
     if (askingRef.current) return  // 二重タップ防止
-    if (bodyParts.length === 0) { setApiError('部位をタップして選択してください（複数可）'); return }
-    if (!painType) { setApiError('痛みの種類を選択してください'); return }
-    if (!timing)   { setApiError('発生タイミングを選択してください'); return }
+    if (bodyParts.length === 0) { setApiError(t('recovery.errNoBodyPart')); return }
+    if (!painType) { setApiError(t('recovery.errNoPainType')); return }
+    if (!timing)   { setApiError(t('recovery.errNoTiming')); return }
     // ゲストはログイン必須
     if (isGuest) { setAdGateRemaining(0); setAdGateHardLimited(false); setAdGateLimitType('none'); setAdGateVisible(true); return }
     askingRef.current = true
@@ -277,7 +286,7 @@ export default function RecoveryScreen() {
   return (
     <View style={s.bg}>
       <View style={s.tabBar}>
-        {[['input','症状入力'],['result','診断結果'],['history','履歴']].map(([k,l])=>(
+        {[['input',t('recovery.tabInput')],['result',t('recovery.tabResult')],['history',t('recovery.tabHistory')]].map(([k,l])=>(
           <TouchableOpacity key={k} style={[s.tabItem,tab===k&&s.tabActive]}
             onPress={()=>{setTab(k as any);fadeIn()}}>
             <Text style={[s.tabTxt,tab===k&&s.tabTxtActive]}>{l}</Text>
@@ -295,30 +304,28 @@ export default function RecoveryScreen() {
             <View style={s.disclaimerBanner}>
               <Ionicons name="warning-outline" size={15} color="#FF9500" />
               <Text style={s.disclaimerBannerTxt}>
-                このアドバイスはAIによる参考情報です。医療診断・治療行為ではありません。{'\n'}
-                症状が続く・悪化する場合は必ず医師・専門家にご相談ください。
+                {t('recovery.disclaimerBanner')}
               </Text>
             </View>
 
             {/* ─ ボディマップ ─ */}
-            <Text style={s.secTitle}>🫀 痛い部位をタップ
-              <Text style={{color:'#E53935',fontSize:12}}> （複数選択可）</Text>
+            <Text style={s.secTitle}>{t('recovery.bodyMapTitle')}
+              <Text style={{color:'#E53935',fontSize:12}}>{t('recovery.multiSelectNote')}</Text>
             </Text>
 
             {/* 選択済みバッジ */}
             {bodyParts.length > 0 && (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom:8}}>
                 {bodyParts.map(id=>{
-                  const z = ZONES.find(z=>z.id===id)
                   return (
                     <TouchableOpacity key={id} style={s.selectedBadge} onPress={()=>togglePart(id)}>
-                      <Text style={s.selectedTxt}>{z?.label}</Text>
+                      <Text style={s.selectedTxt}>{t(`recovery.zones.${id}`, { defaultValue: id })}</Text>
                       <Ionicons name="close-circle" size={14} color="#E53935" />
                     </TouchableOpacity>
                   )
                 })}
                 <TouchableOpacity style={s.clearAll} onPress={()=>setBodyParts([])}>
-                  <Text style={{color:'#555',fontSize:11}}>全解除</Text>
+                  <Text style={{color:'#555',fontSize:11}}>{t('recovery.clearAll')}</Text>
                 </TouchableOpacity>
               </ScrollView>
             )}
@@ -326,10 +333,10 @@ export default function RecoveryScreen() {
             {/* 前後切替 */}
             <View style={s.viewToggle}>
               <TouchableOpacity style={[s.viewBtn,view==='front'&&s.viewBtnActive]} onPress={()=>setView('front')}>
-                <Text style={[s.viewBtnTxt,view==='front'&&s.viewBtnTxtActive]}>前面</Text>
+                <Text style={[s.viewBtnTxt,view==='front'&&s.viewBtnTxtActive]}>{t('recovery.viewFront')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[s.viewBtn,view==='back'&&s.viewBtnActive]} onPress={()=>setView('back')}>
-                <Text style={[s.viewBtnTxt,view==='back'&&s.viewBtnTxtActive]}>背面</Text>
+                <Text style={[s.viewBtnTxt,view==='back'&&s.viewBtnTxtActive]}>{t('recovery.viewBack')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -339,7 +346,7 @@ export default function RecoveryScreen() {
             </View>
 
             {/* 痛みレベル */}
-            <Text style={s.secTitle}>📊 痛みレベル: <Text style={{color:'#E53935'}}>{painLevel}/10</Text></Text>
+            <Text style={s.secTitle}>{t('recovery.painLevelTitle')}<Text style={{color:'#E53935'}}>{painLevel}/10</Text></Text>
             <View style={s.levelRow}>
               {[1,2,3,4,5,6,7,8,9,10].map(n=>{
                 const col = n<=3?'#34C759':n<=6?'#FF9500':'#FF3B30'
@@ -348,43 +355,43 @@ export default function RecoveryScreen() {
                     style={[s.levelBtn,{borderColor:col},painLevel===n&&{backgroundColor:col}]}
                     onPress={()=>setPainLevel(n)}
                     hitSlop={{top:4,bottom:4,left:2,right:2}}
-                    accessibilityLabel={`痛みレベル${n}`}>
+                    accessibilityLabel={t('recovery.painLevelA11y', { n })}>
                     <Text style={[s.levelTxt,painLevel===n&&{color:'#fff',fontWeight:'800'}]}>{n}</Text>
                   </TouchableOpacity>
                 )
               })}
             </View>
 
-            <Text style={s.secTitle}>⚡ 痛みの性質</Text>
+            <Text style={s.secTitle}>{t('recovery.painTypeTitle')}</Text>
             <View style={s.chipRow}>
               {PAIN_TYPES.map(p=>(
                 <TouchableOpacity key={p.id} style={[s.chip,painType===p.id&&s.chipActive]} onPress={()=>setPainType(p.id)}>
-                  <Text style={[s.chipTxt,painType===p.id&&s.chipTxtActive]}>{p.label}</Text>
+                  <Text style={[s.chipTxt,painType===p.id&&s.chipTxtActive]}>{t(`recovery.painTypes.${p.id}`)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <Text style={s.secTitle}>⏱ 発生タイミング</Text>
+            <Text style={s.secTitle}>{t('recovery.timingTitle')}</Text>
             <View style={s.chipRow}>
               {TIMING_OPTIONS.map(p=>(
                 <TouchableOpacity key={p.id} style={[s.chip,timing===p.id&&s.chipActive]} onPress={()=>setTiming(p.id)}>
-                  <Text style={[s.chipTxt,timing===p.id&&s.chipTxtActive]}>{p.label}</Text>
+                  <Text style={[s.chipTxt,timing===p.id&&s.chipTxtActive]}>{t(`recovery.timingOptions.${p.id}`)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <Text style={s.secTitle}>📅 いつから</Text>
+            <Text style={s.secTitle}>{t('recovery.durationTitle')}</Text>
             <View style={s.chipRow}>
               {DURATION_OPTIONS.map(p=>(
                 <TouchableOpacity key={p.id} style={[s.chip,duration===p.id&&s.chipActive]} onPress={()=>setDuration(p.id)}>
-                  <Text style={[s.chipTxt,duration===p.id&&s.chipTxtActive]}>{p.label}</Text>
+                  <Text style={[s.chipTxt,duration===p.id&&s.chipTxtActive]}>{t(`recovery.durationOptions.${p.id}`)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <Text style={s.secTitle}>📝 追加メモ（任意）</Text>
+            <Text style={s.secTitle}>{t('recovery.notesTitle')}</Text>
             <TextInput style={s.notesInput} value={notes} onChangeText={setNotes}
-              placeholder="動作で痛む・過去の怪我など..." placeholderTextColor="#9ca3af"
+              placeholder={t('recovery.notesPlaceholder')} placeholderTextColor="#9ca3af"
               multiline numberOfLines={3} />
 
             {apiError ? (
@@ -396,17 +403,17 @@ export default function RecoveryScreen() {
 
             <View style={s.disclaimer}>
               <Ionicons name="information-circle-outline" size={13} color="#6b7280" />
-              <Text style={s.disclaimerTxt}>AIアドバイスは医師の診断の代替ではありません。重篤な症状は医療機関を受診してください。</Text>
+              <Text style={s.disclaimerTxt}>{t('recovery.staticDisclaimer')}</Text>
             </View>
 
             <View style={[s.ticketCostBadge, { backgroundColor: '#16653422', borderColor: '#166534' }]}>
-              <Text style={[s.ticketCostBadgeText, { color: '#166534' }]}>無料</Text>
+              <Text style={[s.ticketCostBadgeText, { color: '#166534' }]}>{t('recovery.free')}</Text>
             </View>
 
             <TouchableOpacity style={[s.submitBtn,loading&&{opacity:0.6}]} onPress={askAI} disabled={loading}>
               {loading
-                ? <><ActivityIndicator color="#fff"/><Text style={s.submitTxt}>AIが分析中...</Text></>
-                : <><Ionicons name="body-outline" size={20} color="#fff"/><Text style={s.submitTxt}>AIにケアプランを相談する</Text></>
+                ? <><ActivityIndicator color="#fff"/><Text style={s.submitTxt}>{t('recovery.analyzing')}</Text></>
+                : <><Ionicons name="body-outline" size={20} color="#fff"/><Text style={s.submitTxt}>{t('recovery.submitBtn')}</Text></>
               }
             </TouchableOpacity>
           </ScrollView>
@@ -416,7 +423,7 @@ export default function RecoveryScreen() {
         {tab==='result' && (
           <ScrollView contentContainerStyle={s.content}>
             {!result
-              ? <View style={s.empty}><Ionicons name="medkit-outline" size={48} color="#9ca3af"/><Text style={s.emptyTxt}>症状入力タブから相談してください</Text></View>
+              ? <View style={s.empty}><Ionicons name="medkit-outline" size={48} color="#9ca3af"/><Text style={s.emptyTxt}>{t('recovery.emptyResult')}</Text></View>
               : <ResultView result={result} onBack={()=>setTab('input')} />
             }
           </ScrollView>
@@ -426,7 +433,7 @@ export default function RecoveryScreen() {
         {tab==='history' && (
           <ScrollView contentContainerStyle={s.content}>
             {history.length===0
-              ? <View style={s.empty}><Ionicons name="time-outline" size={48} color="#9ca3af"/><Text style={s.emptyTxt}>相談履歴なし</Text></View>
+              ? <View style={s.empty}><Ionicons name="time-outline" size={48} color="#9ca3af"/><Text style={s.emptyTxt}>{t('recovery.emptyHistory')}</Text></View>
               : history.map(rec=>(
                 <TouchableOpacity key={rec.id} style={s.histCard}
                   onPress={()=>{setResult(rec.result);setTab('result');fadeIn()}}>
@@ -437,13 +444,13 @@ export default function RecoveryScreen() {
                       <TouchableOpacity
                         onPress={(e)=>{e.stopPropagation();deleteRecord(rec.id)}}
                         hitSlop={{top:8,bottom:8,left:8,right:8}}
-                        accessibilityLabel="削除"
+                        accessibilityLabel={t('recovery.deleteLabel')}
                       >
                         <Ionicons name="trash-outline" size={18} color="#ef4444"/>
                       </TouchableOpacity>
                     </View>
                   </View>
-                  <Text style={s.histPart}>📍 {rec.bodyParts.map(id=>ZONES.find(z=>z.id===id)?.label??id).join(' / ')}　Lv.{rec.painLevel}</Text>
+                  <Text style={s.histPart}>📍 {rec.bodyParts.map(id=>t(`recovery.zones.${id}`, { defaultValue: id })).join(' / ')}　Lv.{rec.painLevel}</Text>
                   <Text style={s.histDiag}>{rec.result.suspected_condition}</Text>
                   <Ionicons name="chevron-forward" size={15} color="#9ca3af" style={{position:'absolute',right:12,top:20}}/>
                 </TouchableOpacity>
@@ -487,6 +494,7 @@ export default function RecoveryScreen() {
 function BodyMap({ view, selected, onToggle }: {
   view:'front'|'back'; selected:string[]; onToggle:(id:string)=>void
 }) {
+  const { t } = useTranslation()
   const W=220, H=370
   const DISPLAY_SCALE = 1.4  // タップ判定座標系(220×370)はそのままに、表示サイズだけ拡大する
   // 手首・足首・アキレス腱など小さい部位は、見た目の形はそのままにタップ判定だけ広げる
@@ -552,7 +560,7 @@ function BodyMap({ view, selected, onToggle }: {
                   fill="rgba(229,57,53,0.92)"/>
                 <SvgText x={shape.cx} y={getLabelY(shape)-1.5}
                   textAnchor="middle" fill="#fff" fontSize={8} fontWeight="bold">
-                  {zone.label}
+                  {t(`recovery.zones.${zone.id}`, { defaultValue: zone.id })}
                 </SvgText>
               </G>
             )}
@@ -562,7 +570,7 @@ function BodyMap({ view, selected, onToggle }: {
 
       {selected.length===0 && (
         <SvgText x={110} y={H-6} textAnchor="middle" fill="rgba(0,0,0,0.28)" fontSize={9}>
-          部位をタップして選択（複数可）
+          {t('recovery.bodyMapHint')}
         </SvgText>
       )}
     </Svg>
@@ -584,55 +592,55 @@ function AnatomicalBody({ view }: { view:'front'|'back' }) {
 
 /* ─── 診断結果ビュー ────────────────────────────── */
 function ResultView({ result, onBack }: { result:RecoveryResult; onBack:()=>void }) {
+  const { t } = useTranslation()
   return (
     <>
       <View style={s.disclaimerBanner}>
         <Ionicons name="warning-outline" size={15} color="#FF9500" />
         <Text style={s.disclaimerBannerTxt}>
-          このアドバイスはAIによる参考情報です。医療診断・治療行為ではありません。{'\n'}
-          症状が続く・悪化する場合は必ず医師・専門家にご相談ください。
+          {t('recovery.disclaimerBanner')}
         </Text>
       </View>
 
       <View style={[s.diagCard,{borderLeftColor:SEVERITY_COLOR[result.severity]}]}>
         <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
-          <Text style={{color:'#6b7280',fontSize:11,fontWeight:'800'}}>疑われる症状</Text>
+          <Text style={{color:'#6b7280',fontSize:11,fontWeight:'800'}}>{t('recovery.suspectedConditionLabel')}</Text>
           <SevBadge severity={result.severity}/>
         </View>
         <Text style={{color:'#111827',fontSize:20,fontWeight:'900'}}>{result.suspected_condition}</Text>
       </View>
 
-      <Sec icon="flash" title="今すぐすべきこと" color="#E53935">
+      <Sec icon="flash" title={t('recovery.secImmediate')} color="#E53935">
         {result.immediate_actions.map((a,i)=><Bullet key={i} text={a} color="#E53935"/>)}
       </Sec>
 
-      <Sec icon="snow" title="RICE処置" color="#4A9FFF">
+      <Sec icon="snow" title={t('recovery.secRice')} color="#4A9FFF">
         {(['rest','ice','compression','elevation'] as const).map(k=>(
           <View key={k} style={s.riceRow}>
             <Text style={s.riceLabel}>
-              {k==='rest'?'Rest（安静）':k==='ice'?'Ice（アイシング）':k==='compression'?'Compression（圧迫）':'Elevation（挙上）'}
+              {t(`recovery.riceLabels.${k}`)}
             </Text>
             <Text style={s.riceVal}>{result.rice_protocol[k]}</Text>
           </View>
         ))}
       </Sec>
 
-      <Sec icon="bandage" title="テーピング方法" color="#FF9500">
+      <Sec icon="bandage" title={t('recovery.secTaping')} color="#FF9500">
         <View style={{flexDirection:'row',gap:10,marginBottom:10}}>
           <View style={{flex:1}}>
-            <Text style={[s.riceLabel,{color:'#FF9500'}]}>目的</Text>
+            <Text style={[s.riceLabel,{color:'#FF9500'}]}>{t('recovery.tapingPurpose')}</Text>
             <Text style={s.riceVal}>{result.taping.purpose}</Text>
           </View>
           <View style={{flex:1}}>
-            <Text style={[s.riceLabel,{color:'#FF9500'}]}>テープ種類</Text>
+            <Text style={[s.riceLabel,{color:'#FF9500'}]}>{t('recovery.tapingType')}</Text>
             <Text style={s.riceVal}>{result.taping.tape_type}</Text>
           </View>
         </View>
-        <Text style={[s.riceLabel,{color:'#6b7280',marginBottom:6}]}>貼り方（手順）</Text>
+        <Text style={[s.riceLabel,{color:'#6b7280',marginBottom:6}]}>{t('recovery.tapingHow')}</Text>
         <Text style={{color:'#374151',fontSize:13,lineHeight:22}}>{result.taping.method}</Text>
       </Sec>
 
-      <Sec icon="time" title="回復スケジュール" color="#34C759">
+      <Sec icon="time" title={t('recovery.secTimeline')} color="#34C759">
         {[result.recovery_timeline.phase1,result.recovery_timeline.phase2,result.recovery_timeline.phase3].map((ph,i)=>(
           <View key={i} style={s.tlRow}>
             <View style={[s.tlDot,{backgroundColor:i===0?'#E53935':i===1?'#FF9500':'#34C759'}]}/>
@@ -644,25 +652,25 @@ function ResultView({ result, onBack }: { result:RecoveryResult; onBack:()=>void
         ))}
       </Sec>
 
-      <Sec icon="fitness" title="リハビリエクササイズ" color="#A855F7">
+      <Sec icon="fitness" title={t('recovery.secExercises')} color="#A855F7">
         {result.exercises.map((e,i)=><Bullet key={i} text={e} color="#A855F7"/>)}
       </Sec>
 
-      <Sec icon="barbell" title="練習の修正方法" color="#FF9500">
+      <Sec icon="barbell" title={t('recovery.secTrainingMod')} color="#FF9500">
         <Text style={{color:'#374151',fontSize:13,lineHeight:20}}>{result.training_modification}</Text>
       </Sec>
 
-      <Sec icon="alert-circle" title="病院を受診すべき症状" color="#FF3B30">
+      <Sec icon="alert-circle" title={t('recovery.secSeeDoctor')} color="#FF3B30">
         {result.see_doctor_if.map((e,i)=><Bullet key={i} text={e} color="#FF3B30"/>)}
       </Sec>
 
-      <Sec icon="library" title="参考情報" color="#9ca3af">
+      <Sec icon="library" title={t('recovery.secReference')} color="#9ca3af">
         <Text style={{color:'#6b7280',fontSize:12,lineHeight:20,fontStyle:'italic'}}>{result.medical_basis}</Text>
       </Sec>
 
       <TouchableOpacity style={s.reBtn} onPress={onBack}>
         <Ionicons name="refresh-outline" size={14} color="#6b7280"/>
-        <Text style={s.reBtnTxt}>別の症状を入力する</Text>
+        <Text style={s.reBtnTxt}>{t('recovery.reBtn')}</Text>
       </TouchableOpacity>
     </>
   )
@@ -691,9 +699,10 @@ function Bullet({text,color}:{text:string;color:string}) {
 }
 
 function SevBadge({severity}:{severity:Severity}) {
+  const { t } = useTranslation()
   return (
     <View style={[s.sevBadge,{backgroundColor:SEVERITY_COLOR[severity]+'22'}]}>
-      <Text style={[s.sevTxt,{color:SEVERITY_COLOR[severity]}]}>{SEVERITY_LABEL[severity]}</Text>
+      <Text style={[s.sevTxt,{color:SEVERITY_COLOR[severity]}]}>{t(`recovery.severity.${severity}`)}</Text>
     </View>
   )
 }
