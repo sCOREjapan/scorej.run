@@ -1784,5 +1784,21 @@
       "emptyResult": "メニューを生成できませんでした。時間をおいてもう一度お試しください。"
     },
     "headerTitle": "練習メニュー"
+  },
+  "tabBar": {
+    "home": "ホーム",
+    "records": "記録",
+    "team": "チーム",
+    "settings": "設定",
+    "radialPractice": "練習記録",
+    "radialTimer": "タイム記録",
+    "radialSleep": "睡眠記録",
+    "radialRecovery": "リカバリー"
+  },
+  "updateModal": {
+    "title": "アップデートがあります！",
+    "body": "新機能・改善が追加されました。\n\nApp Storeで最新版に更新してください。",
+    "openStore": "App Storeを開く",
+    "later": "あとで"
   }
 }

@@ -1784,5 +1784,21 @@
       "emptyResult": "Could not generate a menu. Please try again in a moment."
     },
     "headerTitle": "Workout Menu"
+  },
+  "tabBar": {
+    "home": "Home",
+    "records": "Records",
+    "team": "Team",
+    "settings": "Settings",
+    "radialPractice": "Practice",
+    "radialTimer": "Time",
+    "radialSleep": "Sleep",
+    "radialRecovery": "Recovery"
+  },
+  "updateModal": {
+    "title": "Update available!",
+    "body": "New features and improvements have been added.\n\nPlease update to the latest version on the App Store.",
+    "openStore": "Open App Store",
+    "later": "Later"
   }
 }

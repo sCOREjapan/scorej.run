@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { Animated, TouchableOpacity, Platform, View, Text, StyleSheet, Pressable, useWindowDimensions, Modal, Linking } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { useTranslation } from 'react-i18next'
 import BannerAdView from '../../components/BannerAdView'
 import { usePurchase } from '../../context/PurchaseContext'
 import { Tabs, useRouter, usePathname } from 'expo-router'
@@ -47,17 +48,20 @@ function AnimatedTabButton({ children, onPress, accessibilityState, style }: any
 }
 
 // ── ラジアルFABアイテム定義（4種類のログ入力）──
-const RADIAL_ITEMS: { icon: IoniconsName; label: string; angle: number; route: string; action: string }[] = [
-  { icon: 'barbell-outline',  label: '練習記録', angle: -150, route: '/practice-input', action: 'practice' },
-  { icon: 'stopwatch-outline',label: 'タイム記録', angle: -110, route: '/timer',          action: 'timer'    },
-  { icon: 'moon-outline',     label: '睡眠記録', angle: -70,  route: '/(tabs)/sleep',    action: 'sleep'    },
-  { icon: 'medkit-outline',   label: 'リカバリー', angle: -30,  route: '/recovery',        action: 'recovery' },
+// label は i18n キー。モジュールスコープの定数配列なので、実際の文言解決は
+// レンダー内で t() を使って行う（ここで直接文字列を持つと言語切替に反応できない）
+const RADIAL_ITEMS: { icon: IoniconsName; labelKey: string; angle: number; route: string; action: string }[] = [
+  { icon: 'barbell-outline',  labelKey: 'tabBar.radialPractice', angle: -150, route: '/practice-input', action: 'practice' },
+  { icon: 'stopwatch-outline',labelKey: 'tabBar.radialTimer',    angle: -110, route: '/timer',          action: 'timer'    },
+  { icon: 'moon-outline',     labelKey: 'tabBar.radialSleep',    angle: -70,  route: '/(tabs)/sleep',    action: 'sleep'    },
+  { icon: 'medkit-outline',   labelKey: 'tabBar.radialRecovery', angle: -30,  route: '/recovery',        action: 'recovery' },
 ]
 
 const RADIUS = 110   // アイテム円の重なりを防ぐ十分な半径
 
 function RadialFAB({ bottomOffset }: { bottomOffset: number }) {
   const router = useRouter()
+  const { t } = useTranslation()
   const { width } = useWindowDimensions()
   const [open, setOpen] = useState(false)
   const anim   = useRef(new Animated.Value(0)).current
@@ -114,7 +118,7 @@ function RadialFAB({ bottomOffset }: { bottomOffset: number }) {
 
         return (
           <Animated.View
-            key={item.label}
+            key={item.labelKey}
             style={[
               fab.itemWrap,
               { left, bottom, width: ITEM_W, zIndex: 95 },
@@ -124,7 +128,7 @@ function RadialFAB({ bottomOffset }: { bottomOffset: number }) {
             <TouchableOpacity onPress={() => handleItem(item.action, item.route)} style={fab.item} activeOpacity={0.85}>
               <Ionicons name={item.icon} size={22} color={BRAND} />
             </TouchableOpacity>
-            <Text style={fab.itemLabel} numberOfLines={1}>{item.label}</Text>
+            <Text style={fab.itemLabel} numberOfLines={1}>{t(item.labelKey)}</Text>
           </Animated.View>
         )
       })}
@@ -146,22 +150,23 @@ function RadialFAB({ bottomOffset }: { bottomOffset: number }) {
 // ── W3スタイル カスタムタブバー ────────────────────────
 type TabItem = {
   route: string
-  label: string
+  labelKey: string
   icon: React.ComponentProps<typeof Ionicons>['name']
   iconFocused: React.ComponentProps<typeof Ionicons>['name']
   action?: 'home-scroll' | 'quick-log'
 }
 
 const TAB_ITEMS: TabItem[] = [
-  { route: '/(tabs)/',        label: 'ホーム', icon: 'home-outline',        iconFocused: 'home',        action: 'home-scroll' },
-  { route: '/(tabs)/records', label: '記録',   icon: 'stats-chart-outline', iconFocused: 'stats-chart' },
-  { route: '/(tabs)/team',    label: 'チーム', icon: 'people-outline',      iconFocused: 'people'      },
-  { route: '/(tabs)/mypage',  label: '設定',   icon: 'person-outline',      iconFocused: 'person'      },
+  { route: '/(tabs)/',        labelKey: 'tabBar.home',    icon: 'home-outline',        iconFocused: 'home',        action: 'home-scroll' },
+  { route: '/(tabs)/records', labelKey: 'tabBar.records', icon: 'stats-chart-outline', iconFocused: 'stats-chart' },
+  { route: '/(tabs)/team',    labelKey: 'tabBar.team',    icon: 'people-outline',      iconFocused: 'people'      },
+  { route: '/(tabs)/mypage',  labelKey: 'tabBar.settings',icon: 'person-outline',      iconFocused: 'person'      },
 ]
 
 function CustomTabBar({ bottomInset, ticketBalance }: { bottomInset: number; ticketBalance: number | null }) {
   const router   = useRouter()
   const pathname = usePathname()
+  const { t } = useTranslation()
 
   function isActive(route: string) {
     if (route === '/(tabs)/') return pathname === '/' || pathname === '/(tabs)' || pathname === '/(tabs)/'
@@ -183,7 +188,7 @@ function CustomTabBar({ bottomInset, ticketBalance }: { bottomInset: number; tic
         const active = tab.route ? isActive(tab.route) : false
         return (
           <TouchableOpacity
-            key={tab.label}
+            key={tab.labelKey}
             style={tb.item}
             activeOpacity={0.7}
             onPress={() => {
@@ -206,7 +211,7 @@ function CustomTabBar({ bottomInset, ticketBalance }: { bottomInset: number; tic
                 color={active ? '#fff' : '#9ca3af'}
               />
             </View>
-            <Text style={[tb.label, active && tb.labelActive]}>{tab.label}</Text>
+            <Text style={[tb.label, active && tb.labelActive]}>{t(tab.labelKey)}</Text>
           </TouchableOpacity>
         )
       })}
@@ -275,6 +280,7 @@ const BANNER_H = 72   // バナー広告の高さ見込み（適応バナー高�
 export default function TabLayout() {
   const insets   = useSafeAreaInsets()
   const pathname = usePathname()
+  const { t } = useTranslation()
   const { isNoad, isCoach } = usePurchase()
   const showBanner = !isNoad   // 広告なしプラン以上はバナー非表示
 
@@ -402,15 +408,13 @@ export default function TabLayout() {
         <View style={upd.overlay}>
           <View style={upd.card}>
             <Text style={upd.emoji}>🎉</Text>
-            <Text style={upd.title}>アップデートがあります！</Text>
-            <Text style={upd.body}>
-              新機能・改善が追加されました。{'\n'}App Storeで最新版に更新してください。
-            </Text>
+            <Text style={upd.title}>{t('updateModal.title')}</Text>
+            <Text style={upd.body}>{t('updateModal.body')}</Text>
             <TouchableOpacity style={upd.primaryBtn} onPress={openAppStore} activeOpacity={0.85}>
-              <Text style={upd.primaryTxt}>App Storeを開く</Text>
+              <Text style={upd.primaryTxt}>{t('updateModal.openStore')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={upd.laterBtn} onPress={dismissUpdate} activeOpacity={0.7}>
-              <Text style={upd.laterTxt}>あとで</Text>
+              <Text style={upd.laterTxt}>{t('updateModal.later')}</Text>
             </TouchableOpacity>
           </View>
         </View>
