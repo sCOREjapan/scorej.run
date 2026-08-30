@@ -3724,5 +3724,12 @@
   },
   "trainingChart": {
     "noData": "データがありません"
+  },
+  "conditionBadge": {
+    "exhausted": "疲労困憊",
+    "caution": "注意",
+    "normal": "普通",
+    "good": "良好",
+    "great": "最高"
   }
 }

@@ -3724,5 +3724,12 @@
   },
   "trainingChart": {
     "noData": "No data available"
+  },
+  "conditionBadge": {
+    "exhausted": "Exhausted",
+    "caution": "Caution",
+    "normal": "Normal",
+    "good": "Good",
+    "great": "Great"
   }
 }
