@@ -2510,5 +2510,22 @@
     "modalTitle": "Choose an event to save",
     "confirmTimeLabel": "Time to record (Lap 1)",
     "modalLabelEvent": "Event"
+  },
+  "ranking": {
+    "infoBanner": "Data comes from Supabase. Sign in to also register your own records",
+    "tabTrack": "Track",
+    "tabField": "Field",
+    "rankingTitle": "{{event}} Rankings",
+    "sampleBadge": "Sample",
+    "loadingText": "Loading rankings...",
+    "headerRank": "Rank",
+    "headerAthlete": "Athlete",
+    "headerResult": "Result",
+    "headerDate": "Date",
+    "me": "You",
+    "emptyText": "No records for this event yet",
+    "footerNote": "※ Only personal bests (PB) are shown. Names are anonymized to protect privacy.",
+    "anonSuffix": "Athlete {{initial}}",
+    "anonFallback": "Athlete"
   }
 }

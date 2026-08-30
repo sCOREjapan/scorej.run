@@ -17,6 +17,10 @@ import { Ionicons } from '@expo/vector-icons'
 import { BRAND, TEXT, SURFACE, SURFACE2, NEON } from '../lib/theme'
 import { supabase } from '../lib/supabase'
 import type { AthleticsEvent, RaceRecord } from '../types'
+import { useTranslation } from 'react-i18next'
+import { useLanguage } from '../context/LanguageContext'
+import { getEventLabel } from '../lib/eventLabels'
+import type { Language } from '../context/LanguageContext'
 
 // ─── 定数 ───────────────────────────────────────────────────────────────
 const RECORDS_KEY = 'trackmate_race_records'
@@ -46,53 +50,56 @@ interface RankingEntry {
   isMe: boolean
 }
 
-function anonymize(name: string): string {
-  if (!name || name.length === 0) return '選手'
-  const family = name.charAt(0)
-  return `${family}選手`
+function anonymize(name: string, lang: Language, t: (key: string, opts?: any) => string): string {
+  if (!name || name.length === 0) return t('ranking.anonFallback')
+  const initial = name.charAt(0)
+  return t('ranking.anonSuffix', { initial })
 }
 
 // モックランキングデータ（Supabase 未接続時）
-const MOCK_NAMES = [
+// 英語設定では日本語の名字がそのままAthlete表示に混ざると不自然なため、A〜Jのアルファベットを使う
+const MOCK_NAMES_JA = [
   '山田', '佐藤', '鈴木', '高橋', '田中',
   '渡辺', '伊藤', '中村', '小林', '加藤',
 ]
+const MOCK_NAMES_EN = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
 
-function generateMockRanking(event: AthleticsEvent): RankingEntry[] {
+function generateMockRanking(event: AthleticsEvent, lang: Language, t: (key: string, opts?: any) => string): RankingEntry[] {
+  const MOCK_NAMES = lang === 'en' ? MOCK_NAMES_EN : MOCK_NAMES_JA
   const isField = FIELD_EVENTS.includes(event)
 
   if (event === '100m') {
     const times = ['10.18', '10.23', '10.31', '10.35', '10.42', '10.48', '10.55', '10.61', '10.68', '10.75']
-    return times.map((t, i) => ({
+    return times.map((timeStr, i) => ({
       rank: i + 1,
       userId: `mock_${i}`,
-      displayName: anonymize(MOCK_NAMES[i] ?? '選手'),
-      result: t,
-      resultMs: Math.round(parseFloat(t) * 1000),
+      displayName: anonymize(MOCK_NAMES[i] ?? '', lang, t),
+      result: timeStr,
+      resultMs: Math.round(parseFloat(timeStr) * 1000),
       raceDate: '2025-06-15',
       isMe: i === 4, // 5位が自分
     }))
   }
   if (event === '200m') {
     const times = ['20.41', '20.58', '20.71', '20.84', '20.99', '21.12', '21.25', '21.38', '21.51', '21.65']
-    return times.map((t, i) => ({
+    return times.map((timeStr, i) => ({
       rank: i + 1,
       userId: `mock_${i}`,
-      displayName: anonymize(MOCK_NAMES[i] ?? '選手'),
-      result: t,
-      resultMs: Math.round(parseFloat(t) * 1000),
+      displayName: anonymize(MOCK_NAMES[i] ?? '', lang, t),
+      result: timeStr,
+      resultMs: Math.round(parseFloat(timeStr) * 1000),
       raceDate: '2025-06-15',
       isMe: i === 3,
     }))
   }
   if (event === '400m') {
     const times = ['46.52', '46.88', '47.12', '47.45', '47.78', '48.01', '48.34', '48.67', '49.01', '49.35']
-    return times.map((t, i) => ({
+    return times.map((timeStr, i) => ({
       rank: i + 1,
       userId: `mock_${i}`,
-      displayName: anonymize(MOCK_NAMES[i] ?? '選手'),
-      result: t,
-      resultMs: Math.round(parseFloat(t) * 1000),
+      displayName: anonymize(MOCK_NAMES[i] ?? '', lang, t),
+      result: timeStr,
+      resultMs: Math.round(parseFloat(timeStr) * 1000),
       raceDate: '2025-06-15',
       isMe: i === 2,
     }))
@@ -102,7 +109,7 @@ function generateMockRanking(event: AthleticsEvent): RankingEntry[] {
     return distances.map((d, i) => ({
       rank: i + 1,
       userId: `mock_${i}`,
-      displayName: anonymize(MOCK_NAMES[i] ?? '選手'),
+      displayName: anonymize(MOCK_NAMES[i] ?? '', lang, t),
       result: d,
       resultCm: parseInt(d.split('m')[0]) * 100 + parseInt(d.split('m')[1]),
       raceDate: '2025-06-15',
@@ -115,7 +122,7 @@ function generateMockRanking(event: AthleticsEvent): RankingEntry[] {
     return Array.from({ length: 10 }, (_, i) => ({
       rank: i + 1,
       userId: `mock_${i}`,
-      displayName: anonymize(MOCK_NAMES[i] ?? '選手'),
+      displayName: anonymize(MOCK_NAMES[i] ?? '', lang, t),
       result: `${18 - i}m${String(50 - i * 3).padStart(2, '0')}`,
       raceDate: '2025-06-15',
       isMe: false,
@@ -132,7 +139,7 @@ function generateMockRanking(event: AthleticsEvent): RankingEntry[] {
     return {
       rank: i + 1,
       userId: `mock_${i}`,
-      displayName: anonymize(MOCK_NAMES[i] ?? '選手'),
+      displayName: anonymize(MOCK_NAMES[i] ?? '', lang, t),
       result: `${min}:${sec}`,
       resultMs: ms,
       raceDate: '2025-06-15',
@@ -142,7 +149,7 @@ function generateMockRanking(event: AthleticsEvent): RankingEntry[] {
 }
 
 // ─── Supabase からのランキング取得 ────────────────────────────────────
-async function fetchRankingFromSupabase(event: AthleticsEvent): Promise<RankingEntry[] | null> {
+async function fetchRankingFromSupabase(event: AthleticsEvent, lang: Language, t: (key: string, opts?: any) => string): Promise<RankingEntry[] | null> {
   try {
     const isFieldEvent = FIELD_EVENTS.includes(event)
     const baseQuery = supabase
@@ -169,11 +176,11 @@ async function fetchRankingFromSupabase(event: AthleticsEvent): Promise<RankingE
       race_date: string
       profiles?: { name?: string } | null
     }>).map((row, i) => {
-      const rawName: string = (row.profiles as { name?: string } | null)?.name ?? '選手'
+      const rawName: string = (row.profiles as { name?: string } | null)?.name ?? ''
       return {
         rank: i + 1,
         userId: row.user_id,
-        displayName: anonymize(rawName),
+        displayName: anonymize(rawName, lang, t),
         result: row.result_display,
         resultMs: row.result_ms,
         resultCm: row.result_cm,
@@ -188,6 +195,7 @@ async function fetchRankingFromSupabase(event: AthleticsEvent): Promise<RankingE
 
 // ─── ランキング行 ─────────────────────────────────────────────────────
 const RankRow: React.FC<{ entry: RankingEntry }> = ({ entry }) => {
+  const { t } = useTranslation()
   const isTop3 = entry.rank <= 3
   const medalColors = ['#FFD700', '#C0C0C0', '#CD7F32']
   const rankColor = isTop3 ? medalColors[entry.rank - 1] : TEXT.hint
@@ -210,7 +218,7 @@ const RankRow: React.FC<{ entry: RankingEntry }> = ({ entry }) => {
         </Text>
         {entry.isMe && (
           <View style={styles.meBadge}>
-            <Text style={styles.meBadgeText}>自分</Text>
+            <Text style={styles.meBadgeText}>{t('ranking.me')}</Text>
           </View>
         )}
       </View>
@@ -233,6 +241,8 @@ const RankRow: React.FC<{ entry: RankingEntry }> = ({ entry }) => {
 // ─── メイン ─────────────────────────────────────────────────────────────
 export default function RankingScreen() {
   const router = useRouter()
+  const { t } = useTranslation()
+  const { language } = useLanguage()
 
   const [selectedEvent, setSelectedEvent] = useState<AthleticsEvent>('100m')
   const [rankings, setRankings] = useState<RankingEntry[]>([])
@@ -246,22 +256,22 @@ export default function RankingScreen() {
     else setLoading(true)
 
     try {
-      const supabaseData = await fetchRankingFromSupabase(event)
+      const supabaseData = await fetchRankingFromSupabase(event, language, t)
       if (supabaseData && supabaseData.length > 0) {
         setRankings(supabaseData)
         setUsedMock(false)
       } else {
-        setRankings(generateMockRanking(event))
+        setRankings(generateMockRanking(event, language, t))
         setUsedMock(true)
       }
     } catch {
-      setRankings(generateMockRanking(event))
+      setRankings(generateMockRanking(event, language, t))
       setUsedMock(true)
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [])
+  }, [language, t])
 
   useEffect(() => {
     loadRanking(selectedEvent)
@@ -281,7 +291,7 @@ export default function RankingScreen() {
       <View style={styles.infoBanner}>
         <Ionicons name="information-circle-outline" size={15} color={TEXT.secondary} />
         <Text style={styles.infoBannerText}>
-          データはSupabase経由で取得。ログインすると自分の記録も登録されます
+          {t('ranking.infoBanner')}
         </Text>
       </View>
 
@@ -295,7 +305,7 @@ export default function RankingScreen() {
           }}
         >
           <Text style={[styles.tabText, activeTab === 'track' && styles.tabTextActive]}>
-            トラック
+            {t('ranking.tabTrack')}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -306,7 +316,7 @@ export default function RankingScreen() {
           }}
         >
           <Text style={[styles.tabText, activeTab === 'field' && styles.tabTextActive]}>
-            フィールド
+            {t('ranking.tabField')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -326,7 +336,7 @@ export default function RankingScreen() {
             activeOpacity={0.8}
           >
             <Text style={[styles.eventChipText, selectedEvent === event && styles.eventChipTextActive]}>
-              {event}
+              {getEventLabel(event, language)}
             </Text>
           </TouchableOpacity>
         ))}
@@ -334,10 +344,10 @@ export default function RankingScreen() {
 
       {/* ランキングタイトル */}
       <View style={styles.rankTitle}>
-        <Text style={styles.rankTitleText}>{selectedEvent} ランキング</Text>
+        <Text style={styles.rankTitleText}>{t('ranking.rankingTitle', { event: getEventLabel(selectedEvent, language) })}</Text>
         {usedMock && (
           <View style={styles.mockBadge}>
-            <Text style={styles.mockBadgeText}>サンプル</Text>
+            <Text style={styles.mockBadgeText}>{t('ranking.sampleBadge')}</Text>
           </View>
         )}
       </View>
@@ -346,7 +356,7 @@ export default function RankingScreen() {
       {loading ? (
         <View style={styles.centered}>
           <ActivityIndicator color={NEON.green} size="large" />
-          <Text style={styles.loadingText}>ランキングを取得中...</Text>
+          <Text style={styles.loadingText}>{t('ranking.loadingText')}</Text>
         </View>
       ) : (
         <ScrollView
@@ -363,10 +373,10 @@ export default function RankingScreen() {
         >
           {/* ヘッダー行 */}
           <View style={styles.listHeader}>
-            <Text style={[styles.listHeaderText, { width: 36 }]}>順位</Text>
-            <Text style={[styles.listHeaderText, { flex: 1 }]}>選手</Text>
-            <Text style={[styles.listHeaderText, { width: 80, textAlign: 'right' }]}>記録</Text>
-            <Text style={[styles.listHeaderText, { width: 56, textAlign: 'right' }]}>日付</Text>
+            <Text style={[styles.listHeaderText, { width: 36 }]}>{t('ranking.headerRank')}</Text>
+            <Text style={[styles.listHeaderText, { flex: 1 }]}>{t('ranking.headerAthlete')}</Text>
+            <Text style={[styles.listHeaderText, { width: 80, textAlign: 'right' }]}>{t('ranking.headerResult')}</Text>
+            <Text style={[styles.listHeaderText, { width: 56, textAlign: 'right' }]}>{t('ranking.headerDate')}</Text>
           </View>
 
           {rankings.map(entry => (
@@ -376,12 +386,12 @@ export default function RankingScreen() {
           {rankings.length === 0 && (
             <View style={styles.centered}>
               <Ionicons name="podium-outline" size={48} color={TEXT.hint} />
-              <Text style={styles.emptyText}>この種目の記録がありません</Text>
+              <Text style={styles.emptyText}>{t('ranking.emptyText')}</Text>
             </View>
           )}
 
           <Text style={styles.footerNote}>
-            ※ 記録は自己ベスト（PB）のみ表示。個人情報保護のため匿名表示しています。
+            {t('ranking.footerNote')}
           </Text>
         </ScrollView>
       )}

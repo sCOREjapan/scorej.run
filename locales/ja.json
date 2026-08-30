@@ -2510,5 +2510,22 @@
     "modalTitle": "種目を選択して保存",
     "confirmTimeLabel": "記録するタイム（Lap 1）",
     "modalLabelEvent": "種目"
+  },
+  "ranking": {
+    "infoBanner": "データはSupabase経由で取得。ログインすると自分の記録も登録されます",
+    "tabTrack": "トラック",
+    "tabField": "フィールド",
+    "rankingTitle": "{{event}} ランキング",
+    "sampleBadge": "サンプル",
+    "loadingText": "ランキングを取得中...",
+    "headerRank": "順位",
+    "headerAthlete": "選手",
+    "headerResult": "記録",
+    "headerDate": "日付",
+    "me": "自分",
+    "emptyText": "この種目の記録がありません",
+    "footerNote": "※ 記録は自己ベスト（PB）のみ表示。個人情報保護のため匿名表示しています。",
+    "anonSuffix": "{{initial}}選手",
+    "anonFallback": "選手"
   }
 }
