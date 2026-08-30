@@ -3721,5 +3721,8 @@
     "saveErrorBody": "保存に失敗しました",
     "shareErrorBody": "共有に失敗しました",
     "shareMessage": "{{date}}の食事記録 #sCORE #陸上"
+  },
+  "trainingChart": {
+    "noData": "データがありません"
   }
 }

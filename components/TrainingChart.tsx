@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react'
 import { Animated, Dimensions, StyleSheet, Text, View } from 'react-native'
 import { G, Line, Path, Svg, Text as SvgText } from 'react-native-svg'
 import type { ChartDataPoint } from '../types'
+import { useTranslation } from 'react-i18next'
 
 interface Props {
   data: ChartDataPoint[]
@@ -103,6 +104,7 @@ const TrainingChart: React.FC<Props> = ({
   showYear = false,
   invertY = false,
 }) => {
+  const { t } = useTranslation()
   const chartData = data.slice(-maxPoints)
 
   const values = chartData.map(p => p.value)
@@ -137,7 +139,7 @@ const TrainingChart: React.FC<Props> = ({
         <SkeletonRect />
       ) : chartData.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={styles.emptyText}>データがありません</Text>
+          <Text style={styles.emptyText}>{t('trainingChart.noData')}</Text>
         </View>
       ) : (
         <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>

@@ -3721,5 +3721,8 @@
     "saveErrorBody": "Failed to save",
     "shareErrorBody": "Failed to share",
     "shareMessage": "{{date}}'s meal log #sCORE #trackandfield"
+  },
+  "trainingChart": {
+    "noData": "No data available"
   }
 }
