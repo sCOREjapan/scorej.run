@@ -7,6 +7,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 
 const { width: W } = Dimensions.get('window')
 const isWeb = Platform.OS === 'web'
@@ -48,35 +49,39 @@ function FadeCard({ delay, children, style }: { delay: number; children: React.R
 }
 
 // ── コーチの悩み ─────────────────────────────────────────────────────
+// title/bodyは言語依存のためlocales側('coachLanding.painPoints')に移し、ここでは
+// emoji/colorのみ保持(インデックスで対応させる)
 const PAIN_POINTS = [
-  { emoji: '😰', color: RED_L,  title: '全員の体調を把握できない',  body: '20人以上の選手の状態を口頭と紙で管理。誰が疲弊しているか気づかないまま練習させている。' },
-  { emoji: '🤕', color: YEL_L,  title: '怪我が起きてから気づく',   body: '「あの日は無理させすぎた」と後悔しても遅い。怪我の早期発見の仕組みがなかった。' },
-  { emoji: '😓', color: OFF2,   title: '専門知識がなくて不安',     body: '陸上未経験で顧問になってしまった。適切な指導ができているか、毎日不安な状態が続く。' },
-  { emoji: '📋', color: OFF2,   title: '管理業務に時間を取られる', body: '体調チェック・記録集計・保護者報告…本来の「選手と向き合う時間」が削られていく。' },
+  { emoji: '😰', color: RED_L },
+  { emoji: '🤕', color: YEL_L },
+  { emoji: '😓', color: OFF2  },
+  { emoji: '📋', color: OFF2  },
 ]
 
 // ── 機能 ─────────────────────────────────────────────────────────────
 const FEATURES = [
-  { icon: 'pulse-outline' as const,         color: '#ef4444', bg: '#fef2f2', title: '全選手の体調を1分で確認',    body: 'ダッシュボードで部員全員の疲労・リスクをひと目で把握。毎朝1分チェックするだけ。' },
-  { icon: 'warning-outline' as const,       color: '#f59e0b', bg: '#fffbeb', title: '怪我リスクをAIが自動算出',   body: '睡眠・疲労・天気を複合分析。「今日無理させてはいけない選手」が色で一目瞭然。' },
-  { icon: 'bar-chart-outline' as const,     color: GREEN,     bg: GREEN_L,   title: '練習記録が自動集計される',  body: '選手がアプリに入力するだけで、コーチ側のダッシュボードにリアルタイムで反映。' },
-  { icon: 'notifications-outline' as const, color: '#3b82f6', bg: '#eff6ff', title: '欠席・報告がアプリ完結',    body: '選手が体調不良や欠席を即報告。LINE/メール不要でコーチに自動通知が届く。' },
-  { icon: 'trophy-outline' as const,        color: '#a855f7', bg: '#faf5ff', title: '選手が自発的に記録する',     body: 'PBカードのSNSシェアで承認欲求を満たす設計。コーチが強制しなくても続けてくれる。' },
-  { icon: 'calendar-outline' as const,      color: '#06b6d4', bg: '#ecfeff', title: 'チーム予定を一元管理',       body: '練習・試合・休養日をアプリで共有。変更があればすぐ全員に通知が届く。' },
-]
-
-// ── 選手のメリット ────────────────────────────────────────────────────
-const PLAYER_BENEFITS = [
-  '📈 自己ベストの更新をリアルタイム管理',
-  '💪 疲労と回復のサイクルが可視化',
-  '🌙 睡眠・栄養管理でコンディション最適化',
-  '🏆 PBカードをSNSシェアしてモチベUP',
-  '🤖 AIが今日の練習強度を自動アドバイス',
-  '👥 チームメイトの記録でお互い刺激し合える',
+  { icon: 'pulse-outline' as const,         color: '#ef4444', bg: '#fef2f2' },
+  { icon: 'warning-outline' as const,       color: '#f59e0b', bg: '#fffbeb' },
+  { icon: 'bar-chart-outline' as const,     color: GREEN,     bg: GREEN_L   },
+  { icon: 'notifications-outline' as const, color: '#3b82f6', bg: '#eff6ff' },
+  { icon: 'trophy-outline' as const,        color: '#a855f7', bg: '#faf5ff' },
+  { icon: 'calendar-outline' as const,      color: '#06b6d4', bg: '#ecfeff' },
 ]
 
 export default function CoachLandingPage() {
   const router = useRouter()
+  const { t } = useTranslation()
+  const painContent   = t('coachLanding.painPoints', { returnObjects: true }) as { title: string; body: string }[]
+  const featureContent = t('coachLanding.features', { returnObjects: true }) as { title: string; body: string }[]
+  const benefits       = t('coachLanding.benefits', { returnObjects: true }) as string[]
+  const stats           = t('coachLanding.stats', { returnObjects: true }) as { n: string; l: string }[]
+  const steps           = t('coachLanding.steps', { returnObjects: true }) as { t: string; b: string }[]
+  const plan1Features   = t('coachLanding.plan1Features', { returnObjects: true }) as string[]
+  const plan2Features   = t('coachLanding.plan2Features', { returnObjects: true }) as string[]
+  const dashRows        = t('coachLanding.dashRows', { returnObjects: true }) as { name: string; pos: string; status: string }[]
+  const DASH_COL: string[] = [GREEN, '#ef4444', '#f59e0b', GREEN]
+  const DASH_RISK  = [12, 74, 41, 8]
+  const DASH_FAT   = [3, 8, 5, 2]
 
   const handleTrial = () => {
     if (isWeb) Linking.openURL('https://scorej-run.vercel.app/auth')
@@ -92,17 +97,17 @@ export default function CoachLandingPage() {
           <Text style={s.navLogo}>sCORE</Text>
           <View style={s.navLinks}>
             <TouchableOpacity onPress={() => {}} activeOpacity={0.7}>
-              <Text style={s.navLink}>機能</Text>
+              <Text style={s.navLink}>{t('coachLanding.navFeatures')}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => isWeb ? Linking.openURL('https://scorej-run.vercel.app/guide') : router.push('/guide')} activeOpacity={0.7}>
-              <Text style={s.navLink}>使い方</Text>
+              <Text style={s.navLink}>{t('coachLanding.navGuide')}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => {}} activeOpacity={0.7}>
-              <Text style={s.navLink}>料金</Text>
+              <Text style={s.navLink}>{t('coachLanding.navPricing')}</Text>
             </TouchableOpacity>
           </View>
           <TouchableOpacity style={s.navBtn} onPress={handleTrial} activeOpacity={0.85}>
-            <Text style={s.navBtnTxt}>無料で試す</Text>
+            <Text style={s.navBtnTxt}>{t('coachLanding.navTrial')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -111,60 +116,53 @@ export default function CoachLandingPage() {
           <FadeCard delay={100}>
             <View style={s.heroBadge}>
               <View style={s.heroBadgeDot} />
-              <Text style={s.heroBadgeTxt}>陸上部顧問・コーチ向け</Text>
+              <Text style={s.heroBadgeTxt}>{t('coachLanding.heroBadge')}</Text>
             </View>
           </FadeCard>
 
           <FadeCard delay={200}>
             <Text style={s.heroTitle}>
-              選手の怪我を防ぐ。{'\n'}
-              チームを、強くする。
+              {t('coachLanding.heroTitle')}
             </Text>
           </FadeCard>
 
           <FadeCard delay={320}>
             <Text style={s.heroSub}>
-              体調管理・怪我リスク・練習記録をすべて自動化。{'\n'}
-              コーチの負担を減らしながら、選手の成長を最大化するアプリ。
+              {t('coachLanding.heroSub')}
             </Text>
           </FadeCard>
 
           <FadeCard delay={440}>
             <TouchableOpacity style={s.heroBtn} onPress={handleTrial} activeOpacity={0.85}>
-              <Text style={s.heroBtnTxt}>まず無料で試してみる</Text>
+              <Text style={s.heroBtnTxt}>{t('coachLanding.heroBtn')}</Text>
               <Ionicons name="arrow-forward" size={18} color={WHITE} />
             </TouchableOpacity>
-            <Text style={s.heroNote}>クレジットカード不要・いつでもキャンセル可</Text>
+            <Text style={s.heroNote}>{t('coachLanding.heroNote')}</Text>
           </FadeCard>
 
           {/* ── ダッシュボードプレビュー ── */}
           <FadeCard delay={560} style={s.dashWrap}>
             <View style={s.dash}>
               <View style={s.dashTitleRow}>
-                <Text style={s.dashTitle}>コーチダッシュボード</Text>
+                <Text style={s.dashTitle}>{t('coachLanding.dashTitle')}</Text>
                 <View style={s.allOkBadge}>
-                  <Text style={s.allOkTxt}>● 本日の確認完了</Text>
+                  <Text style={s.allOkTxt}>{t('coachLanding.dashAllOk')}</Text>
                 </View>
               </View>
-              {[
-                { name: '田中 翔',  pos: '100m',  risk: 12, fat: 3,  status: '良好',  col: GREEN },
-                { name: '鈴木 陽菜', pos: '200m', risk: 74, fat: 8,  status: '要注意', col: '#ef4444' },
-                { name: '山田 蒼',  pos: '走高跳', risk: 41, fat: 5, status: '注意',  col: '#f59e0b' },
-                { name: '佐藤 凛',  pos: '800m',  risk: 8,  fat: 2,  status: '良好',  col: GREEN },
-              ].map((p, i) => (
+              {dashRows.map((p, i) => (
                 <View key={i} style={s.dashRow}>
-                  <View style={[s.dashAvatar, { backgroundColor: p.col + '22' }]}>
-                    <Text style={[s.dashInitial, { color: p.col }]}>{p.name[0]}</Text>
+                  <View style={[s.dashAvatar, { backgroundColor: DASH_COL[i] + '22' }]}>
+                    <Text style={[s.dashInitial, { color: DASH_COL[i] }]}>{p.name[0]}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={s.dashName}>{p.name}</Text>
                     <Text style={s.dashPos}>{p.pos}</Text>
                   </View>
                   <View>
-                    <View style={[s.dashBadge, { backgroundColor: p.col + '18' }]}>
-                      <Text style={[s.dashBadgeTxt, { color: p.col }]}>{p.status}</Text>
+                    <View style={[s.dashBadge, { backgroundColor: DASH_COL[i] + '18' }]}>
+                      <Text style={[s.dashBadgeTxt, { color: DASH_COL[i] }]}>{p.status}</Text>
                     </View>
-                    <Text style={s.dashRisk}>リスク {p.risk}%</Text>
+                    <Text style={s.dashRisk}>{t('coachLanding.dashRiskLabel', { n: DASH_RISK[i] })}</Text>
                   </View>
                 </View>
               ))}
@@ -175,15 +173,15 @@ export default function CoachLandingPage() {
         {/* ── コーチの悩み ────────────────────────────────────── */}
         <View style={[s.section, { backgroundColor: OFF }]}>
           <FadeCard delay={100}>
-            <Text style={s.tag}>コーチの現実</Text>
-            <Text style={s.sectionTitle}>こんな悩み、抱えていませんか？</Text>
+            <Text style={s.tag}>{t('coachLanding.painTag')}</Text>
+            <Text style={s.sectionTitle}>{t('coachLanding.painSectionTitle')}</Text>
           </FadeCard>
           <View style={s.painGrid}>
             {PAIN_POINTS.map((p, i) => (
               <FadeCard key={i} delay={150 + i * 80} style={[s.painCard, { backgroundColor: p.color }]}>
                 <Text style={s.painEmoji}>{p.emoji}</Text>
-                <Text style={s.painTitle}>{p.title}</Text>
-                <Text style={s.painBody}>{p.body}</Text>
+                <Text style={s.painTitle}>{painContent[i].title}</Text>
+                <Text style={s.painBody}>{painContent[i].body}</Text>
               </FadeCard>
             ))}
           </View>
@@ -192,15 +190,15 @@ export default function CoachLandingPage() {
             <View style={s.arrowCircle}>
               <Ionicons name="arrow-down" size={20} color={GREEN} />
             </View>
-            <Text style={s.arrowTxt}>sCORE が全部解決します</Text>
+            <Text style={s.arrowTxt}>{t('coachLanding.solvedArrow')}</Text>
           </FadeCard>
         </View>
 
         {/* ── 機能 ─────────────────────────────────────────────── */}
         <View style={s.section}>
           <FadeCard delay={100}>
-            <Text style={s.tag}>主な機能</Text>
-            <Text style={s.sectionTitle}>コーチの仕事を、{'\n'}アプリが自動でやる。</Text>
+            <Text style={s.tag}>{t('coachLanding.featuresTag')}</Text>
+            <Text style={s.sectionTitle}>{t('coachLanding.featuresSectionTitle')}</Text>
           </FadeCard>
           <View style={s.featureGrid}>
             {FEATURES.map((f, i) => (
@@ -208,8 +206,8 @@ export default function CoachLandingPage() {
                 <View style={[s.featureIconWrap, { backgroundColor: f.bg }]}>
                   <Ionicons name={f.icon} size={22} color={f.color} />
                 </View>
-                <Text style={s.featureTitle}>{f.title}</Text>
-                <Text style={s.featureBody}>{f.body}</Text>
+                <Text style={s.featureTitle}>{featureContent[i].title}</Text>
+                <Text style={s.featureBody}>{featureContent[i].body}</Text>
               </FadeCard>
             ))}
           </View>
@@ -217,12 +215,7 @@ export default function CoachLandingPage() {
 
         {/* ── 数字 ─────────────────────────────────────────────── */}
         <View style={s.statsRow}>
-          {[
-            { n: '1分',   l: '毎日の管理時間' },
-            { n: '20名+', l: '管理できる選手数' },
-            { n: '7日',   l: '無料トライアル' },
-            { n: '¥0〜',  l: '始められる金額' },
-          ].map((st, i) => (
+          {stats.map((st, i) => (
             <FadeCard key={i} delay={100 + i * 80} style={s.statCard}>
               <Text style={s.statNum}>{st.n}</Text>
               <Text style={s.statLabel}>{st.l}</Text>
@@ -233,14 +226,14 @@ export default function CoachLandingPage() {
         {/* ── 選手のメリット ───────────────────────────────────── */}
         <View style={[s.section, { backgroundColor: OFF }]}>
           <FadeCard delay={100}>
-            <Text style={s.tag}>選手側のメリット</Text>
-            <Text style={s.sectionTitle}>選手が自分から{'\n'}使いたくなるアプリ。</Text>
+            <Text style={s.tag}>{t('coachLanding.benefitsTag')}</Text>
+            <Text style={s.sectionTitle}>{t('coachLanding.benefitsSectionTitle')}</Text>
             <Text style={s.sectionBody}>
-              sCORE は選手にとっても魅力的。自己ベスト管理やSNSシェアで「続けたくなる」設計。コーチが強制しなくても選手が自発的に記録します。
+              {t('coachLanding.benefitsSectionBody')}
             </Text>
           </FadeCard>
           <View style={s.benefitGrid}>
-            {PLAYER_BENEFITS.map((b, i) => (
+            {benefits.map((b, i) => (
               <FadeCard key={i} delay={150 + i * 60} style={s.benefitCard}>
                 <Text style={s.benefitTxt}>{b}</Text>
               </FadeCard>
@@ -251,17 +244,13 @@ export default function CoachLandingPage() {
         {/* ── 3ステップ ────────────────────────────────────────── */}
         <View style={s.section}>
           <FadeCard delay={100}>
-            <Text style={s.tag}>導入の流れ</Text>
-            <Text style={s.sectionTitle}>今日から使える。{'\n'}3ステップで完了。</Text>
+            <Text style={s.tag}>{t('coachLanding.stepsTag')}</Text>
+            <Text style={s.sectionTitle}>{t('coachLanding.stepsSectionTitle')}</Text>
           </FadeCard>
-          {[
-            { n: '01', t: 'コーチがアカウント作成',    b: 'メールアドレスだけ。5分以内に完了します。' },
-            { n: '02', t: 'チームコードを選手に共有',  b: '4桁のコードを伝えるだけ。QRコードでも共有できます。' },
-            { n: '03', t: 'あとはアプリが自動管理',    b: '選手が記録するたびにダッシュボードに自動反映されます。' },
-          ].map((st, i) => (
+          {steps.map((st, i) => (
             <FadeCard key={i} delay={150 + i * 100} style={s.stepRow}>
               <View style={s.stepCircle}>
-                <Text style={s.stepN}>{st.n}</Text>
+                <Text style={s.stepN}>{String(i + 1).padStart(2, '0')}</Text>
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.stepTitle}>{st.t}</Text>
@@ -274,16 +263,16 @@ export default function CoachLandingPage() {
         {/* ── 料金 ─────────────────────────────────────────────── */}
         <View style={[s.section, { backgroundColor: OFF }]}>
           <FadeCard delay={100}>
-            <Text style={s.tag}>料金プラン</Text>
-            <Text style={s.sectionTitle}>まずは無料で始める。</Text>
+            <Text style={s.tag}>{t('coachLanding.pricingTag')}</Text>
+            <Text style={s.sectionTitle}>{t('coachLanding.pricingSectionTitle')}</Text>
           </FadeCard>
           <View style={s.planRow}>
             {/* フリー */}
             <FadeCard delay={200} style={s.planCard}>
-              <Text style={s.planName}>個人プラン</Text>
-              <Text style={s.planPrice}>¥0</Text>
-              <Text style={s.planPer}>ずっと無料</Text>
-              {['練習記録・コンディション管理', '自己ベスト管理', 'シェアカード生成', 'AIコーチアドバイス'].map((f, i) => (
+              <Text style={s.planName}>{t('coachLanding.plan1Name')}</Text>
+              <Text style={s.planPrice}>{t('coachLanding.plan1Price')}</Text>
+              <Text style={s.planPer}>{t('coachLanding.plan1Per')}</Text>
+              {plan1Features.map((f, i) => (
                 <View key={i} style={s.planFeat}>
                   <Ionicons name="checkmark-circle" size={15} color={GREEN} />
                   <Text style={s.planFeatTxt}>{f}</Text>
@@ -292,18 +281,18 @@ export default function CoachLandingPage() {
             </FadeCard>
             {/* チーム */}
             <FadeCard delay={300} style={[s.planCard, s.planFeatured]}>
-              <View style={s.planBadge}><Text style={s.planBadgeTxt}>チームにおすすめ</Text></View>
-              <Text style={[s.planName, { color: WHITE }]}>チームプラン</Text>
-              <Text style={[s.planPrice, { color: WHITE }]}>¥1,980</Text>
-              <Text style={[s.planPer, { color: 'rgba(255,255,255,0.6)' }]}>/ 月（20名まで）</Text>
-              {['コーチダッシュボード', '全選手コンディション一覧', '怪我リスクスコア自動算出', 'チーム予定管理', '練習記録の自動集計', 'リアルタイム通知'].map((f, i) => (
+              <View style={s.planBadge}><Text style={s.planBadgeTxt}>{t('coachLanding.plan2Badge')}</Text></View>
+              <Text style={[s.planName, { color: WHITE }]}>{t('coachLanding.plan2Name')}</Text>
+              <Text style={[s.planPrice, { color: WHITE }]}>{t('coachLanding.plan2Price')}</Text>
+              <Text style={[s.planPer, { color: 'rgba(255,255,255,0.6)' }]}>{t('coachLanding.plan2Per')}</Text>
+              {plan2Features.map((f, i) => (
                 <View key={i} style={s.planFeat}>
                   <Ionicons name="checkmark-circle" size={15} color={GREEN_M} />
                   <Text style={[s.planFeatTxt, { color: 'rgba(255,255,255,0.85)' }]}>{f}</Text>
                 </View>
               ))}
               <TouchableOpacity style={s.planBtn} onPress={handleTrial} activeOpacity={0.85}>
-                <Text style={s.planBtnTxt}>無料で試す</Text>
+                <Text style={s.planBtnTxt}>{t('coachLanding.plan2Btn')}</Text>
               </TouchableOpacity>
             </FadeCard>
           </View>
@@ -313,16 +302,16 @@ export default function CoachLandingPage() {
         <View style={s.cta}>
           <FadeCard delay={100}>
             <Text style={s.ctaTitle}>
-              選手の怪我は、{'\n'}防げる時代になった。
+              {t('coachLanding.ctaTitle')}
             </Text>
             <Text style={s.ctaBody}>
-              sCORE は日本の陸上競技者のために作られた本気のアプリです。{'\n'}まず無料で試してください。いつでも解約できます。
+              {t('coachLanding.ctaBody')}
             </Text>
             <TouchableOpacity style={s.ctaBtn} onPress={handleTrial} activeOpacity={0.85}>
-              <Text style={s.ctaBtnTxt}>無料でチームを作成する</Text>
+              <Text style={s.ctaBtnTxt}>{t('coachLanding.ctaBtn')}</Text>
               <Ionicons name="arrow-forward" size={18} color={WHITE} />
             </TouchableOpacity>
-            <Text style={s.ctaNote}>無料プランあり・クレジットカード不要・いつでもキャンセル</Text>
+            <Text style={s.ctaNote}>{t('coachLanding.ctaNote')}</Text>
           </FadeCard>
         </View>
 
@@ -332,21 +321,21 @@ export default function CoachLandingPage() {
           <Text style={s.footerCopy}>© 2026 sCORE Japan. All rights reserved.</Text>
           {/* サポート・お問い合わせ */}
           <View style={{ marginVertical: 8, alignItems: 'center', gap: 4 }}>
-            <Text style={[s.footerCopy, { fontWeight: '600' }]}>サポート・お問い合わせ</Text>
+            <Text style={[s.footerCopy, { fontWeight: '600' }]}>{t('coachLanding.footerSupportTitle')}</Text>
             <TouchableOpacity onPress={() => Linking.openURL('mailto:team.deepwork2026@gmail.com')}>
               <Text style={[s.footerLink, { color: GREEN, textDecorationLine: 'underline' }]}>
                 team.deepwork2026@gmail.com
               </Text>
             </TouchableOpacity>
-            <Text style={s.footerCopy}>お問い合わせはメールにてご連絡ください。</Text>
-            <Text style={s.footerCopy}>通常1〜3営業日以内にご返信いたします。</Text>
+            <Text style={s.footerCopy}>{t('coachLanding.footerSupportBody1')}</Text>
+            <Text style={s.footerCopy}>{t('coachLanding.footerSupportBody2')}</Text>
           </View>
           <View style={{ flexDirection: 'row', gap: 16 }}>
             <TouchableOpacity onPress={() => router.push('/privacy' as any)}>
-              <Text style={s.footerLink}>プライバシーポリシー</Text>
+              <Text style={s.footerLink}>{t('coachLanding.footerPrivacy')}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => router.push('/terms' as any)}>
-              <Text style={s.footerLink}>利用規約</Text>
+              <Text style={s.footerLink}>{t('coachLanding.footerTerms')}</Text>
             </TouchableOpacity>
           </View>
         </View>

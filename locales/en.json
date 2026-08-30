@@ -2260,5 +2260,168 @@
     "dateYesterday": "Yesterday {{mmdd}}",
     "dateDaysAfter": "In {{n}}d {{mmdd}}",
     "dateDaysAgo": "{{n}}d ago {{mmdd}}"
+  },
+  "coachLanding": {
+    "navFeatures": "Features",
+    "navGuide": "How it works",
+    "navPricing": "Pricing",
+    "navTrial": "Try free",
+    "heroBadge": "For track & field coaches and advisors",
+    "heroTitle": "Prevent athlete injuries.\nBuild a stronger team.",
+    "heroSub": "Automate condition tracking, injury risk, and training logs.\nAn app that maximizes athlete growth while reducing the coach's workload.",
+    "heroBtn": "Try it free first",
+    "heroNote": "No credit card required · Cancel anytime",
+    "dashTitle": "Coach Dashboard",
+    "dashAllOk": "● Checked today",
+    "dashRiskLabel": "Risk {{n}}%",
+    "dashRows": [
+      {
+        "name": "田中 翔",
+        "pos": "100m",
+        "status": "Good"
+      },
+      {
+        "name": "鈴木 陽菜",
+        "pos": "200m",
+        "status": "Attention"
+      },
+      {
+        "name": "山田 蒼",
+        "pos": "High Jump",
+        "status": "Caution"
+      },
+      {
+        "name": "佐藤 凛",
+        "pos": "800m",
+        "status": "Good"
+      }
+    ],
+    "painTag": "A Coach's Reality",
+    "painSectionTitle": "Does this sound familiar?",
+    "painPoints": [
+      {
+        "title": "Can't track everyone's condition",
+        "body": "Managing 20+ athletes by word of mouth and paper. Training continues without noticing who is worn out."
+      },
+      {
+        "title": "Only noticing injuries after they happen",
+        "body": "\"I pushed them too hard that day\" — regret comes too late. There was no system for catching injuries early."
+      },
+      {
+        "title": "No expertise, constant worry",
+        "body": "Became an advisor with no track background. Every day brings uncertainty about whether the coaching is right."
+      },
+      {
+        "title": "Admin work eats up your time",
+        "body": "Condition checks, tallying records, reporting to parents... the time meant for actually being with athletes keeps shrinking."
+      }
+    ],
+    "solvedArrow": "sCORE solves all of it",
+    "featuresTag": "Key Features",
+    "featuresSectionTitle": "Let the app automate\na coach's work.",
+    "features": [
+      {
+        "title": "Check every athlete's condition in 1 minute",
+        "body": "See every athlete's fatigue and risk at a glance on the dashboard. Just a 1-minute check each morning."
+      },
+      {
+        "title": "AI calculates injury risk automatically",
+        "body": "Combines sleep, fatigue, and weather data. \"Who shouldn't push hard today\" is instantly clear by color."
+      },
+      {
+        "title": "Training logs tally themselves",
+        "body": "Athletes just log in the app — it reflects on your dashboard in real time."
+      },
+      {
+        "title": "Absences and reports handled in-app",
+        "body": "Athletes report feeling unwell or absences instantly. Coaches get automatic notifications, no LINE/email needed."
+      },
+      {
+        "title": "Athletes log on their own",
+        "body": "PB cards designed to be shared on social media satisfy the urge for recognition — athletes keep logging without being told to."
+      },
+      {
+        "title": "Manage the team's schedule in one place",
+        "body": "Share practices, competitions, and rest days in the app. Everyone is notified instantly of any change."
+      }
+    ],
+    "stats": [
+      {
+        "n": "1 min",
+        "l": "Daily management time"
+      },
+      {
+        "n": "20+",
+        "l": "Athletes you can manage"
+      },
+      {
+        "n": "7 days",
+        "l": "Free trial"
+      },
+      {
+        "n": "¥0",
+        "l": "To get started"
+      }
+    ],
+    "benefitsTag": "Benefits for Athletes",
+    "benefitsSectionTitle": "An app athletes\nwant to use themselves.",
+    "benefitsSectionBody": "sCORE is compelling for athletes too. Personal best tracking and social sharing are built to keep them coming back — they log on their own, no need for the coach to push.",
+    "benefits": [
+      "📈 Track personal bests in real time",
+      "💪 Visualize the fatigue and recovery cycle",
+      "🌙 Optimize condition with sleep and nutrition tracking",
+      "🏆 Share PB cards on social media for a motivation boost",
+      "🤖 AI automatically suggests today's training intensity",
+      "👥 Teammates logging together keeps everyone motivated"
+    ],
+    "stepsTag": "Getting Started",
+    "stepsSectionTitle": "Start today.\nDone in 3 steps.",
+    "steps": [
+      {
+        "t": "Coach creates an account",
+        "b": "Just an email address. Done in under 5 minutes."
+      },
+      {
+        "t": "Share the team code with athletes",
+        "b": "Just tell them a 4-digit code — or share it as a QR code."
+      },
+      {
+        "t": "The app takes it from there",
+        "b": "Every time an athlete logs, it's reflected on your dashboard automatically."
+      }
+    ],
+    "pricingTag": "Pricing",
+    "pricingSectionTitle": "Start free.",
+    "plan1Name": "Individual Plan",
+    "plan1Price": "¥0",
+    "plan1Per": "Free forever",
+    "plan1Features": [
+      "Training log & condition tracking",
+      "Personal best tracking",
+      "Share card generation",
+      "AI coach advice"
+    ],
+    "plan2Badge": "Recommended for teams",
+    "plan2Name": "Team Plan",
+    "plan2Price": "¥1,980",
+    "plan2Per": "/ month (up to 20 athletes)",
+    "plan2Features": [
+      "Coach dashboard",
+      "Every athlete's condition at a glance",
+      "Automatic injury risk scoring",
+      "Team schedule management",
+      "Automatic training log tallying",
+      "Real-time notifications"
+    ],
+    "plan2Btn": "Try free",
+    "ctaTitle": "Athlete injuries are\npreventable now.",
+    "ctaBody": "sCORE is a serious app built for Japanese track & field athletes.\nTry it free first. Cancel anytime.",
+    "ctaBtn": "Create your team for free",
+    "ctaNote": "Free plan available · No credit card required · Cancel anytime",
+    "footerSupportTitle": "Support & Contact",
+    "footerSupportBody1": "Please reach out to us by email.",
+    "footerSupportBody2": "We typically reply within 1-3 business days.",
+    "footerPrivacy": "Privacy Policy",
+    "footerTerms": "Terms of Service"
   }
 }
