@@ -1119,7 +1119,8 @@
       "upsellCta": "広告なしプランを見る ¥480/月〜",
       "upsellDismiss": "今はしない",
       "shotDateLabel": "撮影日",
-      "analyzedOn": "分析日: {{date}}"
+      "analyzedOn": "分析日: {{date}}",
+      "refundLimitReached": "本日の返還申告の上限に達しました。しばらくしてからもう一度お試しください"
     },
     "premiumGate": {
       "title": "フォーム動画分析",

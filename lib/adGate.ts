@@ -46,7 +46,7 @@ async function getCurrentUserId(): Promise<string | null> {
 // 際限なく回避できてしまう不具合があったため、ログイン中のユーザーはサーバー側
 // (feature_usage_counts テーブル)でカウントする。ゲストは従来通りローカルのみ
 // （supabase/fix_hard_cap_server_side.sql 参照）。
-async function getServerUsageCount(userId: string, feature: Feature, periodKey: string): Promise<number> {
+async function getServerUsageCount(userId: string, feature: string, periodKey: string): Promise<number> {
   const { data, error } = await supabase
     .from('feature_usage_counts')
     .select('count')
@@ -55,10 +55,25 @@ async function getServerUsageCount(userId: string, feature: Feature, periodKey: 
   if (error || !data) return 0
   return data.count
 }
-async function incrementServerUsageCount(feature: Feature, periodKey: string): Promise<void> {
+async function incrementServerUsageCount(feature: string, periodKey: string): Promise<void> {
   try {
     await supabase.rpc('increment_feature_usage', { p_feature: feature, p_period_key: periodKey })
   } catch {}
+}
+
+/**
+ * feature_usage_counts を使った汎用の「1日あたり回数制限」チェック＋消費。
+ * ログイン中のみサーバー側でカウント（ゲストは呼び出し元で個別に検討すること）。
+ * 動画分析の「誤認識申告による払い戻し」など、TICKET_COSTのような固定機能表とは
+ * 別に、乱用防止のためだけの緩い回数制限をかけたい箇所向け。
+ */
+export async function checkAndConsumeDailyAllowance(key: string, dailyCap: number): Promise<boolean> {
+  const userId = await getCurrentUserId()
+  if (!userId) return false // ゲストはサーバー側での本人確認手段が無いため許可しない
+  const count = await getServerUsageCount(userId, key, todayStr())
+  if (count >= dailyCap) return false
+  await incrementServerUsageCount(key, todayStr())
+  return true
 }
 
 export type Feature =

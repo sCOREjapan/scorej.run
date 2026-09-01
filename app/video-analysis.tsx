@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons'
 import Svg, { Polygon, Line, Circle } from 'react-native-svg'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { BRAND, TEXT } from '../lib/theme'
-import { checkAdGate, recordUsage, getTier } from '../lib/adGate'
+import { checkAdGate, recordUsage, getTier, checkAndConsumeDailyAllowance } from '../lib/adGate'
 import { TICKET_COST, grantTickets } from '../lib/ticketWallet'
 import AdGateModal from '../components/AdGateModal'
 import TicketGateModal from '../components/TicketGateModal'
@@ -1005,6 +1005,14 @@ function NativeVideoAnalysis() {
           onPress: async () => {
             setRefundingTicket(true)
             try {
+              // 自己申告(検証不能)の払い戻しのため、同じ動画を「誤認識」と繰り返し申告して
+              // チケットを実質無料で使い放題にする悪用を防ぐため、1日あたりの回数上限を設ける
+              // （サーバー側カウントのため再インストールでは回避できない）
+              const allowed = await checkAndConsumeDailyAllowance('video_wrong_person_refund', 2)
+              if (!allowed) {
+                Toast.show({ type: 'error', text1: t('videoAnalysis.native.refundLimitReached') })
+                return
+              }
               await grantTickets(TICKET_COST.video)
               setReportedWrongPerson(true)
               Toast.show({ type: 'success', text1: t('videoAnalysis.native.refundedToast', { n: TICKET_COST.video }), visibilityTime: 2000 })

@@ -1119,7 +1119,8 @@
       "upsellCta": "View ad-free plan from ¥480/mo",
       "upsellDismiss": "Not now",
       "shotDateLabel": "Recorded On",
-      "analyzedOn": "Analyzed on {{date}}"
+      "analyzedOn": "Analyzed on {{date}}",
+      "refundLimitReached": "You've reached today's limit for reporting misidentified analyses. Please try again later."
     },
     "premiumGate": {
       "title": "Form Video Analysis",
