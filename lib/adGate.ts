@@ -28,6 +28,38 @@ import { readCachedTier } from './subscriptionCache'
 import { todayLocalISO } from './dateLocal'
 import { getTicketBalance, spendTicketsForFeature, TICKET_COST, type TicketFeature } from './ticketWallet'
 import type { PlanTier } from './purchaseService'
+import { supabase } from './supabase'
+
+// ── ログイン状態の判定（lib/ticketWallet.ts と同じ作法。ローカルキャッシュのセッションを
+//    見るだけなのでネットワーク待ちは発生しない） ─────────────────────────
+async function getCurrentUserId(): Promise<string | null> {
+  try {
+    const { data } = await supabase.auth.getSession()
+    return data?.session?.user?.id ?? null
+  } catch {
+    return null
+  }
+}
+
+// 2026-09-01: HARD_DAILY_CAP/HARD_MONTHLY_CAP（悪用/暴走防止の絶対上限）が
+// 端末ローカル(AsyncStorage)にしかカウントされておらず、再インストールや別端末ログインで
+// 際限なく回避できてしまう不具合があったため、ログイン中のユーザーはサーバー側
+// (feature_usage_counts テーブル)でカウントする。ゲストは従来通りローカルのみ
+// （supabase/fix_hard_cap_server_side.sql 参照）。
+async function getServerUsageCount(userId: string, feature: Feature, periodKey: string): Promise<number> {
+  const { data, error } = await supabase
+    .from('feature_usage_counts')
+    .select('count')
+    .eq('user_id', userId).eq('feature', feature).eq('period_key', periodKey)
+    .maybeSingle()
+  if (error || !data) return 0
+  return data.count
+}
+async function incrementServerUsageCount(feature: Feature, periodKey: string): Promise<void> {
+  try {
+    await supabase.rpc('increment_feature_usage', { p_feature: feature, p_period_key: periodKey })
+  } catch {}
+}
 
 export type Feature =
   | 'ai_analysis' | 'video' | 'meal' | 'csv' | 'recovery' | 'workout'
@@ -151,18 +183,24 @@ export async function checkAdGate(feature: Feature): Promise<{
   hardLimited:   boolean
   limitType:     'none' | 'daily' | 'monthly' | 'total' | 'window'
 }> {
-  // tier・チケット残高に関わらず適用される1日の絶対上限（コスト超過防止）
+  // tier・チケット残高に関わらず適用される1日の絶対上限（コスト超過防止）。
+  // ログイン中はサーバー側カウントを見る（再インストールで回避できないようにするため）
+  const userId = await getCurrentUserId()
   const cap = HARD_DAILY_CAP[feature]
   if (cap !== undefined) {
-    const hard = await getHardDailyUsage()
-    if ((hard.counts[feature] ?? 0) >= cap) {
+    const count = userId
+      ? await getServerUsageCount(userId, feature, todayStr())
+      : (await getHardDailyUsage()).counts[feature] ?? 0
+    if (count >= cap) {
       return { allowed: false, remaining: 0, needsAd: false, needsTicket: false, ticketCost: 0, ticketBalance: 0, hardLimited: true, limitType: 'daily' }
     }
   }
   const monthlyCap = HARD_MONTHLY_CAP[feature]
   if (monthlyCap !== undefined) {
-    const hardMonthly = await getHardMonthlyUsage()
-    if ((hardMonthly.counts[feature] ?? 0) >= monthlyCap) {
+    const count = userId
+      ? await getServerUsageCount(userId, feature, currentMonthStr())
+      : (await getHardMonthlyUsage()).counts[feature] ?? 0
+    if (count >= monthlyCap) {
       return { allowed: false, remaining: 0, needsAd: false, needsTicket: false, ticketCost: 0, ticketBalance: 0, hardLimited: true, limitType: 'monthly' }
     }
   }
@@ -204,16 +242,26 @@ export async function checkAdGate(feature: Feature): Promise<{
 // ── 利用を記録 ─────────────────────────────────────────────────
 export async function recordUsage(feature: Feature): Promise<void> {
   return serialize(async () => {
-    // 絶対上限カウント（tier・経路に関わらず必ず加算）
+    // 絶対上限カウント（tier・経路に関わらず必ず加算）。
+    // ログイン中はサーバー側でカウントする（checkAdGateと同じ判定基準に揃える）
+    const userId = await getCurrentUserId()
     if (HARD_DAILY_CAP[feature] !== undefined) {
-      const hard = await getHardDailyUsage()
-      hard.counts[feature] = (hard.counts[feature] ?? 0) + 1
-      await saveHardDailyUsage(hard)
+      if (userId) {
+        await incrementServerUsageCount(feature, todayStr())
+      } else {
+        const hard = await getHardDailyUsage()
+        hard.counts[feature] = (hard.counts[feature] ?? 0) + 1
+        await saveHardDailyUsage(hard)
+      }
     }
     if (HARD_MONTHLY_CAP[feature] !== undefined) {
-      const hardMonthly = await getHardMonthlyUsage()
-      hardMonthly.counts[feature] = (hardMonthly.counts[feature] ?? 0) + 1
-      await saveHardMonthlyUsage(hardMonthly)
+      if (userId) {
+        await incrementServerUsageCount(feature, currentMonthStr())
+      } else {
+        const hardMonthly = await getHardMonthlyUsage()
+        hardMonthly.counts[feature] = (hardMonthly.counts[feature] ?? 0) + 1
+        await saveHardMonthlyUsage(hardMonthly)
+      }
     }
 
     const tier = await getTier()
