@@ -131,6 +131,36 @@ export default async function handler(req: any, res: any) {
 
   try {
     const body = (typeof req.body === 'string' ? JSON.parse(req.body) : req.body) as AnthropicRequestBody
+
+    // ── ペイロード上限チェック（APP_SECRET未設定でも効く安全弁） ──
+    // 2026-08-29に判明: このエンドポイントはAPP_SECRET未設定だと認証なしで誰でも叩ける状態
+    // だった。正規クライアントは画像最大6枚(動画分析)・メッセージ1件しか送らないため、
+    // 十分な余裕を持たせた上限を超えるリクエストは弾く。認証の有無に関わらず被害の上限を
+    // 絞るための対策で、正規利用への影響はない。
+    const MAX_IMAGES = 12
+    const MAX_MESSAGES = 4
+    const MAX_BASE64_CHARS = 20_000_000 // 概算20MB相当
+    const messages = body?.messages ?? []
+    if (messages.length > MAX_MESSAGES) {
+      res.status(400).json({ error: 'Too many messages' })
+      return
+    }
+    let imageCount = 0
+    let base64Total = 0
+    for (const msg of messages) {
+      if (!Array.isArray(msg.content)) continue
+      for (const block of msg.content) {
+        if (block?.type === 'image') {
+          imageCount++
+          base64Total += block?.source?.data?.length ?? 0
+        }
+      }
+    }
+    if (imageCount > MAX_IMAGES || base64Total > MAX_BASE64_CHARS) {
+      res.status(400).json({ error: 'Payload too large' })
+      return
+    }
+
     // max_tokens を 4096 に上限設定（意図しない高コスト呼び出しを防止／出力は入力の5倍高いため上限を絞る）。
     // 2026-08-29: 3000のままだと、動画分析のレーダーチャート方式スキーマ(7項目×詳細な理由文+
     // strength/focus/nextStep/practice)で、実際の走行フォーム画像(情報量が多い)を渡すと応答が

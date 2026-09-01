@@ -691,7 +691,9 @@ export default function CompetitionScreen() {
     const timer = setInterval(() => { if (mountedRef.current) setInjGenProgress(p => Math.min(p + 10, 85)) }, 400)
 
     try {
-      const totalDays = injDaysMode === 'manual' ? (parseInt(injManualDays) || 21) : 21
+      // 手入力の日数に上限がなく、打ち間違い(例: 210日)でチャンク分割API呼び出しが
+      // 何十回も走ってしまう不具合があったため、現実的な範囲(90日)にクランプする
+      const totalDays = injDaysMode === 'manual' ? Math.min(Math.max(parseInt(injManualDays) || 21, 1), 90) : 21
 
       let plans: InjuryDayPlan[]
       let shouldConsumeTicket = false

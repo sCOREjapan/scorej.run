@@ -558,15 +558,17 @@ export default function NutritionScreen() {
     } catch { Toast.show({ type: 'error', text1: t('nutrition.permission.imageError') }) }
   }, [t])
 
-  // リサイズ（最大800px）＋ base64 変換（Web / ネイティブ両対応）
-  // 食事分析は動画分析ほどの精細さを必要としないため、AIコスト削減のため控えめなサイズに設定
+  // リサイズ（最大640px）＋ base64 変換（Web / ネイティブ両対応）
+  // 食事分析は動画分析ほどの精細さを必要としないため、AIコスト削減のため控えめなサイズに設定。
+  // 2026-09-01: 800pxでも品目・分量の判別には十分すぎるサイズだったため640pxにさらに縮小
+  // （動画分析側のトークン最適化に合わせた見直し。画質面で問題が出れば戻すこと）
   const imageUriToBase64 = useCallback(async (uri: string): Promise<string> => {
     if (Platform.OS === 'web') {
       // Web: Canvas でリサイズしてから base64 取得
       return new Promise((resolve, reject) => {
         const img = new (globalThis as any).Image() as HTMLImageElement
         img.onload = () => {
-          const MAX = 800
+          const MAX = 640
           let w = img.naturalWidth || img.width
           let h = img.naturalHeight || img.height
           if (w > MAX || h > MAX) {
@@ -588,7 +590,7 @@ export default function NutritionScreen() {
       // Native: expo-image-manipulator でリサイズしてから base64 取得
       const resized = await ImageManipulator.manipulateAsync(
         uri,
-        [{ resize: { width: 800 } }],
+        [{ resize: { width: 640 } }],
         { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG }
       )
       return FileSystem.readAsStringAsync(resized.uri, {

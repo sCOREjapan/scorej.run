@@ -355,7 +355,11 @@ export async function generateInjuryRecoveryPlan(params: {
   totalDays: number
   language?: Language
 }): Promise<InjuryDayPlan[]> {
-  const { side, parts, injuryType, description, painLevel, hasSwelling, totalDays, language = 'ja' } = params
+  const { side, parts, injuryType, description, painLevel, hasSwelling, language = 'ja' } = params
+  // 呼び出し元の入力チェックに関わらず、ここでも上限をかける（防御的多層化）。
+  // 90日を超える指定は現実的な復帰プランの範囲を超え、チャンク数が際限なく増えて
+  // トークン消費が膨れ上がるため強制的にクランプする。
+  const totalDays = Math.min(Math.max(params.totalDays, 1), 90)
 
   const bodyInfo = `部位: ${side}${parts.join('・')}
 種類: ${injuryType}
