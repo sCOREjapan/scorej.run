@@ -2,20 +2,15 @@
 // 不正防止(自己紹介禁止・1アカウント生涯1回まで・登録48時間以内のみ)は
 // すべて supabase/add_referral_challenge.sql 側のDB制約・RLSで担保する。
 // このファイルはinsertを試みて成否をハンドリングするだけで、判定ロジックは持たない。
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import { supabase } from './supabase'
 import { resolveAppUserId } from './cloudSync'
 import { grantTickets } from './ticketWallet'
 
-const CLAIMED_KEY = 'score_referral_claimed_ids'
-const GRANTED_MONTHLY_KEY = 'score_referral_granted_by_month'
 export const REFERRAL_BONUS_TICKETS = 5
-/** 紹介した側が報酬を受け取れる人数の上限（暦月ごと。超えた分の紹介は成立するが報酬は付与されない） */
+/** 紹介した側が報酬を受け取れる人数の上限（暦月ごと。超えた分の紹介は成立するが報酬は付与されない）。
+ * 実際の上限判定は supabase/fix_referral_reward_tracking.sql の claim_referral_rewards() 内で
+ * サーバー側に行うため、この定数の値を変える場合はSQL側の定数(5)も合わせて変更すること。 */
 export const REFERRAL_MONTHLY_CAP = 5
-
-function monthKey(iso: string): string {
-  return iso.slice(0, 7) // "2026-08"
-}
 
 function generateCode(): string {
   return Math.random().toString(36).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6).padEnd(6, '0')
@@ -87,41 +82,13 @@ export async function claimReferralRewards(): Promise<number> {
   const userId = await getMyUserId()
   if (!userId) return 0
 
-  const { data: rows } = await supabase
-    .from('referral_redemptions').select('id, created_at').eq('referrer_user_id', userId)
-  if (!rows || rows.length === 0) return 0
-
-  const [claimedRaw, grantedRaw] = await Promise.all([
-    AsyncStorage.getItem(CLAIMED_KEY).catch(() => null),
-    AsyncStorage.getItem(GRANTED_MONTHLY_KEY).catch(() => null),
-  ])
-  const claimed: string[] = claimedRaw ? JSON.parse(claimedRaw) : []
-  const claimedSet = new Set(claimed)
-  const grantedByMonth: Record<string, number> = grantedRaw ? JSON.parse(grantedRaw) : {}
-
-  const unclaimed = rows
-    .filter(r => !claimedSet.has(r.id))
-    .sort((a, b) => a.created_at.localeCompare(b.created_at)) // 早い者勝ちで枠を消費する
-
-  if (unclaimed.length === 0) return 0
-
-  let grantedCount = 0
-  for (const r of unclaimed) {
-    const key = monthKey(r.created_at)
-    const usedThisMonth = grantedByMonth[key] ?? 0
-    if (usedThisMonth < REFERRAL_MONTHLY_CAP) {
-      grantedByMonth[key] = usedThisMonth + 1
-      grantedCount++
-    }
-    // 上限超過分も claimed には積む（毎回このループを回さないようにするため）
-  }
-
-  if (grantedCount > 0) await grantTickets(REFERRAL_BONUS_TICKETS * grantedCount)
-  await Promise.all([
-    AsyncStorage.setItem(CLAIMED_KEY, JSON.stringify([...claimed, ...unclaimed.map(r => r.id)])).catch(() => {}),
-    AsyncStorage.setItem(GRANTED_MONTHLY_KEY, JSON.stringify(grantedByMonth)).catch(() => {}),
-  ])
-  return grantedCount
+  // 2026-09-01: 受け取り済み判定を端末ローカル(AsyncStorage)からサーバー側RPCに移行。
+  // 以前は再インストール・別端末ログインでローカルの「受け取り済み」記録が消え、
+  // 同じ紹介報酬を無限に再受け取りできてしまう不具合があった
+  // （supabase/fix_referral_reward_tracking.sql 参照）。
+  const { data, error } = await supabase.rpc('claim_referral_rewards')
+  if (error || typeof data !== 'number') return 0
+  return data
 }
 
 /** 紹介実績（紹介した人数）を表示用に取得する */
