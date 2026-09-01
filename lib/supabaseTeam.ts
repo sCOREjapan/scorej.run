@@ -1,10 +1,25 @@
 // lib/supabaseTeam.ts — チームデータ Supabase CRUD
-import { supabase } from './supabase'
+//
+// 2026-09-02: チームテーブルのRLSが `using(true)` で全公開になっており、team_codeを
+// 知らなくても全チームのデータを読み書き削除できる不具合があった(supabase/fix_team_tables_rls.sql
+// 参照)。この機能はログイン不要・招待コード方式で、team_membersにアカウント紐付けが無い
+// ため「本人確認」ベースのRLSが組めない。代わりに、クライアントが知っているteam_codeを
+// `X-Team-Code` ヘッダーで申告し、そのcodeに一致する行にしかRLSが通らないようにした。
+// このファイルの全関数は、通常の共有supabaseクライアントではなく、この専用クライアントを
+// 経由してteam_*テーブルにアクセスすること。
+import { createClient } from '@supabase/supabase-js'
 
-const isConfigured = !!(
-  process.env.EXPO_PUBLIC_SUPABASE_URL &&
-  process.env.EXPO_PUBLIC_SUPABASE_URL !== 'placeholder'
-)
+const supabaseUrl     = process.env.EXPO_PUBLIC_SUPABASE_URL     ?? ''
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? ''
+
+const isConfigured = !!(supabaseUrl && supabaseUrl !== 'placeholder')
+
+function teamScopedClient(teamCode: string) {
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { 'X-Team-Code': teamCode } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+}
 
 // ── チーム ────────────────────────────────────────────────
 export interface TeamRow {
@@ -16,7 +31,7 @@ export interface TeamRow {
 
 export async function createTeam(code: string, teamName: string, coachName: string): Promise<void> {
   if (!isConfigured) return
-  const { error } = await supabase.from('teams').upsert(
+  const { error } = await teamScopedClient(code).from('teams').upsert(
     { code, team_name: teamName, coach_name: coachName },
     { onConflict: 'code' },
   )
@@ -25,7 +40,7 @@ export async function createTeam(code: string, teamName: string, coachName: stri
 
 export async function fetchTeamByCode(code: string): Promise<TeamRow | null> {
   if (!isConfigured) return null
-  const { data } = await supabase
+  const { data } = await teamScopedClient(code)
     .from('teams').select('*')
     .eq('code', code)
     .single()
@@ -46,19 +61,19 @@ export async function registerMember(teamCode: string, playerName: string, event
   if (!isConfigured) return
   const row: Record<string, string> = { id: `${teamCode}_${playerName}`, team_code: teamCode, player_name: playerName, event }
   if (icon) row.icon = icon
-  const { error } = await supabase.from('team_members').upsert(row, { onConflict: 'id' })
+  const { error } = await teamScopedClient(teamCode).from('team_members').upsert(row, { onConflict: 'id' })
   if (error) throw new Error(error.message)
 }
 
-export async function deleteMember(id: string): Promise<void> {
+export async function deleteMember(teamCode: string, id: string): Promise<void> {
   if (!isConfigured) return
-  const { error } = await supabase.from('team_members').delete().eq('id', id)
+  const { error } = await teamScopedClient(teamCode).from('team_members').delete().eq('id', id)
   if (error) throw new Error(error.message)
 }
 
 export async function fetchMembers(teamCode: string): Promise<TeamMemberRow[]> {
   if (!isConfigured) return []
-  const { data } = await supabase
+  const { data } = await teamScopedClient(teamCode)
     .from('team_members').select('*')
     .eq('team_code', teamCode)
     .order('joined_at', { ascending: true })
@@ -77,7 +92,7 @@ export interface TeamMessageRow {
 
 export async function fetchMessages(teamCode: string): Promise<TeamMessageRow[]> {
   if (!isConfigured) return []
-  const { data } = await supabase
+  const { data } = await teamScopedClient(teamCode)
     .from('team_messages').select('*')
     .eq('team_code', teamCode)
     .order('created_at', { ascending: false })
@@ -86,7 +101,7 @@ export async function fetchMessages(teamCode: string): Promise<TeamMessageRow[]>
 
 export async function postMessage(teamCode: string, content: string, authorName: string): Promise<TeamMessageRow | null> {
   if (!isConfigured) return null  // 未設定時はサイレント（他の関数と統一）
-  const { data, error } = await supabase
+  const { data, error } = await teamScopedClient(teamCode)
     .from('team_messages')
     .insert({ team_code: teamCode, content, author_name: authorName, is_pinned: false })
     .select().single()
@@ -94,14 +109,14 @@ export async function postMessage(teamCode: string, content: string, authorName:
   return data as TeamMessageRow | null
 }
 
-export async function setPinMessage(id: string, isPinned: boolean): Promise<void> {
+export async function setPinMessage(teamCode: string, id: string, isPinned: boolean): Promise<void> {
   if (!isConfigured) return
-  await supabase.from('team_messages').update({ is_pinned: isPinned }).eq('id', id)
+  await teamScopedClient(teamCode).from('team_messages').update({ is_pinned: isPinned }).eq('id', id)
 }
 
-export async function deleteMessage(id: string): Promise<void> {
+export async function deleteMessage(teamCode: string, id: string): Promise<void> {
   if (!isConfigured) return
-  await supabase.from('team_messages').delete().eq('id', id)
+  await teamScopedClient(teamCode).from('team_messages').delete().eq('id', id)
 }
 
 // ── 動画投稿 ─────────────────────────────────────────────
@@ -118,7 +133,7 @@ export interface TeamVideoRow {
 export async function fetchVideos(teamCode: string): Promise<TeamVideoRow[]> {
   if (!isConfigured) return []
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-  const { data } = await supabase
+  const { data } = await teamScopedClient(teamCode)
     .from('team_videos').select('*')
     .eq('team_code', teamCode)
     .gte('posted_at', sevenDaysAgo)
@@ -130,13 +145,13 @@ export async function submitVideo(
   teamCode: string, playerName: string, url: string, description: string,
 ): Promise<void> {
   if (!isConfigured) return
-  await supabase.from('team_videos')
+  await teamScopedClient(teamCode).from('team_videos')
     .insert({ team_code: teamCode, player_name: playerName, url, description })
 }
 
-export async function markVideoWatched(id: string): Promise<void> {
+export async function markVideoWatched(teamCode: string, id: string): Promise<void> {
   if (!isConfigured) return
-  await supabase.from('team_videos').update({ watched: true }).eq('id', id)
+  await teamScopedClient(teamCode).from('team_videos').update({ watched: true }).eq('id', id)
 }
 
 // ── 痛み報告 ─────────────────────────────────────────────
@@ -151,7 +166,7 @@ export interface BodyReportRow {
 
 export async function fetchBodyReports(teamCode: string): Promise<BodyReportRow[]> {
   if (!isConfigured) return []
-  const { data } = await supabase
+  const { data } = await teamScopedClient(teamCode)
     .from('team_body_reports').select('*')
     .eq('team_code', teamCode)
   return (data ?? []) as BodyReportRow[]
@@ -164,7 +179,7 @@ export async function upsertBodyReport(
   detail = '',
 ): Promise<void> {
   if (!isConfigured) return
-  await supabase.from('team_body_reports').upsert(
+  await teamScopedClient(teamCode).from('team_body_reports').upsert(
     { team_code: teamCode, player_name: playerName, parts, detail, acked_by_coach: false, updated_at: new Date().toISOString() },
     { onConflict: 'team_code,player_name' },
   )
@@ -172,7 +187,7 @@ export async function upsertBodyReport(
 
 export async function ackBodyReport(teamCode: string, playerName: string): Promise<void> {
   if (!isConfigured) return
-  const { error } = await supabase.from('team_body_reports')
+  const { error } = await teamScopedClient(teamCode).from('team_body_reports')
     .update({ acked_by_coach: true })
     .eq('team_code', teamCode)
     .eq('player_name', playerName)
@@ -224,13 +239,13 @@ export async function syncTeamSessions(
     reps: s.reps ?? null,
     sets: s.sets ?? null,
   }))
-  const { error } = await supabase.from('team_sessions').upsert(rows, { onConflict: 'id' })
+  const { error } = await teamScopedClient(teamCode).from('team_sessions').upsert(rows, { onConflict: 'id' })
   if (error && __DEV__) console.warn('[syncTeamSessions]', error.message)
 }
 
 export async function deletePlayerTeamSessions(teamCode: string, playerName: string): Promise<void> {
   if (!isConfigured) return
-  const { error } = await supabase.from('team_sessions')
+  const { error } = await teamScopedClient(teamCode).from('team_sessions')
     .delete()
     .eq('team_code', teamCode)
     .eq('player_name', playerName)
@@ -240,12 +255,13 @@ export async function deletePlayerTeamSessions(teamCode: string, playerName: str
 // 非公開設定時: セッション削除 + player_stats のセッション関連フィールドをリセット
 export async function clearPlayerPrivateData(teamCode: string, playerName: string): Promise<void> {
   if (!isConfigured) return
-  await supabase.from('team_sessions')
+  const client = teamScopedClient(teamCode)
+  await client.from('team_sessions')
     .delete()
     .eq('team_code', teamCode)
     .eq('player_name', playerName)
   // last_session_date を空にしてコーチ側で「未同期」扱いにする
-  await supabase.from('team_player_stats')
+  await client.from('team_player_stats')
     .update({ last_session_date: '', sessions_30d: 0, last_condition: 0, last_fatigue: 0, updated_at: new Date().toISOString() })
     .eq('team_code', teamCode)
     .eq('player_name', playerName)
@@ -254,7 +270,7 @@ export async function clearPlayerPrivateData(teamCode: string, playerName: strin
 export async function fetchTeamSessions(teamCode: string): Promise<TeamSessionRow[]> {
   if (!isConfigured) return []
   const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
-  const { data } = await supabase
+  const { data } = await teamScopedClient(teamCode)
     .from('team_sessions').select('*')
     .eq('team_code', teamCode)
     .gte('session_date', cutoff)
@@ -280,7 +296,7 @@ export interface PlayerStatsRow {
 
 export async function fetchPlayerStats(teamCode: string): Promise<PlayerStatsRow[]> {
   if (!isConfigured) return []
-  const { data } = await supabase
+  const { data } = await teamScopedClient(teamCode)
     .from('team_player_stats').select('*')
     .eq('team_code', teamCode)
   return (data ?? []) as PlayerStatsRow[]
@@ -308,7 +324,7 @@ export async function upsertPlayerStats(
     updated_at: new Date().toISOString(),
   }
   const fullRow = { ...baseRow, goal, streak }
-  const { error } = await supabase.from('team_player_stats').upsert(
+  const { error } = await teamScopedClient(teamCode).from('team_player_stats').upsert(
     fullRow, { onConflict: 'team_code,player_name' },
   )
   if (!error) return
@@ -335,7 +351,7 @@ export interface TeamEventRow {
 export async function fetchTeamEvents(teamCode: string): Promise<TeamEventRow[]> {
   if (!isConfigured) return []
   const from = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
-  const { data, error } = await supabase
+  const { data, error } = await teamScopedClient(teamCode)
     .from('team_events').select('*')
     .eq('team_code', teamCode)
     .gte('event_date', from)
@@ -355,7 +371,7 @@ export async function addTeamEvent(
   createdBy: string,
 ): Promise<TeamEventRow | null> {
   if (!isConfigured) throw new Error('Supabase未設定 — 環境変数を確認してください')
-  const { data, error } = await supabase
+  const { data, error } = await teamScopedClient(teamCode)
     .from('team_events')
     .insert({ team_code: teamCode, title, event_date: eventDate, event_time: eventTime, location, description, event_type: eventType, created_by: createdBy })
     .select().single()
@@ -363,9 +379,9 @@ export async function addTeamEvent(
   return data as TeamEventRow | null
 }
 
-export async function deleteTeamEvent(id: string): Promise<void> {
+export async function deleteTeamEvent(teamCode: string, id: string): Promise<void> {
   if (!isConfigured) return
-  await supabase.from('team_events').delete().eq('id', id)
+  await teamScopedClient(teamCode).from('team_events').delete().eq('id', id)
 }
 
 // ── コーチ通知（team_messages テーブルを再利用）────────────────────
@@ -378,7 +394,7 @@ export async function sendCoachNotification(
   content: string,
 ): Promise<void> {
   if (!isConfigured) return
-  await supabase.from('team_messages').insert({
+  await teamScopedClient(teamCode).from('team_messages').insert({
     team_code: teamCode,
     content: `[${type.toUpperCase()}] ${content}`,
     author_name: '__system__',
@@ -388,12 +404,11 @@ export async function sendCoachNotification(
 
 export async function fetchCoachNotifications(teamCode: string): Promise<TeamMessageRow[]> {
   if (!isConfigured) return []
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-  const { data } = await supabase
+  const { data } = await teamScopedClient(teamCode)
     .from('team_messages').select('*')
     .eq('team_code', teamCode)
     .eq('author_name', '__system__')
-    .gte('created_at', sevenDaysAgo)
+    .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
     .order('created_at', { ascending: false })
   return (data ?? []) as TeamMessageRow[]
 }

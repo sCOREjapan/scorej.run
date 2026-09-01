@@ -1128,7 +1128,7 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
   }
 
   async function togglePin(id: string, current: boolean) {
-    await setPinMessage(id, !current)
+    await setPinMessage(setup.code, id, !current)
     setMessages(prev => prev.map(m => m.id===id ? {...m, is_pinned:!current} : m))
     if (!current) {
       const msg = messages.find(m => m.id===id)
@@ -1137,7 +1137,7 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
   }
 
   async function deleteMsg(id: string) {
-    await deleteMessage(id)
+    await deleteMessage(setup.code, id)
     setMessages(prev => prev.filter(m => m.id!==id))
   }
 
@@ -1153,7 +1153,7 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
       if (isDemo) {
         setHiddenDemoIds(prev => [...prev, id])
       } else {
-        await deleteMember(id)
+        await deleteMember(setup.code, id)
         setMembers(prev => prev.filter(m => m.id !== id))
       }
       if (detailMember?.id === id) setDetailMember(null)
@@ -1230,12 +1230,12 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
   }
 
   async function removeEvent(id: string) {
-    await deleteTeamEvent(id)
+    await deleteTeamEvent(setup.code, id)
     setTeamEvents(prev => prev.filter(e => e.id !== id))
   }
 
   async function markWatched(id: string) {
-    await markVideoWatched(id)
+    await markVideoWatched(setup.code, id)
     setVideos(prev => prev.map(v => v.id===id ? {...v, watched:true} : v))
   }
 
@@ -3689,7 +3689,7 @@ export default function TeamScreen() {
   async function handleLeaveTeam() {
     if (joined) {
       // Supabase のメンバーテーブルから削除（コーチの画面からも消える）
-      await deleteMember(`${joined.code}_${joined.playerName}`).catch(() => {})
+      await deleteMember(joined.code, `${joined.code}_${joined.playerName}`).catch(() => {})
     }
     await AsyncStorage.multiRemove([ROLE_KEY, JOINED_KEY]).catch(() => {})
     setJoined(null)
