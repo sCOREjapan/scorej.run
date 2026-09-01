@@ -24,7 +24,7 @@ import { getEventLabel } from '../../lib/eventLabels'
 import { getCachedWeather } from '../../lib/weather'
 import { calcWeatherRiskBonus } from '../../lib/weatherRisk'
 import type { TrainingSession, SleepRecord } from '../../types'
-import { supabase } from '../../lib/supabase'
+import { supabase, getAiAuthHeader } from '../../lib/supabase'
 import {
   fetchMessages, postMessage, setPinMessage, deleteMessage,
   fetchVideos, submitVideo, markVideoWatched,
@@ -1340,11 +1340,12 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
       const timeoutId = setTimeout(() => controller.abort(), 45000)
       const res = await fetch(`${_apiBase}/api/analyze`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...(await getAiAuthHeader()) },
         signal: controller.signal,
         body: JSON.stringify({
           model: 'claude-haiku-4-5-20251001',
           max_tokens: 800,
+          feature: 'workout',
           system: 'あなたは日本トップレベルの陸上競技コーチです。チームのコーチ向けに、選手に送る今日の練習メニューを箇条書きテキストで作成します。装飾や見出しは不要で、そのままチームのアナウンスに貼り付けられる簡潔な形式にしてください。各行は「種目名 補足（時間や本数など）」の形にし、番号や記号は付けず改行区切りにしてください。',
           messages: [{
             role: 'user',

@@ -13,6 +13,7 @@ import { BG_GRADIENT, BRAND, TEXT, NEON } from '../lib/theme'
 import { Sounds } from '../lib/sounds'
 import { checkAdGate, recordUsage } from '../lib/adGate'
 import { TICKET_COST } from '../lib/ticketWallet'
+import { getAiAuthHeader } from '../lib/supabase'
 import AdGateModal from '../components/AdGateModal'
 import TicketGateModal from '../components/TicketGateModal'
 import { useAuth } from '../context/AuthContext'
@@ -269,10 +270,11 @@ export default function AIDiagnosisScreen() {
 
       const response = await fetchWithTimeout(_endpoint, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...(await getAiAuthHeader()) },
         body: JSON.stringify({
           model: 'claude-haiku-4-5-20251001',
           max_tokens: 1024,
+          feature: 'ai_analysis',
           messages: [
             {
               role: 'user',

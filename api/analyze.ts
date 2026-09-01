@@ -39,7 +39,20 @@ interface AnthropicRequestBody {
   max_tokens?: number
   system?: string
   messages?: AnthropicMessage[]
+  // 2026-09-01: サーバー側チケット消費強制のため追加。lib/ticketWallet.ts の
+  // TicketFeature と合わせること。recovery/injury_recovery は無料開放機能のため含めない
+  feature?: string
 }
+
+// lib/ticketWallet.ts の TICKET_COST と同じ値に保つこと（recovery/injury_recovery は
+// adGate.ts 側で無料開放されており、実際にはチケット消費されないためここには含めない）
+const TICKET_COST_SERVER: Record<string, number> = {
+  video: 2, workout: 2, meal: 1,
+  ai_analysis: 2, meal_coach: 2, daily_insight: 1,
+  notebook_ai: 1, competition_plan: 3,
+}
+// lib/adGate.ts の TICKET_SYSTEM_CUTOVER と一致させる
+const TICKET_SYSTEM_CUTOVER = new Date('2026-08-06T00:00:00.000Z')
 
 interface ProxyResult {
   status: number
@@ -159,6 +172,59 @@ export default async function handler(req: any, res: any) {
     if (imageCount > MAX_IMAGES || base64Total > MAX_BASE64_CHARS) {
       res.status(400).json({ error: 'Payload too large' })
       return
+    }
+
+    // ── サーバー側でのtier検証・チケット消費強制 ──
+    // 2026-09-01に判明: tier判定(coach/noad等)が端末ローカルキャッシュのみに依存しており、
+    // Web版はブラウザのlocalStorageを書き換えるだけで「coach(無制限)」を自称してチケット消費を
+    // 完全に回避できる状態だった。サーバー側は一切検証していなかった。
+    // ログイン中のユーザーについては、ここでサーバー側の真実(subscription_status。
+    // api/revenuecat-webhook.ts経由でRevenueCatと同期)を見て、tier免除対象でなければ
+    // チケット消費をサーバー側で強制する。subscription_statusにまだ行が無い
+    // (webhookが一度も届いていない)ユーザーは、既存の有料ユーザーを誤ってブロックしないよう
+    // 従来通りクライアントの自己申告を信用する(fail open。行が無い＝freeとは絶対に扱わない)。
+    const authHeader: string = req.headers?.['authorization'] ?? ''
+    const feature = body?.feature
+    if (authHeader.startsWith('Bearer ') && typeof feature === 'string' && TICKET_COST_SERVER[feature]) {
+      const token = authHeader.slice('Bearer '.length)
+      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL
+      const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
+      if (supabaseUrl && anonKey) {
+        try {
+          const { createClient } = await import('@supabase/supabase-js')
+          const userClient = createClient(supabaseUrl, anonKey, {
+            global: { headers: { Authorization: `Bearer ${token}` } },
+          })
+          const { data: userData } = await userClient.auth.getUser(token)
+          const userId = userData?.user?.id
+          if (userId) {
+            const { data: statusRow } = await userClient
+              .from('subscription_status').select('tier, original_purchase_date')
+              .eq('user_id', userId).maybeSingle()
+            if (statusRow) {
+              const isLegacyNoad = statusRow.tier === 'noad'
+                && !!statusRow.original_purchase_date
+                && new Date(statusRow.original_purchase_date) < TICKET_SYSTEM_CUTOVER
+              const isExempt = statusRow.tier === 'coach' || isLegacyNoad
+              if (!isExempt) {
+                // 消費はクライアント側(recordUsage)が成功後に行う既存フローと二重消費に
+                // ならないよう、ここでは残高の読み取り確認のみ行う(消費はしない)。
+                // tier詐称があっても、残高不足なら高コストなAI呼び出し自体をここで止められる。
+                const { data: wallet } = await userClient
+                  .from('ticket_wallets').select('tickets').eq('user_id', userId).maybeSingle()
+                const balance = wallet?.tickets ?? 0
+                if (balance < TICKET_COST_SERVER[feature]) {
+                  res.status(402).json({ error: 'チケットが不足しています' })
+                  return
+                }
+              }
+            }
+            // statusRow が無い(webhook未同期)場合は何もしない＝クライアントの自己申告を信用する
+          }
+        } catch (e) {
+          console.warn('[analyze] tier verification failed, falling back to client-trust:', e)
+        }
+      }
     }
 
     // max_tokens を 4096 に上限設定（意図しない高コスト呼び出しを防止／出力は入力の5倍高いため上限を絞る）。

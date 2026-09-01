@@ -21,6 +21,7 @@ import * as VideoThumbnails from 'expo-video-thumbnails'
 import * as ImageManipulator from 'expo-image-manipulator'
 import * as FileSystem from 'expo-file-system/legacy'
 import { sendCoachNotification, submitVideo } from '../lib/supabaseTeam'
+import { getAiAuthHeader } from '../lib/supabase'
 import { useTranslation } from 'react-i18next'
 import { useLanguage } from '../context/LanguageContext'
 import { narrativeLanguageInstruction } from '../lib/aiLanguage'
@@ -1163,9 +1164,10 @@ dimensions:上記${dims.length}項目(${dimIdList})全て必須。focusは改善
 
       const res = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await getAiAuthHeader()) },
         body: JSON.stringify({
           model: 'claude-sonnet-5',
+          feature: 'video',
           // レーダーチャート方式(7項目×score/confidence/reason/bbox + strength/focus/nextStep + practice)で
           // 応答JSONが旧スキーマよりかなり大きくなったため増量。1500のままだと応答が途中で切れて
           // JSONパース失敗→総合スコア60点の汎用フォールバックになる不具合が発生していた。

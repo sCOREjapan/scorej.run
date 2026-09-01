@@ -16,6 +16,7 @@ import { getVideoAnalysisPrompt } from '../prompts/video'
 import { getMealAnalysisPrompt, getCompetitionPlanPrompt, getCompetitionPlanChunkPrompt, getSleepAdvicePrompt } from '../prompts/index'
 import { narrativeLanguageInstruction } from './aiLanguage'
 import type { Language } from '../context/LanguageContext'
+import { getAiAuthHeader } from './supabase'
 
 const MODEL = 'claude-haiku-4-5-20251001'
 // Vercel proxy URL（APIキーをクライアントに持たせない）
@@ -34,6 +35,9 @@ interface MessagesRequest {
   max_tokens: number
   system?: string
   messages: Array<{ role: 'user' | 'assistant'; content: string | ContentBlock[] }>
+  // 2026-09-01: サーバー側でのtier検証・残高確認のため追加。api/analyze.ts の
+  // TICKET_COST_SERVER と一致するfeature名を渡す（対象外の機能は省略可）
+  feature?: string
 }
 
 // ─────────────────────────────────────────
@@ -64,15 +68,18 @@ async function callClaudeOnce(req: MessagesRequest): Promise<Response> {
     max_tokens: req.max_tokens,
     ...(req.system ? { system: req.system } : {}),
     messages: req.messages,
+    ...(req.feature ? { feature: req.feature } : {}),
   })
 
   const appSecret = process.env.EXPO_PUBLIC_APP_SECRET ?? ''
+  const authHeader = await getAiAuthHeader()
   try {
     return await fetchWithTimeout(PROXY_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...(appSecret ? { 'X-App-Secret': appSecret } : {}),
+        ...authHeader,
       },
       body,
     }, 50000) // 50秒タイムアウト（Vercel maxDuration=60に合わせて余裕を持たせる）
@@ -188,6 +195,7 @@ export async function analyzeMeal(
   const text = await callClaude({
     model: MODEL,
     max_tokens: 1100,
+    feature: 'meal',
     system: systemPrompt,
     messages: [
       {
@@ -230,6 +238,7 @@ export async function generateCompetitionPlan(
     const text = await callClaude({
       model: MODEL,
       max_tokens: 4096,
+      feature: 'competition_plan',
       system: systemPrompt,
       messages: [
         {
@@ -256,6 +265,7 @@ export async function generateCompetitionPlan(
     const text = await callClaude({
       model: MODEL,
       max_tokens: 2048,
+      feature: 'competition_plan',
       system: systemPrompt,
       messages: [
         {

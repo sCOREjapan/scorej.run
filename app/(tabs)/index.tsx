@@ -17,6 +17,7 @@ import { useTrainingSessions } from '../../hooks/useTrainingSessions'
 import { calcInjuryRisk } from '../../lib/injuryRisk'
 import { calcLevelInfo } from '../../lib/gamification'
 import { checkInStreak, TICKET_COST, grantFirstGoalBonusIfNeeded } from '../../lib/ticketWallet'
+import { getAiAuthHeader } from '../../lib/supabase'
 import GlassCard from '../../components/GlassCard'
 import PressableScale from '../../components/PressableScale'
 import { BRAND, ALERT, TEXT, NEON, SURFACE, SURFACE2, DIVIDER } from '../../lib/theme'
@@ -1757,10 +1758,11 @@ ${sleepText || 'データなし'}
         const endpoint = `${apiBase}/api/analyze`
         const res = await fetchWithTimeout(endpoint, {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
+          headers: { 'content-type': 'application/json', ...(await getAiAuthHeader()) },
           body: JSON.stringify({
             model: 'claude-haiku-4-5-20251001',
             max_tokens: 1400,
+            feature: 'daily_insight',
             system: systemPrompt,
             messages: [{ role: 'user', content: prompt }],
           }),

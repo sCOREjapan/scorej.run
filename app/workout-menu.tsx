@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons'
 import Toast from 'react-native-toast-message'
 import { checkAdGate, recordUsage } from '../lib/adGate'
 import { TICKET_COST } from '../lib/ticketWallet'
+import { getAiAuthHeader } from '../lib/supabase'
 import AdGateModal from '../components/AdGateModal'
 import TicketGateModal from '../components/TicketGateModal'
 import { useAuth } from '../context/AuthContext'
@@ -461,10 +462,11 @@ ${H1.coach}
       {
         const res = await fetchWithTimeout(_endpoint1, {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
+          headers: { 'content-type': 'application/json', ...(await getAiAuthHeader()) },
           body: JSON.stringify({
             model: 'claude-haiku-4-5-20251001',
             max_tokens: 1500,
+            feature: 'workout',
             system: systemPrompt1,
             messages: [{ role: 'user', content: prompt }],
           }),
@@ -596,10 +598,11 @@ ${H2.coach}
       {
         const res = await fetchWithTimeout(_endpoint2, {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
+          headers: { 'content-type': 'application/json', ...(await getAiAuthHeader()) },
           body: JSON.stringify({
             model: 'claude-haiku-4-5-20251001',
             max_tokens: 1500,
+            feature: 'workout',
             system: systemPrompt2,
             messages: [{ role: 'user', content: prompt }],
           }),

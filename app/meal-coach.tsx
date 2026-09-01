@@ -20,6 +20,7 @@ import { todayLocalISO } from '../lib/dateLocal'
 import { trackFeatureUse } from '../lib/analytics'
 import { checkAdGate, recordUsage } from '../lib/adGate'
 import { TICKET_COST } from '../lib/ticketWallet'
+import { getAiAuthHeader } from '../lib/supabase'
 import TicketGateModal from '../components/TicketGateModal'
 import { useAuth } from '../context/AuthContext'
 import { useTranslation } from 'react-i18next'
@@ -164,10 +165,11 @@ ${headerNote}
 
       const res = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...(await getAiAuthHeader()) },
         body: JSON.stringify({
           model: 'claude-haiku-4-5-20251001',
           max_tokens: 800,
+          feature: 'meal_coach',
           system: systemPrompt,
           messages: [{ role: 'user', content: prompt }],
         }),

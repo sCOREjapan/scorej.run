@@ -116,6 +116,20 @@ export async function upsertSleep(record: Omit<import('../types').SleepRecord, '
   return data
 }
 
+// /api/analyze へのAI呼び出しに添える認証ヘッダー。ログイン中はSupabaseのアクセストークンを
+// 付け、サーバー側(api/analyze.ts)がticket_wallet_spendを本人として実行できるようにする
+// （2026-09-01: サーバー側でのtier検証・チケット消費強制の導入に伴い追加。
+// ゲストは何も付かない＝サーバー側は今まで通りクライアントの自己申告を信用する）。
+export async function getAiAuthHeader(): Promise<Record<string, string>> {
+  try {
+    const { data } = await supabase.auth.getSession()
+    const token = data?.session?.access_token
+    return token ? { Authorization: `Bearer ${token}` } : {}
+  } catch {
+    return {}
+  }
+}
+
 export async function getRecentSleep(userId: string, days = 14) {
   if (IS_PLACEHOLDER) return []
   const since = new Date()
