@@ -227,6 +227,12 @@ export default async function handler(req: any, res: any) {
       }
     }
 
+    // featureはこのプロキシ内でのtier検証専用のフィールドで、Anthropic/Geminiの実APIは
+    // 知らない。callAnthropicはbodyをそのまま転送するため、消し忘れると本物のAPIから
+    // 「未知のフィールド」として400 invalid_request_errorで拒否される
+    // (2026-09-02に実際に発生、全AI機能が停止した)。
+    delete (body as any).feature
+
     // max_tokens を 4096 に上限設定（意図しない高コスト呼び出しを防止／出力は入力の5倍高いため上限を絞る）。
     // 2026-08-29: 3000のままだと、動画分析のレーダーチャート方式スキーマ(7項目×詳細な理由文+
     // strength/focus/nextStep/practice)で、実際の走行フォーム画像(情報量が多い)を渡すと応答が
