@@ -1896,7 +1896,7 @@
       },
       {
         "q": "How many times can I use the AI features?",
-        "a": "Video form analysis is available once per day, and AI meal analysis is free the first time. After that, you can keep using it by watching a short ad."
+        "a": "AI features (video analysis, meal analysis, and more) use a ticket system. You get 5 free tickets to start, and can earn more by watching ads, referring friends, and more. See the Tickets screen for details."
       },
       {
         "q": "When will the Team feature be available?",
@@ -2657,17 +2657,16 @@
           "Training logs (unlimited)",
           "Condition tracking",
           "Personal best tracking",
-          "AI features (1-3/day, unlock by watching an ad)"
+          "AI features (ticket-based, 5 free to start)"
         ]
       },
       {
         "name": "No-Ads Plan",
         "period": "/mo",
         "features": [
-          "Every feature, as-is",
           "Banner and video ads completely removed",
-          "Unlimited AI features, video analysis, and CSV export",
-          "No feature restrictions at all"
+          "Unlimited CSV export",
+          "AI features stay ticket-based (5 free + purchases)"
         ],
         "badge": "Popular"
       },
