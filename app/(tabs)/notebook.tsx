@@ -445,7 +445,7 @@ export default function NotebookScreen() {
             <HapticTouch
               haptic="whoosh"
               style={[st.iconBtn, { backgroundColor: colors.surface2, borderColor: colors.border }]}
-              onPress={() => router.push('/calendar')}
+              onPress={() => router.push('/training-calendar')}
               activeOpacity={0.8}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityLabel={t('notebook.calendar')}

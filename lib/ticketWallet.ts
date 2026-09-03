@@ -24,16 +24,20 @@ const MISSION_PROFILE_KEY  = 'score_ticket_mission_profile'
 const MISSION_LINE_KEY     = 'score_ticket_mission_line'
 const MISSION_GOAL_KEY     = 'score_ticket_mission_goal'
 
-const STARTER_TICKETS = 10  // オンボーディング完了時に1回だけ付与する初期チケット
-const MISSION_BONUS   = 5   // 各ワンタイムミッション（プロフィール完成/LINE参加/目標設定）の付与枚数
+// 2026-09-03: APIコスト(600円/日)が広告収益(500円/日)を上回り赤字だったため、
+// 無料付与量を見直し（10→5枚、ミッション5→3枚）。既存ユーザーの体験は変えず、
+// 新規ユーザーの無料枠を圧縮する方針。
+const STARTER_TICKETS = 5   // オンボーディング完了時に1回だけ付与する初期チケット
+const MISSION_BONUS   = 3   // 各ワンタイムミッション（プロフィール完成/LINE参加/目標設定）の付与枚数
 
 // AIを使う機能はすべてチケット制
 export type TicketFeature =
   | 'video' | 'workout' | 'meal' | 'ai_analysis' | 'recovery'
   | 'meal_coach' | 'daily_insight' | 'notebook_ai' | 'competition_plan' | 'injury_recovery'
 export const TICKET_COST: Record<TicketFeature, number> = {
-  video: 2, workout: 2, meal: 1,
-  ai_analysis: 2, recovery: 1, meal_coach: 2, daily_insight: 1,
+  // 2026-09-03: 動画分析・AI診断・食事コーチは1回あたりのAPIコストが高いため増額(2→3枚)
+  video: 3, workout: 2, meal: 1,
+  ai_analysis: 3, recovery: 1, meal_coach: 3, daily_insight: 1,
   notebook_ai: 1, competition_plan: 3, injury_recovery: 3,
 }
 

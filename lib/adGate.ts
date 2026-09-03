@@ -1,15 +1,17 @@
-// lib/adGate.ts — 機能利用制限管理 v4.0（無料10枚チケット制に統一）
+// lib/adGate.ts — 機能利用制限管理 v4.1（無料5枚チケット制に統一）
 //
 // AI機能はすべて共通のチケットプールを消費する（機能ごとの無料回数は廃止）。
-// 無料ユーザーはオンボーディング時にチケット10枚が付与され（lib/ticketWallet.ts）、
+// 無料ユーザーはオンボーディング時にチケット5枚が付与され（lib/ticketWallet.ts）、
 // 使い切ったら以降は機能を使うたびにチケット購入・チケット月額プランへの導線が表示される。
+// 2026-09-03: APIコストが広告収益を上回り赤字だったため、無料付与量(10→5枚)・
+// 一部機能のチケット消費量・絶対上限(HARD_CAP)を見直し。
 //
 // 機能               チケットコスト
 // 動画分析           3枚
 // AIメニュー作成      2枚
 // AI食事分析          1枚
-// AI食事コーチ        2枚
-// AI練習分析コーチ    2枚
+// AI食事コーチ        3枚
+// AI練習分析コーチ    3枚
 // AIリカバリー相談    無料（1日2回まで。怪我系機能のため2026-08開放。FREE_INJURY_FEATURES参照）
 // 今日のAIアドバイス  1枚
 // 練習ノートAI解析     1枚
@@ -100,10 +102,12 @@ function isFreeInjuryFeature(feature: Feature): boolean {
 }
 
 // ── 絶対上限（AI APIコスト超過防止）─────────────────────────────
-// tier・チケット残高に関係なく1日あたりの絶対上限を設ける（悪用/暴走防止）
+// tier・チケット残高に関係なく1日あたりの絶対上限を設ける（悪用/暴走防止）。
+// 2026-09-03: APIコストが広告収益を上回っていたため全体的に引き下げ
+// （動画分析はコスト最大のため半減、怪我系(recovery/injury_recovery)は現状維持）
 const HARD_DAILY_CAP: Partial<Record<Feature, number>> = {
-  video: 8, meal: 10, ai_analysis: 5, recovery: 2, workout: 5,
-  meal_coach: 5, daily_insight: 3, notebook_ai: 10, competition_plan: 3, injury_recovery: 2,
+  video: 4, meal: 6, ai_analysis: 3, recovery: 2, workout: 3,
+  meal_coach: 3, daily_insight: 2, notebook_ai: 6, competition_plan: 3, injury_recovery: 2,
 }
 const HARD_DAILY_KEY = 'score_feature_hard_daily_usage'
 
@@ -122,7 +126,7 @@ async function saveHardDailyUsage(d: { date: string; counts: Partial<Record<Feat
 }
 
 // ── 絶対上限（月間）─────────────────────────────────────────────
-const HARD_MONTHLY_CAP: Partial<Record<Feature, number>> = { video: 40 }
+const HARD_MONTHLY_CAP: Partial<Record<Feature, number>> = { video: 20 }
 const HARD_MONTHLY_KEY = 'score_feature_hard_monthly_usage'
 
 function currentMonthStr(): string {

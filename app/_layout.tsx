@@ -766,7 +766,10 @@ function RootLayoutNav() {
             }}
           />
           <Stack.Screen name="workout-menu" options={{ title: '練習メニュー', headerStyle: { backgroundColor: '#000' }, headerTintColor: '#fff', headerTitleStyle: { color: '#fff', fontWeight: '800' } }} />
-          <Stack.Screen name="calendar" options={{ title: 'カレンダー', headerStyle: { backgroundColor: '#000' }, headerTintColor: '#fff', headerTitleStyle: { color: '#fff', fontWeight: '800' } }} />
+          {/* 2026-09-03: app/(tabs)/calendar.tsx(予定を立てる用・タブ登録)と
+              同じルート名"calendar"で衝突していたため、こちら(練習強度の可視化)は
+              training-calendarに改名。notebook.tsxの遷移先も合わせて変更済み */}
+          <Stack.Screen name="training-calendar" options={{ title: 'カレンダー', headerStyle: { backgroundColor: '#000' }, headerTintColor: '#fff', headerTitleStyle: { color: '#fff', fontWeight: '800' } }} />
           <Stack.Screen
             name="ai-diagnosis"
             options={{

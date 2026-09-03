@@ -1,3 +1,6 @@
+// app/training-calendar.tsx — 練習強度の可視化（記録の月間サマリー・GPS練習/レース/大会をカレンダーに表示。閲覧専用）
+// 2026-09-03: 以前は app/calendar.tsx として存在し、app/(tabs)/calendar.tsx（予定を立てる用・
+// タブ登録）と同じルート名"calendar"で衝突していたため training-calendar に改名した。
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
   View,
