@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>初回付与を使い切った時のモーダル 3案</title>
+<style>
+  :root {
+    --K: 0.7692307692; /* 300px / 390pt（設計幅390pt=iPhone標準） */
+    --design-w: 390;
+    --design-h: 844;
+    --brand: #166534;
+    --tix: #f59e0b;
+    --prem: #7c3aed;
+    --bg-app: #f6f6f8;
+    --card: #ffffff;
+    --border: rgba(0,0,0,0.08);
+    --text-1: #111827;
+    --text-2: #6b7280;
+    --text-hint: #9ca3af;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px;
+    background: #F6F4EF;
+    font-family: -apple-system, "Hiragino Sans", sans-serif;
+    color: #1c1c1e;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .quote {
+    background: #fff; border: 1px solid #e8e4da; border-radius: 10px;
+    padding: 12px 16px; font-size: 13px; color: #555; margin: 12px 0 28px;
+    max-width: 900px;
+  }
+  .board {
+    display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-start;
+  }
+  .panel {
+    width: calc(390px * var(--K) + 40px);
+    background: #fff; border: 1.5px solid #e8e4da; border-radius: 16px;
+    padding: 14px;
+  }
+  .panel.rec { border-color: var(--brand); box-shadow: 0 0 0 2px var(--brand) inset; }
+  .panel-head { display:flex; align-items:center; gap:8px; margin-bottom: 4px; }
+  .letter {
+    width: 22px; height: 22px; border-radius: 6px; background: #1c1c1e; color: #fff;
+    font-size: 12px; font-weight: 800; display:flex; align-items:center; justify-content:center;
+  }
+  .panel.rec .letter { background: var(--brand); }
+  .panel-name { font-size: 14px; font-weight: 800; }
+  .badge {
+    font-size: 10px; font-weight: 800; color: #fff; background: var(--brand);
+    padding: 2px 8px; border-radius: 20px; margin-left: auto;
+  }
+  .diff { font-size: 11.5px; color: #666; line-height: 1.5; margin: 6px 0 12px; min-height: 48px; }
+
+  /* ── iPhone frame ── */
+  .phone {
+    width: calc(390px * var(--K) + 14px);
+    height: calc(844px * var(--K) + 14px);
+    background: #111;
+    border-radius: calc(46px * var(--K) + 7px);
+    padding: 7px;
+    position: relative;
+    margin: 0 auto;
+  }
+  .screen {
+    width: calc(390px * var(--K));
+    height: calc(844px * var(--K));
+    background: var(--bg-app);
+    border-radius: calc(40px * var(--K));
+    overflow: hidden;
+    position: relative;
+  }
+  .notch {
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: calc(120px * var(--K)); height: calc(28px * var(--K));
+    background: #111; border-bottom-left-radius: 14px; border-bottom-right-radius: 14px;
+    z-index: 50;
+  }
+  /* 背景の「ホーム画面っぽい」ダミーコンテンツ */
+  .fake-home { padding: calc(50px * var(--K)) calc(20px * var(--K)) 0; }
+  .fake-bar { height: calc(20px * var(--K)); width: 60%; background:#e5e5ea; border-radius: 6px; margin-bottom: calc(14px * var(--K)); }
+  .fake-card { height: calc(90px * var(--K)); background:#fff; border:1px solid #eee; border-radius: calc(14px*var(--K)); margin-bottom: calc(12px*var(--K)); }
+
+  .trigger-row { text-align:center; margin-top: 10px; }
+  .trigger-btn {
+    font-size: 11.5px; font-weight: 700; color: #fff; background: #1c1c1e;
+    border: none; border-radius: 20px; padding: 7px 14px; cursor: pointer;
+  }
+  .trigger-btn:active { opacity: .7; }
+  .reset-btn {
+    font-size: 11px; color: #888; background: none; border: none; cursor: pointer;
+    text-decoration: underline; margin-left: 8px;
+  }
+
+  /* ============ 現状（比較用） ============ */
+  .cur-overlay {
+    position:absolute; inset:0; background: rgba(0,0,0,0);
+    display:flex; align-items:flex-end; justify-content:center;
+    transition: background .32s ease; pointer-events:none;
+  }
+  .cur-overlay.show { background: rgba(0,0,0,0.55); pointer-events:auto; }
+  .cur-sheet {
+    width:100%; background:#1a1a2e; border-top-left-radius: calc(24px*var(--K)); border-top-right-radius: calc(24px*var(--K));
+    padding: calc(20px*var(--K)) calc(20px*var(--K)) calc(28px*var(--K));
+    transform: translateY(100%);
+    transition: transform .38s cubic-bezier(.32,.72,.28,1);
+    display:flex; flex-direction:column; align-items:center; gap: calc(9px*var(--K));
+  }
+  .cur-overlay.show .cur-sheet { transform: translateY(0); }
+  .cur-handle { width: calc(34px*var(--K)); height: calc(3.5px*var(--K)); border-radius: 3px; background: rgba(255,255,255,0.25); margin-bottom: calc(2px*var(--K)); }
+  .cur-icon-wrap {
+    width: calc(52px*var(--K)); height: calc(52px*var(--K)); border-radius: calc(14px*var(--K));
+    background: rgba(245,158,11,0.18); display:flex; align-items:center; justify-content:center;
+    font-size: calc(24px*var(--K));
+  }
+  .cur-title { font-size: calc(15px*var(--K)); font-weight: 800; color:#fff; text-align:center; }
+  .cur-sub { font-size: calc(11px*var(--K)); color: rgba(255,255,255,0.65); text-align:center; line-height:1.5; padding: 0 calc(6px*var(--K)); }
+  .cur-btn { width:100%; border-radius: calc(12px*var(--K)); padding: calc(10px*var(--K)) 0; text-align:center; font-weight:800; font-size: calc(11.5px*var(--K)); }
+  .cur-btn.primary { background:#22c55e; color:#fff; }
+  .cur-btn.sec { border: 1.3px solid var(--tix); color: var(--tix); }
+  .cur-btn.sec.prem { border-color: var(--prem); color: var(--prem); }
+  .cur-cancel { font-size: calc(10.5px*var(--K)); color: rgba(255,255,255,0.4); margin-top: calc(2px*var(--K)); }
+
+  /* ============ 案A: 現行モーダルのフルスクリーン化（ライトテーマ） ============ */
+  .a-overlay {
+    position:absolute; inset:0; background: var(--bg-app);
+    display:flex; flex-direction:column; align-items:center;
+    opacity:0; transform: translateY(calc(14px*var(--K)));
+    transition: opacity .34s cubic-bezier(.32,.72,.28,1), transform .34s cubic-bezier(.32,.72,.28,1);
+    pointer-events:none; padding: calc(64px*var(--K)) calc(22px*var(--K)) calc(28px*var(--K));
+  }
+  .a-overlay.show { opacity:1; transform:none; pointer-events:auto; }
+  .a-close { position:absolute; top: calc(50px*var(--K)); right: calc(18px*var(--K)); font-size: calc(20px*var(--K)); color:#9ca3af; cursor:pointer; }
+  .a-icon-wrap {
+    width: calc(76px*var(--K)); height: calc(76px*var(--K)); border-radius: calc(22px*var(--K));
+    background: rgba(245,158,11,0.14); display:flex; align-items:center; justify-content:center;
+    font-size: calc(36px*var(--K)); margin-bottom: calc(18px*var(--K));
+  }
+  .a-title { font-size: calc(19px*var(--K)); font-weight: 800; color: var(--text-1); text-align:center; margin-bottom: calc(8px*var(--K)); }
+  .a-sub { font-size: calc(12.5px*var(--K)); color: var(--text-2); text-align:center; line-height:1.55; margin-bottom: calc(26px*var(--K)); padding: 0 calc(6px*var(--K)); }
+  .a-btns { width:100%; display:flex; flex-direction:column; gap: calc(11px*var(--K)); margin-top:auto; margin-bottom: calc(10px*var(--K)); }
+  .a-btn { width:100%; border-radius: calc(14px*var(--K)); padding: calc(13px*var(--K)) 0; text-align:center; font-weight:800; font-size: calc(12.5px*var(--K)); }
+  .a-btn.primary { background: var(--tix); color:#fff; }
+  .a-btn.sec { border: 1.3px solid var(--border); background:#fff; color: var(--text-1); }
+  .a-cancel { font-size: calc(11.5px*var(--K)); color: var(--text-hint); }
+
+  /* ============ 案B: 既存の/paywallへ直接ナビゲーション遷移 ============ */
+  .b-overlay {
+    position:absolute; inset:0; background: var(--bg-app);
+    transform: translateX(100%);
+    transition: transform .36s cubic-bezier(.32,.72,.28,1);
+    overflow-y:auto; padding: calc(56px*var(--K)) calc(18px*var(--K)) calc(24px*var(--K));
+  }
+  .b-overlay.show { transform: translateX(0); }
+  .b-back { font-size: calc(13px*var(--K)); color: var(--text-2); margin-bottom: calc(10px*var(--K)); cursor:pointer; }
+  .b-banner {
+    background: #fff7e6; border: 1px solid #fde3a7; border-radius: calc(12px*var(--K));
+    padding: calc(10px*var(--K)) calc(12px*var(--K)); font-size: calc(11px*var(--K)); color:#92640a;
+    margin-bottom: calc(14px*var(--K)); font-weight:700;
+  }
+  .b-plancard {
+    background:#fff; border: 1.4px solid var(--border); border-radius: calc(16px*var(--K));
+    padding: calc(13px*var(--K)); margin-bottom: calc(10px*var(--K));
+  }
+  .b-plancard.sel { border-color: var(--brand); box-shadow: 0 0 0 1.4px var(--brand); }
+  .b-plan-name { font-size: calc(13px*var(--K)); font-weight:800; color: var(--text-1); }
+  .b-plan-desc { font-size: calc(10.5px*var(--K)); color: var(--text-2); margin-top: 3px; }
+  .b-plan-price { font-size: calc(11.5px*var(--K)); font-weight:800; color: var(--brand); margin-top: 6px; }
+  .b-purchase { margin-top: calc(10px*var(--K)); background: var(--brand); color:#fff; border-radius: calc(14px*var(--K)); text-align:center; padding: calc(13px*var(--K)) 0; font-weight:800; font-size: calc(12.5px*var(--K)); }
+
+  /* ============ 案C: フルスクリーン + ストーリーテリング型 ============ */
+  .c-overlay {
+    position:absolute; inset:0; background: linear-gradient(180deg,#166534 0%, #0f4d27 46%, var(--bg-app) 46%);
+    opacity:0; transition: opacity .3s ease; pointer-events:none;
+    display:flex; flex-direction:column; align-items:center;
+  }
+  .c-overlay.show { opacity:1; pointer-events:auto; }
+  .c-close { position:absolute; top: calc(50px*var(--K)); right: calc(18px*var(--K)); font-size: calc(20px*var(--K)); color:rgba(255,255,255,0.85); cursor:pointer; z-index:5; }
+  .c-hero { padding-top: calc(56px*var(--K)); text-align:center; color:#fff; }
+  .c-tickets { display:flex; gap: calc(6px*var(--K)); justify-content:center; margin-bottom: calc(14px*var(--K)); }
+  .c-ticket { font-size: calc(22px*var(--K)); filter: drop-shadow(0 2px 3px rgba(0,0,0,0.25)); animation: pop .5s cubic-bezier(.32,.9,.4,1.2) both; }
+  .c-ticket:nth-child(1){animation-delay:.02s} .c-ticket:nth-child(2){animation-delay:.08s}
+  .c-ticket:nth-child(3){animation-delay:.14s} .c-ticket:nth-child(4){animation-delay:.20s}
+  .c-ticket:nth-child(5){animation-delay:.26s}
+  @keyframes pop { 0%{ transform:scale(0); opacity:0 } 70%{ transform:scale(1.15) } 100%{ transform:scale(1); opacity:1 } }
+  .c-title { font-size: calc(18px*var(--K)); font-weight: 800; padding: 0 calc(20px*var(--K)); line-height:1.4; }
+  .c-sub { font-size: calc(11.5px*var(--K)); opacity:.85; margin-top: calc(6px*var(--K)); }
+  .c-body { flex:1; width:100%; padding: calc(20px*var(--K)) calc(20px*var(--K)) calc(24px*var(--K)); display:flex; flex-direction:column; }
+  .c-btns { display:flex; flex-direction:column; gap: calc(10px*var(--K)); margin-top:auto; }
+  .c-btn { width:100%; border-radius: calc(14px*var(--K)); padding: calc(12.5px*var(--K)) 0; text-align:center; font-weight:800; font-size: calc(12px*var(--K)); }
+  .c-btn.primary { background: var(--tix); color:#fff; }
+  .c-btn.sec { border: 1.3px solid var(--border); background:#fff; color: var(--text-1); }
+  .c-cancel { text-align:center; font-size: calc(11px*var(--K)); color: var(--text-hint); margin-top: calc(10px*var(--K)); }
+
+  footer { max-width: 900px; margin: 30px auto 0; font-size: 12.5px; color: #777; }
+</style>
+</head>
+<body>
+
+<h1>初回付与を使い切った時のモーダル — 3案</h1>
+<div class="quote">お題(ご本人の言葉): 「初回付与を使い切った時に、画面いっぱいに課金モーダル」</div>
+
+<div class="board">
+
+  <!-- 現状（比較用） -->
+  <div class="panel">
+    <div class="panel-head"><span class="letter" style="background:#999">今</span><span class="panel-name">現状</span></div>
+    <div class="diff">今の実装(TicketGateModal)。下からのボトムシート、ダークトーン、画面の上側は元の画面が透けて見える。</div>
+    <div class="phone"><div class="screen">
+      <div class="notch"></div>
+      <div class="fake-home"><div class="fake-bar"></div><div class="fake-card"></div><div class="fake-card"></div></div>
+      <div class="cur-overlay" id="cur-ov">
+        <div class="cur-sheet">
+          <div class="cur-handle"></div>
+          <div class="cur-icon-wrap">🎫</div>
+          <div class="cur-title">チケットが足りません</div>
+          <div class="cur-sub">動画分析には3枚必要です(残り0枚)</div>
+          <div class="cur-btn primary">▶ 広告を見て+1枚</div>
+          <div class="cur-btn sec">🎫 チケットを購入</div>
+          <div class="cur-btn sec prem">↻ 月額プラン</div>
+          <div class="cur-cancel">あとで</div>
+        </div>
+      </div>
+    </div></div>
+    <div class="trigger-row">
+      <button class="trigger-btn" onclick="toggle('cur-ov')">チケット切れをシミュレート</button>
+      <button class="reset-btn" onclick="reset('cur-ov')">閉じる</button>
+    </div>
+  </div>
+
+  <!-- 案A -->
+  <div class="panel rec">
+    <div class="panel-head"><span class="letter">A</span><span class="panel-name">現行モーダルをフルスクリーン化</span><span class="badge">推奨</span></div>
+    <div class="diff">構成・ボタンは今のままで、画面の下からではなく<b>画面全体を覆う</b>形に変更。背景は完全に見えなくなり、ライトテーマ(アプリ本来の配色)に統一。最も指示に忠実な解釈。</div>
+    <div class="phone"><div class="screen">
+      <div class="notch"></div>
+      <div class="fake-home"><div class="fake-bar"></div><div class="fake-card"></div><div class="fake-card"></div></div>
+      <div class="a-overlay" id="a-ov">
+        <div class="a-close" onclick="reset('a-ov')">✕</div>
+        <div class="a-icon-wrap">🎫</div>
+        <div class="a-title">無料の5枚を<br>使い切りました</div>
+        <div class="a-sub">動画分析には3枚必要です(残り0枚)<br>広告を見るか、チケットを追加してください</div>
+        <div class="a-btns">
+          <div class="a-btn primary">▶ 広告を見て+1枚 (本日あと5回)</div>
+          <div class="a-btn sec">🎫 チケットを購入</div>
+          <div class="a-btn sec">↻ 月額プランを見る</div>
+        </div>
+        <div class="a-cancel">あとで</div>
+      </div>
+    </div></div>
+    <div class="trigger-row">
+      <button class="trigger-btn" onclick="toggle('a-ov')">チケット切れをシミュレート</button>
+      <button class="reset-btn" onclick="reset('a-ov')">閉じる</button>
+    </div>
+  </div>
+
+  <!-- 案B -->
+  <div class="panel">
+    <div class="panel-head"><span class="letter">B</span><span class="panel-name">/paywall本編へ直接遷移</span></div>
+    <div class="diff">小さいモーダルは出さず、初回0枚到達の瞬間だけ<b>既存の料金プラン比較画面(/paywall)へその場で画面遷移</b>。モーダルではなくナビゲーション。じっくり比較してもらう設計。</div>
+    <div class="phone"><div class="screen">
+      <div class="notch"></div>
+      <div class="fake-home"><div class="fake-bar"></div><div class="fake-card"></div><div class="fake-card"></div></div>
+      <div class="b-overlay" id="b-ov">
+        <div class="b-back" onclick="reset('b-ov')">‹ 戻る</div>
+        <div class="b-banner">🎫 無料の5枚を使い切りました。続けるにはプランを選んでください</div>
+        <div class="b-plancard"><div class="b-plan-name">広告なしプラン</div><div class="b-plan-desc">広告を非表示</div><div class="b-plan-price">¥480/月</div></div>
+        <div class="b-plancard sel"><div class="b-plan-name">チケット月額プラン</div><div class="b-plan-desc">広告なし + 毎月チケット100枚</div><div class="b-plan-price">¥980/月</div></div>
+        <div class="b-plancard"><div class="b-plan-name">コーチプラン</div><div class="b-plan-desc">チーム管理機能つき・AI機能無制限</div><div class="b-plan-price">¥1,980/月</div></div>
+        <div class="b-purchase">プランに登録する</div>
+      </div>
+    </div></div>
+    <div class="trigger-row">
+      <button class="trigger-btn" onclick="toggle('b-ov')">チケット切れをシミュレート</button>
+      <button class="reset-btn" onclick="reset('b-ov')">閉じる</button>
+    </div>
+  </div>
+
+  <!-- 案C -->
+  <div class="panel">
+    <div class="panel-head"><span class="letter">C</span><span class="panel-name">フルスクリーン＋達成演出型</span></div>
+    <div class="diff">全画面だが、上部を<b>ブランドカラーのヒーロー演出</b>にして「5枚ちゃんと使い切りましたね」と前向きに伝える。チケットが1枚ずつポップして並ぶ演出つき。ブロック感より達成感を強調する方向。</div>
+    <div class="phone"><div class="screen">
+      <div class="notch"></div>
+      <div class="fake-home"><div class="fake-bar"></div><div class="fake-card"></div><div class="fake-card"></div></div>
+      <div class="c-overlay" id="c-ov">
+        <div class="c-close" onclick="reset('c-ov')">✕</div>
+        <div class="c-hero">
+          <div class="c-tickets" id="c-tix">🎫🎫🎫🎫🎫</div>
+          <div class="c-title">無料の5枚、<br>しっかり使い切りましたね💪</div>
+          <div class="c-sub">続けるにはチケットを追加してください</div>
+        </div>
+        <div class="c-body">
+          <div class="c-btns">
+            <div class="c-btn primary">▶ 広告を見て+1枚</div>
+            <div class="c-btn sec">🎫 チケットを購入</div>
+            <div class="c-btn sec">↻ 月額プランを見る</div>
+          </div>
+          <div class="c-cancel">あとで</div>
+        </div>
+      </div>
+    </div></div>
+    <div class="trigger-row">
+      <button class="trigger-btn" onclick="toggleC()">チケット切れをシミュレート</button>
+      <button class="reset-btn" onclick="reset('c-ov')">閉じる</button>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  A/B/Cいずれかのレターを伝えてもらえれば、そのまま実装(components/TicketGateModal.tsx、必要ならapp/paywall.tsxとの連携)に進みます。「Aだけどボタンの色を変えたい」のような微調整も歓迎です。
+</footer>
+
+<script>
+function toggle(id) {
+  const el = document.getElementById(id);
+  el.classList.toggle('show');
+}
+function reset(id) {
+  document.getElementById(id).classList.remove('show');
+}
+function toggleC() {
+  const el = document.getElementById('c-ov');
+  el.classList.add('show');
+  // チケットのポップ演出を毎回再生する
+  const t = document.getElementById('c-tix');
+  t.style.animation = 'none';
+  void t.offsetWidth;
+  Array.from(t.children).forEach(c => { c.style.animation = 'none'; void c.offsetWidth; });
+}
+
+// 検収用フック: ?open=all|cur|a|b|c で該当パネルを開いた状態で描画する
+(function() {
+  const p = new URLSearchParams(location.search).get('open');
+  if (!p) return;
+  const map = { cur: 'cur-ov', a: 'a-ov', b: 'b-ov' };
+  if (p === 'all') {
+    Object.values(map).forEach(id => document.getElementById(id).classList.add('show'));
+    toggleC();
+  } else if (p === 'c') {
+    toggleC();
+  } else if (map[p]) {
+    document.getElementById(map[p]).classList.add('show');
+  }
+})();
+</script>
+
+</body>
+</html>

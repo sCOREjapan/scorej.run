@@ -1,9 +1,12 @@
 // components/TicketGateModal.tsx — チケット残高不足モーダル
 // checkAdGate() が needsTicket=true かつ allowed=false（残高不足）のときに表示。
-// 「広告を見てチケット+1」をその場で完結できる導線にし（earnTicketFromAd、1日上限あり）、
-// 購入 / 月額プランへの導線もあわせて提示する。
+// 2026-09-03: 下からのボトムシート(小さい・背景が透けて見える)から、画面全体を覆う
+// フルスクリーンモーダルに変更(mitameでA/B/C案をプレビューし、Aで確定)。
+// あわせて、月額プラン(¥980〜)への導線を最上段の主CTAにし、広告視聴・単発購入は
+// その下のサブ導線に格下げ（APIコストが広告収益を上回っていたための収益改善施策）。
 import React, { useEffect, useRef, useState } from 'react'
 import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import type { Feature } from '../lib/adGate'
@@ -13,8 +16,13 @@ import { trackPaywallView } from '../lib/analytics'
 import Toast from 'react-native-toast-message'
 import { useTranslation } from 'react-i18next'
 
-const TIX  = '#f59e0b'
-const PREM = '#7c3aed'
+const BRAND = '#166534'
+const TIX   = '#f59e0b'
+const TEXT_1 = '#111827'
+const TEXT_2 = '#6b7280'
+const TEXT_HINT = '#9ca3af'
+const BG    = '#f6f6f8'
+const BORDER = 'rgba(0,0,0,0.08)'
 
 interface Props {
   visible:       boolean
@@ -67,79 +75,93 @@ export default function TicketGateModal({ visible, feature, ticketCost, ticketBa
   }
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={st.overlay}>
-        <View style={st.card}>
-          <View style={st.handle} />
-          <View style={[st.iconWrap, { backgroundColor: 'rgba(245,158,11,0.18)' }]}>
-            <Text style={{ fontSize: 30 }}>🎫</Text>
+    <Modal visible={visible} animationType="fade" onRequestClose={onClose}>
+      <SafeAreaView style={st.safe} edges={['top', 'bottom']}>
+        <TouchableOpacity style={st.closeBtn} onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+          <Ionicons name="close" size={22} color={TEXT_HINT} />
+        </TouchableOpacity>
+
+        <View style={st.body}>
+          <View style={st.iconWrap}>
+            <Text style={{ fontSize: 34 }}>🎫</Text>
           </View>
           <Text style={st.title}>{t('ticketGateModal.title')}</Text>
           <Text style={st.sub}>
             {t('ticketGateModal.sub', { feature: featureName, cost: ticketCost, balance, shortage })}
           </Text>
 
-          <TouchableOpacity
-            style={[st.primaryBtn, { backgroundColor: '#22c55e' }, (watchingAd || adTicketsLeft <= 0) && { opacity: 0.5 }]}
-            onPress={handleWatchAd}
-            activeOpacity={0.85}
-            disabled={watchingAd || adTicketsLeft <= 0}
-          >
-            {watchingAd ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Ionicons name="play-circle" size={18} color="#fff" />
-            )}
-            <Text style={[st.primaryBtnTxt, { color: '#fff' }]}>
-              {watchingAd ? t('ticketGateModal.watchAdLoading')
-                : adTicketsLeft > 0 ? t('ticketGateModal.watchAdCta', { n: adTicketsLeft })
-                : t('ticketGateModal.watchAdCapReached')}
-            </Text>
-          </TouchableOpacity>
+          <View style={st.btns}>
+            {/* 主CTA：月額プラン（¥980〜・毎月チケット100枚）。広告/単発購入より上に配置 */}
+            <TouchableOpacity
+              style={st.primaryBtn}
+              onPress={() => { onClose(); router.push('/paywall?plan=ticket_monthly') }}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="refresh" size={18} color="#fff" />
+              <Text style={st.primaryBtnTxt}>{t('ticketGateModal.monthlyPlan')}</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[st.secondaryBtn, { borderColor: TIX }]}
-            onPress={() => { onClose(); router.push('/tickets') }}
-            activeOpacity={0.85}
-          >
-            <Text style={{ fontSize: 16 }}>🎫</Text>
-            <Text style={[st.secondaryBtnTxt, { color: TIX }]}>{t('ticketGateModal.buyTickets')}</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[st.secondaryBtn, (watchingAd || adTicketsLeft <= 0) && { opacity: 0.5 }]}
+              onPress={handleWatchAd}
+              activeOpacity={0.85}
+              disabled={watchingAd || adTicketsLeft <= 0}
+            >
+              {watchingAd ? (
+                <ActivityIndicator size="small" color={TEXT_1} />
+              ) : (
+                <Ionicons name="play-circle-outline" size={17} color={TEXT_1} />
+              )}
+              <Text style={st.secondaryBtnTxt}>
+                {watchingAd ? t('ticketGateModal.watchAdLoading')
+                  : adTicketsLeft > 0 ? t('ticketGateModal.watchAdCta', { n: adTicketsLeft })
+                  : t('ticketGateModal.watchAdCapReached')}
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[st.secondaryBtn, { borderColor: PREM }]}
-            onPress={() => { onClose(); router.push('/paywall?plan=ticket_monthly') }}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="refresh" size={16} color={PREM} />
-            <Text style={[st.secondaryBtnTxt, { color: PREM }]}>{t('ticketGateModal.monthlyPlan')}</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={st.secondaryBtn}
+              onPress={() => { onClose(); router.push('/tickets') }}
+              activeOpacity={0.85}
+            >
+              <Text style={{ fontSize: 15 }}>🎫</Text>
+              <Text style={st.secondaryBtnTxt}>{t('ticketGateModal.buyTickets')}</Text>
+            </TouchableOpacity>
+          </View>
 
           <TouchableOpacity style={st.cancelBtn} onPress={onClose} activeOpacity={0.7}>
             <Text style={st.cancelTxt}>{t('ticketGateModal.notNow')}</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </SafeAreaView>
     </Modal>
   )
 }
 
 const st = StyleSheet.create({
-  overlay:        { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' },
-  card:           {
-    backgroundColor: '#1a1a2e',
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 24, paddingBottom: 36,
-    alignItems: 'center', gap: 12,
+  safe:           { flex: 1, backgroundColor: BG },
+  closeBtn:       { alignSelf: 'flex-end', padding: 16 },
+  body:           { flex: 1, alignItems: 'center', paddingHorizontal: 24, paddingBottom: 24 },
+  iconWrap:       {
+    width: 76, height: 76, borderRadius: 22,
+    backgroundColor: 'rgba(245,158,11,0.14)',
+    alignItems: 'center', justifyContent: 'center',
+    marginTop: 12, marginBottom: 18,
   },
-  handle:         { width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)', marginBottom: 4 },
-  iconWrap:       { width: 64, height: 64, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
-  title:          { fontSize: 18, fontWeight: '800', color: '#fff', textAlign: 'center' },
-  sub:            { fontSize: 13, color: 'rgba(255,255,255,0.65)', textAlign: 'center', lineHeight: 20 },
-  primaryBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14, paddingVertical: 14, width: '100%' },
-  primaryBtnTxt:  { fontSize: 14, fontWeight: '800' },
-  secondaryBtn:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14, paddingVertical: 12, width: '100%', borderWidth: 1.5 },
-  secondaryBtnTxt:{ fontSize: 13, fontWeight: '700' },
+  title:          { fontSize: 19, fontWeight: '800', color: TEXT_1, textAlign: 'center', marginBottom: 8 },
+  sub:            { fontSize: 13, color: TEXT_2, textAlign: 'center', lineHeight: 20, paddingHorizontal: 8 },
+  btns:           { width: '100%', gap: 11, marginTop: 'auto', marginBottom: 10 },
+  primaryBtn:     {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: BRAND, borderRadius: 14, paddingVertical: 15, width: '100%',
+  },
+  primaryBtnTxt:  { fontSize: 14, fontWeight: '800', color: '#fff' },
+  secondaryBtn:   {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: '#fff', borderRadius: 14, paddingVertical: 13, width: '100%',
+    borderWidth: 1.3, borderColor: BORDER,
+  },
+  secondaryBtnTxt:{ fontSize: 13, fontWeight: '700', color: TEXT_1 },
   cancelBtn:      { paddingVertical: 8 },
-  cancelTxt:      { fontSize: 13, color: 'rgba(255,255,255,0.4)' },
+  cancelTxt:      { fontSize: 12.5, color: TEXT_HINT },
 })
