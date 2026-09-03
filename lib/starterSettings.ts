@@ -11,14 +11,14 @@ export type StarterSettings = {
 }
 
 export const STARTER_DEFAULTS: StarterSettings = {
-  startToMarksSec: 3.0,
-  marksToSetSec:   20.0,
+  startToMarksSec: 2.5,
+  marksToSetSec:   12.0,
   gunRandom:       true,
-  gunFixedSec:      1.8,
+  gunFixedSec:      2.2,
 }
 
-export const GUN_RANDOM_MIN = 1.5
-export const GUN_RANDOM_MAX = 2.0
+export const GUN_RANDOM_MIN = 1.0
+export const GUN_RANDOM_MAX = 2.5
 
 export async function getStarterSettings(): Promise<StarterSettings> {
   try {

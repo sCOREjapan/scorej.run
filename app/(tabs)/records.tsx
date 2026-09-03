@@ -1787,8 +1787,8 @@ export default function RecordsScreen() {
             <Pressable style={toolsMenu.card} onPress={() => {}}>
               <Text style={toolsMenu.title}>{t('records.toolsMenu.title')}</Text>
               {([
-                { icon: 'flag-outline' as const, label: t('records.toolsMenu.starterLabel'), sub: t('records.toolsMenu.starterSub'), route: '/starter' },
-                { icon: 'calculator-outline' as const, label: t('records.toolsMenu.combinedLabel'), sub: t('records.toolsMenu.combinedSub'), route: '/combined-events' },
+                { icon: 'flag-outline' as const, label: t('records.toolsMenu.starterLabel'), sub: t('records.toolsMenu.starterSub'), route: '/reaction-start' },
+                { icon: 'calculator-outline' as const, label: t('records.toolsMenu.combinedLabel'), sub: t('records.toolsMenu.combinedSub'), route: '/multi-event-score' },
                 { icon: 'stopwatch-outline' as const, label: t('records.toolsMenu.timerLabel'), sub: t('records.toolsMenu.timerSub'), route: '/training-timer' },
               ]).map(item => (
                 <TouchableOpacity

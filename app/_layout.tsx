@@ -724,6 +724,13 @@ function RootLayoutNav() {
           <Stack.Screen name="auth"        options={{ headerShown: false }} />
           <Stack.Screen name="onboarding"  options={{ headerShown: false, gestureEnabled: false }} />
           <Stack.Screen name="(tabs)"      options={{ headerShown: false }} />
+          {/* 2026-09-03: これらの画面は独自のヘッダーUIを内部で描画しているため、
+              未登録のままだとExpo Routerがファイル名から自動生成したタイトル
+              （例: "multi-event-score"）がネイティブヘッダーとして別途表示されてしまっていた。
+              明示的にheaderShown:falseを指定してこれを防ぐ */}
+          <Stack.Screen name="multi-event-score"       options={{ headerShown: false }} />
+          <Stack.Screen name="reaction-start"          options={{ headerShown: false }} />
+          <Stack.Screen name="reaction-start-settings" options={{ headerShown: false }} />
           <Stack.Screen
             name="video-analysis"
             options={{

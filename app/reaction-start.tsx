@@ -1,4 +1,4 @@
-// app/starter.tsx — スタート合図練習ツール（On your marks → Set → 号砲）
+// app/reaction-start.tsx — スタート反応練習ツール（On your marks → Set → 号砲）
 import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -107,43 +107,43 @@ export default function StarterScreen() {
           <Ionicons name="chevron-back" size={26} color={TEXT_PRIMARY} />
         </TouchableOpacity>
         <Text style={ss.headerTitle}>{t('starter.headerTitle')}</Text>
-        <TouchableOpacity onPress={() => router.push('/starter-settings' as any)} style={ss.editBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+        <TouchableOpacity onPress={() => router.push('/reaction-start-settings' as any)} style={ss.editBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
           <Text style={ss.editBtnText}>{t('starter.edit')}</Text>
         </TouchableOpacity>
       </View>
 
       <View style={ss.body}>
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={running ? undefined : handleStart}
-          disabled={running}
-          style={[ss.circle, { borderColor: color, backgroundColor: color + '14' }]}
-        >
-          <Text style={[ss.circleText, { color }]}>{phase === 'idle' ? t('starter.idle') : PHASE_TEXT[phase]}</Text>
-          {running && (
-            <TouchableOpacity onPress={handleCancel} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={ss.cancelText}>{t('starter.cancel')}</Text>
-            </TouchableOpacity>
-          )}
-        </TouchableOpacity>
-
-        <View style={ss.stagesRow}>
-          {STAGES.map(stg => {
+        {/* 進行状況は上部の横長ステップバーで表現（丸ドット→バー形式に変更） */}
+        <View style={ss.stepBar}>
+          {STAGES.map((stg, i) => {
             const active = phase === stg.key
+            const passed = STAGES.findIndex(s => s.key === phase) > i
             return (
-              <View key={stg.key} style={ss.stageItem}>
-                <View style={[ss.stageDot, { borderColor: stg.color }, active && { backgroundColor: stg.color }]} />
-                <Text style={[ss.stageLabel, active && { color: stg.color, fontWeight: '800' }]}>{stg.label}</Text>
+              <View key={stg.key} style={ss.stepSegmentWrap}>
+                <View style={[ss.stepSegment, (active || passed) && { backgroundColor: stg.color }]} />
+                <Text style={[ss.stepLabel, active && { color: stg.color, fontWeight: '800' }]}>{stg.label}</Text>
               </View>
             )
           })}
         </View>
+
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={running ? undefined : handleStart}
+          disabled={running}
+          style={[ss.card, { borderColor: color, backgroundColor: color + '14' }]}
+        >
+          <Text style={[ss.cardText, { color }]}>{phase === 'idle' ? t('starter.idle') : PHASE_TEXT[phase]}</Text>
+          {running && (
+            <TouchableOpacity onPress={handleCancel} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={ss.cancelBadge}>
+              <Text style={ss.cancelText}>{t('starter.cancel')}</Text>
+            </TouchableOpacity>
+          )}
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   )
 }
-
-const CIRCLE_SIZE = 280
 
 const ss = StyleSheet.create({
   safe:        { flex: 1, backgroundColor: BG },
@@ -152,15 +152,16 @@ const ss = StyleSheet.create({
   headerTitle: { fontSize: 17, fontWeight: '700', color: TEXT_PRIMARY },
   editBtn:     { paddingHorizontal: 14, paddingVertical: 8 },
   editBtnText: { fontSize: 15, fontWeight: '700', color: '#3b82f6' },
-  body:        { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 40, paddingBottom: 40 },
-  circle: {
-    width: CIRCLE_SIZE, height: CIRCLE_SIZE, borderRadius: CIRCLE_SIZE / 2,
+  body:        { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 36, paddingBottom: 40, paddingHorizontal: 28, width: '100%' },
+  stepBar:     { flexDirection: 'row', width: '100%', gap: 10 },
+  stepSegmentWrap: { flex: 1, alignItems: 'center', gap: 8 },
+  stepSegment: { width: '100%', height: 6, borderRadius: 3, backgroundColor: '#e5e7eb' },
+  stepLabel:   { fontSize: 11.5, fontWeight: '600', color: TEXT_HINT },
+  card: {
+    width: '100%', aspectRatio: 1.15, borderRadius: 32,
     borderWidth: 3, alignItems: 'center', justifyContent: 'center', gap: 14,
   },
-  circleText:  { fontSize: 26, fontWeight: '800', textAlign: 'center', paddingHorizontal: 20 },
+  cardText:    { fontSize: 30, fontWeight: '800', textAlign: 'center', paddingHorizontal: 20 },
+  cancelBadge: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.06)' },
   cancelText:  { fontSize: 14, fontWeight: '600', color: TEXT_HINT },
-  stagesRow:   { flexDirection: 'row', gap: 40 },
-  stageItem:   { alignItems: 'center', gap: 6 },
-  stageDot:    { width: 16, height: 16, borderRadius: 8, borderWidth: 2 },
-  stageLabel:  { fontSize: 12, fontWeight: '600', color: TEXT_HINT },
 })

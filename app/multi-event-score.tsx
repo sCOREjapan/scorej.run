@@ -1,4 +1,4 @@
-// app/combined-events.tsx — 混成競技ツール（男子十種競技／女子七種競技の得点計算・記録・PB管理）
+// app/multi-event-score.tsx — 混成競技ツール（男子十種競技／女子七種競技の得点計算・記録・PB管理）
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert,
@@ -121,40 +121,43 @@ export default function CombinedEventsScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      {/* ── 男女切り替え ── */}
-      <View style={ce.segment}>
-        {([
-          { key: 'men' as const,   label: t('combinedEvents.menCategory') },
-          { key: 'women' as const, label: t('combinedEvents.womenCategory') },
-        ]).map(o => (
-          <TouchableOpacity
-            key={o.key}
-            style={[ce.segmentBtn, category === o.key && ce.segmentBtnActive]}
-            onPress={() => switchCategory(o.key)}
-            activeOpacity={0.8}
-          >
-            <Text style={[ce.segmentText, category === o.key && ce.segmentTextActive]}>{o.label}</Text>
-          </TouchableOpacity>
-        ))}
+      {/* ── 種別(男女)ピル切り替え・サブナビゲーションを1つの帯にまとめて表示 ── */}
+      <View style={ce.controlRow}>
+        <View style={ce.categoryPills}>
+          {([
+            { key: 'men' as const,   label: t('combinedEvents.menCategory') },
+            { key: 'women' as const, label: t('combinedEvents.womenCategory') },
+          ]).map(o => (
+            <TouchableOpacity
+              key={o.key}
+              style={[ce.categoryPill, category === o.key && ce.categoryPillActive]}
+              onPress={() => switchCategory(o.key)}
+              activeOpacity={0.8}
+            >
+              <Text style={[ce.categoryPillText, category === o.key && ce.categoryPillTextActive]}>{o.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
-      {/* ── サブタブ ── */}
-      <View style={ce.tabBar}>
+      {/* ── サブナビゲーション（履歴を先頭に。ピル型・アイコン付き） ── */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={ce.subNavRow}>
         {([
-          { key: 'calc' as const,  label: t('combinedEvents.tabCalc') },
-          { key: 'match' as const, label: t('combinedEvents.tabMatch') },
-          { key: 'pb' as const,    label: t('combinedEvents.tabPb') },
+          { key: 'pb' as const,    label: t('combinedEvents.tabPb'),    icon: 'ribbon-outline' as const },
+          { key: 'calc' as const,  label: t('combinedEvents.tabCalc'),  icon: 'calculator-outline' as const },
+          { key: 'match' as const, label: t('combinedEvents.tabMatch'), icon: 'time-outline' as const },
         ]).map(tab => (
           <TouchableOpacity
             key={tab.key}
-            style={[ce.tabItem, subTab === tab.key && ce.tabItemActive]}
+            style={[ce.subNavChip, subTab === tab.key && ce.subNavChipActive]}
             onPress={() => { unlockAudio(); Sounds.tabSwitch(); setSubTab(tab.key) }}
             activeOpacity={0.8}
           >
-            <Text style={[ce.tabLabel, subTab === tab.key && ce.tabLabelActive]}>{tab.label}</Text>
+            <Ionicons name={tab.icon} size={14} color={subTab === tab.key ? '#fff' : TEXT_SECONDARY} />
+            <Text style={[ce.subNavChipText, subTab === tab.key && ce.subNavChipTextActive]}>{tab.label}</Text>
           </TouchableOpacity>
         ))}
-      </View>
+      </ScrollView>
 
       <ScrollView contentContainerStyle={ce.scroll}>
         {subTab === 'calc' && (
@@ -260,19 +263,20 @@ const ce = StyleSheet.create({
   iconBtn:     { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 17, fontWeight: '700', color: TEXT_PRIMARY },
 
-  segment:        { flexDirection: 'row', marginHorizontal: 16, backgroundColor: '#eef0f3', borderRadius: 14, padding: 3, gap: 3 },
-  segmentBtn:     { flex: 1, paddingVertical: 10, borderRadius: 11, alignItems: 'center' },
-  segmentBtnActive: { backgroundColor: CARD, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 3, elevation: 2 },
-  segmentText:    { fontSize: 13, fontWeight: '700', color: TEXT_SECONDARY },
-  segmentTextActive: { color: TEXT_PRIMARY },
+  controlRow:     { flexDirection: 'row', justifyContent: 'center', marginTop: 4, marginBottom: 14 },
+  categoryPills:  { flexDirection: 'row', gap: 8 },
+  categoryPill:   { paddingHorizontal: 20, paddingVertical: 9, borderRadius: 20, backgroundColor: '#eef0f3', borderWidth: 1.5, borderColor: 'transparent' },
+  categoryPillActive: { backgroundColor: BRAND + '18', borderColor: BRAND },
+  categoryPillText: { fontSize: 13, fontWeight: '700', color: TEXT_SECONDARY },
+  categoryPillTextActive: { color: BRAND },
 
-  tabBar:      { flexDirection: 'row', marginHorizontal: 16, marginTop: 12, borderBottomWidth: 1, borderBottomColor: BORDER },
-  tabItem:     { flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  tabItemActive: { borderBottomColor: BRAND },
-  tabLabel:    { fontSize: 13, fontWeight: '600', color: TEXT_HINT },
-  tabLabelActive: { color: BRAND, fontWeight: '800' },
+  subNavRow:   { flexDirection: 'row', paddingHorizontal: 16, gap: 8, paddingBottom: 4 },
+  subNavChip:  { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 18, backgroundColor: '#eef0f3' },
+  subNavChipActive: { backgroundColor: BRAND },
+  subNavChipText: { fontSize: 12.5, fontWeight: '700', color: TEXT_SECONDARY },
+  subNavChipTextActive: { color: '#fff' },
 
-  scroll:      { padding: 16, gap: 12 },
+  scroll:      { padding: 16, paddingTop: 12, gap: 12 },
 
   totalCard:   { backgroundColor: CARD, borderWidth: 1.5, borderColor: BORDER, borderRadius: 21, padding: 22, alignItems: 'center', marginBottom: 4 },
   totalLabel:  { fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6 },

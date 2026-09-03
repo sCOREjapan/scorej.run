@@ -2290,8 +2290,8 @@ ${sleepText || 'データなし'}
                   { icon: 'calendar-outline' as const,   label: t('home.quickAccess.calendar'),       route: '/(tabs)/calendar',    spotKey: undefined },
                   { icon: 'restaurant-outline' as const, label: t('home.quickAccess.mealAnalysis'),   route: '/(tabs)/nutrition',   spotKey: undefined },
                   { icon: 'flag-outline' as const,       label: t('home.quickAccess.competitionPlan'), route: '/(tabs)/competition', spotKey: 'competition_tab' as const },
-                  { icon: 'megaphone-outline' as const,  label: t('home.quickAccess.starter'),        route: '/starter',            spotKey: undefined },
-                  { icon: 'calculator-outline' as const, label: t('home.quickAccess.combinedEvents'), route: '/combined-events',    spotKey: undefined },
+                  { icon: 'megaphone-outline' as const,  label: t('home.quickAccess.starter'),        route: '/reaction-start',            spotKey: undefined },
+                  { icon: 'calculator-outline' as const, label: t('home.quickAccess.combinedEvents'), route: '/multi-event-score',    spotKey: undefined },
                   { icon: 'stopwatch-outline' as const,  label: t('home.quickAccess.trainingTimer'),  route: '/training-timer', spotKey: undefined },
                 ].map(item => {
                   const btn = (

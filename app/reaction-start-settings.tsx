@@ -1,4 +1,4 @@
-// app/starter-settings.tsx — スターターツールのタイミング設定画面
+// app/reaction-start-settings.tsx — スタート反応練習ツールのタイミング設定画面
 import React, { useEffect, useState, useCallback } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
