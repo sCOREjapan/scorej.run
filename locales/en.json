@@ -1921,6 +1921,18 @@
     "fixedWait": "Fixed wait time"
   },
   "auth": {
+    "tag": "WELCOME",
+    "title": "Get Started with sCORE",
+    "subtitle": "Log and analyze your training\nto hit new personal bests",
+    "googleLogin": "Continue with Google",
+    "appleLogin": "Continue with Apple",
+    "continueAsGuest": "Continue as Guest",
+    "footerPrefix": "By continuing, you agree to our ",
+    "footerTerms": "Terms of Service",
+    "footerAnd": " and ",
+    "footerPrivacy": "Privacy Policy",
+    "footerSuffix": ".",
+    "inAppBrowserAlert": "This page is open in an in-app browser. Please open it in Safari or another standard browser before logging in.",
     "googleLoginFailed": "Google login failed",
     "urlFetchFailed": "Failed to get URL",
     "idTokenFailed": "Failed to get ID token",

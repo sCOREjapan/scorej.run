@@ -1921,6 +1921,18 @@
     "fixedWait": "固定の待ち時間"
   },
   "auth": {
+    "tag": "ようこそ",
+    "title": "sCOREをはじめよう",
+    "subtitle": "陸上競技の練習を記録・分析して、\n自己ベストを更新しよう",
+    "googleLogin": "Googleでログイン",
+    "appleLogin": "Appleでログイン",
+    "continueAsGuest": "ログインせずに始める",
+    "footerPrefix": "続けることで、",
+    "footerTerms": "利用規約",
+    "footerAnd": "・",
+    "footerPrivacy": "プライバシーポリシー",
+    "footerSuffix": "に同意したものとみなされます",
+    "inAppBrowserAlert": "この画面はアプリ内ブラウザで開かれています。Safariなど標準のブラウザで開き直してからログインしてください",
     "googleLoginFailed": "Googleログイン失敗",
     "urlFetchFailed": "URL取得失敗",
     "idTokenFailed": "IDトークンを取得できませんでした",
