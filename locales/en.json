@@ -1221,7 +1221,7 @@
         "label": "Ad-Free Plan",
         "tagline": "Remove all ads",
         "feature1": "Removes all ads (banners and videos)",
-        "feature2": "AI features stay ticket-based (10 free + purchases)",
+        "feature2": "AI features stay ticket-based (5 free + purchases)",
         "yearlyNote": "¥4,800/year (2 months free)"
       },
       "ticket_monthly": {
@@ -3786,7 +3786,7 @@
       },
       "s5": {
         "title": "Free AI Tickets",
-        "description": "Video analysis and AI menu\ngeneration use tickets. We're giving\nyou 10 free right now! Watch ads to earn more 🎁"
+        "description": "Video analysis and AI menu\ngeneration use tickets. We're giving\nyou 5 free right now! Watch ads to earn more 🎁"
       },
       "s6": {
         "title": "Competition Plans & Recovery",
