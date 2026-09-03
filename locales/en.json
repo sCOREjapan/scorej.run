@@ -1638,7 +1638,9 @@
       "minUnit": "min",
       "secUnit": "sec",
       "ticketCost": "🎫 {{n}}",
-      "generate": "Create Plan with AI"
+      "generate": "Create Plan with AI",
+      "environmentLabel": "Training environment, equipment & technique style (optional)",
+      "environmentPlaceholder": "e.g. no weight room / rotational throw / dirt track"
     },
     "eventCategories": {
       "sprint": "Sprints & Hurdles",
@@ -1750,7 +1752,9 @@
       "intentPlaceholder": "e.g. Getting toward the end of the training phase, want to shift toward speed work gradually. Tomorrow will be a full rest day.",
       "generating": "Generating menu...",
       "generate": "Generate Menu",
-      "ticketCost": "🎫 {{n}}"
+      "ticketCost": "🎫 {{n}}",
+      "environmentLabel": "Training environment, equipment & technique style (optional)",
+      "environmentPlaceholder": "e.g. no weight room / rotational throw / dirt track"
     },
     "pickerModal": {
       "selectTitle": "Pick Exercises",
@@ -1765,7 +1769,9 @@
       "intentPlaceholder": "e.g. Speed transition phase. Higher intensity.",
       "generating": "Generating menu...",
       "generateWithPick": "Generate with These Picks",
-      "backToSelect": "Choose Exercises Again"
+      "backToSelect": "Choose Exercises Again",
+      "environmentLabel": "Training environment, equipment & technique style (optional)",
+      "environmentPlaceholder": "e.g. no weight room / rotational throw / dirt track"
     },
     "histDetailModal": {
       "title": "Generated Menu"

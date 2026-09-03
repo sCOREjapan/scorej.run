@@ -86,12 +86,14 @@ export function getCompetitionPlanPrompt(
   profile: UserProfile,
   competitionName: string,
   event: AthleticsEvent,
+  environment = '',
 ): string {
   const weeksLeft = Math.min(Math.ceil(daysLeft / 7), 8) // 最大8週
   const { category, pbInfo, targetInfo, menuFocus } = getCompetitionContext(profile, event)
 
   return `${category}専門コーチ。${event}選手(${pbInfo}${targetInfo}, 経験${profile.experience_years ?? '?'}年)の「${competitionName}」まで${weeksLeft}週間の計画をJSONのみで返せ。
 種目「${event}」に特化した専門的な練習内容（${menuFocus}）を組み込むこと。
+${environment ? `選手の練習環境・使用可能な器具・技術スタイル（重要・必ず考慮すること）: ${environment}\n` : ''}
 
 必須ルール:
 - phases配列は必ず${weeksLeft}要素（多くも少なくもNG）
@@ -112,6 +114,7 @@ export function getCompetitionPlanChunkPrompt(
   profile: UserProfile,
   competitionName: string,
   event: AthleticsEvent,
+  environment = '',
 ): string {
   const { category, pbInfo, targetInfo, menuFocus } = getCompetitionContext(profile, event)
   const includesRaceWeek = weekNumbers.includes(1)
@@ -120,6 +123,7 @@ export function getCompetitionPlanChunkPrompt(
   return `${category}専門コーチ。${event}選手(${pbInfo}${targetInfo}, 経験${profile.experience_years ?? '?'}年)の「${competitionName}」まで${weeksLeft}週間の計画を作成中。
 全体はweek_number=${weeksLeft}〜1（week_number=1が試合直前週）で、今回はそのうちweek_number=${weekList}の${weekNumbers.length}週分だけをJSONのみで返せ。
 種目「${event}」に特化した専門的な練習内容（${menuFocus}）を組み込むこと。
+${environment ? `選手の練習環境・使用可能な器具・技術スタイル（重要・必ず考慮すること）: ${environment}\n` : ''}
 
 必須ルール:
 - phases配列は必ず${weekNumbers.length}要素（week_number=${weekList}のみ、多くも少なくもNG）

@@ -223,6 +223,10 @@ export default function WorkoutMenuScreen() {
   const [pickModal, setPickModal] = useState(false)
   const [pickedItems, setPickedItems] = useState<PickedItem[]>([])
   const [pickIntent, setPickIntent] = useState('')
+  // 練習環境・使用器具・技術スタイル（自由記述、両方の生成フローで共有）。
+  // 種目名だけではAIに伝わらない情報（投擲の技術スタイル・利用可能な設備等）を補うため追加
+  // （2026-09-03指摘: 投擲でグライドなのに回転前提の練習や、無い設備前提の練習が提案される不具合）
+  const [menuEnvironment, setMenuEnvironment] = useState('')
   const [expandedFolders, setExpandedFolders] = useState<string[]>([])
   const [pickStep, setPickStep] = useState<'select' | 'generate'>('select')
   const [pickLoading, setPickLoading] = useState(false)
@@ -432,7 +436,7 @@ ${libraryText}
 
 【選手の今日のイメージ・意図】
 ${pickIntent.trim() || '特に指定なし（コーチの判断で最適なメニューを）'}
-
+${menuEnvironment.trim() ? `\n【練習環境・使用可能な器具・技術スタイル(必ず考慮すること)】\n${menuEnvironment.trim()}\n` : ''}
 ━━━━━━━━━━━━━━━━━━━━━
 
 以下の形式で、プロコーチとして詳細なメニューを作成してください：
@@ -570,7 +574,7 @@ ${H1.coach}
 
 【選手の練習ライブラリ】
 ${libraryText || '（まだライブラリに種目が登録されていません）'}
-
+${menuEnvironment.trim() ? `\n【練習環境・使用可能な器具・技術スタイル(必ず考慮すること)】\n${menuEnvironment.trim()}\n` : ''}
 ━━━━━━━━━━━━━━━━━━━━━
 
 このリクエストと選手のライブラリを踏まえて、今日の完全な練習メニューを作ってください。
@@ -983,6 +987,17 @@ ${H2.coach}
                   multiline
                 />
 
+                {/* 練習環境・器具・技術スタイル */}
+                <Text style={m.label}>{t('workoutMenu.aiModal.environmentLabel')}</Text>
+                <TextInput
+                  value={menuEnvironment}
+                  onChangeText={setMenuEnvironment}
+                  placeholder={t('workoutMenu.aiModal.environmentPlaceholder')}
+                  placeholderTextColor={TEXT.hint}
+                  style={[m.input, { height: 72, textAlignVertical: 'top' }]}
+                  multiline
+                />
+
                 <HapticTouch
                   haptic="whoosh"
                   style={[ai.genBtn, aiLoading && { opacity: 0.4 }]}
@@ -1134,6 +1149,17 @@ ${H2.coach}
                     placeholder={t('workoutMenu.pickerModal.intentPlaceholder')}
                     placeholderTextColor={TEXT.hint}
                     style={[m.input, { height: 80, textAlignVertical: 'top' }]}
+                    multiline
+                  />
+
+                  {/* 練習環境・器具・技術スタイル */}
+                  <Text style={m.label}>{t('workoutMenu.pickerModal.environmentLabel')}</Text>
+                  <TextInput
+                    value={menuEnvironment}
+                    onChangeText={setMenuEnvironment}
+                    placeholder={t('workoutMenu.pickerModal.environmentPlaceholder')}
+                    placeholderTextColor={TEXT.hint}
+                    style={[m.input, { height: 72, textAlignVertical: 'top' }]}
                     multiline
                   />
 

@@ -1638,7 +1638,9 @@
       "minUnit": "分",
       "secUnit": "秒",
       "ticketCost": "🎫 {{n}}枚",
-      "generate": "AIで計画を作成する"
+      "generate": "AIで計画を作成する",
+      "environmentLabel": "練習環境・器具・技術スタイル（任意）",
+      "environmentPlaceholder": "例: ウエイトルームなし／投擲は回転投げ／土のグラウンド"
     },
     "eventCategories": {
       "sprint": "短距離・ハードル",
@@ -1750,7 +1752,9 @@
       "intentPlaceholder": "例：トレ期も終盤に近づき、少しずつスピード練習に移行していきたい。明日は完全休養にする。",
       "generating": "メニュー生成中...",
       "generate": "メニューを生成する",
-      "ticketCost": "🎫 {{n}}枚"
+      "ticketCost": "🎫 {{n}}枚",
+      "environmentLabel": "練習環境・器具・技術スタイル(任意)",
+      "environmentPlaceholder": "例: ウエイトルームなし／投擲は回転投げ／土のグラウンド"
     },
     "pickerModal": {
       "selectTitle": "種目をピックする",
@@ -1765,7 +1769,9 @@
       "intentPlaceholder": "例：スピード移行期。強度高めで。",
       "generating": "メニュー生成中...",
       "generateWithPick": "このピック内容でAI生成",
-      "backToSelect": "種目を選び直す"
+      "backToSelect": "種目を選び直す",
+      "environmentLabel": "練習環境・器具・技術スタイル(任意)",
+      "environmentPlaceholder": "例: ウエイトルームなし／投擲は回転投げ／土のグラウンド"
     },
     "histDetailModal": {
       "title": "生成メニュー"

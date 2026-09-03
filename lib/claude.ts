@@ -224,7 +224,8 @@ export async function generateCompetitionPlan(
   competitionName: string,
   profile: UserProfile,
   event: AthleticsEvent,
-  language: Language = 'ja'
+  language: Language = 'ja',
+  environment = ''
 ): Promise<{ phases: WeekPlan[]; peak_week: number; taper_start_week: number; key_advice: string }> {
   const daysLeft = Math.ceil((competitionDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
   if (daysLeft < 1) throw new Error('試合日が過去です')
@@ -234,7 +235,7 @@ export async function generateCompetitionPlan(
   const weeksLeft = Math.min(Math.ceil(cappedDays / 7), 8)
 
   if (weeksLeft <= COMPETITION_PLAN_CHUNK_WEEKS) {
-    const systemPrompt = getCompetitionPlanPrompt(cappedDays, profile, competitionName, event) + narrativeLanguageInstruction(language)
+    const systemPrompt = getCompetitionPlanPrompt(cappedDays, profile, competitionName, event, environment) + narrativeLanguageInstruction(language)
     const text = await callClaude({
       model: MODEL,
       max_tokens: 4096,
@@ -261,7 +262,7 @@ export async function generateCompetitionPlan(
   const allPhases: WeekPlan[] = []
   let keyAdvice = ''
   for (const chunkWeeks of weekChunks) {
-    const systemPrompt = getCompetitionPlanChunkPrompt(chunkWeeks, weeksLeft, profile, competitionName, event) + narrativeLanguageInstruction(language)
+    const systemPrompt = getCompetitionPlanChunkPrompt(chunkWeeks, weeksLeft, profile, competitionName, event, environment) + narrativeLanguageInstruction(language)
     const text = await callClaude({
       model: MODEL,
       max_tokens: 2048,

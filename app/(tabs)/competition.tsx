@@ -382,6 +382,10 @@ export default function CompetitionScreen() {
   const [targetMin,    setTargetMin]    = useState('')
   const [targetSec,    setTargetSec]    = useState('')
   const [targetDistM,  setTargetDistM]  = useState('')  // 投擲・跳躍用（m）
+  // 練習環境・使用器具・技術スタイル（自由記述）。以前はAIが種目カテゴリだけを見て
+  // メニューを作っていたため、投擲でグライドなのに回転前提の練習を提案したり、
+  // ウエイトルームが無いのにウエイト種目を入れたりする不具合があった（2026-09-03指摘）
+  const [compEnvironment, setCompEnvironment] = useState('')
 
   const FIELD_EVENTS = ['走幅跳','三段跳','走高跳','棒高跳','砲丸投','やり投','円盤投','ハンマー投']
   const isFieldEvent = FIELD_EVENTS.includes(compEvent)
@@ -538,7 +542,7 @@ export default function CompetitionScreen() {
       setModalVisible(false)
       Sounds.save()
       Toast.show({ type: 'success', text1: t('competition.toast.pastRecorded') })
-      setCompName(''); setCompDate(''); setTargetMin(''); setTargetSec('')
+      setCompName(''); setCompDate(''); setTargetMin(''); setTargetSec(''); setCompEnvironment('')
       generatingRef.current = false
       setGenerating(false)
       return
@@ -575,7 +579,7 @@ export default function CompetitionScreen() {
         created_at: new Date().toISOString(),
       }
 
-      const planData = await generateCompetitionPlan(dateObj, compName, profile, compEvent, language)
+      const planData = await generateCompetitionPlan(dateObj, compName, profile, compEvent, language, compEnvironment.trim())
 
       const daysUntil = Math.ceil((dateObj.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
 
@@ -624,6 +628,7 @@ export default function CompetitionScreen() {
       setCompDate('')
       setTargetMin('')
       setTargetSec('')
+      setCompEnvironment('')
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : t('competition.toast.planFailed')
       Toast.show({ type: 'error', text1: msg })
@@ -1610,6 +1615,16 @@ export default function CompetitionScreen() {
                   </View>
                 </>
               )}
+
+              <Text style={styles.label}>{t('competition.compModal.environmentLabel')}</Text>
+              <TextInput
+                style={[styles.input, { height: 72, textAlignVertical: 'top', paddingTop: 12 }]}
+                value={compEnvironment}
+                onChangeText={setCompEnvironment}
+                placeholder={t('competition.compModal.environmentPlaceholder')}
+                placeholderTextColor="#9ca3af"
+                multiline
+              />
 
               <View style={[styles.ticketCostBadge, { backgroundColor: BRAND + '22', borderColor: BRAND }]}>
                 <Text style={[styles.ticketCostBadgeText, { color: BRAND }]}>{t('competition.compModal.ticketCost', { n: TICKET_COST.competition_plan })}</Text>
