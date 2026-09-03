@@ -46,7 +46,7 @@ module.exports = {
     android: {
       adaptiveIcon: { backgroundColor: '#0a0a0a' },
       package: 'com.scorejapan.score',
-      versionCode: 8,
+      versionCode: 9,
       googleServicesFile: './google-services.json',
     },
     plugins: [
