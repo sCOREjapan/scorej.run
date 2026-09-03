@@ -21,13 +21,15 @@ import { useTranslation } from 'react-i18next'
 import { useLanguage } from '../context/LanguageContext'
 import { getEventLabel } from '../lib/eventLabels'
 
-const BRAND = '#16a34a'
-const BG = '#f6f6f8'
+// 2026-09-03: 配色・レイアウトを全面的に刷新（緑基調→インディゴ基調、カード構成も変更）
+const BRAND = '#4338ca'
+const BRAND_SOFT = '#eef0ff'
+const BG = '#faf9fc'
 const CARD = '#ffffff'
-const BORDER = 'rgba(0,0,0,0.08)'
-const TEXT_PRIMARY = '#111827'
-const TEXT_SECONDARY = '#6b7280'
-const TEXT_HINT = '#9ca3af'
+const BORDER = 'rgba(67,56,202,0.14)'
+const TEXT_PRIMARY = '#1e1b3a'
+const TEXT_SECONDARY = '#635f7a'
+const TEXT_HINT = '#a29dbd'
 
 type SubTab = 'calc' | 'match' | 'pb'
 
@@ -163,31 +165,40 @@ export default function CombinedEventsScreen() {
         {subTab === 'calc' && (
           <>
             <View style={ce.totalCard}>
-              <Text style={ce.totalLabel}>{t('combinedEvents.totalScore')}</Text>
-              <Text style={ce.totalNum}>{totalScore}</Text>
-              <Text style={ce.totalSub}>{t('combinedEvents.filledCount', { filled: filledCount, total: events.length })}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={ce.totalLabel}>{t('combinedEvents.totalScore')}</Text>
+                <Text style={ce.totalNum}>{totalScore}</Text>
+              </View>
+              <View style={ce.totalProgressWrap}>
+                <View style={ce.totalProgressRing}>
+                  <Text style={ce.totalProgressText}>{filledCount}/{events.length}</Text>
+                </View>
+                <Text style={ce.totalSub}>{t('combinedEvents.filledCount', { filled: filledCount, total: events.length })}</Text>
+              </View>
             </View>
 
             {events.map((e, i) => {
               const mark = numericMarks[e.key]
               const pts = calcEventScore(e, mark)
               return (
-                <View key={e.key} style={ce.eventCard}>
-                  <View style={ce.eventHeaderRow}>
-                    <View style={ce.eventIndex}><Text style={ce.eventIndexText}>{i + 1}</Text></View>
-                    <Text style={ce.eventLabel}>{getEventLabel(e.label, language)}</Text>
-                    <Text style={[ce.eventPts, mark > 0 && { color: BRAND }]}>{mark > 0 ? `${pts} pt` : t('combinedEvents.ptsUnfilled')}</Text>
-                  </View>
-                  <View style={ce.eventInputRow}>
-                    <TextInput
-                      style={ce.eventInput}
-                      placeholder={e.unit === 'sec' ? t('combinedEvents.placeholderSec') : e.unit === 'cm' ? t('combinedEvents.placeholderCm') : t('combinedEvents.placeholderM')}
-                      placeholderTextColor={TEXT_HINT}
-                      keyboardType="decimal-pad"
-                      value={marks[e.key] ?? ''}
-                      onChangeText={(txt) => setMarks(prev => ({ ...prev, [e.key]: txt }))}
-                    />
-                    <View style={ce.unitTag}><Text style={ce.unitTagText}>{unitLabel(e.unit, language)}</Text></View>
+                <View key={e.key} style={ce.eventRow}>
+                  <View style={[ce.eventAccent, mark > 0 && { backgroundColor: BRAND }]} />
+                  <View style={ce.eventRowBody}>
+                    <View style={ce.eventRowTop}>
+                      <Text style={ce.eventLabel} numberOfLines={1}>{i + 1}. {getEventLabel(e.label, language)}</Text>
+                      <Text style={[ce.eventPts, mark > 0 && { color: BRAND }]}>{mark > 0 ? `${pts}` : '—'}</Text>
+                    </View>
+                    <View style={ce.eventInputRow}>
+                      <TextInput
+                        style={ce.eventInput}
+                        placeholder={e.unit === 'sec' ? t('combinedEvents.placeholderSec') : e.unit === 'cm' ? t('combinedEvents.placeholderCm') : t('combinedEvents.placeholderM')}
+                        placeholderTextColor={TEXT_HINT}
+                        keyboardType="decimal-pad"
+                        value={marks[e.key] ?? ''}
+                        onChangeText={(txt) => setMarks(prev => ({ ...prev, [e.key]: txt }))}
+                      />
+                      <Text style={ce.unitTagText}>{unitLabel(e.unit, language)}</Text>
+                    </View>
                   </View>
                 </View>
               )
@@ -265,34 +276,36 @@ const ce = StyleSheet.create({
 
   controlRow:     { flexDirection: 'row', justifyContent: 'center', marginTop: 4, marginBottom: 14 },
   categoryPills:  { flexDirection: 'row', gap: 8 },
-  categoryPill:   { paddingHorizontal: 20, paddingVertical: 9, borderRadius: 20, backgroundColor: '#eef0f3', borderWidth: 1.5, borderColor: 'transparent' },
+  categoryPill:   { paddingHorizontal: 20, paddingVertical: 9, borderRadius: 20, backgroundColor: BRAND_SOFT, borderWidth: 1.5, borderColor: 'transparent' },
   categoryPillActive: { backgroundColor: BRAND + '18', borderColor: BRAND },
   categoryPillText: { fontSize: 13, fontWeight: '700', color: TEXT_SECONDARY },
   categoryPillTextActive: { color: BRAND },
 
   subNavRow:   { flexDirection: 'row', paddingHorizontal: 16, gap: 8, paddingBottom: 4 },
-  subNavChip:  { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 18, backgroundColor: '#eef0f3' },
+  subNavChip:  { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 18, backgroundColor: BRAND_SOFT },
   subNavChipActive: { backgroundColor: BRAND },
   subNavChipText: { fontSize: 12.5, fontWeight: '700', color: TEXT_SECONDARY },
   subNavChipTextActive: { color: '#fff' },
 
   scroll:      { padding: 16, paddingTop: 12, gap: 12 },
 
-  totalCard:   { backgroundColor: CARD, borderWidth: 1.5, borderColor: BORDER, borderRadius: 21, padding: 22, alignItems: 'center', marginBottom: 4 },
-  totalLabel:  { fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6 },
-  totalNum:    { fontSize: 40, fontWeight: '900', color: BRAND, fontVariant: ['tabular-nums'] },
-  totalSub:    { fontSize: 12, color: TEXT_HINT, marginTop: 4 },
+  totalCard:   { flexDirection: 'row', backgroundColor: BRAND, borderRadius: 24, padding: 20, alignItems: 'center', marginBottom: 4 },
+  totalLabel:  { fontSize: 12, color: 'rgba(255,255,255,0.75)', marginBottom: 4, fontWeight: '700' },
+  totalNum:    { fontSize: 38, fontWeight: '900', color: '#fff', fontVariant: ['tabular-nums'] },
+  totalProgressWrap: { alignItems: 'center', gap: 6 },
+  totalProgressRing: { width: 54, height: 54, borderRadius: 27, borderWidth: 3, borderColor: 'rgba(255,255,255,0.5)', alignItems: 'center', justifyContent: 'center' },
+  totalProgressText: { fontSize: 13, fontWeight: '800', color: '#fff' },
+  totalSub:    { fontSize: 10.5, color: 'rgba(255,255,255,0.75)' },
 
-  eventCard:   { backgroundColor: CARD, borderWidth: 1.5, borderColor: BORDER, borderRadius: 18, padding: 14, gap: 10 },
-  eventHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  eventIndex:  { width: 22, height: 22, borderRadius: 11, backgroundColor: '#eef0f3', alignItems: 'center', justifyContent: 'center' },
-  eventIndexText: { fontSize: 11, fontWeight: '800', color: TEXT_SECONDARY },
-  eventLabel:  { fontSize: 15, fontWeight: '800', color: TEXT_PRIMARY, flex: 1 },
+  eventRow:    { flexDirection: 'row', backgroundColor: CARD, borderWidth: 1, borderColor: BORDER, borderRadius: 14, overflow: 'hidden' },
+  eventAccent: { width: 4, backgroundColor: '#e4e2f4' },
+  eventRowBody:{ flex: 1, padding: 12, gap: 8 },
+  eventRowTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  eventLabel:  { fontSize: 14, fontWeight: '800', color: TEXT_PRIMARY, flex: 1 },
   eventPts:    { fontSize: 14, fontWeight: '800', color: TEXT_HINT, fontVariant: ['tabular-nums'] },
-  eventInputRow: { flexDirection: 'row', gap: 8 },
-  eventInput:  { flex: 1, backgroundColor: '#f6f6f8', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: TEXT_PRIMARY, borderWidth: 1, borderColor: BORDER },
-  unitTag:     { paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#eef0f3', borderRadius: 12 },
-  unitTagText: { fontSize: 13, fontWeight: '700', color: TEXT_SECONDARY },
+  eventInputRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  eventInput:  { flex: 1, backgroundColor: BRAND_SOFT, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontSize: 14, color: TEXT_PRIMARY },
+  unitTagText: { fontSize: 12.5, fontWeight: '700', color: TEXT_SECONDARY, width: 36 },
 
   saveBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: BRAND, borderRadius: 21, paddingVertical: 16, marginTop: 8 },
   saveBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
@@ -309,5 +322,5 @@ const ce = StyleSheet.create({
   pbRow:       { flexDirection: 'row', gap: 16 },
   pbCaption:   { fontSize: 11, color: TEXT_HINT, marginBottom: 4 },
   pbValue:     { fontSize: 15, fontWeight: '800', color: TEXT_PRIMARY, fontVariant: ['tabular-nums'] },
-  goalInput:   { backgroundColor: '#f6f6f8', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, color: TEXT_PRIMARY, borderWidth: 1, borderColor: BORDER },
+  goalInput:   { backgroundColor: BRAND_SOFT, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, color: TEXT_PRIMARY, borderWidth: 1, borderColor: BORDER },
 })

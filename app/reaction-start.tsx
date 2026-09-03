@@ -11,13 +11,14 @@ import {
 import { getStarterSettings, randomGunDelayMs, type StarterSettings, STARTER_DEFAULTS } from '../lib/starterSettings'
 import { useTranslation } from 'react-i18next'
 
-const BG = '#f6f6f8'
-const TEXT_PRIMARY = '#111827'
-const TEXT_HINT = '#9ca3af'
-const IDLE_COLOR  = '#9ca3af'
-const MARKS_COLOR = '#f59e0b'
-const SET_COLOR   = '#f97316'
-const GO_COLOR    = '#16a34a'
+// 2026-09-03: 配色を全面的に刷新（暖色系グラデーション基調に変更）
+const BG = '#171326'
+const TEXT_PRIMARY = '#ffffff'
+const TEXT_HINT = '#8b85a8'
+const IDLE_COLOR  = '#8b85a8'
+const MARKS_COLOR = '#38bdf8'
+const SET_COLOR   = '#fb923c'
+const GO_COLOR    = '#f43f5e'
 
 type Phase = 'idle' | 'marks' | 'set' | 'go'
 
@@ -155,13 +156,13 @@ const ss = StyleSheet.create({
   body:        { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 36, paddingBottom: 40, paddingHorizontal: 28, width: '100%' },
   stepBar:     { flexDirection: 'row', width: '100%', gap: 10 },
   stepSegmentWrap: { flex: 1, alignItems: 'center', gap: 8 },
-  stepSegment: { width: '100%', height: 6, borderRadius: 3, backgroundColor: '#e5e7eb' },
+  stepSegment: { width: '100%', height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.12)' },
   stepLabel:   { fontSize: 11.5, fontWeight: '600', color: TEXT_HINT },
   card: {
     width: '100%', aspectRatio: 1.15, borderRadius: 32,
     borderWidth: 3, alignItems: 'center', justifyContent: 'center', gap: 14,
   },
   cardText:    { fontSize: 30, fontWeight: '800', textAlign: 'center', paddingHorizontal: 20 },
-  cancelBadge: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.06)' },
+  cancelBadge: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.1)' },
   cancelText:  { fontSize: 14, fontWeight: '600', color: TEXT_HINT },
 })

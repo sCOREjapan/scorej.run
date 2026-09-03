@@ -12,13 +12,14 @@ import {
 } from '../lib/starterSettings'
 import { useTranslation } from 'react-i18next'
 
-const BRAND = '#16a34a'
-const BG = '#f6f6f8'
-const CARD = '#ffffff'
-const BORDER = 'rgba(0,0,0,0.08)'
-const TEXT_PRIMARY = '#111827'
-const TEXT_SECONDARY = '#6b7280'
-const TEXT_HINT = '#9ca3af'
+// 2026-09-03: reaction-start.tsx(ダーク基調に刷新)と統一した配色に変更
+const BRAND = '#fb923c'
+const BG = '#171326'
+const CARD = '#231d38'
+const BORDER = 'rgba(255,255,255,0.08)'
+const TEXT_PRIMARY = '#ffffff'
+const TEXT_SECONDARY = '#b5aed0'
+const TEXT_HINT = '#8b85a8'
 
 export default function StarterSettingsScreen() {
   const router = useRouter()
@@ -54,7 +55,7 @@ export default function StarterSettingsScreen() {
         <View style={st.card}>
           <View style={st.row}>
             <Text style={st.label}>{t('starterSettings.startToMarks')}</Text>
-            <Text style={st.value}>{settings.startToMarksSec.toFixed(1)} s</Text>
+            <View style={st.valueBadge}><Text style={st.value}>{settings.startToMarksSec.toFixed(1)} s</Text></View>
           </View>
           <SimpleSlider
             value={settings.startToMarksSec} min={1} max={10} step={0.5} color={BRAND}
@@ -69,7 +70,7 @@ export default function StarterSettingsScreen() {
 
           <View style={st.row}>
             <Text style={st.label}>{t('starterSettings.marksToSet')}</Text>
-            <Text style={st.value}>{settings.marksToSetSec.toFixed(1)} s</Text>
+            <View style={st.valueBadge}><Text style={st.value}>{settings.marksToSetSec.toFixed(1)} s</Text></View>
           </View>
           <SimpleSlider
             value={settings.marksToSetSec} min={3} max={30} step={1} color={BRAND}
@@ -89,7 +90,7 @@ export default function StarterSettingsScreen() {
               <Switch
                 value={settings.gunRandom}
                 onValueChange={(v) => { unlockAudio(); Sounds.toggleOn(); update({ gunRandom: v }) }}
-                trackColor={{ false: '#d1d5db', true: BRAND }}
+                trackColor={{ false: 'rgba(255,255,255,0.15)', true: BRAND }}
                 thumbColor="#fff"
               />
             </View>
@@ -101,7 +102,7 @@ export default function StarterSettingsScreen() {
             <>
               <View style={st.row}>
                 <Text style={st.label}>{t('starterSettings.fixedWait')}</Text>
-                <Text style={st.value}>{settings.gunFixedSec.toFixed(1)} s</Text>
+                <View style={st.valueBadge}><Text style={st.value}>{settings.gunFixedSec.toFixed(1)} s</Text></View>
               </View>
               <SimpleSlider
                 value={settings.gunFixedSec} min={1} max={3} step={0.1} color={BRAND}
@@ -129,7 +130,8 @@ const st = StyleSheet.create({
   row:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
   switchRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
   label:       { fontSize: 14, fontWeight: '700', color: TEXT_PRIMARY },
-  value:       { fontSize: 16, fontWeight: '800', color: BRAND, fontVariant: ['tabular-nums'] },
+  valueBadge:  { backgroundColor: 'rgba(251,146,60,0.16)', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 },
+  value:       { fontSize: 15, fontWeight: '800', color: BRAND, fontVariant: ['tabular-nums'] },
   switchLabel: { fontSize: 13, fontWeight: '600', color: TEXT_SECONDARY },
   rangeRow:    { flexDirection: 'row', justifyContent: 'space-between', marginTop: 2 },
   rangeText:   { fontSize: 11, color: TEXT_HINT },
