@@ -7,7 +7,7 @@ module.exports = {
   expo: {
     name: 'sCORE',
     slug: 'score',
-    version: '20',
+    version: '21',
     extra: {
       eas: { projectId: '17151d64-68e8-4831-b3a2-0bead72fa41e' },
       googleWebClientId: '918711129795-hskjq09k6e8gumt71ptmgkjepskmktf2.apps.googleusercontent.com',
@@ -24,7 +24,7 @@ module.exports = {
       requiresFullScreen: true,
       bundleIdentifier: 'com.scorejapan.score',
       usesAppleSignIn: true,
-      buildNumber: '41',
+      buildNumber: '42',
       infoPlist: {
         CFBundleURLTypes: [
           {
