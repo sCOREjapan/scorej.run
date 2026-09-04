@@ -24,7 +24,7 @@ module.exports = {
       requiresFullScreen: true,
       bundleIdentifier: 'com.scorejapan.score',
       usesAppleSignIn: true,
-      buildNumber: '44',
+      buildNumber: '45',
       infoPlist: {
         CFBundleURLTypes: [
           {
