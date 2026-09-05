@@ -23,6 +23,7 @@ import PracticeShareCard, { PracticeShareData } from '../components/PracticeShar
 import type { LibraryFolder } from './workout-menu'
 import { updateSessions } from '../lib/sessionsStore'
 import { addTasks } from '../lib/tasksStore'
+import { shouldShowInterstitial, showInterstitialAd } from '../lib/admob'
 
 const SESSIONS_KEY = 'trackmate_sessions'
 const LIBRARY_KEY  = 'trackmate_exercise_library'
@@ -474,7 +475,11 @@ export default function PracticeInputScreen() {
         <PracticeShareCard
           data={shareData}
           visible={showShare}
-          onClose={() => { setShowShare(false); router.back() }}
+          onClose={async () => {
+            setShowShare(false)
+            if (await shouldShowInterstitial()) await showInterstitialAd().catch(() => {})
+            router.back()
+          }}
         />
       )}
     </View>

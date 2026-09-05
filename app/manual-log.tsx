@@ -21,6 +21,12 @@ import { BRAND } from '../lib/theme'
 import { useTranslation } from 'react-i18next'
 import { useLanguage } from '../context/LanguageContext'
 import { getEventLabel } from '../lib/eventLabels'
+import { shouldShowInterstitial, showInterstitialAd } from '../lib/admob'
+
+async function backWithPossibleInterstitial(router: { back: () => void }) {
+  if (await shouldShowInterstitial()) await showInterstitialAd().catch(() => {})
+  router.back()
+}
 
 const SESSIONS_KEY      = 'trackmate_sessions'
 const CONDITION_MAP_KEY = 'trackmate_condition_map'
@@ -426,7 +432,7 @@ export default function ManualLogScreen() {
         )
         autoSyncTeam(sessions, { force: true }).catch(() => {})
         Toast.show({ type: 'success', text1: t('manualLog.toastUpdateSuccess'), visibilityTime: 1500 })
-        setTimeout(() => router.back(), 400)
+        setTimeout(() => backWithPossibleInterstitial(router), 400)
         return
       }
 
@@ -457,7 +463,7 @@ export default function ManualLogScreen() {
 
       Toast.show({ type: 'success', text1: t('manualLog.toastSaveSuccess'), visibilityTime: 1500 })
 
-      setTimeout(() => router.back(), 400)
+      setTimeout(() => backWithPossibleInterstitial(router), 400)
     } catch {
       Toast.show({ type: 'error', text1: t('manualLog.toastSaveError'), visibilityTime: 2000 })
     } finally {

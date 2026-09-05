@@ -504,6 +504,44 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     }).catch(() => {})
   }, [loading, isGuest, user])
 
+  // ── ホーム画面ウィジェットからのディープリンク ─────────────────────
+  // Widget.swift の widgetURL は score://risk / score://dashboard / score://streak /
+  // score://competition / score://recovery だが、これらは実ファイルルートと一致しない
+  // ため expo-router の自動解決だけでは開けない（未マッチルート画面になる）。
+  // ここで明示的に実ルートへマッピングして router.replace() する。
+  useEffect(() => {
+    if (loading || consentAccepted !== true) return
+    const authed = !!user || isGuest
+    if (!authed || !isOnboarded) return
+
+    const routeForWidgetUrl = (url: string | null): string | null => {
+      if (!url) return null
+      const m = /^score:\/\/([a-z]+)/i.exec(url)
+      const key = m?.[1]?.toLowerCase()
+      switch (key) {
+        case 'risk':
+        case 'dashboard':
+        case 'streak':
+          return '/(tabs)'
+        case 'competition':
+          return '/(tabs)/competition'
+        case 'recovery':
+          return '/(tabs)/competition?tab=injury'
+        default:
+          return null
+      }
+    }
+
+    const handleWidgetUrl = (url: string | null) => {
+      const target = routeForWidgetUrl(url)
+      if (target) router.replace(target as any)
+    }
+
+    Linking.getInitialURL().then(handleWidgetUrl).catch(() => {})
+    const sub = Linking.addEventListener('url', ({ url }) => handleWidgetUrl(url))
+    return () => sub.remove()
+  }, [loading, consentAccepted, user, isGuest, isOnboarded, router])
+
   // 告知バナーは全て<Modal>でネイティブpresentationを伴うため、表示中はApp Open広告と
   // 衝突しないよう共有ロックに反映する（lib/adLock.ts参照）。
   // ロックは参照カウント式なので、実際に表示⇄非表示が切り替わった時だけ呼ぶ

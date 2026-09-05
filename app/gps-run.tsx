@@ -22,6 +22,7 @@ import { autoSyncTeam } from '../lib/teamAutoSync'
 import { updateSessions } from '../lib/sessionsStore'
 import { todayLocalISO } from '../lib/dateLocal'
 import { useTranslation } from 'react-i18next'
+import { shouldShowInterstitial, showInterstitialAd } from '../lib/admob'
 
 // ─── 定数 ──────────────────────────────────────────────────────────────
 const SESSIONS_KEY = 'trackmate_sessions'
@@ -237,6 +238,7 @@ export default function GpsRunScreen() {
       Toast.show({ type: 'success', text1: t('gpsRun.savedToast'), text2: `${(distM / 1000).toFixed(2)} km / ${formatElapsed(ms)}` })
 
       resetAll()
+      if (await shouldShowInterstitial()) await showInterstitialAd().catch(() => {})
       router.back()
     } catch {
       Toast.show({ type: 'error', text1: t('gpsRun.saveFailedToast') })
