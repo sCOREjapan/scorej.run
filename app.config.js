@@ -24,7 +24,11 @@ module.exports = {
       requiresFullScreen: true,
       bundleIdentifier: 'com.scorejapan.score',
       usesAppleSignIn: true,
-      buildNumber: '45',
+      buildNumber: '46',
+      appleTeamId: '4B5NK8DR67',
+      entitlements: {
+        'com.apple.security.application-groups': ['group.com.scorejapan.score'],
+      },
       infoPlist: {
         CFBundleURLTypes: [
           {
@@ -75,6 +79,7 @@ module.exports = {
         isAccessMediaLocationEnabled: false,
       }],
       // react-native-purchases: config plugin 不要（ios/Podfile で直接リンク済み）
+      '@bacons/apple-targets',
     ],
     scheme: 'score',
     web: { bundler: 'metro', output: 'static', favicon: './assets/icon.png' },

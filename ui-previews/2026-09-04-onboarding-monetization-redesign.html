@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>オンボーディング刷新 3案</title>
+<style>
+  :root {
+    --k: 0.75; /* K = 表示px ÷ 設計390pt */
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px;
+    font-family: -apple-system, "Hiragino Sans", sans-serif;
+    background: #F6F4EF; color: #1c1c1e;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .brief {
+    background: #fff; border: 1px solid #e8e4da; border-radius: 12px;
+    padding: 14px 18px; margin-bottom: 18px; font-size: 13px; line-height: 1.7; color: #444;
+  }
+  .brief b { color: #111; }
+  .phase-controls {
+    display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;
+  }
+  .phase-btn {
+    padding: 8px 16px; border-radius: 20px; border: 1.5px solid #d7d2c4;
+    background: #fff; font-size: 13px; font-weight: 700; cursor: pointer; color: #555;
+  }
+  .phase-btn.active { background: #1c1c1e; color: #fff; border-color: #1c1c1e; }
+  .cols { display: flex; gap: 20px; align-items: flex-start; justify-content: center; flex-wrap: wrap; }
+  .col { width: calc(390px * var(--k) + 14px); }
+  .col-head { text-align: center; margin-bottom: 10px; }
+  .letter {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border-radius: 50%; background: #1c1c1e; color: #fff;
+    font-weight: 800; font-size: 13px; margin-right: 6px;
+  }
+  .col-title { font-size: 14px; font-weight: 800; }
+  .badge-rec {
+    display: inline-block; margin-top: 4px; background: #166534; color: #fff;
+    font-size: 10.5px; font-weight: 800; padding: 2px 9px; border-radius: 10px;
+  }
+  .col-desc { font-size: 11.5px; color: #777; margin-top: 6px; line-height: 1.5; padding: 0 4px; }
+  .frame {
+    width: calc(390px * var(--k) + 14px);
+    height: calc(844px * var(--k) + 14px);
+    background: #111; border-radius: calc(44px * var(--k)); padding: 7px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+    margin-top: 10px;
+  }
+  .colA .frame { outline: 3px solid #166534; outline-offset: 3px; border-radius: calc(44px * var(--k) + 3px); }
+  .screen {
+    width: calc(390px * var(--k)); height: calc(844px * var(--k));
+    border-radius: calc(38px * var(--k)); overflow: hidden; position: relative;
+    background: #fff;
+  }
+  .notch {
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: calc(120px * var(--k)); height: calc(24px * var(--k));
+    background: #111; border-radius: 0 0 14px 14px; z-index: 50;
+  }
+  .canvas {
+    position: absolute; top: 0; left: 0;
+    width: 390px; height: 844px;
+    transform: scale(var(--k)); transform-origin: top left;
+  }
+  .canvas > * { position: absolute; }
+  /* 汎用パーツ */
+  .center { text-align: center; }
+  .fw9 { font-weight: 900; } .fw8 { font-weight: 800; } .fw7 { font-weight: 700; }
+  .btn {
+    height: 54px; border-radius: 27px; display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 16px;
+  }
+  .skip { text-align: center; font-size: 13px; font-weight: 700; color: #9ca3af; }
+  footer { text-align: center; margin-top: 26px; font-size: 12px; color: #888; }
+</style>
+</head>
+<body>
+
+<h1>オンボーディング刷新 — 3案</h1>
+<div class="brief">
+  お題(ユーザーの言語化): 「オンボーディングの改善を行う」 → 追加ヒアリングで
+  <b>①課金への接続・マネタイズ</b> と <b>②デザイン/見た目の刷新</b> の2方向と確定。<br>
+  現状: intro(5枚) → quiz(4項目入力) → processing(演出) → reveal(プラン完成表示) → そのまま終了、という流れで、
+  <b>途中に課金画面が一切無い</b>のが実情。3案とも「revealの直後に新しい課金ステップを挿入する」までは共通、
+  スタイルと課金の見せ方の強さが異なる。上のボタンでどの案でも同じ画面を横並びで比較できる。
+</div>
+
+<div class="phase-controls">
+  <button class="phase-btn active" data-p="0">① イントロ(冒頭)</button>
+  <button class="phase-btn" data-p="1">② クエスト(入力)</button>
+  <button class="phase-btn" data-p="2">③ リビール(完成)</button>
+  <button class="phase-btn" data-p="3">④ 課金(NEW)</button>
+</div>
+
+<div class="cols">
+
+  <!-- ═══════════════ A ═══════════════ -->
+  <div class="col colA">
+    <div class="col-head">
+      <div><span class="letter">A</span><span class="col-title">やわらかグリーン洗練</span></div>
+      <div class="badge-rec">推奨</div>
+      <div class="col-desc">現状の優しい緑トーンの世界観を維持しつつ、余白・影・グラデーションを底上げ。
+      課金は「プランが完成しました🎉」の高揚感に乗せて、2択カード+大きめの「無料で始める」逃げ道を用意。
+      押しつけ感を最小化した低圧の導線。</div>
+    </div>
+    <div class="frame"><div class="screen" id="scrA"><div class="notch"></div><div class="canvas" id="cvA"></div></div></div>
+  </div>
+
+  <!-- ═══════════════ B ═══════════════ -->
+  <div class="col colB">
+    <div class="col-head">
+      <div><span class="letter">B</span><span class="col-title">プレミアム・トライアル訴求</span></div>
+      <div class="col-desc">ネイビー×ゴールドグリーンの落ち着いた「本格派」トーンに全面刷新。
+      課金は「7日間無料トライアル」を単一の強いCTAとして前面に出し、スキップは小さく下に。
+      コンバージョン最優先の強めの導線。</div>
+    </div>
+    <div class="frame"><div class="screen" id="scrB"><div class="notch"></div><div class="canvas" id="cvB"></div></div></div>
+  </div>
+
+  <!-- ═══════════════ C ═══════════════ -->
+  <div class="col colC">
+    <div class="col-head">
+      <div><span class="letter">C</span><span class="col-title">ミニマル比較表</span></div>
+      <div class="col-desc">白基調・情報量重視のエディトリアルなミニマルデザイン。
+      課金は3プラン(無料/ノー広告/チケット月額)を最初から比較表として提示し、
+      ユーザー自身に選ばせる透明性重視の導線。スキップも対等な選択肢として同列に置く。</div>
+    </div>
+    <div class="frame"><div class="screen" id="scrC"><div class="notch"></div><div class="canvas" id="cvC"></div></div></div>
+  </div>
+
+</div>
+
+<footer>選んだレターを言えばそのまま実装に進みます。K = 表示px ÷ 設計390pt。全要素 pt×K で配置。</footer>
+
+<script>
+const PHASES = ['intro','quiz','reveal','paywall'];
+let current = parseInt(new URLSearchParams(location.search).get('phase') || '0', 10) || 0;
+
+// ── A: やわらかグリーン洗練 ─────────────────────────────
+const A = {
+  intro: `
+    <div style="width:390px;height:844px;background:linear-gradient(180deg,#f0fdf4 0%,#ffffff 55%);">
+      <div style="position:absolute;top:100px;left:32px;right:32px;text-align:center;">
+        <div style="width:64px;height:64px;border-radius:20px;background:linear-gradient(135deg,#22c55e,#166534);margin:0 auto 18px;display:flex;align-items:center;justify-content:center;box-shadow:0 12px 28px rgba(22,101,52,0.28);">
+          <span style="color:#fff;font-size:30px;font-weight:900;">S</span>
+        </div>
+        <div style="font-size:26px;font-weight:900;color:#111;line-height:1.4;">あなた専用の<br>陸上コーチが、ここに。</div>
+        <div style="font-size:14px;color:#6b7280;margin-top:12px;line-height:1.7;">睡眠・疲労・練習記録からコンディションを可視化。<br>AIがあなたに合わせたメニューを提案します。</div>
+      </div>
+      <div style="position:absolute;top:420px;left:32px;right:32px;display:flex;gap:10px;justify-content:center;">
+        <div style="background:#fff;border:1.5px solid #d7ecdf;border-radius:16px;padding:14px 10px;width:100px;text-align:center;box-shadow:0 6px 16px rgba(22,101,52,0.08);">
+          <div style="font-size:20px;">😴</div><div style="font-size:20px;font-weight:900;color:#5AC8FA;margin-top:4px;">87</div><div style="font-size:10px;color:#9ca3af;margin-top:2px;">睡眠</div>
+        </div>
+        <div style="background:#fff;border:1.5px solid #d7ecdf;border-radius:16px;padding:14px 10px;width:100px;text-align:center;box-shadow:0 6px 16px rgba(22,101,52,0.08);">
+          <div style="font-size:20px;">💪</div><div style="font-size:20px;font-weight:900;color:#22c55e;margin-top:4px;">91</div><div style="font-size:10px;color:#9ca3af;margin-top:2px;">コンディション</div>
+        </div>
+      </div>
+      <div style="position:absolute;bottom:60px;left:32px;right:32px;height:56px;border-radius:28px;background:linear-gradient(135deg,#22c55e,#166534);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:16px;box-shadow:0 10px 24px rgba(22,101,52,0.3);">はじめる →</div>
+    </div>`,
+  quiz: `
+    <div style="width:390px;height:844px;background:#fff;">
+      <div style="position:absolute;top:54px;left:24px;right:24px;height:6px;border-radius:3px;background:#eef0f3;">
+        <div style="width:50%;height:100%;border-radius:3px;background:linear-gradient(90deg,#22c55e,#166534);"></div>
+      </div>
+      <div style="position:absolute;top:100px;left:28px;right:28px;">
+        <div style="width:52px;height:52px;border-radius:16px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;font-size:24px;">🏃</div>
+        <div style="font-size:22px;font-weight:900;margin-top:18px;color:#111;">得意な種目は?</div>
+        <div style="font-size:13px;color:#9ca3af;margin-top:6px;">後からいつでも変更できます</div>
+      </div>
+      <div style="position:absolute;top:250px;left:28px;right:28px;display:flex;flex-direction:column;gap:12px;">
+        <div style="background:#f0fdf4;border:1.5px solid #166534;border-radius:16px;padding:16px 18px;font-weight:800;color:#166534;">短距離(100m・200m)</div>
+        <div style="background:#fafafa;border:1.5px solid #eef0f3;border-radius:16px;padding:16px 18px;font-weight:700;color:#374151;">長距離(1500m〜)</div>
+        <div style="background:#fafafa;border:1.5px solid #eef0f3;border-radius:16px;padding:16px 18px;font-weight:700;color:#374151;">跳躍・投擲</div>
+      </div>
+      <div style="position:absolute;bottom:60px;left:28px;right:28px;height:56px;border-radius:28px;background:#166534;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:16px;">次へ</div>
+    </div>`,
+  reveal: `
+    <div style="width:390px;height:844px;background:#fff;">
+      <div style="position:absolute;top:110px;left:0;right:0;text-align:center;">
+        <div style="width:76px;height:76px;border-radius:38px;background:linear-gradient(135deg,#22c55e,#166534);margin:0 auto;display:flex;align-items:center;justify-content:center;box-shadow:0 14px 30px rgba(22,101,52,0.3);">
+          <span style="color:#fff;font-size:34px;">✓</span>
+        </div>
+        <div style="display:inline-block;background:#f0fdf4;color:#166534;font-size:11px;font-weight:800;padding:5px 14px;border-radius:12px;margin-top:16px;">プラン完成</div>
+        <div style="font-size:21px;font-weight:900;color:#111;margin-top:12px;">たかしさんの専用プランが<br>できました</div>
+      </div>
+      <div style="position:absolute;top:340px;left:28px;right:28px;background:#fafcf8;border:1.5px solid #e6f2ea;border-radius:20px;padding:20px;">
+        <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eef0f3;"><span style="color:#9ca3af;font-size:13px;">種目</span><span style="font-weight:800;font-size:13px;">100m</span></div>
+        <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eef0f3;"><span style="color:#9ca3af;font-size:13px;">レベル</span><span style="font-weight:800;font-size:13px;">中級者</span></div>
+        <div style="display:flex;justify-content:space-between;padding:10px 0;"><span style="color:#9ca3af;font-size:13px;">次の目標</span><span style="font-weight:800;font-size:13px;">自己ベスト更新</span></div>
+      </div>
+      <div style="position:absolute;bottom:60px;left:28px;right:28px;height:56px;border-radius:28px;background:linear-gradient(135deg,#22c55e,#166534);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:16px;">プランを見る →</div>
+    </div>`,
+  paywall: `
+    <div style="width:390px;height:844px;background:#fff;">
+      <div style="position:absolute;top:70px;left:0;right:0;text-align:center;">
+        <div style="font-size:34px;">🎉</div>
+        <div style="font-size:20px;font-weight:900;color:#111;margin-top:10px;">続けて、もっと使いこなそう</div>
+        <div style="font-size:13px;color:#9ca3af;margin-top:8px;line-height:1.6;">AI分析やフォームチェックが<br>使い放題になります</div>
+      </div>
+      <div style="position:absolute;top:250px;left:24px;right:24px;background:linear-gradient(135deg,#f0fdf4,#ffffff);border:2px solid #166534;border-radius:22px;padding:22px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-weight:900;font-size:16px;color:#166534;">🎫 チケット月額</div>
+          <div style="background:#166534;color:#fff;font-size:10px;font-weight:800;padding:3px 8px;border-radius:8px;">人気</div>
+        </div>
+        <div style="font-size:26px;font-weight:900;margin-top:10px;color:#111;">¥980<span style="font-size:13px;color:#9ca3af;font-weight:700;">/月</span></div>
+        <div style="font-size:12px;color:#6b7280;margin-top:8px;line-height:1.8;">✓ 毎月チケット付与<br>✓ AI機能が気兼ねなく使える<br>✓ いつでも解約OK</div>
+      </div>
+      <div style="position:absolute;top:470px;left:24px;right:24px;background:#fafafa;border:1.5px solid #eef0f3;border-radius:18px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;">
+        <div><div style="font-weight:800;font-size:13px;color:#374151;">🚫 ノー広告のみ</div></div>
+        <div style="font-weight:800;font-size:14px;color:#374151;">¥480/月</div>
+      </div>
+      <div style="position:absolute;bottom:100px;left:28px;right:28px;height:56px;border-radius:28px;background:#166534;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:16px;">このプランで始める</div>
+      <div style="position:absolute;bottom:66px;left:0;right:0;text-align:center;font-size:13px;font-weight:700;color:#9ca3af;">無料でとりあえず始める</div>
+    </div>`
+};
+
+// ── B: プレミアム・トライアル訴求 ─────────────────────────
+const B = {
+  intro: `
+    <div style="width:390px;height:844px;background:#0d1321;">
+      <div style="position:absolute;top:110px;left:32px;right:32px;text-align:center;">
+        <div style="width:64px;height:64px;border-radius:18px;background:linear-gradient(135deg,#d4af37,#8a7020);margin:0 auto 20px;display:flex;align-items:center;justify-content:center;box-shadow:0 12px 28px rgba(212,175,55,0.35);">
+          <span style="color:#0d1321;font-size:30px;font-weight:900;">S</span>
+        </div>
+        <div style="font-size:26px;font-weight:900;color:#fff;line-height:1.4;">データで走りを<br>変える。</div>
+        <div style="font-size:14px;color:#8b93a8;margin-top:12px;line-height:1.7;">プロが使うレベルのコンディション分析を、<br>あなたのポケットに。</div>
+      </div>
+      <div style="position:absolute;top:440px;left:32px;right:32px;display:flex;gap:10px;justify-content:center;">
+        <div style="background:#171e2e;border:1px solid #2a3448;border-radius:14px;padding:14px 10px;width:100px;text-align:center;">
+          <div style="font-size:19px;font-weight:900;color:#d4af37;">87</div><div style="font-size:9.5px;color:#6b7488;margin-top:2px;letter-spacing:0.5px;">SLEEP</div>
+        </div>
+        <div style="background:#171e2e;border:1px solid #2a3448;border-radius:14px;padding:14px 10px;width:100px;text-align:center;">
+          <div style="font-size:19px;font-weight:900;color:#d4af37;">91</div><div style="font-size:9.5px;color:#6b7488;margin-top:2px;letter-spacing:0.5px;">CONDITION</div>
+        </div>
+      </div>
+      <div style="position:absolute;bottom:60px;left:32px;right:32px;height:56px;border-radius:14px;background:linear-gradient(135deg,#d4af37,#8a7020);display:flex;align-items:center;justify-content:center;color:#0d1321;font-weight:900;font-size:16px;">START →</div>
+    </div>`,
+  quiz: `
+    <div style="width:390px;height:844px;background:#0d1321;">
+      <div style="position:absolute;top:54px;left:24px;right:24px;height:4px;border-radius:2px;background:#1f2739;">
+        <div style="width:50%;height:100%;border-radius:2px;background:#d4af37;"></div>
+      </div>
+      <div style="position:absolute;top:100px;left:28px;right:28px;">
+        <div style="font-size:11px;color:#d4af37;font-weight:800;letter-spacing:1px;">STEP 02</div>
+        <div style="font-size:22px;font-weight:900;margin-top:10px;color:#fff;">得意な種目は?</div>
+      </div>
+      <div style="position:absolute;top:230px;left:28px;right:28px;display:flex;flex-direction:column;gap:12px;">
+        <div style="background:#171e2e;border:1.5px solid #d4af37;border-radius:14px;padding:16px 18px;font-weight:800;color:#d4af37;">短距離(100m・200m)</div>
+        <div style="background:#171e2e;border:1px solid #2a3448;border-radius:14px;padding:16px 18px;font-weight:700;color:#c4cadb;">長距離(1500m〜)</div>
+        <div style="background:#171e2e;border:1px solid #2a3448;border-radius:14px;padding:16px 18px;font-weight:700;color:#c4cadb;">跳躍・投擲</div>
+      </div>
+      <div style="position:absolute;bottom:60px;left:28px;right:28px;height:56px;border-radius:14px;background:#d4af37;display:flex;align-items:center;justify-content:center;color:#0d1321;font-weight:900;font-size:16px;">次へ</div>
+    </div>`,
+  reveal: `
+    <div style="width:390px;height:844px;background:#0d1321;">
+      <div style="position:absolute;top:100px;left:0;right:0;text-align:center;">
+        <div style="width:72px;height:72px;border-radius:20px;background:linear-gradient(135deg,#d4af37,#8a7020);margin:0 auto;display:flex;align-items:center;justify-content:center;">
+          <span style="color:#0d1321;font-size:32px;font-weight:900;">✓</span>
+        </div>
+        <div style="font-size:11px;color:#d4af37;font-weight:800;letter-spacing:1px;margin-top:16px;">PLAN READY</div>
+        <div style="font-size:21px;font-weight:900;color:#fff;margin-top:10px;">たかしさんの専用プラン</div>
+      </div>
+      <div style="position:absolute;top:330px;left:28px;right:28px;background:#171e2e;border:1px solid #2a3448;border-radius:16px;padding:20px;">
+        <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #232d42;"><span style="color:#6b7488;font-size:12px;letter-spacing:0.5px;">EVENT</span><span style="font-weight:800;font-size:13px;color:#fff;">100m</span></div>
+        <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #232d42;"><span style="color:#6b7488;font-size:12px;letter-spacing:0.5px;">LEVEL</span><span style="font-weight:800;font-size:13px;color:#fff;">中級者</span></div>
+        <div style="display:flex;justify-content:space-between;padding:10px 0;"><span style="color:#6b7488;font-size:12px;letter-spacing:0.5px;">GOAL</span><span style="font-weight:800;font-size:13px;color:#fff;">自己ベスト更新</span></div>
+      </div>
+      <div style="position:absolute;bottom:60px;left:28px;right:28px;height:56px;border-radius:14px;background:linear-gradient(135deg,#d4af37,#8a7020);display:flex;align-items:center;justify-content:center;color:#0d1321;font-weight:900;font-size:16px;">プランを見る →</div>
+    </div>`,
+  paywall: `
+    <div style="width:390px;height:844px;background:#0d1321;">
+      <div style="position:absolute;top:20px;left:0;right:0;text-align:center;">
+        <div style="display:inline-block;background:linear-gradient(135deg,#d4af37,#8a7020);color:#0d1321;font-size:11px;font-weight:900;padding:6px 16px;border-radius:14px;letter-spacing:0.5px;">7日間 無料トライアル</div>
+        <div style="font-size:22px;font-weight:900;color:#fff;margin-top:18px;">今だけ、全機能が<br>無料で使い放題</div>
+      </div>
+      <div style="position:absolute;top:200px;left:24px;right:24px;background:#171e2e;border:1.5px solid #d4af37;border-radius:20px;padding:22px;">
+        <div style="font-weight:900;font-size:15px;color:#fff;">🎫 チケット月額プラン</div>
+        <div style="font-size:12px;color:#6b7488;margin-top:6px;line-height:1.8;">✓ AI分析・フォームチェック使い放題<br>✓ 毎月チケット自動付与<br>✓ トライアル中はいつでも無料解約</div>
+        <div style="margin-top:14px;font-size:13px;color:#8b93a8;">トライアル後 <span style="color:#fff;font-weight:800;">¥980/月</span></div>
+      </div>
+      <div style="position:absolute;top:400px;left:24px;right:24px;text-align:center;">
+        <div style="height:16px;border-radius:8px;background:#171e2e;overflow:hidden;"><div style="width:70%;height:100%;background:linear-gradient(90deg,#8a7020,#d4af37);"></div></div>
+        <div style="font-size:11px;color:#6b7488;margin-top:8px;">今月あと ７名 限定オファー</div>
+      </div>
+      <div style="position:absolute;bottom:96px;left:24px;right:24px;height:58px;border-radius:14px;background:linear-gradient(135deg,#d4af37,#8a7020);display:flex;align-items:center;justify-content:center;color:#0d1321;font-weight:900;font-size:16px;box-shadow:0 12px 28px rgba(212,175,55,0.3);">無料トライアルを始める</div>
+      <div style="position:absolute;bottom:60px;left:0;right:0;text-align:center;font-size:12px;font-weight:700;color:#4a5468;">スキップ</div>
+    </div>`
+};
+
+// ── C: ミニマル比較表 ─────────────────────────────────────
+const C = {
+  intro: `
+    <div style="width:390px;height:844px;background:#fff;">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:#111;"></div>
+      <div style="position:absolute;top:120px;left:32px;right:32px;">
+        <div style="font-size:11px;font-weight:800;letter-spacing:2px;color:#9ca3af;">SCORE — TRACK & FIELD</div>
+        <div style="font-size:30px;font-weight:900;color:#111;line-height:1.35;margin-top:20px;">記録を、<br>データで伸ばす。</div>
+        <div style="font-size:13.5px;color:#6b7280;margin-top:16px;line-height:1.8;">睡眠・疲労・練習ログを一元管理し、<br>科学的なコンディション分析を提供します。</div>
+      </div>
+      <div style="position:absolute;top:420px;left:32px;right:32px;border-top:1px solid #eee;border-bottom:1px solid #eee;padding:16px 0;display:flex;justify-content:space-between;">
+        <div><div style="font-size:18px;font-weight:900;">87</div><div style="font-size:10px;color:#9ca3af;">睡眠スコア</div></div>
+        <div><div style="font-size:18px;font-weight:900;">91</div><div style="font-size:10px;color:#9ca3af;">コンディション</div></div>
+        <div><div style="font-size:18px;font-weight:900;">42</div><div style="font-size:10px;color:#9ca3af;">疲労度</div></div>
+      </div>
+      <div style="position:absolute;bottom:60px;left:32px;right:32px;height:52px;border-radius:4px;background:#111;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:15px;">はじめる</div>
+    </div>`,
+  quiz: `
+    <div style="width:390px;height:844px;background:#fff;">
+      <div style="position:absolute;top:54px;left:24px;right:24px;display:flex;gap:4px;">
+        <div style="flex:1;height:2px;background:#111;"></div><div style="flex:1;height:2px;background:#111;"></div>
+        <div style="flex:1;height:2px;background:#eee;"></div><div style="flex:1;height:2px;background:#eee;"></div>
+      </div>
+      <div style="position:absolute;top:90px;left:28px;right:28px;">
+        <div style="font-size:11px;color:#9ca3af;font-weight:700;">02 / 04</div>
+        <div style="font-size:22px;font-weight:900;margin-top:8px;color:#111;">得意な種目は?</div>
+      </div>
+      <div style="position:absolute;top:200px;left:28px;right:28px;">
+        <div style="border-bottom:1.5px solid #111;padding:16px 4px;font-weight:800;color:#111;display:flex;justify-content:space-between;">短距離(100m・200m)<span>✓</span></div>
+        <div style="border-bottom:1px solid #eee;padding:16px 4px;font-weight:700;color:#6b7280;">長距離(1500m〜)</div>
+        <div style="border-bottom:1px solid #eee;padding:16px 4px;font-weight:700;color:#6b7280;">跳躍・投擲</div>
+      </div>
+      <div style="position:absolute;bottom:60px;left:28px;right:28px;height:52px;border-radius:4px;background:#111;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:15px;">次へ</div>
+    </div>`,
+  reveal: `
+    <div style="width:390px;height:844px;background:#fff;">
+      <div style="position:absolute;top:90px;left:28px;right:28px;">
+        <div style="font-size:11px;font-weight:800;letter-spacing:1.5px;color:#9ca3af;">PLAN READY</div>
+        <div style="font-size:22px;font-weight:900;color:#111;margin-top:10px;">たかしさんの専用プランです</div>
+      </div>
+      <div style="position:absolute;top:220px;left:28px;right:28px;">
+        <div style="display:flex;justify-content:space-between;padding:14px 0;border-bottom:1px solid #eee;"><span style="color:#9ca3af;font-size:13px;">種目</span><span style="font-weight:800;font-size:13px;">100m</span></div>
+        <div style="display:flex;justify-content:space-between;padding:14px 0;border-bottom:1px solid #eee;"><span style="color:#9ca3af;font-size:13px;">レベル</span><span style="font-weight:800;font-size:13px;">中級者</span></div>
+        <div style="display:flex;justify-content:space-between;padding:14px 0;border-bottom:1px solid #eee;"><span style="color:#9ca3af;font-size:13px;">次の目標</span><span style="font-weight:800;font-size:13px;">自己ベスト更新</span></div>
+      </div>
+      <div style="position:absolute;bottom:60px;left:28px;right:28px;height:52px;border-radius:4px;background:#111;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:15px;">プランを見る</div>
+    </div>`,
+  paywall: `
+    <div style="width:390px;height:844px;background:#fff;">
+      <div style="position:absolute;top:60px;left:28px;right:28px;">
+        <div style="font-size:20px;font-weight:900;color:#111;">プランを選んでください</div>
+        <div style="font-size:12.5px;color:#9ca3af;margin-top:6px;">いつでも後から変更・解約できます</div>
+      </div>
+      <div style="position:absolute;top:150px;left:28px;right:28px;border:1.5px solid #eee;border-radius:6px;padding:16px;display:flex;justify-content:space-between;align-items:center;">
+        <div><div style="font-weight:800;font-size:14px;">無料プラン</div><div style="font-size:11px;color:#9ca3af;margin-top:3px;">広告あり・チケット5枚</div></div>
+        <div style="font-weight:800;font-size:14px;">¥0</div>
+      </div>
+      <div style="position:absolute;top:250px;left:28px;right:28px;border:1.5px solid #eee;border-radius:6px;padding:16px;display:flex;justify-content:space-between;align-items:center;">
+        <div><div style="font-weight:800;font-size:14px;">ノー広告</div><div style="font-size:11px;color:#9ca3af;margin-top:3px;">広告のみ非表示</div></div>
+        <div style="font-weight:800;font-size:14px;">¥480/月</div>
+      </div>
+      <div style="position:absolute;top:350px;left:28px;right:28px;border:2px solid #111;border-radius:6px;padding:16px;display:flex;justify-content:space-between;align-items:center;">
+        <div><div style="font-weight:900;font-size:14px;">チケット月額</div><div style="font-size:11px;color:#9ca3af;margin-top:3px;">AI機能が気兼ねなく使える</div></div>
+        <div style="font-weight:900;font-size:14px;">¥980/月</div>
+      </div>
+      <div style="position:absolute;bottom:120px;left:28px;right:28px;height:52px;border-radius:4px;background:#111;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:15px;">選択したプランで始める</div>
+      <div style="position:absolute;bottom:80px;left:0;right:0;text-align:center;font-size:12.5px;font-weight:700;color:#9ca3af;text-decoration:underline;">無料プランのまま続ける</div>
+    </div>`
+};
+
+function render() {
+  const p = PHASES[current];
+  document.getElementById('cvA').innerHTML = A[p];
+  document.getElementById('cvB').innerHTML = B[p];
+  document.getElementById('cvC').innerHTML = C[p];
+  document.querySelectorAll('.phase-btn').forEach((b,i)=>b.classList.toggle('active', i===current));
+}
+document.querySelectorAll('.phase-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{ current = parseInt(btn.dataset.p); render(); });
+});
+render();
+</script>
+</body>
+</html>

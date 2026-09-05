@@ -43,7 +43,9 @@ import Svg, { Circle, Defs, LinearGradient, Stop, Path, Rect } from 'react-nativ
 import { useTutorial, isTutorialDone } from '../../lib/tutorialContext'
 import { sendRiskAlertIfNeeded, sendStretchReminderIfNeeded, scheduleCompetitionReminder, scheduleStreakReminder } from '../../lib/notifications'
 import { fetchTeamEvents, sendCoachNotification, type TeamEventRow } from '../../lib/supabaseTeam'
-import type { SleepRecord } from '../../types'
+import type { SleepRecord, AthleticsEvent } from '../../types'
+import { getEventLabel } from '../../lib/eventLabels'
+import { syncWidgetData } from '../../lib/widgetSync'
 import ReviewWall, { shouldShowReviewWall } from '../../components/ReviewWall'
 import NoadUpsellModal, { shouldShowNoadUpsell } from '../../components/NoadUpsellModal'
 import { hasDailyInsightClaimed, markDailyInsightClaimed } from '../../lib/admob'
@@ -1863,6 +1865,68 @@ ${sleepText || 'データなし'}
     }
     scheduleStreakReminder(streak, recordedToday).catch(() => {})
   }, [sessions])
+
+  // ホーム画面ウィジェット(iOS)への同期：怪我リスク・連続記録・次の大会までの日数
+  useEffect(() => {
+    if (effectiveRiskScore == null) return
+    ;(async () => {
+      const ds = new Set(sessions.map(s => s.session_date))
+      let streak = 0
+      for (let i = 0; i < 365; i++) {
+        const d = new Date(); d.setDate(d.getDate() - i)
+        if (ds.has(localDateStr(d))) streak++
+        else if (i > 0) break
+      }
+
+      const riskBands = buildRiskCfg(t)
+      const cfg = riskBands.find(c => effectiveRiskScore <= c.max) ?? riskBands[3]
+
+      let daysUntilCompetition: number | undefined
+      let competitionName: string | undefined
+      try {
+        const raw = await AsyncStorage.getItem('trackmate_competitions')
+        const list: { competition_name?: string; competition_date?: string; event?: string }[] = raw ? JSON.parse(raw) : []
+        const today = todayLocalISO()
+        const upcoming = list
+          .filter(c => c.competition_date && c.competition_date >= today)
+          .sort((a, b) => (a.competition_date! < b.competition_date! ? -1 : 1))[0]
+        if (upcoming?.competition_date) {
+          daysUntilCompetition = Math.ceil((new Date(upcoming.competition_date + 'T00:00:00').getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+          competitionName = upcoming.competition_name || (upcoming.event ? getEventLabel(upcoming.event as AthleticsEvent, language) : undefined)
+        }
+      } catch {}
+
+      let recoveryPhase: string | undefined
+      let recoveryDay: number | undefined
+      let recoveryTotalDays: number | undefined
+      let recoveryProgressPercent: number | undefined
+      try {
+        const raw = await AsyncStorage.getItem('trackmate_injury_records')
+        const list: { status: string; startDate: string; totalDays: number; plans: { day: number; phase: string }[] }[] = raw ? JSON.parse(raw) : []
+        const active = list.find(r => r.status === 'active')
+        if (active) {
+          const start = new Date(active.startDate + 'T00:00:00')
+          const elapsed = Math.max(0, Math.floor((Date.now() - start.getTime()) / (1000 * 60 * 60 * 24)))
+          recoveryDay = elapsed + 1
+          recoveryTotalDays = active.totalDays
+          recoveryProgressPercent = Math.min(100, Math.round((elapsed / active.totalDays) * 100))
+          recoveryPhase = active.plans.find(p => p.day === recoveryDay)?.phase ?? active.plans[active.plans.length - 1]?.phase
+        }
+      } catch {}
+
+      syncWidgetData({
+        riskScore: effectiveRiskScore,
+        riskLabel: cfg.label,
+        daysUntilCompetition,
+        competitionName,
+        streak,
+        recoveryPhase,
+        recoveryDay,
+        recoveryTotalDays,
+        recoveryProgressPercent,
+      })
+    })()
+  }, [effectiveRiskScore, sessions, t, language])
 
   const handleStretchStart = useCallback(() => {
     router.push({ pathname: '/stretch-recovery', params: { riskScore: (effectiveRiskScore ?? 50).toString() } } as any)

@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ホーム画面ウィジェット 3スタイル</title>
+<style>
+  :root { --k: 1; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px;
+    font-family: -apple-system, "Hiragino Sans", sans-serif;
+    background: #F6F4EF; color: #1c1c1e;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .brief {
+    background: #fff; border: 1px solid #e8e4da; border-radius: 12px;
+    padding: 14px 18px; margin-bottom: 18px; font-size: 13px; line-height: 1.7; color: #444;
+  }
+  .brief b { color: #111; }
+  .style-controls { display:flex; gap:8px; margin-bottom:20px; }
+  .style-btn { padding:8px 18px; border-radius:20px; border:1.5px solid #d7d2c4; background:#fff; font-size:13px; font-weight:700; cursor:pointer; color:#555; }
+  .style-btn.active { background:#166534; color:#fff; border-color:#166534; }
+  .style-label { text-align:center; font-size:12px; color:#888; margin-bottom:16px; }
+
+  .home {
+    width: 430px; margin: 0 auto; border-radius: 46px; padding: 18px 16px 30px;
+    background: linear-gradient(160deg,#8ec5ff 0%, #c9e0ff 40%, #ffe9c9 100%);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+    transition: background 0.3s;
+  }
+  body[data-style="b"] .home { background: linear-gradient(160deg,#0d1321 0%, #1a2338 100%); }
+  body[data-style="c"] .home { background: linear-gradient(160deg,#f0fdf4 0%, #e0f2fe 100%); }
+
+  .grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;
+  }
+  .w { border-radius: 24px; padding: 14px 16px; position: relative; overflow: hidden;
+       background: rgba(255,255,255,0.94); box-shadow: 0 8px 20px rgba(0,0,0,0.12); }
+  .w-small { grid-column: span 1; aspect-ratio: 1/1; }
+  .w-medium { grid-column: span 2; aspect-ratio: 338/158; }
+  .w-large { grid-column: span 2; aspect-ratio: 338/354; }
+
+  /* ── Aスタイル(現状踏襲・ライト) ── */
+  body[data-style="a"] .w { background: #fff; }
+  body[data-style="a"] .risk-num { color: #16a34a; }
+  body[data-style="a"] .accent { color: #166534; }
+
+  /* ── Bスタイル(ダークグラス) ── */
+  body[data-style="b"] .w { background: rgba(30,26,50,0.82); backdrop-filter: blur(10px); color: #fff; box-shadow:none; border:1px solid rgba(255,255,255,0.08); }
+  body[data-style="b"] .w .hint { color: #9a94b8; }
+  body[data-style="b"] .risk-num { color: #4ade80; }
+  body[data-style="b"] .accent { color: #a78bfa; }
+  body[data-style="b"] .bar-bg { background: rgba(255,255,255,0.12); }
+
+  /* ── Cスタイル(状態に応じたカラーブロック) ── */
+  body[data-style="c"] .w-risk { background: linear-gradient(135deg,#22c55e,#166534); color:#fff; }
+  body[data-style="c"] .w-risk .hint { color: rgba(255,255,255,0.75); }
+  body[data-style="c"] .w-countdown { background: linear-gradient(135deg,#fb923c,#c2410c); color:#fff; }
+  body[data-style="c"] .w-countdown .hint { color: rgba(255,255,255,0.8); }
+  body[data-style="c"] .w-streak { background: linear-gradient(135deg,#f43f5e,#be123c); color:#fff; }
+  body[data-style="c"] .w-streak .hint { color: rgba(255,255,255,0.8); }
+
+  .hint { font-size: 11px; color: #9ca3af; font-weight: 700; letter-spacing: 0.3px; }
+  .big { font-size: 34px; font-weight: 900; line-height: 1; }
+  .row { display:flex; align-items:baseline; gap:4px; }
+  .bar-bg { height:6px; border-radius:3px; background:#eef0f3; overflow:hidden; margin-top:8px; }
+  .bar-fill { height:100%; border-radius:3px; }
+  .mini-row { display:flex; justify-content:space-between; margin-top:10px; }
+  .mini { text-align:center; flex:1; }
+  .mini .v { font-size:20px; font-weight:900; }
+  .mini .l { font-size:9.5px; color:#9ca3af; margin-top:2px; }
+
+  footer { text-align:center; margin-top:26px; font-size:12px; color:#888; }
+</style>
+</head>
+<body data-style="a">
+<script>
+(function(){
+  const s = new URLSearchParams(location.search).get('style');
+  if (s) document.body.dataset.style = s;
+})();
+</script>
+
+<h1>ホーム画面ウィジェット — スタイル比較</h1>
+<div class="brief">
+  お題: <b>怪我リスクスコア(小)/大会カウントダウン(小)/復帰プラン進捗(中)/
+  今日のコンディション総合(中)/連続記録ストリーク(小)/統合(大)</b> の6種。
+  データは既存のcalcInjuryRisk・competition.tsxの復帰プラン(急性期→復帰準備期の4フェーズ)・
+  onboarding intro スライドの睡眠/疲労/コンディション・calcStreakをそのまま使う想定。
+  上のボタンで<b>3つの見た目の方向性</b>を切り替えて比較できる(データ内容は共通)。
+</div>
+
+<div class="style-controls">
+  <button class="style-btn active" onclick="setStyle('a')">A: 現状踏襲(ライト)</button>
+  <button class="style-btn" onclick="setStyle('b')">B: ダークグラス</button>
+  <button class="style-btn" onclick="setStyle('c')">C: 状態カラーブロック</button>
+</div>
+<div class="style-label" id="styleDesc">A: 既存画面と同じ白ベース+アクセントカラー。情報が読みやすく、ホーム画面に馴染みやすい</div>
+
+<div class="home">
+  <div class="grid">
+
+    <div class="w w-small w-risk">
+      <div class="hint">怪我リスク</div>
+      <div class="row" style="margin-top:10px;"><span class="big risk-num">18</span><span class="hint" style="font-size:13px;">/100</span></div>
+      <div class="hint accent" style="margin-top:4px;">低リスク ✓</div>
+      <div class="bar-bg"><div class="bar-fill" style="width:18%;background:#22c55e;"></div></div>
+    </div>
+
+    <div class="w w-small w-countdown">
+      <div class="hint">次の大会まで</div>
+      <div class="row" style="margin-top:10px;"><span class="big accent">12</span><span class="hint" style="font-size:13px;">日</span></div>
+      <div class="hint" style="margin-top:6px;">県総体・100m</div>
+    </div>
+
+    <div class="w w-medium">
+      <div class="hint">復帰プラン — リハビリ期</div>
+      <div class="row" style="margin-top:8px;"><span class="big" style="font-size:26px;" class="accent">Day 14</span><span class="hint">/ 28日</span></div>
+      <div class="bar-bg"><div class="bar-fill" style="width:50%;background:#8b5cf6;"></div></div>
+      <div class="hint" style="margin-top:8px;">今日: 軽ジョグ+可動域訓練</div>
+    </div>
+
+    <div class="w w-medium">
+      <div class="hint">今日のコンディション</div>
+      <div class="mini-row">
+        <div class="mini"><div class="v" style="color:#5AC8FA;">87</div><div class="l">睡眠</div></div>
+        <div class="mini"><div class="v" style="color:#FF9500;">42</div><div class="l">疲労</div></div>
+        <div class="mini"><div class="v" style="color:#34C759;">91</div><div class="l">総合</div></div>
+      </div>
+    </div>
+
+    <div class="w w-small w-streak">
+      <div class="hint">連続記録</div>
+      <div class="row" style="margin-top:10px;"><span class="big" style="font-size:30px;">🔥18</span></div>
+      <div class="hint" style="margin-top:4px;">日連続</div>
+    </div>
+
+    <div class="w w-large">
+      <div class="hint" style="margin-bottom:10px;">sCORE 今日のまとめ</div>
+      <div class="mini-row" style="margin-top:0;">
+        <div class="mini"><div class="v risk-num" style="font-size:24px;">18</div><div class="l">怪我リスク</div></div>
+        <div class="mini"><div class="v accent" style="font-size:24px;">12日</div><div class="l">大会まで</div></div>
+        <div class="mini"><div class="v" style="font-size:24px;">🔥18</div><div class="l">連続記録</div></div>
+      </div>
+      <div class="bar-bg" style="margin-top:16px;"><div class="bar-fill" style="width:50%;background:#8b5cf6;"></div></div>
+      <div class="hint" style="margin-top:6px;">復帰プラン: リハビリ期 Day14/28</div>
+      <div class="mini-row" style="margin-top:14px;">
+        <div class="mini"><div class="v" style="font-size:16px;color:#5AC8FA;">87</div><div class="l">睡眠</div></div>
+        <div class="mini"><div class="v" style="font-size:16px;color:#FF9500;">42</div><div class="l">疲労</div></div>
+        <div class="mini"><div class="v" style="font-size:16px;color:#34C759;">91</div><div class="l">コンディション</div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<footer>Small=158×158pt / Medium=338×158pt / Large=338×354pt(iOS標準ウィジェットサイズ)。データは全て既存ロジックの数値をそのまま流用。</footer>
+
+<script>
+const DESC = {
+  a: 'A: 既存画面と同じ白ベース+アクセントカラー。情報が読みやすく、ホーム画面に馴染みやすい',
+  b: 'B: 常時ダークのすりガラス調。目立つが、ホーム画面の壁紙によっては浮く可能性あり',
+  c: 'C: リスクレベル/状態に応じてウィジェット自体の背景色が変わる。視認性は一番高いが賑やかになりがち',
+};
+function setStyle(s) {
+  document.body.dataset.style = s;
+  document.querySelectorAll('.style-btn').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('styleDesc').textContent = DESC[s];
+}
+</script>
+</body>
+</html>
