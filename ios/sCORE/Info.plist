@@ -34,13 +34,13 @@
       </dict>
     </array>
     <key>CFBundleVersion</key>
-    <string>47</string>
+    <string>48</string>
     <key>GADApplicationIdentifier</key>
     <string>ca-app-pub-6225795381877305~3874907264</string>
     <key>GADDelayAppMeasurementInit</key>
     <false/>
     <key>LSMinimumSystemVersion</key>
-    <string>17.0</string>
+    <string>12.0</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>NSAppTransportSecurity</key>
