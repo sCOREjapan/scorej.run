@@ -1,6 +1,6 @@
 // app/timer.tsx — タイム計測タイマー（全画面）
 
-import React, { useState, useRef, useCallback, useEffect } from 'react'
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import {
   View,
   Text,
@@ -16,7 +16,8 @@ import { useRouter } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import Toast from 'react-native-toast-message'
 import { Ionicons } from '@expo/vector-icons'
-import { BRAND, TEXT, SURFACE, SURFACE2, DIVIDER } from '../lib/theme'
+import { BRAND } from '../lib/theme'
+import { useTheme, type ThemeColors } from '../context/ThemeContext'
 import { todayLocalISO } from '../lib/dateLocal'
 import type { AthleticsEvent, TrainingSession } from '../types'
 import { autoSyncTeam } from '../lib/teamAutoSync'
@@ -48,25 +49,31 @@ interface Split {
 type TimerState = 'idle' | 'running' | 'paused'
 
 // ─── スプリット行 ─────────────────────────────────────────────────────
-const SplitRow: React.FC<{ split: Split; highlight: boolean }> = ({ split, highlight }) => (
-  <View style={[styles.splitRow, highlight && styles.splitRowHighlight]}>
-    <Text style={[styles.splitLap, highlight && { color: BRAND }]}>
-      Lap {split.lap}
-    </Text>
-    <Text style={[styles.splitLapTime, highlight && { color: BRAND }]}>
-      {formatStopwatch(split.lapMs)}
-    </Text>
-    <Text style={styles.splitTotal}>
-      {formatStopwatch(split.totalMs)}
-    </Text>
-  </View>
-)
+const SplitRow: React.FC<{ split: Split; highlight: boolean }> = ({ split, highlight }) => {
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
+  return (
+    <View style={[styles.splitRow, highlight && styles.splitRowHighlight]}>
+      <Text style={[styles.splitLap, highlight && { color: BRAND }]}>
+        Lap {split.lap}
+      </Text>
+      <Text style={[styles.splitLapTime, highlight && { color: BRAND }]}>
+        {formatStopwatch(split.lapMs)}
+      </Text>
+      <Text style={styles.splitTotal}>
+        {formatStopwatch(split.totalMs)}
+      </Text>
+    </View>
+  )
+}
 
 // ─── メイン ─────────────────────────────────────────────────────────────
 export default function TimerScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { t } = useTranslation()
+  const { colors, scheme } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
 
   const [timerState, setTimerState] = useState<TimerState>('idle')
   const [displayMs, setDisplayMs]   = useState(0)
@@ -197,7 +204,7 @@ export default function TimerScreen() {
   // ─── UI ───────────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} />
 
       {/* ヘッダー */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
@@ -215,7 +222,7 @@ export default function TimerScreen() {
             }
           }}
         >
-          <Ionicons name="chevron-down" size={28} color={TEXT.secondary} />
+          <Ionicons name="chevron-down" size={28} color={colors.textSec} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t('timer.headerTitle')}</Text>
         <TouchableOpacity
@@ -245,14 +252,14 @@ export default function TimerScreen() {
         ) : timerState === 'running' ? (
           <TouchableOpacity style={styles.sideButton} onPress={handleSplit} activeOpacity={0.8}>
             <View style={styles.splitBtn}>
-              <Ionicons name="flag" size={22} color={TEXT.primary} />
+              <Ionicons name="flag" size={22} color={colors.text} />
               <Text style={styles.sideButtonText}>{t('timer.split')}</Text>
             </View>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity style={styles.sideButton} onPress={handleReset} activeOpacity={0.8}>
             <View style={styles.resetBtn}>
-              <Ionicons name="refresh" size={22} color={TEXT.primary} />
+              <Ionicons name="refresh" size={22} color={colors.text} />
               <Text style={styles.sideButtonText}>{t('timer.reset')}</Text>
             </View>
           </TouchableOpacity>
@@ -291,7 +298,7 @@ export default function TimerScreen() {
       >
         {splits.length === 0 ? (
           <View style={styles.splitsEmpty}>
-            <Ionicons name="flag-outline" size={32} color={TEXT.hint} />
+            <Ionicons name="flag-outline" size={32} color={colors.textHint} />
             <Text style={styles.splitsEmptyText}>{t('timer.splitsEmptyText')}</Text>
           </View>
         ) : (
@@ -366,10 +373,10 @@ export default function TimerScreen() {
 }
 
 // ─── スタイル ────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#f6f6f8',
+    backgroundColor: colors.bg,
   },
   header: {
     flexDirection: 'row',
@@ -387,7 +394,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerTitle: {
-    color: TEXT.primary,
+    color: colors.text,
     fontSize: 17,
     fontWeight: '700',
   },
@@ -408,7 +415,7 @@ const styles = StyleSheet.create({
     paddingVertical: 48,
   },
   watchText: {
-    color: TEXT.primary,
+    color: colors.text,
     fontSize: 72,
     fontWeight: '200',
     fontVariant: ['tabular-nums'],
@@ -436,7 +443,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   sideButtonText: {
-    color: TEXT.secondary,
+    color: colors.textSec,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -448,12 +455,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   mainButtonStart: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: BRAND,
   },
   mainButtonPause: {
-    backgroundColor: SURFACE2,
+    backgroundColor: colors.surface2,
     borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: colors.border,
   },
 
   // スプリット一覧
@@ -473,7 +480,7 @@ const styles = StyleSheet.create({
   },
   splitHeaderText: {
     flex: 1,
-    color: TEXT.hint,
+    color: colors.textHint,
     fontSize: 12,
     fontWeight: '600',
     textAlign: 'center',
@@ -491,14 +498,14 @@ const styles = StyleSheet.create({
   },
   splitLap: {
     flex: 1,
-    color: TEXT.secondary,
+    color: colors.textSec,
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
   },
   splitLapTime: {
     flex: 1,
-    color: TEXT.primary,
+    color: colors.text,
     fontSize: 16,
     fontWeight: '700',
     textAlign: 'center',
@@ -506,7 +513,7 @@ const styles = StyleSheet.create({
   },
   splitTotal: {
     flex: 1,
-    color: TEXT.secondary,
+    color: colors.textSec,
     fontSize: 14,
     textAlign: 'center',
     fontVariant: ['tabular-nums'],
@@ -517,7 +524,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   splitsEmptyText: {
-    color: TEXT.secondary,
+    color: colors.textSec,
     fontSize: 14,
     textAlign: 'center',
   },
@@ -525,7 +532,7 @@ const styles = StyleSheet.create({
   // モーダル
   modalSafe: {
     flex: 1,
-    backgroundColor: '#f6f6f8',
+    backgroundColor: colors.bg,
     padding: 20,
   },
   modalHeader: {
@@ -535,12 +542,12 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   modalTitle: {
-    color: TEXT.primary,
+    color: colors.text,
     fontSize: 17,
     fontWeight: '700',
   },
   modalCancel: {
-    color: TEXT.secondary,
+    color: colors.textSec,
     fontSize: 16,
   },
   modalSave: {
@@ -549,7 +556,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   confirmTimeCard: {
-    backgroundColor: SURFACE,
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 20,
     alignItems: 'center',
@@ -558,18 +565,18 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.08)',
   },
   confirmTimeLabel: {
-    color: TEXT.secondary,
+    color: colors.textSec,
     fontSize: 13,
     marginBottom: 8,
   },
   confirmTimeValue: {
-    color: TEXT.primary,
+    color: colors.text,
     fontSize: 40,
     fontWeight: '200',
     fontVariant: ['tabular-nums'],
   },
   modalLabel: {
-    color: TEXT.secondary,
+    color: colors.textSec,
     fontSize: 13,
     fontWeight: '600',
     marginBottom: 12,
@@ -583,7 +590,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: SURFACE,
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
   },
@@ -592,7 +599,7 @@ const styles = StyleSheet.create({
     borderColor: BRAND,
   },
   eventChipText: {
-    color: TEXT.secondary,
+    color: colors.textSec,
     fontSize: 14,
     fontWeight: '600',
   },

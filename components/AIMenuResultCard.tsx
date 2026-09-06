@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { TEXT, BRAND, DIVIDER } from '../lib/theme'
+import { BRAND } from '../lib/theme'
+import { useTheme, type ThemeColors } from '../context/ThemeContext'
 import { useTranslation } from 'react-i18next'
 
 // AIコーチのメニュー生成プロンプト（workout-menu.tsx）が返す固定フォーマット
@@ -68,11 +69,12 @@ function parseMenuText(raw: string): { title: string; meta: string; sections: Me
 
 // "**強調**" を太字スパンに変換する（React NativeのTextはHTML非対応のため手動分割）
 function InlineText({ text, style }: { text: string; style?: any }) {
+  const { colors } = useTheme()
   const parts = text.split('**')
   if (parts.length === 1) return <Text style={style}>{text}</Text>
   return (
     <Text style={style}>
-      {parts.map((p, i) => (i % 2 === 1 ? <Text key={i} style={r.bold}>{p}</Text> : p))}
+      {parts.map((p, i) => (i % 2 === 1 ? <Text key={i} style={{ color: colors.text, fontWeight: '700' }}>{p}</Text> : p))}
     </Text>
   )
 }
@@ -80,6 +82,8 @@ function InlineText({ text, style }: { text: string; style?: any }) {
 export default function AIMenuResultCard({
   text, loading, onRegenerate,
 }: { text: string; loading?: boolean; onRegenerate?: () => void }) {
+  const { colors } = useTheme()
+  const r = useMemo(() => makeR(colors), [colors])
   const parsed = useMemo(() => parseMenuText(text), [text])
 
   // 想定フォーマット外（APIエラー文言等）はプレーン表示にフォールバック
@@ -99,7 +103,7 @@ export default function AIMenuResultCard({
           <Text style={r.headerTitle}>{parsed.title}</Text>
           {!!parsed.meta && (
             <View style={r.metaRow}>
-              <Ionicons name="time-outline" size={13} color={TEXT.secondary} />
+              <Ionicons name="time-outline" size={13} color={colors.textSec} />
               <Text style={r.metaText}>{parsed.meta.replace(/[（）]/g, '')}</Text>
             </View>
           )}
@@ -110,7 +114,7 @@ export default function AIMenuResultCard({
         <View key={i} style={{ gap: 8 }}>
           {/* セクション見出しはカードの外、Appleのグループ化リストと同じ配置 */}
           <View style={r.sectionHead}>
-            <Ionicons name={SECTION_ICON[sec.emoji] ?? 'ellipse-outline'} size={14} color={TEXT.secondary} />
+            <Ionicons name={SECTION_ICON[sec.emoji] ?? 'ellipse-outline'} size={14} color={colors.textSec} />
             <Text style={r.sectionTitle}>{sec.title}</Text>
           </View>
 
@@ -141,6 +145,8 @@ export default function AIMenuResultCard({
 
 function RegenerateBtn({ loading, onPress }: { loading?: boolean; onPress: () => void }) {
   const { t } = useTranslation()
+  const { colors } = useTheme()
+  const r = useMemo(() => makeR(colors), [colors])
   return (
     <TouchableOpacity style={[r.regenBtn, loading && { opacity: 0.5 }]} onPress={onPress} activeOpacity={0.75} disabled={loading}>
       {loading ? <ActivityIndicator size="small" color={BRAND} /> : <Ionicons name="refresh" size={14} color={BRAND} />}
@@ -149,27 +155,25 @@ function RegenerateBtn({ loading, onPress }: { loading?: boolean; onPress: () =>
   )
 }
 
-const r = StyleSheet.create({
-  card:      { backgroundColor: '#ffffff', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)', overflow: 'hidden' },
-  fallback:  { color: TEXT.secondary, fontSize: 13, lineHeight: 21, padding: 16 },
+const makeR = (colors: ThemeColors) => StyleSheet.create({
+  card:      { backgroundColor: colors.card, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  fallback:  { color: colors.textSec, fontSize: 13, lineHeight: 21, padding: 16 },
 
   headerCard:  { gap: 4 },
-  headerTitle: { color: TEXT.primary, fontSize: 19, fontWeight: '700', lineHeight: 24, letterSpacing: -0.2 },
+  headerTitle: { color: colors.text, fontSize: 19, fontWeight: '700', lineHeight: 24, letterSpacing: -0.2 },
   metaRow:     { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  metaText:    { color: TEXT.secondary, fontSize: 13 },
+  metaText:    { color: colors.textSec, fontSize: 13 },
 
   sectionHead:  { flexDirection: 'row', alignItems: 'center', gap: 6, paddingLeft: 4 },
-  sectionTitle: { fontSize: 13, fontWeight: '600', color: TEXT.secondary, letterSpacing: 0.1 },
+  sectionTitle: { fontSize: 13, fontWeight: '600', color: colors.textSec, letterSpacing: 0.1 },
 
   numRow:      { flexDirection: 'row', gap: 12, alignItems: 'flex-start', paddingVertical: 12, paddingHorizontal: 14 },
   numText:     { width: 18, color: BRAND, fontSize: 14, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  bodyText:    { flex: 1, color: TEXT.primary, fontSize: 15, lineHeight: 21, paddingHorizontal: 14 },
+  bodyText:    { flex: 1, color: colors.text, fontSize: 15, lineHeight: 21, paddingHorizontal: 14 },
 
-  arrowText:   { color: TEXT.secondary, fontSize: 13, lineHeight: 19, paddingLeft: 44, paddingRight: 14, paddingVertical: 8 },
+  arrowText:   { color: colors.textSec, fontSize: 13, lineHeight: 19, paddingLeft: 44, paddingRight: 14, paddingVertical: 8 },
 
-  rowDivider:  { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: DIVIDER },
-
-  bold:        { color: TEXT.primary, fontWeight: '700' },
+  rowDivider:  { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
 
   regenBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 10, paddingVertical: 12 },
 })

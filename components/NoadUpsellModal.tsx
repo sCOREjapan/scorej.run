@@ -3,7 +3,7 @@
 // 表示条件: FREEプラン かつ 前回表示から7日以上経過（未表示なら即表示）
 // noad / coach プランに加入済みの場合は呼び出し側でそもそも表示しない
 
-import React, { useRef, useEffect } from 'react'
+import React, { useRef, useEffect, useMemo } from 'react'
 import {
   Modal, View, Text, TouchableOpacity,
   Animated, StyleSheet,
@@ -11,6 +11,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Ionicons } from '@expo/vector-icons'
 import { todayLocalISO } from '../lib/dateLocal'
+import { useTheme, type ThemeColors } from '../context/ThemeContext'
 import { useTranslation } from 'react-i18next'
 
 const LAST_SHOWN_KEY = 'score_noad_upsell_last_shown'
@@ -40,6 +41,8 @@ interface Props {
 
 export default function NoadUpsellModal({ visible, onClose, onUpgrade }: Props) {
   const { t } = useTranslation()
+  const { colors } = useTheme()
+  const s = useMemo(() => makeS(colors), [colors])
   const slideY    = useRef(new Animated.Value(500)).current
   const bgOpacity = useRef(new Animated.Value(0)).current
 
@@ -108,7 +111,7 @@ export default function NoadUpsellModal({ visible, onClose, onUpgrade }: Props) 
   )
 }
 
-const s = StyleSheet.create({
+const makeS = (colors: ThemeColors) => StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -116,7 +119,7 @@ const s = StyleSheet.create({
   sheet: {
     position: 'absolute',
     bottom: 0, left: 0, right: 0,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.card,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     paddingHorizontal: 24,
@@ -126,7 +129,7 @@ const s = StyleSheet.create({
   },
   handle: {
     width: 40, height: 4, borderRadius: 2,
-    backgroundColor: 'rgba(0,0,0,0.15)',
+    backgroundColor: colors.border,
     alignSelf: 'center', marginBottom: 8,
   },
   headerRow: {
@@ -138,10 +141,10 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   title: {
-    color: '#111827', fontSize: 16, fontWeight: '800',
+    color: colors.text, fontSize: 16, fontWeight: '800',
   },
   sub: {
-    color: '#6b7280', fontSize: 13,
+    color: colors.textSec, fontSize: 13,
   },
   benefits: {
     gap: 8,
@@ -150,7 +153,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 8,
   },
   benefitText: {
-    color: '#374151', fontSize: 13, fontWeight: '600',
+    color: colors.text, fontSize: 13, fontWeight: '600',
   },
   primaryBtn: {
     backgroundColor: '#166534',
@@ -164,6 +167,6 @@ const s = StyleSheet.create({
     alignItems: 'center', paddingVertical: 12, minHeight: 44, justifyContent: 'center',
   },
   subBtnTxt: {
-    color: '#6b7280', fontSize: 14,
+    color: colors.textSec, fontSize: 14,
   },
 })

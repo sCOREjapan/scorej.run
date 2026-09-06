@@ -11,7 +11,7 @@ import {
   RefreshControl,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+import { useRouter, useNavigation } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Ionicons } from '@expo/vector-icons'
 import { BRAND, TEXT, SURFACE, SURFACE2, NEON } from '../lib/theme'
@@ -243,6 +243,8 @@ export default function RankingScreen() {
   const router = useRouter()
   const { t } = useTranslation()
   const { language } = useLanguage()
+  const navigation = useNavigation()
+  useEffect(() => { navigation.setOptions({ title: t('ranking.headerTitle') }) }, [navigation, t, language])
 
   const [selectedEvent, setSelectedEvent] = useState<AthleticsEvent>('100m')
   const [rankings, setRankings] = useState<RankingEntry[]>([])

@@ -1,6 +1,6 @@
 // app/tickets.tsx — チケット購入画面（消耗型IAP）
 // 動画分析(3枚)/AIメニュー作成(2枚)/AI食事分析(1枚)等のAI機能すべてが消費する共通チケットを購入する。
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert,
@@ -14,15 +14,10 @@ import { getWalletSnapshot, grantTickets, earnTicketFromAd, getAdTicketRemaining
 import { watchAdsForReward } from '../lib/rewardedAd'
 import Toast from 'react-native-toast-message'
 import { useTranslation } from 'react-i18next'
+import { useTheme, type ThemeColors } from '../context/ThemeContext'
 
 const TIX    = '#f59e0b'
 const BRAND  = '#16a34a'
-const BG     = '#f6f6f8'
-const CARD   = '#ffffff'
-const BORDER = 'rgba(0,0,0,0.08)'
-const TEXT_PRIMARY   = '#111827'
-const TEXT_SECONDARY = '#6b7280'
-const TEXT_HINT      = '#9ca3af'
 
 // per/labelKeyはロケール依存のためキーだけ持ち、実際の文言はレンダー時にt()で解決する
 const PACKS = [
@@ -33,6 +28,10 @@ const PACKS = [
 export default function TicketsScreen() {
   const router = useRouter()
   const { t } = useTranslation()
+  const { colors } = useTheme()
+  const st = useMemo(() => makeStStyles(colors), [colors])
+  const BG = colors.bg, CARD = colors.card, BORDER = colors.border
+  const TEXT_PRIMARY = colors.text, TEXT_SECONDARY = colors.textSec, TEXT_HINT = colors.textHint
   const { packages, packagesReady, packagesDiagnostic, hasTicketMonthly } = usePurchase()
 
   const [tickets, setTickets]   = useState(0)
@@ -212,31 +211,31 @@ export default function TicketsScreen() {
   )
 }
 
-const st = StyleSheet.create({
-  safe:          { flex: 1, backgroundColor: BG },
+const makeStStyles = (colors: ThemeColors) => StyleSheet.create({
+  safe:          { flex: 1, backgroundColor: colors.bg },
   header:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
   closeBtn:      { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle:   { fontSize: 17, fontWeight: '700', color: TEXT_PRIMARY },
+  headerTitle:   { fontSize: 17, fontWeight: '700', color: colors.text },
   scroll:        { paddingHorizontal: 16, paddingTop: 8 },
-  balanceCard:   { backgroundColor: CARD, borderWidth: 1.5, borderColor: BORDER, borderRadius: 21, padding: 22, alignItems: 'center', marginBottom: 16 },
-  balanceLabel:  { fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6 },
+  balanceCard:   { backgroundColor: colors.card, borderWidth: 1.5, borderColor: colors.border, borderRadius: 21, padding: 22, alignItems: 'center', marginBottom: 16 },
+  balanceLabel:  { fontSize: 12, color: colors.textSec, marginBottom: 6 },
   balanceNum:    { fontSize: 34, fontWeight: '900', color: TIX },
-  balanceUnit:   { fontSize: 16, color: TEXT_HINT, fontWeight: '700', marginLeft: 4 },
-  packCard:      { backgroundColor: CARD, borderWidth: 1.5, borderColor: BORDER, borderRadius: 21, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12, position: 'relative' },
+  balanceUnit:   { fontSize: 16, color: colors.textHint, fontWeight: '700', marginLeft: 4 },
+  packCard:      { backgroundColor: colors.card, borderWidth: 1.5, borderColor: colors.border, borderRadius: 21, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12, position: 'relative' },
   popBadge:      { position: 'absolute', top: -10, left: 16, backgroundColor: TIX, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
   popBadgeTxt:   { fontSize: 10, fontWeight: '800', color: '#241300' },
-  packCount:     { fontSize: 16, fontWeight: '800', color: TEXT_PRIMARY },
-  packPer:       { fontSize: 11, color: TEXT_SECONDARY, marginTop: 2 },
+  packCount:     { fontSize: 16, fontWeight: '800', color: colors.text },
+  packPer:       { fontSize: 11, color: colors.textSec, marginTop: 2 },
   packPrice:     { fontSize: 19, fontWeight: '900', color: TIX },
-  legend:        { backgroundColor: '#eef0f3', borderRadius: 14, padding: 14, marginTop: 18, marginBottom: 10 },
-  legendTitle:   { fontSize: 12, fontWeight: '800', color: TEXT_PRIMARY, marginBottom: 4 },
-  legendBody:    { fontSize: 11.5, color: TEXT_SECONDARY, lineHeight: 18 },
+  legend:        { backgroundColor: colors.surface2, borderRadius: 14, padding: 14, marginTop: 18, marginBottom: 10 },
+  legendTitle:   { fontSize: 12, fontWeight: '800', color: colors.text, marginBottom: 4 },
+  legendBody:    { fontSize: 11.5, color: colors.textSec, lineHeight: 18 },
   purchaseBtn:   { backgroundColor: TIX, borderRadius: 21, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
   purchaseBtnTxt:{ fontSize: 16, fontWeight: '800', color: '#241300' },
   adBtn:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: TIX, borderRadius: 21, paddingVertical: 14, marginTop: 10 },
   adBtnTxt:      { fontSize: 13, fontWeight: '700', color: TIX },
-  monthlyCard:   { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: CARD, borderWidth: 1.5, borderColor: BORDER, borderRadius: 18, padding: 14, marginTop: 18 },
+  monthlyCard:   { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.card, borderWidth: 1.5, borderColor: colors.border, borderRadius: 18, padding: 14, marginTop: 18 },
   monthlyIconWrap: { width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(245,158,11,0.12)', alignItems: 'center', justifyContent: 'center' },
-  monthlyTitle:  { fontSize: 14, fontWeight: '800', color: TEXT_PRIMARY },
-  monthlySub:    { fontSize: 11.5, color: TEXT_SECONDARY, marginTop: 2 },
+  monthlyTitle:  { fontSize: 14, fontWeight: '800', color: colors.text },
+  monthlySub:    { fontSize: 11.5, color: colors.textSec, marginTop: 2 },
 })

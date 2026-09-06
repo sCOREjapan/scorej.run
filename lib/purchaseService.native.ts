@@ -33,6 +33,10 @@ export type PremiumStatus = {
   originalPurchaseDate?: string
   hasTicketMonthly: boolean
   ticketMonthlyExpiresAt?: string
+  // true の間は無料トライアル期間中（=まだ課金が発生していない）。
+  // トライアル中に月額分の100枚を丸ごと付与すると、決済前にキャンセルされた場合
+  // 無料でチケットだけ持ち逃げされてしまうため、付与ロジック側で参照する。
+  ticketMonthlyIsTrial?: boolean
 }
 
 export type PurchaseResult = { tier: PlanTier; hasTicketMonthly: boolean } | false
@@ -45,7 +49,7 @@ const ENT_COACH          = 'coach'
 const ENT_TICKET_MONTHLY = 'ticket_monthly'
 
 // coach > noad > free（基本tier）。ticket_monthly はどのtierとも独立に併存できるので別扱い。
-function resolveTier(entitlements: { active: Record<string, { expirationDate?: string | null; originalPurchaseDate?: string | null }> }): PremiumStatus {
+function resolveTier(entitlements: { active: Record<string, { expirationDate?: string | null; originalPurchaseDate?: string | null; periodType?: string }> }): PremiumStatus {
   const coach         = entitlements.active[ENT_COACH]
   const noad          = entitlements.active[ENT_NOAD]
   const ticketMonthly = entitlements.active[ENT_TICKET_MONTHLY]
@@ -63,6 +67,8 @@ function resolveTier(entitlements: { active: Record<string, { expirationDate?: s
     tier, expiresAt, originalPurchaseDate,
     hasTicketMonthly: !!ticketMonthly,
     ticketMonthlyExpiresAt: ticketMonthly?.expirationDate ?? undefined,
+    // periodType: 'TRIAL' の間は無料トライアル中（'INTRO'=有料の割引導入価格期間は課金済みなので対象外）
+    ticketMonthlyIsTrial: ticketMonthly?.periodType === 'TRIAL',
   }
 }
 

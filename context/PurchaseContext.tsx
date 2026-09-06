@@ -31,6 +31,7 @@ interface PurchaseContextType {
   isCoach:         boolean   // コーチプランのみ
   hasTicketMonthly: boolean  // チケット月額プランに加入中か
   ticketMonthlyExpiresAt: string | undefined
+  ticketMonthlyIsTrial: boolean   // 無料トライアル期間中か（まだ課金は発生していない）
   expiresAt:       string | undefined
   packages:        any[]
   packagesDiagnostic: string | null
@@ -45,6 +46,7 @@ interface PurchaseContextType {
 
 const PurchaseContext = createContext<PurchaseContextType>({
   tier: 'free', isNoad: false, isCoach: false, hasTicketMonthly: false, ticketMonthlyExpiresAt: undefined,
+  ticketMonthlyIsTrial: false,
   expiresAt: undefined, packages: [], packagesDiagnostic: null, loading: true, packagesReady: false,
   purchase:        async () => false,
   restore:         async () => false,
@@ -54,11 +56,13 @@ const PurchaseContext = createContext<PurchaseContextType>({
 })
 
 // チケット月額の更新を検知したら wallet に付与し、付与されていればトーストで知らせる
-async function syncTicketMonthlyGrant(hasTicketMonthly: boolean, t: (key: string, opts?: any) => string, ticketMonthlyExpiresAt?: string) {
+// トライアル中(isTrial)は少量の日次付与になるため、通知トーストは通常付与の時だけ出す
+// （毎日ポップアップされるとうるさいため）
+async function syncTicketMonthlyGrant(hasTicketMonthly: boolean, t: (key: string, opts?: any) => string, ticketMonthlyExpiresAt?: string, isTrial?: boolean) {
   if (!hasTicketMonthly) return
   try {
-    const granted = await grantMonthlyTicketsIfNeeded(ticketMonthlyExpiresAt)
-    if (granted) {
+    const granted = await grantMonthlyTicketsIfNeeded(ticketMonthlyExpiresAt, isTrial)
+    if (granted && !isTrial) {
       Toast.show({ type: 'success', text1: t('purchase.ticketMonthlyGranted'), text2: t('purchase.ticketMonthlyGrantedSub') })
     }
   } catch {}
@@ -106,6 +110,7 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
   const [expiresAt,    setExpiresAt]    = useState<string | undefined>(undefined)
   const [hasTicketMonthly, setHasTicketMonthly] = useState(false)
   const [ticketMonthlyExpiresAt, setTicketMonthlyExpiresAt] = useState<string | undefined>(undefined)
+  const [ticketMonthlyIsTrial, setTicketMonthlyIsTrial] = useState(false)
   const [packages,     setPackages]     = useState<any[]>([])
   const [packagesDiagnostic, setPackagesDiagnostic] = useState<string | null>(null)
   const [loading,      setLoading]      = useState(true)
@@ -130,7 +135,8 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
       if (cached.hasTicketMonthly) {
         setHasTicketMonthly(true)
         setTicketMonthlyExpiresAt(cached.ticketMonthlyExpiresAt)
-        syncTicketMonthlyGrant(true, t, cached.ticketMonthlyExpiresAt)
+        setTicketMonthlyIsTrial(!!cached.ticketMonthlyIsTrial)
+        syncTicketMonthlyGrant(true, t, cached.ticketMonthlyExpiresAt, cached.ticketMonthlyIsTrial)
       }
       setLoading(false)
     })()
@@ -151,8 +157,9 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
       .then(status => {
         setTier(status.tier); setExpiresAt(status.expiresAt)
         setHasTicketMonthly(status.hasTicketMonthly); setTicketMonthlyExpiresAt(status.ticketMonthlyExpiresAt)
-        cacheSubscriptionStatus(status.tier, status.expiresAt, status.originalPurchaseDate, status.hasTicketMonthly, status.ticketMonthlyExpiresAt)
-        syncTicketMonthlyGrant(status.hasTicketMonthly, t, status.ticketMonthlyExpiresAt)
+        setTicketMonthlyIsTrial(!!status.ticketMonthlyIsTrial)
+        cacheSubscriptionStatus(status.tier, status.expiresAt, status.originalPurchaseDate, status.hasTicketMonthly, status.ticketMonthlyExpiresAt, status.ticketMonthlyIsTrial)
+        syncTicketMonthlyGrant(status.hasTicketMonthly, t, status.ticketMonthlyExpiresAt, status.ticketMonthlyIsTrial)
         syncPlanTierToSupabase(currentId ?? undefined, status.tier, status.hasTicketMonthly)
       })
       .then(() => getPackagesWithRetry(currentId ?? undefined))
@@ -174,8 +181,9 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
       const status = await getPremiumStatus()
       setTier(status.tier); setExpiresAt(status.expiresAt)
       setHasTicketMonthly(status.hasTicketMonthly); setTicketMonthlyExpiresAt(status.ticketMonthlyExpiresAt)
-      await cacheSubscriptionStatus(status.tier, status.expiresAt, status.originalPurchaseDate, status.hasTicketMonthly, status.ticketMonthlyExpiresAt)
-      await syncTicketMonthlyGrant(status.hasTicketMonthly, t, status.ticketMonthlyExpiresAt)
+      setTicketMonthlyIsTrial(!!status.ticketMonthlyIsTrial)
+      await cacheSubscriptionStatus(status.tier, status.expiresAt, status.originalPurchaseDate, status.hasTicketMonthly, status.ticketMonthlyExpiresAt, status.ticketMonthlyIsTrial)
+      await syncTicketMonthlyGrant(status.hasTicketMonthly, t, status.ticketMonthlyExpiresAt, status.ticketMonthlyIsTrial)
       await syncPlanTierToSupabase(user?.id, status.tier, status.hasTicketMonthly)
       const pkgs = await getPackagesWithRetry(user?.id)
       setPackages(pkgs)
@@ -197,6 +205,7 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
       await logOutPurchases()
       setTier('free'); setExpiresAt(undefined)
       setHasTicketMonthly(false); setTicketMonthlyExpiresAt(undefined)
+      setTicketMonthlyIsTrial(false)
       await cacheSubscriptionStatus('free')
     } catch {}
   }, [])
@@ -255,7 +264,7 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <PurchaseContext.Provider value={{
-      tier, isNoad, isCoach, hasTicketMonthly, ticketMonthlyExpiresAt,
+      tier, isNoad, isCoach, hasTicketMonthly, ticketMonthlyExpiresAt, ticketMonthlyIsTrial,
       expiresAt, packages, packagesDiagnostic, loading, packagesReady,
       purchase, restore, refreshStatus, onUserChanged, onUserSignedOut,
     }}>

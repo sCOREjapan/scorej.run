@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react'
+import React, { useRef, useState, useEffect, useMemo } from 'react'
 import { Animated, TouchableOpacity, Platform, View, Text, StyleSheet, Pressable, useWindowDimensions, Modal, Linking } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTranslation } from 'react-i18next'
@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Sounds, unlockAudio, preloadNativeSounds, loadSoundPrefs } from '../../lib/sounds'
 import { triggerHomeScroll } from '../../lib/homeScroll'
 import { BRAND } from '../../lib/theme'
+import { useTheme, type ThemeColors } from '../../context/ThemeContext'
 import { triggerQuickLog } from '../../lib/quickLogEvent'
 import { initNotificationsOnFirstLaunch } from '../../lib/notifications'
 import { todayLocalISO } from '../../lib/dateLocal'
@@ -62,6 +63,8 @@ const RADIUS = 110   // アイテム円の重なりを防ぐ十分な半径
 function RadialFAB({ bottomOffset }: { bottomOffset: number }) {
   const router = useRouter()
   const { t } = useTranslation()
+  const { colors } = useTheme()
+  const fab = useMemo(() => makeFabStyles(colors), [colors])
   const { width } = useWindowDimensions()
   const [open, setOpen] = useState(false)
   const anim   = useRef(new Animated.Value(0)).current
@@ -167,6 +170,8 @@ function CustomTabBar({ bottomInset, ticketBalance }: { bottomInset: number; tic
   const router   = useRouter()
   const pathname = usePathname()
   const { t } = useTranslation()
+  const { colors } = useTheme()
+  const tb = useMemo(() => makeTbStyles(colors), [colors])
 
   function isActive(route: string) {
     if (route === '/(tabs)/') return pathname === '/' || pathname === '/(tabs)' || pathname === '/(tabs)/'
@@ -208,7 +213,7 @@ function CustomTabBar({ bottomInset, ticketBalance }: { bottomInset: number; tic
               <Ionicons
                 name={active ? tab.iconFocused : tab.icon}
                 size={22}
-                color={active ? '#fff' : '#9ca3af'}
+                color={active ? '#fff' : colors.textHint}
               />
             </View>
             <Text style={[tb.label, active && tb.labelActive]}>{t(tab.labelKey)}</Text>
@@ -219,36 +224,36 @@ function CustomTabBar({ bottomInset, ticketBalance }: { bottomInset: number; tic
   )
 }
 
-const tb = StyleSheet.create({
+const makeTbStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.card,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(0,0,0,0.08)',
+    borderTopColor: colors.border,
     paddingTop: 8,
     paddingHorizontal: 8,
   },
   ticketBadge: {
     position: 'absolute', top: -11, right: 14, zIndex: 10,
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#ffffff', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3,
-    borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
+    backgroundColor: colors.card, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3,
+    borderWidth: 1, borderColor: colors.border,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 4,
   },
   ticketBadgeText: { fontSize: 11, fontWeight: '800', color: '#f59e0b' },
   item:          { flex: 1, alignItems: 'center', gap: 3 },
   iconWrap:      { width: 40, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   iconWrapActive:{ backgroundColor: BRAND },
-  label:         { fontSize: 10, fontWeight: '600', color: '#9ca3af' },
+  label:         { fontSize: 10, fontWeight: '600', color: colors.textHint },
   labelActive:   { color: BRAND, fontWeight: '700' },
 })
 
-const fab = StyleSheet.create({
+const makeFabStyles = (colors: ThemeColors) => StyleSheet.create({
   btn: {
     position: 'absolute',
     width: 54, height: 54, borderRadius: 27,
     backgroundColor: BRAND,
-    borderWidth: 3, borderColor: '#ffffff',
+    borderWidth: 3, borderColor: colors.card,
     alignItems: 'center', justifyContent: 'center',
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25, shadowRadius: 10, elevation: 12,
@@ -260,8 +265,8 @@ const fab = StyleSheet.create({
   },
   item: {
     width: 52, height: 52, borderRadius: 26,
-    backgroundColor: '#ffffff',
-    borderWidth: 1, borderColor: 'rgba(0,0,0,0.10)',
+    backgroundColor: colors.card,
+    borderWidth: 1, borderColor: colors.border,
     alignItems: 'center', justifyContent: 'center',
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12, shadowRadius: 8, elevation: 6,
@@ -281,6 +286,8 @@ export default function TabLayout() {
   const insets   = useSafeAreaInsets()
   const pathname = usePathname()
   const { t } = useTranslation()
+  const { colors } = useTheme()
+  const upd = useMemo(() => makeUpdStyles(colors), [colors])
   const { isNoad, isCoach } = usePurchase()
   const showBanner = !isNoad   // 広告なしプラン以上はバナー非表示
 
@@ -375,9 +382,12 @@ export default function TabLayout() {
       <Tabs
         screenOptions={{
           tabBarStyle: { display: 'none' },
-          headerStyle: { backgroundColor: '#ffffff' },
-          headerTintColor: '#111827',
-          headerTitleStyle: { color: '#111827', fontWeight: '800', letterSpacing: -0.3 },
+          headerStyle: { backgroundColor: colors.card },
+          headerTintColor: colors.text,
+          headerTitleStyle: { color: colors.text, fontWeight: '800', letterSpacing: -0.3 },
+          // タブ切替時、画面本体が描画されるまでの一瞬デフォルト(白)のシーン背景が
+          // 見えてしまう(ダークモード時に白フラッシュとして目立つ)ため明示的に指定する
+          sceneStyle: { backgroundColor: colors.bg },
         }}
       >
         <Tabs.Screen name="index"       options={{ headerShown: false }} />
@@ -423,14 +433,14 @@ export default function TabLayout() {
   )
 }
 
-const upd = StyleSheet.create({
+const makeUpdStyles = (colors: ThemeColors) => StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: 32 },
-  card:    { width: '100%', maxWidth: 340, backgroundColor: '#fff', borderRadius: 20, padding: 28, alignItems: 'center' },
+  card:    { width: '100%', maxWidth: 340, backgroundColor: colors.card, borderRadius: 20, padding: 28, alignItems: 'center' },
   emoji:   { fontSize: 40, marginBottom: 8 },
-  title:   { fontSize: 19, fontWeight: '800', color: '#111827', marginBottom: 10, textAlign: 'center' },
-  body:    { fontSize: 14, color: '#6b7280', lineHeight: 21, textAlign: 'center', marginBottom: 22 },
+  title:   { fontSize: 19, fontWeight: '800', color: colors.text, marginBottom: 10, textAlign: 'center' },
+  body:    { fontSize: 14, color: colors.textSec, lineHeight: 21, textAlign: 'center', marginBottom: 22 },
   primaryBtn: { backgroundColor: BRAND, borderRadius: 14, paddingVertical: 14, alignItems: 'center', alignSelf: 'stretch' },
   primaryTxt: { color: '#fff', fontSize: 16, fontWeight: '800' },
   laterBtn:   { paddingVertical: 12, alignItems: 'center', alignSelf: 'stretch', marginTop: 4 },
-  laterTxt:   { color: '#9ca3af', fontSize: 14, fontWeight: '600' },
+  laterTxt:   { color: colors.textHint, fontSize: 14, fontWeight: '600' },
 })

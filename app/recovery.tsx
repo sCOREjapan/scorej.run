@@ -17,7 +17,7 @@ const BODY_FRONT = require('../assets/body/body-front.png')
 const BODY_BACK  = require('../assets/body/body-back.png')
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { useRouter } from 'expo-router'
+import { useRouter, useNavigation } from 'expo-router'
 import { createStorageQueue } from '../lib/storageQueue'
 import { useTranslation } from 'react-i18next'
 import { useLanguage } from '../context/LanguageContext'
@@ -119,6 +119,8 @@ export default function RecoveryScreen() {
   const router = useRouter()
   const { t } = useTranslation()
   const { language } = useLanguage()
+  const navigation = useNavigation()
+  useEffect(() => { navigation.setOptions({ title: t('recovery.headerTitle') }) }, [navigation, t, language])
   const [bodyParts, setBodyParts] = useState<string[]>([])
   const [painLevel, setPainLevel] = useState(5)
   const [painType,  setPainType]  = useState('')

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import {
   View,
   Text,
@@ -15,7 +15,8 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import Toast from 'react-native-toast-message'
 import { useRouter } from 'expo-router'
-import { BRAND, TEXT, SURFACE2, DIVIDER, BG_GRADIENT } from '../lib/theme'
+import { BRAND } from '../lib/theme'
+import { useTheme, type ThemeColors } from '../context/ThemeContext'
 import { Sounds } from '../lib/sounds'
 import AnimatedSection from '../components/AnimatedSection'
 import { useAuth } from '../context/AuthContext'
@@ -46,6 +47,8 @@ async function copyToClipboard(text: string): Promise<boolean> {
 export default function ReferralChallengeScreen() {
   const router = useRouter()
   const { t } = useTranslation()
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
   const { user, isGuest } = useAuth()
   const loggedIn = !!user && !isGuest
   const [myCode, setMyCode] = useState<string | null>(null)
@@ -117,12 +120,12 @@ export default function ReferralChallengeScreen() {
   }, [joinCode, redeeming, t])
 
   return (
-    <View style={{ flex: 1, backgroundColor: BG_GRADIENT[0] }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <SafeAreaView style={styles.safe}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={styles.header}>
             <TouchableOpacity onPress={() => { Sounds.tap(); router.back() }} style={styles.backBtn} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} accessibilityLabel={t('referral.backLabel')}>
-              <Ionicons name="chevron-back" size={22} color={TEXT.primary} />
+              <Ionicons name="chevron-back" size={22} color={colors.text} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>{t('referral.headerTitle')}</Text>
             <View style={{ width: 40 }} />
@@ -181,7 +184,7 @@ export default function ReferralChallengeScreen() {
                     value={joinCode}
                     onChangeText={t => setJoinCode(t.toUpperCase().slice(0, 6))}
                     placeholder="------"
-                    placeholderTextColor={TEXT.hint}
+                    placeholderTextColor={colors.textHint}
                     autoCapitalize="characters"
                     maxLength={6}
                     autoCorrect={false}
@@ -214,7 +217,7 @@ export default function ReferralChallengeScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: 'transparent' },
   header: {
     flexDirection: 'row',
@@ -223,24 +226,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: DIVIDER,
+    borderBottomColor: colors.border,
   },
-  backBtn: { width: 40, height: 40, borderRadius: 18, backgroundColor: SURFACE2, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { color: TEXT.primary, fontSize: 19, fontWeight: '800' },
+  backBtn: { width: 40, height: 40, borderRadius: 18, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { color: colors.text, fontSize: 19, fontWeight: '800' },
   content: { padding: 18, gap: 14, paddingBottom: 48 },
 
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: DIVIDER,
+    borderColor: colors.border,
     padding: 22,
     alignItems: 'center',
   },
-  leadText: { fontSize: 13, color: TEXT.secondary, textAlign: 'center' },
+  leadText: { fontSize: 13, color: colors.textSec, textAlign: 'center' },
   leadBonus: { fontSize: 26, fontWeight: '900', color: BRAND, marginTop: 2, marginBottom: 18 },
-  label: { fontSize: 10.5, fontWeight: '700', color: TEXT.hint, letterSpacing: 0.5, marginBottom: 8 },
-  codeText: { fontSize: 32, fontWeight: '900', letterSpacing: 6, color: TEXT.primary, marginBottom: 16 },
+  label: { fontSize: 10.5, fontWeight: '700', color: colors.textHint, letterSpacing: 0.5, marginBottom: 8 },
+  codeText: { fontSize: 32, fontWeight: '900', letterSpacing: 6, color: colors.text, marginBottom: 16 },
   shareBtn: {
     width: '100%',
     flexDirection: 'row',
@@ -254,34 +257,34 @@ const styles = StyleSheet.create({
   shareBtnText: { color: '#fff', fontSize: 14, fontWeight: '800' },
 
   card2: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: DIVIDER,
+    borderColor: colors.border,
     padding: 18,
   },
-  sectionTitle: { fontSize: 12.5, fontWeight: '800', color: TEXT.primary, marginBottom: 10 },
+  sectionTitle: { fontSize: 12.5, fontWeight: '800', color: colors.text, marginBottom: 10 },
   redeemRow: { flexDirection: 'row', gap: 8 },
   codeInput: {
     flex: 1,
-    backgroundColor: SURFACE2,
+    backgroundColor: colors.surface2,
     borderRadius: 12,
     paddingVertical: 13,
-    color: TEXT.primary,
+    color: colors.text,
     fontSize: 18,
     fontWeight: '800',
     letterSpacing: 3,
     textAlign: 'center',
   },
   redeemBtn: {
-    backgroundColor: SURFACE2,
+    backgroundColor: colors.surface2,
     borderRadius: 12,
     paddingVertical: 13,
     paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  redeemBtnText: { color: TEXT.secondary, fontSize: 12.5, fontWeight: '700' },
+  redeemBtnText: { color: colors.textSec, fontSize: 12.5, fontWeight: '700' },
 
-  infoText: { fontSize: 10.5, color: TEXT.hint, textAlign: 'center', lineHeight: 16, paddingHorizontal: 6 },
+  infoText: { fontSize: 10.5, color: colors.textHint, textAlign: 'center', lineHeight: 16, paddingHorizontal: 6 },
 })

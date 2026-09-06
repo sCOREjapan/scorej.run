@@ -1,5 +1,5 @@
 // components/QuickConditionModal.tsx — 今日の状態を30秒で記録
-import React, { useState, useRef, useCallback } from 'react'
+import React, { useState, useRef, useCallback, useMemo } from 'react'
 import {
   Modal, View, Text, TouchableOpacity, TextInput,
   StyleSheet, Animated, KeyboardAvoidingView, Platform, ScrollView,
@@ -7,7 +7,8 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as Crypto from 'expo-crypto'
 import { Ionicons } from '@expo/vector-icons'
-import { BRAND, TEXT } from '../lib/theme'
+import { BRAND } from '../lib/theme'
+import { useTheme, type ThemeColors } from '../context/ThemeContext'
 import { Sounds, unlockAudio } from '../lib/sounds'
 import { successNotify } from '../lib/haptics'
 import Toast from 'react-native-toast-message'
@@ -64,6 +65,8 @@ interface Props {
 
 export default function QuickConditionModal({ visible, onClose, onSaved, date }: Props) {
   const { t } = useTranslation()
+  const { colors } = useTheme()
+  const st = useMemo(() => makeSt(colors), [colors])
   const targetDate = date ?? localDateStr()
   const isToday = targetDate === localDateStr()
   const [fatigue,   setFatigue]   = useState(4)
@@ -232,7 +235,7 @@ export default function QuickConditionModal({ visible, onClose, onSaved, date }:
           <View style={st.header}>
             <Text style={st.title}>{isToday ? t('quickConditionModal.titleToday') : t('quickConditionModal.titleDate', { date: targetDate.slice(5).replace('-', '/') })}</Text>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={t('quickConditionModal.close')} accessibilityRole="button">
-              <Ionicons name="close" size={22} color={TEXT.secondary} />
+              <Ionicons name="close" size={22} color={colors.textSec} />
             </TouchableOpacity>
           </View>
 
@@ -258,14 +261,14 @@ export default function QuickConditionModal({ visible, onClose, onSaved, date }:
             <Text style={st.sectionLabel}>{t('quickConditionModal.sleepLabel')}</Text>
             <View style={st.sleepRow}>
               <TouchableOpacity style={st.sleepAdj} onPress={() => adjustSleep(-0.5)} activeOpacity={0.7}>
-                <Ionicons name="remove" size={20} color={TEXT.primary} />
+                <Ionicons name="remove" size={20} color={colors.text} />
               </TouchableOpacity>
               <View style={st.sleepDisplay}>
                 <Text style={st.sleepVal}>{sleepH.toFixed(1)}</Text>
                 <Text style={st.sleepUnit}>{t('quickConditionModal.sleepUnit')}</Text>
               </View>
               <TouchableOpacity style={st.sleepAdj} onPress={() => adjustSleep(0.5)} activeOpacity={0.7}>
-                <Ionicons name="add" size={20} color={TEXT.primary} />
+                <Ionicons name="add" size={20} color={colors.text} />
               </TouchableOpacity>
             </View>
             <Text style={st.sleepHint}>{t('quickConditionModal.sleepHint')}</Text>
@@ -303,7 +306,7 @@ export default function QuickConditionModal({ visible, onClose, onSaved, date }:
                   value={menuText}
                   onChangeText={setMenuText}
                   placeholder={t('quickConditionModal.menuPlaceholder')}
-                  placeholderTextColor={TEXT.hint}
+                  placeholderTextColor={colors.textHint}
                   multiline
                   style={st.menuInput}
                   textAlignVertical="top"
@@ -314,7 +317,7 @@ export default function QuickConditionModal({ visible, onClose, onSaved, date }:
                   value={weightStr}
                   onChangeText={setWeightStr}
                   placeholder={t('quickConditionModal.weightPlaceholder')}
-                  placeholderTextColor={TEXT.hint}
+                  placeholderTextColor={colors.textHint}
                   keyboardType="decimal-pad"
                   style={st.weightInput}
                 />
@@ -339,38 +342,38 @@ export default function QuickConditionModal({ visible, onClose, onSaved, date }:
   )
 }
 
-const st = StyleSheet.create({
+const makeSt = (colors: ThemeColors) => StyleSheet.create({
   overlay:      { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
   kvWrapper:    { flex: 1, justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.card,
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
     paddingHorizontal: 20, paddingBottom: 40, paddingTop: 6,
     maxHeight: '90%',
   },
-  handle:       { width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(0,0,0,0.15)', alignSelf: 'center', marginBottom: 10 },
+  handle:       { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 10 },
   header:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, marginBottom: 4 },
-  title:        { color: TEXT.primary, fontSize: 17, fontWeight: '800' },
-  sectionLabel: { fontSize: 12, fontWeight: '700', color: TEXT.secondary, letterSpacing: 0.5, marginBottom: 10, marginTop: 4 },
+  title:        { color: colors.text, fontSize: 17, fontWeight: '800' },
+  sectionLabel: { fontSize: 12, fontWeight: '700', color: colors.textSec, letterSpacing: 0.5, marginBottom: 10, marginTop: 4 },
 
   emojiRow:     { flexDirection: 'row', gap: 8, marginBottom: 18 },
-  emojiBtn:     { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.08)', backgroundColor: '#f8f8fa' },
+  emojiBtn:     { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.surface2 },
   emojiBtnActive: { borderColor: BRAND, backgroundColor: 'rgba(76,175,80,0.08)' },
   emojiIcon:    { fontSize: 22 },
-  emojiLabel:   { fontSize: 9, marginTop: 3, color: TEXT.secondary, fontWeight: '600' },
+  emojiLabel:   { fontSize: 9, marginTop: 3, color: colors.textSec, fontWeight: '600' },
 
   sleepRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 20, marginBottom: 20 },
-  sleepAdj:     { width: 44, height: 44, borderRadius: 22, backgroundColor: '#f0f2f5', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
+  sleepAdj:     { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
   sleepDisplay: { flexDirection: 'row', alignItems: 'baseline', gap: 4 },
-  sleepVal:     { fontSize: 36, fontWeight: '900', color: TEXT.primary, lineHeight: 42 },
-  sleepUnit:    { fontSize: 14, color: TEXT.secondary, fontWeight: '600' },
-  sleepHint:    { fontSize: 11, color: TEXT.hint, textAlign: 'center', marginTop: -12, marginBottom: 18 },
+  sleepVal:     { fontSize: 36, fontWeight: '900', color: colors.text, lineHeight: 42 },
+  sleepUnit:    { fontSize: 14, color: colors.textSec, fontWeight: '600' },
+  sleepHint:    { fontSize: 11, color: colors.textHint, textAlign: 'center', marginTop: -12, marginBottom: 18 },
 
   optToggle:    { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 12, marginBottom: 4 },
   optToggleText:{ fontSize: 13, color: BRAND, fontWeight: '700' },
   optBody:      { marginBottom: 12 },
-  menuInput:    { backgroundColor: '#f8f8fa', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: TEXT.primary, borderWidth: 1, borderColor: 'rgba(59,130,246,0.2)', height: 90, marginBottom: 4 },
-  weightInput:  { backgroundColor: '#f8f8fa', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: TEXT.primary, borderWidth: 1, borderColor: 'rgba(59,130,246,0.2)' },
+  menuInput:    { backgroundColor: colors.surface2, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: colors.text, borderWidth: 1, borderColor: 'rgba(59,130,246,0.2)', height: 90, marginBottom: 4 },
+  weightInput:  { backgroundColor: colors.surface2, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: colors.text, borderWidth: 1, borderColor: 'rgba(59,130,246,0.2)' },
 
   saveBtn:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: BRAND, borderRadius: 14, paddingVertical: 16, marginTop: 16 },
   saveBtnText:  { color: '#fff', fontSize: 16, fontWeight: '700' },

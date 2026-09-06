@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useLocalSearchParams, useFocusEffect } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useLanguage } from '../../context/LanguageContext'
@@ -19,7 +19,8 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { BRAND, NEON, TEXT, GLASS } from '../../lib/theme'
+import { BRAND, NEON } from '../../lib/theme'
+import { useTheme, type ThemeColors } from '../../context/ThemeContext'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { Ionicons } from '@expo/vector-icons'
 import Toast from 'react-native-toast-message'
@@ -161,6 +162,7 @@ function getDowLabel(day: string, t: (key: string, opts?: any) => any): string {
 
 // ── スケルトン ────────────────────────────────────────────────────
 function SkeletonRect({ height = 16, width = '100%' as number | string, radius = 8 }) {
+  const { colors } = useTheme()
   const opacity = useRef(new Animated.Value(0.3)).current
   useEffect(() => {
     const anim = Animated.loop(
@@ -174,7 +176,7 @@ function SkeletonRect({ height = 16, width = '100%' as number | string, radius =
   }, [opacity])
   return (
     <Animated.View
-      style={{ height, width: width as any, borderRadius: radius, backgroundColor: '#e8eaed', opacity }}
+      style={{ height, width: width as any, borderRadius: radius, backgroundColor: colors.surface2, opacity }}
     />
   )
 }
@@ -182,6 +184,8 @@ function SkeletonRect({ height = 16, width = '100%' as number | string, radius =
 // ── エントリーバッジ ─────────────────────────────────────────────
 function EntryBadge({ status }: { status: EntryStatus }) {
   const { t } = useTranslation()
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
   const color = STATUS_COLOR[status]
   return (
     <View style={[styles.entryBadge, { backgroundColor: color + '22', borderColor: color }]}>
@@ -201,9 +205,11 @@ class CardErrorBoundary extends React.Component<{ children: React.ReactNode }, {
   }
   render() {
     if (this.state.hasError) {
+      // クラスコンポーネントのため useTheme() は使えない。滅多に表示されない
+      // エラーフォールバックなので、両テーマである程度読める固定の中間グレーにする
       return (
-        <View style={[styles.card, { alignItems: 'center', paddingVertical: 20 }]}>
-          <Text style={{ color: TEXT.hint, fontSize: 12 }}>{i18n.t('competition.cardError')}</Text>
+        <View style={{ borderRadius: 21, borderWidth: 1, borderColor: 'rgba(128,128,128,0.3)', padding: 16, alignItems: 'center', paddingVertical: 20 }}>
+          <Text style={{ color: '#9ca3af', fontSize: 12 }}>{i18n.t('competition.cardError')}</Text>
         </View>
       )
     }
@@ -223,6 +229,8 @@ function CountdownCard({
 }) {
   const { t } = useTranslation()
   const { language } = useLanguage()
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
   const calcDays = useCallback(() => {
     const target = new Date(competition.competition_date)
     const now = new Date()
@@ -264,7 +272,7 @@ function CountdownCard({
         <TouchableOpacity onPress={onEntryPress} activeOpacity={0.8}>
           <EntryBadge status={entryStatus} />
         </TouchableOpacity>
-        <Text style={{ color: TEXT.hint, fontSize: 11 }}>{t('competition.countdown.tapToChange')}</Text>
+        <Text style={{ color: colors.textHint, fontSize: 11 }}>{t('competition.countdown.tapToChange')}</Text>
       </View>
     </View>
   )
@@ -273,6 +281,8 @@ function CountdownCard({
 // ── 週カード ─────────────────────────────────────────────────────
 function WeekCard({ week }: { week: WeekPlan }) {
   const { t } = useTranslation()
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
   const [open, setOpen] = useState(week.week_number === 1)
 
   return (
@@ -289,7 +299,7 @@ function WeekCard({ week }: { week: WeekPlan }) {
             <Text style={styles.weekVolume}>{week.total_volume_km}km</Text>
           ) : null}
         </View>
-        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={TEXT.hint} />
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textHint} />
       </TouchableOpacity>
 
       {open && (
@@ -317,6 +327,8 @@ function WeekCard({ week }: { week: WeekPlan }) {
 export default function CompetitionScreen() {
   const { t } = useTranslation()
   const { language } = useLanguage()
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
   const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>()
 
   const [competitions, setCompetitions] = useState<CompetitionPlan[]>([])
@@ -844,7 +856,7 @@ export default function CompetitionScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#f6f6f8' }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{activeTab === 'race' ? t('competition.header.raceTitle') : t('competition.header.injuryTitle')}</Text>
@@ -875,19 +887,19 @@ export default function CompetitionScreen() {
       </View>
 
       {/* ── タブセレクター ── */}
-      <View style={{ flexDirection: 'row', marginHorizontal: 16, marginBottom: 4, backgroundColor: '#e8eaed', borderRadius: 12, padding: 3 }}>
+      <View style={{ flexDirection: 'row', marginHorizontal: 16, marginBottom: 4, backgroundColor: colors.surface2, borderRadius: 12, padding: 3 }}>
         <TouchableOpacity
-          style={[{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center' }, activeTab === 'race' && { backgroundColor: '#fff' }]}
+          style={[{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center' }, activeTab === 'race' && { backgroundColor: colors.card }]}
           onPress={() => setActiveTab('race')}
         >
-          <Text style={{ fontSize: 13, fontWeight: activeTab === 'race' ? '800' : '600', color: activeTab === 'race' ? '#111' : '#888' }}>{t('competition.tabSelector.race')}</Text>
+          <Text style={{ fontSize: 13, fontWeight: activeTab === 'race' ? '800' : '600', color: activeTab === 'race' ? colors.text : colors.textSec }}>{t('competition.tabSelector.race')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center' }, activeTab === 'injury' && { backgroundColor: '#fff' }]}
+          style={[{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center' }, activeTab === 'injury' && { backgroundColor: colors.card }]}
           onPress={() => setActiveTab('injury')}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <Text style={{ fontSize: 13, fontWeight: activeTab === 'injury' ? '800' : '600', color: activeTab === 'injury' ? '#111' : '#888' }}>{t('competition.tabSelector.injury')}</Text>
+            <Text style={{ fontSize: 13, fontWeight: activeTab === 'injury' ? '800' : '600', color: activeTab === 'injury' ? colors.text : colors.textSec }}>{t('competition.tabSelector.injury')}</Text>
             {activeInjuries.length > 0 && <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#FF6B6B' }} />}
           </View>
         </TouchableOpacity>
@@ -901,7 +913,7 @@ export default function CompetitionScreen() {
         <AnimatedSection delay={0} type="fade-up">
           <View style={[styles.card, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
             <Ionicons name="notifications-outline" size={20} color={NEON.amber} />
-            <Text style={{ color: TEXT.secondary, fontSize: 13, flex: 1 }}>{t('competition.notif.label')}</Text>
+            <Text style={{ color: colors.textSec, fontSize: 13, flex: 1 }}>{t('competition.notif.label')}</Text>
             <TouchableOpacity
               style={{ backgroundColor: notifGranted ? NEON.green : BRAND, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 6 }}
               onPress={handleNotifRequest}
@@ -962,7 +974,7 @@ export default function CompetitionScreen() {
         ) : filteredCompetitions.length === 0 && !generating ? (
           competitions.length === 0 ? (
             <View style={styles.empty}>
-              <Ionicons name="trophy-outline" size={56} color={TEXT.hint} />
+              <Ionicons name="trophy-outline" size={56} color={colors.textHint} />
               <Text style={styles.emptyTitle}>{t('competition.empty.noCompTitle')}</Text>
               <Text style={styles.emptyText}>{t('competition.empty.noCompText')}</Text>
               <HapticTouch haptic="whoosh" style={styles.emptyBtn} onPress={() => setModalVisible(true)}>
@@ -971,7 +983,7 @@ export default function CompetitionScreen() {
             </View>
           ) : (
             <View style={styles.empty}>
-              <Ionicons name="filter-outline" size={44} color={TEXT.hint} />
+              <Ionicons name="filter-outline" size={44} color={colors.textHint} />
               <Text style={styles.emptyTitle}>{t('competition.empty.noFilterTitle')}</Text>
             </View>
           )
@@ -997,7 +1009,7 @@ export default function CompetitionScreen() {
                     activeOpacity={0.7}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <Ionicons name="trash-outline" size={14} color={TEXT.hint} />
+                    <Ionicons name="trash-outline" size={14} color={colors.textHint} />
                     <Text style={styles.deleteBtnText}>{t('competition.delete')}</Text>
                   </TouchableOpacity>
                 </View>
@@ -1017,7 +1029,7 @@ export default function CompetitionScreen() {
                     <Text style={styles.sectionTitle}>
                       {t('competition.weekSchedule.title', { n: selectedComp.phases.length })}
                       {'  '}
-                      <Text style={{ color: TEXT.hint, fontSize: 12, fontWeight: '400' }}>
+                      <Text style={{ color: colors.textHint, fontSize: 12, fontWeight: '400' }}>
                         {t('competition.weekSchedule.daysUntil', { n: Math.max(0, Math.ceil((new Date(selectedComp.competition_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))) })}
                       </Text>
                     </Text>
@@ -1045,9 +1057,9 @@ export default function CompetitionScreen() {
               <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#FF6B6B22', alignItems: 'center', justifyContent: 'center' }}>
                 <Text style={{ fontSize: 28 }}>🩹</Text>
               </View>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: '#111' }}>{t('competition.injury.generatingTitle')}</Text>
-              <Text style={{ fontSize: 12, color: '#888' }}>{t('competition.injury.generatingSub')}</Text>
-              <View style={{ width: '100%', height: 5, backgroundColor: '#e8eaed', borderRadius: 3, overflow: 'hidden' }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{t('competition.injury.generatingTitle')}</Text>
+              <Text style={{ fontSize: 12, color: colors.textSec }}>{t('competition.injury.generatingSub')}</Text>
+              <View style={{ width: '100%', height: 5, backgroundColor: colors.surface2, borderRadius: 3, overflow: 'hidden' }}>
                 <View style={{ height: 5, backgroundColor: '#FF6B6B', borderRadius: 3, width: `${injGenProgress}%` as any }} />
               </View>
             </View>
@@ -1067,25 +1079,25 @@ export default function CompetitionScreen() {
                         <View style={{ backgroundColor: '#FF6B6B22', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
                           <Text style={{ fontSize: 12, color: '#FF6B6B', fontWeight: '700' }}>{getSideLabel(activeInjury.side, t)}{activeInjury.parts.map(p => getBodyPartLabel(p, t)).join('・')} {getInjuryTypeLabel(activeInjury.injuryType, t)}</Text>
                         </View>
-                        <Text style={{ fontSize: 12, color: '#888' }}>{t('competition.injury.painLabel', { n: activeInjury.painLevel })}</Text>
+                        <Text style={{ fontSize: 12, color: colors.textSec }}>{t('competition.injury.painLabel', { n: activeInjury.painLevel })}</Text>
                       </View>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                         <View>
-                          <Text style={{ fontSize: 11, color: '#888' }}>{t('competition.injury.untilRecovery')}</Text>
+                          <Text style={{ fontSize: 11, color: colors.textSec }}>{t('competition.injury.untilRecovery')}</Text>
                           <Text style={{ fontSize: 36, fontWeight: '900', color: '#FF6B6B', letterSpacing: -1 }}>{t('competition.injury.daysLeftLabel', { n: daysLeft })}</Text>
                         </View>
-                        <Text style={{ fontSize: 12, color: '#888' }}>Day {elapsed + 1} / {activeInjury.totalDays}</Text>
+                        <Text style={{ fontSize: 12, color: colors.textSec }}>Day {elapsed + 1} / {activeInjury.totalDays}</Text>
                       </View>
-                      <View style={{ height: 6, backgroundColor: '#e8eaed', borderRadius: 3, overflow: 'hidden' }}>
+                      <View style={{ height: 6, backgroundColor: colors.surface2, borderRadius: 3, overflow: 'hidden' }}>
                         <View style={{ height: 6, backgroundColor: '#FF6B6B', borderRadius: 3, width: `${progress}%` as any }} />
                       </View>
                       {/* アクション */}
                       <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
                         <TouchableOpacity
-                          style={{ flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: '#ddd', alignItems: 'center' }}
+                          style={{ flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}
                           onPress={() => { setInjExtDays('7'); setExtTargetId(activeInjury.id); setShowExtModal(true) }}
                         >
-                          <Text style={{ fontSize: 13, fontWeight: '700', color: '#555' }}>{t('competition.injury.extend')}</Text>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textSec }}>{t('competition.injury.extend')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={{ flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: '#34C759', alignItems: 'center' }}
@@ -1103,15 +1115,15 @@ export default function CompetitionScreen() {
                     {todayPlan && (
                       <View style={[styles.card, { gap: 10 }]}>
                         <Text style={{ fontSize: 11, color: BRAND, fontWeight: '700' }}>{t('competition.injury.todayPlanTitle', { day: todayPlan.day, phase: getPhaseLabel(todayPlan.phase, t) })}</Text>
-                        <Text style={{ fontSize: 13, color: '#555', lineHeight: 20 }}>{todayPlan.advice}</Text>
+                        <Text style={{ fontSize: 13, color: colors.textSec, lineHeight: 20 }}>{todayPlan.advice}</Text>
                         {todayPlan.exercises.map((ex, i) => (
-                          <View key={i} style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start', paddingTop: 8, borderTopWidth: i === 0 ? 1 : 0, borderTopColor: '#e8eaed' }}>
+                          <View key={i} style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start', paddingTop: 8, borderTopWidth: i === 0 ? 1 : 0, borderTopColor: colors.surface2 }}>
                             <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: BRAND + '22', alignItems: 'center', justifyContent: 'center' }}>
                               <Text style={{ fontSize: 11, color: BRAND, fontWeight: '800' }}>{i + 1}</Text>
                             </View>
                             <View style={{ flex: 1 }}>
-                              <Text style={{ fontSize: 14, fontWeight: '700', color: '#111' }}>{ex.name}</Text>
-                              <Text style={{ fontSize: 12, color: '#888', marginTop: 1 }}>{ex.detail}</Text>
+                              <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>{ex.name}</Text>
+                              <Text style={{ fontSize: 12, color: colors.textSec, marginTop: 1 }}>{ex.detail}</Text>
                             </View>
                           </View>
                         ))}
@@ -1127,7 +1139,7 @@ export default function CompetitionScreen() {
                     {/* 治療（通院・施術）記録 */}
                     <View style={[styles.card, { gap: 10 }]}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#111' }}>{t('competition.injury.treatmentLogTitle', { n: treatmentLog.length })}</Text>
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>{t('competition.injury.treatmentLogTitle', { n: treatmentLog.length })}</Text>
                         <TouchableOpacity
                           style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: BRAND + '15', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}
                           onPress={() => { setTreatmentNote(''); setTreatmentModalId(activeInjury.id) }}
@@ -1137,7 +1149,7 @@ export default function CompetitionScreen() {
                         </TouchableOpacity>
                       </View>
                       {treatmentLog.length === 0 ? (
-                        <Text style={{ fontSize: 12, color: '#aaa' }}>{t('competition.injury.treatmentLogEmpty')}</Text>
+                        <Text style={{ fontSize: 12, color: colors.textHint }}>{t('competition.injury.treatmentLogEmpty')}</Text>
                       ) : (
                         <View style={{ gap: 6 }}>
                           {[...treatmentLog].reverse().map((log, i) => {
@@ -1145,11 +1157,11 @@ export default function CompetitionScreen() {
                             return (
                               <View key={realIndex} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 }}>
                                 <Ionicons name="medkit-outline" size={14} color={BRAND} />
-                                <Text style={{ fontSize: 12, color: '#555', flex: 1 }}>
+                                <Text style={{ fontSize: 12, color: colors.textSec, flex: 1 }}>
                                   {log.date}{log.note ? `　${log.note}` : ''}
                                 </Text>
                                 <TouchableOpacity onPress={() => handleDeleteTreatmentLog(activeInjury.id, realIndex)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={t('competition.injury.deleteTreatmentLog')}>
-                                  <Ionicons name="close" size={14} color="#ccc" />
+                                  <Ionicons name="close" size={14} color={colors.textHint} />
                                 </TouchableOpacity>
                               </View>
                             )
@@ -1160,7 +1172,7 @@ export default function CompetitionScreen() {
 
                     {/* フェーズ別タイムライン */}
                     <View style={[styles.card, { gap: 8 }]}>
-                      <Text style={{ fontSize: 13, fontWeight: '700', color: '#111', marginBottom: 4 }}>{t('competition.injury.overallSchedule')}</Text>
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, marginBottom: 4 }}>{t('competition.injury.overallSchedule')}</Text>
                       {Array.from(new Set(activeInjury.plans.map(p => p.phase))).map(phase => {
                         const phasePlans = activeInjury.plans.filter(p => p.phase === phase)
                         const firstDay = phasePlans[0].day
@@ -1169,11 +1181,11 @@ export default function CompetitionScreen() {
                         const isDone   = lastDay < elapsed2
                         const isCurrent = firstDay <= elapsed2 && elapsed2 <= lastDay
                         return (
-                          <View key={phase} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#e8eaed' }}>
-                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: isDone ? '#34C759' : isCurrent ? '#FF6B6B' : '#ddd' }} />
+                          <View key={phase} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderTopWidth: 1, borderTopColor: colors.surface2 }}>
+                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: isDone ? '#34C759' : isCurrent ? '#FF6B6B' : colors.border }} />
                             <View style={{ flex: 1 }}>
-                              <Text style={{ fontSize: 13, fontWeight: isCurrent ? '800' : '600', color: isCurrent ? '#111' : '#888' }}>{getPhaseLabel(phase, t)}</Text>
-                              <Text style={{ fontSize: 11, color: '#aaa' }}>{t('competition.injury.dayRange', { first: firstDay, last: lastDay })}</Text>
+                              <Text style={{ fontSize: 13, fontWeight: isCurrent ? '800' : '600', color: isCurrent ? colors.text : colors.textSec }}>{getPhaseLabel(phase, t)}</Text>
+                              <Text style={{ fontSize: 11, color: colors.textHint }}>{t('competition.injury.dayRange', { first: firstDay, last: lastDay })}</Text>
                             </View>
                             {isDone && <Text style={{ fontSize: 11, color: '#34C759', fontWeight: '700' }}>{t('competition.injury.done')}</Text>}
                             {isCurrent && <Text style={{ fontSize: 11, color: '#FF6B6B', fontWeight: '700' }}>{t('competition.injury.current')}</Text>}
@@ -1189,8 +1201,8 @@ export default function CompetitionScreen() {
             /* 怪我なし → 記録ボタン */
             <View style={{ alignItems: 'center', paddingVertical: 50, gap: 16 }}>
               <Text style={{ fontSize: 48 }}>🩹</Text>
-              <Text style={{ fontSize: 18, fontWeight: '800', color: '#111' }}>{t('competition.injury.noInjuryTitle')}</Text>
-              <Text style={{ fontSize: 14, color: '#888', textAlign: 'center', lineHeight: 22 }}>{t('competition.injury.noInjuryText')}</Text>
+              <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>{t('competition.injury.noInjuryTitle')}</Text>
+              <Text style={{ fontSize: 14, color: colors.textSec, textAlign: 'center', lineHeight: 22 }}>{t('competition.injury.noInjuryText')}</Text>
               <TouchableOpacity
                 style={{ backgroundColor: '#FF6B6B', borderRadius: 14, paddingHorizontal: 32, paddingVertical: 14, marginTop: 8 }}
                 onPress={() => { resetInjuryForm(); setShowInjuryForm(true) }}
@@ -1203,13 +1215,13 @@ export default function CompetitionScreen() {
           {/* 過去の怪我履歴 */}
           {injuries.filter(r => r.status === 'completed').length > 0 && (
             <View style={[styles.card, { gap: 6, marginTop: 8 }]}>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: '#111', marginBottom: 4 }}>{t('competition.injury.pastHistory')}</Text>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, marginBottom: 4 }}>{t('competition.injury.pastHistory')}</Text>
               {injuries.filter(r => r.status === 'completed').map(r => (
-                <View key={r.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#e8eaed' }}>
+                <View key={r.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderTopWidth: 1, borderTopColor: colors.surface2 }}>
                   <Text style={{ fontSize: 18 }}>✅</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 13, fontWeight: '700', color: '#34C759' }}>{getSideLabel(r.side, t)}{r.parts.map(p => getBodyPartLabel(p, t)).join('・')} {getInjuryTypeLabel(r.injuryType, t)}</Text>
-                    <Text style={{ fontSize: 11, color: '#888' }}>{r.startDate} · {r.totalDays}{t('competition.injury.daysUnit')}</Text>
+                    <Text style={{ fontSize: 11, color: colors.textSec }}>{r.startDate} · {r.totalDays}{t('competition.injury.daysUnit')}</Text>
                   </View>
                 </View>
               ))}
@@ -1236,8 +1248,8 @@ export default function CompetitionScreen() {
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
                 {['左', '右', '両方'].map(s => (
                   <TouchableOpacity key={s} onPress={() => setInjSide(s)}
-                    style={{ flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1.5, borderColor: injSide === s ? '#FF6B6B' : '#ddd', backgroundColor: injSide === s ? '#FF6B6B12' : '#fff', alignItems: 'center' }}>
-                    <Text style={{ fontWeight: '700', color: injSide === s ? '#FF6B6B' : '#888' }}>{getSideLabel(s, t)}</Text>
+                    style={{ flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1.5, borderColor: injSide === s ? '#FF6B6B' : colors.border, backgroundColor: injSide === s ? '#FF6B6B12' : colors.card, alignItems: 'center' }}>
+                    <Text style={{ fontWeight: '700', color: injSide === s ? '#FF6B6B' : colors.textSec }}>{getSideLabel(s, t)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -1249,8 +1261,8 @@ export default function CompetitionScreen() {
                   const sel = injParts.includes(p)
                   return (
                     <TouchableOpacity key={p} onPress={() => setInjParts(prev => sel ? prev.filter(x => x !== p) : [...prev, p])}
-                      style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1.5, borderColor: sel ? '#FF6B6B' : '#ddd', backgroundColor: sel ? '#FF6B6B12' : '#fff' }}>
-                      <Text style={{ fontSize: 13, fontWeight: '700', color: sel ? '#FF6B6B' : '#888' }}>{getBodyPartLabel(p, t)}</Text>
+                      style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1.5, borderColor: sel ? '#FF6B6B' : colors.border, backgroundColor: sel ? '#FF6B6B12' : colors.card }}>
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: sel ? '#FF6B6B' : colors.textSec }}>{getBodyPartLabel(p, t)}</Text>
                     </TouchableOpacity>
                   )
                 })}
@@ -1263,7 +1275,7 @@ export default function CompetitionScreen() {
                   <TextInput
                     value={injType} onChangeText={setInjType}
                     placeholder={t('competition.injuryForm.typeManualPlaceholder')}
-                    placeholderTextColor="#aaa"
+                    placeholderTextColor={colors.textHint}
                     style={[styles.input, { marginBottom: 16 }]}
                   />
                 </>
@@ -1275,8 +1287,8 @@ export default function CompetitionScreen() {
                       const sel = injType === injTypeOpt
                       return (
                         <TouchableOpacity key={injTypeOpt} onPress={() => setInjType(injTypeOpt)}
-                          style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1.5, borderColor: sel ? '#FF6B6B' : '#ddd', backgroundColor: sel ? '#FF6B6B12' : '#fff' }}>
-                          <Text style={{ fontSize: 13, fontWeight: '700', color: sel ? '#FF6B6B' : '#888' }}>{getInjuryTypeLabel(injTypeOpt, t)}</Text>
+                          style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1.5, borderColor: sel ? '#FF6B6B' : colors.border, backgroundColor: sel ? '#FF6B6B12' : colors.card }}>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: sel ? '#FF6B6B' : colors.textSec }}>{getInjuryTypeLabel(injTypeOpt, t)}</Text>
                         </TouchableOpacity>
                       )
                     })}
@@ -1289,7 +1301,7 @@ export default function CompetitionScreen() {
               <TextInput
                 value={injDesc} onChangeText={setInjDesc}
                 placeholder={t('competition.injuryForm.descPlaceholder')}
-                placeholderTextColor="#aaa"
+                placeholderTextColor={colors.textHint}
                 multiline style={[styles.input, { minHeight: 70 }]}
               />
 
@@ -1299,8 +1311,8 @@ export default function CompetitionScreen() {
                 {Array.from({ length: 10 }, (_, i) => i + 1).map(n => (
                   <TouchableOpacity key={n} onPress={() => setInjPain(n)}
                     style={{ flex: 1, height: 32, borderRadius: 6, alignItems: 'center', justifyContent: 'center',
-                      backgroundColor: injPain >= n ? (n <= 3 ? '#34C759' : n <= 6 ? '#FF9500' : '#FF6B6B') : '#e8eaed' }}>
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: injPain >= n ? '#fff' : '#aaa' }}>{n}</Text>
+                      backgroundColor: injPain >= n ? (n <= 3 ? '#34C759' : n <= 6 ? '#FF9500' : '#FF6B6B') : colors.surface2 }}>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: injPain >= n ? '#fff' : colors.textHint }}>{n}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -1311,9 +1323,9 @@ export default function CompetitionScreen() {
                 {[{ label: t('competition.injuryForm.swellingYes'), val: true }, { label: t('competition.injuryForm.swellingNo'), val: false }].map(({ label, val }) => (
                   <TouchableOpacity key={label} onPress={() => setInjSwelling(val)}
                     style={{ flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1.5,
-                      borderColor: injSwelling === val ? '#FF6B6B' : '#ddd',
-                      backgroundColor: injSwelling === val ? '#FF6B6B12' : '#fff', alignItems: 'center' }}>
-                    <Text style={{ fontWeight: '700', color: injSwelling === val ? '#FF6B6B' : '#888' }}>{label}</Text>
+                      borderColor: injSwelling === val ? '#FF6B6B' : colors.border,
+                      backgroundColor: injSwelling === val ? '#FF6B6B12' : colors.card, alignItems: 'center' }}>
+                    <Text style={{ fontWeight: '700', color: injSwelling === val ? '#FF6B6B' : colors.textSec }}>{label}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -1324,17 +1336,17 @@ export default function CompetitionScreen() {
                 {([['ai', t('competition.injuryForm.aiMode')], ['manual', t('competition.injuryForm.manualMode')]] as const).map(([mode, label]) => (
                   <TouchableOpacity key={mode} onPress={() => setInjDaysMode(mode)}
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 12,
-                      borderWidth: 1.5, borderColor: injDaysMode === mode ? BRAND : '#ddd',
-                      backgroundColor: injDaysMode === mode ? BRAND + '10' : '#fff' }}>
+                      borderWidth: 1.5, borderColor: injDaysMode === mode ? BRAND : colors.border,
+                      backgroundColor: injDaysMode === mode ? BRAND + '10' : colors.card }}>
                     <View style={{ width: 18, height: 18, borderRadius: 9, borderWidth: 2,
-                      borderColor: injDaysMode === mode ? BRAND : '#ccc',
+                      borderColor: injDaysMode === mode ? BRAND : colors.textHint,
                       backgroundColor: injDaysMode === mode ? BRAND : 'transparent',
                       alignItems: 'center', justifyContent: 'center' }}>
                       {injDaysMode === mode && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#fff' }} />}
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 13, fontWeight: '700', color: injDaysMode === mode ? BRAND : '#555' }}>{label}</Text>
-                      {mode === 'ai' && <Text style={{ fontSize: 11, color: '#888' }}>{t('competition.injuryForm.aiModeSub')}</Text>}
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: injDaysMode === mode ? BRAND : colors.textSec }}>{label}</Text>
+                      {mode === 'ai' && <Text style={{ fontSize: 11, color: colors.textSec }}>{t('competition.injuryForm.aiModeSub')}</Text>}
                     </View>
                   </TouchableOpacity>
                 ))}
@@ -1344,7 +1356,7 @@ export default function CompetitionScreen() {
                       value={injManualDays} onChangeText={setInjManualDays}
                       keyboardType="number-pad" style={[styles.input, { width: 70, textAlign: 'center', marginBottom: 0 }]}
                     />
-                    <Text style={{ color: '#555' }}>{t('competition.injuryForm.manualDaysUnit')}</Text>
+                    <Text style={{ color: colors.textSec }}>{t('competition.injuryForm.manualDaysUnit')}</Text>
                   </View>
                 )}
               </View>
@@ -1367,40 +1379,40 @@ export default function CompetitionScreen() {
       {/* ── 延長モーダル ── */}
       <Modal visible={showExtModal} transparent animationType="fade">
         <KeyboardAvoidingView style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 32 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 24, gap: 16 }}>
-            <Text style={{ fontSize: 17, fontWeight: '800', color: '#111' }}>{t('competition.extendModal.title')}</Text>
-            <Text style={{ fontSize: 13, color: '#888' }}>{t('competition.extendModal.desc')}</Text>
+          <View style={{ backgroundColor: colors.card, borderRadius: 20, padding: 24, gap: 16 }}>
+            <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text }}>{t('competition.extendModal.title')}</Text>
+            <Text style={{ fontSize: 13, color: colors.textSec }}>{t('competition.extendModal.desc')}</Text>
             {/* クイック選択 */}
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {['7', '14', '21'].map(d => (
                 <TouchableOpacity key={d} onPress={() => setInjExtDays(d)}
                   style={{ flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1.5,
-                    borderColor: injExtDays === d ? '#FF6B6B' : '#ddd',
-                    backgroundColor: injExtDays === d ? '#FF6B6B12' : '#fff', alignItems: 'center' }}>
-                  <Text style={{ fontWeight: '700', color: injExtDays === d ? '#FF6B6B' : '#888' }}>+{d}{t('competition.extendModal.dayUnit')}</Text>
+                    borderColor: injExtDays === d ? '#FF6B6B' : colors.border,
+                    backgroundColor: injExtDays === d ? '#FF6B6B12' : colors.card, alignItems: 'center' }}>
+                  <Text style={{ fontWeight: '700', color: injExtDays === d ? '#FF6B6B' : colors.textSec }}>+{d}{t('competition.extendModal.dayUnit')}</Text>
                 </TouchableOpacity>
               ))}
             </View>
             {/* カスタム入力 */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#f8f8fa', borderRadius: 12, borderWidth: 1.5, borderColor: '#e0e0e0', paddingHorizontal: 14, paddingVertical: 4 }}>
-              <Text style={{ fontSize: 13, color: '#888', flex: 1 }}>{t('competition.extendModal.customLabel')}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1.5, borderColor: colors.border, paddingHorizontal: 14, paddingVertical: 4 }}>
+              <Text style={{ fontSize: 13, color: colors.textSec, flex: 1 }}>{t('competition.extendModal.customLabel')}</Text>
               <TextInput
                 value={injExtDays}
                 onChangeText={v => setInjExtDays(v.replace(/[^0-9]/g, ''))}
                 keyboardType="number-pad"
                 style={{ fontSize: 20, fontWeight: '900', color: '#FF6B6B', width: 60, textAlign: 'right' }}
                 placeholder="0"
-                placeholderTextColor="#ccc"
+                placeholderTextColor={colors.textHint}
                 maxLength={3}
               />
-              <Text style={{ fontSize: 13, color: '#888' }}>{t('competition.extendModal.dayUnit')}</Text>
+              <Text style={{ fontSize: 13, color: colors.textSec }}>{t('competition.extendModal.dayUnit')}</Text>
             </View>
             <View style={{ flexDirection: 'row', gap: 10 }}>
-              <TouchableOpacity style={{ flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: '#ddd', alignItems: 'center' }} onPress={() => setShowExtModal(false)}>
-                <Text style={{ color: '#888', fontWeight: '700' }}>{t('common.cancel')}</Text>
+              <TouchableOpacity style={{ flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }} onPress={() => setShowExtModal(false)}>
+                <Text style={{ color: colors.textSec, fontWeight: '700' }}>{t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: parseInt(injExtDays) > 0 ? '#FF6B6B' : '#ddd', alignItems: 'center' }}
+                style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: parseInt(injExtDays) > 0 ? '#FF6B6B' : colors.border, alignItems: 'center' }}
                 onPress={() => extTargetId && parseInt(injExtDays) > 0 && handleExtendInjury(extTargetId)}
               >
                 <Text style={{ color: '#fff', fontWeight: '800' }}>{t('competition.extendModal.submit')}</Text>
@@ -1414,19 +1426,19 @@ export default function CompetitionScreen() {
       <Modal visible={!!treatmentModalId} transparent animationType="fade">
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 24 }}>
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-            <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 20, gap: 14 }}>
-              <Text style={{ fontSize: 17, fontWeight: '800', color: '#111' }}>{t('competition.treatmentModal.title')}</Text>
-              <Text style={{ fontSize: 13, color: '#888' }}>{t('competition.treatmentModal.desc')}</Text>
+            <View style={{ backgroundColor: colors.card, borderRadius: 20, padding: 20, gap: 14 }}>
+              <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text }}>{t('competition.treatmentModal.title')}</Text>
+              <Text style={{ fontSize: 13, color: colors.textSec }}>{t('competition.treatmentModal.desc')}</Text>
               <TextInput
                 value={treatmentNote}
                 onChangeText={setTreatmentNote}
                 placeholder={t('competition.treatmentModal.placeholder')}
-                placeholderTextColor="#ccc"
-                style={{ backgroundColor: '#f8f8fa', borderRadius: 12, borderWidth: 1.5, borderColor: '#e0e0e0', paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: '#111' }}
+                placeholderTextColor={colors.textHint}
+                style={{ backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1.5, borderColor: colors.border, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: colors.text }}
               />
               <View style={{ flexDirection: 'row', gap: 10 }}>
-                <TouchableOpacity style={{ flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: '#ddd', alignItems: 'center' }} onPress={() => setTreatmentModalId(null)}>
-                  <Text style={{ color: '#888', fontWeight: '700' }}>{t('common.cancel')}</Text>
+                <TouchableOpacity style={{ flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }} onPress={() => setTreatmentModalId(null)}>
+                  <Text style={{ color: colors.textSec, fontWeight: '700' }}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: BRAND, alignItems: 'center' }}
@@ -1459,7 +1471,7 @@ export default function CompetitionScreen() {
                 value={compName}
                 onChangeText={setCompName}
                 placeholder={t('competition.compModal.namePlaceholder')}
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={colors.textHint}
               />
 
               <Text style={styles.label}>{t('competition.compModal.dateLabel')}</Text>
@@ -1470,10 +1482,10 @@ export default function CompetitionScreen() {
                   value: compDate || '',
                   onChange: (e: any) => setCompDate(e.target.value),
                   style: {
-                    backgroundColor: '#f8f8fa',
+                    backgroundColor: colors.surface2,
                     borderRadius: 10,
                     padding: '12px 14px',
-                    color: TEXT.primary,
+                    color: colors.text,
                     fontSize: 15,
                     border: '1px solid rgba(59,130,246,0.25)',
                     marginBottom: 14,
@@ -1488,7 +1500,7 @@ export default function CompetitionScreen() {
                 onPress={() => setShowDatePicker(true)}
                 activeOpacity={0.7}
               >
-                <Text style={{ color: compDate ? TEXT.primary : '#9ca3af', fontSize: 15 }}>
+                <Text style={{ color: compDate ? colors.text : colors.textHint, fontSize: 15 }}>
                   {compDate || t('competition.compModal.datePlaceholder')}
                 </Text>
               </TouchableOpacity>
@@ -1532,23 +1544,23 @@ export default function CompetitionScreen() {
                       {/* カテゴリヘッダー */}
                       <TouchableOpacity
                         onPress={() => setOpenCategory(isOpen ? null : cat.key)}
-                        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, backgroundColor: hasSelected ? BRAND + '22' : '#f8f8fa' }}
+                        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, backgroundColor: hasSelected ? BRAND + '22' : colors.surface2 }}
                         activeOpacity={0.7}
                       >
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                           <Text style={{ fontSize: 16 }}>{cat.icon}</Text>
-                          <Text style={{ color: hasSelected ? BRAND : TEXT.primary, fontWeight: '700', fontSize: 14 }}>{cat.label}</Text>
+                          <Text style={{ color: hasSelected ? BRAND : colors.text, fontWeight: '700', fontSize: 14 }}>{cat.label}</Text>
                           {hasSelected && (
                             <View style={{ backgroundColor: BRAND, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 }}>
                               <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800' }}>{getEventLabel(compEvent, language)}</Text>
                             </View>
                           )}
                         </View>
-                        <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={16} color={hasSelected ? BRAND : TEXT.hint} />
+                        <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={16} color={hasSelected ? BRAND : colors.textHint} />
                       </TouchableOpacity>
                       {/* イベントチップ */}
                       {isOpen && (
-                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 12, backgroundColor: '#f6f6f8' }}>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 12, backgroundColor: colors.bg }}>
                           {cat.events.map(e => (
                             <HapticTouch
                               key={e}
@@ -1576,7 +1588,7 @@ export default function CompetitionScreen() {
                       onChangeText={setTargetDistM}
                       keyboardType="decimal-pad"
                       placeholder={t('competition.compModal.fieldTargetPlaceholder')}
-                      placeholderTextColor="#9ca3af"
+                      placeholderTextColor={colors.textHint}
                     />
                     <Text style={[styles.timeUnit, { marginLeft: 8 }]}>m</Text>
                   </View>
@@ -1593,7 +1605,7 @@ export default function CompetitionScreen() {
                         onChangeText={setTargetMin}
                         keyboardType="number-pad"
                         placeholder="0"
-                        placeholderTextColor="#9ca3af"
+                        placeholderTextColor={colors.textHint}
                         maxLength={2}
                         textAlign="center"
                       />
@@ -1607,7 +1619,7 @@ export default function CompetitionScreen() {
                         onChangeText={setTargetSec}
                         keyboardType="decimal-pad"
                         placeholder="47.00"
-                        placeholderTextColor="#9ca3af"
+                        placeholderTextColor={colors.textHint}
                         maxLength={5}
                         textAlign="center"
                       />
@@ -1622,7 +1634,7 @@ export default function CompetitionScreen() {
                 value={compEnvironment}
                 onChangeText={setCompEnvironment}
                 placeholder={t('competition.compModal.environmentPlaceholder')}
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={colors.textHint}
                 multiline
               />
 
@@ -1680,13 +1692,13 @@ export default function CompetitionScreen() {
                     key={status}
                     style={[
                       styles.entryStatusBtn,
-                      { borderColor: color, backgroundColor: isCurrent ? color + '20' : '#f0f2f5' },
+                      { borderColor: color, backgroundColor: isCurrent ? color + '20' : colors.surface2 },
                     ]}
                     onPress={() => entryModalComp && saveEntryStatus(entryModalComp.id, status)}
                     activeOpacity={0.8}
                   >
                     <View style={[styles.entryStatusDot, { backgroundColor: color }]} />
-                    <Text style={[styles.entryStatusText, { color: isCurrent ? color : TEXT.primary }]}>
+                    <Text style={[styles.entryStatusText, { color: isCurrent ? color : colors.text }]}>
                       {getEntryStatusLabel(status, t)}
                     </Text>
                     {isCurrent && (
@@ -1717,6 +1729,8 @@ const DOW_FULL = ['日曜', '月曜', '火曜', '水曜', '木曜', '金曜', '�
 
 function TodayWorkoutCard({ competition }: { competition: CompetitionPlan }) {
   const { t } = useTranslation()
+  const { colors } = useTheme()
+  const tw = useMemo(() => makeTwStyles(colors), [colors])
   const today = new Date()
   const compDate = new Date(competition.competition_date)
   const daysUntil = Math.max(0, Math.ceil((compDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)))
@@ -1773,8 +1787,8 @@ function TodayWorkoutCard({ competition }: { competition: CompetitionPlan }) {
 
       {/* 明日 */}
       <View style={[tw.sectionRow, { marginTop: 10 }]}>
-        <Ionicons name="calendar-outline" size={14} color={TEXT.secondary} />
-        <Text style={[tw.sectionTitle, { color: TEXT.secondary, fontSize: 12, fontWeight: '600' }]}>
+        <Ionicons name="calendar-outline" size={14} color={colors.textSec} />
+        <Text style={[tw.sectionTitle, { color: colors.textSec, fontSize: 12, fontWeight: '600' }]}>
           {t('competition.todayWorkout.tomorrow', { dow: getDowLabel(tomorrowDow, t) })}
         </Text>
       </View>
@@ -1790,7 +1804,7 @@ function TodayWorkoutCard({ competition }: { competition: CompetitionPlan }) {
           </View>
         </View>
       ) : (
-        <Text style={{ color: TEXT.hint, fontSize: 13, paddingLeft: 4 }}>{t('competition.todayWorkout.tomorrowRestDay')}</Text>
+        <Text style={{ color: colors.textHint, fontSize: 13, paddingLeft: 4 }}>{t('competition.todayWorkout.tomorrowRestDay')}</Text>
       )}
 
       {/* 今週テーマ */}
@@ -1813,26 +1827,26 @@ function TodayWorkoutCard({ competition }: { competition: CompetitionPlan }) {
   )
 }
 
-const tw = StyleSheet.create({
-  card:       { backgroundColor: '#ffffff', borderRadius: 21, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 16, gap: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 2 },
+const makeTwStyles = (colors: ThemeColors) => StyleSheet.create({
+  card:       { backgroundColor: colors.card, borderRadius: 21, borderWidth: 1, borderColor: colors.border, padding: 16, gap: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 2 },
   sectionRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  sectionTitle: { color: TEXT.primary, fontSize: 14, fontWeight: '800' },
-  sessionBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: '#f8f8fa', borderRadius: 14, padding: 12 },
+  sectionTitle: { color: colors.text, fontSize: 14, fontWeight: '800' },
+  sessionBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: colors.surface2, borderRadius: 14, padding: 12 },
   intensityBar: { width: 4, alignSelf: 'stretch', borderRadius: 2, minHeight: 36 },
-  sessionType:  { color: TEXT.primary, fontSize: 13, fontWeight: '700' },
-  sessionDur:   { color: TEXT.hint, fontSize: 12 },
-  sessionDetail:{ color: TEXT.secondary, fontSize: 13, lineHeight: 19 },
-  restBox:    { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#f0f2f5', borderRadius: 14, padding: 10 },
-  restText:   { color: TEXT.secondary, fontSize: 13, fontWeight: '600' },
+  sessionType:  { color: colors.text, fontSize: 13, fontWeight: '700' },
+  sessionDur:   { color: colors.textHint, fontSize: 12 },
+  sessionDetail:{ color: colors.textSec, fontSize: 13, lineHeight: 19 },
+  restBox:    { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.surface2, borderRadius: 14, padding: 10 },
+  restText:   { color: colors.textSec, fontSize: 13, fontWeight: '600' },
   themeBox:   { backgroundColor: BRAND + '08', borderRadius: 14, borderWidth: 1, borderColor: BRAND + '20', padding: 10, gap: 3 },
   themeLabel: { color: BRAND, fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
-  themeText:  { color: TEXT.primary, fontSize: 13, fontWeight: '700' },
-  keyText:    { color: TEXT.secondary, fontSize: 12 },
+  themeText:  { color: colors.text, fontSize: 13, fontWeight: '700' },
+  keyText:    { color: colors.textSec, fontSize: 12 },
   dietBox:    { flexDirection: 'row', alignItems: 'flex-start', gap: 6, backgroundColor: 'rgba(245,158,11,0.08)', borderWidth: 1, borderColor: 'rgba(245,158,11,0.25)', borderRadius: 14, padding: 10 },
-  dietText:   { color: TEXT.secondary, fontSize: 12, lineHeight: 18, flex: 1 },
+  dietText:   { color: colors.textSec, fontSize: 12, lineHeight: 18, flex: 1 },
 })
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: 'transparent' },
   header: {
     flexDirection: 'row',
@@ -1841,16 +1855,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0,0,0,0.08)',
-    backgroundColor: '#ffffff',
+    borderBottomColor: colors.border,
+    backgroundColor: colors.card,
   },
-  headerTitle: { color: TEXT.primary, fontSize: 20, fontWeight: '800' },
+  headerTitle: { color: colors.text, fontSize: 20, fontWeight: '800' },
   addBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center' },
   scroll: { flex: 1 },
   content: { padding: 16, gap: 14, paddingBottom: 48 },
-  card: { backgroundColor: '#ffffff', borderRadius: 21, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 16, gap: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 2 },
+  card: { backgroundColor: colors.card, borderRadius: 21, borderWidth: 1, borderColor: colors.border, padding: 16, gap: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 2 },
 
-  generatingText: { color: TEXT.primary, fontSize: 15, fontWeight: '700', textAlign: 'center' },
+  generatingText: { color: colors.text, fontSize: 15, fontWeight: '700', textAlign: 'center' },
 
   // フィルター
   filterRow: { flexDirection: 'row', gap: 8, paddingVertical: 2 },
@@ -1859,21 +1873,21 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 21,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.08)',
-    backgroundColor: '#f0f2f5',
+    borderColor: colors.border,
+    backgroundColor: colors.surface2,
   },
-  filterChipText: { color: TEXT.secondary, fontSize: 13, fontWeight: '600' },
+  filterChipText: { color: colors.textSec, fontSize: 13, fontWeight: '600' },
 
   // カウントダウン
-  countdownCard: { backgroundColor: '#ffffff', borderRadius: 21, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 16, gap: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 2 },
+  countdownCard: { backgroundColor: colors.card, borderRadius: 21, borderWidth: 1, borderColor: colors.border, padding: 16, gap: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 2 },
   countdownTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-  compName: { color: TEXT.primary, fontSize: 17, fontWeight: '700' },
-  compMeta: { color: TEXT.secondary, fontSize: 13, marginTop: 3 },
+  compName: { color: colors.text, fontSize: 17, fontWeight: '700' },
+  compMeta: { color: colors.textSec, fontSize: 13, marginTop: 3 },
   daysBox: { alignItems: 'center', backgroundColor: BRAND + '12', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: BRAND + '40' },
   daysNum: { color: BRAND, fontSize: 28, fontWeight: '900', lineHeight: 30, fontVariant: ['tabular-nums'] },
   daysLabel: { color: BRAND, fontSize: 11, fontWeight: '700' },
   adviceBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, backgroundColor: 'rgba(59,130,246,0.06)', borderWidth: 1, borderColor: 'rgba(59,130,246,0.15)', borderRadius: 14, padding: 10 },
-  adviceText: { color: TEXT.secondary, fontSize: 13, lineHeight: 20, flex: 1 },
+  adviceText: { color: colors.textSec, fontSize: 13, lineHeight: 20, flex: 1 },
 
   // エントリーバッジ
   entryRow: { flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'flex-end' },
@@ -1894,49 +1908,49 @@ const styles = StyleSheet.create({
   entryStatusText: { flex: 1, fontSize: 15, fontWeight: '600' },
 
   // 週カード
-  weekCard: { backgroundColor: '#f8f8fa', borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)', borderRadius: 16, overflow: 'hidden' },
+  weekCard: { backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 16, overflow: 'hidden' },
   weekHeader: { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 10 },
   weekNumBadge: { minWidth: 56, height: 28, borderRadius: 14, paddingHorizontal: 8, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center' },
   weekNumText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
-  weekTheme: { color: TEXT.primary, fontSize: 14, fontWeight: '700' },
-  weekVolume: { color: TEXT.secondary, fontSize: 12 },
-  weekBody: { paddingHorizontal: 12, paddingBottom: 12, gap: 8, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.07)' },
-  keyWorkout: { color: TEXT.secondary, fontSize: 13, lineHeight: 19, paddingTop: 8 },
+  weekTheme: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  weekVolume: { color: colors.textSec, fontSize: 12 },
+  weekBody: { paddingHorizontal: 12, paddingBottom: 12, gap: 8, borderTopWidth: 1, borderTopColor: colors.border },
+  keyWorkout: { color: colors.textSec, fontSize: 13, lineHeight: 19, paddingTop: 8 },
   sessionRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   intensityDot: { width: 8, height: 8, borderRadius: 4, marginTop: 5 },
-  sessionDay: { color: TEXT.primary, fontSize: 13, fontWeight: '600', width: 28 },
-  sessionDetail: { color: TEXT.secondary, fontSize: 13, flex: 1, lineHeight: 19 },
-  sessionDuration: { color: TEXT.hint, fontSize: 12 },
+  sessionDay: { color: colors.text, fontSize: 13, fontWeight: '600', width: 28 },
+  sessionDetail: { color: colors.textSec, fontSize: 13, flex: 1, lineHeight: 19 },
+  sessionDuration: { color: colors.textHint, fontSize: 12 },
 
   // セクション
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  sectionTitle: { color: TEXT.primary, fontSize: 15, fontWeight: '700' },
+  sectionTitle: { color: colors.text, fontSize: 15, fontWeight: '700' },
 
   // 空状態
   empty: { alignItems: 'center', paddingVertical: 48, gap: 14 },
-  emptyTitle: { color: TEXT.primary, fontSize: 18, fontWeight: '700' },
-  emptyText: { color: TEXT.secondary, fontSize: 13, textAlign: 'center', lineHeight: 20 },
+  emptyTitle: { color: colors.text, fontSize: 18, fontWeight: '700' },
+  emptyText: { color: colors.textSec, fontSize: 13, textAlign: 'center', lineHeight: 20 },
   emptyBtn: { backgroundColor: BRAND, borderRadius: 21, paddingHorizontal: 28, paddingVertical: 14 },
   emptyBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15 },
   deleteBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-end', paddingVertical: 4, paddingHorizontal: 8, marginTop: -4, marginBottom: 4 },
-  deleteBtnText: { fontSize: 12, color: TEXT.hint },
+  deleteBtnText: { fontSize: 12, color: colors.textHint },
 
   // モーダル
-  modalSafe: { flex: 1, backgroundColor: '#f6f6f8' },
+  modalSafe: { flex: 1, backgroundColor: colors.bg },
   modalContent: { padding: 20, paddingBottom: 40, gap: 4 },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
-  modalTitle: { color: TEXT.primary, fontSize: 17, fontWeight: '700' },
-  cancelText: { color: TEXT.secondary, fontSize: 16 },
-  label: { color: TEXT.secondary, fontSize: 13, fontWeight: '600', marginBottom: 6 },
-  input: { backgroundColor: '#f8f8fa', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, color: TEXT.primary, fontSize: 15, borderWidth: 1, borderColor: 'rgba(59,130,246,0.25)', marginBottom: 14 },
+  modalTitle: { color: colors.text, fontSize: 17, fontWeight: '700' },
+  cancelText: { color: colors.textSec, fontSize: 16 },
+  label: { color: colors.textSec, fontSize: 13, fontWeight: '600', marginBottom: 6 },
+  input: { backgroundColor: colors.surface2, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, color: colors.text, fontSize: 15, borderWidth: 1, borderColor: 'rgba(59,130,246,0.25)', marginBottom: 14 },
   chipRow: { flexDirection: 'row', gap: 8 },
-  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 21, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', backgroundColor: '#f0f2f5' },
-  chipText: { color: TEXT.secondary, fontSize: 13, fontWeight: '600' },
+  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 21, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface2 },
+  chipText: { color: colors.textSec, fontSize: 13, fontWeight: '600' },
   timeRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 14 },
   timeCol: { flex: 1, gap: 4 },
-  timeInput: { backgroundColor: '#f8f8fa', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, color: TEXT.primary, fontSize: 18, fontWeight: '700', borderWidth: 1, borderColor: 'rgba(59,130,246,0.25)', fontVariant: ['tabular-nums'] },
-  timeUnit: { color: TEXT.secondary, fontSize: 12, fontWeight: '600', textAlign: 'center' },
-  timeSep: { color: TEXT.secondary, fontSize: 24, fontWeight: '300', paddingBottom: 10 },
+  timeInput: { backgroundColor: colors.surface2, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, color: colors.text, fontSize: 18, fontWeight: '700', borderWidth: 1, borderColor: 'rgba(59,130,246,0.25)', fontVariant: ['tabular-nums'] },
+  timeUnit: { color: colors.textSec, fontSize: 12, fontWeight: '600', textAlign: 'center' },
+  timeSep: { color: colors.textSec, fontSize: 24, fontWeight: '300', paddingBottom: 10 },
   generateBtn: {
     marginTop: 8,
     backgroundColor: BRAND,

@@ -33,6 +33,7 @@ export type PremiumStatus = {
   originalPurchaseDate?: string
   hasTicketMonthly: boolean
   ticketMonthlyExpiresAt?: string
+  ticketMonthlyIsTrial?: boolean
 }
 
 export type PurchaseResult = { tier: PlanTier; hasTicketMonthly: boolean } | false

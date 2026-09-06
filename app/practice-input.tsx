@@ -10,7 +10,7 @@ import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import Toast from 'react-native-toast-message'
 import { useTranslation } from 'react-i18next'
-import { useTheme } from '../context/ThemeContext'
+import { useTheme, type ThemeColors } from '../context/ThemeContext'
 import { useLanguage } from '../context/LanguageContext'
 import { BRAND, TEXT } from '../lib/theme'
 import { Sounds, unlockAudio } from '../lib/sounds'
@@ -33,6 +33,8 @@ const MONTH_NAMES_EN = ['January','February','March','April','May','June','July'
 function CalendarPicker({ value, onChange }: { value: string; onChange: (d: string) => void }) {
   const { t } = useTranslation()
   const { language } = useLanguage()
+  const { colors } = useTheme()
+  const cal = React.useMemo(() => makeCalStyles(colors), [colors])
   const today = new Date()
   const [viewYear,  setViewYear]  = useState(() => parseInt(value.slice(0, 4)))
   const [viewMonth, setViewMonth] = useState(() => parseInt(value.slice(5, 7)) - 1)
@@ -66,11 +68,11 @@ function CalendarPicker({ value, onChange }: { value: string; onChange: (d: stri
     <View style={cal.wrap}>
       <View style={cal.header}>
         <HapticTouch haptic="tap" onPress={prevMonth} style={cal.arrow} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel={t('practiceInput.prevMonth')}>
-          <Ionicons name="chevron-back" size={18} color="#6b7280" />
+          <Ionicons name="chevron-back" size={18} color={colors.textSec} />
         </HapticTouch>
         <Text style={cal.monthLabel}>{monthLabel}</Text>
         <HapticTouch haptic="tap" onPress={nextMonth} style={cal.arrow} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel={t('practiceInput.nextMonth')}>
-          <Ionicons name="chevron-forward" size={18} color="#6b7280" />
+          <Ionicons name="chevron-forward" size={18} color={colors.textSec} />
         </HapticTouch>
       </View>
       <View style={cal.dowRow}>
@@ -114,16 +116,16 @@ function CalendarPicker({ value, onChange }: { value: string; onChange: (d: stri
   )
 }
 
-const cal = StyleSheet.create({
-  wrap:       { borderRadius: 14, overflow: 'hidden', backgroundColor: '#f8f8fa', borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)' },
+const makeCalStyles = (colors: ThemeColors) => StyleSheet.create({
+  wrap:       { borderRadius: 14, overflow: 'hidden', backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
   header:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 10 },
   arrow:      { padding: 6 },
-  monthLabel: { color: '#111827', fontSize: 15, fontWeight: '800' },
+  monthLabel: { color: colors.text, fontSize: 15, fontWeight: '800' },
   dowRow:     { flexDirection: 'row', paddingHorizontal: 4, paddingBottom: 4 },
-  dow:        { flex: 1, textAlign: 'center', color: '#9ca3af', fontSize: 11, fontWeight: '700' },
+  dow:        { flex: 1, textAlign: 'center', color: colors.textHint, fontSize: 11, fontWeight: '700' },
   row:        { flexDirection: 'row', paddingHorizontal: 4, paddingBottom: 2 },
   cell:       { flex: 1, height: 36, alignItems: 'center', justifyContent: 'center' },
-  dayText:    { color: '#111827', fontSize: 13, fontWeight: '600' },
+  dayText:    { color: colors.text, fontSize: 13, fontWeight: '600' },
 })
 
 function localDateStr(d: Date): string {

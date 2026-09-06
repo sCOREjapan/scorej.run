@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons'
 import Svg, { Circle } from 'react-native-svg'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import Toast from 'react-native-toast-message'
-import { BRAND, TEXT } from '../../lib/theme'
+import { BRAND } from '../../lib/theme'
 import AnimatedSection from '../../components/AnimatedSection'
 import { calcInjuryRisk, type InjuryRiskResult } from '../../lib/injuryRisk'
 import { calcLevelInfo, RANK_TIERS, getTierTitle } from '../../lib/gamification'
@@ -37,7 +37,7 @@ import {
   sendCoachNotification,
   type TeamMessageRow, type TeamVideoRow, type BodyReportRow, type TeamMemberRow, type PlayerStatsRow, type TeamSessionRow, type TeamEventRow, type TeamEventType,
 } from '../../lib/supabaseTeam'
-import { useTheme } from '../../context/ThemeContext'
+import { useTheme, type ThemeColors } from '../../context/ThemeContext'
 import { usePurchase } from '../../context/PurchaseContext'
 import { useTrainingSessions } from '../../hooks/useTrainingSessions'
 import HapticTouch from '../../components/HapticTouch'
@@ -296,6 +296,7 @@ function avatarColor(name: string) { return AVATAR_COLORS[name.charCodeAt(0)%AVA
 
 // リスクスコアを、アバターを囲む細いリングの塗り具合で表す（行全体を着色しない代わりの表現）
 function RingAvatar({ name, size=44, color, ringPct }: { name:string; size?:number; color:string; ringPct:number }) {
+  const { colors } = useTheme()
   const stroke = 2.5
   const r = (size - stroke) / 2
   const c = 2 * Math.PI * r
@@ -305,7 +306,7 @@ function RingAvatar({ name, size=44, color, ringPct }: { name:string; size?:numb
   return (
     <View style={{ width: size, height: size }}>
       <Svg width={size} height={size} style={{ position: 'absolute' }}>
-        <Circle cx={size/2} cy={size/2} r={r} stroke="#ececec" strokeWidth={stroke} fill="none" />
+        <Circle cx={size/2} cy={size/2} r={r} stroke={colors.border} strokeWidth={stroke} fill="none" />
         <Circle
           cx={size/2} cy={size/2} r={r} stroke={color} strokeWidth={stroke} fill="none"
           strokeDasharray={`${c} ${c}`}
@@ -316,9 +317,9 @@ function RingAvatar({ name, size=44, color, ringPct }: { name:string; size?:numb
       </Svg>
       <View style={{
         position: 'absolute', top: innerInset, left: innerInset, width: innerSize, height: innerSize,
-        borderRadius: innerSize / 2, backgroundColor: '#e5e7eb', alignItems: 'center', justifyContent: 'center',
+        borderRadius: innerSize / 2, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center',
       }}>
-        <Text style={{ color: '#6b7280', fontSize: innerSize * .38, fontWeight: '800' }}>{name.charAt(0)}</Text>
+        <Text style={{ color: colors.textSec, fontSize: innerSize * .38, fontWeight: '800' }}>{name.charAt(0)}</Text>
       </View>
     </View>
   )
@@ -330,18 +331,19 @@ function PlayerIconPicker({ visible, current, onSelect, onClose }: {
   visible: boolean; current: string; onSelect: (emoji: string) => void; onClose: () => void
 }) {
   const { t } = useTranslation()
+  const { colors } = useTheme()
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.5)',justifyContent:'flex-end'}}>
         <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose}/>
-        <View style={{backgroundColor:'#fff',borderTopLeftRadius:24,borderTopRightRadius:24,padding:20,paddingBottom:44,gap:0}}>
-          <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:16}}/>
-          <Text style={{fontSize:16,fontWeight:'800',color:'#111827',marginBottom:16}}>{t('team.playerIconPicker.title')}</Text>
+        <View style={{backgroundColor:colors.card,borderTopLeftRadius:24,borderTopRightRadius:24,padding:20,paddingBottom:44,gap:0}}>
+          <View style={{width:36,height:4,borderRadius:2,backgroundColor:colors.border,alignSelf:'center',marginBottom:16}}/>
+          <Text style={{fontSize:16,fontWeight:'800',color:colors.text,marginBottom:16}}>{t('team.playerIconPicker.title')}</Text>
           <View style={{flexDirection:'row',flexWrap:'wrap',gap:10}}>
             {PLAYER_ICONS.map(icon => (
               <TouchableOpacity
                 key={icon}
-                style={{width:52,height:52,borderRadius:14,backgroundColor:current===icon?'rgba(52,199,89,0.15)':'#f3f4f6',alignItems:'center',justifyContent:'center',borderWidth:current===icon?2:0,borderColor:'#34C759'}}
+                style={{width:52,height:52,borderRadius:14,backgroundColor:current===icon?'rgba(52,199,89,0.15)':colors.surface2,alignItems:'center',justifyContent:'center',borderWidth:current===icon?2:0,borderColor:'#34C759'}}
                 onPress={() => onSelect(icon)}
                 activeOpacity={0.75}
               >
@@ -351,7 +353,7 @@ function PlayerIconPicker({ visible, current, onSelect, onClose }: {
           </View>
           {current !== '' && (
             <TouchableOpacity style={{marginTop:16,alignItems:'center'}} onPress={() => onSelect('')}>
-              <Text style={{color:'#9ca3af',fontSize:13}}>{t('team.playerIconPicker.reset')}</Text>
+              <Text style={{color:colors.textHint,fontSize:13}}>{t('team.playerIconPicker.reset')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -365,6 +367,8 @@ function PlayerIconPicker({ visible, current, onSelect, onClose }: {
 // ─────────────────────────────────────────────────────────
 function BodyPartSelector({ selected, onChange }: { selected: string[]; onChange: (parts: string[]) => void }) {
   const { t } = useTranslation()
+  const { colors } = useTheme()
+  const bp = useMemo(() => makeBpStyles(colors), [colors])
   const BODY_PARTS = buildBodyParts(t)
   function toggle(id: string) {
     onChange(selected.includes(id) ? selected.filter(p=>p!==id) : [...selected, id])
@@ -375,16 +379,16 @@ function BodyPartSelector({ selected, onChange }: { selected: string[]; onChange
         const active = selected.includes(p.id)
         return (
           <TouchableOpacity key={p.id} style={[bp.chip, active && bp.chipActive]} onPress={() => toggle(p.id)} activeOpacity={0.75}>
-            <Text style={[bp.chipText, { color: active ? '#FF3B30' : '#666' }]}>{p.label}</Text>
+            <Text style={[bp.chipText, { color: active ? '#FF3B30' : colors.textSec }]}>{p.label}</Text>
           </TouchableOpacity>
         )
       })}
     </View>
   )
 }
-const bp = StyleSheet.create({ // bp = body part
+const makeBpStyles = (colors: ThemeColors) => StyleSheet.create({ // bp = body part
   grid:      { flexDirection:'row', flexWrap:'wrap', gap:8 },
-  chip:      { paddingHorizontal:12, paddingVertical:8, borderRadius:20, borderWidth:1, borderColor:'rgba(0,0,0,0.08)', backgroundColor:'#f0f2f5' },
+  chip:      { paddingHorizontal:12, paddingVertical:8, borderRadius:20, borderWidth:1, borderColor:colors.border, backgroundColor:colors.surface2 },
   chipActive:{ borderColor:'#ef4444', backgroundColor:'rgba(239,68,68,0.08)' },
   chipText:  { fontSize:12, fontWeight:'600' },
 })
@@ -392,6 +396,7 @@ const bp = StyleSheet.create({ // bp = body part
 // 痛み部位バッジ（コーチカード用）
 function PainBadges({ parts }: { parts: string[] }) {
   const { t } = useTranslation()
+  const { colors } = useTheme()
   const BODY_PARTS = buildBodyParts(t)
   if (!parts.length) return null
   const labels = parts.slice(0,3).map(id => BODY_PARTS.find(p=>p.id===id)?.label??id)
@@ -402,7 +407,7 @@ function PainBadges({ parts }: { parts: string[] }) {
           <Text style={{ color:'#FF3B30', fontSize:10, fontWeight:'600' }}>🤕 {l}</Text>
         </View>
       ))}
-      {parts.length > 3 && <Text style={{ color:'#666', fontSize:10, alignSelf:'center' }}>+{parts.length-3}</Text>}
+      {parts.length > 3 && <Text style={{ color:colors.textSec, fontSize:10, alignSelf:'center' }}>+{parts.length-3}</Text>}
     </View>
   )
 }
@@ -420,24 +425,25 @@ function ConfirmSheet({ visible, title, message, confirmLabel, dangerous, onConf
   onCancel: () => void
 }) {
   const { t } = useTranslation()
+  const { colors } = useTheme()
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.55)',justifyContent:'center',paddingHorizontal:28}}>
         <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onCancel}/>
-        <View style={{backgroundColor:'#fff',borderRadius:20,padding:24,gap:16,shadowColor:'#000',shadowOffset:{width:0,height:8},shadowOpacity:0.18,shadowRadius:24,elevation:16}}>
+        <View style={{backgroundColor:colors.card,borderRadius:20,padding:24,gap:16,shadowColor:'#000',shadowOffset:{width:0,height:8},shadowOpacity:0.18,shadowRadius:24,elevation:16}}>
           <View style={{alignItems:'center',gap:8}}>
             <View style={{width:48,height:48,borderRadius:14,backgroundColor:dangerous?'rgba(239,68,68,0.1)':'rgba(22,101,52,0.1)',alignItems:'center',justifyContent:'center'}}>
               <Ionicons name={dangerous?'warning-outline':'help-circle-outline'} size={26} color={dangerous?'#ef4444':BRAND}/>
             </View>
-            <Text style={{color:'#111827',fontSize:17,fontWeight:'800',textAlign:'center'}}>{title}</Text>
-            <Text style={{color:'#6b7280',fontSize:13,lineHeight:20,textAlign:'center'}}>{message}</Text>
+            <Text style={{color:colors.text,fontSize:17,fontWeight:'800',textAlign:'center'}}>{title}</Text>
+            <Text style={{color:colors.textSec,fontSize:13,lineHeight:20,textAlign:'center'}}>{message}</Text>
           </View>
           <View style={{flexDirection:'row',gap:10}}>
             <TouchableOpacity
-              style={{flex:1,paddingVertical:13,borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',alignItems:'center'}}
+              style={{flex:1,paddingVertical:13,borderRadius:12,borderWidth:1,borderColor:colors.border,alignItems:'center'}}
               onPress={onCancel} activeOpacity={0.7}
             >
-              <Text style={{color:'#6b7280',fontSize:14,fontWeight:'700'}}>{t('team.confirm.cancel')}</Text>
+              <Text style={{color:colors.textSec,fontSize:14,fontWeight:'700'}}>{t('team.confirm.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={{flex:1,paddingVertical:13,borderRadius:12,backgroundColor:dangerous?'#ef4444':BRAND,alignItems:'center'}}
@@ -462,6 +468,8 @@ function VideoSubmitModal({ visible, teamCode, playerName, onClose, onSent }: {
   visible: boolean; teamCode: string; playerName: string; onClose: () => void; onSent: () => void
 }) {
   const { t } = useTranslation()
+  const { colors } = useTheme()
+  const vs = useMemo(() => makeVsStyles(colors), [colors])
   const [url,      setUrl]      = useState('')
   const [desc,     setDesc]     = useState('')
   const [busy,     setBusy]     = useState(false)
@@ -520,15 +528,15 @@ function VideoSubmitModal({ visible, teamCode, playerName, onClose, onSent }: {
         <View style={vs.overlay}>
           <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose} activeOpacity={1}/>
           <View style={vs.sheet}>
-            <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:16}}/>
+            <View style={{width:36,height:4,borderRadius:2,backgroundColor:colors.border,alignSelf:'center',marginBottom:16}}/>
 
             {/* ヘッダー */}
             <View style={{flexDirection:'row',alignItems:'center',marginBottom:18}}>
-              <Text style={{color:TEXT.primary,fontSize:18,fontWeight:'800',flex:1}}>
+              <Text style={{color:colors.text,fontSize:18,fontWeight:'800',flex:1}}>
                 {step === 'guide' ? t('team.videoSubmit.titleGuide') : t('team.videoSubmit.titleInput')}
               </Text>
               <TouchableOpacity onPress={onClose} hitSlop={{top:10,bottom:10,left:10,right:10}} accessibilityLabel={t('team.videoSubmit.close')}>
-                <Ionicons name="close" size={22} color={TEXT.secondary}/>
+                <Ionicons name="close" size={22} color={colors.textSec}/>
               </TouchableOpacity>
             </View>
 
@@ -538,7 +546,7 @@ function VideoSubmitModal({ visible, teamCode, playerName, onClose, onSent }: {
                 {/* ステップ */}
                 <View style={{gap:10,marginBottom:18}}>
                   {STEPS.map((s, i) => (
-                    <View key={i} style={{flexDirection:'row',alignItems:'flex-start',gap:12,backgroundColor:'#f8faff',borderRadius:12,padding:12,borderWidth:1,borderColor:'rgba(37,99,235,0.10)'}}>
+                    <View key={i} style={{flexDirection:'row',alignItems:'flex-start',gap:12,backgroundColor:colors.surface2,borderRadius:12,padding:12,borderWidth:1,borderColor:'rgba(37,99,235,0.10)'}}>
                       <View style={{width:32,height:32,borderRadius:10,backgroundColor:BRAND+'18',alignItems:'center',justifyContent:'center'}}>
                         <Text style={{fontSize:16}}>{s.icon}</Text>
                       </View>
@@ -547,9 +555,9 @@ function VideoSubmitModal({ visible, teamCode, playerName, onClose, onSent }: {
                           <View style={{width:18,height:18,borderRadius:9,backgroundColor:BRAND,alignItems:'center',justifyContent:'center'}}>
                             <Text style={{color:'#fff',fontSize:10,fontWeight:'800'}}>{i+1}</Text>
                           </View>
-                          <Text style={{color:TEXT.primary,fontSize:13,fontWeight:'800'}}>{s.title}</Text>
+                          <Text style={{color:colors.text,fontSize:13,fontWeight:'800'}}>{s.title}</Text>
                         </View>
-                        <Text style={{color:TEXT.secondary,fontSize:12,lineHeight:18}}>{s.desc}</Text>
+                        <Text style={{color:colors.textSec,fontSize:12,lineHeight:18}}>{s.desc}</Text>
                       </View>
                     </View>
                   ))}
@@ -574,7 +582,7 @@ function VideoSubmitModal({ visible, teamCode, playerName, onClose, onSent }: {
 
                 {/* 手動入力へ */}
                 <TouchableOpacity onPress={() => setStep('input')} style={{alignItems:'center',paddingVertical:12}} activeOpacity={0.7}>
-                  <Text style={{color:TEXT.hint,fontSize:12}}>{t('team.videoSubmit.manualInputHint')}</Text>
+                  <Text style={{color:colors.textHint,fontSize:12}}>{t('team.videoSubmit.manualInputHint')}</Text>
                 </TouchableOpacity>
               </ScrollView>
             ) : (
@@ -591,11 +599,11 @@ function VideoSubmitModal({ visible, teamCode, playerName, onClose, onSent }: {
                     style={[vs.input,{flex:1}]}
                     value={url} onChangeText={setUrl}
                     placeholder={t('team.videoSubmit.urlPlaceholder')}
-                    placeholderTextColor="#9ca3af"
+                    placeholderTextColor={colors.textHint}
                     autoCapitalize="none" keyboardType="url"
                   />
                   <TouchableOpacity
-                    style={{width:44,height:44,borderRadius:10,backgroundColor:'#f0f2f5',alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:'rgba(0,0,0,0.08)'}}
+                    style={{width:44,height:44,borderRadius:10,backgroundColor:colors.surface2,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:colors.border}}
                     onPress={pasteFromClipboard} activeOpacity={0.8} accessibilityLabel={t('team.videoSubmit.pasteFromClipboard')}>
                     <Ionicons name="clipboard-outline" size={20} color={BRAND}/>
                   </TouchableOpacity>
@@ -606,7 +614,7 @@ function VideoSubmitModal({ visible, teamCode, playerName, onClose, onSent }: {
                   style={[vs.input,{height:72,textAlignVertical:'top',paddingTop:10,marginBottom:16}]}
                   value={desc} onChangeText={setDesc}
                   placeholder={t('team.videoSubmit.notePlaceholder')}
-                  placeholderTextColor="#9ca3af" multiline maxLength={100}
+                  placeholderTextColor={colors.textHint} multiline maxLength={100}
                 />
 
                 <HapticTouch haptic="save" style={[vs.btn, busy&&{opacity:0.5}]} onPress={submit} disabled={busy} activeOpacity={0.85}>
@@ -621,11 +629,11 @@ function VideoSubmitModal({ visible, teamCode, playerName, onClose, onSent }: {
     </Modal>
   )
 }
-const vs = StyleSheet.create({ // vs = video submit
+const makeVsStyles = (colors: ThemeColors) => StyleSheet.create({ // vs = video submit
   overlay:{ flex:1, backgroundColor:'rgba(0,0,0,0.7)', justifyContent:'flex-end' },
-  sheet:  { backgroundColor:'#ffffff', borderTopLeftRadius:24, borderTopRightRadius:24, padding:20, paddingBottom:44, maxHeight: SCREEN_H * 0.88 },
-  label:  { color:TEXT.hint, fontSize:11, fontWeight:'700', letterSpacing:0.8, marginBottom:8 },
-  input:  { backgroundColor:'#f8f8fa', borderRadius:10, borderWidth:1, borderColor:'rgba(0,0,0,0.10)', color:TEXT.primary, fontSize:14, paddingHorizontal:14, paddingVertical:12, height:44 },
+  sheet:  { backgroundColor:colors.card, borderTopLeftRadius:24, borderTopRightRadius:24, padding:20, paddingBottom:44, maxHeight: SCREEN_H * 0.88 },
+  label:  { color:colors.textHint, fontSize:11, fontWeight:'700', letterSpacing:0.8, marginBottom:8 },
+  input:  { backgroundColor:colors.surface2, borderRadius:10, borderWidth:1, borderColor:colors.border, color:colors.text, fontSize:14, paddingHorizontal:14, paddingVertical:12, height:44 },
   btn:    { flexDirection:'row', alignItems:'center', justifyContent:'center', gap:8, backgroundColor:BRAND, borderRadius:14, paddingVertical:15, marginTop:16 },
 })
 
@@ -689,6 +697,8 @@ const role_s = StyleSheet.create({
 // ─────────────────────────────────────────────────────────
 function CoachSetupScreen({ onCreated, onBack }: { onCreated:(s:TeamSetup)=>void; onBack:()=>void }) {
   const { t } = useTranslation()
+  const { colors } = useTheme()
+  const su = useMemo(() => makeSuStyles(colors), [colors])
   const [teamName,  setTeamName]  = useState('')
   const [coachName, setCoachName] = useState('')
   const [busy, setBusy] = useState(false)
@@ -710,30 +720,30 @@ function CoachSetupScreen({ onCreated, onBack }: { onCreated:(s:TeamSetup)=>void
   }
 
   return (
-    <View style={{flex:1,backgroundColor:'#f6f6f8'}}>
+    <View style={{flex:1,backgroundColor:colors.bg}}>
       <SafeAreaView style={{flex:1}}>
         <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':undefined} style={{flex:1}}>
           <ScrollView contentContainerStyle={{padding:24,gap:18}} showsVerticalScrollIndicator={false}>
             <TouchableOpacity onPress={onBack} style={{flexDirection:'row',alignItems:'center',gap:6,alignSelf:'flex-start'}} activeOpacity={0.7}>
-              <Ionicons name="chevron-back" size={20} color={TEXT.secondary}/>
-              <Text style={{color:TEXT.secondary,fontSize:14}}>{t('team.coachSetup.back')}</Text>
+              <Ionicons name="chevron-back" size={20} color={colors.textSec}/>
+              <Text style={{color:colors.textSec,fontSize:14}}>{t('team.coachSetup.back')}</Text>
             </TouchableOpacity>
             <View style={{alignItems:'center',gap:8,marginBottom:8}}>
               <View style={{width:60,height:60,borderRadius:16,backgroundColor:BRAND+'18',alignItems:'center',justifyContent:'center'}}>
                 <Ionicons name="shield-checkmark" size={30} color={BRAND}/>
               </View>
-              <Text style={{color:TEXT.primary,fontSize:22,fontWeight:'800'}}>{t('team.coachSetup.title')}</Text>
-              <Text style={{color:TEXT.secondary,fontSize:13,textAlign:'center',lineHeight:20}}>
+              <Text style={{color:colors.text,fontSize:22,fontWeight:'800'}}>{t('team.coachSetup.title')}</Text>
+              <Text style={{color:colors.textSec,fontSize:13,textAlign:'center',lineHeight:20}}>
                 {t('team.coachSetup.subtitle')}
               </Text>
             </View>
             <View style={{gap:6}}>
               <Text style={su.label}>{t('team.coachSetup.teamNameLabel')}</Text>
-              <TextInput style={su.input} value={teamName} onChangeText={setTeamName} placeholder={t('team.coachSetup.teamNamePlaceholder')} placeholderTextColor="#9ca3af" maxLength={30}/>
+              <TextInput style={su.input} value={teamName} onChangeText={setTeamName} placeholder={t('team.coachSetup.teamNamePlaceholder')} placeholderTextColor={colors.textHint} maxLength={30}/>
             </View>
             <View style={{gap:6}}>
               <Text style={su.label}>{t('team.coachSetup.coachNameLabel')}</Text>
-              <TextInput style={su.input} value={coachName} onChangeText={setCoachName} placeholder={t('team.coachSetup.coachNamePlaceholder')} placeholderTextColor="#9ca3af" maxLength={20}/>
+              <TextInput style={su.input} value={coachName} onChangeText={setCoachName} placeholder={t('team.coachSetup.coachNamePlaceholder')} placeholderTextColor={colors.textHint} maxLength={20}/>
             </View>
             <TouchableOpacity style={[su.btn,busy&&{opacity:0.5}]} onPress={create} disabled={busy} activeOpacity={0.85}>
               <Ionicons name="checkmark-circle" size={20} color="#fff"/>
@@ -745,9 +755,9 @@ function CoachSetupScreen({ onCreated, onBack }: { onCreated:(s:TeamSetup)=>void
     </View>
   )
 }
-const su = StyleSheet.create({
-  label:{ color:TEXT.hint, fontSize:11, fontWeight:'700', letterSpacing:0.8 },
-  input:{ backgroundColor:'#f8f8fa', borderRadius:14, borderWidth:1, borderColor:'rgba(0,0,0,0.10)', color:TEXT.primary, fontSize:15, paddingHorizontal:14, paddingVertical:12 },
+const makeSuStyles = (colors: ThemeColors) => StyleSheet.create({
+  label:{ color:colors.textHint, fontSize:11, fontWeight:'700', letterSpacing:0.8 },
+  input:{ backgroundColor:colors.surface2, borderRadius:14, borderWidth:1, borderColor:colors.border, color:colors.text, fontSize:15, paddingHorizontal:14, paddingVertical:12 },
   btn:  { flexDirection:'row', alignItems:'center', justifyContent:'center', gap:8, backgroundColor:BRAND, borderRadius:21, paddingVertical:15, marginTop:4 },
 })
 
@@ -756,6 +766,8 @@ const su = StyleSheet.create({
 // ─────────────────────────────────────────────────────────
 function PlayerJoinScreen({ onJoined, onBack }: { onJoined:(j:JoinedTeam)=>void; onBack:()=>void }) {
   const { t } = useTranslation()
+  const { colors } = useTheme()
+  const su = useMemo(() => makeSuStyles(colors), [colors])
   const [code,       setCode]       = useState('')
   const [playerName, setPlayerName] = useState('')
   const [busy, setBusy] = useState(false)
@@ -806,20 +818,20 @@ function PlayerJoinScreen({ onJoined, onBack }: { onJoined:(j:JoinedTeam)=>void;
   }
 
   return (
-    <View style={{flex:1,backgroundColor:'#f6f6f8'}}>
+    <View style={{flex:1,backgroundColor:colors.bg}}>
       <SafeAreaView style={{flex:1}}>
         <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':undefined} style={{flex:1}}>
           <ScrollView contentContainerStyle={{padding:24,gap:18}} showsVerticalScrollIndicator={false}>
             <TouchableOpacity onPress={onBack} style={{flexDirection:'row',alignItems:'center',gap:6,alignSelf:'flex-start'}} activeOpacity={0.7}>
-              <Ionicons name="chevron-back" size={20} color={TEXT.secondary}/>
-              <Text style={{color:TEXT.secondary,fontSize:14}}>{t('team.playerJoin.back')}</Text>
+              <Ionicons name="chevron-back" size={20} color={colors.textSec}/>
+              <Text style={{color:colors.textSec,fontSize:14}}>{t('team.playerJoin.back')}</Text>
             </TouchableOpacity>
             <View style={{alignItems:'center',gap:8,marginBottom:8}}>
               <View style={{width:60,height:60,borderRadius:16,backgroundColor:'#34C759'+'18',alignItems:'center',justifyContent:'center'}}>
                 <Ionicons name="enter-outline" size={30} color="#34C759"/>
               </View>
-              <Text style={{color:TEXT.primary,fontSize:22,fontWeight:'800'}}>{t('team.playerJoin.title')}</Text>
-              <Text style={{color:TEXT.secondary,fontSize:13,textAlign:'center',lineHeight:20}}>
+              <Text style={{color:colors.text,fontSize:22,fontWeight:'800'}}>{t('team.playerJoin.title')}</Text>
+              <Text style={{color:colors.textSec,fontSize:13,textAlign:'center',lineHeight:20}}>
                 {t('team.playerJoin.subtitle')}
               </Text>
             </View>
@@ -830,7 +842,7 @@ function PlayerJoinScreen({ onJoined, onBack }: { onJoined:(j:JoinedTeam)=>void;
                 value={code.toUpperCase()}
                 onChangeText={v => setCode(v.replace(/[^A-Za-z0-9]/g,'').slice(0,6).toUpperCase())}
                 placeholder="ABCDEF"
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={colors.textHint}
                 autoCapitalize="none"
                 autoCorrect={false}
                 autoComplete="off"
@@ -840,7 +852,7 @@ function PlayerJoinScreen({ onJoined, onBack }: { onJoined:(j:JoinedTeam)=>void;
             </View>
             <View style={{gap:6}}>
               <Text style={su.label}>{t('team.playerJoin.nameLabel')}</Text>
-              <TextInput style={su.input} value={playerName} onChangeText={setPlayerName} placeholder={t('team.playerJoin.namePlaceholder')} placeholderTextColor="#9ca3af" maxLength={20}/>
+              <TextInput style={su.input} value={playerName} onChangeText={setPlayerName} placeholder={t('team.playerJoin.namePlaceholder')} placeholderTextColor={colors.textHint} maxLength={20}/>
             </View>
             <TouchableOpacity
               style={[{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:'#34C759',borderRadius:14,paddingVertical:15},(code.length<6||busy)&&{opacity:0.4}]}
@@ -864,6 +876,7 @@ function PlayerJoinScreen({ onJoined, onBack }: { onJoined:(j:JoinedTeam)=>void;
 function MiniCalendar({ value, onChange }: { value: string; onChange: (d: string) => void }) {
   const { t } = useTranslation()
   const { language } = useLanguage()
+  const { colors } = useTheme()
   const today = new Date()
   const init  = value ? new Date(value + 'T00:00:00') : today
   const [vy, setVy] = useState(init.getFullYear())
@@ -894,23 +907,23 @@ function MiniCalendar({ value, onChange }: { value: string; onChange: (d: string
   }
 
   return (
-    <View style={{backgroundColor:'#f8f8fa',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',padding:12}}>
+    <View style={{backgroundColor:colors.surface2,borderRadius:14,borderWidth:1,borderColor:colors.border,padding:12}}>
       {/* ヘッダー */}
       <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
         <TouchableOpacity onPress={prevMonth} hitSlop={{top:10,bottom:10,left:10,right:10}} accessibilityLabel={language === 'ja' ? '前の月' : 'Previous month'}>
-          <Ionicons name="chevron-back" size={22} color={TEXT.primary}/>
+          <Ionicons name="chevron-back" size={22} color={colors.text}/>
         </TouchableOpacity>
-        <Text style={{color:TEXT.primary,fontSize:15,fontWeight:'800'}}>
+        <Text style={{color:colors.text,fontSize:15,fontWeight:'800'}}>
           {language === 'ja' ? `${vy}年${vm+1}月` : new Date(vy, vm, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
         </Text>
         <TouchableOpacity onPress={nextMonth} hitSlop={{top:10,bottom:10,left:10,right:10}} accessibilityLabel={language === 'ja' ? '次の月' : 'Next month'}>
-          <Ionicons name="chevron-forward" size={22} color={TEXT.primary}/>
+          <Ionicons name="chevron-forward" size={22} color={colors.text}/>
         </TouchableOpacity>
       </View>
       {/* 曜日ヘッダー */}
       <View style={{flexDirection:'row',marginBottom:4}}>
         {DAY_LABELS.map((label, i) => (
-          <Text key={label} style={{flex:1,textAlign:'center',fontSize:11,fontWeight:'700',color:i===0?'#ef4444':i===6?'#3b82f6':'#888'}}>{label}</Text>
+          <Text key={label} style={{flex:1,textAlign:'center',fontSize:11,fontWeight:'700',color:i===0?'#ef4444':i===6?'#3b82f6':colors.textSec}}>{label}</Text>
         ))}
       </View>
       {/* 週行 */}
@@ -924,7 +937,7 @@ function MiniCalendar({ value, onChange }: { value: string; onChange: (d: string
             return (
               <TouchableOpacity key={di} onPress={() => pick(d)} style={{flex:1,alignItems:'center',paddingVertical:3}} activeOpacity={0.7}>
                 <View style={{width:32,height:32,borderRadius:16,backgroundColor:isSel?BRAND:isToday?BRAND+'20':'transparent',alignItems:'center',justifyContent:'center'}}>
-                  <Text style={{fontSize:13,fontWeight:isSel||isToday?'800':'400',color:isSel?'#fff':isToday?BRAND:di===0?'#ef4444':di===6?'#3b82f6':TEXT.primary}}>{d}</Text>
+                  <Text style={{fontSize:13,fontWeight:isSel||isToday?'800':'400',color:isSel?'#fff':isToday?BRAND:di===0?'#ef4444':di===6?'#3b82f6':colors.text}}>{d}</Text>
                 </View>
               </TouchableOpacity>
             )
@@ -943,6 +956,8 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
 }) {
   const { t } = useTranslation()
   const { language } = useLanguage()
+  const { colors } = useTheme()
+  const co = useMemo(() => makeCoStyles(colors), [colors])
   const DAY_NAMES = t('home.dayNames', { returnObjects: true }) as unknown as string[]
   const EVENT_CFG = buildEventCfg(t)
   const RISK_CFG = buildRiskCfg(t)
@@ -1468,7 +1483,7 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
   const absenceMessages  = messages.filter(m => m.author_name === '__system__' && m.content.startsWith('[ABSENCE]'))
 
   return (
-    <View style={{flex:1,backgroundColor:'#f6f6f8'}}>
+    <View style={{flex:1,backgroundColor:colors.bg}}>
       <SafeAreaView style={{flex:1}}>
 
         {/* ─ ヘッダー ─ */}
@@ -1479,19 +1494,19 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
               <View style={{backgroundColor:BRAND+'20',borderRadius:6,paddingHorizontal:7,paddingVertical:2}}>
                 <Text style={{color:BRAND,fontSize:11,fontWeight:'700'}}>{t('team.coachDashboard.role')}</Text>
               </View>
-              <Text style={{color:'#555',fontSize:11}}>{setup.coachName}</Text>
+              <Text style={{color:colors.textSec,fontSize:11}}>{setup.coachName}</Text>
             </View>
           </View>
           <View style={{flexDirection:'row',gap:8,alignItems:'center'}}>
             <View style={co.codeBox}>
-              <Text style={{color:'#555',fontSize:9,fontWeight:'700'}}>{t('team.coachDashboard.code')}</Text>
+              <Text style={{color:colors.textSec,fontSize:9,fontWeight:'700'}}>{t('team.coachDashboard.code')}</Text>
               <Text style={{color:BRAND,fontSize:15,fontWeight:'900',letterSpacing:3}}>{formatCode(setup.code)}</Text>
             </View>
             <TouchableOpacity onPress={load} style={co.switchBtn} activeOpacity={0.7} hitSlop={{top:4,bottom:4,left:4,right:4}} accessibilityLabel={t('team.coachDashboard.refresh')}>
-              <Ionicons name="refresh-outline" size={15} color={TEXT.secondary}/>
+              <Ionicons name="refresh-outline" size={15} color={colors.textSec}/>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setShowMenu(true)} style={co.switchBtn} activeOpacity={0.7} hitSlop={{top:4,bottom:4,left:4,right:4}} accessibilityLabel={t('team.coachDashboard.menu')}>
-              <Ionicons name="ellipsis-horizontal" size={15} color={TEXT.secondary}/>
+              <Ionicons name="ellipsis-horizontal" size={15} color={colors.textSec}/>
             </TouchableOpacity>
           </View>
         </View>
@@ -1503,7 +1518,7 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
         {loading && (
           <View style={{alignItems:'center',paddingVertical:60,gap:12}}>
             <Text style={{fontSize:32}}>⏳</Text>
-            <Text style={{color:'#9ca3af',fontSize:14}}>{t('team.coachDashboard.loading')}</Text>
+            <Text style={{color:colors.textHint,fontSize:14}}>{t('team.coachDashboard.loading')}</Text>
           </View>
         )}
 
@@ -1517,7 +1532,7 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
                   <Text style={{fontSize:16,marginTop:1}}>ℹ️</Text>
                   <View style={{flex:1}}>
                     <Text style={{color:'#3b82f6',fontSize:12,fontWeight:'800',marginBottom:3}}>{t('team.coachDashboard.syncBannerTitle')}</Text>
-                    <Text style={{color:'#555',fontSize:11,lineHeight:17}}>{t('team.coachDashboard.syncBannerBody')}</Text>
+                    <Text style={{color:colors.textSec,fontSize:11,lineHeight:17}}>{t('team.coachDashboard.syncBannerBody')}</Text>
                   </View>
                 </View>
               )}
@@ -1530,25 +1545,25 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
                     <TouchableOpacity
                       onPress={() => setMemberFilter(isActive ? 'all' : 'needsAttention')}
                       disabled={needsAttention === 0}
-                      style={{flex:1, backgroundColor:'#fff', borderWidth: isActive ? 1.5 : 1, borderColor: isActive ? '#E53935' : 'rgba(0,0,0,0.07)', borderRadius:16, paddingVertical:12, paddingHorizontal:14, flexDirection:'row', alignItems:'center', gap:10}}
+                      style={{flex:1, backgroundColor:colors.card, borderWidth: isActive ? 1.5 : 1, borderColor: isActive ? '#E53935' : 'rgba(0,0,0,0.07)', borderRadius:16, paddingVertical:12, paddingHorizontal:14, flexDirection:'row', alignItems:'center', gap:10}}
                       activeOpacity={0.75}
                     >
                       <View style={{width:32,height:32,borderRadius:10,backgroundColor:'rgba(229,57,53,0.1)',alignItems:'center',justifyContent:'center'}}>
                         <Text style={{fontSize:15}}>⚠️</Text>
                       </View>
                       <View>
-                        <Text style={{fontSize:10.5,color:'#9ca3af',fontWeight:'600'}}>{t('team.coachDashboard.needsAttention')}</Text>
+                        <Text style={{fontSize:10.5,color:colors.textHint,fontWeight:'600'}}>{t('team.coachDashboard.needsAttention')}</Text>
                         <Text style={{fontSize:19,fontWeight:'900',color: needsAttention > 0 ? '#E53935' : '#34C759',lineHeight:21}}>{t('team.coachDashboard.needsAttentionCount', { n: needsAttention })}</Text>
                       </View>
                     </TouchableOpacity>
                   )
                 })()}
-                <View style={{flex:1, backgroundColor:'#fff', borderWidth:1, borderColor:'rgba(0,0,0,0.07)', borderRadius:16, paddingVertical:12, paddingHorizontal:14, flexDirection:'row', alignItems:'center', gap:10}}>
+                <View style={{flex:1, backgroundColor:colors.card, borderWidth:1, borderColor:colors.border, borderRadius:16, paddingVertical:12, paddingHorizontal:14, flexDirection:'row', alignItems:'center', gap:10}}>
                   <View style={{width:32,height:32,borderRadius:10,backgroundColor:'rgba(99,102,241,0.1)',alignItems:'center',justifyContent:'center'}}>
                     <Text style={{fontSize:15}}>💪</Text>
                   </View>
                   <View>
-                    <Text style={{fontSize:10.5,color:'#9ca3af',fontWeight:'600'}}>{t('team.coachDashboard.teamLoad')}</Text>
+                    <Text style={{fontSize:10.5,color:colors.textHint,fontWeight:'600'}}>{t('team.coachDashboard.teamLoad')}</Text>
                     <Text style={{fontSize:19,fontWeight:'900',color: LOAD_CFG[loadCfgKey(avgLoad)].color,lineHeight:21}}>{LOAD_CFG[loadCfgKey(avgLoad)].label}</Text>
                   </View>
                 </View>
@@ -1556,25 +1571,25 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
 
               {/* ── 欠席報告（個別に確認済みにする必要があるため一覧のまま維持。装飾は最小限に） ── */}
               {absenceMessages.length > 0 && (
-                <View style={{backgroundColor:'#fff', borderRadius:16, borderWidth:1, borderColor:'rgba(0,0,0,0.07)', overflow:'hidden'}}>
+                <View style={{backgroundColor:colors.card, borderRadius:16, borderWidth:1, borderColor:colors.border, overflow:'hidden'}}>
                   {absenceMessages.map((msg, idx) => {
                     const body = msg.content.replace(/^\[ABSENCE\]\s*/, '')
                     return (
-                      <View key={msg.id} style={{flexDirection:'row',alignItems:'flex-start',gap:10,padding:12,borderTopWidth: idx > 0 ? StyleSheet.hairlineWidth : 0,borderTopColor:'rgba(0,0,0,0.07)'}}>
+                      <View key={msg.id} style={{flexDirection:'row',alignItems:'flex-start',gap:10,padding:12,borderTopWidth: idx > 0 ? StyleSheet.hairlineWidth : 0,borderTopColor:colors.border}}>
                         <Text style={{fontSize:15,marginTop:1}}>🙏</Text>
                         <View style={{flex:1,gap:3}}>
                           <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
                             <Text style={{color:'#FF9500',fontSize:11,fontWeight:'800'}}>{t('team.coachDashboard.absenceReport')}</Text>
-                            <Text style={{color:'#bbb',fontSize:10}}>{timeAgo(msg.created_at, t)}</Text>
+                            <Text style={{color:colors.textHint,fontSize:10}}>{timeAgo(msg.created_at, t)}</Text>
                           </View>
-                          <Text style={{color:TEXT.primary,fontSize:13,fontWeight:'600',lineHeight:18}}>{body}</Text>
+                          <Text style={{color:colors.text,fontSize:13,fontWeight:'600',lineHeight:18}}>{body}</Text>
                           <TouchableOpacity
                             onPress={() => deleteMsg(msg.id)}
                             style={{alignSelf:'flex-start',flexDirection:'row',alignItems:'center',gap:4,marginTop:2}}
                             activeOpacity={0.7}
                           >
-                            <Ionicons name="checkmark-circle-outline" size={13} color="#9ca3af"/>
-                            <Text style={{color:'#9ca3af',fontSize:11,fontWeight:'700'}}>{t('team.coachDashboard.markConfirmed')}</Text>
+                            <Ionicons name="checkmark-circle-outline" size={13} color={colors.textHint}/>
+                            <Text style={{color:colors.textHint,fontSize:11,fontWeight:'700'}}>{t('team.coachDashboard.markConfirmed')}</Text>
                           </TouchableOpacity>
                         </View>
                       </View>
@@ -1585,8 +1600,8 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
 
               {/* フィルター解除 */}
               {memberFilter !== 'all' && (
-                <TouchableOpacity onPress={() => setMemberFilter('all')} style={{alignSelf:'flex-end',borderWidth:1,borderColor:'rgba(0,0,0,0.1)',borderRadius:999,paddingHorizontal:12,paddingVertical:5,backgroundColor:'#f0f2f5'}} activeOpacity={0.7}>
-                  <Text style={{color:'#666',fontSize:11,fontWeight:'600'}}>{t('team.coachDashboard.showAll', { n: memberData.length })}</Text>
+                <TouchableOpacity onPress={() => setMemberFilter('all')} style={{alignSelf:'flex-end',borderWidth:1,borderColor:'rgba(0,0,0,0.1)',borderRadius:999,paddingHorizontal:12,paddingVertical:5,backgroundColor:colors.surface2}} activeOpacity={0.7}>
+                  <Text style={{color:colors.textSec,fontSize:11,fontWeight:'600'}}>{t('team.coachDashboard.showAll', { n: memberData.length })}</Text>
                 </TouchableOpacity>
               )}
 
@@ -1599,7 +1614,7 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
                   const ackedPain   = (m.painParts?.length ?? 0) > 0 && m.ackedByCoach
                   const hasData   = 'hasRiskData' in m ? (m as typeof m & {hasRiskData:boolean}).hasRiskData : false
                   // 行全体は着色せず、色はアバターを囲むリングとスコアの数字だけに乗せる
-                  const ringColor = unackedPain ? '#EF4444' : hasData ? rCfg.color : '#e5e7eb'
+                  const ringColor = unackedPain ? '#EF4444' : hasData ? rCfg.color : colors.border
 
                   return (
                     <HapticTouch
@@ -1616,15 +1631,15 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
                         }
 
                         <View style={{flex:1,gap:1}}>
-                          <Text style={{color:TEXT.primary,fontSize:14,fontWeight:'700'}} numberOfLines={1}>{m.name}</Text>
-                          <Text style={{color:TEXT.secondary,fontSize:11}} numberOfLines={1}>{m.event || t('team.coachDashboard.noEventSet')}</Text>
+                          <Text style={{color:colors.text,fontSize:14,fontWeight:'700'}} numberOfLines={1}>{m.name}</Text>
+                          <Text style={{color:colors.textSec,fontSize:11}} numberOfLines={1}>{m.event || t('team.coachDashboard.noEventSet')}</Text>
                         </View>
 
                         {/* スコア（数字自体は控えめに。色の意味はリング側が持つ） */}
                         {!hasData ? (
-                          <Text style={{color:'#bbb',fontSize:11,fontWeight:'600'}}>{t('team.coachDashboard.notSynced')}</Text>
+                          <Text style={{color:colors.textHint,fontSize:11,fontWeight:'600'}}>{t('team.coachDashboard.notSynced')}</Text>
                         ) : (
-                          <Text style={{color:'#6b7280',fontSize:22,fontWeight:'800'}}>{m.risk.riskScore}</Text>
+                          <Text style={{color:colors.textSec,fontSize:22,fontWeight:'800'}}>{m.risk.riskScore}</Text>
                         )}
 
                         {/* 痛みバッジ */}
@@ -1642,7 +1657,7 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
                           style={{padding:4}}
                           accessibilityLabel={t('team.coachDashboard.removeMember')}
                         >
-                          <Ionicons name="trash-outline" size={14} color="#d1d5db"/>
+                          <Ionicons name="trash-outline" size={14} color={colors.textHint}/>
                         </TouchableOpacity>
                       </View>
                     </HapticTouch>
@@ -1650,8 +1665,8 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
                 })}
                 {filteredMembers.length === 0 && (
                   <View style={{alignItems:'center',paddingVertical:40,gap:8}}>
-                    <Ionicons name="people-outline" size={36} color="#d1d5db"/>
-                    <Text style={{color:'#9ca3af',fontSize:14}}>{t('team.coachDashboard.noMatchingMembers')}</Text>
+                    <Ionicons name="people-outline" size={36} color={colors.textHint}/>
+                    <Text style={{color:colors.textHint,fontSize:14}}>{t('team.coachDashboard.noMatchingMembers')}</Text>
                   </View>
                 )}
               </View>
@@ -1669,7 +1684,7 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
                   value={msgText}
                   onChangeText={setMsgText}
                   placeholder={t('team.coachDashboard.messagePlaceholder')}
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={colors.textHint}
                   multiline
                   maxLength={300}
                 />
@@ -1683,8 +1698,8 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
 
               {messages.length === 0 ? (
                 <View style={{alignItems:'center',padding:32,gap:8}}>
-                  <Ionicons name="megaphone-outline" size={36} color="#333"/>
-                  <Text style={{color:'#555',fontSize:13}}>{t('team.coachDashboard.noMessages')}</Text>
+                  <Ionicons name="megaphone-outline" size={36} color={colors.textSec}/>
+                  <Text style={{color:colors.textSec,fontSize:13}}>{t('team.coachDashboard.noMessages')}</Text>
                 </View>
               ) : (
                 <View style={{gap:8}}>
@@ -1698,7 +1713,7 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
                       : null
                     const sysBody = isSystem ? msg.content.replace(/^\[[A-Z_]+\]\s*/, '') : msg.content
                     const sysIcon = sysType === 'absence' ? '🙏' : sysType === 'video' ? '🎥' : sysType === 'risk' ? '⚠️' : '📢'
-                    const sysColor = sysType === 'absence' ? '#FF9500' : sysType === 'video' ? BRAND : sysType === 'risk' ? '#E53935' : '#6b7280'
+                    const sysColor = sysType === 'absence' ? '#FF9500' : sysType === 'video' ? BRAND : sysType === 'risk' ? '#E53935' : colors.textSec
                     const sysLabel = sysType === 'absence' ? t('team.coachDashboard.systemAbsence') : sysType === 'video' ? t('team.coachDashboard.systemVideo') : sysType === 'risk' ? t('team.coachDashboard.systemRisk') : t('team.coachDashboard.systemNotice')
                     return isSystem ? (
                       <View key={msg.id} style={{flexDirection:'row',alignItems:'flex-start',gap:10,backgroundColor:sysColor+'10',borderRadius:12,borderWidth:1,borderColor:sysColor+'30',padding:12}}>
@@ -1708,12 +1723,12 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
                         <View style={{flex:1,gap:2}}>
                           <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
                             <Text style={{color:sysColor,fontSize:11,fontWeight:'800'}}>{sysLabel}</Text>
-                            <Text style={{color:'#999',fontSize:11}}>{timeAgo(msg.created_at, t)}</Text>
+                            <Text style={{color:colors.textHint,fontSize:11}}>{timeAgo(msg.created_at, t)}</Text>
                             <TouchableOpacity onPress={() => deleteMsg(msg.id)} hitSlop={{top:8,bottom:8,left:8,right:8}} style={{marginLeft:'auto'}} accessibilityLabel={t('team.coachDashboard.delete')}>
-                              <Ionicons name="close-outline" size={14} color="#ccc"/>
+                              <Ionicons name="close-outline" size={14} color={colors.textHint}/>
                             </TouchableOpacity>
                           </View>
-                          <Text style={{color:TEXT.primary,fontSize:13,lineHeight:20}}>{sysBody}</Text>
+                          <Text style={{color:colors.text,fontSize:13,lineHeight:20}}>{sysBody}</Text>
                         </View>
                       </View>
                     ) : (
@@ -1721,15 +1736,15 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
                         <View style={{flexDirection:'row',alignItems:'center',gap:6,marginBottom:6}}>
                           {msg.is_pinned && <Ionicons name="pin" size={12} color="#FF9500"/>}
                           <Text style={{color:BRAND,fontSize:12,fontWeight:'700',flex:1}}>{msg.author_name}</Text>
-                          <Text style={{color:'#555',fontSize:11}}>{timeAgo(msg.created_at, t)}</Text>
+                          <Text style={{color:colors.textSec,fontSize:11}}>{timeAgo(msg.created_at, t)}</Text>
                           <TouchableOpacity onPress={() => togglePin(msg.id, msg.is_pinned)} hitSlop={{top:8,bottom:8,left:8,right:8}} accessibilityLabel={msg.is_pinned ? t('team.coachDashboard.unpin') : t('team.coachDashboard.pin')}>
-                            <Ionicons name={msg.is_pinned?'pin':'pin-outline'} size={14} color={msg.is_pinned?'#FF9500':'#444'}/>
+                            <Ionicons name={msg.is_pinned?'pin':'pin-outline'} size={14} color={msg.is_pinned?'#FF9500':colors.textSec}/>
                           </TouchableOpacity>
                           <TouchableOpacity onPress={() => deleteMsg(msg.id)} hitSlop={{top:8,bottom:8,left:8,right:8}} accessibilityLabel={t('team.coachDashboard.delete')}>
                             <Ionicons name="trash-outline" size={14} color="#FF3B30"/>
                           </TouchableOpacity>
                         </View>
-                        <Text style={{color:TEXT.primary,fontSize:14,lineHeight:22}}>{msg.content}</Text>
+                        <Text style={{color:colors.text,fontSize:14,lineHeight:22}}>{msg.content}</Text>
                       </View>
                     )
                   })}
@@ -1745,9 +1760,9 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
           <>
               {videos.length === 0 ? (
                 <View style={{alignItems:'center',padding:32,gap:8}}>
-                  <Ionicons name="videocam-outline" size={36} color="#333"/>
-                  <Text style={{color:'#555',fontSize:13}}>{t('team.coachDashboard.noVideosYet')}</Text>
-                  <Text style={{color:'#444',fontSize:11,textAlign:'center'}}>{t('team.coachDashboard.noVideosHint')}</Text>
+                  <Ionicons name="videocam-outline" size={36} color={colors.textSec}/>
+                  <Text style={{color:colors.textSec,fontSize:13}}>{t('team.coachDashboard.noVideosYet')}</Text>
+                  <Text style={{color:colors.textSec,fontSize:11,textAlign:'center'}}>{t('team.coachDashboard.noVideosHint')}</Text>
                 </View>
               ) : (
                 <View style={{gap:10}}>
@@ -1759,13 +1774,13 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
                         </View>
                         <View style={{flex:1,gap:3}}>
                           <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
-                            <Text style={{color:TEXT.primary,fontSize:14,fontWeight:'700'}}>{v.player_name}</Text>
+                            <Text style={{color:colors.text,fontSize:14,fontWeight:'700'}}>{v.player_name}</Text>
                             {!v.watched && <View style={{backgroundColor:BRAND,borderRadius:4,paddingHorizontal:5,paddingVertical:1}}><Text style={{color:'#fff',fontSize:9,fontWeight:'800'}}>NEW</Text></View>}
                           </View>
-                          <Text style={{color:TEXT.secondary,fontSize:13}}>{v.description}</Text>
+                          <Text style={{color:colors.textSec,fontSize:13}}>{v.description}</Text>
                           <View style={{flexDirection:'row',gap:8}}>
-                            <Text style={{color:'#555',fontSize:11}}>{timeAgo(v.posted_at, t)}</Text>
-                            <Text style={{color:'#444',fontSize:11}}>{t('team.coachDashboard.videoDaysLeft', { n: daysLeft(v.posted_at) })}</Text>
+                            <Text style={{color:colors.textSec,fontSize:11}}>{timeAgo(v.posted_at, t)}</Text>
+                            <Text style={{color:colors.textSec,fontSize:11}}>{t('team.coachDashboard.videoDaysLeft', { n: daysLeft(v.posted_at) })}</Text>
                           </View>
                         </View>
                       </View>
@@ -1780,19 +1795,19 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
                         </TouchableOpacity>
                       ) : (
                         <TouchableOpacity
-                          style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6,backgroundColor:'rgba(0,0,0,0.04)',borderRadius:10,paddingVertical:10,marginTop:10,borderWidth:1,borderColor:'rgba(0,0,0,0.08)'}}
+                          style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6,backgroundColor:'rgba(0,0,0,0.04)',borderRadius:10,paddingVertical:10,marginTop:10,borderWidth:1,borderColor:colors.border}}
                           onPress={() => markWatched(v.id)}
                           activeOpacity={0.8}
                         >
-                          <Ionicons name="checkmark-circle-outline" size={15} color={TEXT.secondary}/>
-                          <Text style={{color:TEXT.secondary,fontSize:13,fontWeight:'600'}}>{t('team.coachDashboard.markConfirmed')}</Text>
+                          <Ionicons name="checkmark-circle-outline" size={15} color={colors.textSec}/>
+                          <Text style={{color:colors.textSec,fontSize:13,fontWeight:'600'}}>{t('team.coachDashboard.markConfirmed')}</Text>
                         </TouchableOpacity>
                       )}
                     </View>
                   ))}
                 </View>
               )}
-              <Text style={{color:'#333',fontSize:11,textAlign:'center'}}>{t('team.coachDashboard.videoAutoDeleteNote')}</Text>
+              <Text style={{color:colors.textSec,fontSize:11,textAlign:'center'}}>{t('team.coachDashboard.videoAutoDeleteNote')}</Text>
           </>
         </ScrollView>
         )}
@@ -1804,8 +1819,8 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
               {teamEvents.length === 0 ? (
                 <View style={{alignItems:'center',padding:20,gap:8}}>
                   <Text style={{fontSize:32}}>📅</Text>
-                  <Text style={{color:'#9ca3af',fontSize:14}}>{t('team.coachDashboard.noEventsYet')}</Text>
-                  <Text style={{color:'#c4c4c4',fontSize:12}}>{t('team.coachDashboard.addEventHint')}</Text>
+                  <Text style={{color:colors.textHint,fontSize:14}}>{t('team.coachDashboard.noEventsYet')}</Text>
+                  <Text style={{color:colors.textHint,fontSize:12}}>{t('team.coachDashboard.addEventHint')}</Text>
                 </View>
               ) : (
                 <ScrollView style={{maxHeight:380}} nestedScrollEnabled showsVerticalScrollIndicator={teamEvents.length>4} contentContainerStyle={{gap:8}}>
@@ -1813,7 +1828,7 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
                     const cfg = EVENT_CFG[ev.event_type] ?? EVENT_CFG.other
                     const past = isPast(ev.event_date)
                     return (
-                      <View key={ev.id} style={{backgroundColor:'#ffffff',borderRadius:12,borderWidth:1,borderColor: past ? 'rgba(0,0,0,0.06)' : cfg.color+'30',padding:12,opacity: past ? 0.55 : 1,shadowColor:'#000',shadowOffset:{width:0,height:1},shadowOpacity:0.05,shadowRadius:4,elevation:1}}>
+                      <View key={ev.id} style={{backgroundColor:colors.card,borderRadius:12,borderWidth:1,borderColor: past ? 'rgba(0,0,0,0.06)' : cfg.color+'30',padding:12,opacity: past ? 0.55 : 1,shadowColor:'#000',shadowOffset:{width:0,height:1},shadowOpacity:0.05,shadowRadius:4,elevation:1}}>
                         <View style={{flexDirection:'row',alignItems:'flex-start',gap:10}}>
                           <View style={{width:46,height:46,borderRadius:12,backgroundColor:cfg.color+'18',alignItems:'center',justifyContent:'center'}}>
                             <Text style={{fontSize:22}}>{cfg.emoji}</Text>
@@ -1823,29 +1838,29 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
                               <View style={{backgroundColor:cfg.color+'20',borderRadius:6,paddingHorizontal:6,paddingVertical:2}}>
                                 <Text style={{color:cfg.color,fontSize:10,fontWeight:'800'}}>{cfg.label}</Text>
                               </View>
-                              {past && <View style={{backgroundColor:'#6b7280'+'20',borderRadius:6,paddingHorizontal:6,paddingVertical:2}}><Text style={{color:'#6b7280',fontSize:10,fontWeight:'700'}}>{t('team.coachDashboard.ended')}</Text></View>}
+                              {past && <View style={{backgroundColor:colors.textSec+'20',borderRadius:6,paddingHorizontal:6,paddingVertical:2}}><Text style={{color:colors.textSec,fontSize:10,fontWeight:'700'}}>{t('team.coachDashboard.ended')}</Text></View>}
                             </View>
-                            <Text style={{color:TEXT.primary,fontSize:15,fontWeight:'800'}}>{ev.title}</Text>
+                            <Text style={{color:colors.text,fontSize:15,fontWeight:'800'}}>{ev.title}</Text>
                             <View style={{flexDirection:'row',alignItems:'center',gap:10,flexWrap:'wrap'}}>
                               <View style={{flexDirection:'row',alignItems:'center',gap:4}}>
-                                <Ionicons name="calendar-outline" size={12} color="#6b7280"/>
-                                <Text style={{color:'#6b7280',fontSize:12,fontWeight:'700'}}>{fmtEventDate(ev.event_date, t, DAY_NAMES)}</Text>
+                                <Ionicons name="calendar-outline" size={12} color={colors.textSec}/>
+                                <Text style={{color:colors.textSec,fontSize:12,fontWeight:'700'}}>{fmtEventDate(ev.event_date, t, DAY_NAMES)}</Text>
                               </View>
                               {!!ev.event_time && (
                                 <View style={{flexDirection:'row',alignItems:'center',gap:4}}>
-                                  <Ionicons name="time-outline" size={12} color="#6b7280"/>
-                                  <Text style={{color:'#6b7280',fontSize:12}}>{ev.event_time}</Text>
+                                  <Ionicons name="time-outline" size={12} color={colors.textSec}/>
+                                  <Text style={{color:colors.textSec,fontSize:12}}>{ev.event_time}</Text>
                                 </View>
                               )}
                               {!!ev.location && (
                                 <View style={{flexDirection:'row',alignItems:'center',gap:4}}>
-                                  <Ionicons name="location-outline" size={12} color="#6b7280"/>
-                                  <Text style={{color:'#6b7280',fontSize:12}}>{ev.location}</Text>
+                                  <Ionicons name="location-outline" size={12} color={colors.textSec}/>
+                                  <Text style={{color:colors.textSec,fontSize:12}}>{ev.location}</Text>
                                 </View>
                               )}
                             </View>
                             {!!ev.description && (
-                              <Text style={{color:'#555',fontSize:13,lineHeight:20,marginTop:4}}>{ev.description}</Text>
+                              <Text style={{color:colors.textSec,fontSize:13,lineHeight:20,marginTop:4}}>{ev.description}</Text>
                             )}
                           </View>
                           <TouchableOpacity onPress={() => removeEvent(ev.id)} hitSlop={{top:10,bottom:10,left:10,right:10}} accessibilityLabel={t('team.coachDashboard.deleteEvent')}>
@@ -1867,7 +1882,7 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
 
               {/* ── 今日の練習を書く ── */}
               <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
-                <Text style={{color:'#9ca3af',fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.coachDashboard.writeMenuLabel')}</Text>
+                <Text style={{color:colors.textHint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.coachDashboard.writeMenuLabel')}</Text>
                 <TouchableOpacity
                   onPress={handlePressAiMenu}
                   activeOpacity={0.8}
@@ -1878,40 +1893,40 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
                 </TouchableOpacity>
               </View>
               <TextInput
-                style={{backgroundColor:'#fff',borderRadius:16,borderWidth:1.5,borderColor:'rgba(0,0,0,0.10)',color:'#111827',fontSize:14,lineHeight:22,paddingHorizontal:14,paddingVertical:14,minHeight:150,textAlignVertical:'top',...(Platform.OS==='web'?{outlineStyle:'none'}as any:{})}}
+                style={{backgroundColor:colors.card,borderRadius:16,borderWidth:1.5,borderColor:colors.border,color:colors.text,fontSize:14,lineHeight:22,paddingHorizontal:14,paddingVertical:14,minHeight:150,textAlignVertical:'top',...(Platform.OS==='web'?{outlineStyle:'none'}as any:{})}}
                 value={planText}
                 onChangeText={setPlanText}
                 placeholder={t('team.coachDashboard.menuPlaceholder')}
-                placeholderTextColor="#c1c5cc"
+                placeholderTextColor={colors.textHint}
                 multiline
               />
 
               {/* ── よく使うフレーズ ── */}
-              <Text style={{color:'#9ca3af',fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.coachDashboard.quickPhrasesLabel')}</Text>
+              <Text style={{color:colors.textHint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.coachDashboard.quickPhrasesLabel')}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:8}}>
                 {quickPhrases.map(p => (
                   <HapticTouch
                     haptic="tap"
                     key={p.id}
-                    style={{backgroundColor:'#f5f6f8',borderWidth:1,borderColor:'rgba(0,0,0,0.07)',borderRadius:16,paddingHorizontal:14,paddingVertical:9}}
+                    style={{backgroundColor:colors.surface2,borderWidth:1,borderColor:colors.border,borderRadius:16,paddingHorizontal:14,paddingVertical:9}}
                     onPress={() => insertPhrase(p.text)}
                     onLongPress={() => deletePhrase(p.id)}
                     delayLongPress={500}
                     activeOpacity={0.8}
                   >
-                    <Text style={{color:'#444',fontSize:12.5,fontWeight:'700'}}>{p.label}</Text>
+                    <Text style={{color:colors.textSec,fontSize:12.5,fontWeight:'700'}}>{p.label}</Text>
                   </HapticTouch>
                 ))}
                 <TouchableOpacity
-                  style={{backgroundColor:'#fff',borderWidth:1,borderStyle:'dashed',borderColor:'rgba(0,0,0,0.15)',borderRadius:16,paddingHorizontal:14,paddingVertical:9}}
+                  style={{backgroundColor:colors.card,borderWidth:1,borderStyle:'dashed',borderColor:'rgba(0,0,0,0.15)',borderRadius:16,paddingHorizontal:14,paddingVertical:9}}
                   onPress={openPhraseForm}
                   activeOpacity={0.8}
                 >
-                  <Text style={{color:'#9ca3af',fontSize:12.5,fontWeight:'700'}}>{t('team.coachDashboard.addPhrase')}</Text>
+                  <Text style={{color:colors.textHint,fontSize:12.5,fontWeight:'700'}}>{t('team.coachDashboard.addPhrase')}</Text>
                 </TouchableOpacity>
               </ScrollView>
               {quickPhrases.length === 0 && (
-                <Text style={{color:'#c1c5cc',fontSize:11,marginTop:-4}}>{t('team.coachDashboard.quickPhrasesHint')}</Text>
+                <Text style={{color:colors.textHint,fontSize:11,marginTop:-4}}>{t('team.coachDashboard.quickPhrasesHint')}</Text>
               )}
 
               {/* ── 共有ボタン ── */}
@@ -1926,7 +1941,7 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
                   : <><Ionicons name="share-outline" size={18} color="#fff"/><Text style={{color:'#fff',fontSize:15,fontWeight:'900'}}>{t('team.coachDashboard.shareToTeam')}</Text></>
                 }
               </TouchableOpacity>
-              <Text style={{color:'#c1c5cc',fontSize:11,textAlign:'center',marginTop:-6}}>{t('team.coachDashboard.shareToTeamNote')}</Text>
+              <Text style={{color:colors.textHint,fontSize:11,textAlign:'center',marginTop:-6}}>{t('team.coachDashboard.shareToTeamNote')}</Text>
 
         </ScrollView>
         )}
@@ -1935,7 +1950,7 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
 
         {/* 予定追加ボタン（カレンダータブ時のみ下固定表示。浮きピルの分だけ上にずらす） */}
         {!loading && tab === 'calendar' && (
-          <View style={{paddingHorizontal:16,paddingBottom:78,paddingTop:8,backgroundColor:'#f6f6f8',borderTopWidth:StyleSheet.hairlineWidth,borderTopColor:'rgba(0,0,0,0.08)'}}>
+          <View style={{paddingHorizontal:16,paddingBottom:78,paddingTop:8,backgroundColor:colors.bg,borderTopWidth:StyleSheet.hairlineWidth,borderTopColor:colors.border}}>
             <HapticTouch
               haptic="whoosh"
               style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:BRAND,borderRadius:14,paddingVertical:14}}
@@ -1950,7 +1965,7 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
 
         {/* ─ タブ切り替え（浮きピル。画面下部・親指の届く位置に固定） ─ */}
         <View style={{position:'absolute', left:16, right:16, bottom:14, pointerEvents:'box-none'}}>
-          <View style={{flexDirection:'row', gap:2, backgroundColor:'#fff', borderRadius:24, padding:5, shadowColor:'#000', shadowOffset:{width:0,height:6}, shadowOpacity:0.14, shadowRadius:20, elevation:8}}>
+          <View style={{flexDirection:'row', gap:2, backgroundColor:colors.card, borderRadius:24, padding:5, shadowColor:'#000', shadowOffset:{width:0,height:6}, shadowOpacity:0.14, shadowRadius:20, elevation:8}}>
             {([
               { key:'members',  label:t('team.coachDashboard.tabMembers'),  badge: unackedPainCount + highRiskMembers.length + absenceMessages.length },
               { key:'menu',     label:t('team.coachDashboard.tabMenu'),     badge: 0 },
@@ -1965,7 +1980,7 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
                 onPress={() => setTab(tabItem.key)}
                 activeOpacity={0.75}
               >
-                <Text style={{fontSize:11.5, fontWeight:'700', color: tab===tabItem.key ? '#fff' : '#8a8f98'}} numberOfLines={1}>{tabItem.label}</Text>
+                <Text style={{fontSize:11.5, fontWeight:'700', color: tab===tabItem.key ? '#fff' : colors.textSec}} numberOfLines={1}>{tabItem.label}</Text>
                 {tabItem.badge > 0 && (
                   <View style={{position:'absolute', top:2, right:6, minWidth:15, height:15, borderRadius:8, backgroundColor:'#ef4444', alignItems:'center', justifyContent:'center', paddingHorizontal:3}}>
                     <Text style={{color:'#fff', fontSize:8.5, fontWeight:'800'}}>{tabItem.badge}</Text>
@@ -1983,14 +1998,14 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
         <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined}>
           <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.7)',justifyContent:'flex-end'}}>
           <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setShowEventModal(false)} activeOpacity={1}/>
-            <View style={{backgroundColor:'#fff',borderTopLeftRadius:24,borderTopRightRadius:24,minHeight:SCREEN_H*0.55,maxHeight:SCREEN_H*0.88}}>
+            <View style={{backgroundColor:colors.card,borderTopLeftRadius:24,borderTopRightRadius:24,minHeight:SCREEN_H*0.55,maxHeight:SCREEN_H*0.88}}>
               {/* 固定ヘッダー */}
               <View style={{paddingHorizontal:22,paddingTop:18,paddingBottom:4}}>
                 <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:14}}/>
                 <View style={{flexDirection:'row',alignItems:'center',marginBottom:4}}>
-                  <Text style={{color:'#111827',fontSize:18,fontWeight:'800',flex:1}}>{t('team.coachDashboard.addEventModalTitle')}</Text>
+                  <Text style={{color:colors.text,fontSize:18,fontWeight:'800',flex:1}}>{t('team.coachDashboard.addEventModalTitle')}</Text>
                   <TouchableOpacity onPress={() => setShowEventModal(false)} hitSlop={{top:10,bottom:10,left:10,right:10}} accessibilityLabel={t('team.videoSubmit.close')}>
-                    <Ionicons name="close" size={22} color={TEXT.secondary}/>
+                    <Ionicons name="close" size={22} color={colors.textSec}/>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1999,20 +2014,20 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
 
               {/* タイトル */}
               <View style={{gap:6}}>
-                <Text style={{color:TEXT.hint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.coachDashboard.eventTitleLabel')}</Text>
-                <TextInput style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:'#111827',fontSize:15,paddingHorizontal:14,paddingVertical:12}}
-                  value={evTitle} onChangeText={setEvTitle} placeholder={t('team.coachDashboard.eventTitlePlaceholder')} placeholderTextColor="#9ca3af" maxLength={40}/>
+                <Text style={{color:colors.textHint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.coachDashboard.eventTitleLabel')}</Text>
+                <TextInput style={{backgroundColor:colors.surface2,borderRadius:12,borderWidth:1,borderColor:colors.border,color:colors.text,fontSize:15,paddingHorizontal:14,paddingVertical:12}}
+                  value={evTitle} onChangeText={setEvTitle} placeholder={t('team.coachDashboard.eventTitlePlaceholder')} placeholderTextColor={colors.textHint} maxLength={40}/>
               </View>
 
               {/* 種別 */}
               <View style={{gap:6}}>
-                <Text style={{color:TEXT.hint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.coachDashboard.eventTypeLabel')}</Text>
+                <Text style={{color:colors.textHint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.coachDashboard.eventTypeLabel')}</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:8}}>
                   {(Object.entries(EVENT_CFG) as [TeamEventType, typeof EVENT_CFG[string]][]).map(([k, v]) => (
                     <TouchableOpacity key={k} onPress={() => setEvType(k)} activeOpacity={0.8}
-                      style={{flexDirection:'row',alignItems:'center',gap:5,paddingHorizontal:12,paddingVertical:8,borderRadius:10,borderWidth:2,borderColor: evType===k ? v.color : 'rgba(0,0,0,0.10)', backgroundColor: evType===k ? v.color+'18' : '#f8f8fa'}}>
+                      style={{flexDirection:'row',alignItems:'center',gap:5,paddingHorizontal:12,paddingVertical:8,borderRadius:10,borderWidth:2,borderColor: evType===k ? v.color : 'rgba(0,0,0,0.10)', backgroundColor: evType===k ? v.color+'18' : colors.surface2}}>
                       <Text style={{fontSize:14}}>{v.emoji}</Text>
-                      <Text style={{color: evType===k ? v.color : '#666',fontSize:12,fontWeight:'700'}}>{v.label}</Text>
+                      <Text style={{color: evType===k ? v.color : colors.textSec,fontSize:12,fontWeight:'700'}}>{v.label}</Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
@@ -2021,30 +2036,30 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
               {/* 日付カレンダー */}
               <View style={{gap:6}}>
                 <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
-                  <Text style={{color:TEXT.hint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.coachDashboard.eventDateLabel')}</Text>
+                  <Text style={{color:colors.textHint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.coachDashboard.eventDateLabel')}</Text>
                   {!!evDate && <Text style={{color:BRAND,fontSize:12,fontWeight:'700'}}>✓ {fmtEventDate(evDate, t, DAY_NAMES)}</Text>}
                 </View>
                 <MiniCalendar value={evDate} onChange={setEvDate}/>
               </View>
               {/* 時間 */}
               <View style={{gap:6}}>
-                <Text style={{color:TEXT.hint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.coachDashboard.eventTimeLabel')}</Text>
-                <TextInput style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:'#111827',fontSize:14,paddingHorizontal:14,paddingVertical:12}}
-                  value={evTime} onChangeText={setEvTime} placeholder={t('team.coachDashboard.eventTimePlaceholder')} placeholderTextColor="#9ca3af" maxLength={5}/>
+                <Text style={{color:colors.textHint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.coachDashboard.eventTimeLabel')}</Text>
+                <TextInput style={{backgroundColor:colors.surface2,borderRadius:12,borderWidth:1,borderColor:colors.border,color:colors.text,fontSize:14,paddingHorizontal:14,paddingVertical:12}}
+                  value={evTime} onChangeText={setEvTime} placeholder={t('team.coachDashboard.eventTimePlaceholder')} placeholderTextColor={colors.textHint} maxLength={5}/>
               </View>
 
               {/* 場所 */}
               <View style={{gap:6}}>
-                <Text style={{color:TEXT.hint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.coachDashboard.eventLocationLabel')}</Text>
-                <TextInput style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:'#111827',fontSize:14,paddingHorizontal:14,paddingVertical:11}}
-                  value={evLocation} onChangeText={setEvLocation} placeholder={t('team.coachDashboard.eventLocationPlaceholder')} placeholderTextColor="#9ca3af" maxLength={40}/>
+                <Text style={{color:colors.textHint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.coachDashboard.eventLocationLabel')}</Text>
+                <TextInput style={{backgroundColor:colors.surface2,borderRadius:12,borderWidth:1,borderColor:colors.border,color:colors.text,fontSize:14,paddingHorizontal:14,paddingVertical:11}}
+                  value={evLocation} onChangeText={setEvLocation} placeholder={t('team.coachDashboard.eventLocationPlaceholder')} placeholderTextColor={colors.textHint} maxLength={40}/>
               </View>
 
               {/* メモ */}
               <View style={{gap:6}}>
-                <Text style={{color:TEXT.hint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.coachDashboard.eventMemoLabel')}</Text>
-                <TextInput style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:'#111827',fontSize:13,paddingHorizontal:14,paddingVertical:10,minHeight:56,textAlignVertical:'top'}}
-                  value={evDesc} onChangeText={setEvDesc} placeholder={t('team.coachDashboard.eventMemoPlaceholder')} placeholderTextColor="#9ca3af" multiline maxLength={120}/>
+                <Text style={{color:colors.textHint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.coachDashboard.eventMemoLabel')}</Text>
+                <TextInput style={{backgroundColor:colors.surface2,borderRadius:12,borderWidth:1,borderColor:colors.border,color:colors.text,fontSize:13,paddingHorizontal:14,paddingVertical:10,minHeight:56,textAlignVertical:'top'}}
+                  value={evDesc} onChangeText={setEvDesc} placeholder={t('team.coachDashboard.eventMemoPlaceholder')} placeholderTextColor={colors.textHint} multiline maxLength={120}/>
               </View>
 
               <HapticTouch
@@ -2094,29 +2109,29 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
         <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined}>
           <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.6)',justifyContent:'flex-end'}}>
             <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setShowPhraseForm(false)} activeOpacity={1}/>
-            <View style={{backgroundColor:'#fff',borderTopLeftRadius:28,borderTopRightRadius:28,paddingTop:12,paddingHorizontal:20,paddingBottom:44,gap:16}}>
+            <View style={{backgroundColor:colors.card,borderTopLeftRadius:28,borderTopRightRadius:28,paddingTop:12,paddingHorizontal:20,paddingBottom:44,gap:16}}>
               <View style={{width:40,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.1)',alignSelf:'center',marginBottom:4}}/>
               <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
-                <Text style={{color:'#111827',fontSize:18,fontWeight:'800'}}>{t('team.coachDashboard.savePhraseTitle')}</Text>
-                <TouchableOpacity onPress={() => setShowPhraseForm(false)} style={{width:32,height:32,borderRadius:16,backgroundColor:'#f0f2f5',alignItems:'center',justifyContent:'center'}} activeOpacity={0.7} hitSlop={{top:8,bottom:8,left:8,right:8}} accessibilityLabel={t('team.videoSubmit.close')}>
-                  <Ionicons name="close" size={16} color="#6b7280"/>
+                <Text style={{color:colors.text,fontSize:18,fontWeight:'800'}}>{t('team.coachDashboard.savePhraseTitle')}</Text>
+                <TouchableOpacity onPress={() => setShowPhraseForm(false)} style={{width:32,height:32,borderRadius:16,backgroundColor:colors.surface2,alignItems:'center',justifyContent:'center'}} activeOpacity={0.7} hitSlop={{top:8,bottom:8,left:8,right:8}} accessibilityLabel={t('team.videoSubmit.close')}>
+                  <Ionicons name="close" size={16} color={colors.textSec}/>
                 </TouchableOpacity>
               </View>
               <View style={{gap:8}}>
-                <Text style={{color:'#9ca3af',fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.coachDashboard.phraseNameLabel')}</Text>
+                <Text style={{color:colors.textHint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.coachDashboard.phraseNameLabel')}</Text>
                 <TextInput
-                  style={{backgroundColor:'#f8f8fa',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:'#111827',fontSize:16,paddingHorizontal:16,paddingVertical:13,...(Platform.OS==='web'?{outlineStyle:'none'}as any:{})}}
+                  style={{backgroundColor:colors.surface2,borderRadius:14,borderWidth:1,borderColor:colors.border,color:colors.text,fontSize:16,paddingHorizontal:16,paddingVertical:13,...(Platform.OS==='web'?{outlineStyle:'none'}as any:{})}}
                   value={phraseFormLabel} onChangeText={setPhraseFormLabel}
-                  placeholder={t('team.coachDashboard.phraseNamePlaceholder')} placeholderTextColor="#9ca3af"
+                  placeholder={t('team.coachDashboard.phraseNamePlaceholder')} placeholderTextColor={colors.textHint}
                   maxLength={20} autoFocus
                 />
               </View>
               <View style={{gap:8}}>
-                <Text style={{color:'#9ca3af',fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.coachDashboard.phraseTextLabel')}</Text>
+                <Text style={{color:colors.textHint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.coachDashboard.phraseTextLabel')}</Text>
                 <TextInput
-                  style={{backgroundColor:'#f8f8fa',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:'#111827',fontSize:15,paddingHorizontal:16,paddingVertical:13,minHeight:70,...(Platform.OS==='web'?{outlineStyle:'none'}as any:{})}}
+                  style={{backgroundColor:colors.surface2,borderRadius:14,borderWidth:1,borderColor:colors.border,color:colors.text,fontSize:15,paddingHorizontal:16,paddingVertical:13,minHeight:70,...(Platform.OS==='web'?{outlineStyle:'none'}as any:{})}}
                   value={phraseFormText} onChangeText={setPhraseFormText}
-                  placeholder={t('team.coachDashboard.phraseTextPlaceholder')} placeholderTextColor="#9ca3af"
+                  placeholder={t('team.coachDashboard.phraseTextPlaceholder')} placeholderTextColor={colors.textHint}
                   multiline maxLength={120}
                 />
               </View>
@@ -2136,15 +2151,15 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
         <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined}>
           <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.6)',justifyContent:'flex-end'}}>
             <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => !aiGenerating && setShowAiMenuSheet(false)} activeOpacity={1}/>
-            <View style={{backgroundColor:'#fff',borderTopLeftRadius:28,borderTopRightRadius:28,paddingTop:12,paddingHorizontal:20,paddingBottom:44,gap:16}}>
+            <View style={{backgroundColor:colors.card,borderTopLeftRadius:28,borderTopRightRadius:28,paddingTop:12,paddingHorizontal:20,paddingBottom:44,gap:16}}>
               <View style={{width:40,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.1)',alignSelf:'center',marginBottom:4}}/>
               <View>
-                <Text style={{color:'#111827',fontSize:17,fontWeight:'800'}}>{t('team.coachDashboard.aiMenuSheetTitle')}</Text>
-                <Text style={{color:'#6b7280',fontSize:12,marginTop:3}}>{t('team.coachDashboard.aiMenuSheetSubtitle')}</Text>
+                <Text style={{color:colors.text,fontSize:17,fontWeight:'800'}}>{t('team.coachDashboard.aiMenuSheetTitle')}</Text>
+                <Text style={{color:colors.textSec,fontSize:12,marginTop:3}}>{t('team.coachDashboard.aiMenuSheetSubtitle')}</Text>
               </View>
 
               <View style={{gap:8}}>
-                <Text style={{color:'#9ca3af',fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.coachDashboard.aiMenuFocusLabel')}</Text>
+                <Text style={{color:colors.textHint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.coachDashboard.aiMenuFocusLabel')}</Text>
                 <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
                   {AI_MENU_FOCUS_TAGS.map(tag => {
                     const active = aiFocusTags.has(tag.key)
@@ -2154,7 +2169,7 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
                         onPress={() => toggleAiFocusTag(tag.key)} activeOpacity={0.75}
                       >
                         <Text style={{fontSize:13}}>{tag.emoji}</Text>
-                        <Text style={{color:active?'#fff':'#6b7280',fontSize:12,fontWeight:'700'}}>{tag.label}</Text>
+                        <Text style={{color:active?'#fff':colors.textSec,fontSize:12,fontWeight:'700'}}>{tag.label}</Text>
                       </TouchableOpacity>
                     )
                   })}
@@ -2162,7 +2177,7 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
               </View>
 
               <View style={{gap:8}}>
-                <Text style={{color:'#9ca3af',fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.coachDashboard.aiMenuIntensityLabel')}</Text>
+                <Text style={{color:colors.textHint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.coachDashboard.aiMenuIntensityLabel')}</Text>
                 <View style={{flexDirection:'row',gap:8}}>
                   {(Object.keys(AI_MENU_INTENSITY_CFG) as AiMenuIntensityKey[]).map(key => {
                     const active = aiIntensity === key
@@ -2171,7 +2186,7 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
                         style={{flex:1,paddingVertical:10,borderRadius:12,borderWidth:1.5,alignItems:'center',borderColor:active?BRAND:'rgba(0,0,0,0.12)',backgroundColor:active?BRAND:'transparent'}}
                         onPress={() => setAiIntensity(key)} activeOpacity={0.75}
                       >
-                        <Text style={{color:active?'#fff':'#6b7280',fontSize:13,fontWeight:'800'}}>{AI_MENU_INTENSITY_CFG[key].label}</Text>
+                        <Text style={{color:active?'#fff':colors.textSec,fontSize:13,fontWeight:'800'}}>{AI_MENU_INTENSITY_CFG[key].label}</Text>
                       </TouchableOpacity>
                     )
                   })}
@@ -2179,12 +2194,12 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
               </View>
 
               <View style={{gap:8}}>
-                <Text style={{color:'#9ca3af',fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.coachDashboard.aiMenuFreeNoteLabel')}</Text>
+                <Text style={{color:colors.textHint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.coachDashboard.aiMenuFreeNoteLabel')}</Text>
                 <TextInput
-                  style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:'#111827',fontSize:13,paddingHorizontal:14,paddingVertical:11,minHeight:50,...(Platform.OS==='web'?{outlineStyle:'none'}as any:{})}}
+                  style={{backgroundColor:colors.surface2,borderRadius:12,borderWidth:1,borderColor:colors.border,color:colors.text,fontSize:13,paddingHorizontal:14,paddingVertical:11,minHeight:50,...(Platform.OS==='web'?{outlineStyle:'none'}as any:{})}}
                   value={aiFreeNote} onChangeText={setAiFreeNote}
                   placeholder={t('team.coachDashboard.aiMenuFreeNotePlaceholder')}
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={colors.textHint}
                   multiline maxLength={150}
                 />
               </View>
@@ -2229,6 +2244,7 @@ function MemberDetailSheet({ member, preCalcRisk, onClose, onAck }: {
 }) {
   const { t } = useTranslation()
   const { language } = useLanguage()
+  const { colors } = useTheme()
   const RISK_CFG = buildRiskCfg(t)
   const LOAD_CFG = buildLoadCfg(t)
   // リスト画面と同じ計算式で算出済みのリスクを優先使用
@@ -2244,7 +2260,7 @@ function MemberDetailSheet({ member, preCalcRisk, onClose, onAck }: {
   return (
     <View style={[StyleSheet.absoluteFill,{backgroundColor:'rgba(0,0,0,0.85)',justifyContent:'flex-end'}]}>
       <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose}/>
-      <View style={{backgroundColor:'#ffffff',borderTopLeftRadius:24,borderTopRightRadius:24,paddingBottom:44,borderTopWidth:1,borderColor:'rgba(0,0,0,0.08)',overflow:'hidden',maxHeight:SCREEN_H*0.88}}>
+      <View style={{backgroundColor:colors.card,borderTopLeftRadius:24,borderTopRightRadius:24,paddingBottom:44,borderTopWidth:1,borderColor:colors.border,overflow:'hidden',maxHeight:SCREEN_H*0.88}}>
         <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={{padding:20}}>
           <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:16}}/>
@@ -2253,9 +2269,9 @@ function MemberDetailSheet({ member, preCalcRisk, onClose, onAck }: {
           <View style={{flexDirection:'row',alignItems:'center',gap:12,marginBottom:16}}>
             <Avatar name={member.name} size={50} color={avatarColor(member.name)}/>
             <View style={{flex:1,gap:4}}>
-              <Text style={{color:'#111827',fontSize:19,fontWeight:'800'}}>{member.name}</Text>
+              <Text style={{color:colors.text,fontSize:19,fontWeight:'800'}}>{member.name}</Text>
               <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
-                {member.event ? <Text style={{color:TEXT.secondary,fontSize:12}}>{member.event}</Text> : null}
+                {member.event ? <Text style={{color:colors.textSec,fontSize:12}}>{member.event}</Text> : null}
                 <View style={{flexDirection:'row',alignItems:'center',gap:3,backgroundColor:lvTier.color+'20',borderRadius:7,paddingHorizontal:6,paddingVertical:2}}>
                   <Text style={{fontSize:10}}>{lvTier.emoji}</Text>
                   <Text style={{color:lvTier.color,fontSize:10,fontWeight:'800'}}>Lv.{lvInfo.level}</Text>
@@ -2263,7 +2279,7 @@ function MemberDetailSheet({ member, preCalcRisk, onClose, onAck }: {
               </View>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={{top:10,bottom:10,left:10,right:10}} accessibilityLabel={t('team.memberDetail.close')}>
-              <Ionicons name="close" size={22} color={TEXT.secondary}/>
+              <Ionicons name="close" size={22} color={colors.textSec}/>
             </TouchableOpacity>
           </View>
 
@@ -2284,7 +2300,7 @@ function MemberDetailSheet({ member, preCalcRisk, onClose, onAck }: {
               <PainBadges parts={member.painParts!}/>
               {!!member.painDetail && (
                 <View style={{marginTop:10, backgroundColor:'rgba(0,0,0,0.04)', borderRadius:8, padding:10}}>
-                  <Text style={{color:'#444', fontSize:12, lineHeight:18}}>📝 {member.painDetail}</Text>
+                  <Text style={{color:colors.textSec, fontSize:12, lineHeight:18}}>📝 {member.painDetail}</Text>
                 </View>
               )}
               {hasUnacked && onAck && (
@@ -2308,26 +2324,26 @@ function MemberDetailSheet({ member, preCalcRisk, onClose, onAck }: {
                 <View style={{flex:1,alignItems:'center',backgroundColor:rCfg.bg,borderRadius:12,borderWidth:1,borderColor:rCfg.color+'40',paddingVertical:14,gap:3}}>
                   <Text style={{color:rCfg.color,fontSize:28,fontWeight:'900'}}>{risk.riskScore}</Text>
                   <Text style={{color:rCfg.color,fontSize:11,fontWeight:'700'}}>{rCfg.label}</Text>
-                  <Text style={{color:'#555',fontSize:10}}>{t('team.memberDetail.injuryRisk')}</Text>
+                  <Text style={{color:colors.textSec,fontSize:10}}>{t('team.memberDetail.injuryRisk')}</Text>
                 </View>
                 {/* 疲労 */}
-                <View style={{flex:1,alignItems:'center',backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',paddingVertical:14,gap:3}}>
+                <View style={{flex:1,alignItems:'center',backgroundColor:colors.surface2,borderRadius:12,borderWidth:1,borderColor:colors.border,paddingVertical:14,gap:3}}>
                   <Text style={{fontSize:28}}>{fat.emoji}</Text>
                   <Text style={{color:fat.color,fontSize:11,fontWeight:'700'}}>{fat.label}</Text>
-                  <Text style={{color:'#555',fontSize:10}}>{t('team.memberDetail.fatigueLevel')}</Text>
+                  <Text style={{color:colors.textSec,fontSize:10}}>{t('team.memberDetail.fatigueLevel')}</Text>
                 </View>
                 {/* 今週距離 */}
-                <View style={{flex:1,alignItems:'center',backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',paddingVertical:14,gap:3}}>
-                  <Text style={{color:'#111827',fontSize:22,fontWeight:'800'}}>{risk.weeklyKm}<Text style={{fontSize:10,color:'#888'}}>km</Text></Text>
-                  <Text style={{color:'#888',fontSize:10}}>{t('team.memberDetail.lastWeek', { km: risk.prevWeeklyKm })}</Text>
-                  <Text style={{color:'#555',fontSize:10}}>{t('team.memberDetail.weeklyDistance')}</Text>
+                <View style={{flex:1,alignItems:'center',backgroundColor:colors.surface2,borderRadius:12,borderWidth:1,borderColor:colors.border,paddingVertical:14,gap:3}}>
+                  <Text style={{color:colors.text,fontSize:22,fontWeight:'800'}}>{risk.weeklyKm}<Text style={{fontSize:10,color:colors.textSec}}>km</Text></Text>
+                  <Text style={{color:colors.textSec,fontSize:10}}>{t('team.memberDetail.lastWeek', { km: risk.prevWeeklyKm })}</Text>
+                  <Text style={{color:colors.textSec,fontSize:10}}>{t('team.memberDetail.weeklyDistance')}</Text>
                 </View>
               </View>
 
               {/* 負荷 */}
-              <View style={{flexDirection:'row',alignItems:'center',gap:8,backgroundColor:'#f0f2f5',borderRadius:10,padding:10,marginBottom:10}}>
+              <View style={{flexDirection:'row',alignItems:'center',gap:8,backgroundColor:colors.surface2,borderRadius:10,padding:10,marginBottom:10}}>
                 <View style={{width:8,height:8,borderRadius:4,backgroundColor:lCfg.color}}/>
-                <Text style={{color:'#555',fontSize:12}}>{t('team.memberDetail.weeklyLoad')} <Text style={{color:lCfg.color,fontWeight:'700'}}>{lCfg.label}</Text></Text>
+                <Text style={{color:colors.textSec,fontSize:12}}>{t('team.memberDetail.weeklyLoad')} <Text style={{color:lCfg.color,fontWeight:'700'}}>{lCfg.label}</Text></Text>
                 <View style={{flex:1,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.07)',overflow:'hidden',marginLeft:4}}>
                   <View style={{width:`${Math.min(100,risk.riskScore)}%`,height:'100%',backgroundColor:rCfg.color,borderRadius:2}}/>
                 </View>
@@ -2336,19 +2352,19 @@ function MemberDetailSheet({ member, preCalcRisk, onClose, onAck }: {
               {risk.reasons.length > 0 && (
                 <View style={{backgroundColor:'rgba(255,149,0,0.08)',borderRadius:12,borderWidth:1,borderColor:'rgba(239,68,68,0.25)',padding:12,marginBottom:10}}>
                   <Text style={{color:'#92400e',fontSize:12,fontWeight:'700',marginBottom:6}}>{t('team.memberDetail.attentionPoints')}</Text>
-                  {risk.reasons.map((r,i) => <Text key={i} style={{color:TEXT.secondary,fontSize:12,lineHeight:19}}>• {r}</Text>)}
+                  {risk.reasons.map((r,i) => <Text key={i} style={{color:colors.textSec,fontSize:12,lineHeight:19}}>• {r}</Text>)}
                 </View>
               )}
             </>
           ) : (
-            <View style={{backgroundColor:'#f8f8fa',borderRadius:12,padding:14,marginBottom:10,alignItems:'center',gap:6}}>
-              <Ionicons name="fitness-outline" size={24} color="#9ca3af"/>
-              <Text style={{color:'#555',fontSize:12}}>{t('team.memberDetail.notSyncedTitle')}</Text>
-              <Text style={{color:'#9ca3af',fontSize:11}}>{t('team.memberDetail.notSyncedHint')}</Text>
+            <View style={{backgroundColor:colors.surface2,borderRadius:12,padding:14,marginBottom:10,alignItems:'center',gap:6}}>
+              <Ionicons name="fitness-outline" size={24} color={colors.textHint}/>
+              <Text style={{color:colors.textSec,fontSize:12}}>{t('team.memberDetail.notSyncedTitle')}</Text>
+              <Text style={{color:colors.textHint,fontSize:11}}>{t('team.memberDetail.notSyncedHint')}</Text>
             </View>
           )}
 
-          <Text style={{color:'#aaa',fontSize:11,textAlign:'center',marginTop:4}}>
+          <Text style={{color:colors.textHint,fontSize:11,textAlign:'center',marginTop:4}}>
             {t('team.memberDetail.joinedDate', { date: daysSince(member.lastActive, t) })}
           </Text>
         </View>
@@ -2369,6 +2385,7 @@ function TeammateProfileSheet({ member, stats, sessions, onClose }: {
 }) {
   const { t } = useTranslation()
   const { language } = useLanguage()
+  const { colors } = useTheme()
   const lvInfo = calcLevelInfo(stats?.level ?? 1, language)
   const lvTier = RANK_TIERS.find(t => lvInfo.level >= t.min && lvInfo.level < t.max) ?? RANK_TIERS[0]
   const event  = stats?.event || member.event || ''
@@ -2379,14 +2396,14 @@ function TeammateProfileSheet({ member, stats, sessions, onClose }: {
   return (
     <View style={[StyleSheet.absoluteFill,{backgroundColor:'rgba(0,0,0,0.85)',justifyContent:'flex-end'}]}>
       <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose}/>
-      <View style={{backgroundColor:'#ffffff',borderTopLeftRadius:24,borderTopRightRadius:24,padding:24,paddingBottom:48,borderTopWidth:1,borderColor:'rgba(0,0,0,0.08)'}}>
-        <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:20}}/>
+      <View style={{backgroundColor:colors.card,borderTopLeftRadius:24,borderTopRightRadius:24,padding:24,paddingBottom:48,borderTopWidth:1,borderColor:colors.border}}>
+        <View style={{width:36,height:4,borderRadius:2,backgroundColor:colors.border,alignSelf:'center',marginBottom:20}}/>
 
         {/* ─ プロフィールヘッダー ─ */}
         <View style={{alignItems:'center',gap:10,marginBottom:24}}>
           <Avatar name={member.player_name} size={72} color={avatarColor(member.player_name)}/>
-          <Text style={{color:'#111827',fontSize:22,fontWeight:'800'}}>{member.player_name}</Text>
-          {event ? <Text style={{color:TEXT.secondary,fontSize:14}}>{getEventLabel(event, language)}</Text> : null}
+          <Text style={{color:colors.text,fontSize:22,fontWeight:'800'}}>{member.player_name}</Text>
+          {event ? <Text style={{color:colors.textSec,fontSize:14}}>{getEventLabel(event, language)}</Text> : null}
         </View>
 
         {/* ─ ランク・PBカード ─ */}
@@ -2396,7 +2413,7 @@ function TeammateProfileSheet({ member, stats, sessions, onClose }: {
             <Text style={{fontSize:32}}>{lvTier.emoji}</Text>
             <Text style={{color:lvTier.color,fontSize:24,fontWeight:'900'}}>Lv.{lvInfo.level}</Text>
             <Text style={{color:lvTier.color,fontSize:12,fontWeight:'700'}}>{getTierTitle(lvTier.title, language)}</Text>
-            <Text style={{color:'#888',fontSize:10}}>{t('team.teammateProfile.level')}</Text>
+            <Text style={{color:colors.textSec,fontSize:10}}>{t('team.teammateProfile.level')}</Text>
           </View>
           {/* 自己ベスト */}
           <View style={{flex:1,alignItems:'center',backgroundColor:'rgba(255,149,0,0.08)',borderRadius:16,borderWidth:1.5,borderColor:'rgba(239,68,68,0.25)',paddingVertical:20,gap:6}}>
@@ -2404,12 +2421,12 @@ function TeammateProfileSheet({ member, stats, sessions, onClose }: {
             {pb ? (
               <>
                 <Text style={{color:'#FF9500',fontSize:22,fontWeight:'900'}}>{pb}</Text>
-                <Text style={{color:'#888',fontSize:10}}>{t('team.teammateProfile.personalBest')}</Text>
+                <Text style={{color:colors.textSec,fontSize:10}}>{t('team.teammateProfile.personalBest')}</Text>
               </>
             ) : (
               <>
-                <Text style={{color:'#ccc',fontSize:16,fontWeight:'700'}}>{t('team.teammateProfile.notEntered')}</Text>
-                <Text style={{color:'#aaa',fontSize:10}}>{t('team.teammateProfile.personalBest')}</Text>
+                <Text style={{color:colors.textHint,fontSize:16,fontWeight:'700'}}>{t('team.teammateProfile.notEntered')}</Text>
+                <Text style={{color:colors.textHint,fontSize:10}}>{t('team.teammateProfile.personalBest')}</Text>
               </>
             )}
           </View>
@@ -2421,7 +2438,7 @@ function TeammateProfileSheet({ member, stats, sessions, onClose }: {
             <Text style={{fontSize:28}}>🔥</Text>
             <View style={{gap:2}}>
               <Text style={{color:'#FF6B35',fontSize:26,fontWeight:'900'}}>{t('team.teammateProfile.streakDays', { n: streak })}</Text>
-              <Text style={{color:'#888',fontSize:11,textAlign:'center'}}>{t('team.teammateProfile.streakSub')}</Text>
+              <Text style={{color:colors.textSec,fontSize:11,textAlign:'center'}}>{t('team.teammateProfile.streakSub')}</Text>
             </View>
           </PulseView>
         )}
@@ -2429,11 +2446,11 @@ function TeammateProfileSheet({ member, stats, sessions, onClose }: {
         {goal ? (
           <View style={{backgroundColor:'rgba(0,122,255,0.06)',borderRadius:12,borderWidth:1,borderColor:'rgba(0,122,255,0.15)',padding:14,marginBottom:16}}>
             <Text style={{color:'#007AFF',fontSize:11,fontWeight:'700',marginBottom:4}}>{t('team.teammateProfile.goal')}</Text>
-            <Text style={{color:TEXT.primary,fontSize:15,fontWeight:'600'}}>{goal}</Text>
+            <Text style={{color:colors.text,fontSize:15,fontWeight:'600'}}>{goal}</Text>
           </View>
         ) : null}
 
-        <Text style={{color:'#aaa',fontSize:11,textAlign:'center'}}>
+        <Text style={{color:colors.textHint,fontSize:11,textAlign:'center'}}>
           {t('team.teammateProfile.joinedDate', { date: daysSince(member.joined_at, t) })}
         </Text>
       </View>
@@ -2449,6 +2466,9 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
 }) {
   const { t } = useTranslation()
   const { language } = useLanguage()
+  const { colors } = useTheme()
+  const pl = useMemo(() => makePlStyles(colors), [colors])
+  const co = useMemo(() => makeCoStyles(colors), [colors])
   const DAY_NAMES = t('home.dayNames', { returnObjects: true }) as unknown as string[]
   const [sessions,          setSessions]          = useState<TrainingSession[]>([])
   const [messages,          setMessages]          = useState<TeamMessage[]>([])
@@ -2756,17 +2776,17 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
   const regular = messages.filter(m => !m.is_pinned && m.author_name !== '__system__')
 
   return (
-    <View style={{flex:1,backgroundColor:'#f6f6f8'}}>
+    <View style={{flex:1,backgroundColor:colors.bg}}>
       <SafeAreaView style={{flex:1}}>
         {plLoading ? (
           <View style={{flex:1,alignItems:'center',justifyContent:'center',gap:12}}>
             <Text style={{fontSize:32}}>⏳</Text>
-            <Text style={{color:'#9ca3af',fontSize:14}}>{t('team.playerDashboard.loading')}</Text>
+            <Text style={{color:colors.textHint,fontSize:14}}>{t('team.playerDashboard.loading')}</Text>
           </View>
         ) : (
           <>
             {/* ─ 固定ヘッダー ─ */}
-            <View style={{paddingHorizontal:16,paddingTop:12,paddingBottom:10,backgroundColor:'#f6f6f8'}}>
+            <View style={{paddingHorizontal:16,paddingTop:12,paddingBottom:10,backgroundColor:colors.bg}}>
               <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
                 <View style={{flexDirection:'row',alignItems:'center',gap:10,flex:1}}>
                   {/* タップでアイコン変更 */}
@@ -2777,21 +2797,21 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                     </View>
                   </TouchableOpacity>
                   <View style={{gap:2,flex:1}}>
-                    <Text style={{color:TEXT.primary,fontSize:18,fontWeight:'800'}} numberOfLines={1}>{joined.teamName}</Text>
+                    <Text style={{color:colors.text,fontSize:18,fontWeight:'800'}} numberOfLines={1}>{joined.teamName}</Text>
                     <View style={{flexDirection:'row',gap:6,alignItems:'center'}}>
                       <View style={{backgroundColor:'#34C759'+'20',borderRadius:6,paddingHorizontal:7,paddingVertical:2}}>
                         <Text style={{color:'#34C759',fontSize:11,fontWeight:'700'}}>{t('team.playerDashboard.player')}</Text>
                       </View>
-                      <Text style={{color:'#555',fontSize:11}} numberOfLines={1}>{joined.playerName}</Text>
+                      <Text style={{color:colors.textSec,fontSize:11}} numberOfLines={1}>{joined.playerName}</Text>
                     </View>
                   </View>
                 </View>
                 <View style={{flexDirection:'row',gap:8,alignItems:'center'}}>
                   <TouchableOpacity onPress={() => load()} style={co.switchBtn} activeOpacity={0.7} hitSlop={{top:4,bottom:4,left:4,right:4}} accessibilityLabel={t('team.playerDashboard.refresh')}>
-                    <Ionicons name="refresh-outline" size={15} color={TEXT.secondary}/>
+                    <Ionicons name="refresh-outline" size={15} color={colors.textSec}/>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => setShowMenu(true)} style={co.switchBtn} activeOpacity={0.7} hitSlop={{top:4,bottom:4,left:4,right:4}} accessibilityLabel={t('team.playerDashboard.menu')}>
-                    <Ionicons name="ellipsis-horizontal" size={15} color={TEXT.secondary}/>
+                    <Ionicons name="ellipsis-horizontal" size={15} color={colors.textSec}/>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -2808,8 +2828,8 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                           <Ionicons name="body-outline" size={18} color="#FF9500"/>
                         </View>
                         <View style={{flex:1}}>
-                          <Text style={{color:TEXT.primary,fontSize:12,fontWeight:'800'}}>{t('team.playerDashboard.reportPain')}</Text>
-                          <Text style={{color:'#9ca3af',fontSize:10,marginTop:1}}>{bodyParts.length > 0 ? t('team.playerDashboard.painCountReporting', { n: bodyParts.length }) : t('team.playerDashboard.noPainReport')}</Text>
+                          <Text style={{color:colors.text,fontSize:12,fontWeight:'800'}}>{t('team.playerDashboard.reportPain')}</Text>
+                          <Text style={{color:colors.textHint,fontSize:10,marginTop:1}}>{bodyParts.length > 0 ? t('team.playerDashboard.painCountReporting', { n: bodyParts.length }) : t('team.playerDashboard.noPainReport')}</Text>
                         </View>
                         {bodyParts.length > 0 && <View style={{backgroundColor:'#FF9500',borderRadius:10,width:20,height:20,alignItems:'center',justifyContent:'center'}}><Text style={{color:'#fff',fontSize:10,fontWeight:'800'}}>{bodyParts.length}</Text></View>}
                       </HapticTouch>
@@ -2818,8 +2838,8 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                           <Ionicons name="videocam-outline" size={18} color={BRAND}/>
                         </View>
                         <View style={{flex:1}}>
-                          <Text style={{color:TEXT.primary,fontSize:12,fontWeight:'800'}}>{t('team.playerDashboard.sendVideo')}</Text>
-                          <Text style={{color:'#9ca3af',fontSize:10,marginTop:1}}>{t('team.playerDashboard.sendToCoach')}</Text>
+                          <Text style={{color:colors.text,fontSize:12,fontWeight:'800'}}>{t('team.playerDashboard.sendVideo')}</Text>
+                          <Text style={{color:colors.textHint,fontSize:10,marginTop:1}}>{t('team.playerDashboard.sendToCoach')}</Text>
                         </View>
                       </HapticTouch>
                     </View>
@@ -2840,8 +2860,8 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                           <Ionicons name="person-circle-outline" size={18} color="#AF52DE"/>
                         </View>
                         <View style={{flex:1}}>
-                          <Text style={{color:TEXT.primary,fontSize:12,fontWeight:'800'}}>{t('team.playerDashboard.profile')}</Text>
-                          <Text style={{color:'#9ca3af',fontSize:10,marginTop:1}}>{t('team.playerDashboard.eventAndPb')}</Text>
+                          <Text style={{color:colors.text,fontSize:12,fontWeight:'800'}}>{t('team.playerDashboard.profile')}</Text>
+                          <Text style={{color:colors.textHint,fontSize:10,marginTop:1}}>{t('team.playerDashboard.eventAndPb')}</Text>
                         </View>
                       </HapticTouch>
                       <HapticTouch haptic="whoosh" style={[pl.actionBtn,{borderColor: shareLvColor+'40', backgroundColor: shareLvColor+'08'}]} onPress={() => setShowShareLevel(true)} activeOpacity={0.85}>
@@ -2849,10 +2869,10 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                           <Ionicons name={shareLvIcon as any} size={18} color={shareLvColor}/>
                         </View>
                         <View style={{flex:1}}>
-                          <Text style={{color:TEXT.primary,fontSize:12,fontWeight:'800'}}>{t('team.playerDashboard.shareSettings')}</Text>
+                          <Text style={{color:colors.text,fontSize:12,fontWeight:'800'}}>{t('team.playerDashboard.shareSettings')}</Text>
                           <Text style={{color: shareLvColor,fontSize:10,fontWeight:'700',marginTop:1}}>{shareLvLabel}</Text>
                         </View>
-                        <Ionicons name="chevron-forward" size={14} color="#ccc"/>
+                        <Ionicons name="chevron-forward" size={14} color={colors.textHint}/>
                       </HapticTouch>
                     </View>
                   </View>
@@ -2861,7 +2881,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
             </View>
 
             {/* ─ タブバー ─ */}
-            <View style={{flexDirection:'row', backgroundColor:'#fff', borderBottomWidth:1, borderBottomColor:'rgba(0,0,0,0.08)'}}>
+            <View style={{flexDirection:'row', backgroundColor:colors.card, borderBottomWidth:1, borderBottomColor:colors.border}}>
               {([
                 { key:'home'    as const, label:t('team.playerDashboard.tabHome') },
                 { key:'members' as const, label:t('team.playerDashboard.tabMembers') },
@@ -2869,7 +2889,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                 <HapticTouch haptic="tabSwitch" key={tabItem.key}
                   style={{flex:1, alignItems:'center', justifyContent:'center', paddingVertical:10, borderBottomWidth:2, borderBottomColor: plTab===tabItem.key ? BRAND : 'transparent'}}
                   onPress={() => setPlTab(tabItem.key)} activeOpacity={0.7}>
-                  <Text style={{fontSize:13, fontWeight:'700', color: plTab===tabItem.key ? BRAND : '#888'}}>{tabItem.label}</Text>
+                  <Text style={{fontSize:13, fontWeight:'700', color: plTab===tabItem.key ? BRAND : colors.textSec}}>{tabItem.label}</Text>
                 </HapticTouch>
               ))}
             </View>
@@ -2896,7 +2916,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                     {pinned.map(m => (
                       <View key={m.id} style={{backgroundColor:'rgba(255,149,0,0.08)',borderRadius:12,borderWidth:1,borderColor:'rgba(255,149,0,0.4)',padding:14}}>
                         <Text style={{color:'#FF9500',fontSize:11,fontWeight:'700',marginBottom:6}}>📌 {m.author_name} · {timeAgo(m.created_at, t)}</Text>
-                        <Text style={{color:TEXT.primary,fontSize:14,lineHeight:22}}>{m.content}</Text>
+                        <Text style={{color:colors.text,fontSize:14,lineHeight:22}}>{m.content}</Text>
                       </View>
                     ))}
                   </View>
@@ -2909,13 +2929,13 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                   <View style={{gap:8}}>
                     <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
                       <Text style={pl.sectionTitle}>{t('team.playerDashboard.coachMessages')}</Text>
-                      {regular.length > 3 && <Text style={{color:'#9ca3af',fontSize:10}}>{t('team.playerDashboard.count', { n: regular.length })}</Text>}
+                      {regular.length > 3 && <Text style={{color:colors.textHint,fontSize:10}}>{t('team.playerDashboard.count', { n: regular.length })}</Text>}
                     </View>
                     <ScrollView style={{maxHeight:228,borderRadius:12}} nestedScrollEnabled showsVerticalScrollIndicator={regular.length > 3} contentContainerStyle={{gap:8}}>
                       {regular.map(m => (
-                        <View key={m.id} style={{backgroundColor:'#ffffff',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',padding:14}}>
+                        <View key={m.id} style={{backgroundColor:colors.card,borderRadius:12,borderWidth:1,borderColor:colors.border,padding:14}}>
                           <Text style={{color:BRAND,fontSize:11,fontWeight:'700',marginBottom:6}}>{m.author_name} · {timeAgo(m.created_at, t)}</Text>
-                          <Text style={{color:TEXT.primary,fontSize:14,lineHeight:22}}>{m.content}</Text>
+                          <Text style={{color:colors.text,fontSize:14,lineHeight:22}}>{m.content}</Text>
                         </View>
                       ))}
                     </ScrollView>
@@ -2925,9 +2945,9 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
 
                 {messages.length === 0 && (
                   <AnimatedSection delay={0} type="fade-up">
-                  <View style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',padding:20,alignItems:'center',gap:6}}>
-                    <Ionicons name="chatbubble-outline" size={26} color="#9ca3af"/>
-                    <Text style={{color:'#6b7280',fontSize:13}}>{t('team.playerDashboard.noCoachMessages')}</Text>
+                  <View style={{backgroundColor:colors.surface2,borderRadius:12,borderWidth:1,borderColor:colors.border,padding:20,alignItems:'center',gap:6}}>
+                    <Ionicons name="chatbubble-outline" size={26} color={colors.textHint}/>
+                    <Text style={{color:colors.textSec,fontSize:13}}>{t('team.playerDashboard.noCoachMessages')}</Text>
                   </View>
                   </AnimatedSection>
                 )}
@@ -2952,15 +2972,15 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                         ) : null
                       })()}
                     </View>
-                    {teamEvents.length > 0 && <Text style={{color:'#9ca3af',fontSize:11}}>{t('team.playerDashboard.count', { n: teamEvents.length })}</Text>}
+                    {teamEvents.length > 0 && <Text style={{color:colors.textHint,fontSize:11}}>{t('team.playerDashboard.count', { n: teamEvents.length })}</Text>}
                   </View>
                   {teamEvents.length === 0 ? (
-                    <View style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',padding:20,alignItems:'center',gap:6}}>
+                    <View style={{backgroundColor:colors.card,borderRadius:14,borderWidth:1,borderColor:colors.border,padding:20,alignItems:'center',gap:6}}>
                       <Text style={{fontSize:28}}>📅</Text>
-                      <Text style={{color:'#9ca3af',fontSize:13}}>{t('team.playerDashboard.noCoachEvents')}</Text>
+                      <Text style={{color:colors.textHint,fontSize:13}}>{t('team.playerDashboard.noCoachEvents')}</Text>
                     </View>
                   ) : (
-                    <View style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',overflow:'hidden'}}>
+                    <View style={{backgroundColor:colors.card,borderRadius:14,borderWidth:1,borderColor:colors.border,overflow:'hidden'}}>
                       <ScrollView
                         style={{maxHeight: 260}}
                         showsVerticalScrollIndicator={false}
@@ -2975,7 +2995,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                           return (
                             <View key={ev.id} style={{
                               borderBottomWidth: i < teamEvents.length-1 ? StyleSheet.hairlineWidth : 0,
-                              borderBottomColor:'rgba(0,0,0,0.07)',
+                              borderBottomColor:colors.border,
                               backgroundColor: isNew && !confirmed ? 'rgba(0,180,216,0.05)' : 'transparent',
                             }}>
                               {/* NEW バッジ帯 */}
@@ -2997,7 +3017,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                                 {/* 左: イベントアイコン */}
                                 <View style={{
                                   width:40, height:40, borderRadius:12,
-                                  backgroundColor: confirmed ? '#f0f2f5' : cfg.color+'18',
+                                  backgroundColor: confirmed ? colors.surface2 : cfg.color+'18',
                                   alignItems:'center', justifyContent:'center',
                                   borderWidth: confirmed ? 1.5 : 0,
                                   borderColor: confirmed ? '#34C759' : 'transparent',
@@ -3011,7 +3031,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                                 <View style={{flex:1,gap:2}}>
                                   <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
                                     <Text style={{
-                                      color: confirmed ? '#9ca3af' : TEXT.primary,
+                                      color: confirmed ? colors.textHint : colors.text,
                                       fontSize:14, fontWeight:'700',
                                       textDecorationLine: confirmed ? 'line-through' : 'none',
                                     }}>{ev.title}</Text>
@@ -3022,11 +3042,11 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                                     )}
                                   </View>
                                   <View style={{flexDirection:'row',alignItems:'center',gap:8,flexWrap:'wrap'}}>
-                                    <Text style={{color: confirmed ? '#bbb' : cfg.color, fontSize:11,fontWeight:'700'}}>{fmtEventDate(ev.event_date, t, DAY_NAMES)}</Text>
-                                    {!!ev.event_time && <Text style={{color:'#888',fontSize:11}}>{ev.event_time}</Text>}
-                                    {!!ev.location && <Text style={{color:'#888',fontSize:11}}>📍{ev.location}</Text>}
+                                    <Text style={{color: confirmed ? colors.textHint : cfg.color, fontSize:11,fontWeight:'700'}}>{fmtEventDate(ev.event_date, t, DAY_NAMES)}</Text>
+                                    {!!ev.event_time && <Text style={{color:colors.textSec,fontSize:11}}>{ev.event_time}</Text>}
+                                    {!!ev.location && <Text style={{color:colors.textSec,fontSize:11}}>📍{ev.location}</Text>}
                                   </View>
-                                  {!!ev.description && <Text style={{color:'#6b7280',fontSize:12,lineHeight:18}}>{ev.description}</Text>}
+                                  {!!ev.description && <Text style={{color:colors.textSec,fontSize:12,lineHeight:18}}>{ev.description}</Text>}
                                 </View>
                                 {/* 右: 確認ボタン */}
                                 {!past && (
@@ -3054,8 +3074,8 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                       </ScrollView>
                       {/* スクロール可能サイン */}
                       {teamEvents.length > 3 && (
-                        <View style={{height:24,backgroundColor:'#ffffff',borderTopWidth:StyleSheet.hairlineWidth,borderTopColor:'rgba(0,0,0,0.06)',alignItems:'center',justifyContent:'center'}}>
-                          <Ionicons name="chevron-down" size={14} color="#bbb"/>
+                        <View style={{height:24,backgroundColor:colors.card,borderTopWidth:StyleSheet.hairlineWidth,borderTopColor:colors.border,alignItems:'center',justifyContent:'center'}}>
+                          <Ionicons name="chevron-down" size={14} color={colors.textHint}/>
                         </View>
                       )}
                     </View>
@@ -3065,23 +3085,23 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
 
                 {/* 今日の欠席報告 */}
                 <AnimatedSection delay={100} type="fade-up">
-                <View style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',padding:16,gap:12}}>
+                <View style={{backgroundColor:colors.card,borderRadius:14,borderWidth:1,borderColor:colors.border,padding:16,gap:12}}>
                   <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
                     <Text style={{fontSize:18}}>😴</Text>
-                    <Text style={{color:TEXT.primary,fontSize:14,fontWeight:'800',flex:1}}>{t('team.playerDashboard.todayAbsence')}</Text>
+                    <Text style={{color:colors.text,fontSize:14,fontWeight:'800',flex:1}}>{t('team.playerDashboard.todayAbsence')}</Text>
                   </View>
                   <TextInput
-                    style={{backgroundColor:'#f8f8fa',borderRadius:10,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:TEXT.primary,fontSize:13,paddingHorizontal:14,paddingVertical:10,minHeight:52,textAlignVertical:'top'}}
+                    style={{backgroundColor:colors.surface2,borderRadius:10,borderWidth:1,borderColor:colors.border,color:colors.text,fontSize:13,paddingHorizontal:14,paddingVertical:10,minHeight:52,textAlignVertical:'top'}}
                     value={absenceNote}
                     onChangeText={setAbsenceNote}
                     placeholder={t('team.playerDashboard.absencePlaceholder')}
-                    placeholderTextColor="#9ca3af"
+                    placeholderTextColor={colors.textHint}
                     multiline
                     maxLength={100}
                   />
                   <HapticTouch
                     haptic="save"
-                    style={[{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:'#1c1c1e',borderRadius:50,paddingVertical:13},absenceSaving&&{opacity:0.5}]}
+                    style={[{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:BRAND,borderRadius:50,paddingVertical:13},absenceSaving&&{opacity:0.5}]}
                     onPress={async () => {
                       if (absenceSaving) return
                       setAbsenceSaving(true)
@@ -3122,29 +3142,29 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                 {/* マイ コンディション */}
                 <AnimatedSection delay={120} type="fade-up">
                 <Text style={pl.sectionTitle}>{t('team.playerDashboard.myCondition')}</Text>
-                <View style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',padding:14}}>
+                <View style={{backgroundColor:colors.card,borderRadius:14,borderWidth:1,borderColor:colors.border,padding:14}}>
                   <View style={{flexDirection:'row',gap:10,marginBottom:bodyParts.length>0?12:4}}>
-                    <View style={{flex:1,alignItems:'center',backgroundColor:'#f0f2f5',borderRadius:10,paddingVertical:12,gap:3}}>
+                    <View style={{flex:1,alignItems:'center',backgroundColor:colors.surface2,borderRadius:10,paddingVertical:12,gap:3}}>
                       <Text style={{fontSize:26}}>{fat?.emoji??'—'}</Text>
-                      <Text style={{color:fat?.color??'#888',fontSize:12,fontWeight:'700'}}>{fat?.label??t('team.playerDashboard.noData')}</Text>
-                      <Text style={{color:'#555',fontSize:10}}>{t('team.memberDetail.fatigueLevel')}</Text>
+                      <Text style={{color:fat?.color??colors.textSec,fontSize:12,fontWeight:'700'}}>{fat?.label??t('team.playerDashboard.noData')}</Text>
+                      <Text style={{color:colors.textSec,fontSize:10}}>{t('team.memberDetail.fatigueLevel')}</Text>
                     </View>
-                    <View style={{flex:1,alignItems:'center',backgroundColor:'#f0f2f5',borderRadius:10,paddingVertical:12,gap:3}}>
+                    <View style={{flex:1,alignItems:'center',backgroundColor:colors.surface2,borderRadius:10,paddingVertical:12,gap:3}}>
                       <Text style={{color:risk.signalColor,fontSize:24,fontWeight:'800'}}>{risk.riskScore}</Text>
                       <Text style={{color:risk.signalColor,fontSize:11,fontWeight:'700'}}>{risk.label}</Text>
-                      <Text style={{color:'#555',fontSize:10}}>{t('team.memberDetail.injuryRisk')}</Text>
+                      <Text style={{color:colors.textSec,fontSize:10}}>{t('team.memberDetail.injuryRisk')}</Text>
                     </View>
-                    <View style={{flex:1,alignItems:'center',backgroundColor: calcStreak(sessions) > 0 ? 'rgba(255,107,53,0.08)' : '#f0f2f5',borderRadius:10,paddingVertical:12,gap:3,borderWidth:1,borderColor: calcStreak(sessions) > 0 ? 'rgba(255,107,53,0.25)' : 'transparent'}}>
+                    <View style={{flex:1,alignItems:'center',backgroundColor: calcStreak(sessions) > 0 ? 'rgba(255,107,53,0.08)' : colors.surface2,borderRadius:10,paddingVertical:12,gap:3,borderWidth:1,borderColor: calcStreak(sessions) > 0 ? 'rgba(255,107,53,0.25)' : 'transparent'}}>
                       <Text style={{fontSize:24}}>{calcStreak(sessions) > 0 ? '🔥' : '—'}</Text>
-                      <Text style={{color: calcStreak(sessions) > 0 ? '#FF6B35' : '#888',fontSize:12,fontWeight:'800'}}>{calcStreak(sessions) > 0 ? t('team.playerDashboard.streakDaysUnit', { n: calcStreak(sessions) }) : t('team.playerDashboard.zeroDays')}</Text>
-                      <Text style={{color:'#555',fontSize:10}}>{t('team.playerDashboard.consecutiveRecord')}</Text>
+                      <Text style={{color: calcStreak(sessions) > 0 ? '#FF6B35' : colors.textSec,fontSize:12,fontWeight:'800'}}>{calcStreak(sessions) > 0 ? t('team.playerDashboard.streakDaysUnit', { n: calcStreak(sessions) }) : t('team.playerDashboard.zeroDays')}</Text>
+                      <Text style={{color:colors.textSec,fontSize:10}}>{t('team.playerDashboard.consecutiveRecord')}</Text>
                     </View>
                   </View>
                   {bodyParts.length > 0 && (
                     <View style={{backgroundColor:'rgba(255,59,48,0.08)',borderRadius:10,padding:10}}>
                       <Text style={{color:'#FF3B30',fontSize:11,fontWeight:'700',marginBottom:6}}>{t('team.playerDashboard.currentPainReport')}</Text>
                       <PainBadges parts={bodyParts}/>
-                      {!!bodyDetail && <Text style={{color:'#555',fontSize:12,marginTop:6,lineHeight:18}}>📝 {bodyDetail}</Text>}
+                      {!!bodyDetail && <Text style={{color:colors.textSec,fontSize:12,marginTop:6,lineHeight:18}}>📝 {bodyDetail}</Text>}
                     </View>
                   )}
                 </View>
@@ -3166,14 +3186,14 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
               }
             >
                 {teammates.length === 0 ? (
-                  <View style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',padding:32,alignItems:'center',gap:8,marginTop:8}}>
+                  <View style={{backgroundColor:colors.card,borderRadius:14,borderWidth:1,borderColor:colors.border,padding:32,alignItems:'center',gap:8,marginTop:8}}>
                     <Text style={{fontSize:32}}>👥</Text>
-                    <Text style={{color:TEXT.primary,fontSize:15,fontWeight:'700'}}>{t('team.playerDashboard.noTeammatesYet')}</Text>
-                    <Text style={{color:'#9ca3af',fontSize:13,textAlign:'center'}}>{t('team.playerDashboard.noTeammatesHint')}</Text>
+                    <Text style={{color:colors.text,fontSize:15,fontWeight:'700'}}>{t('team.playerDashboard.noTeammatesYet')}</Text>
+                    <Text style={{color:colors.textHint,fontSize:13,textAlign:'center'}}>{t('team.playerDashboard.noTeammatesHint')}</Text>
                   </View>
                 ) : (
                   <AnimatedSection delay={0} type="fade-up">
-                  <View style={{backgroundColor:'#ffffff',borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)',overflow:'hidden'}}>
+                  <View style={{backgroundColor:colors.card,borderRadius:14,borderWidth:1,borderColor:colors.border,overflow:'hidden'}}>
                     {teammates.map((m, i) => {
                       const stat      = playerStats.find(s => s.player_name === m.player_name)
                       const lvInfo    = calcLevelInfo(stat?.level ?? 1, language)
@@ -3194,7 +3214,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                           style={{
                             paddingHorizontal:14, paddingVertical:14,
                             borderBottomWidth: i < teammates.length-1 ? StyleSheet.hairlineWidth : 0,
-                            borderBottomColor:'rgba(0,0,0,0.07)',
+                            borderBottomColor:colors.border,
                           }}
                         >
                           {/* 上段: アバター(Lv角バッジ) + 名前+ランク + 連続日数 */}
@@ -3207,13 +3227,13 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                             </View>
                             <View style={{flex:1,gap:2}}>
                               <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
-                                <Text style={{color:TEXT.primary,fontSize:15,fontWeight:'800'}}>{m.player_name}</Text>
+                                <Text style={{color:colors.text,fontSize:15,fontWeight:'800'}}>{m.player_name}</Text>
                                 {hasPain && <Text style={{fontSize:12}}>🤕</Text>}
                               </View>
                               <View style={{flexDirection:'row',alignItems:'center',gap:5}}>
                                 <Text style={{fontSize:12}}>{lvTier.emoji}</Text>
                                 <Text style={{color:lvTier.color,fontSize:12,fontWeight:'700'}}>{getTierTitle(lvTier.title, language)}</Text>
-                                {event ? <Text style={{color:'#9ca3af',fontSize:11}}>· {getEventLabel(event, language)}</Text> : null}
+                                {event ? <Text style={{color:colors.textHint,fontSize:11}}>· {getEventLabel(event, language)}</Text> : null}
                               </View>
                             </View>
                             <View style={{alignItems:'flex-end',gap:4}}>
@@ -3223,7 +3243,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                                   <Text style={{color:'#FF6B35',fontSize:12,fontWeight:'900'}}>{t('team.playerDashboard.streakDaysShort', { n: streak })}</Text>
                                 </View>
                               )}
-                              <Ionicons name="chevron-forward" size={13} color="#d1d5db"/>
+                              <Ionicons name="chevron-forward" size={13} color={colors.textHint}/>
                             </View>
                           </View>
                           {/* 下段: PB + 目標 */}
@@ -3234,12 +3254,12 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                                 <Text style={{color:'#FF9500',fontSize:13,fontWeight:'800'}}>{pb}</Text>
                               </View>
                             ) : (
-                              <View style={{flexDirection:'row',alignItems:'center',gap:4,backgroundColor:'#f0f2f5',borderRadius:8,paddingHorizontal:8,paddingVertical:4}}>
-                                <Ionicons name="trophy-outline" size={12} color="#bbb"/>
-                                <Text style={{color:'#bbb',fontSize:12}}>{t('team.playerDashboard.pbNotEntered')}</Text>
+                              <View style={{flexDirection:'row',alignItems:'center',gap:4,backgroundColor:colors.surface2,borderRadius:8,paddingHorizontal:8,paddingVertical:4}}>
+                                <Ionicons name="trophy-outline" size={12} color={colors.textHint}/>
+                                <Text style={{color:colors.textHint,fontSize:12}}>{t('team.playerDashboard.pbNotEntered')}</Text>
                               </View>
                             )}
-                            {goal ? <Text style={{color:'#6b7280',fontSize:12,flex:1}} numberOfLines={1}>🎯 {goal}</Text> : null}
+                            {goal ? <Text style={{color:colors.textSec,fontSize:12,flex:1}} numberOfLines={1}>🎯 {goal}</Text> : null}
                           </View>
                         </HapticTouch>
                       )
@@ -3255,25 +3275,25 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
       {/* 痛み報告モーダル */}
       <Modal visible={showBody} transparent animationType="slide" onRequestClose={() => setShowBody(false)}>
         <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.8)',justifyContent:'flex-end'}}>
-          <View style={{backgroundColor:'#ffffff',borderTopLeftRadius:24,borderTopRightRadius:24,padding:20,paddingBottom:44,borderTopWidth:1,borderColor:'rgba(0,0,0,0.08)'}}>
+          <View style={{backgroundColor:colors.card,borderTopLeftRadius:24,borderTopRightRadius:24,padding:20,paddingBottom:44,borderTopWidth:1,borderColor:colors.border}}>
             <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:16}}/>
             <View style={{flexDirection:'row',alignItems:'center',marginBottom:16}}>
-              <Text style={{color:'#111827',fontSize:17,fontWeight:'800',flex:1}}>{t('team.playerDashboard.painModalTitle')}</Text>
+              <Text style={{color:colors.text,fontSize:17,fontWeight:'800',flex:1}}>{t('team.playerDashboard.painModalTitle')}</Text>
               <TouchableOpacity onPress={() => setShowBody(false)} hitSlop={{top:10,bottom:10,left:10,right:10}} accessibilityLabel={t('team.memberDetail.close')}>
-                <Ionicons name="close" size={22} color={TEXT.secondary}/>
+                <Ionicons name="close" size={22} color={colors.textSec}/>
               </TouchableOpacity>
             </View>
-            <Text style={{color:'#666',fontSize:12,marginBottom:14}}>
+            <Text style={{color:colors.textSec,fontSize:12,marginBottom:14}}>
               {t('team.playerDashboard.painModalDesc')}
             </Text>
             <BodyPartSelector selected={editBody} onChange={setEditBody}/>
-            <Text style={{color:TEXT.hint,fontSize:11,fontWeight:'700',letterSpacing:0.8,marginTop:16,marginBottom:6}}>{t('team.playerDashboard.detailNoteLabel')}</Text>
+            <Text style={{color:colors.textHint,fontSize:11,fontWeight:'700',letterSpacing:0.8,marginTop:16,marginBottom:6}}>{t('team.playerDashboard.detailNoteLabel')}</Text>
             <TextInput
-              style={{backgroundColor:'#f8f8fa',borderRadius:10,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:TEXT.primary,fontSize:14,paddingHorizontal:14,paddingVertical:10,minHeight:60,textAlignVertical:'top'}}
+              style={{backgroundColor:colors.surface2,borderRadius:10,borderWidth:1,borderColor:colors.border,color:colors.text,fontSize:14,paddingHorizontal:14,paddingVertical:10,minHeight:60,textAlignVertical:'top'}}
               value={editBodyDetail}
               onChangeText={setEditBodyDetail}
               placeholder={t('team.playerDashboard.detailNotePlaceholder')}
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.textHint}
               multiline
               maxLength={120}
             />
@@ -3283,8 +3303,8 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                 <Text style={{color:'#fff',fontSize:15,fontWeight:'800'}}>{t('team.playerDashboard.reportToCoach')}</Text>
               </HapticTouch>
             ) : (
-              <HapticTouch haptic="save" style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:'#f0f2f5',borderRadius:14,paddingVertical:14,marginTop:14,borderWidth:1,borderColor:'rgba(0,0,0,0.08)'}} onPress={saveBodyReport} activeOpacity={0.85}>
-                <Text style={{color:'#888',fontSize:15,fontWeight:'700'}}>{t('team.playerDashboard.noPainClear')}</Text>
+              <HapticTouch haptic="save" style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:colors.surface2,borderRadius:14,paddingVertical:14,marginTop:14,borderWidth:1,borderColor:colors.border}} onPress={saveBodyReport} activeOpacity={0.85}>
+                <Text style={{color:colors.textSec,fontSize:15,fontWeight:'700'}}>{t('team.playerDashboard.noPainClear')}</Text>
               </HapticTouch>
             )}
           </View>
@@ -3296,45 +3316,45 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
         <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined}>
           <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.8)',justifyContent:'flex-end'}}>
           <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setShowStatsEdit(false)} activeOpacity={1}/>
-            <View style={{backgroundColor:'#fff',borderTopLeftRadius:24,borderTopRightRadius:24,minHeight:SCREEN_H*0.55,maxHeight:SCREEN_H*0.85}}>
+            <View style={{backgroundColor:colors.card,borderTopLeftRadius:24,borderTopRightRadius:24,minHeight:SCREEN_H*0.55,maxHeight:SCREEN_H*0.85}}>
               <View style={{paddingHorizontal:22,paddingTop:18,paddingBottom:4}}>
                 <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center'}}/>
                 <View style={{flexDirection:'row',alignItems:'center',marginTop:14}}>
-                  <Text style={{color:'#111827',fontSize:18,fontWeight:'800',flex:1}}>{t('team.playerDashboard.profileEditTitle')}</Text>
+                  <Text style={{color:colors.text,fontSize:18,fontWeight:'800',flex:1}}>{t('team.playerDashboard.profileEditTitle')}</Text>
                   <TouchableOpacity onPress={() => setShowStatsEdit(false)} hitSlop={{top:10,bottom:10,left:10,right:10}} accessibilityLabel={t('team.memberDetail.close')}>
-                    <Ionicons name="close" size={22} color={TEXT.secondary}/>
+                    <Ionicons name="close" size={22} color={colors.textSec}/>
                   </TouchableOpacity>
                 </View>
-                <Text style={{color:'#6b7280',fontSize:12,lineHeight:18,marginTop:8}}>
+                <Text style={{color:colors.textSec,fontSize:12,lineHeight:18,marginTop:8}}>
                   {t('team.playerDashboard.profileEditDesc')}
                 </Text>
               </View>
               <ScrollView contentContainerStyle={{paddingHorizontal:22,paddingBottom:48,gap:14}} keyboardShouldPersistTaps="handled">
                 {/* 種目 */}
                 <View style={{gap:6}}>
-                  <Text style={{color:TEXT.hint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.playerDashboard.eventLabel')}</Text>
+                  <Text style={{color:colors.textHint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.playerDashboard.eventLabel')}</Text>
                   <TextInput
-                    style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:'#111827',fontSize:15,paddingHorizontal:14,paddingVertical:12}}
+                    style={{backgroundColor:colors.surface2,borderRadius:12,borderWidth:1,borderColor:colors.border,color:colors.text,fontSize:15,paddingHorizontal:14,paddingVertical:12}}
                     value={editEvent} onChangeText={setEditEvent}
-                    placeholder={t('team.playerDashboard.eventPlaceholder')} placeholderTextColor="#9ca3af" maxLength={20}
+                    placeholder={t('team.playerDashboard.eventPlaceholder')} placeholderTextColor={colors.textHint} maxLength={20}
                   />
                 </View>
                 {/* 自己ベスト */}
                 <View style={{gap:6}}>
-                  <Text style={{color:TEXT.hint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.playerDashboard.pbLabel')}</Text>
+                  <Text style={{color:colors.textHint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.playerDashboard.pbLabel')}</Text>
                   <TextInput
-                    style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:'#111827',fontSize:15,paddingHorizontal:14,paddingVertical:12}}
+                    style={{backgroundColor:colors.surface2,borderRadius:12,borderWidth:1,borderColor:colors.border,color:colors.text,fontSize:15,paddingHorizontal:14,paddingVertical:12}}
                     value={editPb} onChangeText={setEditPb}
-                    placeholder={t('team.playerDashboard.pbPlaceholder')} placeholderTextColor="#9ca3af" maxLength={20}
+                    placeholder={t('team.playerDashboard.pbPlaceholder')} placeholderTextColor={colors.textHint} maxLength={20}
                   />
                 </View>
                 {/* 目標 */}
                 <View style={{gap:6}}>
-                  <Text style={{color:TEXT.hint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.playerDashboard.goalLabel')}</Text>
+                  <Text style={{color:colors.textHint,fontSize:11,fontWeight:'700',letterSpacing:0.8}}>{t('team.playerDashboard.goalLabel')}</Text>
                   <TextInput
-                    style={{backgroundColor:'#f8f8fa',borderRadius:12,borderWidth:1,borderColor:'rgba(0,0,0,0.10)',color:'#111827',fontSize:15,paddingHorizontal:14,paddingVertical:12}}
+                    style={{backgroundColor:colors.surface2,borderRadius:12,borderWidth:1,borderColor:colors.border,color:colors.text,fontSize:15,paddingHorizontal:14,paddingVertical:12}}
                     value={editGoal} onChangeText={setEditGoal}
-                    placeholder={t('team.playerDashboard.goalPlaceholder')} placeholderTextColor="#9ca3af" maxLength={40}
+                    placeholder={t('team.playerDashboard.goalPlaceholder')} placeholderTextColor={colors.textHint} maxLength={40}
                   />
                 </View>
                 <HapticTouch
@@ -3396,22 +3416,22 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
   )
 }
 
-const co = StyleSheet.create({
-  header:      { flexDirection:'row', alignItems:'center', justifyContent:'space-between', paddingHorizontal:16, paddingTop:14, paddingBottom:12, backgroundColor:'#fff', borderBottomWidth:1, borderBottomColor:'rgba(0,0,0,0.06)' },
-  title:       { color:TEXT.primary, fontSize:19, fontWeight:'800' },
+const makeCoStyles = (colors: ThemeColors) => StyleSheet.create({
+  header:      { flexDirection:'row', alignItems:'center', justifyContent:'space-between', paddingHorizontal:16, paddingTop:14, paddingBottom:12, backgroundColor:colors.card, borderBottomWidth:1, borderBottomColor:colors.border },
+  title:       { color:colors.text, fontSize:19, fontWeight:'800' },
   codeBox:     { backgroundColor:BRAND+'0d', borderRadius:14, borderWidth:1.5, borderColor:BRAND+'35', paddingHorizontal:12, paddingVertical:7, alignItems:'center', gap:1 },
-  switchBtn:   { width:36, height:36, borderRadius:14, backgroundColor:'#f5f6f8', borderWidth:1, borderColor:'rgba(0,0,0,0.07)', alignItems:'center', justifyContent:'center' },
+  switchBtn:   { width:36, height:36, borderRadius:14, backgroundColor:colors.surface2, borderWidth:1, borderColor:colors.border, alignItems:'center', justifyContent:'center' },
   alertChip:   { flexDirection:'row', alignItems:'center', gap:5, backgroundColor:'rgba(239,68,68,0.07)', borderRadius:14, borderWidth:1, borderColor:'rgba(239,68,68,0.25)', paddingHorizontal:10, paddingVertical:6 },
-  memberCard:  { backgroundColor:'#ffffff', borderRadius:18, borderWidth:1, borderColor:'rgba(0,0,0,0.06)', padding:12, shadowColor:'#000', shadowOffset:{width:0,height:4}, shadowOpacity:0.04, shadowRadius:12, elevation:2 },
-  composeBox:  { flexDirection:'row', gap:10, alignItems:'flex-end', backgroundColor:'#ffffff', borderRadius:21, borderWidth:1, borderColor:'rgba(0,0,0,0.09)', padding:12 },
-  composeInput:{ flex:1, color:TEXT.primary, fontSize:14, minHeight:40, maxHeight:100 },
+  memberCard:  { backgroundColor:colors.card, borderRadius:18, borderWidth:1, borderColor:colors.border, padding:12, shadowColor:'#000', shadowOffset:{width:0,height:4}, shadowOpacity:0.04, shadowRadius:12, elevation:2 },
+  composeBox:  { flexDirection:'row', gap:10, alignItems:'flex-end', backgroundColor:colors.card, borderRadius:21, borderWidth:1, borderColor:colors.border, padding:12 },
+  composeInput:{ flex:1, color:colors.text, fontSize:14, minHeight:40, maxHeight:100 },
   sendBtn:     { width:44, height:44, borderRadius:16, backgroundColor:BRAND, alignItems:'center', justifyContent:'center' },
-  msgCard:     { backgroundColor:'#ffffff', borderRadius:18, borderWidth:1, borderColor:'rgba(0,0,0,0.07)', padding:14, shadowColor:'#000', shadowOffset:{width:0,height:4}, shadowOpacity:0.04, shadowRadius:12, elevation:2 },
-  videoCard:   { backgroundColor:'#ffffff', borderRadius:18, borderWidth:1, borderColor:'rgba(0,0,0,0.07)', padding:14, shadowColor:'#000', shadowOffset:{width:0,height:4}, shadowOpacity:0.04, shadowRadius:12, elevation:2 },
+  msgCard:     { backgroundColor:colors.card, borderRadius:18, borderWidth:1, borderColor:colors.border, padding:14, shadowColor:'#000', shadowOffset:{width:0,height:4}, shadowOpacity:0.04, shadowRadius:12, elevation:2 },
+  videoCard:   { backgroundColor:colors.card, borderRadius:18, borderWidth:1, borderColor:colors.border, padding:14, shadowColor:'#000', shadowOffset:{width:0,height:4}, shadowOpacity:0.04, shadowRadius:12, elevation:2 },
 })
-const pl = StyleSheet.create({
-  sectionTitle: { color:TEXT.hint, fontSize:11, fontWeight:'700', letterSpacing:1, marginTop:4 },
-  actionBtn:    { flex:1, flexDirection:'row', alignItems:'center', gap:10, backgroundColor:'#f5f6f8', borderRadius:18, borderWidth:1, borderColor:'rgba(0,0,0,0.07)', paddingVertical:12, paddingHorizontal:12 },
+const makePlStyles = (colors: ThemeColors) => StyleSheet.create({
+  sectionTitle: { color:colors.textHint, fontSize:11, fontWeight:'700', letterSpacing:1, marginTop:4 },
+  actionBtn:    { flex:1, flexDirection:'row', alignItems:'center', gap:10, backgroundColor:colors.surface2, borderRadius:18, borderWidth:1, borderColor:colors.border, paddingVertical:12, paddingHorizontal:12 },
 })
 
 // ─────────────────────────────────────────────────────────
@@ -3429,6 +3449,7 @@ function ShareLevelModal({ visible, current, onChange, onClose }: {
   visible: boolean; current: ShareLevel; onChange: (lv: ShareLevel) => void; onClose: () => void
 }) {
   const { t } = useTranslation()
+  const { colors } = useTheme()
   const SHARE_LEVEL_CFG = buildShareLevelCfg(t)
   const [selected, setSelected] = useState<ShareLevel>(current)
   useEffect(() => { if (visible) setSelected(current) }, [visible, current])
@@ -3444,18 +3465,18 @@ function ShareLevelModal({ visible, current, onChange, onClose }: {
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.55)',justifyContent:'flex-end'}}>
         <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose}/>
-        <View style={{backgroundColor:'#fff',borderTopLeftRadius:28,borderTopRightRadius:28,paddingTop:12,paddingHorizontal:20,paddingBottom:48,gap:0}}>
+        <View style={{backgroundColor:colors.card,borderTopLeftRadius:28,borderTopRightRadius:28,paddingTop:12,paddingHorizontal:20,paddingBottom:48,gap:0}}>
           {/* ドラッグハンドル */}
-          <View style={{width:40,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.1)',alignSelf:'center',marginBottom:20}}/>
+          <View style={{width:40,height:4,borderRadius:2,backgroundColor:colors.border,alignSelf:'center',marginBottom:20}}/>
 
           {/* ヘッダー */}
           <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
-            <Text style={{color:'#111827',fontSize:18,fontWeight:'800'}}>{t('team.shareLevel.title')}</Text>
-            <TouchableOpacity onPress={onClose} style={{width:32,height:32,borderRadius:16,backgroundColor:'#f0f2f5',alignItems:'center',justifyContent:'center'}} activeOpacity={0.7} hitSlop={{top:8,bottom:8,left:8,right:8}} accessibilityLabel={t('team.memberDetail.close')}>
-              <Ionicons name="close" size={16} color="#6b7280"/>
+            <Text style={{color:colors.text,fontSize:18,fontWeight:'800'}}>{t('team.shareLevel.title')}</Text>
+            <TouchableOpacity onPress={onClose} style={{width:32,height:32,borderRadius:16,backgroundColor:colors.surface2,alignItems:'center',justifyContent:'center'}} activeOpacity={0.7} hitSlop={{top:8,bottom:8,left:8,right:8}} accessibilityLabel={t('team.memberDetail.close')}>
+              <Ionicons name="close" size={16} color={colors.textSec}/>
             </TouchableOpacity>
           </View>
-          <Text style={{color:'#9ca3af',fontSize:12,lineHeight:18,marginBottom:18}}>{t('team.shareLevel.desc')}</Text>
+          <Text style={{color:colors.textHint,fontSize:12,lineHeight:18,marginBottom:18}}>{t('team.shareLevel.desc')}</Text>
 
           {/* 選択肢 */}
           <View style={{gap:10,marginBottom:20}}>
@@ -3468,28 +3489,28 @@ function ShareLevelModal({ visible, current, onChange, onClose }: {
                   style={{
                     flexDirection:'row',alignItems:'center',gap:14,
                     borderRadius:16,borderWidth: active ? 2 : 1.5,
-                    borderColor: active ? cfg.color : 'rgba(0,0,0,0.07)',
-                    backgroundColor: active ? cfg.color+'0d' : '#fafafa',
+                    borderColor: active ? cfg.color : colors.border,
+                    backgroundColor: active ? cfg.color+'0d' : colors.surface2,
                     padding:14,
                   }}
                   onPress={() => setSelected(cfg.level)}
                   activeOpacity={0.78}
                 >
-                  <View style={{width:46,height:46,borderRadius:14,backgroundColor: active ? cfg.color+'25' : '#f0f2f5',alignItems:'center',justifyContent:'center'}}>
+                  <View style={{width:46,height:46,borderRadius:14,backgroundColor: active ? cfg.color+'25' : colors.surface2,alignItems:'center',justifyContent:'center'}}>
                     <Text style={{fontSize:24}}>{cfg.emoji}</Text>
                   </View>
                   <View style={{flex:1,gap:4}}>
                     <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
-                      <Text style={{color: active ? cfg.color : '#111827',fontSize:14,fontWeight:'800'}}>{cfg.title}</Text>
+                      <Text style={{color: active ? cfg.color : colors.text,fontSize:14,fontWeight:'800'}}>{cfg.title}</Text>
                       {isCurrent && (
-                        <View style={{backgroundColor: active ? cfg.color : '#e5e7eb',borderRadius:6,paddingHorizontal:7,paddingVertical:2}}>
-                          <Text style={{color: active ? '#fff' : '#6b7280',fontSize:9,fontWeight:'800'}}>{t('team.shareLevel.currentSetting')}</Text>
+                        <View style={{backgroundColor: active ? cfg.color : colors.border,borderRadius:6,paddingHorizontal:7,paddingVertical:2}}>
+                          <Text style={{color: active ? '#fff' : colors.textSec,fontSize:9,fontWeight:'800'}}>{t('team.shareLevel.currentSetting')}</Text>
                         </View>
                       )}
                     </View>
-                    <Text style={{color:'#9ca3af',fontSize:11,lineHeight:16}}>{cfg.desc}</Text>
+                    <Text style={{color:colors.textHint,fontSize:11,lineHeight:16}}>{cfg.desc}</Text>
                   </View>
-                  <View style={{width:24,height:24,borderRadius:12,borderWidth: active ? 0 : 1.5,borderColor:'rgba(0,0,0,0.15)',backgroundColor: active ? cfg.color : 'transparent',alignItems:'center',justifyContent:'center'}}>
+                  <View style={{width:24,height:24,borderRadius:12,borderWidth: active ? 0 : 1.5,borderColor:colors.border,backgroundColor: active ? cfg.color : 'transparent',alignItems:'center',justifyContent:'center'}}>
                     {active && <Ionicons name="checkmark" size={14} color="#fff"/>}
                   </View>
                 </TouchableOpacity>
@@ -3499,11 +3520,11 @@ function ShareLevelModal({ visible, current, onChange, onClose }: {
 
           {/* 保存ボタン */}
           <TouchableOpacity
-            style={{backgroundColor: selected === current ? '#e5e7eb' : BRAND, borderRadius:16,paddingVertical:16,alignItems:'center'}}
+            style={{backgroundColor: selected === current ? colors.surface2 : BRAND, borderRadius:16,paddingVertical:16,alignItems:'center'}}
             onPress={selected === current ? onClose : save}
             activeOpacity={0.85}
           >
-            <Text style={{color: selected === current ? '#9ca3af' : '#fff',fontSize:15,fontWeight:'800'}}>
+            <Text style={{color: selected === current ? colors.textHint : '#fff',fontSize:15,fontWeight:'800'}}>
               {selected === current ? t('team.shareLevel.noChange') : t('team.shareLevel.saveApply')}
             </Text>
           </TouchableOpacity>
@@ -3525,6 +3546,7 @@ function TeamMenuSheet({ visible, role, canSwitch, onSwitchRole, onDangerAction,
   onClose: () => void
 }) {
   const { t } = useTranslation()
+  const { colors } = useTheme()
   // iOSでは2つのModalを同時に表示できないため、
   // メニューModalを先に閉じてから確認ダイアログを開く
   const [showConfirm, setShowConfirm] = useState(false)
@@ -3551,9 +3573,9 @@ function TeamMenuSheet({ visible, role, canSwitch, onSwitchRole, onDangerAction,
       <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
         <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.6)',justifyContent:'flex-end'}}>
           <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose}/>
-          <View style={{backgroundColor:'#fff',borderTopLeftRadius:24,borderTopRightRadius:24,padding:24,paddingBottom:48,gap:12}}>
-            <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:4}}/>
-            <Text style={{color:'#111827',fontSize:17,fontWeight:'800'}}>{t('team.menuSheet.title')}</Text>
+          <View style={{backgroundColor:colors.card,borderTopLeftRadius:24,borderTopRightRadius:24,padding:24,paddingBottom:48,gap:12}}>
+            <View style={{width:36,height:4,borderRadius:2,backgroundColor:colors.border,alignSelf:'center',marginBottom:4}}/>
+            <Text style={{color:colors.text,fontSize:17,fontWeight:'800'}}>{t('team.menuSheet.title')}</Text>
 
             {/* ロール切り替えボタンは非表示 */}
 
@@ -3568,7 +3590,7 @@ function TeamMenuSheet({ visible, role, canSwitch, onSwitchRole, onDangerAction,
               </View>
               <View style={{flex:1}}>
                 <Text style={{color:'#ef4444',fontSize:15,fontWeight:'700'}}>{dangerLabel}</Text>
-                <Text style={{color:'#9ca3af',fontSize:12,marginTop:2}}>
+                <Text style={{color:colors.textHint,fontSize:12,marginTop:2}}>
                   {role === 'coach' ? t('team.menuSheet.deleteTeamHint') : t('team.menuSheet.leaveTeamHint')}
                 </Text>
               </View>
@@ -3576,10 +3598,10 @@ function TeamMenuSheet({ visible, role, canSwitch, onSwitchRole, onDangerAction,
 
             {/* キャンセル */}
             <TouchableOpacity
-              style={{alignItems:'center',paddingVertical:15,borderRadius:14,borderWidth:1,borderColor:'rgba(0,0,0,0.09)',marginTop:4}}
+              style={{alignItems:'center',paddingVertical:15,borderRadius:14,borderWidth:1,borderColor:colors.border,marginTop:4}}
               onPress={onClose} activeOpacity={0.7}
             >
-              <Text style={{color:'#6b7280',fontSize:15,fontWeight:'600'}}>{t('team.menuSheet.cancel')}</Text>
+              <Text style={{color:colors.textSec,fontSize:15,fontWeight:'600'}}>{t('team.menuSheet.cancel')}</Text>
             </TouchableOpacity>
           </View>
         </View>

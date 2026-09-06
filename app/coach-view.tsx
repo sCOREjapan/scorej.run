@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useRouter } from 'expo-router'
 import { BRAND, NEON, TEXT } from '../lib/theme'
+import { useTheme, type ThemeColors } from '../context/ThemeContext'
 import { Sounds } from '../lib/sounds'
 import AnimatedSection from '../components/AnimatedSection'
 import type { TrainingSession, RaceRecord, SleepRecord, CoachNote } from '../types'
@@ -70,11 +71,11 @@ function SleepBar({ score, date }: { score: number; date: string }) {
   const shortDate = date.slice(5) // MM-DD
 
   return (
-    <View style={styles.sleepBarWrap}>
-      <View style={styles.sleepBarTrack}>
+    <View style={fixedStyles.sleepBarWrap}>
+      <View style={fixedStyles.sleepBarTrack}>
         <Animated.View
           style={[
-            styles.sleepBarFill,
+            fixedStyles.sleepBarFill,
             {
               height: anim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
               backgroundColor: color,
@@ -82,8 +83,8 @@ function SleepBar({ score, date }: { score: number; date: string }) {
           ]}
         />
       </View>
-      <Text style={styles.sleepBarScore}>{score}</Text>
-      <Text style={styles.sleepBarDate}>{shortDate}</Text>
+      <Text style={fixedStyles.sleepBarScore}>{score}</Text>
+      <Text style={fixedStyles.sleepBarDate}>{shortDate}</Text>
     </View>
   )
 }
@@ -91,9 +92,9 @@ function SleepBar({ score, date }: { score: number; date: string }) {
 // ── PB グリッドアイテム ──────────────────────────────────────────
 function PbItem({ event, display }: { event: string; display: string }) {
   return (
-    <View style={styles.pbItem}>
-      <Text style={styles.pbEvent}>{event}</Text>
-      <Text style={styles.pbValue}>{display}</Text>
+    <View style={fixedStyles.pbItem}>
+      <Text style={fixedStyles.pbEvent}>{event}</Text>
+      <Text style={fixedStyles.pbValue}>{display}</Text>
     </View>
   )
 }
@@ -140,10 +141,51 @@ function extractPlayerName(content: string, t: (key: string) => string): string 
   return m ? m[1] : t('coachView.defaultPlayerName')
 }
 
+// SleepBar/PbItem専用（常に暗色カード配色で固定のため colors 不要）
+const fixedStyles = StyleSheet.create({
+  pbItem: {
+    backgroundColor: 'rgba(255,149,0,0.08)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,149,0,0.25)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minWidth: '45%',
+    flex: 1,
+    alignItems: 'center',
+  },
+  pbEvent: { color: TEXT.secondary, fontSize: 11, fontWeight: '600', marginBottom: 4 },
+  pbValue: { color: NEON.amber, fontSize: 18, fontWeight: '800' },
+  sleepBarWrap: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+    height: 100,
+    justifyContent: 'flex-end',
+  },
+  sleepBarTrack: {
+    width: '100%',
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 4,
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
+    maxHeight: 72,
+  },
+  sleepBarFill: {
+    width: '100%',
+    borderRadius: 4,
+  },
+  sleepBarScore: { color: TEXT.secondary, fontSize: 10, fontWeight: '700' },
+  sleepBarDate: { color: TEXT.hint, fontSize: 9 },
+})
+
 export default function CoachViewScreen() {
   const router = useRouter()
   const { t } = useTranslation()
   const { language } = useLanguage()
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
   const [loading, setLoading] = useState(true)
 
   // データ
@@ -311,13 +353,13 @@ export default function CoachViewScreen() {
   const uncheckedCount = videoRequests.filter(r => !r.checked).length
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#f6f6f8' }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <SafeAreaView style={styles.safe}>
 
         {/* ヘッダー */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => { Sounds.tap(); router.back() }} style={styles.backBtn} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} accessibilityLabel={t('coachView.back')}>
-            <Ionicons name="chevron-back" size={22} color={TEXT.primary} />
+            <Ionicons name="chevron-back" size={22} color={colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{t('coachView.title')}</Text>
           <View style={{ width: 40 }} />
@@ -635,7 +677,7 @@ export default function CoachViewScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: 'transparent' },
   header: {
     flexDirection: 'row',
@@ -644,11 +686,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
+    borderBottomColor: colors.border,
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { color: TEXT.primary, fontSize: 18, fontWeight: '800' },
+  headerTitle: { color: colors.text, fontSize: 18, fontWeight: '800' },
   content: { padding: 16, gap: 14, paddingBottom: 48 },
+  // ↓ ここから下のカード群は常に暗色カード(#111111)デザインで固定（team-invite/ai-diagnosis等と同じ意図的な配色）
   card: {
     backgroundColor: '#111111',
     borderRadius: 20,
@@ -686,19 +729,6 @@ const styles = StyleSheet.create({
 
   // PB
   pbGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  pbItem: {
-    backgroundColor: 'rgba(255,149,0,0.08)',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255,149,0,0.25)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    minWidth: '45%',
-    flex: 1,
-    alignItems: 'center',
-  },
-  pbEvent: { color: TEXT.secondary, fontSize: 11, fontWeight: '600', marginBottom: 4 },
-  pbValue: { color: NEON.amber, fontSize: 18, fontWeight: '800' },
 
   // 睡眠グラフ
   sleepChartArea: {
@@ -708,28 +738,6 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingTop: 8,
   },
-  sleepBarWrap: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 4,
-    height: 100,
-    justifyContent: 'flex-end',
-  },
-  sleepBarTrack: {
-    width: '100%',
-    flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 4,
-    justifyContent: 'flex-end',
-    overflow: 'hidden',
-    maxHeight: 72,
-  },
-  sleepBarFill: {
-    width: '100%',
-    borderRadius: 4,
-  },
-  sleepBarScore: { color: TEXT.secondary, fontSize: 10, fontWeight: '700' },
-  sleepBarDate: { color: TEXT.hint, fontSize: 9 },
   sleepLegend: { flexDirection: 'row', gap: 12, flexWrap: 'wrap' },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },

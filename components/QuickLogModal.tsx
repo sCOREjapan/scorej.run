@@ -1,5 +1,5 @@
 // components/QuickLogModal.tsx — AI自由入力版
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useMemo } from 'react'
 import {
   Modal, View, Text, TouchableOpacity, TextInput,
   StyleSheet, Animated, KeyboardAvoidingView, Platform,
@@ -8,7 +8,8 @@ import {
 import HapticTouch from '../components/HapticTouch'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Ionicons } from '@expo/vector-icons'
-import { BRAND, TEXT } from '../lib/theme'
+import { BRAND } from '../lib/theme'
+import { useTheme, type ThemeColors } from '../context/ThemeContext'
 import { Sounds, unlockAudio } from '../lib/sounds'
 import Toast from 'react-native-toast-message'
 import { autoSyncTeam } from '../lib/teamAutoSync'
@@ -160,6 +161,8 @@ function formatTimeMs(ms: number): string {
 export default function QuickLogModal({ visible, onClose, onSaved, editSession }: Props) {
   const { t } = useTranslation()
   const { language } = useLanguage()
+  const { colors } = useTheme()
+  const st = useMemo(() => makeSt(colors), [colors])
   const isEdit = !!editSession
   const [freeText, setFreeText]         = useState('')
   const [parsing, setParsing]           = useState(false)
@@ -307,7 +310,7 @@ export default function QuickLogModal({ visible, onClose, onSaved, editSession }
           <View style={st.header}>
             <Text style={st.title}>{isEdit ? t('quickLogModal.titleEdit') : t('quickLogModal.titleNew')}</Text>
             <TouchableOpacity onPress={handleClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={t('quickLogModal.close')} accessibilityRole="button">
-              <Ionicons name="close" size={22} color={TEXT.secondary} />
+              <Ionicons name="close" size={22} color={colors.textSec} />
             </TouchableOpacity>
           </View>
 
@@ -317,7 +320,7 @@ export default function QuickLogModal({ visible, onClose, onSaved, editSession }
               上書きしてしまうため、その場合は実際の選択日をボタン上部に明示する */}
           {isEdit && !([0, 1, 2] as const).some(o => dateOffset(o) === selectedDate) && (
             <View style={st.editDateNotice}>
-              <Ionicons name="calendar-outline" size={13} color={TEXT.secondary} />
+              <Ionicons name="calendar-outline" size={13} color={colors.textSec} />
               <Text style={st.editDateNoticeTxt}>{t('quickLogModal.editDateNotice', { date: selectedDate })}</Text>
             </View>
           )}
@@ -357,7 +360,7 @@ export default function QuickLogModal({ visible, onClose, onSaved, editSession }
             autoCorrect={false}
             spellCheck={false}
             placeholder={t('quickLogModal.placeholder')}
-            placeholderTextColor={TEXT.hint}
+            placeholderTextColor={colors.textHint}
             textAlignVertical="top"
           />
 
@@ -392,30 +395,30 @@ export default function QuickLogModal({ visible, onClose, onSaved, editSession }
   )
 }
 
-const st = StyleSheet.create({
+const makeSt = (colors: ThemeColors) => StyleSheet.create({
   overlay:    { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
   kvWrapper:  { flex: 1, justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.card,
     borderTopLeftRadius: 20, borderTopRightRadius: 20,
     paddingHorizontal: 16, paddingBottom: 40,
-    borderTopWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
+    borderTopWidth: 1, borderColor: colors.border,
     shadowColor: '#000', shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.08, shadowRadius: 16, elevation: 8,
   },
   handle: {
     width: 36, height: 4, borderRadius: 2,
-    backgroundColor: 'rgba(0,0,0,0.15)',
+    backgroundColor: colors.border,
     alignSelf: 'center', marginTop: 10, marginBottom: 6,
   },
   header:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12 },
-  title:      { color: TEXT.primary, fontSize: 17, fontWeight: '800' },
-  hint:       { color: TEXT.hint, fontSize: 13, marginBottom: 12, lineHeight: 18 },
+  title:      { color: colors.text, fontSize: 17, fontWeight: '800' },
+  hint:       { color: colors.textHint, fontSize: 13, marginBottom: 12, lineHeight: 18 },
   input: {
-    backgroundColor: '#f8f8fa',
+    backgroundColor: colors.surface2,
     borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 12,
-    color: TEXT.primary, fontSize: 15, lineHeight: 24,
+    color: colors.text, fontSize: 15, lineHeight: 24,
     borderWidth: 1, borderColor: 'rgba(59,130,246,0.25)',
     height: 160,
     marginBottom: 16,
@@ -428,19 +431,19 @@ const st = StyleSheet.create({
 
   // 日付セレクター
   editDateNotice: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  editDateNoticeTxt: { color: TEXT.secondary, fontSize: 12 },
+  editDateNoticeTxt: { color: colors.textSec, fontSize: 12 },
   dateRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   dateBtn: {
     flex: 1, alignItems: 'center', justifyContent: 'center',
     borderRadius: 10, paddingVertical: 8,
-    backgroundColor: '#f0f2f5',
+    backgroundColor: colors.surface2,
     borderWidth: 1.5, borderColor: 'transparent',
   },
   dateBtnActive: {
-    backgroundColor: '#e8f5e9',
+    backgroundColor: 'rgba(76,175,80,0.12)',
     borderColor: BRAND,
   },
-  dateBtnTxt: { fontSize: 13, fontWeight: '700', color: '#6b7280' },
+  dateBtnTxt: { fontSize: 13, fontWeight: '700', color: colors.textSec },
   dateBtnTxtActive: { color: BRAND },
   dateBtnSub: { fontSize: 10, color: BRAND, marginTop: 2, fontWeight: '600' },
 })

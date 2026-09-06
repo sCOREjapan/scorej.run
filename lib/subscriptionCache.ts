@@ -14,6 +14,7 @@ type CachedSubscription = {
   originalPurchaseDate?: string
   hasTicketMonthly?: boolean
   ticketMonthlyExpiresAt?: string
+  ticketMonthlyIsTrial?: boolean
 }
 
 export async function cacheSubscriptionStatus(
@@ -22,6 +23,7 @@ export async function cacheSubscriptionStatus(
   originalPurchaseDate?: string,
   hasTicketMonthly?: boolean,
   ticketMonthlyExpiresAt?: string,
+  ticketMonthlyIsTrial?: boolean,
 ): Promise<void> {
   await AsyncStorage.setItem(SUB_CACHE_KEY, JSON.stringify({
     isPremium: tier !== 'free',
@@ -30,6 +32,7 @@ export async function cacheSubscriptionStatus(
     originalPurchaseDate,
     hasTicketMonthly,
     ticketMonthlyExpiresAt,
+    ticketMonthlyIsTrial,
   } satisfies CachedSubscription)).catch(() => {})
 }
 
@@ -46,6 +49,7 @@ export async function readCachedTier(): Promise<{
   originalPurchaseDate?: string
   hasTicketMonthly: boolean
   ticketMonthlyExpiresAt?: string
+  ticketMonthlyIsTrial?: boolean
 }> {
   try {
     const raw = await AsyncStorage.getItem(SUB_CACHE_KEY)
@@ -55,10 +59,10 @@ export async function readCachedTier(): Promise<{
     const hasTicketMonthly = !!cached.hasTicketMonthly && !ticketMonthlyExpired
 
     if (!cached.plan || cached.plan === 'free') {
-      return { tier: 'free', hasTicketMonthly, ticketMonthlyExpiresAt: cached.ticketMonthlyExpiresAt }
+      return { tier: 'free', hasTicketMonthly, ticketMonthlyExpiresAt: cached.ticketMonthlyExpiresAt, ticketMonthlyIsTrial: cached.ticketMonthlyIsTrial }
     }
     if (cached.expiresAt && new Date(cached.expiresAt) < new Date()) {
-      return { tier: 'free', hasTicketMonthly, ticketMonthlyExpiresAt: cached.ticketMonthlyExpiresAt }
+      return { tier: 'free', hasTicketMonthly, ticketMonthlyExpiresAt: cached.ticketMonthlyExpiresAt, ticketMonthlyIsTrial: cached.ticketMonthlyIsTrial }
     }
     return {
       tier: cached.plan,
@@ -66,6 +70,7 @@ export async function readCachedTier(): Promise<{
       originalPurchaseDate: cached.originalPurchaseDate,
       hasTicketMonthly,
       ticketMonthlyExpiresAt: cached.ticketMonthlyExpiresAt,
+      ticketMonthlyIsTrial: cached.ticketMonthlyIsTrial,
     }
   } catch {
     return { tier: 'free', hasTicketMonthly: false }

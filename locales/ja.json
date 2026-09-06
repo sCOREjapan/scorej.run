@@ -390,6 +390,7 @@
     }
   },
   "settings": {
+    "headerTitle": "設定",
     "currentPlan": {
       "title": "現在のプラン",
       "plans": {
@@ -536,6 +537,9 @@
       "language": "言語 / Language",
       "japanese": "日本語",
       "english": "English",
+      "appearance": "画面の見た目",
+      "light": "ライト",
+      "dark": "ダーク",
       "support": "お問い合わせ・サポート",
       "privacyPolicy": "プライバシーポリシー",
       "terms": "利用規約",
@@ -950,6 +954,7 @@
     }
   },
   "videoAnalysis": {
+    "headerTitle": "フォーム分析",
     "dimensions": {
       "posture": "姿勢",
       "groundContact": "接地",
@@ -2213,6 +2218,7 @@
     "headerNote": "💬 **一言**"
   },
   "sessionDetail": {
+    "headerTitle": "練習詳細",
     "notFound": "練習記録が見つかりませんでした",
     "backBtn": "← 戻る",
     "cardTitleDetail": "練習詳細",
@@ -2551,6 +2557,7 @@
     "modalLabelEvent": "種目"
   },
   "ranking": {
+    "headerTitle": "全国ランキング",
     "infoBanner": "データはSupabase経由で取得。ログインすると自分の記録も登録されます",
     "tabTrack": "トラック",
     "tabField": "フィールド",
@@ -2771,6 +2778,7 @@
     "footerContact": "お問い合わせ"
   },
   "recovery": {
+    "headerTitle": "AIリカバリー相談",
     "tabInput": "症状入力",
     "tabResult": "診断結果",
     "tabHistory": "履歴",
@@ -2932,6 +2940,7 @@
     }
   },
   "calendar": {
+    "headerTitle": "カレンダー",
     "prevMonth": "前の月",
     "nextMonth": "次の月",
     "monthTitle": "{{year}}年{{month}}月",

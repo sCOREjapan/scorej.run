@@ -24,7 +24,8 @@ import { analyzeMeal } from '../../lib/claude'
 import AIFeedbackCard from '../../components/AIFeedbackCard'
 import GlassCard from '../../components/GlassCard'
 import PressableScale from '../../components/PressableScale'
-import { BRAND, NEON, TEXT, GLASS } from '../../lib/theme'
+import { BRAND, NEON } from '../../lib/theme'
+import { useTheme, type ThemeColors } from '../../context/ThemeContext'
 import { Sounds, unlockAudio } from '../../lib/sounds'
 import HapticTouch from '../../components/HapticTouch'
 import AnimatedSection from '../../components/AnimatedSection'
@@ -61,6 +62,7 @@ const TIMINGS: { value: 'pre' | 'post' | 'none' }[] = [
 
 // ─── Skeleton ──────────────────────────────────────────────────────────
 function SkeletonRect({ height = 16, width = '100%' as string | number }) {
+  const { colors } = useTheme()
   const opacity = useRef(new Animated.Value(0.3)).current
   useEffect(() => {
     const a = Animated.loop(Animated.sequence([
@@ -69,12 +71,14 @@ function SkeletonRect({ height = 16, width = '100%' as string | number }) {
     ]))
     a.start(); return () => a.stop()
   }, [opacity])
-  return <Animated.View style={{ height, width: width as any, borderRadius: 8, backgroundColor: '#e8eaed', opacity }} />
+  return <Animated.View style={{ height, width: width as any, borderRadius: 8, backgroundColor: colors.surface2, opacity }} />
 }
 
 // ─── 栄養素サマリー ─────────────────────────────────────────────────────
 function MacroRow({ calories, protein, carb, fat }: { calories: number; protein: number; carb: number; fat: number }) {
   const { t } = useTranslation()
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
   return (
     <View style={styles.macroRow}>
       <View style={styles.macroMain}>
@@ -105,11 +109,14 @@ function NutritionPlanCard({ stats, onGoLogWeight }: {
   onGoLogWeight: () => void
 }) {
   const { t } = useTranslation()
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
+  const planStyles = useMemo(() => makePlanStyles(colors), [colors])
   if (!stats.latestWeight || !stats.planTargets) {
     return (
       <View style={planStyles.card}>
         <View style={planStyles.headRow}>
-          <Ionicons name="pie-chart-outline" size={15} color={TEXT.primary} />
+          <Ionicons name="pie-chart-outline" size={15} color={colors.text} />
           <Text style={styles.cardTitle}>{t('nutrition.planCard.title')}</Text>
         </View>
         <Text style={planStyles.emptyText}>{t('nutrition.planCard.emptyText')}</Text>
@@ -134,7 +141,7 @@ function NutritionPlanCard({ stats, onGoLogWeight }: {
   return (
     <View style={planStyles.card}>
       <View style={planStyles.headRow}>
-        <Ionicons name="pie-chart-outline" size={15} color={TEXT.primary} />
+        <Ionicons name="pie-chart-outline" size={15} color={colors.text} />
         <Text style={styles.cardTitle}>{t('nutrition.planCard.title')}</Text>
       </View>
       <Text style={planStyles.sub}>
@@ -149,7 +156,7 @@ function NutritionPlanCard({ stats, onGoLogWeight }: {
             <View key={m.key} style={planStyles.macroCol}>
               <Text style={planStyles.macroName}>{m.label}</Text>
               <View style={planStyles.barTrack}>
-                <View style={[planStyles.barFill, { width: `${Math.min(Math.max(pct, 0), 100)}%`, backgroundColor: planFulfillment ? barColor : '#e5e7eb' }]} />
+                <View style={[planStyles.barFill, { width: `${Math.min(Math.max(pct, 0), 100)}%`, backgroundColor: planFulfillment ? barColor : colors.border }]} />
               </View>
               <View style={planStyles.macroNums}>
                 <Text style={planStyles.macroNow}>{planFulfillment ? Math.round(planTargets[m.key] * pct / 100) : '–'}g</Text>
@@ -175,20 +182,20 @@ function NutritionPlanCard({ stats, onGoLogWeight }: {
   )
 }
 
-const planStyles = StyleSheet.create({
-  card:       { backgroundColor: '#ffffff', borderRadius: 21, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 16, gap: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 2 },
+const makePlanStyles = (colors: ThemeColors) => StyleSheet.create({
+  card:       { backgroundColor: colors.card, borderRadius: 21, borderWidth: 1, borderColor: colors.border, padding: 16, gap: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 2 },
   headRow:    { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  sub:        { color: TEXT.secondary, fontSize: 12, lineHeight: 17, marginTop: -4 },
+  sub:        { color: colors.textSec, fontSize: 12, lineHeight: 17, marginTop: -4 },
   macroGrid:  { flexDirection: 'row', gap: 12, marginTop: 4 },
   macroCol:   { flex: 1, gap: 6 },
-  macroName:  { color: TEXT.secondary, fontSize: 11, fontWeight: '600' },
-  barTrack:   { height: 7, borderRadius: 4, backgroundColor: '#f0f2f5', overflow: 'hidden' },
+  macroName:  { color: colors.textSec, fontSize: 11, fontWeight: '600' },
+  barTrack:   { height: 7, borderRadius: 4, backgroundColor: colors.surface2, overflow: 'hidden' },
   barFill:    { height: '100%', borderRadius: 4 },
   macroNums:  { flexDirection: 'row', alignItems: 'baseline', gap: 1 },
-  macroNow:   { color: TEXT.primary, fontSize: 12.5, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  macroTarget:{ color: TEXT.hint, fontSize: 10.5, fontVariant: ['tabular-nums'] },
-  insight:    { color: TEXT.secondary, fontSize: 12, lineHeight: 18, marginTop: 4, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(0,0,0,0.07)' },
-  emptyText:  { color: TEXT.secondary, fontSize: 12.5, lineHeight: 18 },
+  macroNow:   { color: colors.text, fontSize: 12.5, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  macroTarget:{ color: colors.textHint, fontSize: 10.5, fontVariant: ['tabular-nums'] },
+  insight:    { color: colors.textSec, fontSize: 12, lineHeight: 18, marginTop: 4, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  emptyText:  { color: colors.textSec, fontSize: 12.5, lineHeight: 18 },
   emptyBtn:   { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', marginTop: 2 },
   emptyBtnText:{ color: BRAND, fontSize: 13, fontWeight: '700' },
 })
@@ -211,11 +218,14 @@ function NutritionStatsSection({ stats }: {
 }) {
   const { t } = useTranslation()
   const { language } = useLanguage()
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
+  const statsStyles = useMemo(() => makeStatsStyles(colors), [colors])
   const WEEKDAY = language === 'en' ? WEEKDAY_EN : WEEKDAY_JA
   if (!stats.hasData) {
     return (
       <View style={styles.empty}>
-        <Ionicons name="stats-chart-outline" size={32} color={TEXT.hint} />
+        <Ionicons name="stats-chart-outline" size={32} color={colors.textHint} />
         <Text style={styles.emptyText}>{t('nutrition.statsEmpty')}</Text>
       </View>
     )
@@ -297,42 +307,44 @@ function NutritionStatsSection({ stats }: {
   )
 }
 
-const statsStyles = StyleSheet.create({
+const makeStatsStyles = (colors: ThemeColors) => StyleSheet.create({
   rowBetween:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 },
-  label:       { color: TEXT.secondary, fontSize: 12, fontWeight: '700' },
-  labelValue:  { color: TEXT.primary, fontSize: 12, fontWeight: '700' },
+  label:       { color: colors.textSec, fontSize: 12, fontWeight: '700' },
+  labelValue:  { color: colors.text, fontSize: 12, fontWeight: '700' },
   streakBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: 'rgba(255,149,0,0.1)', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
   streakText:  { color: '#c2650a', fontSize: 12, fontWeight: '800' },
   barChartRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 96 },
   barCol:      { alignItems: 'center', gap: 6, flex: 1 },
-  barTrack:    { height: 72, width: 18, justifyContent: 'flex-end', backgroundColor: '#f0f2f5', borderRadius: 6, overflow: 'hidden' },
+  barTrack:    { height: 72, width: 18, justifyContent: 'flex-end', backgroundColor: colors.surface2, borderRadius: 6, overflow: 'hidden' },
   bar:         { width: '100%', borderRadius: 6 },
-  barLabel:    { color: TEXT.hint, fontSize: 10, fontWeight: '600' },
-  pfcBar:      { flexDirection: 'row', height: 10, borderRadius: 6, overflow: 'hidden', backgroundColor: '#f0f2f5' },
+  barLabel:    { color: colors.textHint, fontSize: 10, fontWeight: '600' },
+  pfcBar:      { flexDirection: 'row', height: 10, borderRadius: 6, overflow: 'hidden', backgroundColor: colors.surface2 },
   pfcLegendRow:{ flexDirection: 'row', gap: 14, marginTop: 8 },
   pfcLegend:   { fontSize: 11, fontWeight: '700' },
   metricRow:   { flexDirection: 'row', gap: 10 },
-  metricBox:   { flex: 1, backgroundColor: '#f8f8fa', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)', padding: 12, gap: 2 },
-  metricValue: { color: TEXT.primary, fontSize: 18, fontWeight: '900' },
-  metricLabel: { color: TEXT.secondary, fontSize: 11, marginTop: 2 },
+  metricBox:   { flex: 1, backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, padding: 12, gap: 2 },
+  metricValue: { color: colors.text, fontSize: 18, fontWeight: '900' },
+  metricLabel: { color: colors.textSec, fontSize: 11, marginTop: 2 },
   metricSub:   { fontSize: 10, fontWeight: '700', marginTop: 4 },
 })
 
 // ─── 食事履歴カード ─────────────────────────────────────────────────────
 function MealHistoryCard({ meal, showDate, onPress }: { meal: MealRecord; showDate?: boolean; onPress?: () => void }) {
   const { t } = useTranslation()
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
   const type = MEAL_TYPES.find(mt => mt.value === meal.meal_type)
   const typeLabel = type ? t(`nutrition.mealTypes.${type.value}`) : meal.meal_type
   return (
     <TouchableOpacity style={styles.historyCard} onPress={onPress} activeOpacity={0.7} disabled={!onPress}>
       <View style={styles.historyCardHeader}>
-        <Ionicons name={type?.icon ?? 'restaurant-outline'} size={16} color={TEXT.secondary} />
+        <Ionicons name={type?.icon ?? 'restaurant-outline'} size={16} color={colors.textSec} />
         <Text style={styles.historyType}>{typeLabel}</Text>
         {showDate && <Text style={styles.historyDate}>{meal.meal_date}</Text>}
         <View style={styles.kcalBadge}>
           <Text style={styles.kcalBadgeText}>{Math.round(meal.total_calories)} kcal</Text>
         </View>
-        {onPress && <Ionicons name="pencil-outline" size={13} color={TEXT.hint} style={{ marginLeft: 6 }} />}
+        {onPress && <Ionicons name="pencil-outline" size={13} color={colors.textHint} style={{ marginLeft: 6 }} />}
       </View>
       {meal.foods.slice(0, 3).map((f, i) => (
         <Text key={i} style={styles.historyFood}>
@@ -353,6 +365,8 @@ function MealEditModal({ meal, onClose, onChangeMealType, onDelete }: {
   onDelete: (id: string) => void
 }) {
   const { t } = useTranslation()
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
   if (!meal) return null
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
@@ -368,7 +382,7 @@ function MealEditModal({ meal, onClose, onChangeMealType, onDelete }: {
                 style={[styles.chip, meal.meal_type === mt.value && styles.chipActive]}
                 onPress={() => { onChangeMealType(meal.id, mt.value); onClose() }}
               >
-                <Ionicons name={mt.icon} size={15} color={meal.meal_type === mt.value ? '#fff' : TEXT.secondary} />
+                <Ionicons name={mt.icon} size={15} color={meal.meal_type === mt.value ? '#fff' : colors.textSec} />
                 <Text style={[styles.chipText, meal.meal_type === mt.value && styles.chipTextActive]}>{t(`nutrition.mealTypes.${mt.value}`)}</Text>
               </HapticTouch>
             ))}
@@ -394,6 +408,8 @@ function MealEditModal({ meal, onClose, onChangeMealType, onDelete }: {
 export default function NutritionScreen() {
   const { t } = useTranslation()
   const { language } = useLanguage()
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
   const [mealType, setMealType] = useState<MealType>('lunch')
   const [timing, setTiming] = useState<'pre' | 'post' | 'none'>('none')
   const [imageUri, setImageUri] = useState<string | null>(null)
@@ -746,7 +762,7 @@ export default function NutritionScreen() {
   }, [manualName, manualCalories, manualProtein, manualCarb, manualFat, mealType, timing, recordDate, user, t])
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#f6f6f8' }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
     <SafeAreaView style={styles.safe}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
@@ -785,7 +801,7 @@ export default function NutritionScreen() {
             </View>
             <Text style={styles.coachEntrySub}>{t('nutrition.coach.sub')}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color={TEXT.hint} />
+          <Ionicons name="chevron-forward" size={20} color={colors.textHint} />
         </TouchableOpacity>
         </AnimatedSection>
 
@@ -797,7 +813,7 @@ export default function NutritionScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
             {MEAL_TYPES.map(mt => (
               <HapticTouch key={mt.value} haptic="toggleOn" style={[styles.chip, mealType === mt.value && styles.chipActive]} onPress={() => setMealType(mt.value)} activeOpacity={0.7}>
-                <Ionicons name={mt.icon} size={18} color={mealType === mt.value ? '#fff' : TEXT.secondary} />
+                <Ionicons name={mt.icon} size={18} color={mealType === mt.value ? '#fff' : colors.textSec} />
                 <Text style={[styles.chipText, mealType === mt.value && styles.chipTextActive]}>{t(`nutrition.mealTypes.${mt.value}`)}</Text>
               </HapticTouch>
             ))}
@@ -817,11 +833,11 @@ export default function NutritionScreen() {
         <View style={styles.card}>
           <View style={styles.modeTabRow}>
             <HapticTouch haptic="toggleOn" style={[styles.modeTab, inputMode === 'photo' && styles.modeTabActive]} onPress={() => setInputMode('photo')} activeOpacity={0.7}>
-              <Ionicons name="camera-outline" size={16} color={inputMode === 'photo' ? '#fff' : TEXT.secondary} />
+              <Ionicons name="camera-outline" size={16} color={inputMode === 'photo' ? '#fff' : colors.textSec} />
               <Text style={[styles.modeTabText, inputMode === 'photo' && styles.modeTabTextActive]}>{t('nutrition.inputMode.photo')}</Text>
             </HapticTouch>
             <HapticTouch haptic="toggleOn" style={[styles.modeTab, inputMode === 'manual' && styles.modeTabActive]} onPress={() => setInputMode('manual')} activeOpacity={0.7}>
-              <Ionicons name="create-outline" size={16} color={inputMode === 'manual' ? '#fff' : TEXT.secondary} />
+              <Ionicons name="create-outline" size={16} color={inputMode === 'manual' ? '#fff' : colors.textSec} />
               <Text style={[styles.modeTabText, inputMode === 'manual' && styles.modeTabTextActive]}>{t('nutrition.inputMode.manual')}</Text>
             </HapticTouch>
           </View>
@@ -847,8 +863,8 @@ export default function NutritionScreen() {
                     <Text style={styles.pickBtnText}>{t('nutrition.photoBtn')}</Text>
                   </HapticTouch>
                   <HapticTouch haptic="tap" style={[styles.pickBtn, styles.pickBtnSub]} onPress={() => pickImage('library')} activeOpacity={0.8}>
-                    <Ionicons name="images" size={22} color="#374151" />
-                    <Text style={[styles.pickBtnText, {color:'#374151'}]}>{t('nutrition.libraryBtn')}</Text>
+                    <Ionicons name="images" size={22} color={colors.text} />
+                    <Text style={[styles.pickBtnText, {color: colors.text}]}>{t('nutrition.libraryBtn')}</Text>
                   </HapticTouch>
                 </View>
               )}
@@ -869,7 +885,7 @@ export default function NutritionScreen() {
               <TextInput
                 style={styles.manualInput}
                 placeholder={t('nutrition.manual.namePlaceholder')}
-                placeholderTextColor={TEXT.hint}
+                placeholderTextColor={colors.textHint}
                 value={manualName}
                 onChangeText={setManualName}
               />
@@ -877,7 +893,7 @@ export default function NutritionScreen() {
                 <TextInput
                   style={[styles.manualInput, { flex: 1 }]}
                   placeholder={t('nutrition.manual.caloriesPlaceholder')}
-                  placeholderTextColor={TEXT.hint}
+                  placeholderTextColor={colors.textHint}
                   keyboardType="numeric"
                   value={manualCalories}
                   onChangeText={setManualCalories}
@@ -887,7 +903,7 @@ export default function NutritionScreen() {
                 <TextInput
                   style={[styles.manualInput, { flex: 1 }]}
                   placeholder={t('nutrition.manual.proteinPlaceholder')}
-                  placeholderTextColor={TEXT.hint}
+                  placeholderTextColor={colors.textHint}
                   keyboardType="numeric"
                   value={manualProtein}
                   onChangeText={setManualProtein}
@@ -895,7 +911,7 @@ export default function NutritionScreen() {
                 <TextInput
                   style={[styles.manualInput, { flex: 1 }]}
                   placeholder={t('nutrition.manual.carbPlaceholder')}
-                  placeholderTextColor={TEXT.hint}
+                  placeholderTextColor={colors.textHint}
                   keyboardType="numeric"
                   value={manualCarb}
                   onChangeText={setManualCarb}
@@ -903,7 +919,7 @@ export default function NutritionScreen() {
                 <TextInput
                   style={[styles.manualInput, { flex: 1 }]}
                   placeholder={t('nutrition.manual.fatPlaceholder')}
-                  placeholderTextColor={TEXT.hint}
+                  placeholderTextColor={colors.textHint}
                   keyboardType="numeric"
                   value={manualFat}
                   onChangeText={setManualFat}
@@ -981,7 +997,7 @@ export default function NutritionScreen() {
               <Text style={styles.saveBtnText}>{saving ? t('nutrition.saving') : t('nutrition.save')}</Text>
             </HapticTouch>
             <TouchableOpacity onPress={() => { setResult(null); setImageUri(null) }} style={{ alignSelf: 'center', padding: 8 }}>
-              <Text style={{ color: TEXT.secondary, fontSize: 13 }}>{t('nutrition.clear')}</Text>
+              <Text style={{ color: colors.textSec, fontSize: 13 }}>{t('nutrition.clear')}</Text>
             </TouchableOpacity>
           </View>
           </AnimatedSection>
@@ -993,7 +1009,7 @@ export default function NutritionScreen() {
           <Text style={styles.cardTitle}>{t('nutrition.mealRecords', { label: recordDate === today ? t('nutrition.recordsFor.today') : recordDate })}</Text>
           {history.filter(m => m.meal_date === recordDate).length === 0 ? (
             <View style={styles.empty}>
-              <Ionicons name="restaurant-outline" size={32} color={TEXT.hint} />
+              <Ionicons name="restaurant-outline" size={32} color={colors.textHint} />
               <Text style={styles.emptyText}>{t('nutrition.noRecords')}</Text>
             </View>
           ) : (
@@ -1006,7 +1022,7 @@ export default function NutritionScreen() {
         <AnimatedSection delay={260} type="fade-up">
         <View style={styles.card}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Ionicons name="stats-chart-outline" size={15} color={TEXT.primary} />
+            <Ionicons name="stats-chart-outline" size={15} color={colors.text} />
             <Text style={styles.cardTitle}>{t('nutrition.weeklyStats')}</Text>
           </View>
           {!isNoad && statsViewCount > NUTRITION_STATS_FREE_VIEWS ? (
@@ -1016,11 +1032,11 @@ export default function NutritionScreen() {
               </View>
               <BlurView intensity={32} tint="light" style={StyleSheet.absoluteFill} />
               <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', padding: 20 }]}>
-                <Ionicons name="lock-closed" size={24} color={TEXT.secondary} />
-                <Text style={{ color: TEXT.primary, fontSize: 14, fontWeight: '800', marginTop: 8, textAlign: 'center' }}>
+                <Ionicons name="lock-closed" size={24} color={colors.textSec} />
+                <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800', marginTop: 8, textAlign: 'center' }}>
                   {t('nutrition.proPlanOnly')}
                 </Text>
-                <Text style={{ color: TEXT.secondary, fontSize: 12, marginTop: 4, textAlign: 'center' }}>
+                <Text style={{ color: colors.textSec, fontSize: 12, marginTop: 4, textAlign: 'center' }}>
                   {t('nutrition.proPlanHint', { n: NUTRITION_STATS_FREE_VIEWS })}
                 </Text>
                 <TouchableOpacity
@@ -1145,15 +1161,15 @@ export default function NutritionScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: 'transparent' },
   scroll: { flex: 1 },
   content: { padding: 16, gap: 14, paddingBottom: 40 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
-  title: { color: TEXT.primary, fontSize: 24, fontWeight: '700' },
-  date: { color: TEXT.secondary, fontSize: 13 },
-  card: { backgroundColor: '#ffffff', borderRadius: 21, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 16, gap: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 2 },
-  cardTitle: { color: TEXT.primary, fontSize: 15, fontWeight: '700' },
+  title: { color: colors.text, fontSize: 24, fontWeight: '700' },
+  date: { color: colors.textSec, fontSize: 13 },
+  card: { backgroundColor: colors.card, borderRadius: 21, borderWidth: 1, borderColor: colors.border, padding: 16, gap: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 2 },
+  cardTitle: { color: colors.text, fontSize: 15, fontWeight: '700' },
   coachEntryBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: 'rgba(22,101,52,0.06)', borderRadius: 21, borderWidth: 1, borderColor: 'rgba(22,101,52,0.25)',
@@ -1163,29 +1179,29 @@ const styles = StyleSheet.create({
     width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(22,101,52,0.12)',
     alignItems: 'center', justifyContent: 'center',
   },
-  coachEntryTitle: { color: TEXT.primary, fontSize: 15, fontWeight: '700' },
+  coachEntryTitle: { color: colors.text, fontSize: 15, fontWeight: '700' },
   coachEntryBadge: { backgroundColor: BRAND, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2 },
   coachEntryBadgeText: { color: '#fff', fontSize: 9, fontWeight: '800' },
-  coachEntrySub: { color: TEXT.secondary, fontSize: 12, marginTop: 2 },
+  coachEntrySub: { color: colors.textSec, fontSize: 12, marginTop: 2 },
   macroRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   macroMain: { alignItems: 'center' },
   macroKcal: { color: BRAND, fontSize: 34, fontWeight: '800', lineHeight: 38, fontVariant: ['tabular-nums'] },
-  macroKcalLabel: { color: TEXT.secondary, fontSize: 12 },
+  macroKcalLabel: { color: colors.textSec, fontSize: 12 },
   macroItem: { flex: 1, alignItems: 'center', gap: 2 },
   macroValue: { fontSize: 18, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  macroLabel: { color: TEXT.secondary, fontSize: 11 },
-  chip: { paddingHorizontal: 14, paddingVertical: 10, backgroundColor: '#f0f2f5', borderRadius: 14, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', gap: 4, minWidth: 60 },
+  macroLabel: { color: colors.textSec, fontSize: 11 },
+  chip: { paddingHorizontal: 14, paddingVertical: 10, backgroundColor: colors.surface2, borderRadius: 14, alignItems: 'center', borderWidth: 1, borderColor: colors.border, gap: 4, minWidth: 60 },
   chipActive: { backgroundColor: BRAND, borderColor: BRAND },
   chipIcon: { fontSize: 18 },
-  chipText: { color: TEXT.secondary, fontSize: 12, fontWeight: '600' },
+  chipText: { color: colors.textSec, fontSize: 12, fontWeight: '600' },
   chipTextActive: { color: '#FFFFFF' },
   editModalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   editModalSheet: {
-    backgroundColor: '#fff', borderTopLeftRadius: 22, borderTopRightRadius: 22,
+    backgroundColor: colors.card, borderTopLeftRadius: 22, borderTopRightRadius: 22,
     padding: 20, paddingBottom: 36, gap: 14,
   },
-  editModalTitle: { fontSize: 16, fontWeight: '800', color: TEXT.primary },
-  editModalLabel: { fontSize: 12, fontWeight: '700', color: TEXT.secondary },
+  editModalTitle: { fontSize: 16, fontWeight: '800', color: colors.text },
+  editModalLabel: { fontSize: 12, fontWeight: '700', color: colors.textSec },
   editModalChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   editModalDeleteBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -1194,48 +1210,48 @@ const styles = StyleSheet.create({
   },
   editModalDeleteText: { color: '#FF3B30', fontSize: 14, fontWeight: '700' },
   editModalCloseBtn: { alignItems: 'center', paddingVertical: 10 },
-  editModalCloseText: { color: TEXT.secondary, fontSize: 13, fontWeight: '600' },
+  editModalCloseText: { color: colors.textSec, fontSize: 13, fontWeight: '600' },
   timingRow: { flexDirection: 'row', gap: 8 },
-  timingBtn: { flex: 1, paddingVertical: 8, backgroundColor: '#f0f2f5', borderRadius: 14, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
+  timingBtn: { flex: 1, paddingVertical: 8, backgroundColor: colors.surface2, borderRadius: 14, alignItems: 'center', borderWidth: 1, borderColor: colors.border },
   timingBtnActive: { backgroundColor: `${BRAND}10`, borderColor: BRAND },
-  timingText: { color: TEXT.secondary, fontSize: 13, fontWeight: '600' },
+  timingText: { color: colors.textSec, fontSize: 13, fontWeight: '600' },
   timingTextActive: { color: BRAND },
   imageBox: { height: 200, borderRadius: 14, overflow: 'hidden' },
   image: { width: '100%', height: '100%' },
   imageClose: { position: 'absolute', top: 8, right: 8 },
   pickRow: { flexDirection: 'row', gap: 10 },
   pickBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: BRAND, borderRadius: 21, paddingVertical: 16 },
-  pickBtnSub: { backgroundColor: '#f0f2f5', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', color: '#374151' },
+  pickBtnSub: { backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, color: colors.text },
   pickBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
   analyzeBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: BRAND, borderRadius: 21, paddingVertical: 16 },
   analyzeBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
-  foodRow: { gap: 4, paddingBottom: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(0,0,0,0.07)' },
-  foodName: { color: TEXT.primary, fontSize: 14, fontWeight: '600' },
+  foodRow: { gap: 4, paddingBottom: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  foodName: { color: colors.text, fontSize: 14, fontWeight: '600' },
   foodMacros: { flexDirection: 'row', gap: 8 },
-  foodMacro: { color: TEXT.secondary, fontSize: 12 },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(0,0,0,0.07)' },
+  foodMacro: { color: colors.textSec, fontSize: 12 },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
   hydration: { backgroundColor: 'rgba(6,182,212,0.08)', borderRadius: 14, padding: 10, borderWidth: 1, borderColor: 'rgba(6,182,212,0.25)' },
   hydrationText: { color: NEON.cyan, fontSize: 13 },
   saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: BRAND, borderRadius: 21, paddingVertical: 16 },
   saveBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
   ticketCostBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 5, marginBottom: 8, backgroundColor: 'rgba(22,101,52,0.10)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: 'rgba(22,101,52,0.3)' },
   ticketCostBadgeText: { fontSize: 11, fontWeight: '700', color: BRAND },
-  historyCard: { backgroundColor: '#f8f8fa', borderRadius: 18, borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)', padding: 12, gap: 5 },
+  historyCard: { backgroundColor: colors.surface2, borderRadius: 18, borderWidth: 1, borderColor: colors.border, padding: 12, gap: 5 },
   historyCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
   historyIcon: { fontSize: 16 },
-  historyType: { color: TEXT.primary, fontSize: 14, fontWeight: '700', flex: 1 },
-  historyDate: { color: TEXT.hint, fontSize: 11, fontWeight: '600' },
+  historyType: { color: colors.text, fontSize: 14, fontWeight: '700', flex: 1 },
+  historyDate: { color: colors.textHint, fontSize: 11, fontWeight: '600' },
   kcalBadge: { backgroundColor: `${BRAND}22`, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
   kcalBadgeText: { color: BRAND, fontSize: 12, fontWeight: '600' },
-  historyFood: { color: TEXT.secondary, fontSize: 13 },
-  historyFoodMacro: { color: TEXT.secondary, fontSize: 12 },
-  historyMore: { color: TEXT.hint, fontSize: 12 },
+  historyFood: { color: colors.textSec, fontSize: 13 },
+  historyFoodMacro: { color: colors.textSec, fontSize: 12 },
+  historyMore: { color: colors.textHint, fontSize: 12 },
   empty: { alignItems: 'center', gap: 8, paddingVertical: 20 },
-  emptyText: { color: TEXT.secondary, fontSize: 14 },
+  emptyText: { color: colors.textSec, fontSize: 14 },
   modeTabRow: { flexDirection: 'row', gap: 8, marginBottom: 2 },
-  modeTab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 9, backgroundColor: '#f0f2f5', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
+  modeTab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 9, backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border },
   modeTabActive: { backgroundColor: BRAND, borderColor: BRAND },
-  modeTabText: { color: TEXT.secondary, fontSize: 13, fontWeight: '700' },
+  modeTabText: { color: colors.textSec, fontSize: 13, fontWeight: '700' },
   modeTabTextActive: { color: '#FFFFFF' },
-  manualInput: { backgroundColor: '#f8f8fa', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', paddingHorizontal: 12, paddingVertical: 12, fontSize: 14, color: TEXT.primary },
+  manualInput: { backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12, paddingVertical: 12, fontSize: 14, color: colors.text },
 })

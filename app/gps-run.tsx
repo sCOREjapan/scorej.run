@@ -1,6 +1,6 @@
 // app/gps-run.tsx — GPS練習記録（全画面）
 
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   View,
   Text,
@@ -16,7 +16,8 @@ import * as Location from 'expo-location'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import Toast from 'react-native-toast-message'
 import { Ionicons } from '@expo/vector-icons'
-import { BRAND, TEXT, SURFACE, SURFACE2, DIVIDER } from '../lib/theme'
+import { BRAND } from '../lib/theme'
+import { useTheme, type ThemeColors } from '../context/ThemeContext'
 import type { TrainingSession } from '../types'
 import { autoSyncTeam } from '../lib/teamAutoSync'
 import { updateSessions } from '../lib/sessionsStore'
@@ -74,6 +75,8 @@ interface Coord {
 export default function GpsRunScreen() {
   const router = useRouter()
   const { t } = useTranslation()
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
 
   const [runState, setRunState] = useState<RunState>('idle')
   const [permissionStatus, setPermissionStatus] = useState<'unknown' | 'granted' | 'denied'>('unknown')
@@ -266,7 +269,7 @@ export default function GpsRunScreen() {
       <SafeAreaView style={styles.safe}>
         <StatusBar barStyle="light-content" backgroundColor="#000000" />
         <View style={styles.errorContainer}>
-          <Ionicons name="location-outline" size={64} color={TEXT.hint} />
+          <Ionicons name="location-outline" size={64} color={colors.textHint} />
           <Text style={styles.errorTitle}>{t('gpsRun.permissionDeniedTitle')}</Text>
           <Text style={styles.errorBody}>
             {t('gpsRun.permissionDeniedBody')}
@@ -295,7 +298,7 @@ export default function GpsRunScreen() {
             router.back()
           }
         }} style={styles.headerBack}>
-          <Ionicons name="chevron-down" size={28} color={TEXT.secondary} />
+          <Ionicons name="chevron-down" size={28} color={colors.textSec} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t('gpsRun.headerTitle')}</Text>
         <View style={{ width: 44 }} />
@@ -360,7 +363,7 @@ export default function GpsRunScreen() {
               onPress={handlePause}
               activeOpacity={0.85}
             >
-              <Ionicons name="pause" size={24} color={TEXT.primary} />
+              <Ionicons name="pause" size={24} color={colors.text} />
               <Text style={styles.secondaryButtonText}>{t('gpsRun.pause')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -389,7 +392,7 @@ export default function GpsRunScreen() {
               onPress={handleStop}
               activeOpacity={0.85}
             >
-              <Ionicons name="stop" size={24} color={TEXT.primary} />
+              <Ionicons name="stop" size={24} color={colors.text} />
               <Text style={styles.secondaryButtonText}>{t('gpsRun.stopAndSave')}</Text>
             </TouchableOpacity>
           </View>
@@ -407,10 +410,10 @@ export default function GpsRunScreen() {
 }
 
 // ─── スタイル ────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#f6f6f8',
+    backgroundColor: colors.bg,
   },
   header: {
     flexDirection: 'row',
@@ -428,7 +431,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerTitle: {
-    color: TEXT.primary,
+    color: colors.text,
     fontSize: 17,
     fontWeight: '700',
   },
@@ -439,7 +442,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   clockText: {
-    color: TEXT.primary,
+    color: colors.text,
     fontSize: 80,
     fontWeight: '200',
     fontVariant: ['tabular-nums'],
@@ -449,7 +452,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: TEXT.hint,
+    backgroundColor: colors.textHint,
   },
   statusDotActive: {
     backgroundColor: BRAND,
@@ -459,7 +462,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: 24,
     marginBottom: 24,
-    backgroundColor: SURFACE,
+    backgroundColor: colors.card,
     borderRadius: 20,
     padding: 20,
     borderWidth: 1,
@@ -471,18 +474,18 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   metricValue: {
-    color: TEXT.primary,
+    color: colors.text,
     fontSize: 28,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
   },
   metricUnit: {
-    color: TEXT.hint,
+    color: colors.textHint,
     fontSize: 11,
     fontWeight: '600',
   },
   metricLabel: {
-    color: TEXT.secondary,
+    color: colors.textSec,
     fontSize: 12,
     marginTop: 4,
   },
@@ -520,7 +523,7 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 18,
     borderRadius: 50,
-    backgroundColor: '#1c1c1e',
+    backgroundColor: BRAND,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.18,
@@ -528,7 +531,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   stopButton: {
-    backgroundColor: '#3a3a3c',
+    backgroundColor: '#DC2626',
   },
   primaryButtonText: {
     color: '#FFFFFF',
@@ -546,15 +549,15 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     backgroundColor: 'transparent',
     borderWidth: 1.5,
-    borderColor: '#1c1c1e',
+    borderColor: colors.text,
   },
   secondaryButtonText: {
-    color: TEXT.primary,
+    color: colors.text,
     fontSize: 17,
     fontWeight: '700',
   },
   hint: {
-    color: TEXT.hint,
+    color: colors.textHint,
     fontSize: 12,
     textAlign: 'center',
     paddingHorizontal: 24,
@@ -569,13 +572,13 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   errorTitle: {
-    color: TEXT.primary,
+    color: colors.text,
     fontSize: 22,
     fontWeight: '700',
     textAlign: 'center',
   },
   errorBody: {
-    color: TEXT.secondary,
+    color: colors.textSec,
     fontSize: 15,
     textAlign: 'center',
     lineHeight: 24,
@@ -585,7 +588,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     paddingVertical: 14,
     borderRadius: 14,
-    backgroundColor: SURFACE,
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.15)',
   },

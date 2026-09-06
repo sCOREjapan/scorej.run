@@ -1,13 +1,15 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { useRouter, useLocalSearchParams } from 'expo-router'
-import { BRAND, TEXT, SURFACE, SURFACE2, DIVIDER, NEON } from '../lib/theme'
+import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router'
+import { BRAND, NEON } from '../lib/theme'
+import { useTheme, type ThemeColors } from '../context/ThemeContext'
 import { Sounds, unlockAudio } from '../lib/sounds'
 import { useTranslation } from 'react-i18next'
+import { useLanguage } from '../context/LanguageContext'
 
 type Category = 'jog' | 'mobility' | 'drill' | 'sprint'
 type RiskLevel = 'low' | 'moderate' | 'high'
@@ -40,6 +42,11 @@ const CATEGORY_COLORS: Record<Category, string> = {
 export default function WarmupScreen() {
   const router = useRouter()
   const { t } = useTranslation()
+  const { language } = useLanguage()
+  const { colors } = useTheme()
+  const st = useMemo(() => makeSt(colors), [colors])
+  const navigation = useNavigation()
+  useEffect(() => { navigation.setOptions({ title: t('warmup.title') }) }, [navigation, t, language])
   const params = useLocalSearchParams<{ risk?: string }>()
   const risk = (params.risk ?? 'low') as RiskLevel
 
@@ -65,7 +72,7 @@ export default function WarmupScreen() {
   const done = checked.size === items.length
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#f6f6f8' }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={st.content} showsVerticalScrollIndicator={false}>
 
@@ -105,12 +112,12 @@ export default function WarmupScreen() {
                   key={item.id}
                   activeOpacity={0.7}
                   onPress={() => toggle(item.id)}
-                  style={[st.item, i < items.length - 1 && { borderBottomWidth: 1, borderBottomColor: DIVIDER }, isChecked && st.itemChecked]}
+                  style={[st.item, i < items.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }, isChecked && st.itemChecked]}
                 >
                   <View style={[st.catDot, { backgroundColor: catColor }]} />
                   <Text style={st.itemIcon}>{item.icon}</Text>
                   <View style={{ flex: 1 }}>
-                    <Text style={[st.itemName, isChecked && { color: TEXT.hint, textDecorationLine: 'line-through' }]}>
+                    <Text style={[st.itemName, isChecked && { color: colors.textHint, textDecorationLine: 'line-through' }]}>
                       {t(`warmup.items.${item.id}.name`)}
                     </Text>
                     <Text style={st.itemDetail}>{t(`warmup.items.${item.id}.detail`)}</Text>
@@ -151,38 +158,38 @@ export default function WarmupScreen() {
   )
 }
 
-const st = StyleSheet.create({
+const makeSt = (colors: ThemeColors) => StyleSheet.create({
   content:       { padding: 16, gap: 12, paddingBottom: 40 },
   header:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
-  title:         { color: TEXT.primary, fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
+  title:         { color: colors.text, fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
   riskBadge:     { borderWidth: 1, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
-  noteCard:      { backgroundColor: SURFACE, borderRadius: 12, padding: 14 },
-  noteText:      { color: TEXT.secondary, fontSize: 13, lineHeight: 20 },
+  noteCard:      { backgroundColor: colors.card, borderRadius: 12, padding: 14 },
+  noteText:      { color: colors.textSec, fontSize: 13, lineHeight: 20 },
   progressWrap:  { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  progressBg:    { flex: 1, height: 6, backgroundColor: SURFACE2, borderRadius: 3, overflow: 'hidden' },
+  progressBg:    { flex: 1, height: 6, backgroundColor: colors.surface2, borderRadius: 3, overflow: 'hidden' },
   progressFill:  { height: '100%', borderRadius: 3 },
-  progressLabel: { color: TEXT.hint, fontSize: 12, fontWeight: '700', minWidth: 36, textAlign: 'right' },
-  list:          { backgroundColor: SURFACE, borderRadius: 14, overflow: 'hidden' },
+  progressLabel: { color: colors.textHint, fontSize: 12, fontWeight: '700', minWidth: 36, textAlign: 'right' },
+  list:          { backgroundColor: colors.card, borderRadius: 14, overflow: 'hidden' },
   item:          { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 14, gap: 10 },
   itemChecked:   { opacity: 0.55 },
   catDot:        { width: 4, height: 36, borderRadius: 2 },
   itemIcon:      { fontSize: 22 },
-  itemName:      { color: TEXT.primary, fontSize: 15, fontWeight: '700', marginBottom: 2 },
-  itemDetail:    { color: TEXT.secondary, fontSize: 12, lineHeight: 17 },
+  itemName:      { color: colors.text, fontSize: 15, fontWeight: '700', marginBottom: 2 },
+  itemDetail:    { color: colors.textSec, fontSize: 12, lineHeight: 17 },
   checkbox:      {
     width: 26, height: 26, borderRadius: 13,
-    borderWidth: 2, borderColor: DIVIDER,
+    borderWidth: 2, borderColor: colors.border,
     alignItems: 'center', justifyContent: 'center',
   },
   checkboxDone:  { backgroundColor: NEON.green, borderColor: NEON.green },
   legend:        { flexDirection: 'row', gap: 14, justifyContent: 'center', paddingVertical: 4 },
   legendItem:    { flexDirection: 'row', alignItems: 'center', gap: 5 },
   legendDot:     { width: 8, height: 8, borderRadius: 4 },
-  legendText:    { color: TEXT.hint, fontSize: 11 },
+  legendText:    { color: colors.textHint, fontSize: 11 },
   doneBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: SURFACE2, borderRadius: 14,
-    paddingVertical: 16, borderWidth: 1, borderColor: DIVIDER,
+    backgroundColor: colors.surface2, borderRadius: 14,
+    paddingVertical: 16, borderWidth: 1, borderColor: colors.border,
   },
   doneBtnActive: { backgroundColor: NEON.green, borderColor: NEON.green },
   doneBtnText:   { color: '#fff', fontSize: 16, fontWeight: '800' },

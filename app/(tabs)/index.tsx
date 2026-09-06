@@ -10,7 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
-import { useTheme } from '../../context/ThemeContext'
+import { useTheme, type ThemeColors } from '../../context/ThemeContext'
 import { useLanguage } from '../../context/LanguageContext'
 import { narrativeLanguageInstruction } from '../../lib/aiLanguage'
 import { useTrainingSessions } from '../../hooks/useTrainingSessions'
@@ -20,7 +20,7 @@ import { checkInStreak, TICKET_COST, grantFirstGoalBonusIfNeeded } from '../../l
 import { getAiAuthHeader } from '../../lib/supabase'
 import GlassCard from '../../components/GlassCard'
 import PressableScale from '../../components/PressableScale'
-import { BRAND, ALERT, TEXT, NEON, SURFACE, SURFACE2, DIVIDER } from '../../lib/theme'
+import { BRAND, ALERT, NEON } from '../../lib/theme'
 import { Sounds, unlockAudio } from '../../lib/sounds'
 import HapticTouch from '../../components/HapticTouch'
 import Logo from '../../components/Logo'
@@ -191,6 +191,8 @@ function WeekDateBar({
   conditionMap?: Record<string, number>
 }) {
   const { t } = useTranslation()
+  const { colors, scheme } = useTheme()
+  const shadowColor = scheme === 'dark' ? 'transparent' : 'rgba(255,255,255,0.9)'
   const todayISO = getTodayISO()  // レンダー時に毎回生成（日付またぎ対応）
   // 過去10日〜未来3日まで表示（左にスクロールすると過去の日付も見える）
   const PAST_DAYS = 10
@@ -236,13 +238,13 @@ function WeekDateBar({
             style={wb.cell}
             activeOpacity={0.8}
           >
-            <Text style={[wb.dayName, isToday && { color: AMBER }]}>{dayName}</Text>
+            <Text style={[wb.dayName, { color: colors.textSec, textShadowColor: shadowColor }, isToday && { color: AMBER }]}>{dayName}</Text>
             <View style={[
               wb.numCircle,
               isSel && { backgroundColor: BRAND },
               isToday && !isSel && { borderWidth: 1.5, borderColor: AMBER },
             ]}>
-              <Text style={[wb.numText, isSel && { color: '#fff', fontWeight: '900' }]}>{dayNum}</Text>
+              <Text style={[wb.numText, { color: colors.text, textShadowColor: shadowColor }, isSel && { color: '#fff', fontWeight: '900' }]}>{dayNum}</Text>
             </View>
             {/* 体調入力済みインジケーター */}
             {cond != null ? (
@@ -278,13 +280,14 @@ const wb = StyleSheet.create({
 // ────────────────────────────────────────────────────────
 function LevelBadge({ sessionCount }: { sessionCount: number }) {
   const { language } = useLanguage()
+  const { colors } = useTheme()
   const info = calcLevelInfo(sessionCount, language)
   return (
     <View style={lb.wrap}>
       <Text style={lb.emoji}>{info.emoji}</Text>
       <View>
-        <Text style={lb.lv}>Lv.{info.level} <Text style={lb.title}>{info.title}</Text></Text>
-        <View style={lb.barBg}>
+        <Text style={lb.lv}>Lv.{info.level} <Text style={[lb.title, { color: colors.textSec }]}>{info.title}</Text></Text>
+        <View style={[lb.barBg, { backgroundColor: colors.border }]}>
           <View style={[lb.barFill, { width: `${Math.round(info.progress * 100)}%` as any }]} />
         </View>
       </View>
@@ -323,6 +326,8 @@ function shadeColor(hex: string, percent: number): string {
 
 // リング型ゲージ（中央に数値）
 function RiskRing({ score, color, trackColor, size = 132 }: { score: number; color: string; trackColor: string; size?: number }) {
+  const { colors } = useTheme()
+  const so = useMemo(() => makeSoStyles(colors), [colors])
   const strokeWidth = 18
   const gradId = `riskRingGrad-${color.replace('#', '')}`
   const r = (size - strokeWidth) / 2
@@ -388,6 +393,7 @@ function ScoreOverviewCard({
   onPressBreakdown?: () => void
 }) {
   const { colors } = useTheme()
+  const so = useMemo(() => makeSoStyles(colors), [colors])
   const { t } = useTranslation()
   const riskScore = effectiveRiskScore ?? (riskResult ? riskResult.riskScore : 0)
   const RISK_CFG = buildRiskCfg(t)
@@ -415,7 +421,7 @@ function ScoreOverviewCard({
             {!!onPressBreakdown && (
               <View style={so.detailBtn}>
                 <Text style={so.detailBtnText}>{t('home.risk.detail')}</Text>
-                <Ionicons name="chevron-forward" size={13} color="#9ca3af" />
+                <Ionicons name="chevron-forward" size={13} color={colors.textHint} />
               </View>
             )}
           </View>
@@ -493,55 +499,55 @@ function ScoreOverviewCard({
   )
 }
 
-const so = StyleSheet.create({
+const makeSoStyles = (colors: ThemeColors) => StyleSheet.create({
   // メインカード — Apple UI Skills準拠（21pxスケール角丸・1pxボーダー・淡い影）
   card: {
     borderRadius: 24, paddingVertical: 18, paddingHorizontal: 16,
-    borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
+    borderWidth: 1, borderColor: colors.border,
     shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.09, shadowRadius: 18, elevation: 5,
   },
-  heroTitle:     { fontSize: 15, fontWeight: '700', color: '#111827' },
+  heroTitle:     { fontSize: 15, fontWeight: '700', color: colors.text },
   cardHeader:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  riskLabel:     { fontSize: 22, fontWeight: '700', letterSpacing: 0.2, color: '#111827' },
+  riskLabel:     { fontSize: 22, fontWeight: '700', letterSpacing: 0.2, color: colors.text },
   riskBadge:     { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 21, paddingHorizontal: 12, paddingVertical: 4, alignSelf: 'flex-start' },
   riskDot:       { width: 9, height: 9, borderRadius: 5, marginRight: 6 },
   riskBadgeText: { fontSize: 11, fontWeight: '700' },
-  scoreNum:      { fontSize: 72, fontWeight: '700', letterSpacing: -3, color: '#111827', lineHeight: 80, marginVertical: 2, fontVariant: ['tabular-nums'] },
-  weatherPt:     { fontSize: 12, color: '#808080', fontWeight: '400' },
+  scoreNum:      { fontSize: 72, fontWeight: '700', letterSpacing: -3, color: colors.text, lineHeight: 80, marginVertical: 2, fontVariant: ['tabular-nums'] },
+  weatherPt:     { fontSize: 12, color: colors.textSec, fontWeight: '400' },
   barTrack:      { height: 4, borderRadius: 2, overflow: 'hidden' },
   barFill:       { height: 4, borderRadius: 2 },
   // ── 怪我リスクカード（コンパクト版・上下幅を詰めたレイアウト） ──
   riskHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   riskIconWrap:  { width: 26, height: 26, borderRadius: 9, alignItems: 'center', justifyContent: 'center', marginRight: 7 },
   detailBtn:     { flexDirection: 'row', alignItems: 'center' },
-  detailBtnText: { fontSize: 12.5, fontWeight: '600', color: '#9ca3af', marginRight: 1 },
+  detailBtnText: { fontSize: 12.5, fontWeight: '600', color: colors.textHint, marginRight: 1 },
   riskMainRow:   { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 10 },
   riskScoreWrap: { flexDirection: 'row', alignItems: 'baseline' },
-  riskScoreNum:  { fontSize: 38, fontWeight: '800', color: '#111827', letterSpacing: -1, fontVariant: ['tabular-nums'] },
-  riskScoreMax:  { fontSize: 14, fontWeight: '600', color: '#9ca3af', marginLeft: 1 },
-  riskDivider:   { width: 1, height: 32, backgroundColor: 'rgba(0,0,0,0.08)' },
-  riskMessage:   { fontSize: 12.5, fontWeight: '500', color: '#6b7280', marginTop: 4, lineHeight: 16 },
+  riskScoreNum:  { fontSize: 38, fontWeight: '800', color: colors.text, letterSpacing: -1, fontVariant: ['tabular-nums'] },
+  riskScoreMax:  { fontSize: 14, fontWeight: '600', color: colors.textHint, marginLeft: 1 },
+  riskDivider:   { width: 1, height: 32, backgroundColor: colors.border },
+  riskMessage:   { fontSize: 12.5, fontWeight: '500', color: colors.textSec, marginTop: 4, lineHeight: 16 },
   scaleLabelsRow:  { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 },
-  scaleLabel:      { fontSize: 10.5, fontWeight: '600', color: '#9ca3af' },
-  scaleNumLabel:   { fontSize: 10, fontWeight: '400', color: '#c1c5cc' },
-  scaleBarTrack:   { height: 6, borderRadius: 3, backgroundColor: '#EFF0F2', overflow: 'hidden' },
+  scaleLabel:      { fontSize: 10.5, fontWeight: '600', color: colors.textHint },
+  scaleNumLabel:   { fontSize: 10, fontWeight: '400', color: colors.textHint },
+  scaleBarTrack:   { height: 6, borderRadius: 3, backgroundColor: colors.surface2, overflow: 'hidden' },
   scaleFill:       { position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: 3 },
-  scaleTick:       { position: 'absolute', top: 0, bottom: 0, width: 1.5, marginLeft: -0.75, backgroundColor: 'rgba(0,0,0,0.15)' },
+  scaleTick:       { position: 'absolute', top: 0, bottom: 0, width: 1.5, marginLeft: -0.75, backgroundColor: colors.border },
   // 4ステータス（カード内埋め込み 2×2）
-  statInline:      { width: 64, borderRadius: 16, paddingVertical: 8, paddingHorizontal: 4, alignItems: 'center', gap: 4, backgroundColor: '#fff', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
-  statInlineVal:   { fontSize: 16, fontWeight: '700', letterSpacing: -0.5, color: '#111827', fontVariant: ['tabular-nums'] },
-  statInlineLabel: { fontSize: 9, fontWeight: '400', color: '#808080' },
+  statInline:      { width: 64, borderRadius: 16, paddingVertical: 8, paddingHorizontal: 4, alignItems: 'center', gap: 4, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
+  statInlineVal:   { fontSize: 16, fontWeight: '700', letterSpacing: -0.5, color: colors.text, fontVariant: ['tabular-nums'] },
+  statInlineLabel: { fontSize: 9, fontWeight: '400', color: colors.textSec },
   // ストレッチバナー（アイコン＋2行テキスト＋ピルCTA）
   stretchBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     borderRadius: 20, paddingHorizontal: 16, paddingVertical: 12, marginTop: 8,
-    borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
+    borderWidth: 1, borderColor: colors.border,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.07, shadowRadius: 12, elevation: 3,
   },
   stretchIconWrap: { width: 44, height: 44, borderRadius: 14, backgroundColor: BRAND + '14', alignItems: 'center', justifyContent: 'center' },
-  stretchLabel:  { fontSize: 11, fontWeight: '600', color: '#9ca3af' },
+  stretchLabel:  { fontSize: 11, fontWeight: '600', color: colors.textHint },
   stretchText:   { fontSize: 13, fontWeight: '500' },
   stretchGain:   { fontSize: 14, fontWeight: '800' },
   stretchBtn:    { flexDirection: 'row', alignItems: 'center', gap: 2, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: BRAND },
@@ -554,17 +560,18 @@ const so = StyleSheet.create({
 // ────────────────────────────────────────────────────────
 function ConditionRow({ value, onChange, dateLabel }: { value: number; onChange: (v: number) => void; dateLabel?: string }) {
   const { t } = useTranslation()
+  const { colors } = useTheme()
   const CONDITION_EMOJIS = buildConditionEmojis(t)
   const selected = CONDITION_EMOJIS.findIndex(e => e.value === value)
   return (
     <View style={cr.row}>
-      <Text style={cr.label}>{dateLabel ?? t('home.conditionCardDefaultLabel')}</Text>
+      <Text style={[cr.label, { color: colors.textHint }]}>{dateLabel ?? t('home.conditionCardDefaultLabel')}</Text>
       <View style={cr.emojis}>
         {CONDITION_EMOJIS.map((e, i) => (
           <TouchableOpacity
             key={e.value}
             onPress={() => { unlockAudio(); Sounds.pop(); onChange(e.value) }}
-            style={[cr.btn, i === selected && cr.btnActive]}
+            style={[cr.btn, i === selected && { backgroundColor: colors.surface2, borderColor: colors.border }]}
             activeOpacity={0.7}
           >
             <Text style={[cr.emoji, i !== selected && { opacity: 0.4 }]}>{e.emoji}</Text>
@@ -576,10 +583,9 @@ function ConditionRow({ value, onChange, dateLabel }: { value: number; onChange:
 }
 const cr = StyleSheet.create({
   row:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  label:     { color: TEXT.hint, fontSize: 11, fontWeight: '700', letterSpacing: 0.8 },
+  label:     { fontSize: 11, fontWeight: '700', letterSpacing: 0.8 },
   emojis:    { flexDirection: 'row', gap: 4 },
   btn:       { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'transparent' },
-  btnActive: { backgroundColor: '#f0f2f5', borderColor: 'rgba(0,0,0,0.12)' },
   emoji:     { fontSize: 22 },
 })
 
@@ -611,7 +617,7 @@ function TasksCard({
           key={task.id}
           onPress={() => { unlockAudio(); Sounds.pop(); onToggle(task.id) }}
           activeOpacity={0.7}
-          style={[tk.row, idx > 0 && { borderTopWidth: 1, borderTopColor: DIVIDER }]}
+          style={[tk.row, idx > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}
         >
           <View style={[tk.check, { borderColor: colors.border }]}>
             {task.completed && <Ionicons name="checkmark" size={12} color={NEON.green} />}
@@ -766,6 +772,7 @@ function GoalCard({
   onUpdate: (goals: Goal[]) => void
 }) {
   const { colors } = useTheme()
+  const gc = useMemo(() => makeGcStyles(colors), [colors])
   const { t } = useTranslation()
   const [showModal,     setShowModal]     = useState(false)
   const [editGoal,      setEditGoal]      = useState<Goal | null>(null)
@@ -938,7 +945,7 @@ function GoalCard({
     const diff = Math.ceil((d.getTime() - Date.now()) / 86400000)
     if (diff < 0)  return { text: t('home.goals.deadlinePassed'), color: '#FF3B30' }
     if (diff === 0) return { text: t('home.goals.dueToday'), color: '#FF9500' }
-    return { text: t('home.goals.daysLeft', { n: diff }), color: diff <= 7 ? '#FF9500' : '#888' }
+    return { text: t('home.goals.daysLeft', { n: diff }), color: diff <= 7 ? '#FF9500' : colors.textSec }
   }
 
   // 目標を立ててから何日経ったか（努力期間の可視化）
@@ -1135,7 +1142,7 @@ function GoalCard({
             <Text style={{ fontSize: 14 }}>🏆</Text>
             <Text style={{ color: '#34C759', fontSize: 12, fontWeight: '700', flex: 1 }} numberOfLines={1}>{g.text}</Text>
             {(g.tasks?.length ?? 0) > 0 && (
-              <Text style={{ color: '#888', fontSize: 10 }}>{g.tasks!.filter(t=>t.done).length}/{g.tasks!.length}</Text>
+              <Text style={{ color: colors.textSec, fontSize: 10 }}>{g.tasks!.filter(t=>t.done).length}/{g.tasks!.length}</Text>
             )}
           </TouchableOpacity>
         ))}
@@ -1221,7 +1228,7 @@ function GoalCard({
                         {t.text}
                       </Text>
                       <TouchableOpacity onPress={() => removeTask(t.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                        <Ionicons name="close-circle" size={16} color="#d1d5db" />
+                        <Ionicons name="close-circle" size={16} color={colors.textHint} />
                       </TouchableOpacity>
                     </View>
                   ))}
@@ -1255,7 +1262,7 @@ function GoalCard({
   )
 }
 
-const gc = StyleSheet.create({
+const makeGcStyles = (colors: ThemeColors) => StyleSheet.create({
   card:          { borderRadius: 18, borderWidth: 1, padding: 12, gap: 6,
                    shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 4 },
   header:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -1265,7 +1272,7 @@ const gc = StyleSheet.create({
   goalText:      { fontSize: 15, fontWeight: '700', flex: 1, lineHeight: 22 },
   barBg:         { height: 6, borderRadius: 3, overflow: 'hidden' },
   barFill:       { height: 6, borderRadius: 3 },
-  checkbox:      { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: '#d1d5db', alignItems: 'center', justifyContent: 'center' },
+  checkbox:      { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   achievedToggle:{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingTop: 6, borderTopWidth: 1, borderTopColor: 'rgba(52,199,89,0.2)' },
 
   overlay:      { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
@@ -1274,7 +1281,7 @@ const gc = StyleSheet.create({
   sheetTitle:   { fontSize: 17, fontWeight: '800' },
   label:        { fontSize: 12, fontWeight: '700', marginBottom: 6 },
   input:        { borderWidth: 1, borderRadius: 12, padding: 12, fontSize: 14, marginBottom: 14, minHeight: 44 },
-  stepBtn:      { width: 36, height: 36, borderRadius: 10, backgroundColor: '#f0f2f5', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
+  stepBtn:      { width: 36, height: 36, borderRadius: 10, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
   saveBtn:      { backgroundColor: BRAND, borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginBottom: 10 },
   achieveBtn:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: '#34C759', borderRadius: 14, paddingVertical: 13, marginBottom: 10 },
   deleteBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
@@ -1288,6 +1295,7 @@ const APP_OPEN_COUNT_KEY = 'score_app_open_count'
 export default function DashboardScreen() {
   const router = useRouter()
   const { colors } = useTheme()
+  const s = useMemo(() => makeStyles(colors), [colors])
   const { t } = useTranslation()
   const { language } = useLanguage()
   const dayNames = t('home.dayNames', { returnObjects: true }) as unknown as string[]
@@ -1942,7 +1950,7 @@ ${sleepText || 'データなし'}
   }, [])
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView ref={scrollRef} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
 
@@ -2212,7 +2220,7 @@ ${sleepText || 'データなし'}
                     const fat = sess.fatigue_level ?? 5
                     const fatColor = fat >= 8 ? '#FF6B6B' : fat >= 6 ? '#FF9500' : '#4ECDC4'
                     return (
-                      <View key={sess.id} style={[s.sessRow, idx > 0 && { borderTopWidth: 1, borderTopColor: DIVIDER }]}>
+                      <View key={sess.id} style={[s.sessRow, idx > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}>
                         <View style={[s.typeBar, { backgroundColor: typeInfo.color }]} />
                         <View style={{ flex: 1 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -2408,7 +2416,7 @@ ${sleepText || 'データなし'}
               {loading === 'loading' || loading === 'idle' ? (
                 <View style={{ gap: 10 }}>
                   {[0,1,2].map(i => (
-                    <View key={i} style={{ height: 44, backgroundColor: '#e8eaed', borderRadius: 8, opacity: 0.8 }} />
+                    <View key={i} style={{ height: 44, backgroundColor: colors.surface2, borderRadius: 8, opacity: 0.8 }} />
                   ))}
                 </View>
               ) : sessions.length === 0 ? (
@@ -2443,7 +2451,7 @@ ${sleepText || 'データなし'}
                   return (
                     <View
                       key={sess.id}
-                      style={[s.sessRow, idx > 0 && { borderTopWidth: 1, borderTopColor: DIVIDER }]}
+                      style={[s.sessRow, idx > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}
                     >
                       <View style={[s.typeBar, { backgroundColor: typeInfo.color }]} />
                       <View style={{ flex: 1 }}>
@@ -2680,41 +2688,41 @@ ${sleepText || 'データなし'}
 
       {/* ── カウントダウン選択モーダル ── */}
       <Modal visible={showCountdownModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowCountdownModal(false)}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#f6f6f8' }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 16 }}>
-            <Text style={{ fontSize: 20, fontWeight: '900', color: '#111' }}>{t('home.countdownModal.title')}</Text>
-            <TouchableOpacity onPress={() => setShowCountdownModal(false)} style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#e8eaed', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="close" size={18} color="#555" />
+            <Text style={{ fontSize: 20, fontWeight: '900', color: colors.text }}>{t('home.countdownModal.title')}</Text>
+            <TouchableOpacity onPress={() => setShowCountdownModal(false)} style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="close" size={18} color={colors.textSec} />
             </TouchableOpacity>
           </View>
 
-          <Text style={{ fontSize: 13, color: '#888', paddingHorizontal: 20, marginBottom: 20 }}>{t('home.countdownModal.subtitle')}</Text>
+          <Text style={{ fontSize: 13, color: colors.textSec, paddingHorizontal: 20, marginBottom: 20 }}>{t('home.countdownModal.subtitle')}</Text>
 
           <View style={{ paddingHorizontal: 16, gap: 14 }}>
             {/* 試合計画カード */}
             <TouchableOpacity
               activeOpacity={0.82}
               onPress={() => { setShowCountdownModal(false); router.push({ pathname: '/(tabs)/competition', params: { tab: 'race' } }) }}
-              style={{ backgroundColor: '#fff', borderRadius: 20, padding: 20, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.07, shadowRadius: 12, elevation: 3 }}
+              style={{ backgroundColor: colors.card, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: colors.border, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.07, shadowRadius: 12, elevation: 3 }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
                 <View style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: BRAND + '18', alignItems: 'center', justifyContent: 'center' }}>
                   <Text style={{ fontSize: 26 }}>🏁</Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 16, fontWeight: '800', color: '#111' }}>{t('home.countdownModal.competitionPlan')}</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '800', color: colors.text }}>{t('home.countdownModal.competitionPlan')}</Text>
                   {compDaysLeft !== null ? (
                     <>
-                      <Text style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{compDaysLeft.name}</Text>
+                      <Text style={{ fontSize: 12, color: colors.textSec, marginTop: 2 }}>{compDaysLeft.name}</Text>
                       <Text style={{ fontSize: 24, fontWeight: '900', color: BRAND, letterSpacing: -1, marginTop: 4 }}>
                         {t('home.countdownModal.daysLeft', { n: compDaysLeft.days })}
                       </Text>
                     </>
                   ) : (
-                    <Text style={{ fontSize: 13, color: '#aaa', marginTop: 4 }}>{t('home.countdownModal.registerHint')}</Text>
+                    <Text style={{ fontSize: 13, color: colors.textHint, marginTop: 4 }}>{t('home.countdownModal.registerHint')}</Text>
                   )}
                 </View>
-                <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                <Ionicons name="chevron-forward" size={20} color={colors.textHint} />
               </View>
               {compDaysLeft === null && (
                 <View style={{ marginTop: 14, backgroundColor: BRAND, borderRadius: 12, paddingVertical: 11, alignItems: 'center' }}>
@@ -2727,31 +2735,31 @@ ${sleepText || 'データなし'}
             <TouchableOpacity
               activeOpacity={0.82}
               onPress={() => { setShowCountdownModal(false); router.push({ pathname: '/(tabs)/competition', params: { tab: 'injury' } }) }}
-              style={{ backgroundColor: '#fff', borderRadius: 20, padding: 20, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.07, shadowRadius: 12, elevation: 3 }}
+              style={{ backgroundColor: colors.card, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: colors.border, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.07, shadowRadius: 12, elevation: 3 }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
                 <View style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: '#FF6B6B18', alignItems: 'center', justifyContent: 'center' }}>
                   <Text style={{ fontSize: 26 }}>🩹</Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 16, fontWeight: '800', color: '#111' }}>{t('home.countdownModal.injuryPlan')}</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '800', color: colors.text }}>{t('home.countdownModal.injuryPlan')}</Text>
                   {injuryDaysLeft !== null ? (
                     <>
-                      <Text style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{t('home.countdownModal.recoveryInProgress')}</Text>
+                      <Text style={{ fontSize: 12, color: colors.textSec, marginTop: 2 }}>{t('home.countdownModal.recoveryInProgress')}</Text>
                       <Text style={{ fontSize: 24, fontWeight: '900', color: '#FF6B6B', letterSpacing: -1, marginTop: 4 }}>
                         {t('home.countdownModal.daysLeft', { n: injuryDaysLeft })}
                       </Text>
                     </>
                   ) : (
                     <>
-                      <Text style={{ fontSize: 13, color: '#aaa', marginTop: 2 }}>{t('home.countdownModal.injuryFree')}</Text>
+                      <Text style={{ fontSize: 13, color: colors.textHint, marginTop: 2 }}>{t('home.countdownModal.injuryFree')}</Text>
                       <Text style={{ fontSize: 22, fontWeight: '900', color: '#34C759', letterSpacing: -1, marginTop: 2 }}>
                         {t('home.countdownModal.daysUnit', { n: injuryFreeDays })}
                       </Text>
                     </>
                   )}
                 </View>
-                <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                <Ionicons name="chevron-forward" size={20} color={colors.textHint} />
               </View>
               {injuryDaysLeft === null && (
                 <View style={{ marginTop: 14, backgroundColor: '#FF6B6B', borderRadius: 12, paddingVertical: 11, alignItems: 'center' }}>
@@ -2790,7 +2798,7 @@ ${sleepText || 'データなし'}
 }
 
 // ── Styles ──────────────────────────────────────────────
-const s = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   content:   { paddingHorizontal: 16, paddingTop: 8, gap: 16, paddingBottom: 110 },
 
   header:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 },
@@ -2812,7 +2820,7 @@ const s = StyleSheet.create({
   quickLink:  { width: 74, borderRadius: 16, borderWidth: 0, paddingVertical: 12, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', gap: 6,
                shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 3 },
   quickLinkIconWrap: { width: 40, height: 40, borderRadius: 12, backgroundColor: BRAND + '14', alignItems: 'center', justifyContent: 'center' },
-  quickLinkLabel: { fontSize: 10.5, fontWeight: '700', textAlign: 'center', color: '#4b5563', lineHeight: 13 },
+  quickLinkLabel: { fontSize: 10.5, fontWeight: '700', textAlign: 'center', color: colors.textSec, lineHeight: 13 },
 
   // PRバッジ
   prBadge: {
@@ -2841,8 +2849,8 @@ const s = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 3,
   },
   miniCardIconWrap: { width: 36, height: 36, borderRadius: 11, backgroundColor: BRAND + '14', alignItems: 'center', justifyContent: 'center' },
-  miniCardTitle: { fontSize: 12.5, fontWeight: '700', color: '#111827' },
-  miniCardSub:   { fontSize: 11.5, fontWeight: '400', color: '#9ca3af', marginTop: 1 },
+  miniCardTitle: { fontSize: 12.5, fontWeight: '700', color: colors.text },
+  miniCardSub:   { fontSize: 11.5, fontWeight: '400', color: colors.textHint, marginTop: 1 },
   // AIコーチカード（W3スタイル）— 案A ソフト浮き上がり
   aiCoachCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,

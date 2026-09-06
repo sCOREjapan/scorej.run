@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useFocusEffect } from '@react-navigation/native'
 import { useTranslation } from 'react-i18next'
 import { useLanguage } from '../../context/LanguageContext'
@@ -14,7 +14,8 @@ import { useRouter } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as Crypto from 'expo-crypto'
 import Toast from 'react-native-toast-message'
-import { BG_GRADIENT, BRAND, TEXT, NEON } from '../../lib/theme'
+import { BRAND, NEON } from '../../lib/theme'
+import { useTheme, type ThemeColors } from '../../context/ThemeContext'
 import { Sounds, unlockAudio } from '../../lib/sounds'
 import HapticTouch from '../../components/HapticTouch'
 import AnimatedSection from '../../components/AnimatedSection'
@@ -150,6 +151,7 @@ function parseFieldInput(meter: string, cm: string): number {
 
 // ── スケルトン ────────────────────────────────────────────────────
 function SkeletonRect({ h = 16, w = '100%' as any }) {
+  const { colors } = useTheme()
   const op = useRef(new Animated.Value(0.3)).current
   useEffect(() => {
     const a = Animated.loop(Animated.sequence([
@@ -158,11 +160,13 @@ function SkeletonRect({ h = 16, w = '100%' as any }) {
     ]))
     a.start(); return () => a.stop()
   }, [op])
-  return <Animated.View style={{ height: h, width: w, borderRadius: 8, backgroundColor: '#e8eaed', opacity: op }} />
+  return <Animated.View style={{ height: h, width: w, borderRadius: 8, backgroundColor: colors.surface2, opacity: op }} />
 }
 
 // ── PBバッジ ──────────────────────────────────────────────────────
 function Badge({ label, color }: { label: string; color: string }) {
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
   return (
     <View style={[styles.badge, { backgroundColor: color + '22', borderColor: color }]}>
       <Text style={[styles.badgeText, { color }]}>{label}</Text>
@@ -175,6 +179,8 @@ function RecordCard({ record, onDelete, onEdit }: { record: RaceRecord; onDelete
   const router = useRouter()
   const { t } = useTranslation()
   const { language } = useLanguage()
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
   return (
     <View style={[styles.recordCard, record.is_pb && styles.recordCardPB]}>
       <View style={styles.recordLeft}>
@@ -230,7 +236,7 @@ function RecordCard({ record, onDelete, onEdit }: { record: RaceRecord; onDelete
             <Ionicons name="pencil-outline" size={14} color={BRAND} />
           </TouchableOpacity>
           <TouchableOpacity onPress={onDelete} style={{ padding: 4 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel={t('records.recordCard.delete')}>
-            <Ionicons name="trash-outline" size={14} color={TEXT.hint} />
+            <Ionicons name="trash-outline" size={14} color={colors.textHint} />
           </TouchableOpacity>
         </View>
       </View>
@@ -242,6 +248,8 @@ function RecordCard({ record, onDelete, onEdit }: { record: RaceRecord; onDelete
 function PBSummary({ records }: { records: RaceRecord[] }) {
   const { t } = useTranslation()
   const { language } = useLanguage()
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
   // 種目ごとのPBを取得
   const pbMap = new Map<string, RaceRecord>()
   records.filter(r => r.is_pb).forEach(r => {
@@ -292,6 +300,7 @@ const FATIGUE_EMOJI = (v: number) => v >= 9 ? '🥵' : v >= 7 ? '😰' : v >= 5 
 function Heatmap({ sessions }: { sessions: TrainingSession[] }) {
   const { t } = useTranslation()
   const { language } = useLanguage()
+  const { colors } = useTheme()
   const scrollRef = useRef<any>(null)
   const today = new Date()
   const todayStr = localDateStr(today)
@@ -366,7 +375,7 @@ function Heatmap({ sessions }: { sessions: TrainingSession[] }) {
               return (
                 <View key={ci} style={{ width: CELL + GAP, alignItems: 'flex-start' }}>
                   {showMonth ? (
-                    <Text style={{ color: TEXT.hint, fontSize: 8 }}>
+                    <Text style={{ color: colors.textHint, fontSize: 8 }}>
                       {language === 'ja' ? `${new Date(firstReal!).getMonth()+1}月` : new Date(firstReal!).toLocaleDateString('en-US', { month: 'short' })}
                     </Text>
                   ) : <View style={{ height: 10 }} />}
@@ -378,7 +387,7 @@ function Heatmap({ sessions }: { sessions: TrainingSession[] }) {
           {/* セルグリッド */}
           {DOW_LABELS.map((dow, di) => (
             <View key={dow} style={{ flexDirection: 'row', alignItems: 'center', marginTop: GAP }}>
-              <Text style={{ color: TEXT.hint, fontSize: 8, width: 16, textAlign: 'right', marginRight: 2 }}>
+              <Text style={{ color: colors.textHint, fontSize: 8, width: 16, textAlign: 'right', marginRight: 2 }}>
                 {di % 2 === 0 ? dow : ''}
               </Text>
               {cols.map((col, ci) => {
@@ -414,12 +423,12 @@ function Heatmap({ sessions }: { sessions: TrainingSession[] }) {
         ].map(l => (
           <View key={l.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
             <View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: l.color }} />
-            <Text style={{ color: TEXT.hint, fontSize: 9 }}>{l.label}</Text>
+            <Text style={{ color: colors.textHint, fontSize: 9 }}>{l.label}</Text>
           </View>
         ))}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
           <View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: 'transparent', borderWidth: 1.5, borderColor: BRAND }} />
-          <Text style={{ color: TEXT.hint, fontSize: 9 }}>{t('records.heatmap.legendToday')}</Text>
+          <Text style={{ color: colors.textHint, fontSize: 9 }}>{t('records.heatmap.legendToday')}</Text>
         </View>
       </View>
     </View>
@@ -435,6 +444,7 @@ function SessionDetailSheet({ session, onClose, onDelete, onEdit }: {
 }) {
   const { t } = useTranslation()
   const { language } = useLanguage()
+  const { colors } = useTheme()
   const TYPE_LABELS = buildSessionTypeLabels(t)
   const color = TYPE_COLORS[session.session_type] ?? '#888'
   const label = TYPE_LABELS[session.session_type] ?? session.session_type
@@ -467,7 +477,7 @@ function SessionDetailSheet({ session, onClose, onDelete, onEdit }: {
   return (
     <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-      <View style={{ backgroundColor: '#ffffff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+      <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24,
         padding: 20, paddingBottom: 48, borderTopWidth: 1, borderColor: 'rgba(0,0,0,0.08)' }}>
         <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(0,0,0,0.12)', alignSelf: 'center', marginBottom: 16 }} />
 
@@ -479,34 +489,34 @@ function SessionDetailSheet({ session, onClose, onDelete, onEdit }: {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ color, fontSize: 16, fontWeight: '900' }}>{label}</Text>
-            <Text style={{ color: TEXT.hint, fontSize: 12, marginTop: 2 }}>
+            <Text style={{ color: colors.textHint, fontSize: 12, marginTop: 2 }}>
               {language === 'ja'
                 ? `${session.session_date}  ${(t('records.dow', { returnObjects: true }) as string[])[new Date(session.session_date).getDay()]}曜日`
                 : new Date(session.session_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', weekday: 'long' })}
             </Text>
           </View>
           <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel={t('records.sessionDetail.close')}>
-            <Ionicons name="close" size={22} color={TEXT.secondary} />
+            <Ionicons name="close" size={22} color={colors.textSec} />
           </TouchableOpacity>
         </View>
 
         {/* スタッツグリッド */}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
           {stats.map((s, i) => (
-            <View key={i} style={{ backgroundColor: '#f0f2f5', borderRadius: 12,
+            <View key={i} style={{ backgroundColor: colors.surface2, borderRadius: 12,
               paddingVertical: 12, paddingHorizontal: 14, gap: 4, minWidth: '44%', flex: 1 }}>
-              <Text style={{ color: TEXT.hint, fontSize: 11 }}>{s.icon} {s.label}</Text>
-              <Text style={{ color: s.color ?? TEXT.primary, fontSize: 15, fontWeight: '800' }}>{s.value}</Text>
+              <Text style={{ color: colors.textHint, fontSize: 11 }}>{s.icon} {s.label}</Text>
+              <Text style={{ color: s.color ?? colors.text, fontSize: 15, fontWeight: '800' }}>{s.value}</Text>
             </View>
           ))}
         </View>
 
         {/* ノート（元の入力テキスト） */}
         {session.notes ? (
-          <View style={{ backgroundColor: '#f8f8fa', borderRadius: 12, padding: 14,
+          <View style={{ backgroundColor: colors.surface2, borderRadius: 12, padding: 14,
             borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', marginBottom: 12 }}>
-            <Text style={{ color: TEXT.hint, fontSize: 11, fontWeight: '700', marginBottom: 8 }}>📝 {t('records.sessionDetail.memo')}</Text>
-            <Text style={{ color: TEXT.secondary, fontSize: 13, lineHeight: 22 }}>{session.notes}</Text>
+            <Text style={{ color: colors.textHint, fontSize: 11, fontWeight: '700', marginBottom: 8 }}>📝 {t('records.sessionDetail.memo')}</Text>
+            <Text style={{ color: colors.textSec, fontSize: 13, lineHeight: 22 }}>{session.notes}</Text>
           </View>
         ) : null}
         {/* 編集・削除ボタン */}
@@ -556,6 +566,7 @@ function GlowCalendar({ sessions, selectedDate, onSelectDate }: {
 }) {
   const { t } = useTranslation()
   const { language } = useLanguage()
+  const { colors } = useTheme()
   const now = new Date()
   const [viewYear, setViewYear]   = useState(now.getFullYear())
   const [viewMonth, setViewMonth] = useState(now.getMonth())
@@ -601,13 +612,13 @@ function GlowCalendar({ sessions, selectedDate, onSelectDate }: {
       {/* 月ナビ */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <TouchableOpacity onPress={prevMonth} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={t('records.calendar.prevMonth')}>
-          <Ionicons name="chevron-back" size={18} color={TEXT.secondary} />
+          <Ionicons name="chevron-back" size={18} color={colors.textSec} />
         </TouchableOpacity>
-        <Text style={{ color: TEXT.primary, fontSize: 14, fontWeight: '800' }}>
+        <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800' }}>
           {language === 'ja' ? `${viewYear}年 ${viewMonth + 1}月` : new Date(viewYear, viewMonth).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
         </Text>
         <TouchableOpacity onPress={nextMonth} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ opacity: canNext ? 1 : 0.3 }} accessibilityLabel={t('records.calendar.nextMonth')}>
-          <Ionicons name="chevron-forward" size={18} color={TEXT.secondary} />
+          <Ionicons name="chevron-forward" size={18} color={colors.textSec} />
         </TouchableOpacity>
       </View>
 
@@ -616,7 +627,7 @@ function GlowCalendar({ sessions, selectedDate, onSelectDate }: {
         {DOW_LABELS.map((d, i) => (
           <Text key={d} style={{
             flex: 1, textAlign: 'center', fontSize: 10, fontWeight: '700',
-            color: i === 0 ? '#EF4444' : i === 6 ? '#5AC8FA' : TEXT.hint,
+            color: i === 0 ? '#EF4444' : i === 6 ? '#5AC8FA' : colors.textHint,
           }}>{d}</Text>
         ))}
       </View>
@@ -638,7 +649,7 @@ function GlowCalendar({ sessions, selectedDate, onSelectDate }: {
             const textColor = isToday ? '#fff'
               : di === 0 ? '#EF4444'
               : di === 6 ? '#5AC8FA'
-              : TEXT.primary
+              : colors.text
 
             return (
               <TouchableOpacity
@@ -677,7 +688,7 @@ function GlowCalendar({ sessions, selectedDate, onSelectDate }: {
         ].map(item => (
           <View key={item.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: item.color, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' }} />
-            <Text style={{ color: TEXT.hint, fontSize: 9 }}>{item.label}</Text>
+            <Text style={{ color: colors.textHint, fontSize: 9 }}>{item.label}</Text>
           </View>
         ))}
       </View>
@@ -689,6 +700,7 @@ function GlowCalendar({ sessions, selectedDate, onSelectDate }: {
 function SessionTimelineCard({ session, onTap, onShare }: { session: TrainingSession; onTap: () => void; onShare: () => void }) {
   const { t } = useTranslation()
   const { language } = useLanguage()
+  const { colors } = useTheme()
   const TYPE_LABELS = buildSessionTypeLabels(t)
   const color = TYPE_COLORS[session.session_type] ?? '#888'
   const label = TYPE_LABELS[session.session_type] ?? session.session_type
@@ -713,41 +725,41 @@ function SessionTimelineCard({ session, onTap, onShare }: { session: TrainingSes
       <View style={{ flex: 1, gap: 4, paddingBottom: 12 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Text style={{ color, fontSize: 13, fontWeight: '800' }}>{label}</Text>
-          {session.event ? <Text style={{ color: TEXT.hint, fontSize: 12 }}>{getEventLabel(session.event, language)}</Text> : null}
-          <Text style={{ color: TEXT.hint, fontSize: 11, marginLeft: 'auto' as any }}>
+          {session.event ? <Text style={{ color: colors.textHint, fontSize: 12 }}>{getEventLabel(session.event, language)}</Text> : null}
+          <Text style={{ color: colors.textHint, fontSize: 11, marginLeft: 'auto' as any }}>
             {FATIGUE_EMOJI(fat)} {fat}/10
           </Text>
         </View>
         {/* メトリクス */}
         <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
           {session.time_ms ? (
-            <View style={{ backgroundColor: '#f0f2f5', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
-              <Text style={{ color: TEXT.primary, fontSize: 12, fontWeight: '700' }}>⏱ {fmtMs(session.time_ms)}</Text>
+            <View style={{ backgroundColor: colors.surface2, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
+              <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>⏱ {fmtMs(session.time_ms)}</Text>
             </View>
           ) : null}
           {session.distance_m ? (
-            <View style={{ backgroundColor: '#f0f2f5', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
-              <Text style={{ color: TEXT.primary, fontSize: 12, fontWeight: '700' }}>
+            <View style={{ backgroundColor: colors.surface2, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
+              <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>
                 📏 {session.distance_m >= 1000 ? `${(session.distance_m/1000).toFixed(1)}km` : `${session.distance_m}m`}
               </Text>
             </View>
           ) : null}
           {session.reps ? (
-            <View style={{ backgroundColor: '#f0f2f5', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
-              <Text style={{ color: TEXT.primary, fontSize: 12, fontWeight: '700' }}>🔁 {session.reps}{t('records.sessionDetail.statRepsUnit')}</Text>
+            <View style={{ backgroundColor: colors.surface2, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
+              <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>🔁 {session.reps}{t('records.sessionDetail.statRepsUnit')}</Text>
             </View>
           ) : null}
         </View>
         {/* メモ (1行プレビュー) */}
         {session.notes ? (
-          <Text style={{ color: TEXT.secondary, fontSize: 12, lineHeight: 18 }} numberOfLines={1}>
+          <Text style={{ color: colors.textSec, fontSize: 12, lineHeight: 18 }} numberOfLines={1}>
             {session.notes}
           </Text>
         ) : null}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Text style={{ color: TEXT.hint, fontSize: 10 }}>{t('records.timeline.viewDetail')}</Text>
-            <Ionicons name="chevron-forward" size={10} color={TEXT.hint} />
+            <Text style={{ color: colors.textHint, fontSize: 10 }}>{t('records.timeline.viewDetail')}</Text>
+            <Ionicons name="chevron-forward" size={10} color={colors.textHint} />
           </View>
           <TouchableOpacity
             onPress={e => { e.stopPropagation?.(); onShare() }}
@@ -766,15 +778,16 @@ function SessionTimelineCard({ session, onTap, onShare }: { session: TrainingSes
 // 日付グループヘッダー
 function DateHeader({ dateStr }: { dateStr: string }) {
   const { t } = useTranslation()
+  const { colors } = useTheme()
   const now = new Date()
   const d   = new Date(dateStr)
   const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000)
   const label = diffDays === 0 ? t('records.dateHeader.today') : diffDays === 1 ? t('records.dateHeader.yesterday') : diffDays < 7 ? t('records.dateHeader.daysAgo', { n: diffDays }) : dateStr.slice(5).replace('-', '/')
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, marginBottom: 2 }}>
-      <Text style={{ color: diffDays === 0 ? BRAND : TEXT.secondary, fontSize: 12, fontWeight: '800' }}>{label}</Text>
+      <Text style={{ color: diffDays === 0 ? BRAND : colors.textSec, fontSize: 12, fontWeight: '800' }}>{label}</Text>
       <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.06)' }} />
-      <Text style={{ color: TEXT.hint, fontSize: 10 }}>
+      <Text style={{ color: colors.textHint, fontSize: 10 }}>
         {(t('records.dow', { returnObjects: true }) as string[])[d.getDay()]}
       </Text>
     </View>
@@ -793,6 +806,8 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
   const router = useRouter()
   const { t } = useTranslation()
   const { language } = useLanguage()
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
   const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null)
   const [shareSession,    setShareSession]    = useState<PracticeShareData | null>(null)
   const [selectedDate,    setSelectedDate]    = useState<string | null>(null)
@@ -894,32 +909,32 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
       <View style={[styles.card, { padding: 16 }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: TEXT.hint, fontSize: 11, fontWeight: '700', letterSpacing: 1 }}>TRAINING STREAK</Text>
+            <Text style={{ color: colors.textHint, fontSize: 11, fontWeight: '700', letterSpacing: 1 }}>TRAINING STREAK</Text>
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6, marginTop: 4 }}>
-              <Text style={{ color: streak > 0 ? BRAND : '#aaa', fontSize: 40, fontWeight: '900', lineHeight: 44 }}>
+              <Text style={{ color: streak > 0 ? BRAND : colors.textHint, fontSize: 40, fontWeight: '900', lineHeight: 44 }}>
                 {streak}
               </Text>
-              <Text style={{ color: TEXT.secondary, fontSize: 14, marginBottom: 6 }}>{t('records.practiceTab.streakUnit')}</Text>
+              <Text style={{ color: colors.textSec, fontSize: 14, marginBottom: 6 }}>{t('records.practiceTab.streakUnit')}</Text>
               {streak >= 7  && <Text style={{ fontSize: 20, marginBottom: 4 }}>🔥</Text>}
               {streak >= 30 && <Text style={{ fontSize: 20, marginBottom: 4 }}>💎</Text>}
             </View>
           </View>
           <View style={{ gap: 10 }}>
             <View style={{ alignItems: 'flex-end', gap: 2 }}>
-              <Text style={{ color: TEXT.primary, fontSize: 18, fontWeight: '900' }}>{sessions.length}</Text>
-              <Text style={{ color: TEXT.hint, fontSize: 10 }}>{t('records.practiceTab.totalSessions')}</Text>
+              <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900' }}>{sessions.length}</Text>
+              <Text style={{ color: colors.textHint, fontSize: 10 }}>{t('records.practiceTab.totalSessions')}</Text>
             </View>
             <View style={{ alignItems: 'flex-end', gap: 2 }}>
-              <Text style={{ color: TEXT.primary, fontSize: 18, fontWeight: '900' }}>{totalKm.toFixed(0)}km</Text>
-              <Text style={{ color: TEXT.hint, fontSize: 10 }}>{t('records.practiceTab.totalDistance')}</Text>
+              <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900' }}>{totalKm.toFixed(0)}km</Text>
+              <Text style={{ color: colors.textHint, fontSize: 10 }}>{t('records.practiceTab.totalDistance')}</Text>
             </View>
           </View>
         </View>
         <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.08)', flexDirection: 'row', gap: 12 }}>
-          <Text style={{ color: TEXT.hint, fontSize: 11 }}>{t('records.practiceTab.thisWeek')}</Text>
-          <Text style={{ color: TEXT.primary, fontSize: 11, fontWeight: '700' }}>{t('records.practiceTab.timesUnit', { n: thisWeekSessions.length })}</Text>
-          <Text style={{ color: TEXT.hint, fontSize: 11, marginLeft: 8 }}>{t('records.practiceTab.thisMonth')}</Text>
-          <Text style={{ color: TEXT.primary, fontSize: 11, fontWeight: '700' }}>
+          <Text style={{ color: colors.textHint, fontSize: 11 }}>{t('records.practiceTab.thisWeek')}</Text>
+          <Text style={{ color: colors.text, fontSize: 11, fontWeight: '700' }}>{t('records.practiceTab.timesUnit', { n: thisWeekSessions.length })}</Text>
+          <Text style={{ color: colors.textHint, fontSize: 11, marginLeft: 8 }}>{t('records.practiceTab.thisMonth')}</Text>
+          <Text style={{ color: colors.text, fontSize: 11, fontWeight: '700' }}>
             {t('records.practiceTab.timesUnit', { n: sessions.filter(s => new Date(s.session_date).getMonth() === new Date().getMonth()).length })}
           </Text>
         </View>
@@ -934,7 +949,7 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
           <Text style={styles.cardTitle}>{t('records.practiceTab.calendarTitle')}</Text>
           {selectedDate && (
             <TouchableOpacity onPress={() => setSelectedDate(null)} style={{ marginLeft: 'auto' as any }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={{ color: TEXT.hint, fontSize: 12 }}>{t('records.practiceTab.clearSelection')}</Text>
+              <Text style={{ color: colors.textHint, fontSize: 12 }}>{t('records.practiceTab.clearSelection')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -947,7 +962,7 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
         {/* 選択した日の練習内容 */}
         {selectedDate && (
           <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.06)' }}>
-            <Text style={{ color: TEXT.primary, fontSize: 13, fontWeight: '800', marginBottom: 6 }}>
+            <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800', marginBottom: 6 }}>
               {(() => {
                 const dt = new Date(selectedDate + 'T00:00:00')
                 const dateLabel = language === 'ja'
@@ -958,7 +973,7 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
             </Text>
             {(byDate[selectedDate] ?? []).length === 0 ? (
               <View style={{ paddingVertical: 16, alignItems: 'center' }}>
-                <Text style={{ color: TEXT.hint, fontSize: 12 }}>{t('records.practiceTab.noSessionsThisDay')}</Text>
+                <Text style={{ color: colors.textHint, fontSize: 12 }}>{t('records.practiceTab.noSessionsThisDay')}</Text>
               </View>
             ) : (
               byDate[selectedDate].map(s => (
@@ -981,7 +996,7 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
         <View style={styles.cardHeader}>
           <Text style={{ fontSize: 14 }}>📒</Text>
           <Text style={styles.cardTitle}>{t('records.practiceTab.notebookTitle')}</Text>
-          <Text style={{ color: TEXT.hint, fontSize: 12 }}>{t('records.practiceTab.countUnit', { n: sessions.length })}</Text>
+          <Text style={{ color: colors.textHint, fontSize: 12 }}>{t('records.practiceTab.countUnit', { n: sessions.length })}</Text>
         </View>
         {loading ? (
           <View style={{ gap: 10 }}>{[1,2,3].map(i => <SkeletonRect key={i} h={80} />)}</View>
@@ -1007,7 +1022,7 @@ function PracticeTab({ sessions, loading, weightRecords, onAddWeight, onDeleteWe
               </View>
             ))}
             {sessions.length > 60 && (
-              <Text style={{ color: TEXT.hint, fontSize: 12, textAlign: 'center', paddingTop: 8 }}>
+              <Text style={{ color: colors.textHint, fontSize: 12, textAlign: 'center', paddingTop: 8 }}>
                 {t('records.practiceTab.showingRecent', { n: 60, total: sessions.length })}
               </Text>
             )}
@@ -1055,6 +1070,7 @@ const PLOT_H   = 110
 const X_AXIS_H = 16
 
 function WeightLineChart({ records }: { records: WeightRecord[] }) {
+  const { colors } = useTheme()
   const data = records.slice(-30)  // 最大30件
   if (data.length === 0) return null
 
@@ -1086,7 +1102,7 @@ function WeightLineChart({ records }: { records: WeightRecord[] }) {
       {/* Y軸ラベル */}
       <View style={{ width: Y_AXIS_W, height: PLOT_H, justifyContent: 'space-between', alignItems: 'flex-end', paddingRight: 5 }}>
         {yTicks.map((v, i) => (
-          <Text key={i} style={{ color: TEXT.hint, fontSize: 9 }}>{v}</Text>
+          <Text key={i} style={{ color: colors.textHint, fontSize: 9 }}>{v}</Text>
         ))}
       </View>
 
@@ -1152,7 +1168,7 @@ function WeightLineChart({ records }: { records: WeightRecord[] }) {
               position: 'absolute',
               left: x - 12, top: PLOT_H + 2,
               width: 24, textAlign: 'center',
-              color: TEXT.hint, fontSize: 8,
+              color: colors.textHint, fontSize: 8,
             }}>{label}</Text>
           )
         })}
@@ -1170,6 +1186,8 @@ function WeightSection({
   onDelete: (id: string) => void
 }) {
   const { t } = useTranslation()
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
   const today = todayLocalISO()
   const [input, setInput] = useState('')
   const [selectedDate, setSelectedDate] = useState(today)
@@ -1228,12 +1246,12 @@ function WeightSection({
               onPress={() => { setSelectedDate(d); setInput(records.find(r => r.date === d)?.weight_kg.toString() ?? '') }}
               style={{
                 paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10,
-                backgroundColor: isSelected ? BRAND : '#f0f2f5',
+                backgroundColor: isSelected ? BRAND : colors.surface2,
                 borderWidth: 1,
                 borderColor: isSelected ? BRAND : hasRecord ? 'rgba(59,130,246,0.4)' : 'rgba(0,0,0,0.08)',
               }}
             >
-              <Text style={{ color: isSelected ? '#fff' : hasRecord ? '#3b82f6' : TEXT.hint, fontSize: 11, fontWeight: '700' }}>
+              <Text style={{ color: isSelected ? '#fff' : hasRecord ? '#3b82f6' : colors.textHint, fontSize: 11, fontWeight: '700' }}>
                 {formatDateLabel(d)}
               </Text>
               {hasRecord && (
@@ -1252,7 +1270,7 @@ function WeightSection({
           value={input}
           onChangeText={setInput}
           placeholder={existingForDate ? t('records.weight.placeholderExisting', { kg: existingForDate.weight_kg }) : t('records.weight.placeholderNew', { date: formatDateLabel(selectedDate) })}
-          placeholderTextColor={TEXT.hint}
+          placeholderTextColor={colors.textHint}
           keyboardType="decimal-pad"
           style={[styles.weightInput]}
         />
@@ -1295,6 +1313,7 @@ function TrendLineChart({ data, color, format }: {
   format: (v: number) => string
 }) {
   const { t } = useTranslation()
+  const { colors } = useTheme()
   const displayed = data.slice(-30)
   if (displayed.length === 0) return null
 
@@ -1325,7 +1344,7 @@ function TrendLineChart({ data, color, format }: {
         {/* Y軸ラベル */}
         <View style={{ width: TL_YW, height: TL_H, justifyContent: 'space-between', alignItems: 'flex-end', paddingRight: 5 }}>
           {yTicks.map((v, i) => (
-            <Text key={i} style={{ color: TEXT.hint, fontSize: 9 }}>{format(v)}</Text>
+            <Text key={i} style={{ color: colors.textHint, fontSize: 9 }}>{format(v)}</Text>
           ))}
         </View>
         {/* プロット領域 */}
@@ -1376,7 +1395,7 @@ function TrendLineChart({ data, color, format }: {
               <Text key={`x${i}`} style={{
                 position: 'absolute', left: x - 12, top: TL_H + 2,
                 width: 24, textAlign: 'center',
-                color: TEXT.hint, fontSize: 8,
+                color: colors.textHint, fontSize: 8,
               }}>{`${dt.getMonth() + 1}/${dt.getDate()}`}</Text>
             )
           })}
@@ -1384,12 +1403,12 @@ function TrendLineChart({ data, color, format }: {
       </View>
       {/* 統計 */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-        <Text style={{ color: TEXT.hint, fontSize: 11 }}>
-          {t('records.trend.avg')}: <Text style={{ color: TEXT.primary, fontWeight: '700' }}>
+        <Text style={{ color: colors.textHint, fontSize: 11 }}>
+          {t('records.trend.avg')}: <Text style={{ color: colors.text, fontWeight: '700' }}>
             {format(vals.reduce((a, v) => a + v, 0) / vals.length)}
           </Text>
         </Text>
-        <Text style={{ color: TEXT.hint, fontSize: 11 }}>
+        <Text style={{ color: colors.textHint, fontSize: 11 }}>
           {t('records.trend.max')}: <Text style={{ color, fontWeight: '700' }}>{format(rawMax)}</Text>
         </Text>
       </View>
@@ -1406,6 +1425,8 @@ function HealthTab({ conditionMap, sleepRecords, weightRecords, onAddWeight, onD
   loading: boolean
 }) {
   const { t } = useTranslation()
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
   if (loading) return <View style={{ gap: 10 }}>{[1,2].map(i => <SkeletonRect key={i} h={120} />)}</View>
 
   // 体調データ（日付順）
@@ -1449,8 +1470,8 @@ function HealthTab({ conditionMap, sleepRecords, weightRecords, onAddWeight, onD
                   {COND_EMOJIS[Math.min(4, Math.round((condData[condData.length-1].value - 1) / 2))]}
                 </Text>
                 <View>
-                  <Text style={{ color: TEXT.secondary, fontSize: 11 }}>{t('records.health.recentCondition')}</Text>
-                  <Text style={{ color: TEXT.primary, fontSize: 16, fontWeight: '800' }}>
+                  <Text style={{ color: colors.textSec, fontSize: 11 }}>{t('records.health.recentCondition')}</Text>
+                  <Text style={{ color: colors.text, fontSize: 16, fontWeight: '800' }}>
                     {condData[condData.length-1].value}/10
                   </Text>
                 </View>
@@ -1496,6 +1517,10 @@ export default function RecordsScreen() {
   const { language } = useLanguage()
   const { isGuest } = useAuth()
   const { isNoad } = usePurchase()
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
+  const growthReportSt = useMemo(() => makeGrowthReportSt(colors), [colors])
+  const toolsMenu = useMemo(() => makeToolsMenuSt(colors), [colors])
   const [activeTab, setActiveTab] = useState<'practice'|'records'|'health'>('practice')
   const [csvGateVisible,     setCsvGateVisible]     = useState(false)
   const [csvGateRemaining,   setCsvGateRemaining]   = useState(0)
@@ -1738,7 +1763,7 @@ export default function RecordsScreen() {
     : []
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#f6f6f8' }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <SafeAreaView style={styles.safe}>
 
         {/* ── ヘッダー ── */}
@@ -1764,16 +1789,16 @@ export default function RecordsScreen() {
               hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
               accessibilityLabel={t('records.header.export')}
             >
-              <Ionicons name="download-outline" size={18} color={TEXT.secondary} />
+              <Ionicons name="download-outline" size={18} color={colors.textSec} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.iconBtn} onPress={() => { Sounds.whoosh(); router.push('/video-analysis') }} activeOpacity={0.8} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }} accessibilityLabel={t('records.header.videoAnalysis')}>
-              <Ionicons name="film-outline" size={18} color={TEXT.secondary} />
+              <Ionicons name="film-outline" size={18} color={colors.textSec} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.iconBtn} onPress={() => { Sounds.whoosh(); router.push('/timer') }} activeOpacity={0.8} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }} accessibilityLabel={t('records.header.timer')}>
-              <Ionicons name="timer-outline" size={18} color={TEXT.secondary} />
+              <Ionicons name="timer-outline" size={18} color={colors.textSec} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.iconBtn} onPress={() => { unlockAudio(); Sounds.whoosh(); setToolsMenuVisible(true) }} activeOpacity={0.8} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }} accessibilityLabel={t('records.header.tools')}>
-              <Ionicons name="construct-outline" size={18} color={TEXT.secondary} />
+              <Ionicons name="construct-outline" size={18} color={colors.textSec} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.addBtn} onPress={() => { unlockAudio(); Sounds.whoosh(); setModalVisible(true) }} activeOpacity={0.8} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }} accessibilityLabel={t('records.header.add')}>
               <Ionicons name="add" size={22} color="#fff" />
@@ -1804,7 +1829,7 @@ export default function RecordsScreen() {
                     <Text style={toolsMenu.rowLabel}>{item.label}</Text>
                     <Text style={toolsMenu.rowSub}>{item.sub}</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+                  <Ionicons name="chevron-forward" size={16} color={colors.textHint} />
                 </TouchableOpacity>
               ))}
             </Pressable>
@@ -1848,7 +1873,7 @@ export default function RecordsScreen() {
             >
               <Ionicons name="stopwatch-outline" size={22} color="#fff" />
               <Text style={styles.bigAddBtnText}>{t('records.bigAddButton')}</Text>
-              <Ionicons name="chevron-forward" size={18} color="#9ca3af" />
+              <Ionicons name="chevron-forward" size={18} color={colors.textHint} />
             </TouchableOpacity>
           </AnimatedSection>
 
@@ -1914,7 +1939,7 @@ export default function RecordsScreen() {
                   <Text style={growthReportSt.badgeText}>PRO</Text>
                 </View>
               )}
-              <Ionicons name="chevron-forward" size={18} color="#9ca3af" />
+              <Ionicons name="chevron-forward" size={18} color={colors.textHint} />
             </HapticTouch>
             </AnimatedSection>
           )}
@@ -1984,7 +2009,7 @@ export default function RecordsScreen() {
               </View>
             ) : filtered.length === 0 ? (
               <View style={styles.empty}>
-                <Ionicons name="timer-outline" size={40} color={TEXT.hint} />
+                <Ionicons name="timer-outline" size={40} color={colors.textHint} />
                 <Text style={styles.emptyText}>{t('records.list.empty')}</Text>
                 <HapticTouch haptic="whoosh" style={styles.emptyBtn} onPress={() => setModalVisible(true)}>
                   <Text style={styles.emptyBtnText}>{t('records.list.addFirst')}</Text>
@@ -2042,7 +2067,7 @@ export default function RecordsScreen() {
                         setFTime(digits.length > 2 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits)
                       }}
                       placeholder="14:30"
-                      placeholderTextColor="#9aa5b1"
+                      placeholderTextColor={colors.textHint}
                       keyboardType="number-pad"
                       maxLength={5}
                     />
@@ -2054,12 +2079,12 @@ export default function RecordsScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.label}>{t('records.modal.competitionLabel')}</Text>
                     <TextInput style={styles.input} value={fComp} onChangeText={setFComp}
-                      placeholder={t('records.modal.competitionPlaceholder')} placeholderTextColor="#9aa5b1" />
+                      placeholder={t('records.modal.competitionPlaceholder')} placeholderTextColor={colors.textHint} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.label}>{t('records.modal.venueLabel')}</Text>
                     <TextInput style={styles.input} value={fVenue} onChangeText={setFVenue}
-                      placeholder={t('records.modal.venuePlaceholder')} placeholderTextColor="#9aa5b1" />
+                      placeholder={t('records.modal.venuePlaceholder')} placeholderTextColor={colors.textHint} />
                   </View>
                 </View>
 
@@ -2072,7 +2097,7 @@ export default function RecordsScreen() {
                     fOfficial && { backgroundColor: `${BRAND}15`, borderColor: BRAND },
                   ]}
                 >
-                  <Ionicons name={fOfficial ? 'ribbon' : 'ribbon-outline'} size={16} color={fOfficial ? BRAND : TEXT.secondary} />
+                  <Ionicons name={fOfficial ? 'ribbon' : 'ribbon-outline'} size={16} color={fOfficial ? BRAND : colors.textSec} />
                   <Text style={[styles.toggleText, fOfficial && { color: BRAND }]}>{t('records.modal.officialToggle')}</Text>
                 </TouchableOpacity>
 
@@ -2086,7 +2111,7 @@ export default function RecordsScreen() {
                         <Text style={styles.eventBlockTitle}>{t('records.modal.eventBlockTitle', { n: bi + 1 })}</Text>
                         {blocks.length > 1 && (
                           <TouchableOpacity onPress={() => removeBlock(b.key)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                            <Ionicons name="close-circle" size={20} color="#9aa5b1" />
+                            <Ionicons name="close-circle" size={20} color={colors.textHint} />
                           </TouchableOpacity>
                         )}
                       </View>
@@ -2142,7 +2167,7 @@ export default function RecordsScreen() {
                                   <TextInput style={styles.timeNumInput} value={b.meters[i]}
                                     onChangeText={t => { const m = [...b.meters]; m[i] = t.replace(/[^0-9]/g, '').slice(0, 2); updateBlock(b.key, { meters: m }) }}
                                     editable keyboardType="number-pad" returnKeyType="done" maxLength={2}
-                                    placeholder="7" placeholderTextColor="#9aa5b1" textAlign="center" />
+                                    placeholder="7" placeholderTextColor={colors.textHint} textAlign="center" />
                                 </View>
                                 <Text style={styles.timeSep}>.</Text>
                                 <View style={styles.timeCol}>
@@ -2150,7 +2175,7 @@ export default function RecordsScreen() {
                                   <TextInput style={styles.timeNumInput} value={b.cms[i]}
                                     onChangeText={t => { const c = [...b.cms]; c[i] = t.replace(/[^0-9]/g, '').slice(0, 2); updateBlock(b.key, { cms: c }) }}
                                     editable keyboardType="number-pad" returnKeyType="done" maxLength={2}
-                                    placeholder="32" placeholderTextColor="#9aa5b1" textAlign="center" />
+                                    placeholder="32" placeholderTextColor={colors.textHint} textAlign="center" />
                                 </View>
                               </View>
                             ) : (
@@ -2159,14 +2184,14 @@ export default function RecordsScreen() {
                                   <Text style={styles.timeUnit}>{t('records.modal.minUnit')}</Text>
                                   <TextInput style={styles.timeNumInput} value={b.mins[i]}
                                     onChangeText={val => { const m = [...b.mins]; m[i] = val.replace(/[^0-9]/g, ''); updateBlock(b.key, { mins: m }) }}
-                                    keyboardType="number-pad" placeholder="0" placeholderTextColor="#9aa5b1" maxLength={2} textAlign="center" />
+                                    keyboardType="number-pad" placeholder="0" placeholderTextColor={colors.textHint} maxLength={2} textAlign="center" />
                                 </View>
                                 <Text style={styles.timeSep}>:</Text>
                                 <View style={styles.timeCol}>
                                   <Text style={styles.timeUnit}>{t('records.modal.secUnit')}</Text>
                                   <TextInput style={styles.timeNumInput} value={b.secs[i]}
                                     onChangeText={val => { const s = [...b.secs]; s[i] = val.replace(/[^0-9.]/g, ''); updateBlock(b.key, { secs: s }) }}
-                                    keyboardType="decimal-pad" placeholder="10.85" placeholderTextColor="#9aa5b1" maxLength={5} textAlign="center" />
+                                    keyboardType="decimal-pad" placeholder="10.85" placeholderTextColor={colors.textHint} maxLength={5} textAlign="center" />
                                 </View>
                               </View>
                             )}
@@ -2194,7 +2219,7 @@ export default function RecordsScreen() {
                               onChangeText={t => updateBlock(b.key, { wind: t.replace(/[^0-9.]/g, '') })}
                               keyboardType="decimal-pad"
                               placeholder="1.2"
-                              placeholderTextColor="#9aa5b1"
+                              placeholderTextColor={colors.textHint}
                             />
                             <Text style={styles.windUnit}>m/s</Text>
                           </View>
@@ -2221,11 +2246,11 @@ export default function RecordsScreen() {
                           {/* PB・SBは同時に成立しうる（自己ベスト更新は必ずシーズンベストでもある）ため、
                               互いを排他的にクリアせず独立してON/OFFできるようにする */}
                           <TouchableOpacity style={[styles.toggleBtn, b.isPB && styles.toggleBtnPB]} onPress={() => { b.isPB ? Sounds.toggleOff() : Sounds.toggleOn(); updateBlock(b.key, { isPB: !b.isPB }) }}>
-                            <Ionicons name={b.isPB ? 'trophy' : 'trophy-outline'} size={16} color={b.isPB ? NEON.green : TEXT.secondary} />
+                            <Ionicons name={b.isPB ? 'trophy' : 'trophy-outline'} size={16} color={b.isPB ? NEON.green : colors.textSec} />
                             <Text style={[styles.toggleText, b.isPB && { color: NEON.green }]}>{t('records.modal.pbToggle')}</Text>
                           </TouchableOpacity>
                           <TouchableOpacity style={[styles.toggleBtn, b.isSB && styles.toggleBtnSB]} onPress={() => { b.isSB ? Sounds.toggleOff() : Sounds.toggleOn(); updateBlock(b.key, { isSB: !b.isSB }) }}>
-                            <Ionicons name={b.isSB ? 'star' : 'star-outline'} size={16} color={b.isSB ? NEON.blue : TEXT.secondary} />
+                            <Ionicons name={b.isSB ? 'star' : 'star-outline'} size={16} color={b.isSB ? NEON.blue : colors.textSec} />
                             <Text style={[styles.toggleText, b.isSB && { color: NEON.blue }]}>{t('records.modal.sbToggle')}</Text>
                           </TouchableOpacity>
                         </View>
@@ -2245,7 +2270,7 @@ export default function RecordsScreen() {
                 {/* メモ */}
                 <Text style={styles.label}>{t('records.modal.noteLabel')}</Text>
                 <TextInput style={[styles.input, styles.textArea]} value={fNotes} onChangeText={setFNotes}
-                  multiline numberOfLines={3} placeholder={t('records.modal.notePlaceholder')} placeholderTextColor="#445577" />
+                  multiline numberOfLines={3} placeholder={t('records.modal.notePlaceholder')} placeholderTextColor={colors.textHint} />
 
               </ScrollView>
             </KeyboardAvoidingView>
@@ -2277,12 +2302,12 @@ export default function RecordsScreen() {
 }
 
 // ── 成長レポート導線カードのスタイル ─────────────────────────────
-const growthReportSt = StyleSheet.create({
+const makeGrowthReportSt = (colors: ThemeColors) => StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#fffbeb',
+    backgroundColor: 'rgba(217,119,6,0.10)',
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
@@ -2293,46 +2318,46 @@ const growthReportSt = StyleSheet.create({
     backgroundColor: 'rgba(217,119,6,0.12)',
     alignItems: 'center', justifyContent: 'center',
   },
-  title: { color: '#111827', fontSize: 14, fontWeight: '800' },
-  sub:   { color: '#6b7280', fontSize: 11.5, marginTop: 2, lineHeight: 16 },
+  title: { color: colors.text, fontSize: 14, fontWeight: '800' },
+  sub:   { color: colors.textSec, fontSize: 11.5, marginTop: 2, lineHeight: 16 },
   badge: { backgroundColor: '#d97706', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   badgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
 })
 
 // ── スタイル ──────────────────────────────────────────────────────
-const toolsMenu = StyleSheet.create({
+const makeToolsMenuSt = (colors: ThemeColors) => StyleSheet.create({
   overlay:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  card:        { backgroundColor: '#f6f6f8', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 36, gap: 4 },
-  title:       { fontSize: 17, fontWeight: '800', color: TEXT.primary, marginBottom: 10 },
-  row:         { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#ffffff', borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.08)', borderRadius: 16, padding: 14, marginBottom: 8 },
+  card:        { backgroundColor: colors.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 36, gap: 4 },
+  title:       { fontSize: 17, fontWeight: '800', color: colors.text, marginBottom: 10 },
+  row:         { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.card, borderWidth: 1.5, borderColor: colors.border, borderRadius: 16, padding: 14, marginBottom: 8 },
   rowIconWrap: { width: 40, height: 40, borderRadius: 12, backgroundColor: BRAND + '14', alignItems: 'center', justifyContent: 'center' },
-  rowLabel:    { fontSize: 14, fontWeight: '800', color: TEXT.primary },
-  rowSub:      { fontSize: 11.5, color: '#9ca3af', marginTop: 2 },
+  rowLabel:    { fontSize: 14, fontWeight: '800', color: colors.text },
+  rowSub:      { fontSize: 11.5, color: colors.textHint, marginTop: 2 },
 })
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   safe:    { flex: 1, backgroundColor: 'transparent' },
   scroll:  { flex: 1 },
   content: { padding: 16, gap: 14, paddingBottom: 48 },
-  header:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(0,0,0,0.08)', backgroundColor: '#ffffff' },
-  headerTitle: { color: TEXT.primary, fontSize: 20, fontWeight: '800' },
+  header:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, backgroundColor: colors.card },
+  headerTitle: { color: colors.text, fontSize: 20, fontWeight: '800' },
   addBtn:  { width: 36, height: 36, borderRadius: 18, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center' },
-  iconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#f0f2f5', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', alignItems: 'center', justifyContent: 'center' },
+  iconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
 
-  card:    { backgroundColor: '#ffffff', borderRadius: 21, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 16, gap: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 2 },
+  card:    { backgroundColor: colors.card, borderRadius: 21, borderWidth: 1, borderColor: colors.border, padding: 16, gap: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 2 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  cardTitle:  { color: TEXT.primary, fontSize: 15, fontWeight: '700', flex: 1 },
-  countText:  { color: TEXT.hint, fontSize: 13 },
+  cardTitle:  { color: colors.text, fontSize: 15, fontWeight: '700', flex: 1 },
+  countText:  { color: colors.textHint, fontSize: 13 },
 
   // PBサマリー
   pbGrid:  { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   pbItem:  { backgroundColor: 'rgba(34,197,94,0.08)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(34,197,94,0.25)', padding: 10, minWidth: 90, alignItems: 'center' },
-  pbEvent: { color: TEXT.secondary, fontSize: 11, fontWeight: '600', marginBottom: 2 },
+  pbEvent: { color: colors.textSec, fontSize: 11, fontWeight: '600', marginBottom: 2 },
   pbResult:{ color: NEON.green, fontSize: 16, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  pbDate:  { color: TEXT.hint, fontSize: 10, marginTop: 2 },
+  pbDate:  { color: colors.textHint, fontSize: 10, marginTop: 2 },
 
   // 記録カード
-  recordCard:   { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8f8fa', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)', padding: 12, gap: 10 },
+  recordCard:   { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface2, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 12, gap: 10 },
   recordCardPB: { borderColor: 'rgba(34,197,94,0.4)', backgroundColor: 'rgba(34,197,94,0.04)' },
   recordLeft:   { width: 62, gap: 4 },
   eventBadgeWrap: { backgroundColor: `${BRAND}15`, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 3 },
@@ -2340,90 +2365,90 @@ const styles = StyleSheet.create({
   badge:        { borderRadius: 4, borderWidth: 1, paddingHorizontal: 5, paddingVertical: 1 },
   badgeText:    { fontSize: 10, fontWeight: '800' },
   recordMid:    { flex: 1, gap: 2 },
-  recordResult: { color: TEXT.primary, fontSize: 22, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  windText:     { color: TEXT.hint, fontSize: 11 },
+  recordResult: { color: colors.text, fontSize: 22, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  windText:     { color: colors.textHint, fontSize: 11 },
   windRow:      { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  windSignBtn:  { width: 44, height: 44, borderRadius: 14, backgroundColor: '#f0f2f5', borderWidth: 1, borderColor: 'rgba(0,0,0,0.1)', alignItems: 'center', justifyContent: 'center' },
+  windSignBtn:  { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   windSignBtnMinus: { backgroundColor: '#fee2e2', borderColor: '#fca5a5' },
-  windSignTxt:  { fontSize: 22, fontWeight: '700', color: '#374151', lineHeight: 26 },
+  windSignTxt:  { fontSize: 22, fontWeight: '700', color: colors.text, lineHeight: 26 },
   windInput:    { flex: 1, marginTop: 0 },
-  windUnit:     { color: '#6b7280', fontSize: 14, fontWeight: '600' },
-  recordVenue:  { color: TEXT.secondary, fontSize: 12 },
+  windUnit:     { color: colors.textSec, fontSize: 14, fontWeight: '600' },
+  recordVenue:  { color: colors.textSec, fontSize: 12 },
   recordRight:  { alignItems: 'flex-end', gap: 6 },
   shareBtn:     { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: BRAND, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
   shareBtnTxt:  { color: '#fff', fontSize: 11, fontWeight: '700' },
-  recordDate:   { color: TEXT.hint, fontSize: 11 },
+  recordDate:   { color: colors.textHint, fontSize: 11 },
 
   // フィルター
-  filterChip:       { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#f0f2f5', borderRadius: 21, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
+  filterChip:       { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: colors.surface2, borderRadius: 21, borderWidth: 1, borderColor: colors.border },
   filterChipActive: { backgroundColor: BRAND, borderColor: BRAND },
-  filterChipText:   { color: TEXT.secondary, fontSize: 12, fontWeight: '600' },
+  filterChipText:   { color: colors.textSec, fontSize: 12, fontWeight: '600' },
   filterChipTextActive: { color: '#FFFFFF' },
 
   // 空状態
   empty:      { alignItems: 'center', paddingVertical: 32, gap: 10 },
-  emptyText:  { color: TEXT.secondary, fontSize: 14 },
+  emptyText:  { color: colors.textSec, fontSize: 14 },
   emptyBtn:   { backgroundColor: BRAND, borderRadius: 21, paddingHorizontal: 20, paddingVertical: 10 },
   emptyBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
 
   // 体重入力
-  weightInput:   { flex: 1, backgroundColor: '#f8f8fa', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 11, color: TEXT.primary, fontSize: 15, borderWidth: 1, borderColor: 'rgba(59,130,246,0.3)' },
+  weightInput:   { flex: 1, backgroundColor: colors.surface2, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 11, color: colors.text, fontSize: 15, borderWidth: 1, borderColor: 'rgba(59,130,246,0.3)' },
   weightAddBtn:  { backgroundColor: NEON.blue, borderRadius: 14, paddingHorizontal: 18, paddingVertical: 11, justifyContent: 'center' },
 
   // 入力ショートカット
-  inputShortcut:     { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#f0f2f5', borderRadius: 18, paddingVertical: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
+  inputShortcut:     { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.surface2, borderRadius: 18, paddingVertical: 14, borderWidth: 1, borderColor: colors.border },
   inputShortcutText: { fontSize: 14, fontWeight: '800' },
 
   // モーダル
-  modalSafe:    { flex: 1, backgroundColor: '#f6f6f8' },
+  modalSafe:    { flex: 1, backgroundColor: colors.bg },
   modalContent: { padding: 20, paddingBottom: 48, gap: 4 },
   modalHeader:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
-  modalTitle:   { color: TEXT.primary, fontSize: 17, fontWeight: '700' },
-  cancelText:   { color: TEXT.secondary, fontSize: 16 },
+  modalTitle:   { color: colors.text, fontSize: 17, fontWeight: '700' },
+  cancelText:   { color: colors.textSec, fontSize: 16 },
   saveText:     { color: BRAND, fontSize: 16, fontWeight: '700' },
 
-  label:    { color: TEXT.secondary, fontSize: 13, fontWeight: '600', marginBottom: 6 },
-  subLabel: { color: TEXT.hint, fontSize: 11, fontWeight: '600', marginBottom: 4 },
-  input:    { backgroundColor: '#f8f8fa', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, color: TEXT.primary, fontSize: 15, borderWidth: 1, borderColor: 'rgba(59,130,246,0.25)', marginBottom: 14 },
+  label:    { color: colors.textSec, fontSize: 13, fontWeight: '600', marginBottom: 6 },
+  subLabel: { color: colors.textHint, fontSize: 11, fontWeight: '600', marginBottom: 4 },
+  input:    { backgroundColor: colors.surface2, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, color: colors.text, fontSize: 15, borderWidth: 1, borderColor: 'rgba(59,130,246,0.25)', marginBottom: 14 },
   textArea: { height: 80, textAlignVertical: 'top' },
 
   chipRow:      { flexDirection: 'row', gap: 8 },
-  chip:         { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 21, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', backgroundColor: '#f0f2f5' },
+  chip:         { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 21, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface2 },
   chipActive:   { backgroundColor: BRAND, borderColor: BRAND },
-  chipText:     { color: TEXT.secondary, fontSize: 13, fontWeight: '600' },
+  chipText:     { color: colors.textSec, fontSize: 13, fontWeight: '600' },
   chipTextActive: { color: '#FFFFFF' },
 
   timeRow:     { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 14 },
   timeCol:     { flex: 1, gap: 4 },
-  timeNumInput:{ backgroundColor: '#f8f8fa', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, color: TEXT.primary, fontSize: 20, fontWeight: '700', borderWidth: 1, borderColor: 'rgba(59,130,246,0.25)', fontVariant: ['tabular-nums'] },
-  timeUnit:    { color: TEXT.secondary, fontSize: 12, fontWeight: '600', textAlign: 'center' },
-  timeSep:     { color: TEXT.secondary, fontSize: 24, fontWeight: '300', paddingBottom: 10 },
+  timeNumInput:{ backgroundColor: colors.surface2, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, color: colors.text, fontSize: 20, fontWeight: '700', borderWidth: 1, borderColor: 'rgba(59,130,246,0.25)', fontVariant: ['tabular-nums'] },
+  timeUnit:    { color: colors.textSec, fontSize: 12, fontWeight: '600', textAlign: 'center' },
+  timeSep:     { color: colors.textSec, fontSize: 24, fontWeight: '300', paddingBottom: 10 },
 
   toggleRow:   { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  toggleBtn:   { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, backgroundColor: '#f0f2f5', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
+  toggleBtn:   { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border },
   toggleBtnPB: { backgroundColor: 'rgba(34,197,94,0.08)', borderColor: NEON.green },
   toggleBtnSB: { backgroundColor: 'rgba(59,130,246,0.08)', borderColor: NEON.blue },
-  toggleText:  { color: TEXT.secondary, fontSize: 12, fontWeight: '600' },
+  toggleText:  { color: colors.textSec, fontSize: 12, fontWeight: '600' },
 
   // 大会名・会場（横並び）
   metaRow: { flexDirection: 'row', gap: 10 },
 
   // 種目ブロック（1種目=1カード。複数追加すると縦に並ぶ）
   eventBlock: {
-    backgroundColor: '#fbfbfd', borderRadius: 18, borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)',
+    backgroundColor: colors.surface2, borderRadius: 18, borderWidth: 1, borderColor: colors.border,
     padding: 14, marginBottom: 14, gap: 2,
   },
   eventBlockHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  eventBlockTitle:  { color: TEXT.primary, fontSize: 13, fontWeight: '800' },
+  eventBlockTitle:  { color: colors.text, fontSize: 13, fontWeight: '800' },
 
   // 本数チップ・入力
-  repsChip:  { width: 36, height: 32, borderRadius: 21, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', backgroundColor: '#f0f2f5', alignItems: 'center', justifyContent: 'center' },
-  repsInput: { width: 44, height: 32, borderRadius: 21, borderWidth: 1, borderColor: 'rgba(59,130,246,0.25)', backgroundColor: '#f8f8fa', color: TEXT.primary, fontSize: 14, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  repsUnit:  { color: TEXT.hint, fontSize: 12, fontWeight: '600', alignSelf: 'center' },
+  repsChip:  { width: 36, height: 32, borderRadius: 21, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' },
+  repsInput: { width: 44, height: 32, borderRadius: 21, borderWidth: 1, borderColor: 'rgba(59,130,246,0.25)', backgroundColor: colors.surface2, color: colors.text, fontSize: 14, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  repsUnit:  { color: colors.textHint, fontSize: 12, fontWeight: '600', alignSelf: 'center' },
 
   // 本数分の記録行
   repRow:      { gap: 4 },
-  repRowLabel: { color: TEXT.hint, fontSize: 11, fontWeight: '700' },
+  repRowLabel: { color: colors.textHint, fontSize: 11, fontWeight: '700' },
 
   // 種目を追加ボタン
   addEventBtn: {
@@ -2444,9 +2469,9 @@ const styles = StyleSheet.create({
   bigAddBtnText: { color: '#fff', fontSize: 16, fontWeight: '800', flex: 1 },
 
   // タブバー
-  tabBar:          { flexDirection: 'row', backgroundColor: '#ffffff', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(0,0,0,0.08)', paddingHorizontal: 16 },
+  tabBar:          { flexDirection: 'row', backgroundColor: colors.card, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, paddingHorizontal: 16 },
   tabItem:         { flex: 1, paddingVertical: 10, alignItems: 'center' },
   tabItemActive:   { borderBottomWidth: 2, borderBottomColor: BRAND },
-  tabLabel:        { color: TEXT.hint, fontSize: 12, fontWeight: '700' },
+  tabLabel:        { color: colors.textHint, fontSize: 12, fontWeight: '700' },
   tabLabelActive:  { color: BRAND },
 })

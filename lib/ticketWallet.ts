@@ -20,6 +20,7 @@ const STREAK_KEY           = 'score_ticket_streak'
 const STARTER_KEY          = 'score_ticket_starter_granted'
 const SHARE_BONUS_KEY      = 'score_ticket_share_bonus_daily'
 const MONTHLY_GRANT_KEY    = 'score_ticket_monthly_last_granted'   // 直近で付与済みの更新期日(ticketMonthlyExpiresAt)
+const MONTHLY_TRIAL_DAILY_KEY = 'score_ticket_monthly_trial_daily_last_granted'  // トライアル中の直近付与マーカー(期日+日付)
 const MISSION_PROFILE_KEY  = 'score_ticket_mission_profile'
 const MISSION_LINE_KEY     = 'score_ticket_mission_line'
 const MISSION_GOAL_KEY     = 'score_ticket_mission_goal'
@@ -254,15 +255,32 @@ export async function earnTicketFromAd(): Promise<{ granted: boolean; atCap: boo
 }
 
 // ── チケット月額プラン：更新のたびに100枚を自動付与 ───────────────
+// 2026-09-05: 無料トライアル中は periodType='TRIAL' のエンタイトルメントが即座に
+// active になるため、これまでの実装だとトライアル開始した瞬間に100枚を丸ごと
+// 付与してしまっていた。決済が発生する前にキャンセルされると、ノーコストで
+// 100枚だけ持ち逃げできる抜け穴になるため、トライアル中は「1日ごとに少量ずつ」
+// 付与する方式に変更する（本付与100枚は、実際に課金される本番期間に入って
+// 初めて行う＝その時点で periodExpiresAt がトライアルのものから変わるため、
+// 下の通常分岐が自然に発火する）。
+const TICKET_MONTHLY_TRIAL_DAILY_GRANT = 5   // トライアル中に1日あたり付与する枚数
+
 /**
  * チケット月額プランが有効なとき、更新期日(periodExpiresAt)が前回付与時と変わっていれば
  * 100枚を追加付与する（残高リセットではなく加算——単発パックで買い足した分を消さないため）。
  * 同じ期日内での複数回呼び出しは何もしない（起動のたびに呼んでも安全）。
  * ログイン中はサーバー側の重複防止マーカーを見るため、別端末・再インストールでも
  * 二重付与されない。
+ *
+ * isTrial=true（無料トライアル中）の場合は、本付与の代わりに1日1回だけ
+ * TICKET_MONTHLY_TRIAL_DAILY_GRANT 枚を付与する（マーカーを期日+当日日付にすることで
+ * 同じ日の二重付与を防ぎつつ、日をまたぐたびに再度呼び出し可能にする）。
  */
-export async function grantMonthlyTicketsIfNeeded(periodExpiresAt: string | undefined): Promise<boolean> {
+export async function grantMonthlyTicketsIfNeeded(periodExpiresAt: string | undefined, isTrial?: boolean): Promise<boolean> {
   if (!periodExpiresAt) return false
+  if (isTrial) {
+    const dailyMarker = `${periodExpiresAt}:${todayLocalISO()}`
+    return grantOnceGeneric(TICKET_MONTHLY_TRIAL_DAILY_GRANT, 'monthly_grant_trial_daily', dailyMarker, MONTHLY_TRIAL_DAILY_KEY)
+  }
   return grantOnceGeneric(TICKET_MONTHLY_GRANT, 'monthly_grant', periodExpiresAt, MONTHLY_GRANT_KEY)
 }
 

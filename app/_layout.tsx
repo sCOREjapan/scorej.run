@@ -14,7 +14,7 @@ import Constants from 'expo-constants'
 import { Ionicons } from '@expo/vector-icons'
 import { AuthProvider, useAuth } from '../context/AuthContext'
 import { claimReferralRewards, REFERRAL_BONUS_TICKETS } from '../lib/referral'
-import { ThemeProvider } from '../context/ThemeContext'
+import { ThemeProvider, useTheme } from '../context/ThemeContext'
 import { PurchaseProvider } from '../context/PurchaseContext'
 import { LanguageProvider, useLanguage } from '../context/LanguageContext'
 import LanguagePickerModal from '../components/LanguagePickerModal'
@@ -664,6 +664,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 function RootLayoutNav() {
   const router = useRouter()
   const segments = useSegments()
+  const { colors } = useTheme()
 
   // アプリ起動時に OneSignal を初期化（許可ダイアログは初回のみ）
   useEffect(() => {
@@ -745,7 +746,10 @@ function RootLayoutNav() {
             headerStyle: { backgroundColor: '#000000' },
             headerTintColor: '#FFFFFF',
             headerTitleStyle: { color: '#FFFFFF', fontWeight: '800' },
-            contentStyle: { backgroundColor: '#000000' },
+            // 画面遷移アニメーション中、次の画面が実際に描画されるまでの一瞬デフォルト
+            // (白)の背景が見えてしまう(特にダークモード時に白フラッシュとして目立つ)ため
+            // 明示的にテーマ背景色を指定する
+            contentStyle: { backgroundColor: colors.bg },
             headerBackTitle: '',
             headerLeft: ({ canGoBack }) =>
               canGoBack ? (

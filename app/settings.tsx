@@ -1,6 +1,6 @@
 // app/settings.tsx — 設定画面
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   Switch, Alert, TextInput, Platform, Linking,
@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { useRouter } from 'expo-router'
+import { useRouter, useNavigation } from 'expo-router'
 import * as FileSystem from 'expo-file-system/legacy'
 import * as Sharing from 'expo-sharing'
 
@@ -17,7 +17,7 @@ import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 import { getEventLabel } from '../lib/eventLabels'
 import { supabase } from '../lib/supabase'
-import { useTheme } from '../context/ThemeContext'
+import { useTheme, type ThemeColors } from '../context/ThemeContext'
 import { usePurchase } from '../context/PurchaseContext'
 import { useTutorial } from '../lib/tutorialContext'
 import AnimatedSection from '../components/AnimatedSection'
@@ -28,6 +28,10 @@ import Toast from 'react-native-toast-message'
 import { Sounds, isSoundEnabled, isHapticsEnabled, setSoundEnabled, setHapticsEnabled, loadSoundPrefs } from '../lib/sounds'
 import AdGateModal from '../components/AdGateModal'
 import { trackFeatureUse } from '../lib/analytics'
+
+// テーマに関わらず固定のブランド/セマンティックカラー
+const BRAND   = '#166534'  // アプリのブランドグリーン
+const DANGER  = '#E53935'  // 破壊的操作（サインアウト・削除等）
 
 const PROFILE_KEY   = 'trackmate_my_profile'
 const NOTIF_KEY     = 'trackmate_notif_settings'
@@ -152,6 +156,8 @@ async function exportCSV(t: (key: string, opts?: any) => string) {
 
 // ── セクション見出し付きカード ──────────────────────────────
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
   return (
     <View style={styles.card}>
       <Text style={styles.cardTitle}>{title}</Text>
@@ -170,6 +176,8 @@ function LabeledInput({
   placeholder?: string
   keyboardType?: 'default' | 'numeric'
 }) {
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
   return (
     <View style={styles.fieldRow}>
       <Text style={styles.fieldLabel}>{label}</Text>
@@ -178,7 +186,7 @@ function LabeledInput({
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder ?? ''}
-        placeholderTextColor="#9ca3af"
+        placeholderTextColor={colors.textHint}
         keyboardType={keyboardType}
         autoCapitalize="none"
         autoCorrect={false}
@@ -190,13 +198,16 @@ function LabeledInput({
 // ── メイン設定画面 ─────────────────────────────────────────
 export default function SettingsScreen() {
   const { user, signOut, isGuest, signOutGuest } = useAuth()
-  const { colors } = useTheme()
+  const { scheme, colors, setScheme } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
   const { t } = useTranslation()
   const { language, setLanguage } = useLanguage()
   const EVENT_CATEGORIES = buildEventCategories(t)
   const { tier, isNoad, isCoach, hasTicketMonthly, expiresAt, restore } = usePurchase()
   const { startTutorial } = useTutorial()
   const router = useRouter()
+  const navigation = useNavigation()
+  useEffect(() => { navigation.setOptions({ title: t('settings.headerTitle') }) }, [navigation, t, language])
 
   // プロフィール
   const [profile, setProfile] = useState<Profile>({ name: '', event: '', age: '', club: '', pb: '', target: '', experienceYears: '', experienceMonths: '' })
@@ -557,7 +568,7 @@ export default function SettingsScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#f6f6f8' }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
@@ -719,10 +730,10 @@ export default function SettingsScreen() {
                     value={profile.experienceYears}
                     onChangeText={v => setProfile(p => ({ ...p, experienceYears: v.replace(/[^0-9]/g, '') }))}
                     placeholder="3"
-                    placeholderTextColor="#9ca3af"
+                    placeholderTextColor={colors.textHint}
                     keyboardType="numeric"
                   />
-                  <Text style={{ color: '#9ca3af', fontSize: 13 }}>{t('settings.profile.years')}</Text>
+                  <Text style={{ color: colors.textHint, fontSize: 13 }}>{t('settings.profile.years')}</Text>
                   <TextInput
                     style={[styles.fieldInput, { flex: 0, width: 30, outlineStyle: 'none' } as any]}
                     value={profile.experienceMonths}
@@ -731,10 +742,10 @@ export default function SettingsScreen() {
                       setProfile(p => ({ ...p, experienceMonths: n === '' ? '' : String(Math.min(11, Number(n))) }))
                     }}
                     placeholder="0"
-                    placeholderTextColor="#9ca3af"
+                    placeholderTextColor={colors.textHint}
                     keyboardType="numeric"
                   />
-                  <Text style={{ color: '#9ca3af', fontSize: 13 }}>{t('settings.profile.months')}</Text>
+                  <Text style={{ color: colors.textHint, fontSize: 13 }}>{t('settings.profile.months')}</Text>
                 </View>
               </View>
 
@@ -758,16 +769,16 @@ export default function SettingsScreen() {
                   </View>
                   <View style={styles.divider} />
                   <TouchableOpacity
-                    style={[styles.actionRow, { backgroundColor: '#166534' + '12', borderRadius: 12, marginTop: 4 }]}
+                    style={[styles.actionRow, { backgroundColor: BRAND + '12', borderRadius: 12, marginTop: 4 }]}
                     onPress={() => signOutGuest()}
                     activeOpacity={0.8}
                   >
-                    <Ionicons name="log-in-outline" size={18} color="#166534" />
+                    <Ionicons name="log-in-outline" size={18} color={BRAND} />
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.actionText, { color: '#166534', fontWeight: '800' }]}>{t('settings.account.createAccount')}</Text>
+                      <Text style={[styles.actionText, { color: BRAND, fontWeight: '800' }]}>{t('settings.account.createAccount')}</Text>
                       <Text style={{ color: colors.textHint, fontSize: 11, marginTop: 2 }}>{t('settings.account.cloudSaveHint')}</Text>
                     </View>
-                    <Ionicons name="chevron-forward" size={16} color="#166534" />
+                    <Ionicons name="chevron-forward" size={16} color={BRAND} />
                   </TouchableOpacity>
                 </>
               ) : (
@@ -781,12 +792,12 @@ export default function SettingsScreen() {
                   </View>
                   <View style={styles.divider} />
                   <TouchableOpacity style={styles.dangerRow} onPress={handleSignOut} activeOpacity={0.75}>
-                    <Ionicons name="log-out-outline" size={18} color="#E53935" />
+                    <Ionicons name="log-out-outline" size={18} color={DANGER} />
                     <Text style={styles.dangerText}>{t('settings.account.signOut')}</Text>
                   </TouchableOpacity>
                   <View style={styles.divider} />
                   <TouchableOpacity style={styles.dangerRow} onPress={handleDeleteAccount} activeOpacity={0.75}>
-                    <Ionicons name="trash-outline" size={18} color="#E53935" />
+                    <Ionicons name="trash-outline" size={18} color={DANGER} />
                     <Text style={styles.dangerText}>{t('settings.account.deleteAccount')}</Text>
                   </TouchableOpacity>
                 </>
@@ -801,8 +812,8 @@ export default function SettingsScreen() {
                 <Text style={styles.fieldLabel}>{t('settings.team.currentRole')}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   {teamRole === 'coach' && (
-                    <View style={{ backgroundColor: '#166534' + '20', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 }}>
-                      <Text style={{ color: '#166534', fontSize: 12, fontWeight: '700' }}>{t('settings.team.coach')}</Text>
+                    <View style={{ backgroundColor: BRAND + '20', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 }}>
+                      <Text style={{ color: BRAND, fontSize: 12, fontWeight: '700' }}>{t('settings.team.coach')}</Text>
                     </View>
                   )}
                   {teamRole === 'player' && (
@@ -833,9 +844,9 @@ export default function SettingsScreen() {
                   }
                 }}
               >
-                <Ionicons name="swap-horizontal-outline" size={18} color="#6b7280" />
+                <Ionicons name="swap-horizontal-outline" size={18} color={colors.textSec} />
                 <Text style={styles.actionText}>{t('settings.team.switchRole')}</Text>
-                <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+                <Ionicons name="chevron-forward" size={16} color={colors.textHint} />
               </TouchableOpacity>
             </SectionCard>
           </AnimatedSection>
@@ -862,11 +873,11 @@ export default function SettingsScreen() {
                 </View>
                 {locPerm !== 'granted' && (
                   <TouchableOpacity
-                    style={[styles.permBtn, locPerm === 'denied' && { backgroundColor: '#f0f2f5' }]}
+                    style={[styles.permBtn, locPerm === 'denied' && { backgroundColor: colors.surface2 }]}
                     onPress={handleRequestLocationPerm}
                     activeOpacity={0.85}
                   >
-                    <Text style={[styles.permBtnText, locPerm === 'denied' && { color: '#6b7280' }]}>
+                    <Text style={[styles.permBtnText, locPerm === 'denied' && { color: colors.textSec }]}>
                       {locPerm === 'denied' ? t('settings.permissions.openSettings') : t('settings.permissions.allow')}
                     </Text>
                   </TouchableOpacity>
@@ -879,7 +890,7 @@ export default function SettingsScreen() {
               <View style={styles.permRow}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
                   <View style={[styles.permIcon, { backgroundColor: 'rgba(22,101,52,0.12)' }]}>
-                    <Ionicons name="notifications-outline" size={20} color="#166534" />
+                    <Ionicons name="notifications-outline" size={20} color={BRAND} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.permTitle}>{t('settings.permissions.pushNotif')}</Text>
@@ -893,11 +904,11 @@ export default function SettingsScreen() {
                 </View>
                 {notifPerm !== 'granted' && notifPerm !== 'loading' && notifPerm !== 'unsupported' && (
                   <TouchableOpacity
-                    style={[styles.permBtn, notifPerm === 'denied' && { backgroundColor: '#f0f2f5' }]}
+                    style={[styles.permBtn, notifPerm === 'denied' && { backgroundColor: colors.surface2 }]}
                     onPress={handleRequestNotifPerm}
                     activeOpacity={0.85}
                   >
-                    <Text style={[styles.permBtnText, notifPerm === 'denied' && { color: '#6b7280' }]}>
+                    <Text style={[styles.permBtnText, notifPerm === 'denied' && { color: colors.textSec }]}>
                       {notifPerm === 'denied' ? t('settings.permissions.openSettings') : t('settings.permissions.allow')}
                     </Text>
                   </TouchableOpacity>
@@ -916,8 +927,8 @@ export default function SettingsScreen() {
                 ].map(item => (
                   <View key={item.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <Text style={{ fontSize: 14 }}>{item.icon}</Text>
-                    <Text style={{ color: '#6b7280', fontSize: 12, flex: 1 }}>{item.label}</Text>
-                    <Text style={{ color: '#9ca3af', fontSize: 11, fontWeight: '600' }}>{item.time}</Text>
+                    <Text style={{ color: colors.textSec, fontSize: 12, flex: 1 }}>{item.label}</Text>
+                    <Text style={{ color: colors.textHint, fontSize: 11, fontWeight: '600' }}>{item.time}</Text>
                   </View>
                 ))}
               </View>
@@ -929,9 +940,9 @@ export default function SettingsScreen() {
                 <Switch
                   value={notifSettings.practiceReminder}
                   onValueChange={v => toggleNotif('practiceReminder', v)}
-                  trackColor={{ false: '#e5e7eb', true: '#166534' }}
+                  trackColor={{ false: colors.switchTrack, true: BRAND }}
                   thumbColor="#fff"
-                  ios_backgroundColor="#e5e7eb"
+                  ios_backgroundColor={colors.switchTrack}
                 />
               </View>
               <View style={styles.divider} />
@@ -940,9 +951,9 @@ export default function SettingsScreen() {
                 <Switch
                   value={notifSettings.raceReminder}
                   onValueChange={v => toggleNotif('raceReminder', v)}
-                  trackColor={{ false: '#e5e7eb', true: '#166534' }}
+                  trackColor={{ false: colors.switchTrack, true: BRAND }}
                   thumbColor="#fff"
-                  ios_backgroundColor="#e5e7eb"
+                  ios_backgroundColor={colors.switchTrack}
                 />
               </View>
             </SectionCard>
@@ -956,9 +967,9 @@ export default function SettingsScreen() {
                 <Switch
                   value={soundOn}
                   onValueChange={toggleSound}
-                  trackColor={{ false: '#e5e7eb', true: '#166534' }}
+                  trackColor={{ false: colors.switchTrack, true: BRAND }}
                   thumbColor="#fff"
-                  ios_backgroundColor="#e5e7eb"
+                  ios_backgroundColor={colors.switchTrack}
                 />
               </View>
               <View style={styles.divider} />
@@ -967,9 +978,9 @@ export default function SettingsScreen() {
                 <Switch
                   value={hapticOn}
                   onValueChange={toggleHaptic}
-                  trackColor={{ false: '#e5e7eb', true: '#166534' }}
+                  trackColor={{ false: colors.switchTrack, true: BRAND }}
                   thumbColor="#fff"
-                  ios_backgroundColor="#e5e7eb"
+                  ios_backgroundColor={colors.switchTrack}
                 />
               </View>
             </SectionCard>
@@ -983,9 +994,9 @@ export default function SettingsScreen() {
                 onPress={handleExportCSV}
                 activeOpacity={0.75}
               >
-                <Ionicons name="download-outline" size={18} color="#6b7280" />
+                <Ionicons name="download-outline" size={18} color={colors.textSec} />
                 <Text style={styles.actionText}>{t('settings.data.exportCsv')}</Text>
-                <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+                <Ionicons name="chevron-forward" size={16} color={colors.textHint} />
               </TouchableOpacity>
               <View style={styles.divider} />
               <TouchableOpacity
@@ -993,9 +1004,9 @@ export default function SettingsScreen() {
                 onPress={handleClearCache}
                 activeOpacity={0.75}
               >
-                <Ionicons name="trash-outline" size={18} color="#E53935" />
-                <Text style={[styles.actionText, { color: '#E53935' }]}>{t('settings.data.resetAll')}</Text>
-                <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+                <Ionicons name="trash-outline" size={18} color={DANGER} />
+                <Text style={[styles.actionText, { color: DANGER }]}>{t('settings.data.resetAll')}</Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textHint} />
               </TouchableOpacity>
             </SectionCard>
           </AnimatedSection>
@@ -1015,19 +1026,43 @@ export default function SettingsScreen() {
                     onPress={() => setLanguage('ja')}
                     style={{
                       paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14,
-                      backgroundColor: language === 'ja' ? '#166534' : '#f0f2f5',
+                      backgroundColor: language === 'ja' ? BRAND : colors.surface2,
                     }}
                   >
-                    <Text style={{ fontSize: 12, fontWeight: '700', color: language === 'ja' ? '#fff' : '#6b7280' }}>{t('settings.appInfo.japanese')}</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: language === 'ja' ? '#fff' : colors.textSec }}>{t('settings.appInfo.japanese')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => setLanguage('en')}
                     style={{
                       paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14,
-                      backgroundColor: language === 'en' ? '#166534' : '#f0f2f5',
+                      backgroundColor: language === 'en' ? BRAND : colors.surface2,
                     }}
                   >
-                    <Text style={{ fontSize: 12, fontWeight: '700', color: language === 'en' ? '#fff' : '#6b7280' }}>{t('settings.appInfo.english')}</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: language === 'en' ? '#fff' : colors.textSec }}>{t('settings.appInfo.english')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.fieldRow}>
+                <Text style={styles.fieldLabel}>{t('settings.appInfo.appearance')}</Text>
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                  <TouchableOpacity
+                    onPress={() => setScheme('light')}
+                    style={{
+                      paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14,
+                      backgroundColor: scheme === 'light' ? BRAND : colors.surface2,
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: scheme === 'light' ? '#fff' : colors.textSec }}>{t('settings.appInfo.light')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setScheme('dark')}
+                    style={{
+                      paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14,
+                      backgroundColor: scheme === 'dark' ? BRAND : colors.surface2,
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: scheme === 'dark' ? '#fff' : colors.textSec }}>{t('settings.appInfo.dark')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1037,9 +1072,9 @@ export default function SettingsScreen() {
                 onPress={() => router.push('/support')}
                 activeOpacity={0.75}
               >
-                <Ionicons name="help-circle-outline" size={18} color="#6b7280" />
+                <Ionicons name="help-circle-outline" size={18} color={colors.textSec} />
                 <Text style={styles.actionText}>{t('settings.appInfo.support')}</Text>
-                <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+                <Ionicons name="chevron-forward" size={16} color={colors.textHint} />
               </TouchableOpacity>
               <View style={styles.divider} />
               <TouchableOpacity
@@ -1047,9 +1082,9 @@ export default function SettingsScreen() {
                 onPress={() => router.push('/privacy')}
                 activeOpacity={0.75}
               >
-                <Ionicons name="shield-checkmark-outline" size={18} color="#6b7280" />
+                <Ionicons name="shield-checkmark-outline" size={18} color={colors.textSec} />
                 <Text style={styles.actionText}>{t('settings.appInfo.privacyPolicy')}</Text>
-                <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+                <Ionicons name="chevron-forward" size={16} color={colors.textHint} />
               </TouchableOpacity>
               <View style={styles.divider} />
               <TouchableOpacity
@@ -1057,9 +1092,9 @@ export default function SettingsScreen() {
                 onPress={() => router.push('/terms')}
                 activeOpacity={0.75}
               >
-                <Ionicons name="document-text-outline" size={18} color="#6b7280" />
+                <Ionicons name="document-text-outline" size={18} color={colors.textSec} />
                 <Text style={styles.actionText}>{t('settings.appInfo.terms')}</Text>
-                <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+                <Ionicons name="chevron-forward" size={16} color={colors.textHint} />
               </TouchableOpacity>
               <View style={styles.divider} />
               <TouchableOpacity
@@ -1071,13 +1106,13 @@ export default function SettingsScreen() {
                 }}
                 activeOpacity={0.75}
               >
-                <Ionicons name="play-circle-outline" size={18} color="#6b7280" />
+                <Ionicons name="play-circle-outline" size={18} color={colors.textSec} />
                 <Text style={styles.actionText}>{t('settings.appInfo.replayTutorial')}</Text>
-                <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+                <Ionicons name="chevron-forward" size={16} color={colors.textHint} />
               </TouchableOpacity>
               <View style={styles.divider} />
               <View style={[styles.fieldRow, { paddingBottom: 4 }]}>
-                <Text style={{ color: '#555', fontSize: 12, textAlign: 'center', flex: 1 }}>
+                <Text style={{ color: colors.textHint, fontSize: 12, textAlign: 'center', flex: 1 }}>
                   {t('settings.appInfo.footer')}
                 </Text>
               </View>
@@ -1110,17 +1145,17 @@ export default function SettingsScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   content: { paddingBottom: 48 },
 
   // カードセクション
   card: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.card,
     borderRadius: 21,
     margin: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.08)',
+    borderColor: colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.04,
@@ -1128,7 +1163,7 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   cardTitle: {
-    color: '#166534',
+    color: BRAND,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1.5,
@@ -1136,40 +1171,40 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
 
-  divider: { height: 1, backgroundColor: 'rgba(0,0,0,0.07)', marginVertical: 10 },
+  divider: { height: 1, backgroundColor: colors.border, marginVertical: 10 },
 
   // アクセス許可行
   permRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingVertical: 4 },
   permIcon:    { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  permTitle:   { color: '#111827', fontSize: 14, fontWeight: '700' },
-  permSub:     { color: '#6b7280', fontSize: 11, marginTop: 2 },
-  permBtn:     { backgroundColor: '#166534', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 8, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  permTitle:   { color: colors.text, fontSize: 14, fontWeight: '700' },
+  permSub:     { color: colors.textSec, fontSize: 11, marginTop: 2 },
+  permBtn:     { backgroundColor: BRAND, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 8, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   permBtnText: { color: '#fff', fontSize: 12, fontWeight: '800' },
 
   // フィールド行
   fieldRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 36 },
-  fieldLabel: { color: '#9ca3af', fontSize: 12, flex: 0, minWidth: 72 },
-  fieldValue: { color: '#111827', fontSize: 16, flex: 1, textAlign: 'right' },
+  fieldLabel: { color: colors.textHint, fontSize: 12, flex: 0, minWidth: 72 },
+  fieldValue: { color: colors.text, fontSize: 16, flex: 1, textAlign: 'right' },
   fieldInput: {
-    flex: 1, color: '#111827', fontSize: 16,
+    flex: 1, color: colors.text, fontSize: 16,
     textAlign: 'right' as const,
   },
 
   // 種目タグ
-  eventCategoryLabel: { fontSize: 11, fontWeight: '700', color: '#9ca3af', marginBottom: 4 },
+  eventCategoryLabel: { fontSize: 11, fontWeight: '700', color: colors.textHint, marginBottom: 4 },
   tagWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6, marginBottom: 6 },
   tag: {
     paddingHorizontal: 10, paddingVertical: 5,
     borderRadius: 21, borderWidth: 1,
   },
-  tagActive:   { backgroundColor: '#166534', borderColor: '#166534' },
+  tagActive:   { backgroundColor: BRAND, borderColor: BRAND },
   tagInactive: { backgroundColor: 'transparent', borderColor: 'rgba(22,101,52,0.4)' },
-  tagText:     { color: '#166534', fontSize: 12, fontWeight: '700' },
+  tagText:     { color: BRAND, fontSize: 12, fontWeight: '700' },
 
   // 保存ボタン
   saveBtn: {
     marginTop: 14,
-    backgroundColor: '#1c1c1e', borderRadius: 50,
+    backgroundColor: BRAND, borderRadius: 50,
     paddingVertical: 13, alignItems: 'center',
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.18, shadowRadius: 12, elevation: 5,
@@ -1181,13 +1216,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 10,
     paddingVertical: 10, minHeight: 44,
   },
-  dangerText: { color: '#E53935', fontSize: 15, fontWeight: '700' },
+  dangerText: { color: DANGER, fontSize: 15, fontWeight: '700' },
 
   // Switch 行
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4, minHeight: 44 },
-  switchLabel: { color: '#111827', fontSize: 15, fontWeight: '600' },
+  switchLabel: { color: colors.text, fontSize: 15, fontWeight: '600' },
 
   // アクション行（データ）
   actionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, minHeight: 44 },
-  actionText: { flex: 1, color: '#111827', fontSize: 15, fontWeight: '600' },
+  actionText: { flex: 1, color: colors.text, fontSize: 15, fontWeight: '600' },
 })

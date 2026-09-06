@@ -19,7 +19,7 @@ import TicketGateModal from '../components/TicketGateModal'
 import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 import { narrativeLanguageInstruction } from '../lib/aiLanguage'
-import { useRouter } from 'expo-router'
+import { useRouter, useNavigation } from 'expo-router'
 import { trackFeatureUse } from '../lib/analytics'
 import { localDateStr } from '../lib/dateLocal'
 
@@ -164,6 +164,8 @@ export default function AIDiagnosisScreen() {
   const { language } = useLanguage()
   const { t } = useTranslation()
   const router = useRouter()
+  const navigation = useNavigation()
+  useEffect(() => { navigation.setOptions({ title: t('aiDiagnosis.title') }) }, [navigation, t, language])
   // AdGate async チェック中の二重タップ防止
   const diagnosingRef = React.useRef(false)
 

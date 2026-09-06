@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useMemo } from 'react'
 import { Animated, Dimensions, StyleSheet, Text, View } from 'react-native'
 import { G, Line, Path, Svg, Text as SvgText } from 'react-native-svg'
 import type { ChartDataPoint } from '../types'
+import { useTheme, type ThemeColors } from '../context/ThemeContext'
 import { useTranslation } from 'react-i18next'
 
 interface Props {
@@ -26,7 +27,7 @@ const INNER_W = CHART_WIDTH - PAD.left - PAD.right
 const INNER_H = CHART_HEIGHT - PAD.top - PAD.bottom
 
 // ─── スケルトン ───────────────────────────────────────────────────────
-function SkeletonRect() {
+function SkeletonRect({ colors }: { colors: ThemeColors }) {
   const opacity = useRef(new Animated.Value(0.3)).current
   useEffect(() => {
     const anim = Animated.loop(
@@ -38,7 +39,7 @@ function SkeletonRect() {
     anim.start()
     return () => anim.stop()
   }, [opacity])
-  return <Animated.View style={[styles.skeleton, { opacity }]} />
+  return <Animated.View style={[{ height: CHART_HEIGHT, backgroundColor: colors.surface2, borderRadius: 8 }, { opacity }]} />
 }
 
 // ─── 日付フォーマット ──────────────────────────────────────────────────
@@ -62,7 +63,7 @@ function yTicks(min: number, max: number): number[] {
 }
 
 // ─── SVG 折れ線グラフ ─────────────────────────────────────────────────
-function LineChart({ points, color }: { points: { x: number; y: number }[]; color: string }) {
+function LineChart({ points, color, colors }: { points: { x: number; y: number }[]; color: string; colors: ThemeColors }) {
   if (points.length < 2) return null
 
   const d = points
@@ -76,7 +77,7 @@ function LineChart({ points, color }: { points: { x: number; y: number }[]; colo
         <G key={i}>
           <Line
             x1={p.x} y1={0} x2={p.x} y2={INNER_H}
-            stroke="#1e1e1e" strokeWidth={1} strokeDasharray="3,3"
+            stroke={colors.border} strokeWidth={1} strokeDasharray="3,3"
           />
         </G>
       ))}
@@ -86,7 +87,7 @@ function LineChart({ points, color }: { points: { x: number; y: number }[]; colo
       {points.map((p, i) => (
         <G key={`dot-${i}`}>
           <Line x1={p.x} y1={p.y} x2={p.x} y2={p.y} stroke={color} strokeWidth={6} strokeLinecap="round" />
-          <Line x1={p.x} y1={p.y} x2={p.x} y2={p.y} stroke="#000" strokeWidth={2.5} strokeLinecap="round" />
+          <Line x1={p.x} y1={p.y} x2={p.x} y2={p.y} stroke={colors.card} strokeWidth={2.5} strokeLinecap="round" />
         </G>
       ))}
     </>
@@ -105,6 +106,8 @@ const TrainingChart: React.FC<Props> = ({
   invertY = false,
 }) => {
   const { t } = useTranslation()
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
   const chartData = data.slice(-maxPoints)
 
   const values = chartData.map(p => p.value)
@@ -136,7 +139,7 @@ const TrainingChart: React.FC<Props> = ({
       </View>
 
       {isLoading ? (
-        <SkeletonRect />
+        <SkeletonRect colors={colors} />
       ) : chartData.length === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.emptyText}>{t('trainingChart.noData')}</Text>
@@ -151,10 +154,10 @@ const TrainingChart: React.FC<Props> = ({
               if (py < -2 || py > INNER_H + 2) return null
               return (
                 <G key={v}>
-                  <Line x1={0} y1={py} x2={INNER_W} y2={py} stroke="#2a2a2a" strokeWidth={1} />
+                  <Line x1={0} y1={py} x2={INNER_W} y2={py} stroke={colors.border} strokeWidth={1} />
                   <SvgText
                     x={-6} y={py + 4}
-                    fontSize={10} fill="#666" textAnchor="end"
+                    fontSize={10} fill={colors.textSec} textAnchor="end"
                   >
                     {Number.isInteger(v) ? v : v.toFixed(1)}
                   </SvgText>
@@ -163,7 +166,7 @@ const TrainingChart: React.FC<Props> = ({
             })}
 
             {/* X軸ベースライン */}
-            <Line x1={0} y1={INNER_H} x2={INNER_W} y2={INNER_H} stroke="#2a2a2a" strokeWidth={1} />
+            <Line x1={0} y1={INNER_H} x2={INNER_W} y2={INNER_H} stroke={colors.border} strokeWidth={1} />
 
             {/* X軸ラベル */}
             {chartData.map((p, i) => {
@@ -174,7 +177,7 @@ const TrainingChart: React.FC<Props> = ({
                 <SvgText
                   key={i}
                   x={px} y={INNER_H + 18}
-                  fontSize={10} fill="#666" textAnchor="middle"
+                  fontSize={10} fill={colors.textSec} textAnchor="middle"
                 >
                   {fmtDate(p.date, showYear)}
                 </SvgText>
@@ -182,7 +185,7 @@ const TrainingChart: React.FC<Props> = ({
             })}
 
             {/* 折れ線 */}
-            <LineChart points={pts} color={color} />
+            <LineChart points={pts} color={color} colors={colors} />
 
             {/* 最新値バッジ */}
             {pts.length > 0 && (
@@ -201,9 +204,9 @@ const TrainingChart: React.FC<Props> = ({
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   card: {
-    backgroundColor: '#141414',
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 16,
   },
@@ -214,19 +217,14 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   title: {
-    color: '#FFFFFF',
+    color: colors.text,
     fontSize: 15,
     fontWeight: '700',
     flex: 1,
   },
   unit: {
-    color: '#666',
+    color: colors.textSec,
     fontSize: 12,
-  },
-  skeleton: {
-    height: CHART_HEIGHT,
-    backgroundColor: '#2a2a2a',
-    borderRadius: 8,
   },
   empty: {
     height: CHART_HEIGHT,
@@ -234,7 +232,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emptyText: {
-    color: '#555',
+    color: colors.textSec,
     fontSize: 14,
   },
 })

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import {
   View,
   Text,
@@ -15,7 +15,8 @@ import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import Toast from 'react-native-toast-message'
 import { useRouter } from 'expo-router'
-import { BRAND, NEON, TEXT } from '../lib/theme'
+import { BRAND, NEON } from '../lib/theme'
+import { useTheme, type ThemeColors } from '../context/ThemeContext'
 import { Sounds } from '../lib/sounds'
 import AnimatedSection from '../components/AnimatedSection'
 import { useTranslation } from 'react-i18next'
@@ -45,6 +46,8 @@ async function copyToClipboard(text: string): Promise<boolean> {
 export default function TeamInviteScreen() {
   const router = useRouter()
   const { t } = useTranslation()
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
   const [myCode, setMyCode] = useState('')
   const [joinCode, setJoinCode] = useState('')
   const [copied, setCopied] = useState(false)
@@ -124,13 +127,13 @@ export default function TeamInviteScreen() {
   }, [joinCode, t])
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#f6f6f8' }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <SafeAreaView style={styles.safe}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           {/* ヘッダー */}
           <View style={styles.header}>
             <TouchableOpacity onPress={() => { Sounds.tap(); router.back() }} style={styles.backBtn} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} accessibilityLabel={t('teamInvite.backLabel')}>
-              <Ionicons name="chevron-back" size={22} color={TEXT.primary} />
+              <Ionicons name="chevron-back" size={22} color={colors.text} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>{t('teamInvite.headerTitle')}</Text>
             <View style={{ width: 40 }} />
@@ -176,7 +179,7 @@ export default function TeamInviteScreen() {
                     onPress={handleRegenerate}
                     activeOpacity={0.8}
                   >
-                    <Ionicons name="refresh-outline" size={16} color={TEXT.secondary} />
+                    <Ionicons name="refresh-outline" size={16} color={colors.textSec} />
                     <Text style={styles.regenBtnText}>{t('teamInvite.regenerate')}</Text>
                   </TouchableOpacity>
                 </View>
@@ -199,7 +202,7 @@ export default function TeamInviteScreen() {
                   value={joinCode}
                   onChangeText={text => setJoinCode(text.toUpperCase().slice(0, 6))}
                   placeholder={t('teamInvite.joinPlaceholder')}
-                  placeholderTextColor={TEXT.hint}
+                  placeholderTextColor={colors.textHint}
                   autoCapitalize="characters"
                   maxLength={6}
                   autoCorrect={false}
@@ -220,7 +223,7 @@ export default function TeamInviteScreen() {
             {/* 説明 */}
             <AnimatedSection delay={240} type="fade">
               <View style={styles.infoBox}>
-                <Ionicons name="information-circle-outline" size={16} color={TEXT.hint} />
+                <Ionicons name="information-circle-outline" size={16} color={colors.textHint} />
                 <Text style={styles.infoText}>
                   {t('teamInvite.infoText')}
                 </Text>
@@ -234,7 +237,7 @@ export default function TeamInviteScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: 'transparent' },
   header: {
     flexDirection: 'row',
@@ -246,7 +249,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { color: TEXT.primary, fontSize: 18, fontWeight: '800' },
+  headerTitle: { color: colors.text, fontSize: 18, fontWeight: '800' },
   content: { padding: 16, gap: 14, paddingBottom: 48 },
   card: {
     backgroundColor: '#111111',
@@ -258,7 +261,7 @@ const styles = StyleSheet.create({
   },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   sectionTitle: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  subText: { color: TEXT.secondary, fontSize: 13, lineHeight: 20 },
+  subText: { color: colors.textSec, fontSize: 13, lineHeight: 20 },
 
   // コード表示
   codeBox: {
@@ -302,7 +305,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
   },
-  regenBtnText: { color: TEXT.secondary, fontSize: 13, fontWeight: '600' },
+  regenBtnText: { color: colors.textSec, fontSize: 13, fontWeight: '600' },
 
   // 参加
   codeInput: {
@@ -340,5 +343,5 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.06)',
     padding: 14,
   },
-  infoText: { color: TEXT.hint, fontSize: 12, lineHeight: 18, flex: 1 },
+  infoText: { color: colors.textHint, fontSize: 12, lineHeight: 18, flex: 1 },
 })

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   View, Text, ScrollView, StyleSheet,
   TouchableOpacity, TextInput, Animated, Dimensions,
@@ -6,7 +6,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useFocusEffect } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
-import { BG_GRADIENT, NEON, TEXT, BRAND } from '../../lib/theme'
+import { NEON, BRAND } from '../../lib/theme'
+import { useTheme, type ThemeColors } from '../../context/ThemeContext'
 import { Ionicons } from '@expo/vector-icons'
 import Toast from 'react-native-toast-message'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -37,6 +38,7 @@ function fmtDuration(min?: number, lang: Language = 'ja') {
 }
 
 function SkeletonRect({ height = 16, width = '100%' as number | string }) {
+  const { colors } = useTheme()
   const opacity = useRef(new Animated.Value(0.3)).current
   useEffect(() => {
     const a = Animated.loop(Animated.sequence([
@@ -45,7 +47,7 @@ function SkeletonRect({ height = 16, width = '100%' as number | string }) {
     ]))
     a.start(); return () => a.stop()
   }, [opacity])
-  return <Animated.View style={{ height, width: width as any, borderRadius: 8, backgroundColor: '#e8eaed', opacity }} />
+  return <Animated.View style={{ height, width: width as any, borderRadius: 8, backgroundColor: colors.surface2, opacity }} />
 }
 
 // ── +/- ボタン式時刻ピッカー ──────────────────────────────────
@@ -58,6 +60,8 @@ function TimePicker({ label, hour, minute, onChangeHour, onChangeMinte, color }:
   color: string
 }) {
   const { t } = useTranslation()
+  const { colors } = useTheme()
+  const tp = useMemo(() => makeTpStyles(colors), [colors])
   function incHour()  { onChangeHour((hour + 1) % 24) }
   function decHour()  { onChangeHour((hour + 23) % 24) }
   function incMin()   { onChangeMinte((Math.floor(minute / 5) * 5 + 5) % 60) }
@@ -67,7 +71,7 @@ function TimePicker({ label, hour, minute, onChangeHour, onChangeMinte, color }:
 
   return (
     <View style={{ alignItems: 'center', gap: 6 }}>
-      <Text style={{ color: TEXT.secondary, fontSize: 11, fontWeight: '700', letterSpacing: 1 }}>{label}</Text>
+      <Text style={{ color: colors.textSec, fontSize: 11, fontWeight: '700', letterSpacing: 1 }}>{label}</Text>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
         {/* 時 */}
         <View style={{ alignItems: 'center', gap: 3 }}>
@@ -81,7 +85,7 @@ function TimePicker({ label, hour, minute, onChangeHour, onChangeMinte, color }:
             <Ionicons name="chevron-down" size={16} color={color} />
           </TouchableOpacity>
         </View>
-        <Text style={{ color: 'rgba(0,0,0,0.25)', fontSize: 22, fontWeight: '300', marginBottom: 4 }}>:</Text>
+        <Text style={{ color: colors.textHint, fontSize: 22, fontWeight: '300', marginBottom: 4 }}>:</Text>
         {/* 分（5分刻み） */}
         <View style={{ alignItems: 'center', gap: 3 }}>
           <TouchableOpacity onPress={incMin} style={tp.btn} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel={t('sleep.timeIncMin', { label })}>
@@ -100,9 +104,9 @@ function TimePicker({ label, hour, minute, onChangeHour, onChangeMinte, color }:
   )
 }
 
-const tp = StyleSheet.create({
+const makeTpStyles = (colors: ThemeColors) => StyleSheet.create({
   btn:  { width: 32, height: 26, alignItems: 'center', justifyContent: 'center' },
-  box:  { width: 46, height: 44, borderRadius: 14, borderWidth: 1.5, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
+  box:  { width: 46, height: 44, borderRadius: 14, borderWidth: 1.5, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
   val:  { fontSize: 22, fontWeight: '800', letterSpacing: 0.5, fontVariant: ['tabular-nums'] },
 })
 
@@ -113,6 +117,7 @@ const X_AXIS_H = 16
 
 function SleepLineChart({ records }: { records: SleepRecord[] }) {
   const { t } = useTranslation()
+  const { colors } = useTheme()
   const data = [...records]
     .sort((a, b) => a.sleep_date.localeCompare(b.sleep_date))
     .slice(-20)
@@ -144,12 +149,12 @@ function SleepLineChart({ records }: { records: SleepRecord[] }) {
 
   return (
     <View style={{ gap: 8 }}>
-      <Text style={{ color: TEXT.secondary, fontSize: 12, fontWeight: '700' }}>{t('sleep.trendChart')}</Text>
+      <Text style={{ color: colors.textSec, fontSize: 12, fontWeight: '700' }}>{t('sleep.trendChart')}</Text>
       <View style={{ flexDirection: 'row' }}>
         {/* Y軸 */}
         <View style={{ width: Y_AXIS_W, height: PLOT_H, justifyContent: 'space-between', alignItems: 'flex-end', paddingRight: 5 }}>
           {yTicks.map((v, i) => (
-            <Text key={i} style={{ color: TEXT.hint, fontSize: 9 }}>{v.toFixed(1)}h</Text>
+            <Text key={i} style={{ color: colors.textHint, fontSize: 9 }}>{v.toFixed(1)}h</Text>
           ))}
         </View>
         {/* プロット */}
@@ -157,7 +162,7 @@ function SleepLineChart({ records }: { records: SleepRecord[] }) {
           {/* グリッド */}
           {yTicks.map((_, i) => {
             const y = i === 0 ? 0 : i === 1 ? PLOT_H / 2 : PLOT_H - 1
-            return <View key={i} style={{ position: 'absolute', left: 0, right: 0, top: y, height: 1, backgroundColor: 'rgba(0,0,0,0.07)' }} />
+            return <View key={i} style={{ position: 'absolute', left: 0, right: 0, top: y, height: 1, backgroundColor: colors.border }} />
           })}
           {/* 折れ線 */}
           {data.slice(0, -1).map((d, i) => {
@@ -188,7 +193,7 @@ function SleepLineChart({ records }: { records: SleepRecord[] }) {
                 width: 8, height: 8, borderRadius: 4,
                 backgroundColor: isLatest ? BRAND : NEON.blue,
                 borderWidth: isLatest ? 2 : 1,
-                borderColor: isLatest ? '#fff' : 'rgba(255,255,255,0.8)',
+                borderColor: colors.card,
               }} />
             )
           })}
@@ -200,7 +205,7 @@ function SleepLineChart({ records }: { records: SleepRecord[] }) {
             return (
               <Text key={`x${i}`} style={{
                 position: 'absolute', left: x - 12, top: PLOT_H + 2,
-                width: 24, textAlign: 'center', color: TEXT.hint, fontSize: 8,
+                width: 24, textAlign: 'center', color: colors.textHint, fontSize: 8,
               }}>{`${dt.getMonth()+1}/${dt.getDate()}`}</Text>
             )
           })}
@@ -218,6 +223,8 @@ function SleepCard({ record, onEdit, onDelete }: {
 }) {
   const { t } = useTranslation()
   const { language } = useLanguage()
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
   const color = qualityColor(record.quality_score)
   return (
     <TouchableOpacity onPress={onEdit} activeOpacity={0.75} style={styles.sleepCard}>
@@ -233,7 +240,7 @@ function SleepCard({ record, onEdit, onDelete }: {
         <Text style={styles.qualityMax}>/10</Text>
       </View>
       <TouchableOpacity onPress={onDelete} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ padding: 4 }} accessibilityLabel={t('sleep.deleteRecord')}>
-        <Ionicons name="trash-outline" size={16} color="#555" />
+        <Ionicons name="trash-outline" size={16} color={colors.textSec} />
       </TouchableOpacity>
     </TouchableOpacity>
   )
@@ -243,6 +250,8 @@ function SleepCard({ record, onEdit, onDelete }: {
 export default function SleepScreen() {
   const { t } = useTranslation()
   const { language } = useLanguage()
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
   const today = todayLocalISO()
   const [records, setRecords] = useState<SleepRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -376,7 +385,7 @@ export default function SleepScreen() {
   const existingForDate = records.find(r => r.sleep_date === recordDate)
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#f6f6f8' }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>{t('sleep.header')}</Text>
@@ -431,13 +440,13 @@ export default function SleepScreen() {
                       disabled={isFuture}
                       style={{
                         paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10,
-                        backgroundColor: isSelected ? NEON.blue : '#f0f2f5',
+                        backgroundColor: isSelected ? NEON.blue : colors.surface2,
                         borderWidth: 1,
                         borderColor: isSelected ? NEON.blue : hasRecord ? 'rgba(59,130,246,0.4)' : 'rgba(0,0,0,0.08)',
                         opacity: isFuture ? 0.3 : 1,
                       }}
                     >
-                      <Text style={{ color: isSelected ? '#fff' : hasRecord ? '#3b82f6' : TEXT.hint, fontSize: 11, fontWeight: '700' }}>
+                      <Text style={{ color: isSelected ? '#fff' : hasRecord ? '#3b82f6' : colors.textHint, fontSize: 11, fontWeight: '700' }}>
                         {formatDateLabel(d)}
                       </Text>
                       {hasRecord && (
@@ -451,7 +460,7 @@ export default function SleepScreen() {
               </ScrollView>
 
               {existingForDate && (
-                <Text style={{ color: TEXT.secondary, fontSize: 11, textAlign: 'center' }}>
+                <Text style={{ color: colors.textSec, fontSize: 11, textAlign: 'center' }}>
                   {t('sleep.existingRecord', { duration: fmtDuration(existingForDate.duration_min, language), score: existingForDate.quality_score })}
                 </Text>
               )}
@@ -478,7 +487,7 @@ export default function SleepScreen() {
 
               {/* 途中で目が覚めていた時間（任意） */}
               <View style={{ gap: 8 }}>
-                <Text style={{ color: TEXT.secondary, fontSize: 12, fontWeight: '700', letterSpacing: 1 }}>
+                <Text style={{ color: colors.textSec, fontSize: 12, fontWeight: '700', letterSpacing: 1 }}>
                   {t('sleep.awakeTimeLabel')}{awakeMin > 0 ? <Text style={{ color: NEON.amber }}> {t('sleep.awakeTimePlus', { n: awakeMin })}</Text> : null}
                 </Text>
                 <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
@@ -490,10 +499,10 @@ export default function SleepScreen() {
                       style={{
                         paddingHorizontal: 12, paddingVertical: 8, borderRadius: 14,
                         borderWidth: 1.5, borderColor: awakeMin === n ? NEON.amber : 'rgba(0,0,0,0.1)',
-                        backgroundColor: awakeMin === n ? NEON.amber : '#f0f2f5',
+                        backgroundColor: awakeMin === n ? NEON.amber : colors.surface2,
                       }}
                     >
-                      <Text style={{ color: awakeMin === n ? '#000' : TEXT.secondary, fontSize: 12, fontWeight: '700' }}>
+                      <Text style={{ color: awakeMin === n ? '#000' : colors.textSec, fontSize: 12, fontWeight: '700' }}>
                         {n === 0 ? t('sleep.awakeTimeNone') : t('sleep.awakeTimeMin', { n })}
                       </Text>
                     </HapticTouch>
@@ -503,7 +512,7 @@ export default function SleepScreen() {
 
               {/* 質スコア */}
               <View style={{ gap: 8 }}>
-                <Text style={{ color: TEXT.secondary, fontSize: 12, fontWeight: '700', letterSpacing: 1 }}>
+                <Text style={{ color: colors.textSec, fontSize: 12, fontWeight: '700', letterSpacing: 1 }}>
                   {t('sleep.qualityLabel')}<Text style={{ color: qualityColor(quality) }}>{quality}/10</Text>
                 </Text>
                 <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
@@ -536,7 +545,7 @@ export default function SleepScreen() {
                 multiline
                 numberOfLines={2}
                 placeholder={t('sleep.notesPlaceholder')}
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={colors.textHint}
               />
 
               <HapticTouch
@@ -575,7 +584,7 @@ export default function SleepScreen() {
               </View>
             ) : records.length === 0 ? (
               <View style={styles.empty}>
-                <Ionicons name="moon-outline" size={40} color={TEXT.hint} />
+                <Ionicons name="moon-outline" size={40} color={colors.textHint} />
                 <Text style={styles.emptyText}>{t('sleep.emptyText')}</Text>
                 <HapticTouch haptic="whoosh" style={styles.emptyBtn} onPress={() => setFormOpen(true)}>
                   <Text style={styles.emptyBtnText}>{t('sleep.emptyBtn')}</Text>
@@ -602,15 +611,15 @@ export default function SleepScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: 'transparent' },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(0,0,0,0.08)',
-    backgroundColor: '#ffffff',
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,
+    backgroundColor: colors.card,
   },
-  headerTitle: { color: TEXT.primary, fontSize: 20, fontWeight: '800' },
+  headerTitle: { color: colors.text, fontSize: 20, fontWeight: '800' },
   recordBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
     backgroundColor: NEON.blue, borderRadius: 16, paddingVertical: 18,
@@ -620,36 +629,36 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   content: { padding: 16, gap: 14, paddingBottom: 100 },
   card: {
-    backgroundColor: '#ffffff', borderRadius: 21, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
+    backgroundColor: colors.card, borderRadius: 21, borderWidth: 1, borderColor: colors.border,
     padding: 16, gap: 12,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 2,
   },
 
   summaryRow: { flexDirection: 'row', gap: 12 },
   summaryCard: {
-    flex: 1, backgroundColor: '#ffffff', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
+    flex: 1, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
     borderRadius: 21, padding: 16, alignItems: 'center', gap: 4,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 2,
   },
-  summaryValue: { color: TEXT.primary, fontSize: 24, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  summaryLabel: { color: TEXT.secondary, fontSize: 12 },
+  summaryValue: { color: colors.text, fontSize: 24, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  summaryLabel: { color: colors.textSec, fontSize: 12 },
 
   formCard: {
-    backgroundColor: '#ffffff', borderRadius: 21, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
+    backgroundColor: colors.card, borderRadius: 21, borderWidth: 1, borderColor: colors.border,
     padding: 20, gap: 18,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 2,
   },
-  formTitle: { color: TEXT.primary, fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  formTitle: { color: colors.text, fontSize: 16, fontWeight: '700', textAlign: 'center' },
 
   noteInput: {
-    backgroundColor: '#f8f8fa',
+    backgroundColor: colors.surface2,
     borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10,
-    color: TEXT.primary, fontSize: 14,
-    borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
+    color: colors.text, fontSize: 14,
+    borderWidth: 1, borderColor: colors.border,
     height: 60, textAlignVertical: 'top',
   },
   saveBtn: {
-    backgroundColor: '#1c1c1e', borderRadius: 50,
+    backgroundColor: NEON.blue, borderRadius: 50,
     paddingVertical: 17, flexDirection: 'row',
     alignItems: 'center', justifyContent: 'center', gap: 8,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
@@ -658,23 +667,23 @@ const styles = StyleSheet.create({
   saveBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800', letterSpacing: -0.3 },
 
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  sectionTitle: { color: TEXT.primary, fontSize: 15, fontWeight: '700', flex: 1 },
+  sectionTitle: { color: colors.text, fontSize: 15, fontWeight: '700', flex: 1 },
   sleepCard: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#f8f8fa',
-    borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)',
+    backgroundColor: colors.surface2,
+    borderWidth: 1, borderColor: colors.border,
     borderRadius: 16, padding: 12, gap: 10,
   },
   sleepLeft: { flex: 1, gap: 2 },
-  sleepDate: { color: TEXT.primary, fontSize: 14, fontWeight: '600' },
-  sleepDuration: { color: TEXT.secondary, fontSize: 12 },
-  sleepNotes: { color: TEXT.secondary, fontSize: 12, flex: 1 },
+  sleepDate: { color: colors.text, fontSize: 14, fontWeight: '600' },
+  sleepDuration: { color: colors.textSec, fontSize: 12 },
+  sleepNotes: { color: colors.textSec, fontSize: 12, flex: 1 },
   qualityBadge: { borderWidth: 2, borderRadius: 22, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   qualityValue: { fontSize: 16, fontWeight: '800', lineHeight: 18 },
-  qualityMax: { color: TEXT.hint, fontSize: 9 },
+  qualityMax: { color: colors.textHint, fontSize: 9 },
 
   empty: { alignItems: 'center', paddingVertical: 32, gap: 12 },
-  emptyText: { color: TEXT.secondary, fontSize: 14 },
-  emptyBtn: { backgroundColor: '#1c1c1e', borderRadius: 50, paddingHorizontal: 24, paddingVertical: 12 },
+  emptyText: { color: colors.textSec, fontSize: 14 },
+  emptyBtn: { backgroundColor: NEON.blue, borderRadius: 50, paddingHorizontal: 24, paddingVertical: 12 },
   emptyBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14, letterSpacing: -0.3 },
 })

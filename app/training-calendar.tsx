@@ -1,7 +1,7 @@
 // app/training-calendar.tsx — 練習強度の可視化（記録の月間サマリー・GPS練習/レース/大会をカレンダーに表示。閲覧専用）
 // 2026-09-03: 以前は app/calendar.tsx として存在し、app/(tabs)/calendar.tsx（予定を立てる用・
 // タブ登録）と同じルート名"calendar"で衝突していたため training-calendar に改名した。
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   View,
   Text,
@@ -13,7 +13,8 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
-import { BG_GRADIENT, TEXT, SURFACE, DIVIDER, SURFACE2 } from '../lib/theme'
+import { useNavigation } from 'expo-router'
+import { useTheme, type ThemeColors } from '../context/ThemeContext'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTranslation } from 'react-i18next'
@@ -97,6 +98,10 @@ function sessionTypeToLabel(type: string, lang: 'ja' | 'en'): string {
 export default function CalendarScreen() {
   const { t } = useTranslation()
   const { language } = useLanguage()
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
+  const navigation = useNavigation()
+  useEffect(() => { navigation.setOptions({ title: t('calendar.headerTitle') }) }, [navigation, t, language])
   const WEEKDAYS = language === 'en' ? WEEKDAYS_EN : WEEKDAYS_JA
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
@@ -235,19 +240,19 @@ export default function CalendarScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <LinearGradient colors={BG_GRADIENT} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={[colors.bg, colors.bg]} style={StyleSheet.absoluteFill} />
       <SafeAreaView style={styles.safe}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           {/* 月ナビゲーション */}
           <View style={styles.monthNav}>
             <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.navBtn} activeOpacity={0.7} hitSlop={10} accessibilityLabel={t('calendar.prevMonth')}>
-              <Ionicons name="chevron-back" size={22} color={TEXT.primary} />
+              <Ionicons name="chevron-back" size={22} color={colors.text} />
             </TouchableOpacity>
             <Text style={styles.monthTitle}>
               {language === 'en' ? `${MONTH_NAMES_EN[month]} ${year}` : `${year}年${month + 1}月`}
             </Text>
             <TouchableOpacity onPress={() => changeMonth(1)} style={styles.navBtn} activeOpacity={0.7} hitSlop={10} accessibilityLabel={t('calendar.nextMonth')}>
-              <Ionicons name="chevron-forward" size={22} color={TEXT.primary} />
+              <Ionicons name="chevron-forward" size={22} color={colors.text} />
             </TouchableOpacity>
           </View>
 
@@ -310,7 +315,7 @@ export default function CalendarScreen() {
           {/* 選択日の詳細 */}
           <View style={styles.detailCard}>
             <View style={styles.detailHeader}>
-              <Ionicons name="calendar-outline" size={16} color={TEXT.secondary} />
+              <Ionicons name="calendar-outline" size={16} color={colors.textSec} />
               <Text style={styles.detailTitle}>
                 {t('calendar.detailTitle', { date: selectedDate.replace(/-/g, '/') })}
               </Text>
@@ -375,6 +380,8 @@ function DayCell({
   onPress: () => void
 }) {
   const scaleAnim = useRef(new Animated.Value(1)).current
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
 
   function handlePress() {
     Animated.sequence([
@@ -385,7 +392,7 @@ function DayCell({
   }
 
   const isWeekend = dow === 0 || dow === 6
-  const dayColor = isToday ? '#fff' : isWeekend ? (dow === 0 ? '#E53935' : '#2196F3') : TEXT.primary
+  const dayColor = isToday ? '#fff' : isWeekend ? (dow === 0 ? '#E53935' : '#2196F3') : colors.text
 
   return (
     <TouchableOpacity activeOpacity={0.8} onPress={handlePress} style={styles.dayCell}>
@@ -429,6 +436,8 @@ function SummaryItem({
   label: string
   unit: string
 }) {
+  const { colors } = useTheme()
+  const sumStyles = useMemo(() => makeSumStyles(colors), [colors])
   return (
     <View style={sumStyles.item}>
       <View style={[sumStyles.icon, { backgroundColor: color + '22' }]}>
@@ -440,16 +449,16 @@ function SummaryItem({
   )
 }
 
-const sumStyles = StyleSheet.create({
+const makeSumStyles = (colors: ThemeColors) => StyleSheet.create({
   item: { flex: 1, alignItems: 'center', gap: 4 },
   icon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  value: { color: TEXT.primary, fontSize: 18, fontWeight: '800' },
-  unit: { fontSize: 12, fontWeight: '400', color: TEXT.secondary },
-  label: { color: '#666', fontSize: 11 },
+  value: { color: colors.text, fontSize: 18, fontWeight: '800' },
+  unit: { fontSize: 12, fontWeight: '400', color: colors.textSec },
+  label: { color: colors.textSec, fontSize: 11 },
 })
 
 // ── スタイル ─────────────────────────────────────────────────────
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: 'transparent' },
   scrollContent: { padding: 16, gap: 14, paddingBottom: 48 },
   monthNav: {
@@ -463,11 +472,11 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: SURFACE2,
+    backgroundColor: colors.surface2,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  monthTitle: { color: TEXT.primary, fontSize: 20, fontWeight: '800', minWidth: 140, textAlign: 'center' },
+  monthTitle: { color: colors.text, fontSize: 20, fontWeight: '800', minWidth: 140, textAlign: 'center' },
   legendRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -476,12 +485,12 @@ const styles = StyleSheet.create({
   },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
-  legendText: { color: '#666', fontSize: 11 },
+  legendText: { color: colors.textSec, fontSize: 11 },
   calCard: {
-    backgroundColor: SURFACE,
+    backgroundColor: colors.card,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: DIVIDER,
+    borderColor: colors.border,
     padding: 12,
   },
   weekRow: {
@@ -491,7 +500,7 @@ const styles = StyleSheet.create({
   weekLabel: {
     flex: 1,
     textAlign: 'center',
-    color: '#666',
+    color: colors.textSec,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -525,22 +534,22 @@ const styles = StyleSheet.create({
   },
   dot: { width: 4, height: 4, borderRadius: 2 },
   detailCard: {
-    backgroundColor: SURFACE,
+    backgroundColor: colors.card,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: DIVIDER,
+    borderColor: colors.border,
     padding: 14,
     gap: 10,
   },
   detailHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  detailTitle: { color: TEXT.primary, fontSize: 15, fontWeight: '700', flex: 1 },
-  detailCount: { color: '#555', fontSize: 13 },
-  noRecords: { color: '#444', fontSize: 13, textAlign: 'center', paddingVertical: 12 },
+  detailTitle: { color: colors.text, fontSize: 15, fontWeight: '700', flex: 1 },
+  detailCount: { color: colors.textSec, fontSize: 13 },
+  noRecords: { color: colors.textHint, fontSize: 13, textAlign: 'center', paddingVertical: 12 },
   recordRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: SURFACE2,
+    backgroundColor: colors.surface2,
     borderRadius: 8,
     padding: 10,
   },
@@ -551,8 +560,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  recordLabel: { color: TEXT.primary, fontSize: 13, fontWeight: '600' },
-  recordSub: { color: '#666', fontSize: 11 },
+  recordLabel: { color: colors.text, fontSize: 13, fontWeight: '600' },
+  recordSub: { color: colors.textSec, fontSize: 11 },
   recordBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -561,13 +570,13 @@ const styles = StyleSheet.create({
   },
   recordBadgeText: { fontSize: 10, fontWeight: '700' },
   summaryCard: {
-    backgroundColor: SURFACE,
+    backgroundColor: colors.card,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: DIVIDER,
+    borderColor: colors.border,
     padding: 16,
     gap: 12,
   },
-  summaryTitle: { color: TEXT.primary, fontSize: 15, fontWeight: '700' },
+  summaryTitle: { color: colors.text, fontSize: 15, fontWeight: '700' },
   summaryRow: { flexDirection: 'row', gap: 8 },
 })

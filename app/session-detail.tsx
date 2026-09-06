@@ -10,7 +10,7 @@ import {
   Animated,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter, useLocalSearchParams } from 'expo-router'
+import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTrainingSessions } from '../hooks/useTrainingSessions'
 import AIFeedbackCard from '../components/AIFeedbackCard'
@@ -82,6 +82,8 @@ export default function SessionDetailScreen() {
   const router = useRouter()
   const { t } = useTranslation()
   const { language } = useLanguage()
+  const navigation = useNavigation()
+  useEffect(() => { navigation.setOptions({ title: t('sessionDetail.headerTitle') }) }, [navigation, t, language])
   const { id } = useLocalSearchParams<{ id: string }>()
   const { sessions, loading, fetchSessions } = useTrainingSessions()
   const [session, setSession] = useState<TrainingSession | undefined>(undefined)

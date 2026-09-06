@@ -1,13 +1,13 @@
 // app/(tabs)/calendar.tsx — カレンダー（自由入力予定対応）
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   Animated, Modal, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useFocusEffect } from '@react-navigation/native'
-import { TEXT, SURFACE, SURFACE2, DIVIDER, NEON, BRAND } from '../../lib/theme'
-import { useTheme } from '../../context/ThemeContext'
+import { BRAND } from '../../lib/theme'
+import { useTheme, type ThemeColors } from '../../context/ThemeContext'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as Crypto from 'expo-crypto'
@@ -112,6 +112,8 @@ function AddEventModal({
   onSaved: () => void
 }) {
   const { t } = useTranslation()
+  const { colors } = useTheme()
+  const m = useMemo(() => makeMStyles(colors), [colors])
   const [title,    setTitle]    = useState('')
   const [category, setCategory] = useState<EventCategory>('memo')
   const [notes,    setNotes]    = useState('')
@@ -191,7 +193,7 @@ function AddEventModal({
               <Text style={m.dateLbl}>{formattedDate}</Text>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={t('calendarTab.close')}>
-              <Ionicons name="close" size={22} color={TEXT.secondary} />
+              <Ionicons name="close" size={22} color={colors.textSec} />
             </TouchableOpacity>
           </View>
 
@@ -210,7 +212,7 @@ function AddEventModal({
                     style={[m.catBtn, active && { backgroundColor: cat.color + '22', borderColor: cat.color }]}
                   >
                     <Text style={m.catEmoji}>{cat.emoji}</Text>
-                    <Text style={[m.catLabel, { color: active ? cat.color : TEXT.secondary }]}>{t(`calendarTab.categories.${cat.value}`)}</Text>
+                    <Text style={[m.catLabel, { color: active ? cat.color : colors.textSec }]}>{t(`calendarTab.categories.${cat.value}`)}</Text>
                   </HapticTouch>
                 )
               })}
@@ -223,7 +225,7 @@ function AddEventModal({
               value={title}
               onChangeText={setTitle}
               placeholder={t('calendarTab.modal.titlePlaceholder')}
-              placeholderTextColor={TEXT.hint}
+              placeholderTextColor={colors.textHint}
               maxLength={50}
               autoFocus
             />
@@ -235,7 +237,7 @@ function AddEventModal({
               value={notes}
               onChangeText={setNotes}
               placeholder={t('calendarTab.modal.notesPlaceholder')}
-              placeholderTextColor={TEXT.hint}
+              placeholderTextColor={colors.textHint}
               multiline
               numberOfLines={3}
               maxLength={200}
@@ -571,7 +573,7 @@ export default function CalendarScreen() {
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                             accessibilityLabel={t('calendarTab.edit')}
                           >
-                            <Ionicons name="pencil-outline" size={16} color={TEXT.secondary} />
+                            <Ionicons name="pencil-outline" size={16} color={colors.textSec} />
                           </TouchableOpacity>
                           <TouchableOpacity
                             onPress={() => deleteEvent(rec.eventId!)}
@@ -594,8 +596,8 @@ export default function CalendarScreen() {
           </View>
 
           {/* ── 月間サマリー ── */}
-          <View style={st.summaryCard}>
-            <Text style={st.summaryTitle}>
+          <View style={[st.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[st.summaryTitle, { color: colors.text }]}>
               {t('calendarTab.summaryTitle', { month: language === 'en' ? MONTH_NAMES_EN[month] : month + 1 })}
             </Text>
             <View style={st.summaryRow}>
@@ -705,41 +707,42 @@ function DayCell({ day, isToday, isSelected, bgColor, records, dow, onPress }: {
 function SummaryItem({ icon, color, value, label, unit }: {
   icon: string; color: string; value: number; label: string; unit: string
 }) {
+  const { colors } = useTheme()
   return (
     <View style={{ flex: 1, alignItems: 'center', gap: 4 }}>
       <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: color + '22', alignItems: 'center', justifyContent: 'center' }}>
         <Ionicons name={icon as any} size={18} color={color} />
       </View>
-      <Text style={{ color: '#111827', fontSize: 18, fontWeight: '800' }}>
-        {value}<Text style={{ fontSize: 12, fontWeight: '400', color: '#6b7280' }}>{unit}</Text>
+      <Text style={{ color: colors.text, fontSize: 18, fontWeight: '800' }}>
+        {value}<Text style={{ fontSize: 12, fontWeight: '400', color: colors.textSec }}>{unit}</Text>
       </Text>
-      <Text style={{ color: '#6b7280', fontSize: 11 }}>{label}</Text>
+      <Text style={{ color: colors.textSec, fontSize: 11 }}>{label}</Text>
     </View>
   )
 }
 
 // ── Modal styles ───────────────────────────────────────────
-const m = StyleSheet.create({
+const makeMStyles = (colors: ThemeColors) => StyleSheet.create({
   overlay:  { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.65)' },
   kvWrap:   { flex: 1, justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: '#fff', borderTopLeftRadius: 22, borderTopRightRadius: 22,
+    backgroundColor: colors.card, borderTopLeftRadius: 22, borderTopRightRadius: 22,
     paddingHorizontal: 16, paddingBottom: 44, maxHeight: '88%',
-    borderTopWidth: 1, borderColor: 'rgba(0,0,0,0.1)',
+    borderTopWidth: 1, borderColor: colors.border,
     shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 12,
   },
-  handle:   { width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(0,0,0,0.1)', alignSelf: 'center', marginTop: 10, marginBottom: 4 },
+  handle:   { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginTop: 10, marginBottom: 4 },
   header:   { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingVertical: 12 },
-  title:    { color: '#111827', fontSize: 17, fontWeight: '800' },
-  dateLbl:  { color: TEXT.secondary, fontSize: 12, marginTop: 2 },
-  label:    { color: TEXT.hint, fontSize: 11, fontWeight: '700', letterSpacing: 1, marginTop: 16, marginBottom: 8 },
+  title:    { color: colors.text, fontSize: 17, fontWeight: '800' },
+  dateLbl:  { color: colors.textSec, fontSize: 12, marginTop: 2 },
+  label:    { color: colors.textHint, fontSize: 11, fontWeight: '700', letterSpacing: 1, marginTop: 16, marginBottom: 8 },
   catRow:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  catBtn:   { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 14, borderWidth: 1, borderColor: DIVIDER, backgroundColor: SURFACE2, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  catBtn:   { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface2, flexDirection: 'row', alignItems: 'center', gap: 5 },
   catEmoji: { fontSize: 16 },
   catLabel: { fontSize: 12, fontWeight: '700' },
-  input:    { backgroundColor: SURFACE2, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, color: '#111827', fontSize: 15, borderWidth: 1, borderColor: DIVIDER },
+  input:    { backgroundColor: colors.surface2, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, color: colors.text, fontSize: 15, borderWidth: 1, borderColor: colors.border },
   inputMulti: { height: 72, textAlignVertical: 'top', paddingTop: 10 },
-  saveBtn:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#1c1c1e', borderRadius: 50, paddingVertical: 16, marginTop: 20,
+  saveBtn:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: BRAND, borderRadius: 50, paddingVertical: 16, marginTop: 20,
               shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.18, shadowRadius: 12, elevation: 5 },
   saveTxt:  { color: '#fff', fontSize: 16, fontWeight: '800', letterSpacing: -0.3 },
 })

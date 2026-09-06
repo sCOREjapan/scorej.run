@@ -13,7 +13,7 @@ import AdGateModal from '../components/AdGateModal'
 import TicketGateModal from '../components/TicketGateModal'
 import BannerAdView from '../components/BannerAdView'
 import { useAuth } from '../context/AuthContext'
-import { useRouter } from 'expo-router'
+import { useRouter, useNavigation } from 'expo-router'
 import { trackFeatureUse } from '../lib/analytics'
 import Toast from 'react-native-toast-message'
 import * as ImagePicker from 'expo-image-picker'
@@ -816,6 +816,9 @@ function CoachSendMode() {
 // ─── タブ切替ラッパー ─────────────────────────────────────────────
 function NativeVideoAnalysisRoot() {
   const { t } = useTranslation()
+  const { language } = useLanguage()
+  const navigation = useNavigation()
+  useEffect(() => { navigation.setOptions({ title: t('videoAnalysis.headerTitle') }) }, [navigation, t, language])
   const [activeTab, setActiveTab] = useState<'ai' | 'coach'>('ai')
   return (
     <View style={{ flex: 1, backgroundColor: '#f6f6f8' }}>

@@ -390,6 +390,7 @@
     }
   },
   "settings": {
+    "headerTitle": "Settings",
     "currentPlan": {
       "title": "Current Plan",
       "plans": {
@@ -536,6 +537,9 @@
       "language": "Language / 言語",
       "japanese": "日本語",
       "english": "English",
+      "appearance": "Appearance",
+      "light": "Light",
+      "dark": "Dark",
       "support": "Contact & Support",
       "privacyPolicy": "Privacy Policy",
       "terms": "Terms of Service",
@@ -950,6 +954,7 @@
     }
   },
   "videoAnalysis": {
+    "headerTitle": "Form Analysis",
     "dimensions": {
       "posture": "Posture",
       "groundContact": "Ground Contact",
@@ -2213,6 +2218,7 @@
     "headerNote": "💬 **A note**"
   },
   "sessionDetail": {
+    "headerTitle": "Training Details",
     "notFound": "This training record could not be found",
     "backBtn": "← Back",
     "cardTitleDetail": "Session Details",
@@ -2551,6 +2557,7 @@
     "modalLabelEvent": "Event"
   },
   "ranking": {
+    "headerTitle": "National Rankings",
     "infoBanner": "Data comes from Supabase. Sign in to also register your own records",
     "tabTrack": "Track",
     "tabField": "Field",
@@ -2771,6 +2778,7 @@
     "footerContact": "Contact"
   },
   "recovery": {
+    "headerTitle": "AI Recovery Advisor",
     "tabInput": "Symptoms",
     "tabResult": "Diagnosis",
     "tabHistory": "History",
@@ -2932,6 +2940,7 @@
     }
   },
   "calendar": {
+    "headerTitle": "Calendar",
     "prevMonth": "Previous month",
     "nextMonth": "Next month",
     "monthTitle": "{{month}} {{year}}",

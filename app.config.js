@@ -24,7 +24,7 @@ module.exports = {
       requiresFullScreen: true,
       bundleIdentifier: 'com.scorejapan.score',
       usesAppleSignIn: true,
-      buildNumber: '50',
+      buildNumber: '51',
       appleTeamId: '4B5NK8DR67',
       entitlements: {
         'com.apple.security.application-groups': ['group.com.scorejapan.score'],

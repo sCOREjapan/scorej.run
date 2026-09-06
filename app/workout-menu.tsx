@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   TextInput, Modal, KeyboardAvoidingView, Platform, ActivityIndicator,
@@ -6,7 +6,8 @@ import {
 import HapticTouch from '../components/HapticTouch'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
-import { BG_GRADIENT, TEXT, BRAND, NEON, DIVIDER } from '../lib/theme'
+import { BRAND } from '../lib/theme'
+import { useTheme, type ThemeColors } from '../context/ThemeContext'
 import { Ionicons } from '@expo/vector-icons'
 import Toast from 'react-native-toast-message'
 import { checkAdGate, recordUsage } from '../lib/adGate'
@@ -108,6 +109,8 @@ function FolderCard({
   isLast: boolean
 }) {
   const { t } = useTranslation()
+  const { colors } = useTheme()
+  const fc = useMemo(() => makeFc(colors), [colors])
   return (
     <HapticTouch haptic="tap" onPress={onPress} activeOpacity={0.8} style={fc.card}>
       {/* 並び替えボタン（フォルダ一覧内の表示順） */}
@@ -119,7 +122,7 @@ function FolderCard({
           style={[fc.sortBtn, isFirst && { opacity: 0.2 }]}
           accessibilityLabel={t('workoutMenu.a11y.moveUp')}
         >
-          <Ionicons name="chevron-up" size={14} color={TEXT.secondary} />
+          <Ionicons name="chevron-up" size={14} color={colors.textSec} />
         </TouchableOpacity>
         <TouchableOpacity
           onPress={onMoveDown}
@@ -128,7 +131,7 @@ function FolderCard({
           style={[fc.sortBtn, isLast && { opacity: 0.2 }]}
           accessibilityLabel={t('workoutMenu.a11y.moveDown')}
         >
-          <Ionicons name="chevron-down" size={14} color={TEXT.secondary} />
+          <Ionicons name="chevron-down" size={14} color={colors.textSec} />
         </TouchableOpacity>
       </View>
       <View style={[fc.iconWrap, { backgroundColor: folder.color + '22' }]}>
@@ -139,18 +142,18 @@ function FolderCard({
         <Text style={fc.count}>{t('workoutMenu.folderCard.itemCount', { n: folder.items.length })}</Text>
       </View>
       <TouchableOpacity onPress={onEdit} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={t('workoutMenu.a11y.edit')}>
-        <Ionicons name="ellipsis-horizontal" size={18} color={TEXT.secondary} />
+        <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSec} />
       </TouchableOpacity>
     </HapticTouch>
   )
 }
-const fc = StyleSheet.create({
-  card:     { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#ffffff', borderRadius: 21, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
+const makeFc = (colors: ThemeColors) => StyleSheet.create({
+  card:     { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.card, borderRadius: 21, borderWidth: 1, borderColor: colors.border, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
   sortBtns: { flexDirection: 'column', alignItems: 'center', gap: 4 },
   sortBtn:  { padding: 2 },
   iconWrap: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  name:     { color: TEXT.primary, fontSize: 15, fontWeight: '700' },
-  count:    { color: TEXT.secondary, fontSize: 12, marginTop: 2, fontVariant: ['tabular-nums'] },
+  name:     { color: colors.text, fontSize: 15, fontWeight: '700' },
+  count:    { color: colors.textSec, fontSize: 12, marginTop: 2, fontVariant: ['tabular-nums'] },
 })
 
 // ── ItemRow ──────────────────────────────────────────────
@@ -170,6 +173,8 @@ function ItemRow({
   onMoveDown: () => void
 }) {
   const { t } = useTranslation()
+  const { colors } = useTheme()
+  const ir = useMemo(() => makeIr(colors), [colors])
   return (
     <View style={ir.row}>
       {/* 並び替えボタン */}
@@ -181,7 +186,7 @@ function ItemRow({
           style={[ir.sortBtn, index === 0 && { opacity: 0.2 }]}
           accessibilityLabel={t('workoutMenu.a11y.moveUp')}
         >
-          <Ionicons name="chevron-up" size={14} color={TEXT.secondary} />
+          <Ionicons name="chevron-up" size={14} color={colors.textSec} />
         </TouchableOpacity>
         <TouchableOpacity
           onPress={onMoveDown}
@@ -190,29 +195,34 @@ function ItemRow({
           style={[ir.sortBtn, index === total - 1 && { opacity: 0.2 }]}
           accessibilityLabel={t('workoutMenu.a11y.moveDown')}
         >
-          <Ionicons name="chevron-down" size={14} color={TEXT.secondary} />
+          <Ionicons name="chevron-down" size={14} color={colors.textSec} />
         </TouchableOpacity>
       </View>
       <View style={ir.dot} />
       <Text style={ir.text}>{text}</Text>
       <TouchableOpacity onPress={onRemove} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel={t('workoutMenu.a11y.delete')}>
-        <Ionicons name="close-circle" size={18} color="#444" />
+        <Ionicons name="close-circle" size={18} color={colors.textSec} />
       </TouchableOpacity>
     </View>
   )
 }
-const ir = StyleSheet.create({
-  row:      { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: DIVIDER },
+const makeIr = (colors: ThemeColors) => StyleSheet.create({
+  row:      { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   sortBtns: { flexDirection: 'column', alignItems: 'center', gap: 4 },
   sortBtn:  { padding: 2 },
   dot:      { width: 6, height: 6, borderRadius: 3, backgroundColor: BRAND },
-  text:     { flex: 1, color: TEXT.primary, fontSize: 14 },
+  text:     { flex: 1, color: colors.text, fontSize: 14 },
 })
 
 // ── メイン ───────────────────────────────────────────────
 export default function WorkoutMenuScreen() {
   const { t } = useTranslation()
   const { language } = useLanguage()
+  const { colors } = useTheme()
+  const s = useMemo(() => makeS(colors), [colors])
+  const m = useMemo(() => makeM(colors), [colors])
+  const pk = useMemo(() => makePk(colors), [colors])
+  const fc = useMemo(() => makeFc(colors), [colors])
   const navigation = useNavigation()
   useEffect(() => { navigation.setOptions({ title: t('workoutMenu.headerTitle') }) }, [navigation, t, language])
   const [tab, setTab] = useState<'library' | 'history'>('library')
@@ -669,7 +679,7 @@ ${H2.coach}
 
   return (
     <View style={{ flex: 1 }}>
-      <LinearGradient colors={BG_GRADIENT} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={[colors.bg, colors.bg]} style={StyleSheet.absoluteFill} />
       <SafeAreaView style={s.safe}>
 
         {/* ── タブ ── */}
@@ -685,7 +695,7 @@ ${H2.coach}
               style={[s.tabBtn, tab === key && s.tabBtnActive]}
               activeOpacity={0.8}
             >
-              <Ionicons name={icon} size={14} color={tab === key ? '#fff' : TEXT.secondary} />
+              <Ionicons name={icon} size={14} color={tab === key ? '#fff' : colors.textSec} />
               <Text style={[s.tabText, tab === key && s.tabTextActive]}>{label}</Text>
             </HapticTouch>
           ))}
@@ -715,13 +725,13 @@ ${H2.coach}
             {/* 種目指定生成 */}
             <HapticTouch haptic="whoosh" style={s.manualBtn} onPress={openPicker} activeOpacity={0.85}>
               <View style={s.manualBtnIcon}>
-                <Ionicons name="list-outline" size={22} color={TEXT.secondary} />
+                <Ionicons name="list-outline" size={22} color={colors.textSec} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.manualBtnTitle}>{t('workoutMenu.library.manualTitle')}</Text>
                 <Text style={s.manualBtnSub}>{t('workoutMenu.library.manualSub')}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color={TEXT.hint} />
+              <Ionicons name="chevron-forward" size={20} color={colors.textHint} />
             </HapticTouch>
 
             {/* フォルダ一覧 */}
@@ -736,7 +746,7 @@ ${H2.coach}
 
             {folders.length === 0 ? (
               <HapticTouch haptic="whoosh" onPress={openAddFolder} style={s.emptyCard} activeOpacity={0.8}>
-                <Ionicons name="folder-outline" size={32} color={TEXT.hint} style={{ marginBottom: 8 }} />
+                <Ionicons name="folder-outline" size={32} color={colors.textHint} style={{ marginBottom: 8 }} />
                 <Text style={{ color: '#888', fontSize: 14 }}>{t('workoutMenu.library.emptyTitle')}</Text>
                 <Text style={{ color: '#555', fontSize: 12, marginTop: 4 }}>{t('workoutMenu.library.emptyHint')}</Text>
               </HapticTouch>
@@ -761,7 +771,7 @@ ${H2.coach}
           <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
             {history.length === 0 ? (
               <View style={s.emptyCard}>
-                <Ionicons name="sparkles-outline" size={32} color={TEXT.hint} style={{ marginBottom: 8 }} />
+                <Ionicons name="sparkles-outline" size={32} color={colors.textHint} style={{ marginBottom: 8 }} />
                 <Text style={{ color: '#888', fontSize: 14 }}>{t('workoutMenu.history.emptyTitle')}</Text>
               </View>
             ) : (
@@ -774,10 +784,10 @@ ${H2.coach}
                   activeOpacity={0.8}
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                    <Ionicons name={h.intent.startsWith('[ピック]') ? 'list-outline' : 'sparkles-outline'} size={12} color={TEXT.secondary} />
+                    <Ionicons name={h.intent.startsWith('[ピック]') ? 'list-outline' : 'sparkles-outline'} size={12} color={colors.textSec} />
                     <Text style={s.histDate}>{new Date(h.created_at).toLocaleDateString(language === 'ja' ? 'ja-JP' : 'en-US', { month: 'short', day: 'numeric', weekday: 'short' })}</Text>
                     <View style={{ backgroundColor: '#f0f2f5', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
-                      <Text style={{ color: TEXT.secondary, fontSize: 10, fontWeight: '700' }}>
+                      <Text style={{ color: colors.textSec, fontSize: 10, fontWeight: '700' }}>
                         {h.intent.startsWith('[ピック]') ? t('workoutMenu.history.pickBadge') : t('workoutMenu.history.aiBadge')}
                       </Text>
                     </View>
@@ -809,7 +819,7 @@ ${H2.coach}
                 value={folderName}
                 onChangeText={setFolderName}
                 placeholder={t('workoutMenu.folderModal.namePlaceholder')}
-                placeholderTextColor={TEXT.hint}
+                placeholderTextColor={colors.textHint}
                 style={m.input}
               />
 
@@ -863,7 +873,7 @@ ${H2.coach}
 
       {/* ── フォルダ詳細モーダル ── */}
       <Modal visible={detailModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setDetailModal(false)}>
-        <View style={{ flex: 1, backgroundColor: '#f6f6f8' }}>
+        <View style={{ flex: 1, backgroundColor: colors.bg }}>
           <SafeAreaView style={{ flex: 1 }}>
             {detailFolder && (
               <>
@@ -886,7 +896,7 @@ ${H2.coach}
                       value={newItemText}
                       onChangeText={setNewItemText}
                       placeholder={t('workoutMenu.detailModal.itemPlaceholder')}
-                      placeholderTextColor={TEXT.hint}
+                      placeholderTextColor={colors.textHint}
                       style={[m.input, { flex: 1, marginBottom: 0 }]}
                       onSubmitEditing={handleAddItem}
                       returnKeyType="done"
@@ -904,7 +914,7 @@ ${H2.coach}
 
                   {detailFolder.items.length === 0 ? (
                     <View style={{ alignItems: 'center', paddingVertical: 40 }}>
-                      <Text style={{ color: TEXT.secondary, fontSize: 14 }}>{t('workoutMenu.detailModal.emptyItems')}</Text>
+                      <Text style={{ color: colors.textSec, fontSize: 14 }}>{t('workoutMenu.detailModal.emptyItems')}</Text>
                     </View>
                   ) : (
                     <View style={{ marginTop: 16 }}>
@@ -930,7 +940,7 @@ ${H2.coach}
 
       {/* ── AI生成モーダル ── */}
       <Modal visible={aiModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setAiModal(false)}>
-        <View style={{ flex: 1, backgroundColor: '#f6f6f8' }}>
+        <View style={{ flex: 1, backgroundColor: colors.bg }}>
           <SafeAreaView style={{ flex: 1 }}>
             <View style={m.sheetHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -967,8 +977,8 @@ ${H2.coach}
                             }}
                             activeOpacity={0.8}
                           >
-                            <Ionicons name={f.icon as any} size={13} color={selected ? f.color : TEXT.secondary} />
-                            <Text style={{ color: selected ? f.color : TEXT.secondary, fontSize: 13, fontWeight: '700' }}>{f.name}</Text>
+                            <Ionicons name={f.icon as any} size={13} color={selected ? f.color : colors.textSec} />
+                            <Text style={{ color: selected ? f.color : colors.textSec, fontSize: 13, fontWeight: '700' }}>{f.name}</Text>
                           </TouchableOpacity>
                         )
                       })}
@@ -982,7 +992,7 @@ ${H2.coach}
                   value={aiIntent}
                   onChangeText={setAiIntent}
                   placeholder={t('workoutMenu.aiModal.intentPlaceholder')}
-                  placeholderTextColor={TEXT.hint}
+                  placeholderTextColor={colors.textHint}
                   style={[m.input, { height: 100, textAlignVertical: 'top' }]}
                   multiline
                 />
@@ -993,7 +1003,7 @@ ${H2.coach}
                   value={menuEnvironment}
                   onChangeText={setMenuEnvironment}
                   placeholder={t('workoutMenu.aiModal.environmentPlaceholder')}
-                  placeholderTextColor={TEXT.hint}
+                  placeholderTextColor={colors.textHint}
                   style={[m.input, { height: 72, textAlignVertical: 'top' }]}
                   multiline
                 />
@@ -1028,11 +1038,11 @@ ${H2.coach}
 
       {/* ── 手動ピッカーモーダル ── */}
       <Modal visible={pickModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setPickModal(false)}>
-        <View style={{ flex: 1, backgroundColor: '#f6f6f8' }}>
+        <View style={{ flex: 1, backgroundColor: colors.bg }}>
           <SafeAreaView style={{ flex: 1 }}>
             <View style={m.sheetHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Ionicons name="list-outline" size={19} color={TEXT.secondary} />
+                <Ionicons name="list-outline" size={19} color={colors.textSec} />
                 <Text style={[m.sheetTitle, { fontSize: 17 }]}>
                   {pickStep === 'select' ? t('workoutMenu.pickerModal.selectTitle') : t('workoutMenu.pickerModal.generateTitle')}
                 </Text>
@@ -1047,7 +1057,7 @@ ${H2.coach}
                 <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
                   {folders.length === 0 ? (
                     <View style={s.emptyCard}>
-                      <Ionicons name="folder-outline" size={32} color={TEXT.hint} style={{ marginBottom: 8 }} />
+                      <Ionicons name="folder-outline" size={32} color={colors.textHint} style={{ marginBottom: 8 }} />
                       <Text style={{ color: '#888', fontSize: 14 }}>{t('workoutMenu.pickerModal.noFoldersTitle')}</Text>
                     </View>
                   ) : (
@@ -1057,7 +1067,7 @@ ${H2.coach}
                       return (
                         <View key={folder.id} style={pk.folderWrap}>
                           <TouchableOpacity
-                            style={[pk.folderHeader, { borderColor: pickedCount > 0 ? folder.color + '66' : 'rgba(0,0,0,0.08)' }]}
+                            style={[pk.folderHeader, { borderColor: pickedCount > 0 ? folder.color + '66' : colors.border }]}
                             onPress={() => toggleExpandFolder(folder.id)}
                             activeOpacity={0.8}
                           >
@@ -1090,7 +1100,7 @@ ${H2.coach}
                                       <View style={[pk.checkbox, picked && { backgroundColor: folder.color, borderColor: folder.color }]}>
                                         {picked && <Ionicons name="checkmark" size={12} color="#fff" />}
                                       </View>
-                                      <Text style={[pk.itemText, picked && { color: TEXT.primary, fontWeight: '700' }]}>{item}</Text>
+                                      <Text style={[pk.itemText, picked && { color: colors.text, fontWeight: '700' }]}>{item}</Text>
                                     </TouchableOpacity>
                                   )
                                 })
@@ -1106,8 +1116,8 @@ ${H2.coach}
                 {/* 下部バー */}
                 <View style={pk.bottomBar}>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ color: TEXT.secondary, fontSize: 12 }}>{t('workoutMenu.pickerModal.selectedLabel')}</Text>
-                    <Text style={{ color: TEXT.primary, fontSize: 14, fontWeight: '800' }}>{t('workoutMenu.pickerModal.selectedCount', { n: pickedItems.length })}</Text>
+                    <Text style={{ color: colors.textSec, fontSize: 12 }}>{t('workoutMenu.pickerModal.selectedLabel')}</Text>
+                    <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800' }}>{t('workoutMenu.pickerModal.selectedCount', { n: pickedItems.length })}</Text>
                   </View>
                   <HapticTouch
                     haptic="whoosh"
@@ -1135,7 +1145,7 @@ ${H2.coach}
                         </View>
                         <Text style={pk.confirmText}>{p.text}</Text>
                         <TouchableOpacity onPress={() => setPickedItems(prev => prev.filter((_, i) => i !== idx))} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                          <Ionicons name="close-circle" size={18} color="#444" />
+                          <Ionicons name="close-circle" size={18} color={colors.textSec} />
                         </TouchableOpacity>
                       </View>
                     ))}
@@ -1147,7 +1157,7 @@ ${H2.coach}
                     value={pickIntent}
                     onChangeText={setPickIntent}
                     placeholder={t('workoutMenu.pickerModal.intentPlaceholder')}
-                    placeholderTextColor={TEXT.hint}
+                    placeholderTextColor={colors.textHint}
                     style={[m.input, { height: 80, textAlignVertical: 'top' }]}
                     multiline
                   />
@@ -1158,7 +1168,7 @@ ${H2.coach}
                     value={menuEnvironment}
                     onChangeText={setMenuEnvironment}
                     placeholder={t('workoutMenu.pickerModal.environmentPlaceholder')}
-                    placeholderTextColor={TEXT.hint}
+                    placeholderTextColor={colors.textHint}
                     style={[m.input, { height: 72, textAlignVertical: 'top' }]}
                     multiline
                   />
@@ -1212,8 +1222,8 @@ ${H2.coach}
             {histItem && (
               <ScrollView showsVerticalScrollIndicator={false}>
                 <View style={{ backgroundColor: '#f0f2f5', borderRadius: 10, padding: 12, marginBottom: 12 }}>
-                  <Text style={{ color: TEXT.secondary, fontSize: 11 }}>{new Date(histItem.created_at).toLocaleString(language === 'ja' ? 'ja-JP' : 'en-US')}</Text>
-                  <Text style={{ color: TEXT.primary, fontSize: 13, marginTop: 4 }}>「{histItem.intent}」</Text>
+                  <Text style={{ color: colors.textSec, fontSize: 11 }}>{new Date(histItem.created_at).toLocaleString(language === 'ja' ? 'ja-JP' : 'en-US')}</Text>
+                  <Text style={{ color: colors.text, fontSize: 13, marginTop: 4 }}>「{histItem.intent}」</Text>
                 </View>
                 <AIMenuResultCard text={histItem.result} />
               </ScrollView>
@@ -1257,46 +1267,46 @@ ${H2.coach}
 }
 
 // ── スタイル ──────────────────────────────────────────────
-const s = StyleSheet.create({
+const makeS = (colors: ThemeColors) => StyleSheet.create({
   safe:       { flex: 1, backgroundColor: 'transparent' },
   tabBar:     { flexDirection: 'row', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, gap: 8 },
-  tabBtn:     { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 21, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', backgroundColor: '#ffffff' },
+  tabBtn:     { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 21, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
   tabBtnActive:{ backgroundColor: BRAND, borderColor: BRAND },
-  tabText:    { color: TEXT.primary, fontSize: 13, fontWeight: '700' },
+  tabText:    { color: colors.text, fontSize: 13, fontWeight: '700' },
   tabTextActive:{ color: '#fff' },
   content:    { padding: 16, gap: 12, paddingBottom: 60 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
-  sectionTitle:  { color: TEXT.primary, fontSize: 16, fontWeight: '700', letterSpacing: 0.2 },
-  sectionLead:   { color: TEXT.secondary, fontSize: 12.5, marginTop: -4, lineHeight: 18 },
+  sectionTitle:  { color: colors.text, fontSize: 16, fontWeight: '700', letterSpacing: 0.2 },
+  sectionLead:   { color: colors.textSec, fontSize: 12.5, marginTop: -4, lineHeight: 18 },
   addFolderBtn:  { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: BRAND, borderRadius: 21, paddingHorizontal: 12, paddingVertical: 6 },
-  emptyCard:  { backgroundColor: '#ffffff', borderRadius: 21, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', borderStyle: 'dashed' },
+  emptyCard:  { backgroundColor: colors.card, borderRadius: 21, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed' },
   // 単色アクセント方針：主要選択肢(AIおまかせ)だけブランドカラーのアイコン背景で
   // 目立たせ、副次選択肢(種目指定)はニュートラルにして視覚的な優先順位をつける
-  manualBtn:      { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#ffffff', borderRadius: 21, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 16 },
-  manualBtnIcon:  { width: 48, height: 48, borderRadius: 14, backgroundColor: '#f0f2f5', alignItems: 'center', justifyContent: 'center' },
-  manualBtnTitle: { color: TEXT.primary, fontSize: 15, fontWeight: '700' },
-  manualBtnSub:   { color: TEXT.secondary, fontSize: 12, marginTop: 2 },
-  aiBtn:      { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#ffffff', borderRadius: 21, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
+  manualBtn:      { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.card, borderRadius: 21, borderWidth: 1, borderColor: colors.border, padding: 16 },
+  manualBtnIcon:  { width: 48, height: 48, borderRadius: 14, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' },
+  manualBtnTitle: { color: colors.text, fontSize: 15, fontWeight: '700' },
+  manualBtnSub:   { color: colors.textSec, fontSize: 12, marginTop: 2 },
+  aiBtn:      { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.card, borderRadius: 21, borderWidth: 1, borderColor: colors.border, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
   aiBtnIcon:  { width: 48, height: 48, borderRadius: 14, backgroundColor: BRAND + '14', alignItems: 'center', justifyContent: 'center' },
-  aiBtnTitle: { color: TEXT.primary, fontSize: 15, fontWeight: '700' },
-  aiBtnSub:   { color: TEXT.secondary, fontSize: 12, marginTop: 2 },
-  histCard:   { backgroundColor: '#ffffff', borderRadius: 21, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 16, gap: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
-  histDate:   { color: TEXT.secondary, fontSize: 11 },
-  histIntent: { color: TEXT.primary, fontSize: 13, fontStyle: 'italic' },
-  histPreview:{ color: TEXT.secondary, fontSize: 12 },
+  aiBtnTitle: { color: colors.text, fontSize: 15, fontWeight: '700' },
+  aiBtnSub:   { color: colors.textSec, fontSize: 12, marginTop: 2 },
+  histCard:   { backgroundColor: colors.card, borderRadius: 21, borderWidth: 1, borderColor: colors.border, padding: 16, gap: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
+  histDate:   { color: colors.textSec, fontSize: 11 },
+  histIntent: { color: colors.text, fontSize: 13, fontStyle: 'italic' },
+  histPreview:{ color: colors.textSec, fontSize: 12 },
 })
 
-const m = StyleSheet.create({
+const makeM = (colors: ThemeColors) => StyleSheet.create({
   overlay:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  sheet:       { backgroundColor: '#ffffff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 36 },
-  sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: DIVIDER },
-  sheetTitle:  { color: TEXT.primary, fontSize: 16, fontWeight: '800' },
-  label:       { color: TEXT.secondary, fontSize: 12, fontWeight: '700', marginBottom: 8 },
-  input:       { backgroundColor: '#f0f2f5', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, color: TEXT.primary, fontSize: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)', marginBottom: 14 },
+  sheet:       { backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 36 },
+  sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  sheetTitle:  { color: colors.text, fontSize: 16, fontWeight: '800' },
+  label:       { color: colors.textSec, fontSize: 12, fontWeight: '700', marginBottom: 8 },
+  input:       { backgroundColor: colors.surface2, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, color: colors.text, fontSize: 14, borderWidth: 1, borderColor: colors.border, marginBottom: 14 },
   colorDot:    { width: 28, height: 28, borderRadius: 14 },
-  colorDotSelected: { borderWidth: 2.5, borderColor: '#1c1c1e', transform: [{ scale: 1.15 }] },
-  iconBtn:     { width: 40, height: 40, borderRadius: 10, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f0f2f5' },
-  saveBtn:     { backgroundColor: '#1c1c1e', borderRadius: 50, paddingVertical: 15, alignItems: 'center', marginBottom: 10 },
+  colorDotSelected: { borderWidth: 2.5, borderColor: colors.text, transform: [{ scale: 1.15 }] },
+  iconBtn:     { width: 40, height: 40, borderRadius: 10, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface2 },
+  saveBtn:     { backgroundColor: BRAND, borderRadius: 50, paddingVertical: 15, alignItems: 'center', marginBottom: 10 },
   deleteBtn:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
 })
 
@@ -1305,22 +1315,22 @@ const d = StyleSheet.create({
   addBtn: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
 })
 
-const pk = StyleSheet.create({
+const makePk = (colors: ThemeColors) => StyleSheet.create({
   folderWrap:   { marginBottom: 10 },
-  folderHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#ffffff', borderRadius: 14, borderWidth: 1, padding: 12 },
-  folderName:   { flex: 1, color: TEXT.primary, fontSize: 14, fontWeight: '700' },
+  folderHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.card, borderRadius: 14, borderWidth: 1, padding: 12 },
+  folderName:   { flex: 1, color: colors.text, fontSize: 14, fontWeight: '700' },
   badge:        { minWidth: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
-  itemList:     { backgroundColor: '#f0f2f5', borderRadius: 12, marginTop: 4, overflow: 'hidden' },
-  itemRow:      { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 13, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(0,0,0,0.06)' },
-  checkbox:     { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: '#c7c7cc', alignItems: 'center', justifyContent: 'center' },
-  itemText:     { flex: 1, color: TEXT.secondary, fontSize: 14 },
-  bottomBar:    { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: DIVIDER, backgroundColor: '#f6f6f8' },
-  nextBtn:      { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#1c1c1e', borderRadius: 50, paddingHorizontal: 24, paddingVertical: 13 },
+  itemList:     { backgroundColor: colors.surface2, borderRadius: 12, marginTop: 4, overflow: 'hidden' },
+  itemRow:      { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 13, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  checkbox:     { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  itemText:     { flex: 1, color: colors.textSec, fontSize: 14 },
+  bottomBar:    { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, backgroundColor: colors.bg },
+  nextBtn:      { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: BRAND, borderRadius: 50, paddingHorizontal: 24, paddingVertical: 13 },
   backBtn:      { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  confirmList:  { backgroundColor: '#ffffff', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)', padding: 8 },
-  confirmRow:   { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(0,0,0,0.05)' },
+  confirmList:  { backgroundColor: colors.card, borderRadius: 14, borderWidth: 1, borderColor: colors.border, padding: 8 },
+  confirmRow:   { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   folderTag:    { borderWidth: 1, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 },
-  confirmText:  { flex: 1, color: TEXT.primary, fontSize: 14 },
+  confirmText:  { flex: 1, color: colors.text, fontSize: 14 },
 })
 
 const ai = StyleSheet.create({

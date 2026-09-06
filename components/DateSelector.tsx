@@ -1,7 +1,8 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { TEXT, BRAND } from '../lib/theme'
+import { BRAND } from '../lib/theme'
+import { useTheme, type ThemeColors } from '../context/ThemeContext'
 import { localDateStr, todayLocalISO } from '../lib/dateLocal'
 import { useTranslation } from 'react-i18next'
 import { useLanguage } from '../context/LanguageContext'
@@ -41,6 +42,9 @@ const MONTH_NAMES_EN = ['January','February','March','April','May','June','July'
 export default function DateSelector({ date, onChange, maxDate }: Props) {
   const { t } = useTranslation()
   const { language } = useLanguage()
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
+  const cal = useMemo(() => makeCal(colors), [colors])
   const WEEKDAYS = language === 'en' ? WEEKDAYS_EN : WEEKDAYS_JA
   const today = todayLocalISO()
   const max   = maxDate ?? today
@@ -95,7 +99,7 @@ export default function DateSelector({ date, onChange, maxDate }: Props) {
           onPress={() => onChange(addDays(date, -1))}
           activeOpacity={0.7}
         >
-          <Ionicons name="chevron-back" size={18} color="#6b7280" />
+          <Ionicons name="chevron-back" size={18} color={colors.textSec} />
         </TouchableOpacity>
 
         {/* 中央：タップでカレンダー */}
@@ -110,7 +114,7 @@ export default function DateSelector({ date, onChange, maxDate }: Props) {
           onPress={() => canNext && onChange(addDays(date, 1))}
           activeOpacity={0.7}
         >
-          <Ionicons name="chevron-forward" size={18} color={canNext ? '#6b7280' : '#d1d5db'} />
+          <Ionicons name="chevron-forward" size={18} color={canNext ? colors.textSec : colors.textHint} />
         </TouchableOpacity>
       </View>
 
@@ -123,7 +127,7 @@ export default function DateSelector({ date, onChange, maxDate }: Props) {
               {/* 月ナビ */}
               <View style={cal.monthRow}>
                 <TouchableOpacity onPress={prevMonth} style={cal.monthArrow} activeOpacity={0.7}>
-                  <Ionicons name="chevron-back" size={20} color="#6b7280" />
+                  <Ionicons name="chevron-back" size={20} color={colors.textSec} />
                 </TouchableOpacity>
                 <Text style={cal.monthLabel}>{language === 'en' ? `${MONTH_NAMES_EN[calMonth]} ${calYear}` : `${calYear}年 ${calMonth + 1}月`}</Text>
                 <TouchableOpacity
@@ -132,7 +136,7 @@ export default function DateSelector({ date, onChange, maxDate }: Props) {
                   disabled={!canNextMonth}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="chevron-forward" size={20} color="#6b7280" />
+                  <Ionicons name="chevron-forward" size={20} color={colors.textSec} />
                 </TouchableOpacity>
               </View>
 
@@ -177,7 +181,7 @@ export default function DateSelector({ date, onChange, maxDate }: Props) {
                         isSelected && { color: '#fff', fontWeight: '800' },
                         !isSelected && dow === 0 && { color: '#FF3B30' },
                         !isSelected && dow === 6 && { color: '#5AC8FA' },
-                        isFuture && { color: '#d1d5db' },
+                        isFuture && { color: colors.textHint },
                       ]}>
                         {day}
                       </Text>
@@ -203,14 +207,14 @@ export default function DateSelector({ date, onChange, maxDate }: Props) {
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0f2f5',
+    backgroundColor: colors.surface2,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.10)',
+    borderColor: colors.border,
     overflow: 'hidden',
     marginBottom: 14,
   },
@@ -228,18 +232,18 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   label: {
-    color: '#111827',
+    color: colors.text,
     fontSize: 15,
     fontWeight: '600',
     letterSpacing: 0.3,
   },
   calHint: {
-    color: '#9ca3af',
+    color: colors.textHint,
     fontSize: 10,
   },
 })
 
-const cal = StyleSheet.create({
+const makeCal = (colors: ThemeColors) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
@@ -248,12 +252,12 @@ const cal = StyleSheet.create({
     padding: 24,
   },
   sheet: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.card,
     borderRadius: 20,
     padding: 16,
     width: 320,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.08)',
+    borderColor: colors.border,
   },
   monthRow: {
     flexDirection: 'row',
@@ -265,7 +269,7 @@ const cal = StyleSheet.create({
     padding: 8,
   },
   monthLabel: {
-    color: '#111827',
+    color: colors.text,
     fontSize: 16,
     fontWeight: '800',
   },
@@ -276,7 +280,7 @@ const cal = StyleSheet.create({
   weekDay: {
     flex: 1,
     textAlign: 'center',
-    color: '#9ca3af',
+    color: colors.textHint,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -292,20 +296,20 @@ const cal = StyleSheet.create({
     justifyContent: 'center',
   },
   dayText: {
-    color: '#374151',
+    color: colors.text,
     fontSize: 14,
     fontWeight: '500',
   },
   todayBtn: {
-    backgroundColor: '#f0f2f5',
+    backgroundColor: colors.surface2,
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.08)',
+    borderColor: colors.border,
   },
   todayText: {
-    color: '#374151',
+    color: colors.text,
     fontSize: 14,
     fontWeight: '700',
   },

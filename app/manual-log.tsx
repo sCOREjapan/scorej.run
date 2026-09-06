@@ -10,7 +10,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import Toast from 'react-native-toast-message'
-import { useTheme } from '../context/ThemeContext'
+import { useTheme, type ThemeColors } from '../context/ThemeContext'
 import { Sounds, unlockAudio } from '../lib/sounds'
 import type { TrainingSession, AthleticsEvent } from '../types'
 import { autoSyncTeam } from '../lib/teamAutoSync'
@@ -99,6 +99,8 @@ const MANUAL_LOG_MONTH_NAMES_EN = ['January','February','March','April','May','J
 function CalendarPicker({ value, onChange }: { value: string; onChange: (d: string) => void }) {
   const { t } = useTranslation()
   const { language } = useLanguage()
+  const { colors } = useTheme()
+  const cal = React.useMemo(() => makeCalStyles(colors), [colors])
   const today = new Date()
   const [viewYear,  setViewYear]  = useState(() => parseInt(value.slice(0, 4)))
   const [viewMonth, setViewMonth] = useState(() => parseInt(value.slice(5, 7)) - 1)
@@ -135,11 +137,11 @@ function CalendarPicker({ value, onChange }: { value: string; onChange: (d: stri
       {/* ヘッダー（月移動） */}
       <View style={cal.header}>
         <HapticTouch haptic="tap" onPress={prevMonth} style={cal.arrow} hitSlop={8} accessibilityLabel={t('manualLog.calendar.prevMonth')}>
-          <Ionicons name="chevron-back" size={18} color="#6b7280" />
+          <Ionicons name="chevron-back" size={18} color={colors.textSec} />
         </HapticTouch>
         <Text style={cal.monthLabel}>{monthLabel}</Text>
         <HapticTouch haptic="tap" onPress={nextMonth} style={cal.arrow} hitSlop={8} accessibilityLabel={t('manualLog.calendar.nextMonth')}>
-          <Ionicons name="chevron-forward" size={18} color="#6b7280" />
+          <Ionicons name="chevron-forward" size={18} color={colors.textSec} />
         </HapticTouch>
       </View>
 
@@ -187,16 +189,16 @@ function CalendarPicker({ value, onChange }: { value: string; onChange: (d: stri
   )
 }
 
-const cal = StyleSheet.create({
-  wrap:       { borderRadius: 14, overflow: 'hidden', backgroundColor: '#f8f8fa', borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)' },
+const makeCalStyles = (colors: ThemeColors) => StyleSheet.create({
+  wrap:       { borderRadius: 14, overflow: 'hidden', backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
   header:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 10 },
   arrow:      { padding: 6 },
-  monthLabel: { color: '#111827', fontSize: 15, fontWeight: '800' },
+  monthLabel: { color: colors.text, fontSize: 15, fontWeight: '800' },
   dowRow:     { flexDirection: 'row', paddingHorizontal: 4, paddingBottom: 4 },
-  dow:        { flex: 1, textAlign: 'center', color: '#9ca3af', fontSize: 11, fontWeight: '700' },
+  dow:        { flex: 1, textAlign: 'center', color: colors.textHint, fontSize: 11, fontWeight: '700' },
   row:        { flexDirection: 'row', paddingHorizontal: 4, paddingBottom: 2 },
   cell:       { flex: 1, height: 36, alignItems: 'center', justifyContent: 'center' },
-  dayText:    { color: '#111827', fontSize: 13, fontWeight: '600' },
+  dayText:    { color: colors.text, fontSize: 13, fontWeight: '600' },
 })
 
 // ── タイム変換: mm:ss:cs → ms ────────────────────────────
@@ -484,7 +486,7 @@ export default function ManualLogScreen() {
             <TouchableOpacity
               onPress={() => handleSave()}
               disabled={saving}
-              style={[s.saveBtn, { backgroundColor: '#1c1c1e', opacity: saving ? 0.6 : 1 }]}
+              style={[s.saveBtn, { backgroundColor: BRAND, opacity: saving ? 0.6 : 1 }]}
             >
               <Text style={s.saveBtnText}>{saving ? t('manualLog.saving') : isEdit ? t('manualLog.update') : t('manualLog.save')}</Text>
             </TouchableOpacity>
@@ -494,8 +496,8 @@ export default function ManualLogScreen() {
 
             {/* ── 日付選択（カレンダー） ── */}
             <Section title={t('manualLog.sections.date')}>
-              <Text style={{ color: '#6b7280', fontSize: 12, marginBottom: 6 }}>
-                {t('manualLog.selectedLabel')}<Text style={{ color: '#111827', fontWeight: '700' }}>{date === today ? t('manualLog.selectedToday', { date }) : date}</Text>
+              <Text style={{ color: colors.textSec, fontSize: 12, marginBottom: 6 }}>
+                {t('manualLog.selectedLabel')}<Text style={{ color: colors.text, fontWeight: '700' }}>{date === today ? t('manualLog.selectedToday', { date }) : date}</Text>
               </Text>
               <CalendarPicker value={date} onChange={setDate} />
             </Section>

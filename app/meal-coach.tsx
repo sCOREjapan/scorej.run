@@ -3,7 +3,7 @@
 //   - 大会日を軸に、確立された栄養知見を「目安・提案」として提示する（断定的な処方はしない）
 //   - 「食事を主に用意するのは誰か」で出力の宛先を分岐する（本人 / 保護者 / 寮 等）
 //   - 日次の具体的な献立処方（本命機能）は管理栄養士監修・フェーズ設計が整うまで保留
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   ActivityIndicator, Share,
@@ -13,7 +13,8 @@ import { BlurView } from 'expo-blur'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import Toast from 'react-native-toast-message'
-import { BRAND, TEXT } from '../lib/theme'
+import { BRAND } from '../lib/theme'
+import { useTheme, type ThemeColors } from '../context/ThemeContext'
 import { useRouter } from 'expo-router'
 import { usePurchase } from '../context/PurchaseContext'
 import { todayLocalISO } from '../lib/dateLocal'
@@ -55,6 +56,8 @@ export default function MealCoachScreen() {
   const router = useRouter()
   const { t } = useTranslation()
   const { language } = useLanguage()
+  const { colors } = useTheme()
+  const s = useMemo(() => makeS(colors), [colors])
   const { isNoad, isCoach } = usePurchase()
   const { isGuest } = useAuth()
   const [loading, setLoading]           = useState(true)
@@ -196,11 +199,11 @@ ${headerNote}
   }, [message])
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#f5f5f7' }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <SafeAreaView style={{ flex: 1 }}>
         <View style={s.header}>
           <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={t('mealCoach.backLabel')}>
-            <Ionicons name="chevron-back" size={24} color={TEXT.primary} />
+            <Ionicons name="chevron-back" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={s.headerTitle}>{t('mealCoach.headerTitle')}</Text>
           <View style={{ width: 24 }} />
@@ -222,8 +225,8 @@ ${headerNote}
                 </View>
                 <BlurView intensity={32} tint="light" style={StyleSheet.absoluteFill} />
                 <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', padding: 12 }]}>
-                  <Ionicons name="lock-closed" size={18} color={TEXT.secondary} />
-                  <Text style={{ color: TEXT.primary, fontSize: 12, fontWeight: '800', marginTop: 6, textAlign: 'center' }}>
+                  <Ionicons name="lock-closed" size={18} color={colors.textSec} />
+                  <Text style={{ color: colors.text, fontSize: 12, fontWeight: '800', marginTop: 6, textAlign: 'center' }}>
                     {t('mealCoach.proLockedTitle')}
                   </Text>
                   <TouchableOpacity
@@ -298,7 +301,7 @@ ${headerNote}
                 {message.split('\n').map((line, i) => {
                   const isBold = /^[🍚💬※]/.test(line)
                   return (
-                    <Text key={i} style={[s.resultText, isBold && { color: TEXT.primary, fontWeight: '700', marginTop: 10 }]}>
+                    <Text key={i} style={[s.resultText, isBold && { color: colors.text, fontWeight: '700', marginTop: 10 }]}>
                       {line}
                     </Text>
                   )
@@ -334,27 +337,27 @@ ${headerNote}
   )
 }
 
-const s = StyleSheet.create({
+const makeS = (colors: ThemeColors) => StyleSheet.create({
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 12,
   },
-  headerTitle: { fontSize: 16, fontWeight: '800', color: TEXT.primary },
+  headerTitle: { fontSize: 16, fontWeight: '800', color: colors.text },
   card: {
-    backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)',
+    backgroundColor: colors.card, borderRadius: 16, borderWidth: 1, borderColor: colors.border,
     padding: 16, marginBottom: 20,
   },
-  cardLabel: { color: TEXT.secondary, fontSize: 12, fontWeight: '700' },
+  cardLabel: { color: colors.textSec, fontSize: 12, fontWeight: '700' },
   countdown: { color: BRAND, fontSize: 28, fontWeight: '900', marginTop: 4, letterSpacing: -0.5 },
-  sectionTitle: { color: TEXT.primary, fontSize: 14, fontWeight: '800', marginBottom: 10 },
+  sectionTitle: { color: colors.text, fontSize: 14, fontWeight: '800', marginBottom: 10 },
   providerRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#fff', borderRadius: 14, borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.07)',
+    backgroundColor: colors.card, borderRadius: 14, borderWidth: 1.5, borderColor: colors.border,
     padding: 14,
   },
   providerRowActive: { borderColor: BRAND, backgroundColor: BRAND + '0D' },
-  providerLabel: { color: TEXT.primary, fontSize: 14, fontWeight: '700' },
-  providerSub:   { color: TEXT.hint, fontSize: 11, marginTop: 2 },
+  providerLabel: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  providerSub:   { color: colors.textHint, fontSize: 11, marginTop: 2 },
   genBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
     backgroundColor: BRAND, borderRadius: 14, paddingVertical: 16, marginBottom: 20,
@@ -364,10 +367,10 @@ const s = StyleSheet.create({
   genBtnBadge: { backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2 },
   genBtnBadgeText: { color: '#fff', fontSize: 9, fontWeight: '800' },
   resultCard: {
-    backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)',
+    backgroundColor: colors.card, borderRadius: 14, borderWidth: 1, borderColor: colors.border,
     padding: 16, marginBottom: 16,
   },
-  resultText: { color: TEXT.secondary, fontSize: 13, lineHeight: 22 },
+  resultText: { color: colors.textSec, fontSize: 13, lineHeight: 22 },
   shareBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     borderWidth: 1, borderColor: BRAND + '55', backgroundColor: BRAND + '0D',
@@ -375,5 +378,5 @@ const s = StyleSheet.create({
   },
   shareBtnText: { color: BRAND, fontSize: 13, fontWeight: '700' },
   // 医療・栄養に関する注意書きのため、hint(薄グレー)ではなく secondary で視認性を確保
-  disclaimer: { color: TEXT.secondary, fontSize: 11, lineHeight: 16, textAlign: 'center', marginTop: 4 },
+  disclaimer: { color: colors.textSec, fontSize: 11, lineHeight: 16, textAlign: 'center', marginTop: 4 },
 })
