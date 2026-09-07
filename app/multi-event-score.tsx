@@ -11,7 +11,7 @@ import Toast from 'react-native-toast-message'
 import { unlockAudio, Sounds } from '../lib/sounds'
 import { todayLocalISO } from '../lib/dateLocal'
 import {
-  DECATHLON_MEN, HEPTATHLON_WOMEN, calcEventScore, calcTotalScore, unitLabel, type EventDef,
+  DECATHLON_MEN, HEPTATHLON_WOMEN, TETRATHLON_JHS_MEN, calcEventScore, calcTotalScore, unitLabel, type EventDef,
 } from '../lib/decathlonScoring'
 import {
   getCompetitions, saveCompetition, deleteCompetition, getPersonalBests, getGoals, setGoal,
@@ -33,6 +33,12 @@ const TEXT_HINT = '#a29dbd'
 
 type SubTab = 'calc' | 'match' | 'pb'
 
+function eventsForCategory(cat: CombinedCategory): EventDef[] {
+  if (cat === 'men') return DECATHLON_MEN
+  if (cat === 'women') return HEPTATHLON_WOMEN
+  return TETRATHLON_JHS_MEN
+}
+
 export default function CombinedEventsScreen() {
   const router = useRouter()
   const { t } = useTranslation()
@@ -44,12 +50,12 @@ export default function CombinedEventsScreen() {
   const [pbMarks, setPbMarks] = useState<Record<string, number>>({})
   const [goals, setGoals] = useState<Record<string, number>>({})
 
-  const events: EventDef[] = category === 'men' ? DECATHLON_MEN : HEPTATHLON_WOMEN
+  const events: EventDef[] = eventsForCategory(category)
 
   const refresh = useCallback(async (cat: CombinedCategory) => {
     const [comps, pb, gl] = await Promise.all([
       getCompetitions(cat),
-      getPersonalBests(cat, (key) => (cat === 'men' ? DECATHLON_MEN : HEPTATHLON_WOMEN).find(e => e.key === key)?.isTrack ?? false),
+      getPersonalBests(cat, (key) => eventsForCategory(cat).find(e => e.key === key)?.isTrack ?? false),
       getGoals(cat),
     ])
     setCompetitions(comps)
@@ -125,10 +131,11 @@ export default function CombinedEventsScreen() {
 
       {/* ── 種別(男女)ピル切り替え・サブナビゲーションを1つの帯にまとめて表示 ── */}
       <View style={ce.controlRow}>
-        <View style={ce.categoryPills}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={ce.categoryPills}>
           {([
             { key: 'men' as const,   label: t('combinedEvents.menCategory') },
             { key: 'women' as const, label: t('combinedEvents.womenCategory') },
+            { key: 'tetrathlon_jhs_men' as const, label: t('combinedEvents.tetrathlonJhsMenCategory') },
           ]).map(o => (
             <TouchableOpacity
               key={o.key}
@@ -139,7 +146,7 @@ export default function CombinedEventsScreen() {
               <Text style={[ce.categoryPillText, category === o.key && ce.categoryPillTextActive]}>{o.label}</Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </ScrollView>
       </View>
 
       {/* ── サブナビゲーション（履歴を先頭に。ピル型・アイコン付き） ── */}

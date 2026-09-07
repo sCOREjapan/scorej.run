@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 const LOG_KEY   = 'score_combined_events_log'
 const GOALS_KEY = 'score_combined_events_goals'
 
-export type CombinedCategory = 'men' | 'women'
+export type CombinedCategory = 'men' | 'women' | 'tetrathlon_jhs_men'
 
 export type SavedCompetition = {
   id: string
