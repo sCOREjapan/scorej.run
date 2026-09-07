@@ -2059,7 +2059,7 @@ ${sleepText || 'データなし'}
               }}>
               <TouchableOpacity
                 activeOpacity={0.88}
-                onPress={() => Linking.openURL('https://www.instagram.com/score.app.japan/')}
+                onPress={() => Linking.openURL('https://www.instagram.com/score.japan/')}
                 style={{
                   marginHorizontal: 0,
                   borderRadius: 14,
