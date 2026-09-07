@@ -2784,6 +2784,7 @@ ${sleepText || 'データなし'}
         visible={noadUpsellVisible}
         onClose={() => setNoadUpsellVisible(false)}
         onUpgrade={() => router.push('/paywall')}
+        context="daily"
       />
 
       <TicketGateModal

@@ -107,6 +107,16 @@ export function trackPaywallView(source: string) {
   })
 }
 
+/** ペイウォール/アップセルを閉じた（購入せず離脱） */
+// 2026-09-07: marketing-council（Hopkins）の指摘を受けて追加。
+// 表示理由(source)ごとにimpression→closeの離脱率を追えるようにする。
+export function trackPaywallDismiss(source: string) {
+  trackEvent('upgrade_dismiss', {
+    feature: 'paywall',
+    metadata: { source },
+  })
+}
+
 /** 課金完了 */
 export function trackUpgrade(plan: string) {
   trackEvent('upgrade_complete', {

@@ -6,6 +6,12 @@
 // 広告視聴でチケットを獲得した直後にも呼ぶ想定）。
 // 表示条件: FREEプラン かつ 前回表示から1日以上経過（未表示なら即表示）
 // ticket_monthly / coach プランに加入済みの場合は呼び出し側でそもそも表示しない
+//
+// 2026-09-07 追記（marketing-council / Sutherland案）:
+// 「広告を見てチケットを稼いだ直後」に売り込み文言を出すのは、対価を払った直後に
+// また対価を求める格好になり心理的に逆効果になりうる、という指摘を受け、
+// context='post_ad_watch' のときだけ「お疲れさまでした」から始まる感謝フレーミングに
+// 差し替える（表示頻度・導線はdaily/post_ad_watchで変えない。文言だけの実験）。
 
 import React, { useRef, useEffect, useMemo } from 'react'
 import {
@@ -18,6 +24,7 @@ import { todayLocalISO } from '../lib/dateLocal'
 import { useTheme, type ThemeColors } from '../context/ThemeContext'
 import { useTranslation } from 'react-i18next'
 import { TICKET_MONTHLY_GRANT } from '../lib/purchaseService'
+import { trackPaywallView, trackPaywallDismiss } from '../lib/analytics'
 
 const LAST_SHOWN_KEY = 'score_noad_upsell_last_shown'
 const INTERVAL_MS = 1 * 24 * 60 * 60 * 1000
@@ -42,17 +49,21 @@ interface Props {
   visible: boolean
   onClose: () => void
   onUpgrade: () => void
+  /** 表示トリガー（計測タグ＋文言の出し分けに使う）。省略時は'daily'扱い */
+  context?: 'daily' | 'post_ad_watch'
 }
 
-export default function NoadUpsellModal({ visible, onClose, onUpgrade }: Props) {
+export default function NoadUpsellModal({ visible, onClose, onUpgrade, context = 'daily' }: Props) {
   const { t } = useTranslation()
   const { colors } = useTheme()
   const s = useMemo(() => makeS(colors), [colors])
   const slideY    = useRef(new Animated.Value(500)).current
   const bgOpacity = useRef(new Animated.Value(0)).current
+  const source = `noad_upsell:${context}`
 
   useEffect(() => {
     if (visible) {
+      trackPaywallView(source)
       Animated.parallel([
         Animated.spring(slideY,    { toValue: 0, useNativeDriver: true, tension: 60, friction: 11 }),
         Animated.timing(bgOpacity, { toValue: 1, useNativeDriver: true, duration: 250 }),
@@ -64,6 +75,8 @@ export default function NoadUpsellModal({ visible, onClose, onUpgrade }: Props) 
   }, [visible])
 
   function dismiss(cb?: () => void) {
+    // アップグレード導線に進む場合はdismiss扱いにしない（離脱ではないため）
+    if (!cb) trackPaywallDismiss(source)
     Animated.parallel([
       Animated.timing(slideY,    { toValue: 500, useNativeDriver: true, duration: 220 }),
       Animated.timing(bgOpacity, { toValue: 0,   useNativeDriver: true, duration: 220 }),
@@ -90,8 +103,14 @@ export default function NoadUpsellModal({ visible, onClose, onUpgrade }: Props) 
             <Text style={{ fontSize: 26 }}>🎫</Text>
           </View>
           <View style={{ flex: 1, gap: 3 }}>
-            <Text style={s.title}>{t('noadUpsellModal.title')}</Text>
-            <Text style={s.sub}>{t('noadUpsellModal.sub', { n: TICKET_MONTHLY_GRANT })}</Text>
+            <Text style={s.title}>
+              {context === 'post_ad_watch' ? t('noadUpsellModal.postAdTitle') : t('noadUpsellModal.title')}
+            </Text>
+            <Text style={s.sub}>
+              {context === 'post_ad_watch'
+                ? t('noadUpsellModal.postAdSub', { n: TICKET_MONTHLY_GRANT })
+                : t('noadUpsellModal.sub', { n: TICKET_MONTHLY_GRANT })}
+            </Text>
           </View>
         </View>
 

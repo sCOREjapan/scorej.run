@@ -12,7 +12,7 @@ import { useRouter } from 'expo-router'
 import type { Feature } from '../lib/adGate'
 import { earnTicketFromAd, getAdTicketRemainingToday, getTicketBalance } from '../lib/ticketWallet'
 import { watchAdsForReward } from '../lib/rewardedAd'
-import { trackPaywallView } from '../lib/analytics'
+import { trackPaywallView, trackPaywallDismiss } from '../lib/analytics'
 import Toast from 'react-native-toast-message'
 import { useTranslation } from 'react-i18next'
 
@@ -55,6 +55,13 @@ export default function TicketGateModal({ visible, feature, ticketCost, ticketBa
     if (visible) trackPaywallView(`ticket_gate_modal:${feature}`)
   }, [visible])
 
+  // 離脱（購入導線に進まず閉じた）だけを計測する。watchAd/buyTickets/月額プランへの
+  // 遷移はonCloseを呼ぶが「離脱」ではないため、そちらではtrackPaywallDismissを呼ばない
+  const handleDismiss = () => {
+    trackPaywallDismiss(`ticket_gate_modal:${feature}`)
+    onClose()
+  }
+
   const handleWatchAd = async () => {
     if (adLockRef.current || adTicketsLeft <= 0) return
     adLockRef.current = true
@@ -75,9 +82,9 @@ export default function TicketGateModal({ visible, feature, ticketCost, ticketBa
   }
 
   return (
-    <Modal visible={visible} animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="fade" onRequestClose={handleDismiss}>
       <SafeAreaView style={st.safe} edges={['top', 'bottom']}>
-        <TouchableOpacity style={st.closeBtn} onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+        <TouchableOpacity style={st.closeBtn} onPress={handleDismiss} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
           <Ionicons name="close" size={22} color={TEXT_HINT} />
         </TouchableOpacity>
 
@@ -129,7 +136,7 @@ export default function TicketGateModal({ visible, feature, ticketCost, ticketBa
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={st.cancelBtn} onPress={onClose} activeOpacity={0.7}>
+          <TouchableOpacity style={st.cancelBtn} onPress={handleDismiss} activeOpacity={0.7}>
             <Text style={st.cancelTxt}>{t('ticketGateModal.notNow')}</Text>
           </TouchableOpacity>
         </View>

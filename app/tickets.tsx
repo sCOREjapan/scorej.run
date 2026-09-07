@@ -219,6 +219,7 @@ export default function TicketsScreen() {
         visible={noadUpsellVisible}
         onClose={() => setNoadUpsellVisible(false)}
         onUpgrade={() => router.push('/paywall')}
+        context="post_ad_watch"
       />
     </SafeAreaView>
   )

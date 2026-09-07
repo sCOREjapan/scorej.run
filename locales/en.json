@@ -3709,6 +3709,8 @@
   "noadUpsellModal": {
     "title": "Get More Out of Your AI",
     "sub": "¥980/month for no ads + {{n}} tickets every month",
+    "postAdTitle": "Nice work earning that ticket 🎉",
+    "postAdSub": "Skip the ads — the Ticket Plan gives you {{n}} tickets automatically every month",
     "benefits": [
       "Banner and video ads completely removed",
       "{{n}} tickets granted automatically every month",
