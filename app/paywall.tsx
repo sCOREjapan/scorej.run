@@ -15,6 +15,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { usePurchase } from '../context/PurchaseContext'
@@ -119,7 +120,11 @@ export default function PaywallScreen() {
   const { tier, hasTicketMonthly, packages, packagesDiagnostic, packagesReady, purchase, restore, refreshStatus } = usePurchase()
 
   const PLANS = buildPlans(t)
-  const initialPlan: PlanId = (planParam === 'coach' || planParam === 'ticket_monthly') ? planParam : 'noad'
+  // 2026-09-07: サブスク推奨画面をリニューアル。チケットプランを一律で推奨する
+  // 比較デザインに切り替えたため、noad単体パラメータもticket_monthlyへ収束させる。
+  // coachプラン（CoachPlanBanner等からの専用導線）のみ従来の3プラン一覧UIを維持。
+  const initialPlan: PlanId = planParam === 'coach' ? 'coach' : 'ticket_monthly'
+  const useComparisonDesign = initialPlan !== 'coach'
   const [selected,   setSelected]   = useState<PlanId>(initialPlan)
   const [periods,    setPeriods]    = useState<Record<PlanId, Period>>({ noad: 'monthly', ticket_monthly: 'monthly', coach: 'monthly' })
   const [purchasing, setPurchasing] = useState(false)
@@ -189,6 +194,85 @@ export default function PaywallScreen() {
     try { await restore() } finally { setRestoring(false) }
   }, [restore])
 
+  // ── 購入ボタン以下（法的必須テキスト・復元・DEV用）は新旧デザイン共通 ──
+  const renderPurchaseFooter = () => (
+    <>
+      <TouchableOpacity
+        onPress={handlePurchase}
+        disabled={purchasing || !packagesReady}
+        activeOpacity={0.85}
+        style={[st.purchaseBtn, { backgroundColor: selectedPlan.color }, (purchasing || !packagesReady) && { opacity: 0.55 }]}
+      >
+        {purchasing ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={st.purchaseBtnText}>
+            {selectedTrialDays
+              ? t('paywall.startTrial', { days: selectedTrialDays })
+              : t('paywall.startPlan', { label: selectedPlan.label, price: selectedTerms.price, period: selectedTerms.period })}
+          </Text>
+        )}
+      </TouchableOpacity>
+      {selectedTrialDays ? (
+        <Text style={st.trialSubtext}>
+          {t('paywall.trialSubtext', { price: selectedTerms.price, period: selectedTerms.period })}
+        </Text>
+      ) : null}
+
+      {/* ── 法的必須テキスト（Apple審査要件 3.1.2） ── */}
+      <View style={st.legalBox}>
+        <Text style={st.legalText}>
+          {selectedTrialDays ? `• ${t('paywall.legal.trialLine', { days: selectedTrialDays })}\n` : ''}
+          • {t('paywall.legal.autoRenew')}{'\n'}
+          • {t('paywall.legal.cancelNotice')}{'\n'}
+          • {t('paywall.legal.howToCancel')}{'\n'}
+          • {t('paywall.legal.refundPolicy')}
+        </Text>
+        <View style={{ flexDirection: 'row', gap: 16, marginTop: 10 }}>
+          <TouchableOpacity onPress={() => Linking.openURL('https://scorej-run.vercel.app/privacy')}>
+            <Text style={st.legalLink}>{t('paywall.privacyPolicy')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => Linking.openURL('https://scorej-run.vercel.app/terms')}>
+            <Text style={st.legalLink}>{t('paywall.terms')}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* ── 復元ボタン（Apple審査で必須） ── */}
+      <TouchableOpacity onPress={handleRestore} disabled={restoring} style={st.restoreBtn}>
+        {restoring
+          ? <ActivityIndicator color={TEXT_SECONDARY} size="small" />
+          : <Text style={st.restoreText}>{t('paywall.restoreButton')}</Text>
+        }
+      </TouchableOpacity>
+
+      {/* ── DEV専用スキップ（本番ビルドには含まれない） ── */}
+      {__DEV__ && (
+        <TouchableOpacity
+          style={{ marginTop: 12, alignSelf: 'center', padding: 10 }}
+          onPress={async () => {
+            if (selected === 'ticket_monthly') {
+              await AsyncStorage.setItem('trackmate_subscription', JSON.stringify({
+                isPremium: true, plan: 'free', expiresAt: '2099-12-31T00:00:00.000Z',
+                hasTicketMonthly: true, ticketMonthlyExpiresAt: '2099-12-31T00:00:00.000Z',
+              }))
+            } else {
+              await AsyncStorage.setItem('trackmate_subscription', JSON.stringify({
+                isPremium: true, plan: selected, expiresAt: '2099-12-31T00:00:00.000Z',
+              }))
+            }
+            Toast.show({ type: 'success', text1: `[DEV] ${selected} を擬似有効化しました` })
+            router.back()
+          }}
+        >
+          <Text style={{ color: TIX, fontSize: 12, fontWeight: '700' }}>
+            [DEV] 購入をスキップ（開発用）
+          </Text>
+        </TouchableOpacity>
+      )}
+    </>
+  )
+
   return (
     <SafeAreaView style={st.safe} edges={['top', 'bottom']}>
       {/* ── ヘッダー ── */}
@@ -200,6 +284,73 @@ export default function PaywallScreen() {
         <View style={{ width: 40 }} />
       </View>
 
+      {useComparisonDesign ? (
+        <Animated.ScrollView style={{ flex: 1, opacity: fadeAnim }} contentContainerStyle={st.scrollCompare}>
+          {/* ── ヒーロー（グラデーション） ── */}
+          <LinearGradient colors={['#eafaf0', '#bdeecb', '#8fdcae']} style={st.heroGrad}>
+            {selectedTrialDays ? (
+              <View style={st.heroOffer}>
+                <Text style={st.heroOfferTxt}>{t('paywall.trialBadge', { days: selectedTrialDays })}</Text>
+              </View>
+            ) : null}
+            <Text style={st.heroTitle}>{t('paywall.compare.heroTitle')}</Text>
+            <Text style={st.heroSub}>{t('paywall.compare.heroSubtitle', { count: TICKET_MONTHLY_GRANT })}</Text>
+          </LinearGradient>
+
+          {/* ── Free vs チケット 比較表 ── */}
+          <View style={st.cmpWrap}>
+            <View style={st.cmpColsRow}>
+              <View style={{ flex: 1 }} />
+              <Text style={st.cmpColH}>{t('paywall.compare.freeCol')}</Text>
+              <Text style={[st.cmpColH, st.cmpColHActive]}>{t('paywall.compare.ticketCol')}</Text>
+            </View>
+            <View style={st.cmpRow}>
+              <Text style={st.cmpFeat}>{t('paywall.compare.rowAdsHidden')}</Text>
+              <Text style={[st.cmpMark, st.cmpMarkNo]}>✕</Text>
+              <Text style={[st.cmpMark, st.cmpMarkYes]}>✓</Text>
+            </View>
+            <View style={st.cmpRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={st.cmpFeat}>{t('paywall.compare.rowMonthlyTickets')}</Text>
+                <Text style={st.cmpFeatSub}>{t('paywall.compare.rowMonthlyTicketsSub', { count: TICKET_MONTHLY_GRANT })}</Text>
+              </View>
+              <Text style={[st.cmpMark, st.cmpMarkNo]}>✕</Text>
+              <Text style={[st.cmpMark, st.cmpMarkYes]}>✓</Text>
+            </View>
+            <View style={st.cmpRow}>
+              <Text style={st.cmpFeat}>{t('paywall.compare.rowAiFeatures')}</Text>
+              <Text style={[st.cmpMark, st.cmpMarkYes]}>✓</Text>
+              <Text style={[st.cmpMark, st.cmpMarkYes]}>✓</Text>
+            </View>
+            <View style={[st.cmpRow, { paddingBottom: 0 }]}>
+              <Text style={st.cmpFeat}>{t('paywall.compare.rowExtraTickets')}</Text>
+              <Text style={[st.cmpMark, st.cmpMarkYes]}>✓</Text>
+              <Text style={[st.cmpMark, st.cmpMarkYes]}>✓</Text>
+            </View>
+          </View>
+
+          {/* ── 価格カード ── */}
+          <View style={st.priceCard}>
+            <View>
+              <Text style={st.priceCardLabel}>{selectedPlan.label}</Text>
+              <Text style={st.priceCardSub}>{t('paywall.compare.priceCardSub', { price: selectedTerms.price })}</Text>
+            </View>
+            <View style={st.priceCardBadge}>
+              <Text style={st.priceCardBadgeTxt}>{t('paywall.recommended')}</Text>
+            </View>
+          </View>
+
+          <View style={{ marginTop: 14 }}>
+            {renderPurchaseFooter()}
+          </View>
+
+          <TouchableOpacity onPress={() => router.back()} style={st.skipBtn} activeOpacity={0.7}>
+            <Text style={st.skipTxt}>{t('paywall.compare.skipContinue')}</Text>
+          </TouchableOpacity>
+
+          <View style={{ height: 32 }} />
+        </Animated.ScrollView>
+      ) : (
       <Animated.ScrollView style={{ flex: 1, opacity: fadeAnim }} contentContainerStyle={st.scroll}>
 
         {/* ── リード文 ── */}
@@ -279,83 +430,11 @@ export default function PaywallScreen() {
           )
         })}
 
-        {/* ── 購入ボタン ── */}
-        <TouchableOpacity
-          onPress={handlePurchase}
-          disabled={purchasing || !packagesReady}
-          activeOpacity={0.85}
-          style={[st.purchaseBtn, { backgroundColor: selectedPlan.color }, (purchasing || !packagesReady) && { opacity: 0.55 }]}
-        >
-          {purchasing ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={st.purchaseBtnText}>
-              {selectedTrialDays
-                ? t('paywall.startTrial', { days: selectedTrialDays })
-                : t('paywall.startPlan', { label: selectedPlan.label, price: selectedTerms.price, period: selectedTerms.period })}
-            </Text>
-          )}
-        </TouchableOpacity>
-        {selectedTrialDays ? (
-          <Text style={st.trialSubtext}>
-            {t('paywall.trialSubtext', { price: selectedTerms.price, period: selectedTerms.period })}
-          </Text>
-        ) : null}
-
-        {/* ── 法的必須テキスト（Apple審査要件 3.1.2） ── */}
-        <View style={st.legalBox}>
-          <Text style={st.legalText}>
-            {selectedTrialDays ? `• ${t('paywall.legal.trialLine', { days: selectedTrialDays })}\n` : ''}
-            • {t('paywall.legal.autoRenew')}{'\n'}
-            • {t('paywall.legal.cancelNotice')}{'\n'}
-            • {t('paywall.legal.howToCancel')}{'\n'}
-            • {t('paywall.legal.refundPolicy')}
-          </Text>
-          <View style={{ flexDirection: 'row', gap: 16, marginTop: 10 }}>
-            <TouchableOpacity onPress={() => Linking.openURL('https://scorej-run.vercel.app/privacy')}>
-              <Text style={st.legalLink}>{t('paywall.privacyPolicy')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => Linking.openURL('https://scorej-run.vercel.app/terms')}>
-              <Text style={st.legalLink}>{t('paywall.terms')}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* ── 復元ボタン（Apple審査で必須） ── */}
-        <TouchableOpacity onPress={handleRestore} disabled={restoring} style={st.restoreBtn}>
-          {restoring
-            ? <ActivityIndicator color={TEXT_SECONDARY} size="small" />
-            : <Text style={st.restoreText}>{t('paywall.restoreButton')}</Text>
-          }
-        </TouchableOpacity>
-
-        {/* ── DEV専用スキップ（本番ビルドには含まれない） ── */}
-        {__DEV__ && (
-          <TouchableOpacity
-            style={{ marginTop: 12, alignSelf: 'center', padding: 10 }}
-            onPress={async () => {
-              if (selected === 'ticket_monthly') {
-                await AsyncStorage.setItem('trackmate_subscription', JSON.stringify({
-                  isPremium: true, plan: 'free', expiresAt: '2099-12-31T00:00:00.000Z',
-                  hasTicketMonthly: true, ticketMonthlyExpiresAt: '2099-12-31T00:00:00.000Z',
-                }))
-              } else {
-                await AsyncStorage.setItem('trackmate_subscription', JSON.stringify({
-                  isPremium: true, plan: selected, expiresAt: '2099-12-31T00:00:00.000Z',
-                }))
-              }
-              Toast.show({ type: 'success', text1: `[DEV] ${selected} を擬似有効化しました` })
-              router.back()
-            }}
-          >
-            <Text style={{ color: TIX, fontSize: 12, fontWeight: '700' }}>
-              [DEV] 購入をスキップ（開発用）
-            </Text>
-          </TouchableOpacity>
-        )}
+        {renderPurchaseFooter()}
 
         <View style={{ height: 32 }} />
       </Animated.ScrollView>
+      )}
     </SafeAreaView>
   )
 }
@@ -396,4 +475,29 @@ const st = StyleSheet.create({
   legalLink:       { fontSize: 11, color: TEXT_SECONDARY, textDecorationLine: 'underline' },
   restoreBtn:      { alignItems: 'center', paddingVertical: 14, minHeight: 44, justifyContent: 'center' },
   restoreText:     { fontSize: 14, color: TEXT_SECONDARY },
+
+  // ── 比較デザイン（2026-09-07リニューアル：Free vs チケットプラン） ──
+  scrollCompare:   { paddingBottom: 8 },
+  heroGrad:        { marginHorizontal: 16, borderRadius: 24, paddingVertical: 24, paddingHorizontal: 20, alignItems: 'center', marginBottom: -18 },
+  heroOffer:       { backgroundColor: 'rgba(13,51,32,0.12)', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4, marginBottom: 8 },
+  heroOfferTxt:    { fontSize: 11, fontWeight: '800', color: '#0d3320' },
+  heroTitle:       { fontSize: 24, fontWeight: '900', color: '#0d3320', textAlign: 'center', lineHeight: 30, marginBottom: 8, letterSpacing: -0.3 },
+  heroSub:         { fontSize: 12.5, color: 'rgba(13,51,32,0.65)', textAlign: 'center', lineHeight: 19 },
+  cmpWrap:         { marginHorizontal: 16, backgroundColor: CARD, borderRadius: 20, padding: 18, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 16, elevation: 2 },
+  cmpColsRow:      { flexDirection: 'row', alignItems: 'center', paddingBottom: 10, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: '#eee' },
+  cmpColH:         { width: 60, textAlign: 'center', fontSize: 12, fontWeight: '800', color: TEXT_SECONDARY },
+  cmpColHActive:   { color: '#fff', backgroundColor: BRAND, borderRadius: 10, paddingVertical: 4, overflow: 'hidden' },
+  cmpRow:          { flexDirection: 'row', alignItems: 'center', paddingVertical: 9 },
+  cmpFeat:         { flex: 1, fontSize: 12.5, fontWeight: '700', color: TEXT_PRIMARY, paddingRight: 6 },
+  cmpFeatSub:      { fontSize: 10, fontWeight: '500', color: TEXT_HINT, marginTop: 1 },
+  cmpMark:         { width: 60, textAlign: 'center', fontSize: 16 },
+  cmpMarkYes:      { color: BRAND, fontWeight: '800' },
+  cmpMarkNo:       { color: '#d1d5db' },
+  priceCard:       { marginHorizontal: 16, marginTop: 14, borderRadius: 18, padding: 16, backgroundColor: '#eafaf0', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  priceCardLabel:  { fontSize: 14, fontWeight: '800', color: '#0d3320' },
+  priceCardSub:    { fontSize: 10.5, color: '#3d6b52', marginTop: 2 },
+  priceCardBadge:  { backgroundColor: BRAND, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 },
+  priceCardBadgeTxt:{ color: '#fff', fontSize: 10, fontWeight: '800' },
+  skipBtn:         { alignItems: 'center', paddingVertical: 10, minHeight: 44, justifyContent: 'center' },
+  skipTxt:         { fontSize: 13, color: TEXT_HINT, fontWeight: '600' },
 })
