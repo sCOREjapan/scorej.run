@@ -213,10 +213,12 @@ export async function spendTicketsForFeature(feature: TicketFeature): Promise<bo
   return spendTickets(TICKET_COST[feature])
 }
 
-// ── 広告視聴でチケットを直接獲得（1日10回まで） ───────────────────
+// ── 広告視聴でチケットを直接獲得（1日5回まで） ───────────────────
 // 1日の上限カウント自体は（乱用されても影響が小さいため）端末ローカルのままとするが、
 // 実際に加算されるチケット残高は grantTickets() 経由でログイン中はサーバーに反映される。
-const AD_TICKET_DAILY_CAP = 10
+// 2026-09-07: 旧上限10枚は「広告収益よりAPIコストの方が高い」問題を悪化させる方向
+// だったため5枚に引き下げ。チケットプラン(月100枚)への誘導を優先する方針に合わせた。
+const AD_TICKET_DAILY_CAP = 5
 const AD_TICKET_DAILY_KEY = 'score_ticket_ad_daily'
 
 async function getAdTicketDaily(): Promise<{ date: string; count: number }> {

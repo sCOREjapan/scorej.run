@@ -1,7 +1,11 @@
 // components/NoadUpsellModal.tsx
-// 広告なしプランの案内モーダル（週1回程度）
-// 表示条件: FREEプラン かつ 前回表示から7日以上経過（未表示なら即表示）
-// noad / coach プランに加入済みの場合は呼び出し側でそもそも表示しない
+// チケットプランの案内モーダル（1日1回程度）
+// 2026-09-07: paywall画面が「チケットプラン推奨」の比較デザインに刷新されたのに合わせ、
+// このモーダルの文言・導線も¥480広告なしプラン推奨からチケットプラン推奨に統一。
+// 表示頻度も週1回→1日1回に変更（呼び出し側のトリガーは index.tsx の起動時タイマーに加え、
+// 広告視聴でチケットを獲得した直後にも呼ぶ想定）。
+// 表示条件: FREEプラン かつ 前回表示から1日以上経過（未表示なら即表示）
+// ticket_monthly / coach プランに加入済みの場合は呼び出し側でそもそも表示しない
 
 import React, { useRef, useEffect, useMemo } from 'react'
 import {
@@ -13,9 +17,10 @@ import { Ionicons } from '@expo/vector-icons'
 import { todayLocalISO } from '../lib/dateLocal'
 import { useTheme, type ThemeColors } from '../context/ThemeContext'
 import { useTranslation } from 'react-i18next'
+import { TICKET_MONTHLY_GRANT } from '../lib/purchaseService'
 
 const LAST_SHOWN_KEY = 'score_noad_upsell_last_shown'
-const INTERVAL_MS = 7 * 24 * 60 * 60 * 1000
+const INTERVAL_MS = 1 * 24 * 60 * 60 * 1000
 
 // ── 表示すべきか判定（呼び出し側で tier === 'free' を確認してから呼ぶ） ──
 export async function shouldShowNoadUpsell(): Promise<boolean> {
@@ -82,16 +87,16 @@ export default function NoadUpsellModal({ visible, onClose, onUpgrade }: Props) 
 
         <View style={s.headerRow}>
           <View style={s.iconWrap}>
-            <Ionicons name="shield-checkmark" size={26} color="#166534" />
+            <Text style={{ fontSize: 26 }}>🎫</Text>
           </View>
           <View style={{ flex: 1, gap: 3 }}>
             <Text style={s.title}>{t('noadUpsellModal.title')}</Text>
-            <Text style={s.sub}>{t('noadUpsellModal.sub')}</Text>
+            <Text style={s.sub}>{t('noadUpsellModal.sub', { n: TICKET_MONTHLY_GRANT })}</Text>
           </View>
         </View>
 
         <View style={s.benefits}>
-          {(t('noadUpsellModal.benefits', { returnObjects: true }) as string[]).map(benefit => (
+          {(t('noadUpsellModal.benefits', { returnObjects: true, n: TICKET_MONTHLY_GRANT }) as string[]).map(benefit => (
             <View key={benefit} style={s.benefitRow}>
               <Ionicons name="checkmark-circle" size={16} color="#166534" />
               <Text style={s.benefitText}>{benefit}</Text>

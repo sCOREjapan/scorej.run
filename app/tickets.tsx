@@ -15,6 +15,7 @@ import { watchAdsForReward } from '../lib/rewardedAd'
 import Toast from 'react-native-toast-message'
 import { useTranslation } from 'react-i18next'
 import { useTheme, type ThemeColors } from '../context/ThemeContext'
+import NoadUpsellModal, { shouldShowNoadUpsell } from '../components/NoadUpsellModal'
 
 const TIX    = '#f59e0b'
 const BRAND  = '#16a34a'
@@ -39,6 +40,9 @@ export default function TicketsScreen() {
   const [purchasing, setPurchasing] = useState(false)
   const [watchingAd, setWatchingAd] = useState(false)
   const [adTicketsLeft, setAdTicketsLeft] = useState(0)
+  // 広告視聴でチケットを獲得した直後、「毎回広告を見るよりチケットプランの方が楽」を
+  // 案内するタイミングとして自然なため、ここでもNoadUpsellModalの表示条件をチェックする
+  const [noadUpsellVisible, setNoadUpsellVisible] = useState(false)
   // setPurchasing/setWatchingAdはReactの再レンダー待ちで反映が非同期なため、
   // 連打（disabledが効く前の2連タップ）を防ぐには同期的なrefロックが必要
   const purchaseLockRef = useRef(false)
@@ -104,12 +108,15 @@ export default function TicketsScreen() {
       await refresh()
       if (r.granted) {
         Toast.show({ type: 'success', text1: t('tickets.adEarnedToast') })
+        if (!hasTicketMonthly) {
+          shouldShowNoadUpsell().then(show => { if (show) setNoadUpsellVisible(true) }).catch(() => {})
+        }
       }
     } finally {
       setWatchingAd(false)
       adLockRef.current = false
     }
-  }, [adTicketsLeft, refresh, t])
+  }, [adTicketsLeft, refresh, t, hasTicketMonthly])
 
   return (
     <SafeAreaView style={st.safe} edges={['top', 'bottom']}>
@@ -207,6 +214,12 @@ export default function TicketsScreen() {
 
         <View style={{ height: 32 }} />
       </ScrollView>
+
+      <NoadUpsellModal
+        visible={noadUpsellVisible}
+        onClose={() => setNoadUpsellVisible(false)}
+        onUpgrade={() => router.push('/paywall')}
+      />
     </SafeAreaView>
   )
 }

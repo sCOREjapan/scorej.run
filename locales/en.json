@@ -3707,14 +3707,14 @@
     "notNow": "Not now"
   },
   "noadUpsellModal": {
-    "title": "Go Ad-Free for a Smoother Experience",
-    "sub": "Remove all ads for ¥480/month",
+    "title": "Get More Out of Your AI",
+    "sub": "¥980/month for no ads + {{n}} tickets every month",
     "benefits": [
       "Banner and video ads completely removed",
-      "No more waiting for ads to load",
-      "AI features still use tickets (earn more by watching ads)"
+      "{{n}} tickets granted automatically every month",
+      "Use AI features (form analysis, recovery advice, etc.) freely"
     ],
-    "cta": "View No-Ads Plan",
+    "cta": "View Ticket Plan",
     "notNow": "Not now"
   },
   "dateSelector": {
