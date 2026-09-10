@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>sCORE 事業分析 2026-09</title>
+<style>
+  @page { size: A4; margin: 20mm 16mm; }
+  * { box-sizing: border-box; }
+  body {
+    background: #ffffff; color: #111827;
+    font-family: -apple-system, "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif;
+    font-size: 10.5pt; line-height: 1.75; margin: 0; padding: 0;
+  }
+  .cover {
+    padding: 60mm 0 30mm; text-align: center; page-break-after: always;
+  }
+  .cover .eyebrow { font-size: 10pt; color: #6b7280; letter-spacing: 3px; font-weight: 700; margin-bottom: 18px; }
+  .cover h1 { font-size: 26pt; font-weight: 900; letter-spacing: -0.5px; margin: 0 0 14px; color: #111827; }
+  .cover .sub { font-size: 12pt; color: #374151; margin-bottom: 40px; }
+  .cover .meta { font-size: 9.5pt; color: #9ca3af; margin-top: 60px; line-height: 2; }
+  .cover .badge {
+    display: inline-block; margin-top: 30px; padding: 6px 18px; border: 1px solid #166534;
+    color: #166534; font-size: 9.5pt; font-weight: 700; border-radius: 20px;
+  }
+
+  h2 {
+    font-size: 15pt; font-weight: 900; color: #166534; margin: 30px 0 12px;
+    padding-bottom: 8px; border-bottom: 2px solid #166534;
+    page-break-after: avoid;
+  }
+  h2 .num { color: #9ca3af; font-weight: 700; margin-right: 6px; }
+  h3 { font-size: 12pt; font-weight: 800; color: #111827; margin: 20px 0 8px; page-break-after: avoid; }
+  h4 { font-size: 10.5pt; font-weight: 800; color: #166534; margin: 14px 0 6px; }
+  p { margin: 0 0 10px; }
+  .lead {
+    font-size: 11.5pt; font-weight: 700; background: #f0fdf4; border-left: 4px solid #166534;
+    padding: 12px 16px; margin: 0 0 16px; border-radius: 4px;
+  }
+  ul, ol { margin: 6px 0 14px; padding-left: 20px; }
+  li { margin-bottom: 5px; }
+  strong { color: #111827; }
+  .tag {
+    display: inline-block; font-size: 8pt; font-weight: 800; padding: 1px 7px; border-radius: 10px;
+    color: #fff; margin-right: 4px; vertical-align: middle;
+  }
+  .tag.p0 { background: #dc2626; }
+  .tag.p1 { background: #f59e0b; }
+  .tag.p2 { background: #6b7280; }
+  .tag.exist { background: #166534; }
+  .tag.new { background: #2563eb; }
+
+  table { width: 100%; border-collapse: collapse; margin: 10px 0 18px; font-size: 9.3pt; page-break-inside: avoid; }
+  th, td { border: 1px solid #e5e7eb; padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { background: #f3f4f6; font-weight: 800; color: #111827; }
+  tr:nth-child(even) td { background: #fafafa; }
+  .num-cell { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+
+  .kpi-grid { display: table; width: 100%; margin: 14px 0 20px; border-spacing: 8px 0; }
+  .kpi-row { display: table-row; }
+  .kpi { display: table-cell; width: 16.6%; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;
+    padding: 10px 8px; text-align: center; }
+  .kpi .v { font-size: 15pt; font-weight: 900; color: #166534; font-variant-numeric: tabular-nums; }
+  .kpi .l { font-size: 8pt; color: #6b7280; margin-top: 2px; }
+
+  .code-note {
+    background: #f9fafb; border: 1px solid #e5e7eb; border-left: 3px solid #6b7280;
+    border-radius: 4px; padding: 8px 12px; margin: 8px 0 14px; font-size: 8.8pt; color: #4b5563;
+  }
+  .code-note code { background: #eef2f0; padding: 1px 4px; border-radius: 3px; font-size: 8.5pt; }
+  code { background: #eef2f0; padding: 1px 4px; border-radius: 3px; font-size: 92%; }
+
+  .finding {
+    border: 1px solid #fca5a5; background: #fef2f2; border-radius: 6px; padding: 10px 14px; margin: 10px 0 16px;
+    page-break-inside: avoid;
+  }
+  .finding .ft { font-weight: 800; color: #b91c1c; margin-bottom: 4px; }
+
+  .decision-box {
+    border: 1.5px solid #166534; background: #f0fdf4; border-radius: 8px; padding: 14px 18px; margin: 10px 0 18px;
+    page-break-inside: avoid;
+  }
+  .decision-box .q { font-weight: 800; margin-bottom: 4px; }
+
+  .quote-src { font-size: 8.3pt; color: #9ca3af; }
+  .quote-src a { color: #6b7280; }
+
+  section { page-break-before: always; }
+  section:first-of-type { page-break-before: auto; }
+
+  .footer-note { font-size: 8.5pt; color: #9ca3af; margin-top: 30px; border-top: 1px solid #e5e7eb; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="eyebrow">S C O R E &nbsp;—&nbsp; B U S I N E S S &nbsp; A N A L Y S I S</div>
+  <h1>利益最大化と<br>陸上界インフラ化のための実行計画</h1>
+  <div class="sub">現状のコード・数値に基づく分析 ／ APIコスト最適化 ／ チームB2B展開戦略</div>
+  <div class="badge">2026年9月版</div>
+  <div class="meta">
+    作成日: 2026-09-09<br>
+    対象: sCORE 経営・プロダクト判断<br>
+    根拠: trackmateリポジトリの実コード直接分析＋現状KPI＋外部ベンチマーク
+  </div>
+</div>
+
+<section>
+<h2><span class="num">0.</span>結論</h2>
+<div class="lead">
+今のsCOREは薄く黒字（概算+3.7万円/月）。だが、この黒字は「値段の割にAPIコストが低く抑えられている」ことに支えられた黒字であって、「たくさんの人に深く使われている」黒字ではない（インストール12,000に対しMAU600＝5%）。<br><br>
+利益最大化とインフラ化は、実は同じ一つの動きで達成できる。<strong>個人向けの成長を追うフェーズは終わった</strong>という判断は正しい。次にやるべきは、①コードに実在する2つのコスト漏れを止め、②B2B（チーム/コーチ）に「安心・信頼・便利」を軸に営業をかけ、③その営業導線上で既存インストーラーとインスタフォロワーを無料で再稼働させる、という一つの流れにまとめること。
+</div>
+
+<div class="kpi-grid">
+  <div class="kpi-row">
+    <div class="kpi"><div class="v">¥15,000</div><div class="l">月間APIコスト</div></div>
+    <div class="kpi"><div class="v">¥40〜50k</div><div class="l">月間広告収益</div></div>
+    <div class="kpi"><div class="v">¥7,000</div><div class="l">月間サブスク収益</div></div>
+    <div class="kpi"><div class="v">12,000</div><div class="l">累計インストール</div></div>
+    <div class="kpi"><div class="v">600</div><div class="l">MAU</div></div>
+    <div class="kpi"><div class="v">2,200</div><div class="l">IGフォロワー</div></div>
+  </div>
+</div>
+</section>
+
+<section>
+<h2><span class="num">1.</span>現状ダッシュボードと、数字が語っていること</h2>
+
+<table>
+<tr><th>指標</th><th class="num-cell">値</th><th>読み方</th></tr>
+<tr><td>月間粗利益（概算）</td><td class="num-cell">約 +37,000円</td><td>広告(45k想定)+サブスク(7k) − API(15k)。<strong>ストア手数料15〜30%・Vercel/Supabase費用は未控除</strong>のため実際の手取りはこれより少ない</td></tr>
+<tr><td>活性化率（MAU÷累計インストール）</td><td class="num-cell">5.0%</td><td>95%の人が「入れたが今は使っていない」。この母集団は<strong>再獲得コストゼロで話しかけられる唯一の層</strong></td></tr>
+<tr><td>フォロワー活用率（MAU÷IGフォロワー）</td><td class="num-cell">27.3%</td><td>フォロワーの方がインストーラーより「今使っている率」が高い可能性＝<strong>フォロワー経由の再エンゲージが効率的</strong></td></tr>
+<tr><td>サブスクMRRの規模感</td><td class="num-cell">¥7,000</td><td>¥980プラン換算で有料継続 約7〜8アカウント相当。<strong>個人課金だけでは事業として小さすぎる</strong> — B2Bへの重心移動は数字的にも妥当</td></tr>
+</table>
+
+<p>ここで一度、率直に言う。<strong>「利益最大化」と「陸上界のインフラ化」は今のフェーズでは矛盾しない。</strong>個人課金の最適化に時間を使うより、コスト漏れを塞いで薄い黒字を厚くし、その浮いたリソースをチーム営業に全振りする方が、両方の目的に効く。</p>
+</section>
+
+<section>
+<h2><span class="num">2.</span>APIコストの是正 — コードに実在する2つの漏れ</h2>
+
+<p>結論から言うと、<strong>すでに良い設計になっている部分</strong>と、<strong>今すぐ止めるべき漏れ</strong>が両方ある。まず良い部分を認めておく：Gemini（安価）を主系統にしAnthropicを障害時フォールバックのみにする設計、<code>thinkingConfig: thinkingBudget: 0</code>で不要な思考トークン課金を切っている点、<code>max_tokens</code>を4096に上限設定している点（出力は入力の5倍高コストという理由が明記されている）——これらは既にコスト意識の高い実装になっている。問題はその先。</p>
+
+<div class="finding">
+<div class="ft">🔴 発見1：チケット消費コスト表が2箇所で食い違っている（P0・実コード確認済み）</div>
+<code>lib/ticketWallet.ts</code>（実際に消費されるチケット枚数）と <code>lib/adGate.ts</code>（利用前にUIが見せる/ゲートする枚数）が、同じ機能名に対して違う数値を持っている。
+<table style="margin-top:8px;">
+<tr><th>機能</th><th class="num-cell">ticketWallet.ts（実消費）</th><th class="num-cell">adGate.ts（ゲート表示）</th><th>差</th></tr>
+<tr><td>meal（食事分析）</td><td class="num-cell">1枚</td><td class="num-cell">6枚</td><td>6倍</td></tr>
+<tr><td>notebook_ai</td><td class="num-cell">1枚</td><td class="num-cell">6枚</td><td>6倍</td></tr>
+<tr><td>video（動画分析）</td><td class="num-cell">3枚</td><td class="num-cell">4枚</td><td>+1枚</td></tr>
+<tr><td>daily_insight</td><td class="num-cell">1枚</td><td class="num-cell">2枚</td><td>+1枚</td></tr>
+<tr><td>recovery</td><td class="num-cell">1枚</td><td class="num-cell">2枚</td><td>+1枚</td></tr>
+<tr><td>injury_recovery</td><td class="num-cell">3枚</td><td class="num-cell">2枚</td><td>−1枚</td></tr>
+</table>
+特に<code>meal</code>と<code>notebook_ai</code>は6倍の開き。ゲート側の数値でユーザーの残高チェックが行われ、実消費側の数値でしか減らないため、<strong>ユーザーは実際より多く残高を要求されて機能を諦めているか、逆に想定より安く使えてAPIコストだけ膨らんでいる可能性がある</strong>。どちらの方向にズレているにせよ、収益とコストの計算がこの2つの表のどちらを見て設計されたかによって答えが変わる——つまり<strong>今の¥15,000という月間APIコストの数字自体、正確な設計値と一致していない可能性がある</strong>。
+<div class="code-note">対処: 2つのファイルで別々に定義するのをやめ、<code>lib/ticketWallet.ts</code>側を単一の正とし、<code>adGate.ts</code>はそこから import する形に統合する。過去に <code>api/analyze.ts</code> 側のミラー漏れで「APIコストだけ発生してチケットは減らない」不具合が実際に発生した記録がコード内コメントに残っており（2026-09-07）、同じクラスの不具合が3箇所目で見つかった形。</div>
+</div>
+
+<div class="finding">
+<div class="ft">🔴 発見2：無料の怪我相談機能に、サーバー側の利用回数チェックがない（P0）</div>
+<code>recovery</code>・<code>injury_recovery</code>（AIリカバリー相談・復帰プラン生成）は「1日2回まで無料」という制限が<code>lib/adGate.ts</code>にあるが、この制限は<strong>端末のAsyncStorageのみで管理</strong>されている。<code>api/analyze.ts</code>のサーバー側チケット検証(<code>TICKET_COST_SERVER</code>)にはこの2機能が含まれておらず、サーバー側では一切チェックしていない。
+<div class="code-note">Web版はブラウザのストレージを操作するだけで無制限に呼び出せる（同種の脆弱性は「tier詐称」問題として過去に一度発見・修正済みとコード内コメントに記録がある。同じ穴が別機能に残っている）。 対処: <code>api/analyze.ts</code>にこの2機能の1日あたり呼び出し回数をサーバー側（Supabase）で記録・検証する処理を追加する。</div>
+</div>
+
+<h3>その他、優先度付きの具体策</h3>
+<table>
+<tr><th>施策</th><th>優先度</th><th>効果の理由</th></tr>
+<tr><td>上記2つの表を1本化する</td><td><span class="tag p0">P0</span></td><td>コストと収益の計算の前提そのものを正しくする。他の施策より先にやる意味がある</td></tr>
+<tr><td>recovery/injury_recoveryのサーバー側回数検証</td><td><span class="tag p0">P0</span></td><td>Web版からの無制限呼び出しリスクを塞ぐ</td></tr>
+<tr><td>AIモデル死活監視の自動化（詳細は8章）</td><td><span class="tag p0">P0</span></td><td>過去にモデル404で1ヶ月AI機能が全滅していた実績あり。気づけなければコスト以前に売上機会を失う</td></tr>
+<tr><td>動画分析の画像枚数上限を実測ベースで再検討</td><td><span class="tag p1">P1</span></td><td>現状MAX_IMAGES=12。画像トークンは高コストなため、品質を落とさない最小枚数を検証する余地がある</td></tr>
+<tr><td>Geminiの軽量モデル（flash-lite等）を低価値機能に限定投入</td><td><span class="tag p1">P1</span></td><td>daily_insight・notebook_aiのような短文生成は、動画分析ほど高精度モデルを必要としない可能性</td></tr>
+<tr><td>同一入力のキャッシュ（同日同条件の再生成防止）</td><td><span class="tag p2">P2</span></td><td>効果は限定的だが実装コストも低い</td></tr>
+</table>
+</section>
+
+<section>
+<h2><span class="num">3.</span>チーム機能とB2B展開 — Pain / After フレーム</h2>
+
+<p>ここからは頂いた「コーチのPain」をそのまま起点にする。まず正直に言っておくと、<strong>Painの一部にはすでに実装の芽がある</strong>（後述）。ゼロから作る話と、すでにある機能を営業できる形に仕上げる話を混同しないことが重要。</p>
+
+<table>
+<tr><th>コーチのPain</th><th>sCOREのAfter</th><th>実装状況</th></tr>
+<tr><td>チームを管理しきれない</td><td>注意選手一覧が朝にわかる（誰に声をかけるべきか）</td><td><span class="tag exist">既存</span> リスクリング付きメンバー一覧・コーチダッシュボードが実装済み</td></tr>
+<tr><td>選手の怪我に気づけない</td><td>選手がワンタップで痛い部位を報告し、コーチ側に可視化される</td><td><span class="tag exist">既存の土台あり</span> <code>BodyPartSelector</code>/<code>PainBadges</code>が team.tsx に実装済み。<strong>「ワンタップ」の入口として選手ホーム画面に露出しているかは要確認</strong> — 露出強化がP1</td></tr>
+<tr><td>選手は怪我報告をしづらい</td><td>コーチに直接言う心理的ハードルを、アプリのワンタップ報告が肩代わりする</td><td><span class="tag new">要設計</span> 過去の検討で記録済みの「監視パラドックス」対策（共有レベルを選手が選べる）を、この報告フローにも適用すべき</td></tr>
+<tr><td>データ管理しきれない（LINE個別連絡が中心）</td><td>予定共有・出欠管理を1つのアプリに集約</td><td><span class="tag exist">既存</span> team_eventsテーブル・予定追加/確認機能が実装済み。<strong>「LINEから乗り換える」ための移行導線（一括インポート等）はおそらく未実装</strong></td></tr>
+<tr><td>陸上未経験で顧問になった人が多い</td><td>種目別のAIメニュー提案で専門知識を補う</td><td><span class="tag exist">既存</span> AIメニュー生成機能が実装済み</td></tr>
+</table>
+
+<h3>営業の核心：「安心・信頼・便利」をどう証明するか</h3>
+<p>この3語は正しい軸だが、抽象語のままでは営業資料にならない。それぞれを<strong>証拠</strong>に変換する。</p>
+<table>
+<tr><th>軸</th><th>抽象的な訴求（避ける）</th><th>証拠ベースの訴求（推奨）</th></tr>
+<tr><td>安心</td><td>「怪我を防げます」</td><td>「診断ではなく、選手本人の記録データに基づく注意喚起です」と明言し、医療的断定を避ける。学校・保護者が最も警戒するのはこの一線</td></tr>
+<tr><td>信頼</td><td>「多くのチームが使っています」</td><td>導入校・クラブでの<strong>定量的な事例</strong>（記録率○%向上、コーチの確認頻度○回/週）を3件作る（4章参照）</td></tr>
+<tr><td>便利</td><td>「機能が豊富です」</td><td>「今使っているLINE連絡・紙の出欠簿が、これ1つに置き換わります」という<strong>置き換え</strong>の言葉で語る。追加ではなく削減として見せる</td></tr>
+</table>
+</section>
+
+<section>
+<h2><span class="num">4.</span>学校・チームへの営業戦略 — 外部の型を借りる</h2>
+
+<p>「当たり前のように導入されているサービス」がどう広がったかを見ると、共通するのはいずれも<strong>ボトムアップ（1コーチ・1チームからの信頼の連鎖）</strong>と<strong>継続的な現場接点</strong>の2つ。</p>
+
+<h4>Hudl（米国、高校スポーツの動画・データ分析で圧倒的なシェア）</h4>
+<p>個々の学校・コーチとの関係構築を積み重ねる形で拡大し、近年はローカルメディア企業（Lee Enterprises）と提携して「その地域の高校スポーツ報道」に組み込むことで、コーチ・選手・保護者・ファンが自然に接触する導線を作っている。<span class="quote-src">[Hudl公式ブログ](https://www.hudl.com/blog/how-to-introduce-hudl-to-your-players-team-and-club)</span></p>
+
+<h4>TeamSnap（米国、地域スポーツ・学校プログラムのチーム管理）</h4>
+<p>2023年時点で米国の地域スポーツリーグ・学校プログラムの78%がデジタル化に移行済みという調査結果があり、市場全体の地殻変動を追い風にしている。スポンサー提携（Spectrum等）による資金提供で、リーグ側の導入コストを下げるモデルも併用。<span class="quote-src">[TeamSnap成長戦略分析](https://businessmodelcanvastemplate.com/blogs/growth-strategy/teamsnap-growth-strategy)</span></p>
+
+<h4>日本の学校営業の現場知見</h4>
+<p>教育業界向け営業のノウハウでは、<strong>顧問教員に電話が繋がりやすいのは授業前の朝8:15〜8:30頃</strong>という具体的な時間帯が指摘されている。授業中・部活指導中は物理的に連絡が取れない。<span class="quote-src">[学校営業のコツ](https://faxdm.nexway.co.jp/blog/197)</span> また日本国内にも「部活アプリ／クラブマネージャー」のような部活動デジタル化支援サービスが既に存在し、業務時間削減・生徒とのコミュニケーション改善を訴求している。<span class="quote-src">[部活アプリ事例](https://sports-tech.jp/school-team-app/)</span> 直接の競合になり得るため、価格・機能の違いは早めに調査すべき。</p>
+
+<div class="decision-box">
+<div class="q">この章から導かれる実行方針</div>
+<ol>
+<li><strong>最初の3〜5チームは「売る」のではなく「無料で使ってもらい、事例にする」。</strong>いきなり有料営業をかけるより、定量成果（記録率・確認頻度・怪我報告の早期化）を先に作る方が、その後の営業効率が桁違いに上がる（Codexレポートの90日ロードマップWeek 9-10と同じ思想）。</li>
+<li><strong>DMより電話・訪問。連絡は朝8:15〜8:30を狙う。</strong>顧問教員は日中ほぼ連絡が取れない。</li>
+<li><strong>「部活アプリ」等の既存競合を最低1つ実際に使って比較する。</strong>差別化ポイント（怪我予防特化・AI）が競合に対しても効くかを確認しないまま営業資料を作ると、現場で崩れる。</li>
+</ol>
+</div>
+</section>
+
+<section>
+<h2><span class="num">5.</span>インスタ2,200人 → MAU600 のギャップを埋める</h2>
+
+<p>フォロワーの方がインストーラーよりアクティブ化しやすい層である可能性が高い（1章参照）。<strong>新規獲得よりコストゼロで狙える再エンゲージ</strong>としてここを最優先にする。</p>
+
+<table>
+<tr><th>施策</th><th>狙い</th></tr>
+<tr><td>投稿を「機能紹介」から「コーチのPain/After」型に変える</td><td>選手個人ではなく<strong>顧問・保護者アカウント</strong>にも刺さる投稿にし、B2B営業の入口として機能させる</td></tr>
+<tr><td>信頼性向上：実際の成果を伴う投稿（許諾済みユーザーの自己ベスト更新カード等）</td><td>「アプリの主張」ではなく「使った人の結果」で語ることで、既にフォローしている人の再ダウンロード心理的ハードルを下げる</td></tr>
+<tr><td>ストーリーズ/固定投稿から直接、休眠ユーザー向けの再開導線（「前回の記録から再開」）を貼る</td><td>フォロワーの中には過去のインストーラーが多く含まれる想定。新規ダウンロードでなく<strong>アプリの再オープン</strong>を促す動線にする</td></tr>
+<tr><td>月1回、コーチ向けの投稿（チーム機能の実演）を混ぜる</td><td>フォロワーの中の顧問・保護者層にB2B導線を作る。個人向けと同じ投稿だけでは顧問は動かない</td></tr>
+</table>
+</section>
+
+<section>
+<h2><span class="num">6.</span>リテンション設計 — チケット付与のアイデアを検証する</h2>
+
+<p>提案いただいた「無限ログインボーナス」「練習記録ごとに1日1枚チケット」は、方向性としては正しい（記録という本体価値の行動に直接ひもづく報酬）。ただし<strong>2章のコスト漏れを塞がないまま報酬を増やすと、API原価がそのまま増える</strong>ため、実装順序としては2章が先。</p>
+
+<table>
+<tr><th>案</th><th>メリット</th><th>リスク・条件</th></tr>
+<tr><td>練習記録1回につき1日1枚チケット付与</td><td>「記録する」という北極星に近い行動に直接ひもづく。習慣化と相性が良い</td><td>チケットの用途（video/ai_analysis等、コストが高い機能）に使われると、記録が増えるほどAPIコストも増える循環になる。<strong>低コスト機能（daily_insight等）専用のチケットにする</strong>のが安全</td></tr>
+<tr><td>無限ログインボーナス</td><td>実装がシンプル</td><td>「ログインするだけ」は記録という本体価値と結びつかない。<strong>広告視聴ボーナス（既に実装済み・1日10回に復帰済み）と役割が重複する</strong>ため優先度は下げてよい</td></tr>
+</table>
+
+<p>推奨は<strong>練習記録ボーナス</strong>を、既存の広告視聴ボーナス（<code>lib/ticketWallet.ts</code>）と同じ設計思想（1日ごとリセット、上限あり）で追加すること。ただし用途を低コスト機能に限定した「記録専用チケット」として分離すれば、2章の是正と両立できる。</p>
+</section>
+
+<section>
+<h2><span class="num">7.</span>コーチ営業のためのDL導線</h2>
+
+<p>既存の招待コード（6桁英数字、team-invite.tsx）は仕組みとして既にある。営業観点で足りないのは<strong>コーチが選手に「配る」ときの摩擦</strong>。</p>
+<ul>
+<li><strong>QRコード化。</strong>現状は6桁コードの手入力のみ（過去に「4桁・QR対応」という誤った訴求文言が見つかり修正した記録がある＝実際にはQR機能が無い）。体育館・部室に貼れるQRコード1枚を、コーチ営業時の配布物として用意する価値が高い。</li>
+<li><strong>コーチ向け1枚資料（導入後すぐ配れるもの）。</strong>「このQRを読んでコード ○○○○○○ を入力してください」だけで完結する紙・PDFを、営業訪問時にその場で渡せるようにする。</li>
+<li><strong>チーム作成直後に「選手への案内文面」を自動生成する。</strong>コーチがLINEグループにコピペするだけで招待できる定型文をアプリ側で生成すれば、コーチの手間がゼロになる。</li>
+</ul>
+</section>
+
+<section>
+<h2><span class="num">8.</span>運用の自動化</h2>
+
+<table>
+<tr><th>領域</th><th>現状</th><th>自動化案</th><th>優先度</th></tr>
+<tr><td>AIモデル死活監視</td><td>手動でしか気づけない。過去にGeminiモデルの無予告404で<strong>約1ヶ月間AI機能が実質全滅</strong>していたことが、Instagram DM経由のユーザー報告で発覚した記録がコード内コメントに残っている</td><td>定期的にダミーリクエストを送り、失敗が続いたらSlack/メール等に自動通知する死活監視ジョブを追加する</td><td><span class="tag p0">P0</span></td></tr>
+<tr><td>チケットコスト表の同期</td><td>2ファイルで手動管理、既に3回同種の食い違いが発生（2章参照）</td><td>単一ソース化（2章の対処と同一）</td><td><span class="tag p0">P0</span></td></tr>
+<tr><td>コーチ向け招待文面</td><td>手動でコピペ・作成が必要と推定</td><td>チーム作成時に自動生成（7章参照）</td><td><span class="tag p1">P1</span></td></tr>
+<tr><td>問い合わせ対応</td><td>詳細不明（要確認）</td><td>よくある質問はAI（既存のGemini経路を流用、低コスト）で一次回答し、複雑なものだけ人が対応する構成に</td><td><span class="tag p2">P2</span></td></tr>
+</table>
+</section>
+
+<section>
+<h2><span class="num">9.</span>90日ロードマップ</h2>
+<table>
+<tr><th>期間</th><th>やること</th><th>完了条件</th></tr>
+<tr><td>Week 1-2</td><td>チケットコスト表の統合／recovery系のサーバー側検証追加／AIモデル死活監視の実装</td><td>コスト計算の前提が正しくなり、無監視のダウンタイムがなくなる</td></tr>
+<tr><td>Week 3-4</td><td>QRコード化・コーチ向け招待文面自動生成／営業用1枚資料の作成</td><td>コーチに「その場で渡せる」営業道具が揃う</td></tr>
+<tr><td>Week 5-8</td><td>最初の3〜5チームへの無料パイロット導入（電話・訪問、朝8:15-8:30枠を活用）</td><td>記録率・コーチ確認頻度・怪我報告の早期化を定量比較できる</td></tr>
+<tr><td>Week 9-10</td><td>パイロット事例をもとにInstagram投稿をPain/After型・コーチ向けに刷新</td><td>フォロワー2,200人への再エンゲージ導線が動き出す</td></tr>
+<tr><td>Week 11-12</td><td>練習記録ボーナスチケット（低コスト機能限定）を実装、パイロット校への有償提案開始</td><td>最初の有償チーム契約に向けた具体的な商談が始まっている</td></tr>
+</table>
+</section>
+
+<section>
+<h2><span class="num">10.</span>今週決めることと、確認したい数値</h2>
+
+<div class="decision-box">
+<div class="q">今週決めるべきこと</div>
+<ol>
+<li>チケットコスト表の食い違い（2章）——どちらの数値を正とするか、今すぐ決める</li>
+<li>最初にパイロット導入を打診する3〜5チームの候補を今週中にリストアップする</li>
+<li>Instagram投稿を誰が・どの頻度でPain/After型に変えるか</li>
+</ol>
+</div>
+
+<h3>次回の分析をより正確にするために確認したい数値</h3>
+<ul>
+<li>広告収益 ¥40〜50k・サブスク¥7,000は<strong>ストア手数料控除前か後か</strong>（粗利計算の精度に直結）</li>
+<li>Vercel・Supabase等のインフラ費用（API費¥15,000に含まれているか別か）</li>
+<li>MAU600の内訳（新規/継続の比率、直近3ヶ月の推移）</li>
+<li>meal・notebook_ai機能の実際の月間呼び出し回数（2章の食い違いがコストに与えている実際の影響額を出すため）</li>
+</ul>
+</section>
+
+<div class="footer-note">
+本資料は trackmate リポジトリの実コード（<code>api/analyze.ts</code>, <code>lib/ticketWallet.ts</code>, <code>lib/adGate.ts</code>, <code>app/(tabs)/team.tsx</code>, <code>lib/referral.ts</code> 等）を直接読んだ上で作成。外部事例は本文中に出典リンクを記載。数値は本人提供の現状値（2026-09-09時点）を使用し、断定できない箇所は「要確認」と明記した。
+</div>
+
+</body>
+</html>

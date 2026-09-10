@@ -44,6 +44,7 @@ const INJURY_KEY = 'trackmate_injury_records'
 import { generateCompetitionPlan, generateInjuryRecoveryPlan } from '../../lib/claude'
 import { checkAdGate, recordUsage } from '../../lib/adGate'
 import { TICKET_COST } from '../../lib/ticketWallet'
+import { trackEvent, trackCompetitionPlan } from '../../lib/analytics'
 import TicketGateModal from '../../components/TicketGateModal'
 import { todayLocalISO } from '../../lib/dateLocal'
 import type { CompetitionPlan, TrackEvent, AthleticsEvent, WeekPlan, UserProfile, InjuryRecord, InjuryDayPlan, TreatmentLogEntry } from '../../types'
@@ -381,6 +382,15 @@ export default function CompetitionScreen() {
   const [extTargetId,   setExtTargetId]   = useState<string | null>(null)
   const [treatmentNote, setTreatmentNote] = useState('')
   const [treatmentModalId, setTreatmentModalId] = useState<string | null>(null)
+  // 2026-09-10: 復帰プランの中身は「今日のプラン」カードでしか見られず、作成した
+  // 全日程の内容（各日の運動・アドバイス・避けること）が確認できなかったため、
+  // フェーズ別タイムラインの各行をタップで展開し、その期間の日次プランを表示する。
+  const [expandedPhases, setExpandedPhases] = useState<Set<string>>(new Set())
+  const togglePhase = (key: string) => setExpandedPhases(prev => {
+    const next = new Set(prev)
+    next.has(key) ? next.delete(key) : next.add(key)
+    return next
+  })
 
   // フィルター
   const [activeFilter, setActiveFilter] = useState<FilterOption>('全て')
@@ -625,6 +635,7 @@ export default function CompetitionScreen() {
 
       // 計画生成・保存に成功した場合のみ利用回数・チケットを消費する（失敗時に課金しないため）
       await recordUsage('competition_plan')
+      trackCompetitionPlan(daysUntil)
       if (gate.needsTicket) Toast.show({ type: 'info', text1: t('competition.toast.ticketUsed', { n: gate.ticketCost }), visibilityTime: 1800 })
 
       // 通知がONなら大会リマインダー + 計画作成通知
@@ -709,8 +720,12 @@ export default function CompetitionScreen() {
 
     try {
       // 手入力の日数に上限がなく、打ち間違い(例: 210日)でチャンク分割API呼び出しが
-      // 何十回も走ってしまう不具合があったため、現実的な範囲(90日)にクランプする
-      const totalDays = injDaysMode === 'manual' ? Math.min(Math.max(parseInt(injManualDays) || 21, 1), 90) : 21
+      // 何十回も走ってしまう不具合があったため、現実的な範囲にクランプする。
+      // 2026-09-09: 90日だと6日ごとのチャンク分割で1回のリクエストが最大15回もAPIを叩き、
+      // 無料機能(1日2回まで)の枠を大きく踏み越えていたため30日(最大5チャンク)まで縮小。
+      // 30日を超える長期の怪我はAIの日次アドバイスよりも通院・専門家の判断が優先されるべき
+      // 領域でもあるため、実用上の妥当な線引きとして許容する。
+      const totalDays = injDaysMode === 'manual' ? Math.min(Math.max(parseInt(injManualDays) || 21, 1), 30) : 21
 
       let plans: InjuryDayPlan[]
       let shouldConsumeTicket = false
@@ -763,6 +778,9 @@ export default function CompetitionScreen() {
         // 保存に成功した場合のみ利用回数・チケットを消費する（失敗時に課金しないため）
         if (shouldConsumeTicket) {
           await recordUsage('injury_recovery')
+          // total_daysも記録し、実際に何日分のプランが求められているか
+          // （30日クランプがどれだけのユーザーに影響したか）を後から検証できるようにする
+          trackEvent('use_feature', { feature: 'injury_recovery', metadata: { total_days: totalDays } })
           if (injGate.needsTicket) Toast.show({ type: 'info', text1: t('competition.toast.ticketUsed', { n: injGate.ticketCost }), visibilityTime: 1800 })
         }
       } catch {}
@@ -1051,6 +1069,15 @@ export default function CompetitionScreen() {
       {/* ── 怪我復帰タブ ── */}
       {activeTab === 'injury' && (
         <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: 40 }]} showsVerticalScrollIndicator={false}>
+          {/* 2026-09-09: recovery.tsxには医療免責バナーがあったのに、こちら(怪我復帰プラン)には
+              一切無かったため追加。急性期/亜急性期等の臨床的な語彙を含むプランを、免責無しで
+              表示していたのは医療っぽく見えすぎるリスクがあった。 */}
+          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start', backgroundColor: '#FF950014', borderRadius: 10, padding: 10, marginBottom: 12 }}>
+            <Ionicons name="warning-outline" size={15} color="#FF9500" />
+            <Text style={{ flex: 1, fontSize: 11, color: colors.textSec, lineHeight: 16 }}>
+              {t('competition.injury.disclaimerBanner')}
+            </Text>
+          </View>
           {injuryGenerating ? (
             /* 生成中アニメーション */
             <View style={{ alignItems: 'center', paddingVertical: 60, gap: 16 }}>
@@ -1170,9 +1197,10 @@ export default function CompetitionScreen() {
                       )}
                     </View>
 
-                    {/* フェーズ別タイムライン */}
+                    {/* フェーズ別タイムライン（各行タップで全日程の中身を展開） */}
                     <View style={[styles.card, { gap: 8 }]}>
                       <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, marginBottom: 4 }}>{t('competition.injury.overallSchedule')}</Text>
+                      <Text style={{ fontSize: 11, color: colors.textHint, marginTop: -4 }}>{t('competition.injury.overallScheduleHint')}</Text>
                       {Array.from(new Set(activeInjury.plans.map(p => p.phase))).map(phase => {
                         const phasePlans = activeInjury.plans.filter(p => p.phase === phase)
                         const firstDay = phasePlans[0].day
@@ -1180,15 +1208,40 @@ export default function CompetitionScreen() {
                         const elapsed2 = getElapsedDays(activeInjury) + 1
                         const isDone   = lastDay < elapsed2
                         const isCurrent = firstDay <= elapsed2 && elapsed2 <= lastDay
+                        const phaseKey = `${activeInjury.id}_${phase}`
+                        const isExpanded = expandedPhases.has(phaseKey)
                         return (
-                          <View key={phase} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderTopWidth: 1, borderTopColor: colors.surface2 }}>
-                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: isDone ? '#34C759' : isCurrent ? '#FF6B6B' : colors.border }} />
-                            <View style={{ flex: 1 }}>
-                              <Text style={{ fontSize: 13, fontWeight: isCurrent ? '800' : '600', color: isCurrent ? colors.text : colors.textSec }}>{getPhaseLabel(phase, t)}</Text>
-                              <Text style={{ fontSize: 11, color: colors.textHint }}>{t('competition.injury.dayRange', { first: firstDay, last: lastDay })}</Text>
-                            </View>
-                            {isDone && <Text style={{ fontSize: 11, color: '#34C759', fontWeight: '700' }}>{t('competition.injury.done')}</Text>}
-                            {isCurrent && <Text style={{ fontSize: 11, color: '#FF6B6B', fontWeight: '700' }}>{t('competition.injury.current')}</Text>}
+                          <View key={phase} style={{ borderTopWidth: 1, borderTopColor: colors.surface2 }}>
+                            <TouchableOpacity
+                              style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 }}
+                              onPress={() => togglePhase(phaseKey)}
+                              activeOpacity={0.7}
+                            >
+                              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: isDone ? '#34C759' : isCurrent ? '#FF6B6B' : colors.border }} />
+                              <View style={{ flex: 1 }}>
+                                <Text style={{ fontSize: 13, fontWeight: isCurrent ? '800' : '600', color: isCurrent ? colors.text : colors.textSec }}>{getPhaseLabel(phase, t)}</Text>
+                                <Text style={{ fontSize: 11, color: colors.textHint }}>{t('competition.injury.dayRange', { first: firstDay, last: lastDay })}</Text>
+                              </View>
+                              {isDone && <Text style={{ fontSize: 11, color: '#34C759', fontWeight: '700' }}>{t('competition.injury.done')}</Text>}
+                              {isCurrent && <Text style={{ fontSize: 11, color: '#FF6B6B', fontWeight: '700' }}>{t('competition.injury.current')}</Text>}
+                              <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textHint} />
+                            </TouchableOpacity>
+                            {isExpanded && (
+                              <View style={{ paddingLeft: 18, paddingBottom: 8, gap: 12 }}>
+                                {phasePlans.map(dp => (
+                                  <View key={dp.day} style={{ gap: 4 }}>
+                                    <Text style={{ fontSize: 12, fontWeight: '800', color: BRAND }}>Day {dp.day}</Text>
+                                    {!!dp.advice && <Text style={{ fontSize: 12, color: colors.textSec, lineHeight: 18 }}>{dp.advice}</Text>}
+                                    {dp.exercises.map((ex, i) => (
+                                      <Text key={i} style={{ fontSize: 12, color: colors.text, lineHeight: 18 }}>・{ex.name}{ex.detail ? `（${ex.detail}）` : ''}</Text>
+                                    ))}
+                                    {dp.avoid.length > 0 && (
+                                      <Text style={{ fontSize: 11, color: '#FF6B6B' }}>{t('competition.injury.avoidPrefix')}{dp.avoid.join('・')}</Text>
+                                    )}
+                                  </View>
+                                ))}
+                              </View>
+                            )}
                           </View>
                         )
                       })}

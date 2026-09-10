@@ -47,6 +47,29 @@ export async function fetchTeamByCode(code: string): Promise<TeamRow | null> {
   return data as TeamRow | null
 }
 
+// 2026-09-09: コーチ側の「チームを削除」はこれまでAsyncStorageのローカルキー
+// (ROLE_KEY/SETUP_KEY)しか消しておらず、Supabase側のteams行が残ったままだった。
+// 確認ダイアログには「参加コードが無効になり、全メンバーのデータが失われます」と
+// 表示されるが実際には何も削除されておらず、削除後もそのコードで選手が参加でき
+// 続ける（=コーチが「消した」と思っているチームにデータが蓄積し続ける）不具合が
+// あった。teamsテーブルの行を削除すればon delete cascadeで関連7テーブル
+// (team_members/team_messages/team_videos/team_body_reports/team_player_stats/
+// team_sessions/team_events)も自動的に連鎖削除される（supabase/schema.sql参照）。
+export async function deleteTeam(code: string): Promise<void> {
+  if (!isConfigured) return
+  const { error } = await teamScopedClient(code).from('teams').delete().eq('code', code)
+  if (error) throw new Error(error.message)
+}
+
+// ── プッシュ通知トークン(Expo Push) ──────────────────────────
+export async function registerTeamPushToken(teamCode: string, role: 'coach' | 'player', pushToken: string): Promise<void> {
+  if (!isConfigured) return
+  await teamScopedClient(teamCode).from('team_push_tokens').upsert(
+    { team_code: teamCode, role, push_token: pushToken, updated_at: new Date().toISOString() },
+    { onConflict: 'team_code,push_token' },
+  )
+}
+
 // ── メンバー ──────────────────────────────────────────────
 export interface TeamMemberRow {
   id: string

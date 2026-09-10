@@ -365,20 +365,50 @@ export default function SettingsScreen() {
                   text: t('settings.account.deleteFinalConfirm'),
                   style: 'destructive',
                   onPress: async () => {
-                    try {
-                      // Supabase からユーザーデータを削除
-                      const userId = user?.id
-                      if (userId) {
-                        try { await supabase.from('training_sessions').delete().eq('user_id', userId) } catch {}
-                        try { await supabase.from('meal_records').delete().eq('user_id', userId) } catch {}
-                        try { await supabase.from('profiles').delete().eq('id', userId) } catch {}
-                      }
-                      // ローカルデータを全削除
+                    // 2026-09-07: 以前はここでtraining_sessions/meal_records/profilesを
+                    // クライアントの匿名キーから直接deleteしていたが、いずれもキーの列名/
+                    // テーブル名を取り違えており実質0件しか消せておらず、かつSupabase Auth
+                    // のユーザー本体はクライアントからは削除できない(service_role権限が必要)。
+                    // そのため同じGoogle/Appleアカウントで再ログインすると、チケット残高や
+                    // 課金状態を含む全データが復元されてしまう不具合があった。
+                    // 今はapi/delete-account.ts(service_role権限のサーバー関数)に
+                    // access_tokenだけを渡し、本人確認〜全テーブル削除〜Authユーザー本体の
+                    // 削除まで全てサーバー側で行う。
+                    if (isGuest) {
+                      // ゲストはサーバーにアカウントが無いため、ローカルクリアのみ
                       await AsyncStorage.clear().catch(() => {})
-                      // サインアウト
+                      signOutGuest()
+                      return
+                    }
+                    try {
+                      const { data: sessionData } = await supabase.auth.getSession()
+                      const accessToken = sessionData?.session?.access_token
+                      if (!accessToken) {
+                        // セッションが取れない＝サーバー側で本人確認できないため、
+                        // ここで打ち切ってサインアウトもしない（黙って「削除できたことにする」と
+                        // 同じ不具合を繰り返すため）。ユーザーには失敗を明示し再試行を促す。
+                        Alert.alert(t('settings.account.deleteFailedTitle'), t('settings.account.deleteFailedMessage'))
+                        return
+                      }
+                      Toast.show({ type: 'info', text1: t('settings.account.deleting') })
+                      const apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
+                      const res = await fetch(`${apiBase}/api/delete-account`, {
+                        method: 'POST',
+                        headers: { Authorization: `Bearer ${accessToken}` },
+                      })
+                      if (!res.ok) {
+                        // サーバー側の削除が失敗した状態でサインアウトすると、次回同じ
+                        // アカウントで再ログインした時にデータが残っているように見え、
+                        // 「削除したのに復活した」という同じ不具合になる。そのため失敗時は
+                        // サインアウトせず、再試行できる状態のまま残す。
+                        Alert.alert(t('settings.account.deleteFailedTitle'), t('settings.account.deleteFailedMessage'))
+                        return
+                      }
+                      // サーバー側の削除に成功した時だけローカルクリア＋サインアウトする
+                      await AsyncStorage.clear().catch(() => {})
                       await signOut().catch(() => {})
                     } catch (_) {
-                      try { await signOut() } catch {}
+                      Alert.alert(t('settings.account.deleteFailedTitle'), t('settings.account.deleteFailedMessage'))
                     }
                   },
                 },

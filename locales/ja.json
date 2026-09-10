@@ -25,12 +25,14 @@
     "intro": {
       "slide1": {
         "tagline": "陸上競技パフォーマンス管理",
-        "heroTitle": "体のスコアが、\n怪我を防ぎ\nあなたを強くする。",
-        "heroSub": "睡眠・疲労・練習負荷を統合分析し\n今日のベストな練習をAIが導く",
+        "heroTitle": "体のスコアが、怪我を防ぎあなたを強くする。",
+        "heroSub": "睡眠・疲労・練習負荷を統合分析し今日のベストな練習をAIが導く",
         "sleepScore": "睡眠スコア",
         "fatigue": "疲労度",
         "condition": "コンディション",
-        "nextPage": "次のページへ"
+        "nextPage": "次のページへ",
+        "riskLabel": "怪我リスク",
+        "holdHint": "長押しして始める"
       },
       "slide2": {
         "tag": "WHAT sCORE DOES",
@@ -138,37 +140,113 @@
       }
     },
     "step": {
-      "headline1": "まずはキミの名前を、\n少しだけ教えてください。",
-      "headline2": "得意なジャンルは\nどれですか？",
-      "headline3": "メイン種目は\nどれですか？",
-      "headline4": "最後にもう少しだけ\n教えてください。",
-      "sub1": "名前を知れば、あなた専用のトレーニング\nプランを作ることができます。",
-      "sub2": "メインで取り組んでいるジャンルを\n選んでください。",
-      "sub3": "一番力を入れている種目を\n選んでください。",
-      "sub4": "入力するとAIのアドバイスが\nより正確になります（スキップOK）。"
+      "headline1": "今の目標に\nいちばん近いのは？",
+      "headline2": "メイン種目を\n教えてください",
+      "headline3": "今日の状態を\n60秒で確認しよう",
+      "sub1": "あなた向けの最初の練習判断を作ります。",
+      "sub2": "ジャンルと種目を選んでください。",
+      "sub3": "タップするだけで完了します。"
     },
     "skip": "スキップ",
     "defaultAthleteName": "アスリート",
     "namePlaceholder": "例：田中 太郎 / Taro",
+    "goals": {
+      "pb": {
+        "label": "自己ベストを更新したい",
+        "sub": "種目・目標に合わせて積み上げる"
+      },
+      "injuryFree": {
+        "label": "怪我なく続けたい",
+        "sub": "疲労と回復の変化を見逃さない"
+      },
+      "competition": {
+        "label": "大会に向けて整えたい",
+        "sub": "次の大会から今週を考える"
+      },
+      "team": {
+        "label": "チームを管理したい",
+        "sub": "選手の状態をまとめて把握する",
+        "tag": "コーチ"
+      }
+    },
+    "condition": {
+      "practiceLabel": "昨日の練習は？",
+      "practice": {
+        "rest": "休み",
+        "light": "軽め",
+        "normal": "いつも通り",
+        "hard": "追い込んだ"
+      },
+      "fatigueLabel": "今の疲労感は？",
+      "fatigue": {
+        "veryLight": "かなり軽い",
+        "light": "軽い",
+        "normal": "ふつう",
+        "heavy": "重い",
+        "veryHeavy": "かなり重い"
+      },
+      "sleepLabel": "昨夜の睡眠は？",
+      "sleep": {
+        "under4": "4時間未満",
+        "h5to6": "5〜6時間",
+        "h7to8": "7〜8時間",
+        "over9": "9時間以上"
+      },
+      "painLabel": "痛み・違和感はありますか？（任意）",
+      "painNo": "ない",
+      "painYes": "ある",
+      "medDisclaimer": "強い痛みや腫れ、動作が困難な場合は、練習を止め、医療機関・専門家へ相談してください。この回答は診断ではなく、練習強度の目安としてのみ使用します。",
+      "bandLabel": {
+        "low": "良好",
+        "caution": "注意",
+        "warning": "要注意",
+        "high": "休養推奨"
+      },
+      "headline": {
+        "low": "今日は追い込める日です",
+        "caution": "今日は通常運転の日です",
+        "warning": "今日は整える日です",
+        "high": "今日は休む日です",
+        "pain": "今日は無理をしない日です"
+      },
+      "advice": {
+        "low": "コンディション良好です。通常どおりの練習で問題なさそうです。",
+        "caution": "通常メニューをこなせる状態です。フォームの確認など質を意識した練習がおすすめです。",
+        "warning": "やや疲労が残っています。強度を1段階落とし、ウォームアップを長めに取りましょう。",
+        "high": "疲労・睡眠不足が重なっています。今日は軽い有酸素かオフに切り替えるのがおすすめです。",
+        "pain": "違和感がある状態です。練習強度を大きく落とすか、今日は休養を。強い痛みが続く場合は医療機関へ相談してください。"
+      }
+    },
     "processing": {
-      "title": "プランを作成中...",
+      "title": "初回チェックを準備中...",
       "items": [
-        "きみのデータを分析中...",
-        "怪我リスクを計算中...",
-        "AIプランを生成中..."
+        "回答を確認中...",
+        "今日の目安を計算中...",
+        "結果をまとめています..."
       ]
     },
     "reveal": {
-      "badge": "プラン完成",
-      "title": "{{name}}さん専用プランが\nできました",
-      "defaultName": "きみ",
-      "event": "種目",
-      "level": "レベル",
-      "nextGoal": "次の目標",
-      "nextGoalValue": "自己ベスト更新",
-      "startButton": "このプランで始める"
+      "startButton": "この状態で始める",
+      "eyebrow": "TODAY'S READINESS",
+      "honestCaption": "これは初回チェックの目安です。記録を重ねるほど精度が上がります。",
+      "adviceEyebrow": "今日のひとこと",
+      "day7Line": "あと2回記録すると傾向が見え始めます。7日後には週次レポートが届きます。",
+      "teamBadge": "準備完了",
+      "teamTitle": "チーム管理を\nはじめましょう",
+      "teamSub": "チームの作成・招待リンクの発行は次の画面から行えます。",
+      "teamStartButton": "はじめる",
+      "title": "最初のチェックが\nできました"
+    },
+    "goalsScreen": {
+      "headline": "最後にもう少しだけ\n教えてください",
+      "sub": "すべて任意です。あとから設定でいつでも変更できます。",
+      "saveButton": "保存して次へ",
+      "later": "あとで設定する"
     },
     "fields": {
+      "nameLabel": "名前（任意）",
+      "genreLabel": "ジャンル",
+      "eventLabel": "メイン種目",
       "experienceLabel": "競技歴",
       "ageLabel": "年齢",
       "agePlaceholder": "例：20",
@@ -186,8 +264,37 @@
     },
     "quiz": {
       "next": "次へ",
-      "createPlan": "プランを作る"
+      "createPlan": "結果を見る"
     }
+  },
+  "firstRunChecklist": {
+    "title": "はじめの4ステップ  {{done}} / {{total}}",
+    "itemCondition": "今日の状態を確認した",
+    "itemPractice": "次の練習を記録する",
+    "itemGoal": "目標または大会を設定する",
+    "itemStretch": "ストレッチをしてスコアを下げる",
+    "guidedTourLink": "使い方ガイドを見る"
+  },
+  "weeklyReport": {
+    "title": "週次レポート",
+    "loading": "集計中...",
+    "riskTrendLabel": "怪我リスクの推移",
+    "sevenDaysAgo": "7日前",
+    "today": "今日",
+    "avgCondition": "平均コンディション",
+    "avgSleep": "平均睡眠時間",
+    "sessionCount": "練習回数",
+    "insightEyebrow": "今週のひとこと",
+    "insight": {
+      "improving": "この1週間でリスクが下がっています。今のペースを続けましょう。",
+      "worsening": "この1週間でリスクが上がっています。強度を少し落として様子を見ましょう。",
+      "shortSleep": "この1週間、睡眠時間が短めです。まずは睡眠を優先しましょう。",
+      "stable": "この1週間、大きな変化はありません。安定して記録できています。"
+    },
+    "offerTitle": "来週も同じレポートを届けます",
+    "offerSub": "チケット月額プランなら広告なしで記録に集中でき、AI機能もチケットで気軽に使えます。",
+    "offerCta": "チケット月額プランを見る",
+    "continueFree": "無料で続ける"
   },
   "home": {
     "dayNames": [
@@ -246,6 +353,9 @@
       "title": "ストレッチ5分で",
       "gain": "怪我リスク -12%",
       "start": "開始する"
+    },
+    "warmupLink": {
+      "title": "練習前のウォームアップを見る"
     },
     "conditionCardDefaultLabel": "今日の体調",
     "improvementTasksTitle": "改善タスク",
@@ -329,6 +439,8 @@
     "miniCards": {
       "quickLog": "サクッと入力",
       "quickLogSub": "30秒で完了",
+      "formAnalysis": "フォーム分析",
+      "formAnalysisSub": "AIでチェック",
       "injuryReturn": "怪我復帰まで",
       "competitionCountdown": "大会まで",
       "daysUnit": "{{n}}日",
@@ -457,7 +569,10 @@
       "deleteConfirm": "削除する",
       "deleteFinalTitle": "本当に削除しますか？",
       "deleteFinalMessage": "練習記録・コンディションデータ・設定がすべて削除されます。",
-      "deleteFinalConfirm": "完全に削除する"
+      "deleteFinalConfirm": "完全に削除する",
+      "deleteFailedTitle": "削除に失敗しました",
+      "deleteFailedMessage": "通信状態を確認してもう一度お試しください。問題が続く場合はサポートまでご連絡ください。",
+      "deleting": "削除しています…"
     },
     "team": {
       "title": "チーム設定",
@@ -867,6 +982,8 @@
       "shareLevelPrivate": "非公開",
       "shareLevelPartial": "一部共有",
       "shareLevelFull": "全公開",
+      "coachViewLink": "コーチの画面をのぞいてみる",
+      "coachViewLinkSub": "自分の情報が実際どう見えるか確認できます",
       "tabHome": "ホーム",
       "tabMembers": "チームメイト",
       "coachAnnouncements": "📌 コーチからのお知らせ",
@@ -1050,6 +1167,9 @@
       "videoSelected": "動画選択済み ✓  （タップして変更）",
       "videoSelectPrompt": "動画をタップして選択",
       "videoFormats": "MP4 / MOV 対応",
+      "videoDurationNote": "※ 1分以上の動画は分析できません",
+      "videoTooLongTitle": "動画が長すぎます",
+      "videoTooLongBody": "分析できるのは1分以内の動画です。フォームがよく見える区間を1分以内に編集してから選び直してください。",
       "extractedFrames": "抽出フレーム ({{n}}枚)",
       "stepExtract": "フレーム抽出",
       "stepAnalyze": "AI解析",
@@ -1094,6 +1214,14 @@
       "todayStrength": "今日の強み",
       "todayTheme": "今日のテーマ",
       "nextStep": "次の一歩",
+      "copyNoteButton": "改善メモをコピー",
+      "noteCopiedButton": "コピーしました",
+      "noteCopiedToast": "改善メモをコピーしました。練習メモに貼り付けよう",
+      "scheduleRecheckButton": "2週間後に再撮影を予約",
+      "recheckScheduledButton": "予約しました",
+      "recheckScheduledToast": "2週間後に通知でお知らせします",
+      "recheckScheduleFailedToast": "通知の予約に失敗しました（通知が許可されているか確認してください）",
+      "recheckDefaultEventLabel": "フォーム",
       "todayPracticeTheme": "今日の練習テーマ",
       "practiceThemeNote": "この1つだけを意識して走ってみましょう。",
       "recommendedDrill": "おすすめドリル：{{name}}",
@@ -1114,14 +1242,14 @@
       "improvements": "⚠️ 改善点",
       "recommendedDrills": "おすすめドリル",
       "deleteHistory": "この履歴を削除",
-      "upsellTitle": "広告なしプランにしませんか？",
-      "upsellBody": "無料枠を使い切ると広告視聴が必要になります。\n広告なしプランなら、フォーム分析も食事分析も広告なしで使い放題です。",
+      "upsellTitle": "チケット月額プランにしませんか？",
+      "upsellBody": "無料枠を使い切ると広告視聴が必要になります。\nチケット月額プランなら、広告なし＋毎月チケット{{n}}枚でフォーム分析も食事分析も気軽に使えます。",
       "upsellFreeLabel": "FREE（今のプラン）",
       "upsellFreeDesc": "無料枠超過後は広告視聴",
       "upsellNoAdsBadge": "広告なし",
-      "upsellPrice": "¥480/月",
-      "upsellNoAdsFull": "広告一切なし",
-      "upsellCta": "広告なしプランを見る ¥480/月〜",
+      "upsellPrice": "¥980/月",
+      "upsellNoAdsFull": "毎月チケット{{n}}枚",
+      "upsellCta": "チケット月額プランを見る",
       "upsellDismiss": "今はしない",
       "shotDateLabel": "撮影日",
       "analyzedOn": "分析日: {{date}}",
@@ -1216,7 +1344,8 @@
       "rowAiFeatures": "AI機能（フォーム分析・回復相談等）",
       "rowExtraTickets": "チケット追加購入",
       "priceCardSub": "月額{{price}}・いつでも解約OK",
-      "skipContinue": "無料プランのまま続ける"
+      "skipContinue": "無料プランのまま続ける",
+      "coachLink": "チームを管理したい方はコーチプランへ"
     },
     "monthly": "月額",
     "yearlyDiscount": "年額（2ヶ月分お得）",
@@ -1258,7 +1387,8 @@
         "feature4": "AIによる練習メニュー提案（チーム向け）",
         "yearlyNote": "年¥19,800（2ヶ月分お得）"
       }
-    }
+    },
+    "perDayApprox": "1日あたり約{{price}}"
   },
   "records": {
     "header": {
@@ -1312,7 +1442,8 @@
       "delete": "削除",
       "official": "公認",
       "daysAgo": "{{n}}日前",
-      "today": "今日"
+      "today": "今日",
+      "windConverted": "目安 無風{{noWind}}・+2.0換算{{plus2}}"
     },
     "pbSummary": {
       "title": "自己ベスト一覧"
@@ -1551,6 +1682,7 @@
       "within7": "試合1週間前: 炭水化物の割合を増やしグリコーゲンを蓄えよう。脂質・食物繊維は控えめに。"
     },
     "injury": {
+      "disclaimerBanner": "この回復プランはAIによる参考情報です。医療診断・治療行為ではありません。痛みが続く・悪化する場合は必ず医師・専門家にご相談ください。",
       "generatingTitle": "回復プランを生成中...",
       "generatingSub": "AIが症状を分析しています",
       "noInjuryTitle": "怪我は記録されていません",
@@ -1573,6 +1705,8 @@
       "treatmentLogEmpty": "まだ記録がありません",
       "deleteTreatmentLog": "この治療記録を削除",
       "overallSchedule": "全体スケジュール",
+      "overallScheduleHint": "各フェーズをタップすると、その期間の日ごとの内容が見られます",
+      "avoidPrefix": "避ける: ",
       "dayRange": "Day {{first}}〜{{last}}",
       "done": "完了",
       "current": "今ここ",
@@ -1731,11 +1865,13 @@
     },
     "library": {
       "createTitle": "今日のメニューを作る",
-      "createLead": "作り方を2つから選べます。迷ったら「おまかせ」でOKです",
+      "createLead": "作り方を3つから選べます。迷ったら「おまかせ」でOKです",
       "aiTitle": "AIにおまかせで作ってもらう",
       "aiSub": "今日の練習イメージを一言伝えるだけ。種目はAIが選びます",
       "manualTitle": "種目を指定して作ってもらう",
       "manualSub": "ライブラリから使いたい種目を選び、それを中心に組んでもらう",
+      "buildTitle": "自分で組み立てる",
+      "buildSub": "AIを使わず、ライブラリの種目を選んで順番も自分で決める",
       "libraryTitle": "練習ライブラリ",
       "addFolder": "フォルダ追加",
       "libraryLead": "普段よく使う種目をフォルダにまとめておくと、「種目を指定して作る」がすぐ使えます",
@@ -1777,6 +1913,9 @@
     "pickerModal": {
       "selectTitle": "種目をピックする",
       "generateTitle": "AIでメニューを生成",
+      "buildStepTitle": "組み立てる",
+      "saveManualMenu": "この内容で保存する",
+      "saveAsImage": "画像として保存・シェア",
       "noFoldersTitle": "先にライブラリにフォルダを作成してください",
       "noItems": "種目がありません",
       "selectedLabel": "選択中",
@@ -1789,7 +1928,14 @@
       "generateWithPick": "このピック内容でAI生成",
       "backToSelect": "種目を選び直す",
       "environmentLabel": "練習環境・器具・技術スタイル(任意)",
-      "environmentPlaceholder": "例: ウエイトルームなし／投擲は回転投げ／土のグラウンド"
+      "environmentPlaceholder": "例: ウエイトルームなし／投擲は回転投げ／土のグラウンド",
+      "manualMinutesLabel": "合計時間の目安（任意・分）",
+      "manualMinutesPlaceholder": "例: 45",
+      "buildManually": "AIを使わず自分で組み立てる",
+      "or": "または",
+      "manualEstimateLine": "（推定所要時間：{{n}}分）",
+      "manualTotalBlocks": "合計{{n}}ブロック",
+      "manualTag": "組み立て"
     },
     "histDetailModal": {
       "title": "生成メニュー"
@@ -1806,7 +1952,8 @@
       "ticketUsed": "🎫 チケットを{{n}}枚使用しました",
       "genericFail": "生成に失敗しました。もう一度お試しください。",
       "apiError": "APIエラーが発生しました。しばらくしてから再試行してください。",
-      "emptyResult": "メニューを生成できませんでした。時間をおいてもう一度お試しください。"
+      "emptyResult": "メニューを生成できませんでした。時間をおいてもう一度お試しください。",
+      "manualSaved": "メニューを保存しました"
     },
     "headerTitle": "練習メニュー"
   },
@@ -1868,6 +2015,7 @@
     "statMonthDistance": "今月距離",
     "unitTimes": "{{count}}回",
     "notifications": "お知らせ",
+    "ranking": "全国ランキングを見る",
     "settings": "設定"
   },
   "tickets": {
@@ -1939,9 +2087,9 @@
     "fixedWait": "固定の待ち時間"
   },
   "auth": {
-    "tag": "ようこそ",
-    "title": "sCOREをはじめよう",
-    "subtitle": "陸上競技の練習を記録・分析して、\n自己ベストを更新しよう",
+    "tag": "プランを保存",
+    "title": "このプランを\n保存しますか？",
+    "subtitle": "ログインすると、今日の記録と続きを\nどの端末からでも見られます",
     "googleLogin": "Googleでログイン",
     "appleLogin": "Appleでログイン",
     "continueAsGuest": "ログインせずに始める",
@@ -2328,7 +2476,8 @@
     "heroBadge": "陸上部顧問・コーチ向け",
     "heroTitle": "選手の怪我を防ぐ。\nチームを、強くする。",
     "heroSub": "体調管理・怪我リスク・練習記録をすべて自動化。\nコーチの負担を減らしながら、選手の成長を最大化するアプリ。",
-    "heroBtn": "まず無料で試してみる",
+    "heroBtn": "Web版で無料で試す",
+    "heroBtnApp": "アプリをインストール",
     "heroNote": "クレジットカード不要・いつでもキャンセル可",
     "dashTitle": "コーチダッシュボード",
     "dashAllOk": "● 本日の確認完了",
@@ -2442,7 +2591,7 @@
       },
       {
         "t": "チームコードを選手に共有",
-        "b": "4桁のコードを伝えるだけ。QRコードでも共有できます。"
+        "b": "6桁のコードを伝えるだけ。LINEやメッセージでそのまま送れます。"
       },
       {
         "t": "あとはアプリが自動管理",
@@ -2458,19 +2607,22 @@
       "練習記録・コンディション管理",
       "自己ベスト管理",
       "シェアカード生成",
-      "AIコーチアドバイス"
+      "AI機能はお試しチケット付き"
     ],
     "plan2Badge": "チームにおすすめ",
     "plan2Name": "チームプラン",
     "plan2Price": "¥1,980",
-    "plan2Per": "/ 月（20名まで）",
+    "plan2Per": "/ 月",
+    "plan2Note": "※チーム機能（右記）は加入なしでも無料でお使いいただけます。このプランはコーチ自身のAI機能を無制限にするものです。",
     "plan2Features": [
-      "コーチダッシュボード",
-      "全選手コンディション一覧",
-      "怪我リスクスコア自動算出",
-      "チーム予定管理",
-      "練習記録の自動集計",
-      "リアルタイム通知"
+      "コーチ自身のAI機能が完全無制限",
+      "広告なし",
+      "コーチダッシュボード（無料）",
+      "全選手コンディション一覧（無料）",
+      "怪我リスクスコア自動算出（無料）",
+      "チーム予定管理（無料）",
+      "練習記録の自動集計（無料）",
+      "リアルタイム通知（無料）"
     ],
     "plan2Btn": "無料で試す",
     "ctaTitle": "選手の怪我は、\n防げる時代になった。",
@@ -2486,7 +2638,7 @@
   "growthReport": {
     "backLabel": "戻る",
     "headerTitle": "成長レポート",
-    "lockTitle": "成長レポートは広告なしプラン限定です",
+    "lockTitle": "成長レポートはチケット月額プラン限定です",
     "lockSub": "自己ベストの推移・怪我リスクの90日間の履歴・練習負荷のトレンドを、いつでも振り返れます",
     "unlockBtn": "アンロックする",
     "detailTitlePb": "自己ベストの推移",
@@ -2850,6 +3002,24 @@
     "durationTitle": "📅 いつから",
     "notesTitle": "📝 追加メモ（任意）",
     "notesPlaceholder": "動作で痛む・過去の怪我など...",
+    "gymAccessTitle": "🏋️ ウエイトルームは使えますか？（任意）",
+    "gymAccessOptions": { "yes": "使える", "no": "使えない" },
+    "gymFreqTitle": "週何回くらい使えますか？",
+    "gymFreqOptions": { "1-2": "週1〜2回", "3-4": "週3〜4回", "5plus": "週5回以上" },
+    "gymEquipmentTitle": "使える器具は？（複数選択可）",
+    "gymEquipmentOptions": {
+      "dumbbell": "ダンベル",
+      "barbell": "バーベル",
+      "machine": "マシン",
+      "band": "チューブ・バンド",
+      "bodyweight": "自重のみ"
+    },
+    "envPromptHeader": "トレーニング環境",
+    "envPromptGymYes": "ウエイトルーム利用可能",
+    "envPromptGymNo": "ウエイトルーム利用不可（自重中心の代替練習にすること）",
+    "envPromptFreq": "週の利用頻度は{{freq}}",
+    "envPromptEquipment": "使用可能な器具は{{list}}",
+    "envPromptInstruction": "上記のトレーニング環境で実際に行える内容だけをexercises・training_modificationに含めてください。",
     "painTypes": {
       "sharp": "鋭い・刺すような",
       "dull": "鈍い・重い",
@@ -2890,7 +3060,7 @@
       "moderate": "中程度",
       "severe": "重度"
     },
-    "suspectedConditionLabel": "疑われる症状",
+    "suspectedConditionLabel": "考えられる負担の傾向（診断ではありません）",
     "secImmediate": "今すぐすべきこと",
     "secRice": "RICE処置",
     "riceLabels": {
@@ -2921,6 +3091,7 @@
     "placeholder": "例:\n400m × 5本 レスト3分 68秒\n疲労7 脚が重かった\n\n「ジョグ10km」だけでもOK",
     "hint1": "💡 疲労度・タイムを含めると自動で記録に反映されます",
     "hint2": "💡 ポイント練習は「400m×5本」「テンポ走5km」「坂道ダッシュ」のように、本数・距離・種類を書くと自動で分類されます",
+    "fatigueLabel": "今日の疲労度（怪我リスクスコアに反映されます）",
     "save": "記録する",
     "emptyLibraryHint": "メニューライブラリに種目を登録すると、ここから選べます",
     "toastSuccess": "練習を記録しました ✓",
@@ -3210,14 +3381,14 @@
       "close": "閉じる"
     },
     "upsell": {
-      "title": "広告なしプランにしませんか？",
-      "body": "無料枠を使い切ると広告視聴が必要になります。\n広告なしプランなら、食事分析もフォーム分析も広告なしで使い放題です。",
+      "title": "チケット月額プランにしませんか？",
+      "body": "無料枠を使い切ると広告視聴が必要になります。\nチケット月額プランなら、広告なし＋毎月チケット{{n}}枚で食事分析もフォーム分析も気軽に使えます。",
       "freePlan": "FREE（今のプラン）",
       "freePlanNote": "無料枠超過後は広告視聴",
       "noAdPlan": "広告なし",
-      "noAdPrice": "¥480/月",
-      "noAdNote": "広告一切なし",
-      "cta": "広告なしプランを見る ¥480/月〜",
+      "noAdPrice": "¥980/月",
+      "noAdNote": "毎月チケット{{n}}枚",
+      "cta": "チケット月額プランを見る",
       "notNow": "今はしない"
     },
     "photoBtn": "撮影する",
@@ -3593,6 +3764,7 @@
     "dateTwoDaysAgo": "一昨日",
     "hint": "練習内容を自由に入力してください（日付は上のボタンで選択）",
     "placeholder": "例:\n400m × 5本 レスト3分 68秒\n疲労7 脚が重かった\n\n「ジョグ10km」だけでもOK",
+    "fatigueLabel": "今日の疲労度（怪我リスクスコアに反映されます）",
     "save": "記録する",
     "update": "更新する",
     "toastUpdateSuccess": "練習を更新しました ✓",
@@ -3633,6 +3805,19 @@
       "good": "好調",
       "great": "最高"
     },
+    "painLabel": "痛み・違和感",
+    "painOptions": {
+      "none": "なし",
+      "mild": "少し",
+      "strong": "強い"
+    },
+    "intensityLabel": "今日の練習予定",
+    "intensityOptions": {
+      "rest": "休み",
+      "light": "軽い",
+      "normal": "通常",
+      "high": "高強度"
+    },
     "optToggleOpen": "練習・体重も記録する（任意）",
     "optToggleClose": "追加項目を閉じる",
     "menuLabel": "練習メニュー",
@@ -3643,7 +3828,13 @@
     "toastSaveSuccessToday": "今日の状態を記録しました ✓",
     "toastSaveSuccessDate": "{{date}}の状態を記録しました ✓",
     "toastSaveErrorTitle": "保存に失敗しました",
-    "toastSaveErrorBody": "もう一度試してください"
+    "toastSaveErrorBody": "もう一度試してください",
+    "decisionLevel": {
+      "ready": "準備OK",
+      "caution": "要注意",
+      "recover": "休養推奨"
+    },
+    "decisionClose": "OK"
   },
   "adGateModal": {
     "features": {
@@ -3784,6 +3975,30 @@
     "saveErrorBody": "保存に失敗しました",
     "shareErrorBody": "共有に失敗しました",
     "shareMessage": "{{date}}の食事記録 #sCORE #陸上"
+  },
+  "workoutMenuShareCard": {
+    "transparentHint": "背景透過PNG — 写真の上に貼ってシェアできます",
+    "footer": "sCORE 無料ダウンロード中",
+    "save": "保存",
+    "share": "シェア",
+    "permissionTitle": "権限が必要です",
+    "permissionBody": "カメラロールへのアクセスを許可してください",
+    "saveSuccessTitle": "✅ 保存しました",
+    "saveSuccessBody": "背景透過PNGをカメラロールに保存しました",
+    "errorTitle": "エラー",
+    "saveErrorBody": "保存に失敗しました",
+    "shareErrorBody": "共有に失敗しました",
+    "shareMessage": "{{date}}の練習メニュー #sCORE #陸上",
+    "sourceAi": "AI生成",
+    "sourceManual": "自分で組み立て",
+    "defaultCaption": "今日の練習メニュー",
+    "itemsUnit": "種目",
+    "minUnit": "分",
+    "moreItems": "他{{n}}種目",
+    "stats": {
+      "duration": "所要時間",
+      "count": "種目数"
+    }
   },
   "trainingChart": {
     "noData": "データがありません"

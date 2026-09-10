@@ -216,7 +216,17 @@ export async function purchaseConsumable(pkg: PurchasesPackage): Promise<number 
   try {
     await Purchases.purchasePackage(pkg)
     const productId = pkg.product?.identifier
-    return TICKET_PACK_COUNTS[productId] ?? false
+    const count = TICKET_PACK_COUNTS[productId]
+    // 2026-09-10: 購入自体(課金)は成功したのにTICKET_PACK_COUNTSに該当productIdが
+    // 無い場合、以前はここで silently `false` を返していた。呼び出し元(tickets.tsx)は
+    // `if (granted)` でしか判定しないため、falseは「キャンセル」と区別が付かず、
+    // 課金だけ発生してエラー表示も成功表示も出ない状態になっていた。
+    // 新商品追加時にTICKET_PACK_COUNTSへの追加を忘れる（同種のdual source of truthミス）
+    // ケースに備え、購入成功なのに枚数が引けない時は例外を投げてエラー表示させる。
+    if (count === undefined) {
+      throw new Error(`購入は完了しましたが、チケット枚数の設定が見つかりません(${productId})。サポートにお問い合わせください。`)
+    }
+    return count
   } catch (e: any) {
     if (e?.userCancelled) return false
     throw e

@@ -19,6 +19,8 @@ import { getConditionMap, updateConditionMap } from '../lib/conditionStore'
 import { getSleepRecords, updateSleepRecords } from '../lib/sleepStore'
 import { updateWeights } from '../lib/weightStore'
 import { useTranslation } from 'react-i18next'
+import { decideDailyAction, type DailyDecision, type PainSeverity, type PlannedIntensity } from '../lib/dailyDecision'
+import { trackEvent } from '../lib/analytics'
 
 const SESSIONS_KEY      = 'trackmate_sessions'
 const DRAFT_KEY         = 'trackmate_quick_condition_draft'
@@ -28,9 +30,31 @@ type Draft = {
   fatigue: number
   sleepH: number
   condition: number
+  pain: PainSeverity
+  plannedIntensity: PlannedIntensity
   menuText: string
   weightStr: string
   showOpt: boolean
+}
+
+// 2026-09-09: 設計書§3-2「60秒状態チェック」。既存のQuickConditionModalは
+// 疲労度・睡眠・体調は既に集めていたが、痛み・今日の練習予定強度が無く、
+// 「今日の一手」を返す判定もしていなかった。新規に別画面を作ると入力導線が
+// 分散するため、この既存モーダルに2項目を足し、保存後にlib/dailyDecision.tsの
+// 判定結果を表示する形にする。
+const PAIN_OPTIONS: { key: PainSeverity; emoji: string }[] = [
+  { key: 'none', emoji: '🙆' },
+  { key: 'mild', emoji: '😐' },
+  { key: 'strong', emoji: '🤕' },
+]
+const INTENSITY_OPTIONS: { key: PlannedIntensity; emoji: string }[] = [
+  { key: 'rest', emoji: '🛌' },
+  { key: 'light', emoji: '🚶' },
+  { key: 'normal', emoji: '🏃' },
+  { key: 'high', emoji: '⚡' },
+]
+const DECISION_COLOR: Record<DailyDecision['level'], string> = {
+  ready: '#34C759', caution: '#FF9500', recover: '#FF3B30',
 }
 
 function localDateStr() {
@@ -72,11 +96,14 @@ export default function QuickConditionModal({ visible, onClose, onSaved, date }:
   const [fatigue,   setFatigue]   = useState(4)
   const [sleepH,    setSleepH]    = useState(7.0)
   const [condition, setCondition] = useState(6)
+  const [pain,      setPain]      = useState<PainSeverity>('none')
+  const [plannedIntensity, setPlannedIntensity] = useState<PlannedIntensity>('normal')
   const [showOpt,   setShowOpt]   = useState(false)
   const [menuText,  setMenuText]  = useState('')
   const [weightKg,  setWeightKg]  = useState<number | null>(null)
   const [weightStr, setWeightStr] = useState('')
   const [saving,    setSaving]    = useState(false)
+  const [decision,  setDecision]  = useState<DailyDecision | null>(null)
 
   const slideAnim = useRef(new Animated.Value(400)).current
 
@@ -90,6 +117,9 @@ export default function QuickConditionModal({ visible, onClose, onSaved, date }:
       setCondition(6)
       setSleepH(7.0)
       setFatigue(4)
+      setPain('none')
+      setPlannedIntensity('normal')
+      setDecision(null)
       ;(async () => {
         try {
           // 体調
@@ -114,6 +144,8 @@ export default function QuickConditionModal({ visible, onClose, onSaved, date }:
               setFatigue(draft.fatigue)
               setSleepH(draft.sleepH)
               setCondition(draft.condition)
+              if (draft.pain) setPain(draft.pain)
+              if (draft.plannedIntensity) setPlannedIntensity(draft.plannedIntensity)
               setMenuText(draft.menuText)
               setWeightStr(draft.weightStr)
               setShowOpt(draft.showOpt)
@@ -138,11 +170,11 @@ export default function QuickConditionModal({ visible, onClose, onSaved, date }:
   React.useEffect(() => {
     if (!visible || restoringRef.current) return
     const timer = setTimeout(() => {
-      const draft: Draft = { targetDate, fatigue, sleepH, condition, menuText, weightStr, showOpt }
+      const draft: Draft = { targetDate, fatigue, sleepH, condition, pain, plannedIntensity, menuText, weightStr, showOpt }
       AsyncStorage.setItem(DRAFT_KEY, JSON.stringify(draft)).catch(() => {})
     }, 400)
     return () => clearTimeout(timer)
-  }, [visible, targetDate, fatigue, sleepH, condition, menuText, weightStr, showOpt])
+  }, [visible, targetDate, fatigue, sleepH, condition, pain, plannedIntensity, menuText, weightStr, showOpt])
 
   function adjustSleep(delta: number) {
     setSleepH(h => Math.min(12, Math.max(2, Math.round((h + delta) * 2) / 2)))
@@ -214,13 +246,25 @@ export default function QuickConditionModal({ visible, onClose, onSaved, date }:
         visibilityTime: 1800,
       })
       onSaved?.()
-      onClose()
+      trackEvent('daily_checkin_completed', {
+        feature: 'daily_checkin',
+        metadata: { pain, planned_intensity: plannedIntensity, is_today: isToday },
+      })
+      // 2026-09-09: 保存して即座に閉じるのではなく、ルールベースの「今日の一手」を
+      // その場で見せる（設計書§3-2）。今日の記録の時だけ表示する（過去日の修正時は不要）。
+      if (isToday) {
+        const result = decideDailyAction({ sleepHours: sleepH, fatigue, condition, pain, plannedIntensity })
+        setDecision(result)
+        trackEvent('daily_decision_viewed', { feature: 'daily_checkin', metadata: { level: result.level } })
+      } else {
+        onClose()
+      }
     } catch {
       Toast.show({ type: 'error', text1: t('quickConditionModal.toastSaveErrorTitle'), text2: t('quickConditionModal.toastSaveErrorBody') })
     } finally {
       setSaving(false)
     }
-  }, [saving, fatigue, sleepH, condition, menuText, weightStr, targetDate, isToday, t])
+  }, [saving, fatigue, sleepH, condition, pain, plannedIntensity, menuText, weightStr, targetDate, isToday, t])
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
@@ -241,6 +285,29 @@ export default function QuickConditionModal({ visible, onClose, onSaved, date }:
 
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
+            {decision ? (
+              <View style={{ paddingTop: 4, paddingBottom: 8 }}>
+                <View style={[st.decisionBadge, { backgroundColor: DECISION_COLOR[decision.level] + '18' }]}>
+                  <View style={[st.decisionDot, { backgroundColor: DECISION_COLOR[decision.level] }]} />
+                  <Text style={[st.decisionBadgeText, { color: DECISION_COLOR[decision.level] }]}>
+                    {t(`quickConditionModal.decisionLevel.${decision.level}`)}
+                  </Text>
+                </View>
+                <Text style={st.decisionHeadline}>{decision.headline}</Text>
+                <Text style={st.decisionAction}>{decision.recommendedAction}</Text>
+                {decision.reasons.length > 0 && (
+                  <View style={st.decisionReasons}>
+                    {decision.reasons.map((r, i) => (
+                      <Text key={i} style={st.decisionReasonText}>・{r}</Text>
+                    ))}
+                  </View>
+                )}
+                <HapticTouch haptic="save" style={st.saveBtn} onPress={onClose} activeOpacity={0.85}>
+                  <Text style={st.saveBtnText}>{t('quickConditionModal.decisionClose')}</Text>
+                </HapticTouch>
+              </View>
+            ) : (
+            <>
             {/* ── 疲労度 ── */}
             <Text style={st.sectionLabel}>{t('quickConditionModal.fatigueLabel')}</Text>
             <View style={st.emojiRow}>
@@ -285,6 +352,38 @@ export default function QuickConditionModal({ visible, onClose, onSaved, date }:
                 >
                   <Text style={st.emojiIcon}>{opt.emoji}</Text>
                   <Text style={[st.emojiLabel, condition === opt.value && { color: BRAND }]}>{t(`quickConditionModal.conditionOptions.${opt.key}`)}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* ── 痛み・違和感 ── */}
+            <Text style={st.sectionLabel}>{t('quickConditionModal.painLabel')}</Text>
+            <View style={st.emojiRow}>
+              {PAIN_OPTIONS.map(opt => (
+                <TouchableOpacity
+                  key={opt.key}
+                  style={[st.emojiBtn, pain === opt.key && st.emojiBtnActive]}
+                  onPress={() => { Sounds.tap(); setPain(opt.key) }}
+                  activeOpacity={0.75}
+                >
+                  <Text style={st.emojiIcon}>{opt.emoji}</Text>
+                  <Text style={[st.emojiLabel, pain === opt.key && { color: BRAND }]}>{t(`quickConditionModal.painOptions.${opt.key}`)}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* ── 今日の練習予定強度 ── */}
+            <Text style={st.sectionLabel}>{t('quickConditionModal.intensityLabel')}</Text>
+            <View style={st.emojiRow}>
+              {INTENSITY_OPTIONS.map(opt => (
+                <TouchableOpacity
+                  key={opt.key}
+                  style={[st.emojiBtn, plannedIntensity === opt.key && st.emojiBtnActive]}
+                  onPress={() => { Sounds.tap(); setPlannedIntensity(opt.key) }}
+                  activeOpacity={0.75}
+                >
+                  <Text style={st.emojiIcon}>{opt.emoji}</Text>
+                  <Text style={[st.emojiLabel, plannedIntensity === opt.key && { color: BRAND }]}>{t(`quickConditionModal.intensityOptions.${opt.key}`)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -335,6 +434,8 @@ export default function QuickConditionModal({ visible, onClose, onSaved, date }:
               <Ionicons name="checkmark-circle" size={18} color="#fff" />
               <Text style={st.saveBtnText}>{t('quickConditionModal.save')}</Text>
             </HapticTouch>
+            </>
+            )}
           </ScrollView>
         </Animated.View>
       </KeyboardAvoidingView>
@@ -377,4 +478,13 @@ const makeSt = (colors: ThemeColors) => StyleSheet.create({
 
   saveBtn:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: BRAND, borderRadius: 14, paddingVertical: 16, marginTop: 16 },
   saveBtnText:  { color: '#fff', fontSize: 16, fontWeight: '700' },
+
+  // ── 今日の一手（判定結果） ──
+  decisionBadge:     { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6, borderRadius: 50, paddingHorizontal: 12, paddingVertical: 6, marginBottom: 14 },
+  decisionDot:       { width: 7, height: 7, borderRadius: 3.5 },
+  decisionBadgeText: { fontSize: 12, fontWeight: '800' },
+  decisionHeadline:  { fontSize: 20, fontWeight: '900', color: colors.text, marginBottom: 10, lineHeight: 27 },
+  decisionAction:    { fontSize: 14, color: colors.textSec, lineHeight: 22, marginBottom: 14 },
+  decisionReasons:   { backgroundColor: colors.surface2, borderRadius: 12, padding: 12, marginBottom: 4 },
+  decisionReasonText:{ fontSize: 12, color: colors.textSec, lineHeight: 19 },
 })

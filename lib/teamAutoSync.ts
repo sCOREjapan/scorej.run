@@ -1,14 +1,22 @@
 // lib/teamAutoSync.ts — 練習記録をチームへ自動同期
 // セッションが保存されるたびに呼ぶ。チームに未参加なら何もしない。
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { syncTeamSessions, upsertPlayerStats, fetchPlayerStats } from './supabaseTeam'
+import { syncTeamSessions, upsertPlayerStats, fetchPlayerStats, clearPlayerPrivateData } from './supabaseTeam'
 import { calcLevelInfo } from './gamification'
 import type { TrainingSession } from '../types'
 import { localDateStr, todayLocalISO } from './dateLocal'
 
-const JOINED_KEY    = 'trackmate_team_joined'
-const LAST_SYNC_KEY = 'trackmate_team_last_sync'
-const THROTTLE_MS   = 30 * 60 * 1000   // 30分（IO節約）
+const JOINED_KEY      = 'trackmate_team_joined'
+const LAST_SYNC_KEY   = 'trackmate_team_last_sync'
+const THROTTLE_MS     = 30 * 60 * 1000   // 30分（IO節約）
+// 2026-09-09: このファイルは共有レベル(trackmate_team_share_level)を一切見ずに
+// syncTeamSessions()へ生のsessionsをそのまま渡していたため、選手が「部分共有」
+// (疲労度・体調のみ)や「非公開」を選んでいても、練習記録を保存するたびに距離・
+// 本数・メモまで含む完全なデータがコーチ側へ送られ続けるバグがあった
+// （app/(tabs)/team.tsx の PlayerDashboard 側は同じ場面で正しくstrip/skipして
+// いたのに、この自動同期経路だけ共有レベルを見ていなかった）。
+// team.tsx側と同じstrip/skipロジックをここにも適用する。
+const SHARE_LEVEL_KEY  = 'trackmate_team_share_level'
 
 interface JoinedTeam {
   code:       string
@@ -60,8 +68,19 @@ export async function autoSyncTeam(
       await AsyncStorage.setItem(LAST_SYNC_KEY, String(Date.now()))
     }
 
-    // セッション同期
-    await syncTeamSessions(joined.code, joined.playerName, sessions)
+    // セッション同期（共有レベルに応じてstrip/skip。既定値2=フル共有は未設定時の後方互換）
+    const shareLvRaw = await AsyncStorage.getItem(SHARE_LEVEL_KEY)
+    const shareLv = (shareLvRaw ? Number(shareLvRaw) : 2) as 0 | 1 | 2
+    if (shareLv >= 2) {
+      await syncTeamSessions(joined.code, joined.playerName, sessions)
+    } else if (shareLv === 1) {
+      const lite = sessions.map(s => ({ ...s, distance_m: undefined, reps: undefined, sets: undefined, notes: undefined }))
+      await syncTeamSessions(joined.code, joined.playerName, lite)
+    } else {
+      // 非公開: 既存のteam_sessions行も残さない
+      await clearPlayerPrivateData(joined.code, joined.playerName)
+      return
+    }
 
     // レベル + 最新コンディション + 連続記録日数を更新（PB・種目は既存値を保持）
     const lvInfo  = calcLevelInfo(sessions.length)

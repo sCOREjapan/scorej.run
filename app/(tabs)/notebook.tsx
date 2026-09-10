@@ -25,6 +25,7 @@ import { addTasks } from '../../lib/tasksStore'
 import { useTranslation } from 'react-i18next'
 import { useLanguage } from '../../context/LanguageContext'
 import { getEventLabel } from '../../lib/eventLabels'
+import { trackFeatureUse } from '../../lib/analytics'
 
 const SESSIONS_KEY    = 'trackmate_sessions'
 
@@ -381,6 +382,7 @@ export default function NotebookScreen() {
             parsed = { ...parsed, ...aiParsed }
             // AI解析に成功した場合のみ利用回数・チケットを消費する（失敗時に課金しないため）
             await recordUsage('notebook_ai')
+            trackFeatureUse('notebook_ai')
           }
         }
       }

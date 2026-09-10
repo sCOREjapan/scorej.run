@@ -93,8 +93,12 @@ export function trackSessionRecord(sessionType: string) {
 }
 
 /** AI機能使用 */
+// 2026-09-09: workout/daily_insight/notebook_ai/injury_recoveryは
+// これまで一切トラッキングされておらず、実際の利用回数が0件しか分からなかった
+// （APIコスト是正の議論で判明）ため追加。呼び出し元も合わせて追加した。
 export function trackFeatureUse(
-  feature: 'ai_analysis' | 'meal' | 'video' | 'csv' | 'recovery' | 'meal_coach',
+  feature: 'ai_analysis' | 'meal' | 'video' | 'csv' | 'recovery' | 'meal_coach'
+    | 'workout' | 'daily_insight' | 'notebook_ai' | 'injury_recovery',
 ) {
   trackEvent('use_feature', { feature })
 }
@@ -147,4 +151,56 @@ export function trackCompetitionPlan(daysUntil: number) {
     feature: 'competition',
     metadata: { days_until: daysUntil },
   })
+}
+
+// ── オンボーディング（2026-09-07再設計）の各ステップ通過ログ ─────────
+// 北極星指標「登録から24時間以内に初回スコア閲覧＋2回目の記録に到達した割合」を
+// 追うための計測。sCORE_成長収益化戦略_v1.md / sCORE_オンボーディング再設計_v2.md 参照。
+export type OnboardingStep =
+  | 'language_selected' | 'consent_completed' | 'goal_selected' | 'event_selected'
+  | 'baseline_started' | 'baseline_completed' | 'readiness_viewed' | 'goal_saved'
+  | 'auth_prompt_viewed' | 'auth_completed' | 'guest_selected' | 'home_reached'
+  | 'checklist_completed'
+
+export function trackOnboardingStep(step: OnboardingStep, metadata?: Record<string, unknown>) {
+  trackEvent(`onboarding_${step}`, { feature: 'onboarding', metadata })
+}
+
+/** 無料トライアル開始（購入完了とは別に、トライアル開始の瞬間を計測） */
+export function trackTrialStarted(plan: string) {
+  trackEvent('trial_started', { feature: 'purchase', metadata: { plan } })
+}
+
+/** 週次レポート閲覧（Day7機能。lib/paywallTiming.ts参照。機能実装後に呼び出す） */
+export function trackWeeklyReportViewed() {
+  trackEvent('weekly_report_viewed', { feature: 'weekly_report' })
+}
+
+// 2026-09-09: 設計書§6の必須イベント一覧のうち、既存機能に対応するが未実装だった
+// ものを追加。daily_checkin_completed/daily_decision_viewed/video_action_saved等、
+// まだ存在しない機能に紐づくものはPhase2でその機能を作る際に追加する。
+
+/** チーム作成（コーチ）。trackTeamJoin('coach'から改称・分離: 「参加」ではなく「作成」なので別イベントにする */
+export function trackTeamCreated() {
+  trackEvent('team_created', { feature: 'team' })
+}
+
+/** チームダッシュボード表示（コーチ・選手どちらの画面か） */
+export function trackTeamDashboardViewed(role: 'coach' | 'player') {
+  trackEvent('team_dashboard_viewed', { feature: 'team', metadata: { role } })
+}
+
+/** 購入フロー開始（ペイウォールのボタンを押し、ストアの購入シートを開いた瞬間。
+ *  impression(表示)→checkout_started(購入試行)→purchase_completed(成立)の
+ *  どこで離脱したかを追うため、upgrade_view/upgrade_completeとは別に必要） */
+export function trackCheckoutStarted(plan: string, source: string) {
+  trackEvent('checkout_started', { feature: 'purchase', metadata: { plan, source } })
+}
+
+/** AIリクエスト失敗（モデル無応答・空応答・JSON解析失敗など）。
+ *  api/ai-health-check.tsの日次死活監視とは別に、実際のユーザートラフィックで
+ *  発生している失敗率を機能別に見るためのもの。lib/claude.tsのcallClaude()から
+ *  一括で呼ぶため、個別のAI機能側で呼び出しを追加する必要はない。 */
+export function trackAiRequestFailed(feature: string, errorType: string) {
+  trackEvent('ai_request_failed', { feature, metadata: { error_type: errorType } })
 }

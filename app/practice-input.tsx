@@ -141,6 +141,18 @@ function dateOffset(days: number): string {
   return localDateStr(d)
 }
 
+// 疲労度クイック選択（manual-log.tsxと同じ5段階）。
+// 2026-09-08: 自由文に「疲労8」等と書かない限りfatigue_levelが常に5(既定値)で保存され、
+// 怪我リスクスコアが何を記録しても同じような値に張り付く不具合の修正で追加。
+// 未選択(null)のままだと従来通りの自由文パース(既定5)にフォールバックする。
+const FATIGUE_QUICK = [
+  { v: 2,  emoji: '😴' },
+  { v: 4,  emoji: '😊' },
+  { v: 6,  emoji: '😐' },
+  { v: 8,  emoji: '😰' },
+  { v: 10, emoji: '🤯' },
+]
+
 function fallbackParse(text: string, today: string): Record<string, any> {
   const t = text
   let session_type = 'easy'
@@ -223,6 +235,7 @@ export default function PracticeInputScreen() {
   const [openFolderId, setOpenFolderId]   = useState<string | null>(null)
   const [pickedItems, setPickedItems]     = useState<{ folderId: string; folderName: string; folderColor: string; text: string }[]>([])
   const [saving, setSaving]               = useState(false)
+  const [fatigueQuick, setFatigueQuick]   = useState<number | null>(null)
   const [showShare, setShowShare]         = useState(false)
   const [shareData, setShareData]         = useState<PracticeShareData | null>(null)
 
@@ -256,6 +269,9 @@ export default function PracticeInputScreen() {
     const today = localDateStr(new Date())
     const parsed = fallbackParse(freeText, selectedDate)
     const toNum = (v: any) => (v !== null && v !== undefined && v !== 'null' && !isNaN(Number(v)) && Number(v) > 0) ? Number(v) : undefined
+    // クイック選択があればそちらを優先（自由文に書き忘れても既定値5に張り付かないようにする）
+    const finalFatigue = fatigueQuick ?? toNum(parsed.fatigue_level) ?? 5
+    parsed.fatigue_level = finalFatigue
     try {
       const newSession = {
         id:              `ql_${Date.now()}`,
@@ -267,7 +283,7 @@ export default function PracticeInputScreen() {
         time_ms:         toNum(parsed.time_ms),
         distance_m:      toNum(parsed.distance_m),
         reps:            toNum(parsed.reps),
-        fatigue_level:   toNum(parsed.fatigue_level) ?? 5,
+        fatigue_level:   finalFatigue,
         condition_level: toNum(parsed.condition_level) ?? 7,
         notes:           freeText,
       }
@@ -306,13 +322,14 @@ export default function PracticeInputScreen() {
         condition: parsed.condition_level ? Number(parsed.condition_level) : undefined,
       })
       setFreeText('')
+      setFatigueQuick(null)
       setShowShare(true)
     } catch {
       Toast.show({ type: 'error', text1: t('practiceInput.toastErrorTitle'), text2: t('practiceInput.toastErrorBody') })
     } finally {
       setSaving(false)
     }
-  }, [freeText, selectedDate, saving, language, t])
+  }, [freeText, selectedDate, saving, language, t, fatigueQuick])
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -438,6 +455,29 @@ export default function PracticeInputScreen() {
               {t('practiceInput.hint1')}{'\n'}
               {t('practiceInput.hint2')}
             </Text>
+
+            {/* ── 疲労度クイック選択（任意。未選択なら文中の記述→既定値5の順でフォールバック） ── */}
+            <Text style={[s.sectionLabel, { color: colors.textHint, marginTop: 14 }]}>{t('practiceInput.fatigueLabel')}</Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+              {FATIGUE_QUICK.map(f => (
+                <TouchableOpacity
+                  key={f.v}
+                  onPress={() => { Sounds.tap(); setFatigueQuick(prev => prev === f.v ? null : f.v) }}
+                  activeOpacity={0.8}
+                  style={{
+                    flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 12,
+                    borderWidth: 1.5,
+                    borderColor: fatigueQuick === f.v ? BRAND : colors.border,
+                    backgroundColor: fatigueQuick === f.v ? BRAND + '18' : colors.surface2,
+                  }}
+                >
+                  <Text style={{ fontSize: 20 }}>{f.emoji}</Text>
+                  <Text style={{ fontSize: 10, marginTop: 2, fontWeight: '700', color: fatigueQuick === f.v ? BRAND : colors.textHint }}>
+                    {t(`manualLog.fatigueLevels.${f.v}`)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
             {/* ── 保存ボタン ── */}
             <TouchableOpacity

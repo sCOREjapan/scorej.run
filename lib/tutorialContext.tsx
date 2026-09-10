@@ -67,10 +67,12 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
     spots.set(key, rect)
   }, [spots])
 
-  // QuickConditionModal が閉じた = 保存完了とみなして進行
-  const onConditionModalClose = useCallback(() => {
-    if (stepId === 'condition_modal') advance('condition_modal')
-  }, [stepId, advance])
+  // 2026-09-09: 「サクッと入力」ボタンをフォーム分析ボタンに差し替えたのに伴い、
+  // quick_inputの次にcondition_modalへ進む導線自体が無くなった（tutorial.ts参照）。
+  // QuickConditionModal自体は他の導線(home.ctaItems.condition等)から引き続き開けるため
+  // onClose側の呼び出し(app/(tabs)/index.tsx)はそのまま残し、こちらは何もしないだけにする
+  // （呼び出し元を都度探して消すより安全）。
+  const onConditionModalClose = useCallback(() => {}, [])
 
   return (
     <Ctx.Provider value={{ active, stepId, spots, registerSpot, startTutorial, nextStep, skipTutorial, onConditionModalClose }}>

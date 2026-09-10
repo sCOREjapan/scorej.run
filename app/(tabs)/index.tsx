@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useFocusEffect } from '@react-navigation/native'
 import {
-  ActivityIndicator, Alert, Animated, Easing, KeyboardAvoidingView, Linking, Modal, Platform,
+  ActivityIndicator, Alert, Animated, Easing, Image, KeyboardAvoidingView, Linking, Modal, Platform,
   ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -27,6 +27,12 @@ import Logo from '../../components/Logo'
 import PWAInstallPrompt from '../../components/PWAInstallPrompt'
 import QuickLogModal from '../../components/QuickLogModal'
 import QuickConditionModal from '../../components/QuickConditionModal'
+import FirstRunChecklist from '../../components/FirstRunChecklist'
+import {
+  shouldShowDay3Offer, shouldShowDay5Offer, markDay3OfferShown, markDay5OfferShown,
+  markFirstScoreViewed,
+} from '../../lib/paywallTiming'
+import { computeWeeklyTrend, shouldShowWeeklyReport } from '../../lib/weeklyReport'
 import PracticeShareCard, { PracticeShareData } from '../../components/PracticeShareCard'
 import StretchHoldButton from '../../components/StretchHoldButton'
 import { registerHomeScroll, unregisterHomeScroll } from '../../lib/homeScroll'
@@ -36,18 +42,17 @@ import { calcWeatherRiskBonus, getWeatherRiskText } from '../../lib/weatherRisk'
 import { getHydrationEligibility, markHydrationShown, logHydrationPress, getHydrationReductionPts } from '../../lib/hydration'
 import Toast from 'react-native-toast-message'
 import { autoSyncTeam } from '../../lib/teamAutoSync'
-import { trackAppOpen, trackPaywallView } from '../../lib/analytics'
+import { trackAppOpen, trackPaywallView, trackFeatureUse } from '../../lib/analytics'
 import { usePurchase } from '../../context/PurchaseContext'
 import TutorialSpot from '../../components/TutorialSpot'
 import Svg, { Circle, Defs, LinearGradient, Stop, Path, Rect } from 'react-native-svg'
-import { useTutorial, isTutorialDone } from '../../lib/tutorialContext'
+import { useTutorial } from '../../lib/tutorialContext'
 import { sendRiskAlertIfNeeded, sendStretchReminderIfNeeded, scheduleCompetitionReminder, scheduleStreakReminder } from '../../lib/notifications'
 import { fetchTeamEvents, sendCoachNotification, type TeamEventRow } from '../../lib/supabaseTeam'
 import type { SleepRecord, AthleticsEvent } from '../../types'
 import { getEventLabel } from '../../lib/eventLabels'
 import { syncWidgetData } from '../../lib/widgetSync'
 import ReviewWall, { shouldShowReviewWall } from '../../components/ReviewWall'
-import NoadUpsellModal, { shouldShowNoadUpsell } from '../../components/NoadUpsellModal'
 import { hasDailyInsightClaimed, markDailyInsightClaimed } from '../../lib/admob'
 import { isAnyAdShowing } from '../../lib/adLock'
 import { checkAdGate, recordUsage } from '../../lib/adGate'
@@ -55,7 +60,7 @@ import TicketGateModal from '../../components/TicketGateModal'
 import { todayLocalISO, localDateStr } from '../../lib/dateLocal'
 import { TASKS_KEY, getTasks, updateTasks, type ImprovementTask } from '../../lib/tasksStore'
 import { updateConditionMap } from '../../lib/conditionStore'
-import { getStretchResult, updateStretchResult } from '../../lib/stretchResultStore'
+import { getStretchResult, updateStretchResult, hasEverStretched } from '../../lib/stretchResultStore'
 import { SESSION_TYPE_LABEL, sessionTypeInfo } from '../../lib/sessionTypeLabels'
 
 // Hermesの AbortSignal.timeout 非対応に対応したタイムアウト付きfetch
@@ -306,12 +311,20 @@ const lb = StyleSheet.create({
 // ────────────────────────────────────────────────────────
 // ScoreOverviewCard — W3スタイル INJURY RISK SCORE
 // ────────────────────────────────────────────────────────
+// マスコットキャラクター（怪我リスク帯ごとの表情差分。2026-09-09追加）
+const MASCOT_IMAGES = {
+  low:     require('../../assets/illustrations/mascot/mascot_risk_low.png'),
+  caution: require('../../assets/illustrations/mascot/mascot_risk_caution.png'),
+  warning: require('../../assets/illustrations/mascot/mascot_risk_warning.png'),
+  high:    require('../../assets/illustrations/mascot/mascot_risk_high.png'),
+}
+
 function buildRiskCfg(t: (key: string) => string) {
   return [
-    { max: 24,  color: BRAND,     label: t('home.risk.tiers.low.label'),     phrase: t('home.risk.tiers.low.phrase'),     note: t('home.risk.tiers.low.note') },
-    { max: 49,  color: '#f59e0b', label: t('home.risk.tiers.caution.label'), phrase: t('home.risk.tiers.caution.phrase'), note: t('home.risk.tiers.caution.note') },
-    { max: 74,  color: '#f97316', label: t('home.risk.tiers.warning.label'), phrase: t('home.risk.tiers.warning.phrase'), note: t('home.risk.tiers.warning.note') },
-    { max: 100, color: ALERT,     label: t('home.risk.tiers.high.label'),    phrase: t('home.risk.tiers.high.phrase'),    note: t('home.risk.tiers.high.note') },
+    { max: 24,  color: BRAND,     label: t('home.risk.tiers.low.label'),     phrase: t('home.risk.tiers.low.phrase'),     note: t('home.risk.tiers.low.note'),     mascotImage: MASCOT_IMAGES.low },
+    { max: 49,  color: '#f59e0b', label: t('home.risk.tiers.caution.label'), phrase: t('home.risk.tiers.caution.phrase'), note: t('home.risk.tiers.caution.note'), mascotImage: MASCOT_IMAGES.caution },
+    { max: 74,  color: '#f97316', label: t('home.risk.tiers.warning.label'), phrase: t('home.risk.tiers.warning.phrase'), note: t('home.risk.tiers.warning.note'), mascotImage: MASCOT_IMAGES.warning },
+    { max: 100, color: ALERT,     label: t('home.risk.tiers.high.label'),    phrase: t('home.risk.tiers.high.phrase'),    note: t('home.risk.tiers.high.note'),    mascotImage: MASCOT_IMAGES.high },
   ]
 }
 
@@ -376,6 +389,40 @@ function RiskRing({ score, color, trackColor, size = 132 }: { score: number; col
   )
 }
 
+// リスク帯が変わる瞬間に前の表情から新しい表情へクロスフェードするマスコット画像。
+// 2枚を重ねて、新しい画像だけをフェードインさせる方式（前の画像は下敷きのまま常に見えている
+// ため、途中で背景が透けて一瞬何もない状態になることがない）
+function RiskMascot({ image, size = 56 }: { image: any; size?: number }) {
+  const prevImageRef = useRef(image)
+  // transitioning中(prevImage !== null)だけ2枚重ねる。同じ画像を常に2枚重ねていると
+  // ImageとAnimated.Imageの描画パスの微妙な差でフチが二重に見えてしまっていたため、
+  // 通常時(遷移が終わったら)は1枚だけ描画するようにする
+  const [prevImage, setPrevImage] = useState<any>(null)
+  const fade = useRef(new Animated.Value(1)).current
+
+  useEffect(() => {
+    if (prevImageRef.current === image) return
+    setPrevImage(prevImageRef.current)
+    prevImageRef.current = image
+    fade.setValue(0)
+    Animated.timing(fade, { toValue: 1, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true })
+      .start(({ finished }) => { if (finished) setPrevImage(null) })
+  }, [image])
+
+  const shadow = {
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.18, shadowRadius: 6,
+  }
+
+  return (
+    <View style={{ width: size, height: size, marginTop: -size * 0.22, marginBottom: -size * 0.22, marginLeft: -size * 0.18 }}>
+      {prevImage && (
+        <Image source={prevImage} style={[{ position: 'absolute', width: size, height: size }, shadow]} resizeMode="contain" />
+      )}
+      <Animated.Image source={image} style={[{ position: 'absolute', width: size, height: size, opacity: prevImage ? fade : 1 }, shadow]} resizeMode="contain" />
+    </View>
+  )
+}
+
 function ScoreOverviewCard({
   sessions, sleepRecords, conditionLevel, riskResult,
   effectiveRiskScore, weatherBonus, onStretchStart,
@@ -395,9 +442,14 @@ function ScoreOverviewCard({
   const { colors } = useTheme()
   const so = useMemo(() => makeSoStyles(colors), [colors])
   const { t } = useTranslation()
+  const router = useRouter()
   const riskScore = effectiveRiskScore ?? (riskResult ? riskResult.riskScore : 0)
   const RISK_CFG = buildRiskCfg(t)
   const cfg = RISK_CFG.find(c => riskScore <= c.max) ?? RISK_CFG[3]
+  // 2026-09-09: app/warmup.tsxへの遷移導線が無く「孤立画面」になっていたバグ修正。
+  // warmup.tsx側は risk: 'low'|'moderate'|'high' の3段階だが、こちらは4段階(buildRiskCfg)
+  // なので caution/warning はどちらも moderate に丸める
+  const warmupRisk = riskScore <= 24 ? 'low' : riskScore <= 74 ? 'moderate' : 'high'
 
   return (
     <>
@@ -426,23 +478,33 @@ function ScoreOverviewCard({
             )}
           </View>
 
-          {/* 数値＋区切り線＋バッジ/メッセージ */}
+          {/* 数値＋区切り線＋バッジ/メッセージ＋マスコット（表情がリスク帯に応じて変わる） */}
           <View style={so.riskMainRow}>
-            <View style={so.riskScoreWrap}>
-              <View style={[so.riskDot, { backgroundColor: cfg.color }]} />
-              <Text style={so.riskScoreNum}>{riskScore}</Text>
-              <Text style={so.riskScoreMax}>/100</Text>
-            </View>
-            <View style={so.riskDivider} />
-            <View style={{ flex: 1 }}>
-              <View style={[so.riskBadge, { backgroundColor: cfg.color + '18', borderColor: cfg.color + '40' }]}>
-                <Text style={[so.riskBadgeText, { color: cfg.color }]}>{cfg.label}</Text>
+            <View>
+              <View style={so.riskScoreWrap}>
+                <View style={[so.riskDot, { backgroundColor: cfg.color }]} />
+                <Text style={so.riskScoreNum}>{riskScore}</Text>
+                <Text style={so.riskScoreMax}>/100</Text>
               </View>
-              <Text style={so.riskMessage} numberOfLines={2}>{cfg.note}</Text>
               {!!weatherBonus && (
-                <Text style={[so.weatherPt, { marginTop: 2 }]}>{t('home.risk.weather')} {weatherBonus > 0 ? '+' : ''}{weatherBonus}</Text>
+                <Text style={so.weatherPt}>{t('home.risk.weather')} {weatherBonus > 0 ? '+' : ''}{weatherBonus}</Text>
               )}
             </View>
+            <View style={so.riskDivider} />
+            {/* マスコットが喋っている風の吹き出し（バッジ・メッセージを1つにまとめる） */}
+            {/* 2026-09-09: 実機で吹き出しの文字が「低リスク 今...」のように途中で切れる不具合を確認。
+                マスコットが128pxと大きく、吹き出しに残る横幅が狭かったのが原因。マスコットを
+                100pxへ縮小して幅を確保しつつ、文中は元々あったが未使用だったcfg.phrase（noteより
+                短い一言フレーズ）に差し替えて根本的に文字数も減らした。 */}
+            <View style={[so.speechBubble, { flex: 1, backgroundColor: cfg.color + '20', borderColor: cfg.color + '70' }]}>
+              <Text style={so.riskMessage} numberOfLines={3}>
+                <Text style={[so.riskBadgeText, { color: cfg.color }]}>{cfg.label}　</Text>
+                {cfg.phrase}
+              </Text>
+              <View style={[so.speechTailBorder, { borderLeftColor: cfg.color + '70' }]} />
+              <View style={[so.speechTail, { borderLeftColor: cfg.color + '20' }]} />
+            </View>
+            <RiskMascot image={cfg.mascotImage} size={100} />
           </View>
 
           {/* フラット塗りつぶしスケールバー（低〜中〜高の目盛り・現在値まで単色塗り） */}
@@ -495,6 +557,19 @@ function ScoreOverviewCard({
         </PressableScale>
         </TutorialSpot>
       )}
+
+      {/* ── ウォームアップ導線（軽め・常時表示） ── */}
+      <PressableScale
+        onPress={() => router.push({ pathname: '/warmup', params: { risk: warmupRisk } } as any)}
+        haptic="light"
+        sound="tap"
+        scaleAmount={0.97}
+        style={[so.warmupLink, { backgroundColor: colors.surface }]}
+      >
+        <Ionicons name="flame-outline" size={16} color={colors.textSec} />
+        <Text style={[so.warmupLinkText, { color: colors.text }]} numberOfLines={1}>{t('home.warmupLink.title')}</Text>
+        <Ionicons name="chevron-forward" size={14} color={colors.textHint} />
+      </PressableScale>
     </>
   )
 }
@@ -514,7 +589,7 @@ const makeSoStyles = (colors: ThemeColors) => StyleSheet.create({
   riskDot:       { width: 9, height: 9, borderRadius: 5, marginRight: 6 },
   riskBadgeText: { fontSize: 11, fontWeight: '700' },
   scoreNum:      { fontSize: 72, fontWeight: '700', letterSpacing: -3, color: colors.text, lineHeight: 80, marginVertical: 2, fontVariant: ['tabular-nums'] },
-  weatherPt:     { fontSize: 12, color: colors.textSec, fontWeight: '400' },
+  weatherPt:     { fontSize: 11, color: colors.textSec, fontWeight: '500', marginTop: 2 },
   barTrack:      { height: 4, borderRadius: 2, overflow: 'hidden' },
   barFill:       { height: 4, borderRadius: 2 },
   // ── 怪我リスクカード（コンパクト版・上下幅を詰めたレイアウト） ──
@@ -528,6 +603,20 @@ const makeSoStyles = (colors: ThemeColors) => StyleSheet.create({
   riskScoreMax:  { fontSize: 14, fontWeight: '600', color: colors.textHint, marginLeft: 1 },
   riskDivider:   { width: 1, height: 32, backgroundColor: colors.border },
   riskMessage:   { fontSize: 12.5, fontWeight: '500', color: colors.textSec, marginTop: 4, lineHeight: 16 },
+  // マスコットが喋っている風の吹き出し（バッジ・メッセージ・天気ボーナスをまとめて1つに）
+  speechBubble:  { position: 'relative', borderRadius: 14, borderWidth: 1.5, paddingHorizontal: 12, paddingVertical: 8, marginRight: 12 },
+  // 縁取り付きの吹き出しの尻尾：外側(枠色・大きめ)と内側(塗り色・一回り小さく右にずらす)を
+  // 重ねて、輪郭線が見える三角形にする
+  speechTailBorder: {
+    position: 'absolute', right: -10, top: '50%', marginTop: -8,
+    width: 0, height: 0, borderTopWidth: 8, borderBottomWidth: 8, borderLeftWidth: 11,
+    borderTopColor: 'transparent', borderBottomColor: 'transparent',
+  },
+  speechTail:    {
+    position: 'absolute', right: -7.5, top: '50%', marginTop: -6,
+    width: 0, height: 0, borderTopWidth: 6, borderBottomWidth: 6, borderLeftWidth: 8,
+    borderTopColor: 'transparent', borderBottomColor: 'transparent',
+  },
   scaleLabelsRow:  { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 },
   scaleLabel:      { fontSize: 10.5, fontWeight: '600', color: colors.textHint },
   scaleNumLabel:   { fontSize: 10, fontWeight: '400', color: colors.textHint },
@@ -552,6 +641,8 @@ const makeSoStyles = (colors: ThemeColors) => StyleSheet.create({
   stretchGain:   { fontSize: 14, fontWeight: '800' },
   stretchBtn:    { flexDirection: 'row', alignItems: 'center', gap: 2, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: BRAND },
   stretchBtnText:{ color: '#fff', fontSize: 12.5, fontWeight: '700' },
+  warmupLink:    { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 14, marginTop: 8 },
+  warmupLinkText:{ flex: 1, fontSize: 12.5, fontWeight: '600' },
 })
 
 
@@ -1300,7 +1391,7 @@ export default function DashboardScreen() {
   const { language } = useLanguage()
   const dayNames = t('home.dayNames', { returnObjects: true }) as unknown as string[]
   const { tier: purchaseTier, isNoad: purchaseIsNoad } = usePurchase()
-  const { active: tutorialActive, stepId: tutStepId, nextStep: tutNext, onConditionModalClose, startTutorial } = useTutorial()
+  const { active: tutorialActive, stepId: tutStepId, nextStep: tutNext, onConditionModalClose } = useTutorial()
   const { sessions, loading, fetchSessions } = useTrainingSessions()
   const [appOpenCount,     setAppOpenCount]     = useState(0)
   const [selectedDate,    setSelectedDate]    = useState(getTodayISO())
@@ -1359,12 +1450,12 @@ export default function DashboardScreen() {
   const [weatherLoading,  setWeatherLoading]  = useState(false)
   const [weatherTemp,     setWeatherTemp]     = useState<number | null>(null)
   const [stretchReduction,setStretchReduction]= useState(0)
+  const [hasStretched,    setHasStretched]    = useState(false)
   const [recoveryBanner,  setRecoveryBanner]  = useState<{ reduction: number } | null>(null)
   const [hydrationReductionPts, setHydrationReductionPts] = useState(0)
   const [hydrationCard,   setHydrationCard]   = useState<{ message: string; showSaltTip: boolean } | null>(null)
   const [teamNotifs,      setTeamNotifs]      = useState<TeamEventRow[]>([])
   const [reviewWallVisible, setReviewWallVisible] = useState(false)
-  const [noadUpsellVisible, setNoadUpsellVisible] = useState(false)
   const [confirmedIds,    setConfirmedIds]    = useState<Set<string>>(new Set())
   const [notifReadIds,    setNotifReadIds]    = useState<Set<string>>(new Set())
   const [shareSession,    setShareSession]    = useState<PracticeShareData | null>(null)
@@ -1377,20 +1468,9 @@ export default function DashboardScreen() {
 
   // AdGate async チェック中の二重タップ防止
   const insightCallRef = useRef(false)
-  // ── アプリ起動トラッキング（1日1回） ──
-  // 初回起動時（チュートリアル未完了）にチュートリアルを起動。
-  // AuthGateのリダイレクトでこの画面がマウント直後にアンマウントされるケース
-  // （未認証ユーザーが一瞬 "/" に着地して /onboarding へ転送される等）があるため、
-  // アンマウント後にタイマーが発火してチュートリアルが誤起動しないようクリーンアップする。
-  useEffect(() => {
-    let cancelled = false
-    let timer: ReturnType<typeof setTimeout> | undefined
-    isTutorialDone().then(done => {
-      if (cancelled) return
-      if (!done) timer = setTimeout(() => startTutorial(), 600)
-    })
-    return () => { cancelled = true; if (timer) clearTimeout(timer) }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // 2026-09-07: 到達後600msで全画面を自動的に再説明する旧チュートリアルの自動起動を廃止。
+  // 未完了ユーザーには <FirstRunChecklist /> が常駐する3項目チェックリストを表示し、
+  // 本人が触るタイミングに委ねる（ガイドツアー自体はチェックリストの下部リンクから起動可能）。
 
   // Instagramバナー：閉じたことがなければ表示
   useEffect(() => {
@@ -1512,19 +1592,50 @@ export default function DashboardScreen() {
     return () => clearTimeout(t)
   }, [tutorialActive])
 
-  // 広告なしプランの案内：FREEユーザーのみ、週1回程度
-  // （チュートリアル中・レビューウォール表示中・広告/告知バナー表示中は重ならないよう見送る）
+  // 2026-09-07: 起動6秒後の自動チケットプラン案内は廃止。
+  // 代わりに「登録からN日後」ではなく利用実績で条件ゲートするDay3/Day5導線に切り替えた
+  // （詳細: sCORE_課金タイミング設計_Day0-7.md）。判定条件: コンディション記録3回＋
+  // 初回スコア閲覧＋練習or睡眠記録1回以上。起動のたびに軽くチェックするだけなので
+  // タイマーは使わず、データ読み込み後に1回だけ判定する。
+  // 2026-09-07 追記: 当初は小さいモーダルで一度ワンクッション挟む設計だったが、
+  // 「小さいモーダルじゃなくて最初からデカく出していい」というフィードバックを受け、
+  // 中間モーダルは廃止し、条件を満たしたら直接 /paywall（チケット月額プラン比較画面）へ遷移する。
   useEffect(() => {
-    if (purchaseTier !== 'free' || tutorialActive || reviewWallVisible) return
-    const t = setTimeout(async () => {
+    if (loading || purchaseTier !== 'free' || tutorialActive || reviewWallVisible || isAnyAdShowing()) return
+    let cancelled = false
+    ;(async () => {
       try {
-        if (tutorialActive || reviewWallVisible || isAnyAdShowing()) return
-        const show = await shouldShowNoadUpsell()
-        if (show) setNoadUpsellVisible(true)
-      } catch {}
-    }, 6000)
-    return () => clearTimeout(t)
-  }, [purchaseTier, tutorialActive, reviewWallVisible])
+        const conditionRecordCount = Object.keys(conditionMap).length
+        const hasPracticeOrSleepLog = sessions.length > 0 || sleepRecords.length > 0
+        const gateInput = { conditionRecordCount, hasPracticeOrSleepLog, isFreeTier: true }
+
+        if (await shouldShowDay3Offer(gateInput)) {
+          if (cancelled) return
+          await markDay3OfferShown()
+          trackPaywallView('day3_offer:day3')
+          router.push('/paywall?plan=ticket_monthly')
+          return
+        }
+        if (await shouldShowDay5Offer(true)) {
+          if (cancelled) return
+          await markDay5OfferShown()
+          trackPaywallView('day3_offer:day5')
+          router.push('/paywall?plan=ticket_monthly')
+          return
+        }
+
+        // Day7: 直近7日の記録が半分(4日)以上ある未課金ユーザーに週次レポートを提示
+        // （lib/weeklyReport.ts）。noad+ユーザーは既存のapp/growth-report.tsxで
+        // いつでもより詳しいレポートを見られるため、この軽量版は無料ユーザー限定。
+        const weeklyTrend = computeWeeklyTrend(sessions, sleepRecords, conditionMap)
+        if (await shouldShowWeeklyReport(weeklyTrend)) {
+          if (cancelled) return
+          router.push('/weekly-report' as any)
+        }
+      } catch { /* 判定失敗時は出さない（サイレント） */ }
+    })()
+    return () => { cancelled = true }
+  }, [loading, purchaseTier, tutorialActive, reviewWallVisible, conditionMap, sessions, sleepRecords])
 
   function handleGoalsUpdate(next: Goal[]) {
     // 初めて目標を設定したらチケットボーナス（goals は更新前の件数を参照するためクロージャで判定）
@@ -1583,6 +1694,8 @@ export default function DashboardScreen() {
         updateStretchResult(cur => ({ ...cur, showBanner: false })).catch(() => {})
       }
     }).catch(() => {})
+    // はじめの4ステップチェックリスト「ストレッチをしてスコアを下げる」項目用（日次リセットされない永続フラグ）
+    hasEverStretched().then(setHasStretched).catch(() => {})
     AsyncStorage.multiGet([CONDITION_MAP_KEY, SLEEP_KEY, TASKS_KEY, RECOVERY_KEY, GOALS_KEY]).then(
       ([[, mapStr], [, sleepStr], [, tasksStr], [, recovStr], [, goalsStr]]) => {
         if (mapStr)   { try { setConditionMap(JSON.parse(mapStr)) }    catch {} }
@@ -1786,6 +1899,7 @@ ${sleepText || 'データなし'}
             AsyncStorage.setItem(AI_ADVICE_CACHE_KEY, JSON.stringify({ date: today, advice: txt })).catch(() => {})
             if (ticketInfo) {
               await recordUsage('daily_insight')
+              trackFeatureUse('daily_insight')
               await markDailyInsightClaimed()
               setInsightClaimed(true)
               if (ticketInfo.needsTicket) Toast.show({ type: 'info', text1: t('home.aiAdvice.ticketUsed', { n: ticketInfo.ticketCost }), visibilityTime: 1800 })
@@ -1824,12 +1938,24 @@ ${sleepText || 'データなし'}
     return calcInjuryRisk(filteredSessions, filteredSleep, avgConditionLevel, hasSymptom, { recoveryReductionPts, hydrationReductionPts: hydrationReductionArg }, asOfMs)
   }, [sessions, sleepRecords, avgConditionLevel, hasSymptom, loading, selectedDate, isViewingToday, stretchReduction, hydrationReductionPts])
 
+  // Day3/Day5課金導線の条件の1つ「初回スコア閲覧」。ホームに実スコアが表示された時点で
+  // 「見た」とみなす（詳細タップまで要求すると条件が厳しすぎるため）。markFirstScoreViewed自体は
+  // 一度立てたら二度と書き込まない（lib/paywallTiming.ts）。
+  useEffect(() => {
+    if (riskResult) markFirstScoreViewed()
+  }, [!!riskResult])
+
+  // [DEV専用] 怪我リスクの4段階(低/注意/警戒/高)をワンタップで確認するための上書き値。
+  // マスコット・吹き出しの見た目確認用で、__DEV__ビルドでしか使わない（本番には出ない）
+  const [devRiskOverride, setDevRiskOverride] = useState<number | null>(null)
+
   // 天気ボーナスを反映した有効リスクスコア（ストレッチ軽減はriskResult内で計算済み）
   const effectiveRiskScore = useMemo(() => {
+    if (__DEV__ && devRiskOverride != null) return devRiskOverride
     if (!riskResult) return null
     const bonus = isViewingToday ? weatherBonus : 0
     return Math.min(100, Math.max(0, riskResult.riskScore + bonus))
-  }, [riskResult, weatherBonus, isViewingToday])
+  }, [riskResult, weatherBonus, isViewingToday, devRiskOverride])
 
   // 怪我リスクが高い場合に通知を送る（初回マウント + スコアが閾値を超えた時のみ）
   const prevRiskRef = useRef<number | null>(null)
@@ -1957,6 +2083,21 @@ ${sleepText || 'データなし'}
           {/* ── 週間日付バー ── */}
           <AnimatedEntry delay={30}>
             <WeekDateBar selected={selectedDate} onChange={setSelectedDate} conditionMap={conditionMap} />
+          </AnimatedEntry>
+
+          {/* ── はじめてチェックリスト（旧: 自動チュートリアル）
+              2026-09-08: 「初めの3ステップ→今日まだ入力してない→フォロー」の順に並べたいとの
+              指示で、isViewingToday条件の外側はそのままに表示位置だけ先頭へ移動した
+              （過去日付を見ている時もこのチェックリストだけは従来通り表示され続ける） ── */}
+          <AnimatedEntry delay={30}>
+            <FirstRunChecklist
+              hasLoggedPractice={sessions.length > 0}
+              hasSetGoalOrCompetition={goals.length > 0 || compDaysLeft != null}
+              hasStretched={hasStretched}
+              onNavigatePractice={() => router.push('/manual-log' as any)}
+              onNavigateGoal={() => router.push('/(tabs)/competition' as any)}
+              onNavigateStretch={handleStretchStart}
+            />
           </AnimatedEntry>
 
           {/* ── ここから：今日を見ている時だけ表示するセクション群 ── */}
@@ -2177,6 +2318,40 @@ ${sleepText || 'データなし'}
           </>)}
           {/* ── ここまで：今日限定セクション ── */}
 
+          {__DEV__ && (
+            <TouchableOpacity
+              style={{ alignSelf: 'center', paddingVertical: 8, marginBottom: 4 }}
+              onPress={() => router.push('/paywall?plan=ticket_monthly')}
+            >
+              <Text style={{ color: '#166534', fontSize: 12, fontWeight: '700' }}>[DEV] Day3課金案内をプレビュー（→Paywall）</Text>
+            </TouchableOpacity>
+          )}
+
+          {__DEV__ && (
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginBottom: 8 }}>
+              {[
+                { label: '低',  value: 10 },
+                { label: '注意', value: 35 },
+                { label: '警戒', value: 60 },
+                { label: '高',  value: 90 },
+                { label: 'クリア', value: null as number | null },
+              ].map(opt => (
+                <TouchableOpacity
+                  key={opt.label}
+                  style={{
+                    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12,
+                    backgroundColor: devRiskOverride === opt.value ? '#166534' : '#16653414',
+                  }}
+                  onPress={() => setDevRiskOverride(opt.value)}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: devRiskOverride === opt.value ? '#fff' : '#166534' }}>
+                    [DEV]{opt.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
           {/* ── INJURY RISK SCORE ── */}
           <AnimatedEntry delay={90}>
             <ScoreOverviewCard
@@ -2189,7 +2364,7 @@ ${sleepText || 'データなし'}
               onStretchStart={handleStretchStart}
               onRefreshWeather={() => fetchWeather(true)}
               weatherLoading={weatherLoading}
-              onPressBreakdown={() => setShowRiskBreakdown(true)}
+              onPressBreakdown={() => { markFirstScoreViewed(); setShowRiskBreakdown(true) }}
             />
           </AnimatedEntry>
 
@@ -2258,22 +2433,26 @@ ${sleepText || 'データなし'}
             </TutorialSpot>
           </AnimatedEntry>
 
-          {/* ── サクッと入力 ＋ カウントダウン（アイコン＋2行テキストの統一ミニカード） ── */}
+          {/* ── フォーム分析 ＋ カウントダウン（アイコン＋2行テキストの統一ミニカード） ── */}
+          {/* 2026-09-09: 「サクッと入力」（体調モーダルを開くボタン）から、同じサイズのまま
+              「フォーム分析」（/video-analysisへ遷移）に差し替え。旧ボタンが担っていた
+              体調入力の導線は home.ctaItems.condition 経由で引き続き別途利用可能
+              （lib/tutorial.tsのquick_inputステップも合わせて更新済み）。 */}
           <AnimatedEntry delay={120}>
             <View style={{ flexDirection: 'row', gap: 10 }}>
-              {/* サクッと入力 */}
+              {/* フォーム分析 */}
               <TutorialSpot spotKey="home_quick_input" style={{ flex: 1 }}>
               <TouchableOpacity
                 style={[s.miniCard, { backgroundColor: colors.surface, borderColor: BRAND, borderWidth: 1.5 }]}
-                onPress={() => { unlockAudio(); setShowQuickCondition(true); if (tutStepId === 'quick_input') tutNext() }}
+                onPress={() => { unlockAudio(); router.push('/video-analysis' as any); if (tutStepId === 'quick_input') tutNext() }}
                 activeOpacity={0.78}
               >
                 <View style={s.miniCardIconWrap}>
-                  <Ionicons name="flash-outline" size={20} color={BRAND} />
+                  <Ionicons name="videocam-outline" size={20} color={BRAND} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.miniCardTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>{t('home.miniCards.quickLog')}</Text>
-                  <Text style={s.miniCardSub} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>{t('home.miniCards.quickLogSub')}</Text>
+                  <Text style={s.miniCardTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>{t('home.miniCards.formAnalysis')}</Text>
+                  <Text style={s.miniCardSub} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>{t('home.miniCards.formAnalysisSub')}</Text>
                 </View>
               </TouchableOpacity>
               </TutorialSpot>
@@ -2777,14 +2956,6 @@ ${sleepText || 'データなし'}
       <ReviewWall
         visible={reviewWallVisible}
         onClose={() => setReviewWallVisible(false)}
-      />
-
-      {/* 広告なしプラン案内（週1回程度・FREEユーザーのみ） */}
-      <NoadUpsellModal
-        visible={noadUpsellVisible}
-        onClose={() => setNoadUpsellVisible(false)}
-        onUpgrade={() => router.push('/paywall')}
-        context="daily"
       />
 
       <TicketGateModal

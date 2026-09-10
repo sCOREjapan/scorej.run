@@ -45,7 +45,15 @@ export async function getPremiumStatus(): Promise<PremiumStatus> {
 }
 
 export async function getPackages(): Promise<any[]> {
-  return []
+  // 2026-09-07: Web版にはStoreKit/RevenueCatの実体が無いため常に空配列だったが、
+  // それだとpaywall.tsxが即座に「商品の読み込みに失敗しました」を出してしまい、
+  // 開発中にWebプレビューで購入導線のUIを確認できなかった。__DEV__時だけ、
+  // 実購入はできないダミーパッケージを返し、[DEV] 購入をスキップ（開発用）まで
+  // 到達できるようにする（本番ビルドでは__DEV__=falseなのでこれまで通り空配列）。
+  if (!__DEV__) return []
+  return Object.values(PRODUCT_IDS).map(identifier => ({
+    product: { identifier, introPrice: null },
+  }))
 }
 
 export function getLastPackagesDiagnostic(): string | null {

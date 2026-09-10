@@ -25,12 +25,14 @@
     "intro": {
       "slide1": {
         "tagline": "Track & Field Performance Management",
-        "heroTitle": "Your body's score\nprevents injury and\nmakes you stronger.",
-        "heroSub": "AI combines sleep, fatigue, and training load\nto guide your best practice today",
+        "heroTitle": "Your body's score prevents injury and makes you stronger.",
+        "heroSub": "AI combines sleep, fatigue, and training load to guide your best practice today",
         "sleepScore": "Sleep Score",
         "fatigue": "Fatigue",
         "condition": "Condition",
-        "nextPage": "Next page"
+        "nextPage": "Next page",
+        "riskLabel": "Injury Risk",
+        "holdHint": "Hold to start"
       },
       "slide2": {
         "tag": "WHAT sCORE DOES",
@@ -138,37 +140,113 @@
       }
     },
     "step": {
-      "headline1": "First, tell us\nyour name.",
-      "headline2": "Which discipline\nare you best at?",
-      "headline3": "What's your\nmain event?",
-      "headline4": "Just a few more\nquestions.",
-      "sub1": "Knowing your name lets us build\na training plan just for you.",
-      "sub2": "Choose the discipline\nyou focus on most.",
-      "sub3": "Choose the event you\nfocus on most.",
-      "sub4": "Filling these in makes AI advice\nmore accurate (you can skip)."
+      "headline1": "Which is closest\nto your goal?",
+      "headline2": "What's your\nmain event?",
+      "headline3": "Check today's state\nin 60 seconds",
+      "sub1": "We'll build your first training call from this.",
+      "sub2": "Choose your discipline and event.",
+      "sub3": "Just tap to finish."
     },
     "skip": "Skip",
     "defaultAthleteName": "Athlete",
     "namePlaceholder": "e.g. Taro Tanaka",
+    "goals": {
+      "pb": {
+        "label": "Beat my personal best",
+        "sub": "Build up toward your event and goal"
+      },
+      "injuryFree": {
+        "label": "Stay injury-free",
+        "sub": "Catch changes in fatigue and recovery"
+      },
+      "competition": {
+        "label": "Prep for a competition",
+        "sub": "Plan this week around your next meet"
+      },
+      "team": {
+        "label": "Manage a team",
+        "sub": "See your athletes' condition at a glance",
+        "tag": "Coach"
+      }
+    },
+    "condition": {
+      "practiceLabel": "Yesterday's practice?",
+      "practice": {
+        "rest": "Rest",
+        "light": "Light",
+        "normal": "As usual",
+        "hard": "Pushed hard"
+      },
+      "fatigueLabel": "Fatigue right now?",
+      "fatigue": {
+        "veryLight": "Very light",
+        "light": "Light",
+        "normal": "Normal",
+        "heavy": "Heavy",
+        "veryHeavy": "Very heavy"
+      },
+      "sleepLabel": "Sleep last night?",
+      "sleep": {
+        "under4": "Under 4h",
+        "h5to6": "5-6h",
+        "h7to8": "7-8h",
+        "over9": "9h+"
+      },
+      "painLabel": "Any pain or discomfort? (optional)",
+      "painNo": "No",
+      "painYes": "Yes",
+      "medDisclaimer": "If you have significant pain, swelling, or trouble moving, stop training and consult a medical professional. This answer is not a diagnosis — it's only used as a training-intensity guide.",
+      "bandLabel": {
+        "low": "Good",
+        "caution": "Caution",
+        "warning": "Watch out",
+        "high": "Rest advised"
+      },
+      "headline": {
+        "low": "Today's a day to push",
+        "caution": "Today's a normal day",
+        "warning": "Today's a day to dial it back",
+        "high": "Today's a rest day",
+        "pain": "Today's a day to take it easy"
+      },
+      "advice": {
+        "low": "You're in good shape. A normal training load looks fine today.",
+        "caution": "You can handle your usual session. Focus on form and quality over intensity.",
+        "warning": "Some fatigue is showing. Dial the intensity down a notch and warm up longer.",
+        "high": "Fatigue and sleep debt are stacking up. Consider light aerobic work or a rest day.",
+        "pain": "You reported discomfort. Scale back significantly or rest today. If pain persists, see a medical professional."
+      }
+    },
     "processing": {
-      "title": "Creating your plan...",
+      "title": "Preparing your first check...",
       "items": [
-        "Analyzing your data...",
-        "Calculating injury risk...",
-        "Generating your AI plan..."
+        "Reviewing your answers...",
+        "Calculating today's baseline...",
+        "Putting your results together..."
       ]
     },
     "reveal": {
-      "badge": "Plan complete",
-      "title": "A custom plan for {{name}}\nis ready",
-      "defaultName": "you",
-      "event": "Event",
-      "level": "Level",
-      "nextGoal": "Next goal",
-      "nextGoalValue": "Beat your personal best",
-      "startButton": "Start with this plan"
+      "startButton": "Start with this",
+      "eyebrow": "TODAY'S READINESS",
+      "honestCaption": "This is a first-time estimate. Accuracy improves as you log more.",
+      "adviceEyebrow": "Today's takeaway",
+      "day7Line": "Trends start to show after 2 more logs. Your first weekly report arrives in 7 days.",
+      "teamBadge": "All set",
+      "teamTitle": "Let's set up\nyour team",
+      "teamSub": "You can create your team and generate an invite link on the next screen.",
+      "teamStartButton": "Get started",
+      "title": "Your first check\nis ready"
+    },
+    "goalsScreen": {
+      "headline": "Just a few more\noptional details",
+      "sub": "All optional — you can change these anytime in Settings.",
+      "saveButton": "Save and continue",
+      "later": "Set up later"
     },
     "fields": {
+      "nameLabel": "Name (optional)",
+      "genreLabel": "Discipline",
+      "eventLabel": "Main event",
       "experienceLabel": "Years of experience",
       "ageLabel": "Age",
       "agePlaceholder": "e.g. 20",
@@ -186,8 +264,37 @@
     },
     "quiz": {
       "next": "Next",
-      "createPlan": "Create Plan"
+      "createPlan": "See my results"
     }
+  },
+  "firstRunChecklist": {
+    "title": "First 4 steps  {{done}} / {{total}}",
+    "itemCondition": "Checked today's condition",
+    "itemPractice": "Log your next practice",
+    "itemGoal": "Set a goal or competition",
+    "itemStretch": "Stretch to lower your score",
+    "guidedTourLink": "View guided tour"
+  },
+  "weeklyReport": {
+    "title": "Weekly Report",
+    "loading": "Crunching the numbers...",
+    "riskTrendLabel": "Injury risk trend",
+    "sevenDaysAgo": "7 days ago",
+    "today": "Today",
+    "avgCondition": "Avg. condition",
+    "avgSleep": "Avg. sleep",
+    "sessionCount": "Sessions",
+    "insightEyebrow": "This week's takeaway",
+    "insight": {
+      "improving": "Your risk has been trending down this week. Keep up the current pace.",
+      "worsening": "Your risk has been trending up this week. Consider dialing back the intensity.",
+      "shortSleep": "Your sleep has been on the short side this week. Prioritize sleep first.",
+      "stable": "No major changes this week — you're logging consistently."
+    },
+    "offerTitle": "We'll keep sending this every week",
+    "offerSub": "The ticket monthly plan removes ads and gives you tickets for AI features every month.",
+    "offerCta": "See the ticket monthly plan",
+    "continueFree": "Continue free"
   },
   "home": {
     "dayNames": [
@@ -246,6 +353,9 @@
       "title": "5 min of stretching",
       "gain": "Injury risk −12%",
       "start": "Start"
+    },
+    "warmupLink": {
+      "title": "See your pre-practice warm-up"
     },
     "conditionCardDefaultLabel": "Today's Condition",
     "improvementTasksTitle": "Improvement Tasks",
@@ -329,6 +439,8 @@
     "miniCards": {
       "quickLog": "Quick Log",
       "quickLogSub": "Done in 30 sec",
+      "formAnalysis": "Form Analysis",
+      "formAnalysisSub": "AI checks it",
       "injuryReturn": "Until return",
       "competitionCountdown": "Until competition",
       "daysUnit": "{{n}}d",
@@ -457,7 +569,10 @@
       "deleteConfirm": "Delete",
       "deleteFinalTitle": "Are you absolutely sure?",
       "deleteFinalMessage": "Your practice records, condition data, and settings will all be deleted.",
-      "deleteFinalConfirm": "Delete permanently"
+      "deleteFinalConfirm": "Delete permanently",
+      "deleteFailedTitle": "Deletion failed",
+      "deleteFailedMessage": "Please check your connection and try again. Contact support if the problem continues.",
+      "deleting": "Deleting…"
     },
     "team": {
       "title": "Team Settings",
@@ -867,6 +982,8 @@
       "shareLevelPrivate": "Private",
       "shareLevelPartial": "Partial",
       "shareLevelFull": "Full",
+      "coachViewLink": "See what your coach sees",
+      "coachViewLinkSub": "Preview how your info actually looks to them",
       "tabHome": "Home",
       "tabMembers": "Teammates",
       "coachAnnouncements": "📌 From Your Coach",
@@ -1050,6 +1167,9 @@
       "videoSelected": "Video selected ✓  (tap to change)",
       "videoSelectPrompt": "Tap to select a video",
       "videoFormats": "MP4 / MOV supported",
+      "videoDurationNote": "* Videos longer than 1 minute cannot be analyzed",
+      "videoTooLongTitle": "Video too long",
+      "videoTooLongBody": "Only videos up to 1 minute can be analyzed. Please trim it to under 1 minute around the part where the form is clearly visible, then select it again.",
       "extractedFrames": "Extracted frames ({{n}})",
       "stepExtract": "Extract frames",
       "stepAnalyze": "AI analysis",
@@ -1094,6 +1214,14 @@
       "todayStrength": "Today's Strength",
       "todayTheme": "Today's Focus",
       "nextStep": "Next Step",
+      "copyNoteButton": "Copy improvement note",
+      "noteCopiedButton": "Copied",
+      "noteCopiedToast": "Copied — paste it into your practice notes",
+      "scheduleRecheckButton": "Remind me to re-shoot in 2 weeks",
+      "recheckScheduledButton": "Scheduled",
+      "recheckScheduledToast": "We'll notify you in 2 weeks",
+      "recheckScheduleFailedToast": "Couldn't schedule the reminder (check notification permissions)",
+      "recheckDefaultEventLabel": "form",
       "todayPracticeTheme": "Today's Practice Theme",
       "practiceThemeNote": "Focus on just this one thing during your run.",
       "recommendedDrill": "Recommended drill: {{name}}",
@@ -1114,14 +1242,14 @@
       "improvements": "⚠️ Areas to Improve",
       "recommendedDrills": "Recommended Drills",
       "deleteHistory": "Delete this entry",
-      "upsellTitle": "Go ad-free?",
-      "upsellBody": "Once you use up your free allowance you'll need to watch ads.\nWith the ad-free plan, use form analysis and meal analysis as much as you like, ad-free.",
+      "upsellTitle": "Try the ticket monthly plan?",
+      "upsellBody": "Once you use up your free allowance you'll need to watch ads.\nThe ticket monthly plan removes ads and gives you {{n}} tickets a month for form analysis and meal analysis.",
       "upsellFreeLabel": "FREE (current plan)",
       "upsellFreeDesc": "Ads after your free allowance",
       "upsellNoAdsBadge": "Ad-Free",
-      "upsellPrice": "¥480/mo",
-      "upsellNoAdsFull": "No ads at all",
-      "upsellCta": "View ad-free plan from ¥480/mo",
+      "upsellPrice": "¥980/mo",
+      "upsellNoAdsFull": "{{n}} tickets/month",
+      "upsellCta": "See the ticket monthly plan",
       "upsellDismiss": "Not now",
       "shotDateLabel": "Recorded On",
       "analyzedOn": "Analyzed on {{date}}",
@@ -1216,7 +1344,8 @@
       "rowAiFeatures": "AI features (form analysis, recovery advice, etc.)",
       "rowExtraTickets": "Extra ticket purchases",
       "priceCardSub": "{{price}}/month · Cancel anytime",
-      "skipContinue": "Continue with Free plan"
+      "skipContinue": "Continue with Free plan",
+      "coachLink": "Managing a team? See the coach plan"
     },
     "monthly": "Monthly",
     "yearlyDiscount": "Yearly (2 months free)",
@@ -1258,7 +1387,8 @@
         "feature4": "AI-generated practice menu suggestions (for teams)",
         "yearlyNote": "¥19,800/year (2 months free)"
       }
-    }
+    },
+    "perDayApprox": "~{{price}}/day"
   },
   "records": {
     "header": {
@@ -1312,7 +1442,8 @@
       "delete": "Delete",
       "official": "Official",
       "daysAgo": "{{n}}d ago",
-      "today": "Today"
+      "today": "Today",
+      "windConverted": "Est. still-air {{noWind}} · +2.0 conv. {{plus2}}"
     },
     "pbSummary": {
       "title": "Personal Bests"
@@ -1551,6 +1682,7 @@
       "within7": "One week out: Increase your carb ratio to build up glycogen stores. Keep fat and fiber intake modest."
     },
     "injury": {
+      "disclaimerBanner": "This recovery plan is AI-generated reference information, not a medical diagnosis or treatment. If pain persists or worsens, please consult a doctor or specialist.",
       "generatingTitle": "Generating recovery plan...",
       "generatingSub": "AI is analyzing your symptoms",
       "noInjuryTitle": "No injuries recorded",
@@ -1573,6 +1705,8 @@
       "treatmentLogEmpty": "No records yet",
       "deleteTreatmentLog": "Delete this treatment log",
       "overallSchedule": "Overall Schedule",
+      "overallScheduleHint": "Tap each phase to see the day-by-day content for that period",
+      "avoidPrefix": "Avoid: ",
       "dayRange": "Day {{first}}–{{last}}",
       "done": "Done",
       "current": "Here now",
@@ -1731,11 +1865,13 @@
     },
     "library": {
       "createTitle": "Build Today's Menu",
-      "createLead": "Two ways to build it. When unsure, \"Leave it to AI\" works great",
+      "createLead": "Three ways to build it. When unsure, \"Leave it to AI\" works great",
       "aiTitle": "Let AI Build It",
       "aiSub": "Just share today's practice idea in a sentence. AI picks the exercises",
       "manualTitle": "Pick Exercises Yourself",
       "manualSub": "Choose exercises from your library to build the menu around",
+      "buildTitle": "Build It Myself",
+      "buildSub": "No AI — pick exercises from your library and set the order yourself",
       "libraryTitle": "Practice Library",
       "addFolder": "Add Folder",
       "libraryLead": "Organize exercises you use often into folders so \"pick exercises\" is quick to use",
@@ -1777,6 +1913,9 @@
     "pickerModal": {
       "selectTitle": "Pick Exercises",
       "generateTitle": "Generate Menu with AI",
+      "buildStepTitle": "Build It",
+      "saveManualMenu": "Save This Menu",
+      "saveAsImage": "Save / Share as Image",
       "noFoldersTitle": "Create a folder in your library first",
       "noItems": "No exercises",
       "selectedLabel": "Selected",
@@ -1789,7 +1928,14 @@
       "generateWithPick": "Generate with These Picks",
       "backToSelect": "Choose Exercises Again",
       "environmentLabel": "Training environment, equipment & technique style (optional)",
-      "environmentPlaceholder": "e.g. no weight room / rotational throw / dirt track"
+      "environmentPlaceholder": "e.g. no weight room / rotational throw / dirt track",
+      "manualMinutesLabel": "Estimated total time (optional, min)",
+      "manualMinutesPlaceholder": "e.g. 45",
+      "buildManually": "Build it myself (no AI)",
+      "or": "or",
+      "manualEstimateLine": "(Est. duration: {{n}} min)",
+      "manualTotalBlocks": "{{n}} blocks total",
+      "manualTag": "Built"
     },
     "histDetailModal": {
       "title": "Generated Menu"
@@ -1806,7 +1952,8 @@
       "ticketUsed": "🎫 Used {{n}} ticket(s)",
       "genericFail": "Failed to generate. Please try again.",
       "apiError": "An API error occurred. Please try again shortly.",
-      "emptyResult": "Could not generate a menu. Please try again in a moment."
+      "emptyResult": "Could not generate a menu. Please try again in a moment.",
+      "manualSaved": "Menu saved"
     },
     "headerTitle": "Workout Menu"
   },
@@ -1868,6 +2015,7 @@
     "statMonthDistance": "Distance (mo)",
     "unitTimes": "{{count}}",
     "notifications": "Notifications",
+    "ranking": "View national ranking",
     "settings": "Settings"
   },
   "tickets": {
@@ -1939,9 +2087,9 @@
     "fixedWait": "Fixed wait time"
   },
   "auth": {
-    "tag": "WELCOME",
-    "title": "Get Started with sCORE",
-    "subtitle": "Log and analyze your training\nto hit new personal bests",
+    "tag": "SAVE YOUR PLAN",
+    "title": "Save this plan?",
+    "subtitle": "Sign in to see today's check-in and\npick up where you left off on any device",
     "googleLogin": "Continue with Google",
     "appleLogin": "Continue with Apple",
     "continueAsGuest": "Continue as Guest",
@@ -2328,7 +2476,8 @@
     "heroBadge": "For track & field coaches and advisors",
     "heroTitle": "Prevent athlete injuries.\nBuild a stronger team.",
     "heroSub": "Automate condition tracking, injury risk, and training logs.\nAn app that maximizes athlete growth while reducing the coach's workload.",
-    "heroBtn": "Try it free first",
+    "heroBtn": "Try Free on Web",
+    "heroBtnApp": "Install the App",
     "heroNote": "No credit card required · Cancel anytime",
     "dashTitle": "Coach Dashboard",
     "dashAllOk": "● Checked today",
@@ -2442,7 +2591,7 @@
       },
       {
         "t": "Share the team code with athletes",
-        "b": "Just tell them a 4-digit code — or share it as a QR code."
+        "b": "Just share a 6-character code — over LINE, text, or however you like."
       },
       {
         "t": "The app takes it from there",
@@ -2458,19 +2607,22 @@
       "Training log & condition tracking",
       "Personal best tracking",
       "Share card generation",
-      "AI coach advice"
+      "AI features included (starter tickets)"
     ],
     "plan2Badge": "Recommended for teams",
     "plan2Name": "Team Plan",
     "plan2Price": "¥1,980",
-    "plan2Per": "/ month (up to 20 athletes)",
+    "plan2Per": "/ month",
+    "plan2Note": "Team features (right) are free even without this plan. This plan makes the coach's own AI features unlimited.",
     "plan2Features": [
-      "Coach dashboard",
-      "Every athlete's condition at a glance",
-      "Automatic injury risk scoring",
-      "Team schedule management",
-      "Automatic training log tallying",
-      "Real-time notifications"
+      "Coach's own AI features fully unlimited",
+      "No ads",
+      "Coach dashboard (free)",
+      "Every athlete's condition at a glance (free)",
+      "Automatic injury risk scoring (free)",
+      "Team schedule management (free)",
+      "Automatic training log tallying (free)",
+      "Real-time notifications (free)"
     ],
     "plan2Btn": "Try free",
     "ctaTitle": "Athlete injuries are\npreventable now.",
@@ -2486,7 +2638,7 @@
   "growthReport": {
     "backLabel": "Back",
     "headerTitle": "Growth Report",
-    "lockTitle": "Growth Report is a no-ads plan feature",
+    "lockTitle": "Growth Report is a ticket monthly plan feature",
     "lockSub": "Look back anytime at your personal best trend, 90-day injury risk history, and training load trend",
     "unlockBtn": "Unlock",
     "detailTitlePb": "Personal Best Trend",
@@ -2850,6 +3002,24 @@
     "durationTitle": "📅 Since when",
     "notesTitle": "📝 Additional notes (optional)",
     "notesPlaceholder": "Pain during a specific motion, past injuries, etc...",
+    "gymAccessTitle": "🏋️ Do you have access to a weight room? (optional)",
+    "gymAccessOptions": { "yes": "Yes", "no": "No" },
+    "gymFreqTitle": "About how many times a week?",
+    "gymFreqOptions": { "1-2": "1-2x/week", "3-4": "3-4x/week", "5plus": "5+x/week" },
+    "gymEquipmentTitle": "What equipment is available? (select all that apply)",
+    "gymEquipmentOptions": {
+      "dumbbell": "Dumbbells",
+      "barbell": "Barbell",
+      "machine": "Machines",
+      "band": "Bands/tubing",
+      "bodyweight": "Bodyweight only"
+    },
+    "envPromptHeader": "Training environment",
+    "envPromptGymYes": "Has access to a weight room",
+    "envPromptGymNo": "No weight room access (favor bodyweight alternatives)",
+    "envPromptFreq": "Available {{freq}}",
+    "envPromptEquipment": "Available equipment: {{list}}",
+    "envPromptInstruction": "Only include exercises/training_modification content that is actually feasible given this training environment.",
     "painTypes": {
       "sharp": "Sharp / stabbing",
       "dull": "Dull / heavy",
@@ -2890,7 +3060,7 @@
       "moderate": "Moderate",
       "severe": "Severe"
     },
-    "suspectedConditionLabel": "Suspected Condition",
+    "suspectedConditionLabel": "Possible Strain Pattern (not a diagnosis)",
     "secImmediate": "Do This Right Now",
     "secRice": "RICE Protocol",
     "riceLabels": {
@@ -2921,6 +3091,7 @@
     "placeholder": "e.g.:\n400m × 5 reps, 3min rest, 68s\nFatigue 7, legs felt heavy\n\n\"Jog 10km\" alone is fine too",
     "hint1": "💡 Include fatigue level and time to auto-fill your record",
     "hint2": "💡 For quality sessions, write reps/distance/type like \"400m×5\", \"5km tempo run\", or \"hill sprints\" for automatic classification",
+    "fatigueLabel": "Today's fatigue level (used in your injury risk score)",
     "save": "Save",
     "emptyLibraryHint": "Register exercises in your menu library to pick them from here",
     "toastSuccess": "Practice recorded ✓",
@@ -3210,14 +3381,14 @@
       "close": "Close"
     },
     "upsell": {
-      "title": "Switch to the no-ads plan?",
-      "body": "Once you use up the free tier, you'll need to watch ads.\nWith the no-ads plan, meal analysis and form analysis are unlimited, ad-free.",
+      "title": "Try the ticket monthly plan?",
+      "body": "Once you use up the free tier, you'll need to watch ads.\nThe ticket monthly plan removes ads and gives you {{n}} tickets a month for meal analysis and form analysis.",
       "freePlan": "FREE (current plan)",
       "freePlanNote": "Watch ads after exceeding free tier",
       "noAdPlan": "No Ads",
-      "noAdPrice": "¥480/mo",
-      "noAdNote": "Completely ad-free",
-      "cta": "View no-ads plan from ¥480/mo",
+      "noAdPrice": "¥980/mo",
+      "noAdNote": "{{n}} tickets/month",
+      "cta": "See the ticket monthly plan",
       "notNow": "Not now"
     },
     "photoBtn": "Take Photo",
@@ -3593,6 +3764,7 @@
     "dateTwoDaysAgo": "2 days ago",
     "hint": "Freely describe your practice (choose the date with the buttons above)",
     "placeholder": "e.g.:\n400m × 5 reps, 3min rest, 68s\nFatigue 7, legs felt heavy\n\n\"Jog 10km\" alone is fine too",
+    "fatigueLabel": "Today's fatigue level (used in your injury risk score)",
     "save": "Save",
     "update": "Update",
     "toastUpdateSuccess": "Practice updated ✓",
@@ -3633,6 +3805,19 @@
       "good": "Good",
       "great": "Great"
     },
+    "painLabel": "Pain / discomfort",
+    "painOptions": {
+      "none": "None",
+      "mild": "Mild",
+      "strong": "Strong"
+    },
+    "intensityLabel": "Today's planned practice",
+    "intensityOptions": {
+      "rest": "Rest",
+      "light": "Light",
+      "normal": "Normal",
+      "high": "High"
+    },
     "optToggleOpen": "Also log practice & weight (optional)",
     "optToggleClose": "Close extra fields",
     "menuLabel": "Workout",
@@ -3643,7 +3828,13 @@
     "toastSaveSuccessToday": "Today's condition logged ✓",
     "toastSaveSuccessDate": "Condition for {{date}} logged ✓",
     "toastSaveErrorTitle": "Failed to save",
-    "toastSaveErrorBody": "Please try again"
+    "toastSaveErrorBody": "Please try again",
+    "decisionLevel": {
+      "ready": "Ready",
+      "caution": "Take caution",
+      "recover": "Recovery recommended"
+    },
+    "decisionClose": "OK"
   },
   "adGateModal": {
     "features": {
@@ -3784,6 +3975,30 @@
     "saveErrorBody": "Failed to save",
     "shareErrorBody": "Failed to share",
     "shareMessage": "{{date}}'s meal log #sCORE #trackandfield"
+  },
+  "workoutMenuShareCard": {
+    "transparentHint": "Transparent PNG — overlay it on a photo to share",
+    "footer": "Powered by sCORE — free download",
+    "save": "Save",
+    "share": "Share",
+    "permissionTitle": "Permission Required",
+    "permissionBody": "Please allow access to your camera roll",
+    "saveSuccessTitle": "✅ Saved",
+    "saveSuccessBody": "Transparent PNG saved to your camera roll",
+    "errorTitle": "Error",
+    "saveErrorBody": "Failed to save",
+    "shareErrorBody": "Failed to share",
+    "shareMessage": "{{date}}'s workout menu #sCORE #trackandfield",
+    "sourceAi": "AI Generated",
+    "sourceManual": "Self-Built",
+    "defaultCaption": "Today's Workout Menu",
+    "itemsUnit": "items",
+    "minUnit": "min",
+    "moreItems": "+{{n}} more",
+    "stats": {
+      "duration": "DURATION",
+      "count": "EXERCISES"
+    }
   },
   "trainingChart": {
     "noData": "No data available"

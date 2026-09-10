@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons'
 import Toast from 'react-native-toast-message'
 import { checkAdGate, recordUsage } from '../lib/adGate'
 import { TICKET_COST } from '../lib/ticketWallet'
+import { shouldShowInterstitial, showInterstitialAd } from '../lib/admob'
 import { getAiAuthHeader } from '../lib/supabase'
 import AdGateModal from '../components/AdGateModal'
 import TicketGateModal from '../components/TicketGateModal'
@@ -19,6 +20,7 @@ import { useAuth } from '../context/AuthContext'
 import { useRouter, useNavigation } from 'expo-router'
 import { createStorageQueue } from '../lib/storageQueue'
 import AIMenuResultCard from '../components/AIMenuResultCard'
+import WorkoutMenuShareCard, { type WorkoutMenuShareData } from '../components/WorkoutMenuShareCard'
 import { useTranslation } from 'react-i18next'
 import { useLanguage } from '../context/LanguageContext'
 import { narrativeLanguageInstruction } from '../lib/aiLanguage'
@@ -237,10 +239,18 @@ export default function WorkoutMenuScreen() {
   // 種目名だけではAIに伝わらない情報（投擲の技術スタイル・利用可能な設備等）を補うため追加
   // （2026-09-03指摘: 投擲でグライドなのに回転前提の練習や、無い設備前提の練習が提案される不具合）
   const [menuEnvironment, setMenuEnvironment] = useState('')
+  // AIを使わず、ピックした種目をそのまま自分で組み立てて保存するための合計時間目安（任意入力）
+  const [manualMinutes, setManualMinutes] = useState('')
+  // ピックモーダルをどちらの入口から開いたか（'ai'=種目指定してAIに組んでもらう／
+  // 'manual'=ライブラリからピックして自分で組み立てる=AI不使用）。selectステップ後の
+  // 遷移先(generate|build)を出し分けるために使う
+  const [pickMode, setPickMode] = useState<'ai' | 'manual'>('ai')
   const [expandedFolders, setExpandedFolders] = useState<string[]>([])
-  const [pickStep, setPickStep] = useState<'select' | 'generate'>('select')
+  const [pickStep, setPickStep] = useState<'select' | 'generate' | 'build'>('select')
   const [pickLoading, setPickLoading] = useState(false)
   const [pickResult, setPickResult] = useState('')
+  // シェアカード（自分で組み立て/AI生成どちらの結果でも、pickedItemsが実施順の種目名を持っている）
+  const [shareData, setShareData] = useState<WorkoutMenuShareData | null>(null)
 
   // フォルダ編集モーダル
   const [folderModal, setFolderModal] = useState(false)
@@ -389,14 +399,41 @@ export default function WorkoutMenuScreen() {
     if (updated) setDetailFolder(updated)
   }
 
-  // ── ピックAI ──────────────────────────────────────────
-  function openPicker() {
+  // ── ピック（AI組み立て／自分で組み立て 共通） ──────────────────────
+  function openPicker(mode: 'ai' | 'manual' = 'ai') {
+    setPickMode(mode)
     setPickedItems([])
     setPickIntent('')
     setPickResult('')
+    setManualMinutes('')
     setExpandedFolders(folders.length > 0 ? [folders[0].id] : [])
     setPickStep('select')
     setPickModal(true)
+  }
+
+  // 結果を見終えて閉じる瞬間（読んでいる最中には出さない）。
+  // pickMode==='manual'（チケット不要の自分で組み立てる経路）の時だけ対象にする。
+  // 'ai'（チケット消費して生成する経路）はチケット代を払った直後に広告まで出すと
+  // 二重取りの印象になるため対象外にする
+  function closePicker() {
+    if (pickResult !== '' && pickMode === 'manual') {
+      setTimeout(async () => {
+        if (await shouldShowInterstitial()) await showInterstitialAd().catch(() => {})
+      }, 300)
+    }
+    setPickModal(false)
+  }
+
+  // シェアカードを開く（'build'='自分で組み立て'/'generate'='AI生成' 両方から呼べる。
+  // どちらの経路でもpickedItemsに実施順の種目名が入っているため、同じデータ組み立てで済む）
+  function openShareCard() {
+    setShareData({
+      date: new Date().toLocaleDateString(language === 'ja' ? 'ja-JP' : 'en-US', { month: 'short', day: 'numeric', weekday: 'short' }),
+      intent: pickMode === 'ai' ? (pickIntent.trim() || undefined) : undefined,
+      items: pickedItems.map(p => p.text),
+      totalMinutes: pickMode === 'manual' && manualMinutes.trim() ? parseInt(manualMinutes.trim(), 10) : undefined,
+      source: pickMode,
+    })
   }
 
   function togglePickItem(folder: LibraryFolder, item: string) {
@@ -409,6 +446,43 @@ export default function WorkoutMenuScreen() {
 
   function toggleExpandFolder(id: string) {
     setExpandedFolders(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  // ピック種目の並び替え（メニュー内の実施順序を自分で決められるように）
+  function movePickedItem(idx: number, dir: -1 | 1) {
+    setPickedItems(prev => {
+      const target = idx + dir
+      if (target < 0 || target >= prev.length) return prev
+      const next = [...prev]
+      ;[next[idx], next[target]] = [next[target], next[idx]]
+      return next
+    })
+  }
+
+  // ── AIを使わず、ピックした種目をそのまま自分で組み立てて保存する ──
+  // 「練習ライブラリからピックアップして自分で組み立てる」ための非AI経路。
+  // API呼び出し・チケット消費が一切無いため、ゲート判定も不要でこの場で即完結する。
+  async function buildManualMenu() {
+    if (pickedItems.length === 0) return
+    const header = language === 'en' ? "📋 **Today's Menu (self-assembled)**" : '📋 **今日のメニュー（自分で組み立て）**'
+    const minutesLine = manualMinutes.trim()
+      ? `${t('workoutMenu.pickerModal.manualEstimateLine', { n: manualMinutes.trim() })}\n`
+      : ''
+    const body = pickedItems.map((p, i) => `${i + 1}. ${p.text}（${p.folderName}）`).join('\n')
+    const totalLine = t('workoutMenu.pickerModal.manualTotalBlocks', { n: pickedItems.length })
+    const text = `${header}\n${minutesLine}\n${body}\n\n${totalLine}`
+    setPickResult(text)
+    try {
+      const entry: AIGeneratedMenu = {
+        id: uid(),
+        intent: `[${t('workoutMenu.pickerModal.manualTag')}] ${pickedItems.map(p => p.text).join('・')}`,
+        result: text,
+        created_at: new Date().toISOString(),
+      }
+      const next = await historyStore.update(current => [entry, ...current].slice(0, 30))
+      setHistory(next)
+    } catch { /* 結果は表示済みなので握りつぶす */ }
+    Toast.show({ type: 'success', text1: t('workoutMenu.toast.manualSaved'), visibilityTime: 1800 })
   }
 
   // ── 広告視聴後に呼ばれるコア生成（ゲートチェック・使用記録なし）──
@@ -549,6 +623,12 @@ ${H1.coach}
     setAiResult('')
     setSelectedFolderIds(folders.map(f => f.id))
     setAiModal(true)
+  }
+
+  // この画面(「AIにおまかせ」)は必ずチケットを消費する経路なので、閉じる時に
+  // 広告までは出さない（チケット代＋広告の二重取りを避ける。closePickerを参照）
+  function closeAiModal() {
+    setAiModal(false)
   }
 
   async function generateCore(needsTicket = false, ticketCost = 0) {
@@ -722,14 +802,26 @@ ${H2.coach}
               <Ionicons name="chevron-forward" size={20} color={BRAND} />
             </HapticTouch>
 
-            {/* 種目指定生成 */}
-            <HapticTouch haptic="whoosh" style={s.manualBtn} onPress={openPicker} activeOpacity={0.85}>
+            {/* 種目指定生成（ライブラリからピック→AIに組んでもらう） */}
+            <HapticTouch haptic="whoosh" style={s.manualBtn} onPress={() => openPicker('ai')} activeOpacity={0.85}>
               <View style={s.manualBtnIcon}>
                 <Ionicons name="list-outline" size={22} color={colors.textSec} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.manualBtnTitle}>{t('workoutMenu.library.manualTitle')}</Text>
                 <Text style={s.manualBtnSub}>{t('workoutMenu.library.manualSub')}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textHint} />
+            </HapticTouch>
+
+            {/* ライブラリからピック→AIを使わず自分で組み立てる（2026-09-08 ユーザー要望で追加） */}
+            <HapticTouch haptic="whoosh" style={s.buildBtn} onPress={() => openPicker('manual')} activeOpacity={0.85}>
+              <View style={s.buildBtnIcon}>
+                <Ionicons name="construct-outline" size={22} color={colors.textSec} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.buildBtnTitle}>{t('workoutMenu.library.buildTitle')}</Text>
+                <Text style={s.buildBtnSub}>{t('workoutMenu.library.buildSub')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={colors.textHint} />
             </HapticTouch>
@@ -939,7 +1031,7 @@ ${H2.coach}
       </Modal>
 
       {/* ── AI生成モーダル ── */}
-      <Modal visible={aiModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setAiModal(false)}>
+      <Modal visible={aiModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={closeAiModal}>
         <View style={{ flex: 1, backgroundColor: colors.bg }}>
           <SafeAreaView style={{ flex: 1 }}>
             <View style={m.sheetHeader}>
@@ -947,7 +1039,7 @@ ${H2.coach}
                 <Ionicons name="sparkles" size={19} color={BRAND} />
                 <Text style={[m.sheetTitle, { fontSize: 17 }]}>{t('workoutMenu.aiModal.title')}</Text>
               </View>
-              <TouchableOpacity onPress={() => setAiModal(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={t('workoutMenu.a11y.close')}>
+              <TouchableOpacity onPress={closeAiModal} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={t('workoutMenu.a11y.close')}>
                 <Ionicons name="close" size={22} color="#888" />
               </TouchableOpacity>
             </View>
@@ -1037,17 +1129,21 @@ ${H2.coach}
       </Modal>
 
       {/* ── 手動ピッカーモーダル ── */}
-      <Modal visible={pickModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setPickModal(false)}>
+      <Modal visible={pickModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={closePicker}>
         <View style={{ flex: 1, backgroundColor: colors.bg }}>
           <SafeAreaView style={{ flex: 1 }}>
             <View style={m.sheetHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Ionicons name="list-outline" size={19} color={colors.textSec} />
                 <Text style={[m.sheetTitle, { fontSize: 17 }]}>
-                  {pickStep === 'select' ? t('workoutMenu.pickerModal.selectTitle') : t('workoutMenu.pickerModal.generateTitle')}
+                  {pickStep === 'select'
+                    ? t('workoutMenu.pickerModal.selectTitle')
+                    : pickStep === 'build'
+                      ? t('workoutMenu.pickerModal.buildStepTitle')
+                      : t('workoutMenu.pickerModal.generateTitle')}
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => setPickModal(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={t('workoutMenu.a11y.close')}>
+              <TouchableOpacity onPress={closePicker} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={t('workoutMenu.a11y.close')}>
                 <Ionicons name="close" size={22} color="#888" />
               </TouchableOpacity>
             </View>
@@ -1122,7 +1218,7 @@ ${H2.coach}
                   <HapticTouch
                     haptic="whoosh"
                     style={[pk.nextBtn, pickedItems.length === 0 && { opacity: 0.4 }]}
-                    onPress={() => { setPickResult(''); setPickStep('generate') }}
+                    onPress={() => { setPickResult(''); setPickStep(pickMode === 'manual' ? 'build' : 'generate') }}
                     disabled={pickedItems.length === 0}
                     activeOpacity={0.85}
                   >
@@ -1131,15 +1227,95 @@ ${H2.coach}
                   </HapticTouch>
                 </View>
               </>
-            ) : (
+            ) : pickStep === 'build' ? (
               <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
                 <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
 
-                  {/* ピック種目サマリ */}
+                  {/* ピック種目サマリ（並び替え可能＝そのまま実施順になる） */}
                   <Text style={m.label}>{t('workoutMenu.pickerModal.pickedSummary', { n: pickedItems.length })}</Text>
                   <View style={pk.confirmList}>
                     {pickedItems.map((p, idx) => (
                       <View key={idx} style={pk.confirmRow}>
+                        <View style={pk.reorderCol}>
+                          <TouchableOpacity onPress={() => movePickedItem(idx, -1)} disabled={idx === 0} hitSlop={{ top: 6, bottom: 2, left: 6, right: 6 }} accessibilityLabel={t('workoutMenu.a11y.moveUp')}>
+                            <Ionicons name="chevron-up" size={14} color={idx === 0 ? colors.border : colors.textSec} />
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => movePickedItem(idx, 1)} disabled={idx === pickedItems.length - 1} hitSlop={{ top: 2, bottom: 6, left: 6, right: 6 }} accessibilityLabel={t('workoutMenu.a11y.moveDown')}>
+                            <Ionicons name="chevron-down" size={14} color={idx === pickedItems.length - 1 ? colors.border : colors.textSec} />
+                          </TouchableOpacity>
+                        </View>
+                        <View style={pk.orderBadge}><Text style={pk.orderBadgeText}>{idx + 1}</Text></View>
+                        <View style={[pk.folderTag, { backgroundColor: p.folderColor + '22', borderColor: p.folderColor + '55' }]}>
+                          <Text style={{ color: p.folderColor, fontSize: 11, fontWeight: '700' }}>{p.folderName}</Text>
+                        </View>
+                        <Text style={pk.confirmText}>{p.text}</Text>
+                        <TouchableOpacity onPress={() => setPickedItems(prev => prev.filter((_, i) => i !== idx))} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                          <Ionicons name="close-circle" size={18} color={colors.textSec} />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+
+                  {/* 合計時間の目安（任意） */}
+                  <Text style={[m.label, { marginTop: 16 }]}>{t('workoutMenu.pickerModal.manualMinutesLabel')}</Text>
+                  <TextInput
+                    value={manualMinutes}
+                    onChangeText={txt => setManualMinutes(txt.replace(/[^0-9]/g, ''))}
+                    placeholder={t('workoutMenu.pickerModal.manualMinutesPlaceholder')}
+                    placeholderTextColor={colors.textHint}
+                    keyboardType="number-pad"
+                    style={[m.input, { width: 120 }]}
+                  />
+
+                  {/* 保存（AI不使用・コスト0） */}
+                  <HapticTouch
+                    haptic="whoosh"
+                    style={[pk.saveBtn, pickedItems.length === 0 && { opacity: 0.4 }]}
+                    onPress={buildManualMenu}
+                    disabled={pickedItems.length === 0}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
+                    <Text style={pk.saveBtnText}>{t('workoutMenu.pickerModal.saveManualMenu')}</Text>
+                  </HapticTouch>
+
+                  {/* 結果（保存後のプレビュー） */}
+                  {pickResult !== '' && (
+                    <>
+                      <AIMenuResultCard text={pickResult} />
+                      <HapticTouch haptic="whoosh" style={pk.shareCardBtn} onPress={openShareCard} activeOpacity={0.85}>
+                        <Ionicons name="image-outline" size={16} color={BRAND} />
+                        <Text style={pk.shareCardBtnText}>{t('workoutMenu.pickerModal.saveAsImage')}</Text>
+                      </HapticTouch>
+                    </>
+                  )}
+                </ScrollView>
+
+                <View style={pk.bottomBar}>
+                  <TouchableOpacity onPress={() => setPickStep('select')} style={pk.backBtn} activeOpacity={0.8}>
+                    <Ionicons name="chevron-back" size={16} color="#888" />
+                    <Text style={{ color: '#888', fontWeight: '700' }}>{t('workoutMenu.pickerModal.backToSelect')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </KeyboardAvoidingView>
+            ) : (
+              <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
+
+                  {/* ピック種目サマリ（並び替え可能＝そのまま実施順になる） */}
+                  <Text style={m.label}>{t('workoutMenu.pickerModal.pickedSummary', { n: pickedItems.length })}</Text>
+                  <View style={pk.confirmList}>
+                    {pickedItems.map((p, idx) => (
+                      <View key={idx} style={pk.confirmRow}>
+                        <View style={pk.reorderCol}>
+                          <TouchableOpacity onPress={() => movePickedItem(idx, -1)} disabled={idx === 0} hitSlop={{ top: 6, bottom: 2, left: 6, right: 6 }} accessibilityLabel={t('workoutMenu.a11y.moveUp')}>
+                            <Ionicons name="chevron-up" size={14} color={idx === 0 ? colors.border : colors.textSec} />
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => movePickedItem(idx, 1)} disabled={idx === pickedItems.length - 1} hitSlop={{ top: 2, bottom: 6, left: 6, right: 6 }} accessibilityLabel={t('workoutMenu.a11y.moveDown')}>
+                            <Ionicons name="chevron-down" size={14} color={idx === pickedItems.length - 1 ? colors.border : colors.textSec} />
+                          </TouchableOpacity>
+                        </View>
+                        <View style={pk.orderBadge}><Text style={pk.orderBadgeText}>{idx + 1}</Text></View>
                         <View style={[pk.folderTag, { backgroundColor: p.folderColor + '22', borderColor: p.folderColor + '55' }]}>
                           <Text style={{ color: p.folderColor, fontSize: 11, fontWeight: '700' }}>{p.folderName}</Text>
                         </View>
@@ -1193,7 +1369,15 @@ ${H2.coach}
 
                   {/* 結果 */}
                   {pickResult !== '' && (
-                    <AIMenuResultCard text={pickResult} loading={pickLoading} onRegenerate={handleGenerateFromPicked} />
+                    <>
+                      <AIMenuResultCard text={pickResult} loading={pickLoading} onRegenerate={handleGenerateFromPicked} />
+                      {!pickLoading && (
+                        <HapticTouch haptic="whoosh" style={pk.shareCardBtn} onPress={openShareCard} activeOpacity={0.85}>
+                          <Ionicons name="image-outline" size={16} color={BRAND} />
+                          <Text style={pk.shareCardBtnText}>{t('workoutMenu.pickerModal.saveAsImage')}</Text>
+                        </HapticTouch>
+                      )}
+                    </>
                   )}
                 </ScrollView>
 
@@ -1262,6 +1446,10 @@ ${H2.coach}
         ticketBalance={ticketGateBalance}
         onClose={() => setTicketGateVisible(false)}
       />
+
+      {shareData && (
+        <WorkoutMenuShareCard data={shareData} onClose={() => setShareData(null)} />
+      )}
     </View>
   )
 }
@@ -1286,6 +1474,10 @@ const makeS = (colors: ThemeColors) => StyleSheet.create({
   manualBtnIcon:  { width: 48, height: 48, borderRadius: 14, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' },
   manualBtnTitle: { color: colors.text, fontSize: 15, fontWeight: '700' },
   manualBtnSub:   { color: colors.textSec, fontSize: 12, marginTop: 2 },
+  buildBtn:      { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.card, borderRadius: 21, borderWidth: 1, borderColor: colors.border, padding: 16 },
+  buildBtnIcon:  { width: 48, height: 48, borderRadius: 14, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' },
+  buildBtnTitle: { color: colors.text, fontSize: 15, fontWeight: '700' },
+  buildBtnSub:   { color: colors.textSec, fontSize: 12, marginTop: 2 },
   aiBtn:      { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.card, borderRadius: 21, borderWidth: 1, borderColor: colors.border, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
   aiBtnIcon:  { width: 48, height: 48, borderRadius: 14, backgroundColor: BRAND + '14', alignItems: 'center', justifyContent: 'center' },
   aiBtnTitle: { color: colors.text, fontSize: 15, fontWeight: '700' },
@@ -1331,6 +1523,15 @@ const makePk = (colors: ThemeColors) => StyleSheet.create({
   confirmRow:   { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   folderTag:    { borderWidth: 1, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 },
   confirmText:  { flex: 1, color: colors.text, fontSize: 14 },
+  reorderCol:   { alignItems: 'center', justifyContent: 'center' },
+  orderBadge:     { width: 20, height: 20, borderRadius: 10, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center' },
+  orderBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
+  // 「組み立てる」ステップの保存ボタン（AI不使用・コスト0）。ai.genBtnと同じ塗りつぶし
+  // スタイルにして、このステップ内では唯一のプライマリアクションだと分かるようにしている
+  saveBtn:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: BRAND, borderRadius: 14, paddingVertical: 16, marginTop: 20 },
+  saveBtnText:  { color: '#fff', fontWeight: '800', fontSize: 15 },
+  shareCardBtn:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1.5, borderColor: BRAND, borderRadius: 14, paddingVertical: 13, marginTop: 12 },
+  shareCardBtnText:  { color: BRAND, fontWeight: '800', fontSize: 14 },
 })
 
 const ai = StyleSheet.create({

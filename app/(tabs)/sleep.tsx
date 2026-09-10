@@ -18,6 +18,7 @@ import AnimatedSection from '../../components/AnimatedSection'
 import type { SleepRecord } from '../../types'
 import { localDateStr, todayLocalISO } from '../../lib/dateLocal'
 import { getSleepRecords, updateSleepRecords } from '../../lib/sleepStore'
+import { shouldShowInterstitial, showInterstitialAd } from '../../lib/admob'
 import { useTranslation } from 'react-i18next'
 import { useLanguage } from '../../context/LanguageContext'
 import type { Language } from '../../context/LanguageContext'
@@ -368,6 +369,10 @@ export default function SleepScreen() {
       Toast.show({ type: 'success', text1: t('sleep.saveSuccess'), text2: `${pad(bedHour)}:${pad(bedMin)} → ${pad(wakeHour)}:${pad(wakeMin)}  ${fmtDuration(durationMin, language)}` })
       setFormOpen(false)
       setNotes('')
+      // インタースティシャル広告（2026-09-08 追加。他の記録保存と同じ共有カウンターで2回に1回）
+      setTimeout(async () => {
+        if (await shouldShowInterstitial()) await showInterstitialAd().catch(() => {})
+      }, 400)
     } catch {
       Toast.show({ type: 'error', text1: t('sleep.saveError') })
     } finally {

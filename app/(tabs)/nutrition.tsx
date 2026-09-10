@@ -4,7 +4,9 @@ import {
   Animated, Image, Platform, TextInput, Modal, Pressable,
 } from 'react-native'
 import { checkAdGate, recordUsage } from '../../lib/adGate'
+import { shouldShowInterstitial, showInterstitialAd } from '../../lib/admob'
 import { TICKET_COST } from '../../lib/ticketWallet'
+import { TICKET_MONTHLY_GRANT } from '../../lib/purchaseService'
 import AdGateModal from '../../components/AdGateModal'
 import TicketGateModal from '../../components/TicketGateModal'
 import NutritionShareCard, { type NutritionShareData } from '../../components/NutritionShareCard'
@@ -702,6 +704,8 @@ export default function NutritionScreen() {
       setImageUri(null)
       Sounds.save()
       Toast.show({ type: 'success', text1: t('nutrition.saveSuccess') })
+      // このhandleSaveはAI写真分析(チケット消費済み)の確定保存。チケット代＋広告の
+      // 二重取りを避けるためここでは広告を出さない（無料の手動入力はhandleManualSave側で出す）
     } catch (e) {
       Toast.show({ type: 'error', text1: t('nutrition.saveError'), text2: e instanceof Error ? e.message : '' })
     } finally {
@@ -754,6 +758,9 @@ export default function NutritionScreen() {
       setManualName(''); setManualCalories(''); setManualProtein(''); setManualCarb(''); setManualFat('')
       Sounds.save()
       Toast.show({ type: 'success', text1: t('nutrition.saveSuccess') })
+      setTimeout(async () => {
+        if (await shouldShowInterstitial()) await showInterstitialAd().catch(() => {})
+      }, 400)
     } catch (e) {
       Toast.show({ type: 'error', text1: t('nutrition.saveError'), text2: e instanceof Error ? e.message : '' })
     } finally {
@@ -1125,7 +1132,7 @@ export default function NutritionScreen() {
                 <Text style={{ color: '#fff', fontSize: 17, fontWeight: '800' }}>{t('nutrition.upsell.title')}</Text>
               </View>
               <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, lineHeight: 20 }}>
-                {t('nutrition.upsell.body')}
+                {t('nutrition.upsell.body', { n: TICKET_MONTHLY_GRANT })}
               </Text>
               <View style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 14, gap: 8 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1139,12 +1146,12 @@ export default function NutritionScreen() {
                     </View>
                     <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>{t('nutrition.upsell.noAdPrice')}</Text>
                   </View>
-                  <Text style={{ color: '#4ade80', fontSize: 12, fontWeight: '700' }}>{t('nutrition.upsell.noAdNote')}</Text>
+                  <Text style={{ color: '#4ade80', fontSize: 12, fontWeight: '700' }}>{t('nutrition.upsell.noAdNote', { n: TICKET_MONTHLY_GRANT })}</Text>
                 </View>
               </View>
               <TouchableOpacity
                 style={{ backgroundColor: '#166534', borderRadius: 14, paddingVertical: 15, alignItems: 'center' }}
-                onPress={() => { setUpsellVisible(false); router.push('/paywall?plan=noad' as any) }}
+                onPress={() => { setUpsellVisible(false); router.push('/paywall?plan=ticket_monthly' as any) }}
                 activeOpacity={0.85}
               >
                 <Text style={{ color: '#fff', fontSize: 15, fontWeight: '800' }}>{t('nutrition.upsell.cta')}</Text>

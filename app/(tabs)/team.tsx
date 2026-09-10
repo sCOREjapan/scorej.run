@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { useLanguage } from '../../context/LanguageContext'
 import { narrativeLanguageInstruction } from '../../lib/aiLanguage'
-import { useFocusEffect } from 'expo-router'
+import { useFocusEffect, useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import Svg, { Circle } from 'react-native-svg'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -23,6 +23,7 @@ import { calcLevelInfo, RANK_TIERS, getTierTitle } from '../../lib/gamification'
 import { getEventLabel } from '../../lib/eventLabels'
 import { getCachedWeather } from '../../lib/weather'
 import { calcWeatherRiskBonus } from '../../lib/weatherRisk'
+import { trackFeatureUse, trackTeamCreated, trackTeamJoin, trackTeamDashboardViewed } from '../../lib/analytics'
 import type { TrainingSession, SleepRecord } from '../../types'
 import { supabase, getAiAuthHeader } from '../../lib/supabase'
 import {
@@ -33,7 +34,7 @@ import {
   fetchPlayerStats, upsertPlayerStats,
   syncTeamSessions, fetchTeamSessions, clearPlayerPrivateData,
   fetchTeamEvents, addTeamEvent, deleteTeamEvent,
-  createTeam, fetchTeamByCode,
+  createTeam, fetchTeamByCode, deleteTeam,
   sendCoachNotification,
   type TeamMessageRow, type TeamVideoRow, type BodyReportRow, type TeamMemberRow, type PlayerStatsRow, type TeamSessionRow, type TeamEventRow, type TeamEventType,
 } from '../../lib/supabaseTeam'
@@ -707,11 +708,23 @@ function CoachSetupScreen({ onCreated, onBack }: { onCreated:(s:TeamSetup)=>void
     if (!teamName.trim()||!coachName.trim()) { Toast.show({type:'error',text1:t('team.coachSetup.missingFields')}); return }
     setBusy(true)
     try {
-      const s: TeamSetup = { teamName:teamName.trim(), coachName:coachName.trim(), code:generateCode(), createdAt:new Date().toISOString() }
+      // 2026-09-09: 生成したcodeが既存チームと衝突していないか確認せずcreateTeam()
+      // (upsert onConflict:'code')を呼んでいたため、衝突時に他コーチの既存チーム行
+      // （team_name/coach_name）を黙って上書きしてしまう危険があった
+      // （lib/referral.tsの同種のコード生成には既に同じ対策が入っている）。
+      // 最大5回まで、既存チームと衝突しないcodeが引けるまで再生成する。
+      let code = generateCode()
+      for (let i = 0; i < 5; i++) {
+        const existing = await fetchTeamByCode(code).catch(() => null)
+        if (!existing) break
+        code = generateCode()
+      }
+      const s: TeamSetup = { teamName:teamName.trim(), coachName:coachName.trim(), code, createdAt:new Date().toISOString() }
       await AsyncStorage.setItem(SETUP_KEY, JSON.stringify(s))
       // Supabase にチームを登録（失敗してもローカル作成は進める。
       // ダッシュボードの load() で再登録され自己修復するため）
       await createTeam(s.code, s.teamName, s.coachName).catch(() => {})
+      trackTeamCreated()
       onCreated(s)
     } catch {
       Toast.show({type:'error',text1:t('team.coachSetup.createFailed')})
@@ -810,6 +823,7 @@ function PlayerJoinScreen({ onJoined, onBack }: { onJoined:(j:JoinedTeam)=>void;
       await registerMember(cleaned, playerName.trim(), '').catch(() => {})
       // コーチに通知（失敗しても参加自体は成功）
       sendPush(t('team.videoSubmit.newMemberTitle'), t('team.videoSubmit.newMemberBody', { name: playerName.trim() }), 'coaches', cleaned).catch(() => {})
+      trackTeamJoin('player')
       Toast.show({type:'success',text1:t('team.playerJoin.joinedToast', { teamName }),visibilityTime:2000})
       onJoined(j)
     } catch {
@@ -846,7 +860,12 @@ function PlayerJoinScreen({ onJoined, onBack }: { onJoined:(j:JoinedTeam)=>void;
                 autoCapitalize="none"
                 autoCorrect={false}
                 autoComplete="off"
-                keyboardType="ascii-capable"
+                // 2026-09-08: 'ascii-capable' はiOS専用のkeyboardTypeで、Androidでは無効値として
+                // 無視されるためOS標準キーボード(日本語IME等)が出てしまい、全角文字が入力されると
+                // sanitize処理(半角英数以外を除去)で文字数が減って必ずコード不一致→参加失敗になる
+                // 不具合があった。'visible-password'はAndroidでも確実に半角英数キーボードを強制する
+                // 定番の代替値なので、iOS以外はこちらを使う
+                keyboardType={Platform.OS === 'ios' ? 'ascii-capable' : 'visible-password'}
                 maxLength={6}
               />
             </View>
@@ -1121,6 +1140,8 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
     })()
   }, [setup.code])
 
+  useEffect(() => { trackTeamDashboardViewed('coach') }, [])
+
   async function sendMessage() {
     if (!msgText.trim() || msgSending) return
     setMsgSending(true)
@@ -1374,6 +1395,7 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
       const text = (data.content?.[0]?.text ?? '').trim()
       if (!text) throw new Error('生成に失敗しました')
       await recordUsage('workout')
+      trackFeatureUse('workout')
       insertPhrase(text)
       setShowAiMenuSheet(false)
       setAiFocusTags(new Set()); setAiFreeNote(''); setAiIntensity('normal')
@@ -2467,6 +2489,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
   const { t } = useTranslation()
   const { language } = useLanguage()
   const { colors } = useTheme()
+  const router = useRouter()
   const pl = useMemo(() => makePlStyles(colors), [colors])
   const co = useMemo(() => makeCoStyles(colors), [colors])
   const DAY_NAMES = t('home.dayNames', { returnObjects: true }) as unknown as string[]
@@ -2593,18 +2616,25 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
     }
     // shareLv === 0 は同期しない
     // レベル + 最新コンディションを自動同期
-    const lvInfo = calcLevelInfo(loadedSessions.length, language)
-    const cutoff30 = localDateStr(new Date(Date.now() - 30*24*60*60*1000))
-    const recent30 = loadedSessions.filter(s => s.session_date >= cutoff30)
-    const lastSess = loadedSessions[0]
-    try {
-      const streakVal = calcStreak(loadedSessions)
-      await upsertPlayerStats(
-        joined.code, joined.playerName, myStat?.event ?? '', myStat?.pb_display ?? '', lvInfo.level,
-        lastSess?.condition_level ?? 7, lastSess?.fatigue_level ?? 5,
-        lastSess?.session_date ?? '', recent30.length, myStat?.goal ?? '', streakVal,
-      )
-    } catch { /* DB列未追加時もサイレントに無視 */ }
+    // 2026-09-09: 以前はshareLvに関わらずここを無条件実行しており、「非公開」
+    // （＝「名前と種目のみ表示。データはコーチに共有されません」）を選んでいても
+    // 体調・疲労度・連続記録日数がコーチ側に送られ続けていた。0の時はスキップする
+    // （clearPlayerPrivateDataが既に該当フィールドをリセット済みなので、ここで
+    // 何もしなければクリアされた状態が維持される）。
+    if (shareLv >= 1) {
+      const lvInfo = calcLevelInfo(loadedSessions.length, language)
+      const cutoff30 = localDateStr(new Date(Date.now() - 30*24*60*60*1000))
+      const recent30 = loadedSessions.filter(s => s.session_date >= cutoff30)
+      const lastSess = loadedSessions[0]
+      try {
+        const streakVal = calcStreak(loadedSessions)
+        await upsertPlayerStats(
+          joined.code, joined.playerName, myStat?.event ?? '', myStat?.pb_display ?? '', lvInfo.level,
+          lastSess?.condition_level ?? 7, lastSess?.fatigue_level ?? 5,
+          lastSess?.session_date ?? '', recent30.length, myStat?.goal ?? '', streakVal,
+        )
+      } catch { /* DB列未追加時もサイレントに無視 */ }
+    }
     } catch (e) {
       if (__DEV__) console.warn('[PlayerDashboard] load error:', e)
     } finally {
@@ -2714,6 +2744,8 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
       } catch {}
     })()
   }, [joined.code])
+
+  useEffect(() => { trackTeamDashboardViewed('player') }, [])
 
   async function saveStats() {
     const lvInfo = calcLevelInfo(sessions.length, language)
@@ -2878,6 +2910,22 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                   </View>
                 )
               })()}
+              {/* 2026-09-09: app/coach-view.tsxへの遷移導線が無く「孤立画面」になっていたバグ修正。
+                  中身は自分のローカルデータ(週次サマリー・PB・睡眠トレンド)+チーム通知を「コーチ視点」で
+                  見せる画面で、共有設定(shareSettings)のすぐ下に置くのが自然と判断した */}
+              <HapticTouch
+                haptic="whoosh"
+                style={{ flexDirection:'row', alignItems:'center', gap:8, marginTop:8, paddingVertical:10, paddingHorizontal:12, borderRadius:12, backgroundColor:colors.card, borderWidth:1, borderColor:colors.border }}
+                onPress={() => router.push('/coach-view')}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="eye-outline" size={16} color={colors.textSec}/>
+                <View style={{flex:1}}>
+                  <Text style={{color:colors.text,fontSize:12,fontWeight:'700'}}>{t('team.playerDashboard.coachViewLink')}</Text>
+                  <Text style={{color:colors.textHint,fontSize:10,marginTop:1}}>{t('team.playerDashboard.coachViewLinkSub')}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={14} color={colors.textHint}/>
+              </HapticTouch>
             </View>
 
             {/* ─ タブバー ─ */}
@@ -3701,7 +3749,13 @@ export default function TeamScreen() {
   }
 
   // チーム削除（コーチ）
+  // 2026-09-09: 以前はローカルのROLE_KEY/SETUP_KEYを消すだけでSupabase側の
+  // teams行が残り続け、「削除したはずのチーム」に選手が参加し続けられる不具合が
+  // あった（確認ダイアログの「参加コードが無効になり、全メンバーのデータが
+  // 失われます」という文言と実際の挙動が一致していなかった）。deleteTeam()で
+  // Supabase側も削除してから、ローカルをクリアする。
   async function handleDeleteTeam() {
+    if (setup?.code) await deleteTeam(setup.code).catch(() => {})
     await AsyncStorage.multiRemove([ROLE_KEY, SETUP_KEY]).catch(() => {})
     setSetup(null)
     setState('select-role')

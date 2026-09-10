@@ -4,7 +4,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  View, Text, TouchableOpacity, ScrollView,
+  View, Text, TouchableOpacity, ScrollView, Image,
   StyleSheet, TextInput, KeyboardAvoidingView, Platform, PanResponder,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -15,13 +15,33 @@ import Svg, { Circle } from 'react-native-svg'
 import * as Haptics from 'expo-haptics'
 import { Sounds, unlockAudio } from '../lib/sounds'
 import { todayLocalISO } from '../lib/dateLocal'
-import { updateStretchResult } from '../lib/stretchResultStore'
+import { updateStretchResult, markStretchedOnce } from '../lib/stretchResultStore'
 import { useTranslation } from 'react-i18next'
 
 const CUSTOM_PARTS_KEY     = 'trackmate_stretch_custom_parts'
 const PART_ORDER_KEY       = 'trackmate_stretch_part_order'
 const HIDDEN_PARTS_KEY     = 'trackmate_stretch_hidden_parts'
 const MAX_DAILY_REDUCTION  = 20
+
+// マスコットキャラのストレッチ実演イラスト（12部位分・背景透過PNG）。
+// カスタム部位(id: `custom_...`)には対応画像がないため、その場合は emoji アイコンにフォールバックする。
+const STRETCH_MASCOT_IMAGES: Record<string, any> = {
+  shoulder_neck: require('../assets/illustrations/stretches/stretch_shoulder_neck.png'),
+  chest_scapula: require('../assets/illustrations/stretches/stretch_chest_scapula.png'),
+  lower_back:    require('../assets/illustrations/stretches/stretch_lower_back.png'),
+  core:          require('../assets/illustrations/stretches/stretch_core.png'),
+  hip:           require('../assets/illustrations/stretches/stretch_hip.png'),
+  glutes:        require('../assets/illustrations/stretches/stretch_glutes.png'),
+  adductor:      require('../assets/illustrations/stretches/stretch_adductor.png'),
+  quad:          require('../assets/illustrations/stretches/stretch_quad.png'),
+  hamstring:     require('../assets/illustrations/stretches/stretch_hamstring.png'),
+  calf_achilles: require('../assets/illustrations/stretches/stretch_calf_achilles.png'),
+  ankle:         require('../assets/illustrations/stretches/stretch_ankle.png'),
+  wrist_forearm: require('../assets/illustrations/stretches/stretch_wrist_forearm.png'),
+}
+function getPartMascotImage(part: BodyPart): any | null {
+  return STRETCH_MASCOT_IMAGES[part.id] ?? null
+}
 
 // ── 部位データ ───────────────────────────────────────────────
 const BODY_PARTS = [
@@ -86,6 +106,7 @@ async function saveResult(reduction: number): Promise<{ applied: number; capped:
       applied = newTotal - prevTotal
       return { date: today, reduction: newTotal, showBanner: applied > 0, lastReduction: applied }
     })
+    if (applied > 0) markStretchedOnce()
     return { applied, capped: applied < reduction }
   } catch {
     return { applied: 0, capped: false }
@@ -317,6 +338,18 @@ function PartSelectScreen({
 
   return (
     <ScrollView contentContainerStyle={ps.content} showsVerticalScrollIndicator={false} scrollEnabled={!dragging}>
+      {/* 2026-09-09: 部位が多い(12+カスタム)とスクロールしないと開始ボタンに届かないという
+          指摘を受けて、選択後すぐ押せるよう一番上に移動した（元は一覧の最後にあった） */}
+      <TouchableOpacity
+        style={[ps.startBtn, { marginBottom: 20 }, selected.size === 0 && { opacity: 0.35 }]}
+        onPress={onStart}
+        disabled={selected.size === 0}
+        activeOpacity={0.85}
+      >
+        <Text style={ps.startBtnText}>{t('stretchRecovery.select.startButton', { n: selected.size })}</Text>
+        <Ionicons name="arrow-forward" size={20} color="#fff" />
+      </TouchableOpacity>
+
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <Text style={[ps.title, { marginBottom: 0 }]}>{t('stretchRecovery.select.title')}</Text>
         <TouchableOpacity onPress={() => setEditMode(v => !v)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -344,7 +377,11 @@ function PartSelectScreen({
                   <Text style={ps.badgeText}>{t('stretchRecovery.select.recommend')}</Text>
                 </View>
               )}
-              <Text style={{ fontSize: 32, marginBottom: 8 }}>{part.icon}</Text>
+              {getPartMascotImage(part) ? (
+                <Image source={getPartMascotImage(part)} style={ps.mascot} resizeMode="contain" />
+              ) : (
+                <Text style={{ fontSize: 32, marginBottom: 8 }}>{part.icon}</Text>
+              )}
               <Text style={[ps.partName, isSelected && { color: '#C8102E' }]}>{getPartName(part, t)}</Text>
             </TouchableOpacity>
           )
@@ -382,16 +419,6 @@ function PartSelectScreen({
         )}
       </View>
       )}
-
-      <TouchableOpacity
-        style={[ps.startBtn, selected.size === 0 && { opacity: 0.35 }]}
-        onPress={onStart}
-        disabled={selected.size === 0}
-        activeOpacity={0.85}
-      >
-        <Text style={ps.startBtnText}>{t('stretchRecovery.select.startButton', { n: selected.size })}</Text>
-        <Ionicons name="arrow-forward" size={20} color="#fff" />
-      </TouchableOpacity>
     </ScrollView>
   )
 }
@@ -415,6 +442,7 @@ const ps = StyleSheet.create({
     paddingHorizontal: 8, paddingVertical: 3,
   },
   badgeText:     { color: '#fff', fontSize: 10, fontWeight: '900' },
+  mascot:        { width: 64, height: 48, marginBottom: 8 },
   partName:      { color: '#111827', fontSize: 16, fontWeight: '800', textAlign: 'center' },
   startBtn:      {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
@@ -621,7 +649,11 @@ function StretchScreen({
 
       <ScrollView contentContainerStyle={ss.content} showsVerticalScrollIndicator={false}>
         {/* 部位名 */}
-        <Text style={ss.partIcon}>{part.icon}</Text>
+        {getPartMascotImage(part) ? (
+          <Image source={getPartMascotImage(part)} style={ss.partMascot} resizeMode="contain" />
+        ) : (
+          <Text style={ss.partIcon}>{part.icon}</Text>
+        )}
         <Text style={ss.partName}>{getPartName(part, t)}</Text>
 
         {/* 左右インジケーター（bilateral のみ） */}
@@ -751,6 +783,7 @@ const ss = StyleSheet.create({
   timeOptText:   { color: '#6b7280', fontSize: 14, fontWeight: '700' },
   content:       { padding: 20, paddingBottom: 40, alignItems: 'center' },
   partIcon:      { fontSize: 48, marginBottom: 8 },
+  partMascot:    { width: 168, height: 128, marginBottom: 4 },
   partName:      { color: '#111827', fontSize: 26, fontWeight: '900', textAlign: 'center' },
   manualHint:    { color: '#6b7280', fontSize: 14, fontWeight: '600', marginTop: 12, textAlign: 'center' },
   // 左右インジケーター

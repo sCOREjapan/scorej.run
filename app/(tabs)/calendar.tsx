@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as Crypto from 'expo-crypto'
 import { Sounds, unlockAudio } from '../../lib/sounds'
+import { shouldShowInterstitial, showInterstitialAd } from '../../lib/admob'
 import { getSessionTypeLabel } from '../../lib/sessionTypeLabels'
 import HapticTouch from '../../components/HapticTouch'
 import Toast from 'react-native-toast-message'
@@ -168,6 +169,12 @@ function AddEventModal({
       Sounds.save()
       Toast.show({ type: 'success', text1: editEvent ? t('calendarTab.modal.updateSuccess') : t('calendarTab.modal.addSuccess'), visibilityTime: 1600 })
       onSaved(); onClose()
+      // 新規追加の時だけ（編集の度に広告を出すと煩わしいため）
+      if (!editEvent) {
+        setTimeout(async () => {
+          if (await shouldShowInterstitial()) await showInterstitialAd().catch(() => {})
+        }, 400)
+      }
     } catch {
       Toast.show({ type: 'error', text1: t('calendarTab.modal.saveError') })
     } finally { setSaving(false) }

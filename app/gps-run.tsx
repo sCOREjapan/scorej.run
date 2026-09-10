@@ -181,6 +181,11 @@ export default function GpsRunScreen() {
     setRunState('paused')
     pauseTimer()
     stopLocationWatch()
+    // 2026-09-10: 一時停止中もlastCoordRefが停止直前の座標を保持したままだったため、
+    // 再開後の最初のGPS取得で「停止中に移動した分(信号待ちで動いた・GPSドリフト等)」の
+    // 距離が誤って加算されるバグがあった。再開時に新しい基準点として最初の1点を
+    // 捨てるため、一時停止時にnullへリセットする。
+    lastCoordRef.current = null
   }, [])
 
   const handleResume = useCallback(async () => {

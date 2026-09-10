@@ -332,7 +332,7 @@ export default function GrowthReportScreen() {
             <Ionicons name="lock-closed" size={40} color={GOLD} />
             <Text style={st.lockTitle}>{t('growthReport.lockTitle')}</Text>
             <Text style={st.lockSub}>{t('growthReport.lockSub')}</Text>
-            <TouchableOpacity style={st.unlockBtn} onPress={() => router.push('/paywall?plan=noad')} activeOpacity={0.85}>
+            <TouchableOpacity style={st.unlockBtn} onPress={() => router.push('/paywall?plan=ticket_monthly')} activeOpacity={0.85}>
               <Text style={st.unlockBtnTxt}>{t('growthReport.unlockBtn')}</Text>
             </TouchableOpacity>
           </View>

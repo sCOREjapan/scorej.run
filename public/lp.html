@@ -328,6 +328,27 @@
     .tag-pro   { background: rgba(22,101,52,0.1);   color: #15803d; border: 1px solid rgba(22,101,52,0.25); }
     .tag-elite { background: rgba(180,83,9,0.1);    color: #b45309; border: 1px solid rgba(180,83,9,0.2); }
     .tag-team  { background: rgba(37,99,235,0.08);  color: #1d4ed8; border: 1px solid rgba(37,99,235,0.2); }
+    .tag-ticket{ background: rgba(22,101,52,0.1);   color: #15803d; border: 1px solid rgba(22,101,52,0.25); }
+    .tag-coach { background: rgba(37,99,235,0.08);  color: #1d4ed8; border: 1px solid rgba(37,99,235,0.2); }
+
+    /* ── REVIEWS ── */
+    .reviews-section { padding: 72px 24px; background: var(--surf); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .reviews-inner { max-width: 640px; margin: 0 auto; }
+    .reviews-source {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(0,0,0,0.04); border: 1px solid var(--border2);
+      border-radius: 100px; padding: 5px 14px; margin-bottom: 14px;
+      font-size: 11px; color: var(--sub); font-weight: 600;
+    }
+    .review-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 28px; }
+    @media (min-width: 560px) { .review-grid { grid-template-columns: 1fr 1fr; } }
+    .review-card {
+      background: #fff; border: 1px solid var(--border2);
+      border-radius: 16px; padding: 16px 18px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+    .review-quote  { font-size: 13px; color: #111827; line-height: 1.75; margin-bottom: 10px; }
+    .review-author { font-size: 11px; color: var(--sub); font-weight: 700; }
 
     /* ── PRICING ── */
     .pricing-section { padding: 80px 24px; }
@@ -585,7 +606,7 @@
     <h1 class="headline fade-in fade-in-delay-2">チーム管理の、<br/><em>新常識。</em></h1>
     <p class="sub-text fade-in fade-in-delay-3">部員全員の体調・練習・怪我リスクを<br/>スマホ一台でリアルタイム把握。<br/>顧問・コーチの負担を根本から変える。</p>
     <div class="cta-wrap fade-in fade-in-delay-4">
-      <a href="https://scorej-run.vercel.app" class="btn-primary">
+      <a href="https://apps.apple.com/jp/app/id6766394981" class="btn-primary">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/></svg>
         チームで使ってみる — 無料
       </a>
@@ -602,14 +623,14 @@
 
 <!-- ── FEATURE BAR ── -->
 <div class="feat-bar fade-in">
-  <div class="feat-bar-item"><div class="feat-bar-icon">📊</div><div class="feat-bar-label">部員一覧管理</div></div>
-  <div class="feat-bar-item"><div class="feat-bar-icon">🩹</div><div class="feat-bar-label">怪我リスク把握</div></div>
-  <div class="feat-bar-item"><div class="feat-bar-icon">📅</div><div class="feat-bar-label">練習日程共有</div></div>
-  <div class="feat-bar-item"><div class="feat-bar-icon">🎥</div><div class="feat-bar-label">動画フォーム分析</div></div>
-  <div class="feat-bar-item"><div class="feat-bar-icon">💬</div><div class="feat-bar-label">チームメッセージ</div></div>
-  <div class="feat-bar-item"><div class="feat-bar-icon">🤖</div><div class="feat-bar-label">AI練習コーチ</div></div>
-  <div class="feat-bar-item"><div class="feat-bar-icon">⏱</div><div class="feat-bar-label">タイム記録</div></div>
-  <div class="feat-bar-item"><div class="feat-bar-icon">📤</div><div class="feat-bar-label">CSVエクスポート</div></div>
+  <div class="feat-bar-item"><div class="feat-bar-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><rect x="3" y="10" width="4" height="10" rx="1"/><rect x="10" y="6" width="4" height="14" rx="1"/><rect x="17" y="13" width="4" height="7" rx="1"/></svg></div><div class="feat-bar-label">部員一覧管理</div></div>
+  <div class="feat-bar-item"><div class="feat-bar-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M4.93 19.07a5 5 0 0 1 0-7.07l7.07-7.07a5 5 0 0 1 7.07 7.07l-7.07 7.07a5 5 0 0 1-7.07 0z"/><path d="M9 9l6 6"/></svg></div><div class="feat-bar-label">怪我リスク把握</div></div>
+  <div class="feat-bar-item"><div class="feat-bar-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></div><div class="feat-bar-label">練習日程共有</div></div>
+  <div class="feat-bar-item"><div class="feat-bar-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3z"/></svg></div><div class="feat-bar-label">動画フォーム分析</div></div>
+  <div class="feat-bar-item"><div class="feat-bar-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M21 12a8 8 0 1 1-3.2-6.4L21 4l-1 4.4c.65 1.1 1 2.35 1 3.6z"/></svg></div><div class="feat-bar-label">チームメッセージ</div></div>
+  <div class="feat-bar-item"><div class="feat-bar-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><rect x="4" y="8" width="16" height="12" rx="2"/><circle cx="9" cy="14" r="1.3" fill="currentColor" stroke="none"/><circle cx="15" cy="14" r="1.3" fill="currentColor" stroke="none"/><path d="M12 8V4M9 4h6"/></svg></div><div class="feat-bar-label">AI練習コーチ</div></div>
+  <div class="feat-bar-item"><div class="feat-bar-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M10 2h4M12 2v3"/></svg></div><div class="feat-bar-label">タイム記録</div></div>
+  <div class="feat-bar-item"><div class="feat-bar-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg></div><div class="feat-bar-label">CSVエクスポート</div></div>
 </div>
 
 <!-- ── TEAM SECTION ── -->
@@ -648,7 +669,7 @@
             <div class="dash-label">痛み報告あり</div>
           </div>
           <div class="dash-card">
-            <div class="dash-num">📅</div>
+            <div class="dash-num"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></div>
             <div class="dash-label">明日: 400mインターバル</div>
           </div>
         </div>
@@ -657,7 +678,7 @@
           <div class="dash-member">
             <div class="member-dot dot-high"></div>
             <div class="member-name">田中 太郎</div>
-            <div class="member-risk risk-high">リスク 82 ⚠️</div>
+            <div class="member-risk risk-high">リスク 82 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M12 3l10 18H2z"/><path d="M12 10v4M12 17.5v.01"/></svg></div>
           </div>
           <div class="dash-member">
             <div class="member-dot dot-mid"></div>
@@ -681,28 +702,28 @@
     <!-- チーム機能 4つ -->
     <div class="team-feats">
       <div class="team-feat fade-in fade-in-delay-1">
-        <div class="team-feat-icon" style="background:rgba(22,101,52,0.15)">📊</div>
+        <div class="team-feat-icon" style="background:rgba(22,101,52,0.15)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><rect x="3" y="10" width="4" height="10" rx="1"/><rect x="10" y="6" width="4" height="14" rx="1"/><rect x="17" y="13" width="4" height="7" rx="1"/></svg></div>
         <div>
           <div class="team-feat-title">部員コンディション一覧</div>
           <div class="team-feat-desc">全部員の疲労度・体調・怪我リスクスコアをコーチ画面で一目で確認。毎朝の体調確認が30秒で完了。</div>
         </div>
       </div>
       <div class="team-feat fade-in fade-in-delay-2">
-        <div class="team-feat-icon" style="background:rgba(239,68,68,0.12)">🩹</div>
+        <div class="team-feat-icon" style="background:rgba(239,68,68,0.12)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M4.93 19.07a5 5 0 0 1 0-7.07l7.07-7.07a5 5 0 0 1 7.07 7.07l-7.07 7.07a5 5 0 0 1-7.07 0z"/><path d="M9 9l6 6"/></svg></div>
         <div>
           <div class="team-feat-title">痛み・怪我レポートの即時通知</div>
           <div class="team-feat-desc">選手が体の痛みを報告すると、コーチのアプリにすぐ通知。「気づかなかった」を無くし、怪我を未然に防ぐ。</div>
         </div>
       </div>
       <div class="team-feat fade-in fade-in-delay-3">
-        <div class="team-feat-icon" style="background:rgba(59,130,246,0.12)">📅</div>
+        <div class="team-feat-icon" style="background:rgba(59,130,246,0.12)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></div>
         <div>
           <div class="team-feat-title">練習日程・大会情報の共有</div>
           <div class="team-feat-desc">コーチが入力した予定が全部員のアプリに即時反映。「知らなかった」がなくなる。場所・メモも記載可能。</div>
         </div>
       </div>
       <div class="team-feat fade-in fade-in-delay-4">
-        <div class="team-feat-icon" style="background:rgba(245,158,11,0.12)">🎥</div>
+        <div class="team-feat-icon" style="background:rgba(245,158,11,0.12)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3z"/></svg></div>
         <div>
           <div class="team-feat-title">選手の動画フォームをコーチが確認</div>
           <div class="team-feat-desc">選手が投稿した練習動画をコーチ側で閲覧・コメント。遠征中・個別練習中もフォームチェックが可能。</div>
@@ -715,7 +736,7 @@
 <!-- ── RISK SCORE SECTION ── -->
 <div class="risk-section fade-in" id="risk">
   <div class="risk-inner">
-    <div class="risk-tag">🧠 AI Injury Risk</div>
+    <div class="risk-tag"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M9 4a3 3 0 0 0-3 3 3 3 0 0 0-1 5.8 3.5 3.5 0 0 0 1.6 6.6A3 3 0 0 0 12 21a3 3 0 0 0 5.4-1.6 3.5 3.5 0 0 0 1.6-6.6A3 3 0 0 0 18 7a3 3 0 0 0-3-3 3 3 0 0 0-3 1 3 3 0 0 0-3-1z"/></svg> AI Injury Risk</div>
     <div class="risk-title">体の状態を、<br/>数値で科学的に把握する。</div>
     <div class="risk-lead">
       感覚や経験だけに頼らない怪我予防を。<br/>
@@ -734,7 +755,7 @@
           <div class="score-ring-num">58</div>
         </div>
         <div class="score-desc">
-          <div class="score-level">⚠️ やや高め</div>
+          <div class="score-level"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M12 3l10 18H2z"/><path d="M12 10v4M12 17.5v.01"/></svg> やや高め</div>
           <div class="score-advice">睡眠不足と連続練習が重なっています。今日は強度を70%程度に抑え、十分なウォームアップを行ってください。</div>
         </div>
       </div>
@@ -765,7 +786,7 @@
     <!-- 科学的根拠 -->
     <div class="science-box">
       <div class="science-header">
-        <div class="science-icon">🔬</div>
+        <div class="science-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M10 2v6L5 19a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-11V2"/><path d="M8.5 15h7"/></svg></div>
         <div class="science-title">スコアの科学的根拠</div>
       </div>
       <div class="science-text">
@@ -784,31 +805,31 @@
     <!-- 5つの指標 -->
     <div class="factor-cards">
       <div class="fcard">
-        <div class="fcard-icon">😴</div>
+        <div class="fcard-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg></div>
         <div class="fcard-title">睡眠時間</div>
         <div class="fcard-desc">毎日記録した睡眠時間から回復状態を算出。8時間未満で段階的にリスクが上昇。</div>
         <span class="fcard-weight" style="background:rgba(239,68,68,0.12); color:#f87171; border:1px solid rgba(239,68,68,0.2);">重み 大</span>
       </div>
       <div class="fcard">
-        <div class="fcard-icon">💪</div>
+        <div class="fcard-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M3 12h3l3-3 3 5 3-7 3 3h3"/></svg></div>
         <div class="fcard-title">自覚疲労度</div>
         <div class="fcard-desc">練習後の主観的疲労度（1〜10）を記録。Borgスケールをもとにした信頼性の高い指標。</div>
         <span class="fcard-weight" style="background:rgba(239,68,68,0.12); color:#f87171; border:1px solid rgba(239,68,68,0.2);">重み 大</span>
       </div>
       <div class="fcard">
-        <div class="fcard-icon">📅</div>
+        <div class="fcard-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></div>
         <div class="fcard-title">連続練習日数</div>
         <div class="fcard-desc">休養なしで練習が続くほど累積疲労が蓄積。5日を超えると急激にリスクが増加。</div>
         <span class="fcard-weight" style="background:rgba(245,158,11,0.12); color:#fbbf24; border:1px solid rgba(245,158,11,0.2);">重み 中</span>
       </div>
       <div class="fcard">
-        <div class="fcard-icon">🌤</div>
+        <div class="fcard-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><circle cx="9" cy="9" r="4"/><path d="M9 2v2M9 14v2M2 9h2M14.5 3.5l-1.4 1.4M3.5 3.5l1.4 1.4"/><path d="M16 20a3.5 3.5 0 0 0 0-7 5 5 0 0 0-9.6-1.6A4 4 0 0 0 7 20h9z"/></svg></div>
         <div class="fcard-title">天気・気温</div>
         <div class="fcard-desc">気温・湿度・天候から筋肉のコンディションを補正。低温・多湿時は自動でリスクを加算。</div>
         <span class="fcard-weight" style="background:rgba(22,163,74,0.1); color:#16a34a; border:1px solid rgba(22,163,74,0.25);">重み 小</span>
       </div>
       <div class="fcard" style="grid-column: span 2;">
-        <div class="fcard-icon">🩹</div>
+        <div class="fcard-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M4.93 19.07a5 5 0 0 1 0-7.07l7.07-7.07a5 5 0 0 1 7.07 7.07l-7.07 7.07a5 5 0 0 1-7.07 0z"/><path d="M9 9l6 6"/></svg></div>
         <div class="fcard-title">体の痛み・違和感の報告</div>
         <div class="fcard-desc">筋肉・関節の痛みを部位別に記録。違和感を記録した当日はリスクスコアが即座に加算され、コーチにも通知される。ストレッチ・ウォームアップを実施した場合はスコアを補正（減算）。</div>
         <span class="fcard-weight" style="background:rgba(239,68,68,0.12); color:#f87171; border:1px solid rgba(239,68,68,0.2);">重み 大（即時加算）</span>
@@ -828,7 +849,7 @@
     <div class="feat-cat-label">記録・管理</div>
     <div class="feat-list">
       <div class="feat-row">
-        <div class="feat-row-icon">⏱</div>
+        <div class="feat-row-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M10 2h4M12 2v3"/></svg></div>
         <div class="feat-row-body">
           <div class="feat-row-title">タイム記録・PB管理</div>
           <div class="feat-row-desc">大会・練習のタイムを記録。PB・SBを自動判定してバッジ表示。全期間の履歴を保存。</div>
@@ -836,7 +857,7 @@
         <span class="feat-plan-tag tag-free">FREE</span>
       </div>
       <div class="feat-row">
-        <div class="feat-row-icon">📋</div>
+        <div class="feat-row-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><rect x="5" y="4" width="14" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h6"/></svg></div>
         <div class="feat-row-body">
           <div class="feat-row-title">練習ログ（無制限）</div>
           <div class="feat-row-desc">距離・本数・セット・インターバルタイムを記録。種目別・強度別に整理。</div>
@@ -844,7 +865,7 @@
         <span class="feat-plan-tag tag-free">FREE</span>
       </div>
       <div class="feat-row">
-        <div class="feat-row-icon">📅</div>
+        <div class="feat-row-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></div>
         <div class="feat-row-body">
           <div class="feat-row-title">カレンダー・スケジュール管理</div>
           <div class="feat-row-desc">試合・練習・大会をカレンダーで管理。チーム連動で全員の予定を共有。</div>
@@ -852,7 +873,7 @@
         <span class="feat-plan-tag tag-free">FREE</span>
       </div>
       <div class="feat-row">
-        <div class="feat-row-icon">😴</div>
+        <div class="feat-row-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg></div>
         <div class="feat-row-body">
           <div class="feat-row-title">体調・睡眠・疲労ログ</div>
           <div class="feat-row-desc">毎日の睡眠時間・疲労度・コンディションを記録。怪我リスクスコアに自動反映。</div>
@@ -860,12 +881,12 @@
         <span class="feat-plan-tag tag-free">FREE</span>
       </div>
       <div class="feat-row">
-        <div class="feat-row-icon">📤</div>
+        <div class="feat-row-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg></div>
         <div class="feat-row-body">
           <div class="feat-row-title">CSVエクスポート</div>
-          <div class="feat-row-desc">練習ログ・タイム記録をCSVで書き出し。コーチへの報告や分析に活用できる。</div>
+          <div class="feat-row-desc">練習ログ・タイム記録をCSVで書き出し。コーチへの報告や分析に活用できる。累計1回まで無料。</div>
         </div>
-        <span class="feat-plan-tag tag-pro">PRO</span>
+        <span class="feat-plan-tag tag-ticket">TICKET</span>
       </div>
     </div>
   </div>
@@ -875,7 +896,7 @@
     <div class="feat-cat-label">AI機能</div>
     <div class="feat-list">
       <div class="feat-row">
-        <div class="feat-row-icon">🧠</div>
+        <div class="feat-row-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M9 4a3 3 0 0 0-3 3 3 3 0 0 0-1 5.8 3.5 3.5 0 0 0 1.6 6.6A3 3 0 0 0 12 21a3 3 0 0 0 5.4-1.6 3.5 3.5 0 0 0 1.6-6.6A3 3 0 0 0 18 7a3 3 0 0 0-3-3 3 3 0 0 0-3 1 3 3 0 0 0-3-1z"/></svg></div>
         <div class="feat-row-body">
           <div class="feat-row-title">怪我リスクAI診断（毎日）</div>
           <div class="feat-row-desc">5因子の複合スコアで今日の怪我リスクを0〜100で数値化。コーチも確認可能。</div>
@@ -883,36 +904,44 @@
         <span class="feat-plan-tag tag-free">FREE</span>
       </div>
       <div class="feat-row">
-        <div class="feat-row-icon">💊</div>
+        <div class="feat-row-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><rect x="3.5" y="9.5" width="17" height="5" rx="2.5" transform="rotate(-45 12 12)"/><path d="M9 15l6-6"/></svg></div>
         <div class="feat-row-body">
-          <div class="feat-row-title">AIリカバリー相談（無制限）</div>
-          <div class="feat-row-desc">痛みや疲労の悩みをAIに相談。体の状態に合わせた回復アドバイスを提供。</div>
+          <div class="feat-row-title">AIリカバリー相談</div>
+          <div class="feat-row-desc">痛みや疲労の悩みをAIに相談。体の状態に合わせた回復アドバイスを提供。1日2回まで無料。</div>
         </div>
         <span class="feat-plan-tag tag-free">FREE</span>
       </div>
       <div class="feat-row">
-        <div class="feat-row-icon">🤖</div>
+        <div class="feat-row-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><rect x="5" y="4" width="14" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h6"/></svg></div>
+        <div class="feat-row-body">
+          <div class="feat-row-title">AI練習メニュー作成</div>
+          <div class="feat-row-desc">今日の練習イメージを一言伝えるだけでAIがメニューを作成。ライブラリから種目を選んで組んでもらうことも、AIを使わず自分だけで組み立てることも可能。</div>
+        </div>
+        <span class="feat-plan-tag tag-ticket">TICKET</span>
+      </div>
+      <div class="feat-row">
+        <div class="feat-row-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><rect x="4" y="8" width="16" height="12" rx="2"/><circle cx="9" cy="14" r="1.3" fill="currentColor" stroke="none"/><circle cx="15" cy="14" r="1.3" fill="currentColor" stroke="none"/><path d="M12 8V4M9 4h6"/></svg></div>
         <div class="feat-row-body">
           <div class="feat-row-title">AI練習分析コーチ</div>
           <div class="feat-row-desc">直近の練習データをAIが解析。「今週の評価」「来週の方針」「食事・睡眠アドバイス」を提供。</div>
         </div>
-        <span class="feat-plan-tag tag-pro">PRO</span>
+        <span class="feat-plan-tag tag-ticket">TICKET</span>
       </div>
       <div class="feat-row">
-        <div class="feat-row-icon">🎥</div>
+        <div class="feat-row-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3z"/></svg></div>
         <div class="feat-row-body">
           <div class="feat-row-title">動画フォーム分析</div>
           <div class="feat-row-desc">走り・跳躍・投擲の動画をアップロードするとAIが解析し、改善点を具体的にフィードバック。</div>
         </div>
-        <span class="feat-plan-tag tag-pro">PRO</span>
+        <span class="feat-plan-tag tag-ticket">TICKET</span>
       </div>
       <div class="feat-row">
-        <div class="feat-row-icon">🍱</div>
+        <div class="feat-row-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M3 12h18M12 7v13"/></svg></div>
         <div class="feat-row-body">
           <div class="feat-row-title">AI食事・栄養分析</div>
           <div class="feat-row-desc">食事の写真を撮るだけで栄養バランスをAIが解析。競技に必要な栄養摂取をサポート。</div>
         </div>
-        <span class="feat-plan-tag tag-pro">PRO</span>
+        <span class="feat-plan-tag tag-ticket">TICKET</span>
       </div>
     </div>
   </div>
@@ -922,7 +951,7 @@
     <div class="feat-cat-label">怪我予防</div>
     <div class="feat-list">
       <div class="feat-row">
-        <div class="feat-row-icon">🩹</div>
+        <div class="feat-row-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M4.93 19.07a5 5 0 0 1 0-7.07l7.07-7.07a5 5 0 0 1 7.07 7.07l-7.07 7.07a5 5 0 0 1-7.07 0z"/><path d="M9 9l6 6"/></svg></div>
         <div class="feat-row-body">
           <div class="feat-row-title">体の痛み・違和感の記録と報告</div>
           <div class="feat-row-desc">部位別に痛みを記録。記録と同時にコーチへ通知。見逃しゼロ。</div>
@@ -930,7 +959,7 @@
         <span class="feat-plan-tag tag-free">FREE</span>
       </div>
       <div class="feat-row">
-        <div class="feat-row-icon">🧘</div>
+        <div class="feat-row-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><circle cx="12" cy="4" r="1.6" fill="currentColor" stroke="none"/><path d="M4 19c2-3 5-4 8-4s6 1 8 4M8 12c1.5 1 2.5 1.5 4 1.5s2.5-.5 4-1.5M12 9v4"/></svg></div>
         <div class="feat-row-body">
           <div class="feat-row-title">ウォームアップ・ストレッチガイド</div>
           <div class="feat-row-desc">種目別・部位別のウォームアップを動画ガイド付きで提供。ストレッチ実施でリスクスコアを補正。</div>
@@ -942,47 +971,63 @@
 
   <!-- チーム機能 -->
   <div class="feat-category">
-    <div class="feat-cat-label">チーム機能（コーチ・顧問向け）</div>
+    <div class="feat-cat-label">チーム機能（コーチ・顧問向け・全部無料）</div>
     <div class="feat-list">
       <div class="feat-row">
-        <div class="feat-row-icon">📊</div>
+        <div class="feat-row-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><rect x="3" y="10" width="4" height="10" rx="1"/><rect x="10" y="6" width="4" height="14" rx="1"/><rect x="17" y="13" width="4" height="7" rx="1"/></svg></div>
         <div class="feat-row-body">
           <div class="feat-row-title">コーチダッシュボード</div>
           <div class="feat-row-desc">全部員のコンディション・怪我リスク・出席状況を一画面で把握。毎朝30秒で完了。</div>
         </div>
-        <span class="feat-plan-tag tag-team">TEAM</span>
+        <span class="feat-plan-tag tag-free">FREE</span>
       </div>
       <div class="feat-row">
-        <div class="feat-row-icon">📅</div>
+        <div class="feat-row-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></div>
         <div class="feat-row-body">
           <div class="feat-row-title">チームスケジュール共有</div>
           <div class="feat-row-desc">コーチが入力した練習・大会・ミーティングの日程が全部員に即時通知。</div>
         </div>
-        <span class="feat-plan-tag tag-team">TEAM</span>
+        <span class="feat-plan-tag tag-free">FREE</span>
       </div>
       <div class="feat-row">
-        <div class="feat-row-icon">💬</div>
+        <div class="feat-row-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M21 12a8 8 0 1 1-3.2-6.4L21 4l-1 4.4c.65 1.1 1 2.35 1 3.6z"/></svg></div>
         <div class="feat-row-body">
           <div class="feat-row-title">チームメッセージ・アナウンス</div>
-          <div class="feat-row-desc">コーチから全部員への一斉連絡。重要な連絡はピン留め可能。</div>
+          <div class="feat-row-desc">コーチから全部員への一斉連絡。重要な連絡はピン留め可能。個人間のダイレクトメッセージ機能はありません。</div>
         </div>
-        <span class="feat-plan-tag tag-team">TEAM</span>
+        <span class="feat-plan-tag tag-free">FREE</span>
       </div>
       <div class="feat-row">
-        <div class="feat-row-icon">🎥</div>
+        <div class="feat-row-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3z"/></svg></div>
         <div class="feat-row-body">
           <div class="feat-row-title">選手動画の管理・コメント</div>
           <div class="feat-row-desc">選手が投稿したフォーム動画をコーチが確認・フィードバック。7日間保存。</div>
         </div>
-        <span class="feat-plan-tag tag-team">TEAM</span>
+        <span class="feat-plan-tag tag-free">FREE</span>
       </div>
       <div class="feat-row">
-        <div class="feat-row-icon">📈</div>
+        <div class="feat-row-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg></div>
         <div class="feat-row-body">
           <div class="feat-row-title">チーム練習記録の可視化</div>
           <div class="feat-row-desc">全部員の練習量・タイム推移・コンディション推移をコーチが一覧で確認。</div>
         </div>
-        <span class="feat-plan-tag tag-team">TEAM</span>
+        <span class="feat-plan-tag tag-free">FREE</span>
+      </div>
+      <div class="feat-row">
+        <div class="feat-row-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
+        <div class="feat-row-body">
+          <div class="feat-row-title">選手側の共有レベル選択</div>
+          <div class="feat-row-desc">「全データ公開」「コンディションのみ」「非公開」の3段階から選手自身が選択可能。無理に記録・報告を強制されないので、プレッシャーなく続けられる。</div>
+        </div>
+        <span class="feat-plan-tag tag-free">FREE</span>
+      </div>
+      <div class="feat-row">
+        <div class="feat-row-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg></div>
+        <div class="feat-row-body">
+          <div class="feat-row-title">コーチ自身のAI機能を完全無制限</div>
+          <div class="feat-row-desc">動画フォーム分析・AI練習メニュー作成など、AI機能をチケット消費なしで使い放題。コーチ自身が選手の分析・メニュー作成に使う想定の機能。</div>
+        </div>
+        <span class="feat-plan-tag tag-coach">COACH</span>
       </div>
     </div>
   </div>
@@ -992,7 +1037,7 @@
     <div class="feat-cat-label">シェア・コミュニティ</div>
     <div class="feat-list">
       <div class="feat-row">
-        <div class="feat-row-icon">📸</div>
+        <div class="feat-row-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13.5" r="4"/><path d="M8 7l1.5-2h5L16 7"/></svg></div>
         <div class="feat-row-body">
           <div class="feat-row-title">PBシェアカード生成</div>
           <div class="feat-row-desc">自己ベスト更新時にインスタストーリー用のシェアカードを自動生成。ワンタップで投稿。</div>
@@ -1013,47 +1058,83 @@
       <div class="share-phone side left">
         <div class="share-card-mock" style="width:130px; height:230px;">
           <div class="sc-logo"><div class="sc-s">S</div><div class="sc-brand" style="font-size:13px">sCORE</div></div>
-          <div class="sc-result"><div class="sc-event">200m</div><div class="sc-time" style="font-size:26px">21"84</div><div class="sc-pb">🏆 自己ベスト</div></div>
+          <div class="sc-result"><div class="sc-event">200m</div><div class="sc-time" style="font-size:26px">21"84</div><div class="sc-pb"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M8 4h8v6a4 4 0 0 1-8 0V4z"/><path d="M8 5H5a3 3 0 0 0 3 5M16 5h3a3 3 0 0 1-3 5"/><path d="M12 14v3M9 21h6M10 17h4v4h-4z"/></svg> 自己ベスト</div></div>
           <div class="sc-stats" style="padding:6px 10px; gap:10px;"><div class="sc-stat"><div class="sc-val" style="font-size:11px">+1.2</div><div class="sc-lbl">m/s</div></div><div class="sc-stat"><div class="sc-val" style="font-size:11px">県選</div><div class="sc-lbl">大会</div></div></div>
         </div>
       </div>
       <div class="share-phone main">
         <div class="share-card-mock">
           <div class="sc-logo"><div class="sc-s">S</div><div class="sc-brand">sCORE</div></div>
-          <div class="sc-result"><div class="sc-event">100m</div><div class="sc-time">10"84</div><div class="sc-pb">🏆 自己ベスト</div></div>
+          <div class="sc-result"><div class="sc-event">100m</div><div class="sc-time">10"84</div><div class="sc-pb"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M8 4h8v6a4 4 0 0 1-8 0V4z"/><path d="M8 5H5a3 3 0 0 0 3 5M16 5h3a3 3 0 0 1-3 5"/><path d="M12 14v3M9 21h6M10 17h4v4h-4z"/></svg> 自己ベスト</div></div>
           <div class="sc-stats"><div class="sc-stat"><div class="sc-val">+1.8</div><div class="sc-lbl">m/s 風</div></div><div class="sc-stat"><div class="sc-val">県選</div><div class="sc-lbl">大会</div></div><div class="sc-stat"><div class="sc-val">5/16</div><div class="sc-lbl">日付</div></div></div>
         </div>
       </div>
       <div class="share-phone side">
         <div class="share-card-mock" style="width:130px; height:230px; background:linear-gradient(145deg,#1a0a2e,#0d0d0d,#0a100f);">
           <div class="sc-logo"><div class="sc-s">S</div><div class="sc-brand" style="font-size:13px">sCORE</div></div>
-          <div class="sc-result"><div class="sc-event">走幅跳</div><div class="sc-time" style="font-size:22px">7m04</div><div class="sc-pb" style="background:rgba(245,158,11,0.2); border-color:rgba(245,158,11,0.5); color:#fbbf24;">🥇 PB</div></div>
+          <div class="sc-result"><div class="sc-event">走幅跳</div><div class="sc-time" style="font-size:22px">7m04</div><div class="sc-pb" style="background:rgba(245,158,11,0.2); border-color:rgba(245,158,11,0.5); color:#fbbf24;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M8 4h8v6a4 4 0 0 1-8 0V4z"/><path d="M8 5H5a3 3 0 0 0 3 5M16 5h3a3 3 0 0 1-3 5"/><path d="M12 14v3M9 21h6M10 17h4v4h-4z"/></svg> PB</div></div>
           <div class="sc-stats" style="padding:6px 10px; gap:10px;"><div class="sc-stat"><div class="sc-val" style="font-size:11px">+0.8</div><div class="sc-lbl">m/s</div></div><div class="sc-stat"><div class="sc-val" style="font-size:11px">5/16</div><div class="sc-lbl">日付</div></div></div>
         </div>
       </div>
     </div>
-    <a href="https://scorej-run.vercel.app" class="btn-primary" style="max-width:300px; margin:0 auto; display:flex;">
+    <a href="https://apps.apple.com/jp/app/id6766394981" class="btn-primary" style="max-width:300px; margin:0 auto; display:flex;">
       シェアカードを作る — 無料
     </a>
   </div>
 </div>
+
+<!-- ── REVIEWS ── -->
+<section class="reviews-section fade-in" id="reviews">
+  <div class="reviews-inner">
+    <div class="section-tag" style="text-align:center">Voices</div>
+    <div class="section-title" style="text-align:center; margin-bottom:8px">使ってくれている人の声</div>
+    <div style="text-align:center;">
+      <span class="reviews-source">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>
+ユーザーから届いたコメント・レビューより
+      </span>
+    </div>
+    <div class="review-grid">
+      <div class="review-card"><div class="review-quote">めっちゃ使いやすくて練習も頑張れそうです。</div><div class="review-author">@mingo.0429</div></div>
+      <div class="review-card"><div class="review-quote">すごすぎるアプリです！すごく感謝しています！</div><div class="review-author">@k.ohwaku</div></div>
+      <div class="review-card"><div class="review-quote">昨日は十分すぎるほど完璧です。大きなバグも見つかりませんでした！とても使いやすいです。</div><div class="review-author">@rikujo.13</div></div>
+      <div class="review-card"><div class="review-quote">今日入れたんですけど、メニューを考えてくれるし陸部からしたらめちゃくちゃ使いやすいです！！</div><div class="review-author">@h7t._.xyx0325</div></div>
+      <div class="review-card"><div class="review-quote">めちゃくちゃいいです！！！本当に助かっています。</div><div class="review-author">@rin.tkc</div></div>
+      <div class="review-card"><div class="review-quote">かなり細かいところまで設計されていてすごかった、AIのフォーム解析何回も使いたい</div><div class="review-author">@chito080</div></div>
+      <div class="review-card"><div class="review-quote">使いやすいけど機能が多すぎてごちゃごちゃになっちゃうから整理したらもっと良くなる。</div><div class="review-author">@as.0.126</div></div>
+      <div class="review-card"><div class="review-quote">めっちゃ使いやすくて、ストレッチとかもわかりやすいです。</div><div class="review-author">@haruto.track34</div></div>
+      <div class="review-card"><div class="review-quote">最高すぎるけどAIだけじゃなくて普通に自分の今までの練習とかのメニューを書ける欄を作ってほしい</div><div class="review-author">@jvke1/ge</div></div>
+      <div class="review-card"><div class="review-quote">求めてた機能が全てあってとても気に入りました。</div><div class="review-author">@jin_luqfwm</div></div>
+      <div class="review-card"><div class="review-quote">広告見るだけで動画分析できるのいいなと思った。</div><div class="review-author">@hyuga0301_hj</div></div>
+      <div class="review-card"><div class="review-quote">便利でとても最高</div><div class="review-author">@daichi00924</div></div>
+      <div class="review-card"><div class="review-quote">まだ本格的には使えてないですけど少なくともUI操作性はめっちゃいいです。</div><div class="review-author">@makky</div></div>
+      <div class="review-card"><div class="review-quote">まじ最高です。</div><div class="review-author">@toku1o9</div></div>
+      <div class="review-card"><div class="review-quote">簡単な説明をしただけで自分の怪我の原因がわかって使いやすいです。</div><div class="review-author">@_daipan_w</div></div>
+      <div class="review-card"><div class="review-quote">使っててめちゃくちゃ良かったです。友達にも紹介した結果めちゃくちゃ満足してました</div><div class="review-author">@k.inaba42</div></div>
+      <div class="review-card"><div class="review-quote">今使ってみるとすごく良く続けられそうです！このようなアプリを作ってくださりありがとうございます！</div><div class="review-author">@t_and_fk_teru</div></div>
+      <div class="review-card"><div class="review-quote">アプリを使い始めてまだ少ししか経ってないけど、これは神アプリに出会ったなと。そしてもっと早く出会いたかったと思います！</div><div class="review-author">木下さん</div></div>
+      <div class="review-card"><div class="review-quote">これガチで役に立つ！これ作ってくれて本当にありがとう</div><div class="review-author">@gorira_810</div></div>
+      <div class="review-card"><div class="review-quote">素晴らしいと思います。非常に使いやすく、AIなどを活用して様々なことができました。しかし、混成競技の項目が十種のみしかなかったので、八種や四種も追加していただけるとありがたいです。</div><div class="review-author">sCOREユーザー</div></div>
+    </div>
+  </div>
+</section>
 
 <!-- ── PRICING ── -->
 <section class="pricing-section fade-in" id="pricing">
   <div class="pricing-inner">
     <div class="section-tag" style="text-align:center">Pricing</div>
     <div class="section-title" style="text-align:center; margin-bottom:8px">あなたに合った<br/>プランを選ぼう</div>
-    <div class="section-sub" style="text-align:center; margin-bottom:32px">個人選手向けとチーム向けで<br/>プランが分かれています。</div>
+    <div class="section-sub" style="text-align:center; margin-bottom:32px">個人選手向けとコーチ向けで<br/>プランが分かれています。</div>
 
     <!-- タブ -->
     <div class="pricing-tabs">
-      <div class="pricing-tab active" id="tab-personal" onclick="switchPlan('personal')">👤 個人選手向け</div>
-      <div class="pricing-tab team-tab" id="tab-team" onclick="switchPlan('team')">👥 チーム・学校向け</div>
+      <div class="pricing-tab active" id="tab-personal" onclick="switchPlan('personal')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg> 個人選手向け</div>
+      <div class="pricing-tab team-tab" id="tab-team" onclick="switchPlan('team')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M12 3l9 5-9 5-9-5z"/><path d="M6 10.5V16c0 1.5 3 3 6 3s6-1.5 6-3v-5.5M21 8v6"/></svg> コーチ・顧問向け</div>
     </div>
 
     <!-- 個人プラン -->
     <div class="plan-section active" id="plan-personal">
-      <div class="plan-grid three">
+      <div class="plan-grid">
 
         <!-- FREE -->
         <div class="plan-card">
@@ -1064,56 +1145,37 @@
           </div>
           <div class="plan-divider"></div>
           <div class="plan-feats">
-            <div class="pf"><div class="pf-icon">✓</div><div>タイム記録・練習ログ <em>無制限</em></div></div>
-            <div class="pf"><div class="pf-icon">✓</div><div>怪我リスクAI診断 <em>毎日</em></div></div>
-            <div class="pf"><div class="pf-icon">✓</div><div>AIリカバリー相談 <em>無制限</em></div></div>
-            <div class="pf"><div class="pf-icon">✓</div><div>ウォームアップガイド</div></div>
-            <div class="pf"><div class="pf-icon">✓</div><div>PBシェアカード生成</div></div>
-            <div class="pf"><div class="pf-icon">✓</div><div>カレンダー・体調ログ</div></div>
-            <div class="pf dim"><div class="pf-icon">—</div><div>AI練習分析 <em>広告視聴で1回/日</em></div></div>
-            <div class="pf dim"><div class="pf-icon">—</div><div>動画フォーム分析 <em>広告視聴で1回/日</em></div></div>
+            <div class="pf"><div class="pf-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M20 6L9 17l-5-5"/></svg></div><div>タイム記録・練習ログ <em>無制限</em></div></div>
+            <div class="pf"><div class="pf-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M20 6L9 17l-5-5"/></svg></div><div>怪我リスクAI診断 <em>毎日</em></div></div>
+            <div class="pf"><div class="pf-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M20 6L9 17l-5-5"/></svg></div><div>AIリカバリー相談 <em>1日2回まで無料</em></div></div>
+            <div class="pf"><div class="pf-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M20 6L9 17l-5-5"/></svg></div><div>ウォームアップガイド</div></div>
+            <div class="pf"><div class="pf-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M20 6L9 17l-5-5"/></svg></div><div>PBシェアカード生成</div></div>
+            <div class="pf"><div class="pf-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M20 6L9 17l-5-5"/></svg></div><div>カレンダー・体調ログ</div></div>
+            <div class="pf"><div class="pf-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M20 6L9 17l-5-5"/></svg></div><div>チームへの参加・コーチとの共有 <em>無料</em></div></div>
+            <div class="pf"><div class="pf-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M20 6L9 17l-5-5"/></svg></div><div>AI機能お試しチケット <em>5枚プレゼント</em></div></div>
           </div>
-          <a href="https://scorej-run.vercel.app" class="plan-cta cta-free">無料で始める</a>
+          <a href="https://apps.apple.com/jp/app/id6766394981" class="plan-cta cta-free">無料で始める</a>
         </div>
 
-        <!-- PRO -->
+        <!-- チケット月額 -->
         <div class="plan-card featured">
-          <div class="plan-ribbon ribbon-pro">🔥 人気No.1</div>
-          <div class="plan-name pro">PRO</div>
-          <div class="plan-who">本格的に強くなりたい<br/>選手・個人アスリートへ</div>
-          <div class="plan-price">
-            <div><span class="plan-price-num">¥480</span><span class="plan-price-unit">/月</span></div>
-            <div class="plan-price-note">年払い ¥4,320（約25%お得）</div>
-          </div>
-          <div class="plan-divider"></div>
-          <div class="plan-feats">
-            <div class="pf"><div class="pf-icon">✓</div><div>FREEの全機能</div></div>
-            <div class="pf"><div class="pf-icon">✓</div><div>AI練習分析コーチ <em>月30回</em></div></div>
-            <div class="pf"><div class="pf-icon">✓</div><div>動画フォーム分析 <em>月30回</em></div></div>
-            <div class="pf"><div class="pf-icon">✓</div><div>AI食事・栄養分析 <em>月30回</em></div></div>
-            <div class="pf"><div class="pf-icon">✓</div><div>AIリカバリー相談 <em>月30回</em></div></div>
-            <div class="pf"><div class="pf-icon">✓</div><div>CSVエクスポート <em>月1回</em></div></div>
-            <div class="pf"><div class="pf-icon">✓</div><div>広告なし</div></div>
-          </div>
-          <a href="https://scorej-run.vercel.app" class="plan-cta cta-pro">PROを始める</a>
-        </div>
-
-        <!-- ELITE -->
-        <div class="plan-card" style="border-color:rgba(245,158,11,0.35);">
-          <div class="plan-ribbon ribbon-elite">👑 無制限</div>
-          <div class="plan-name elite">ELITE</div>
-          <div class="plan-who">記録を追い求める<br/>本気の競技者へ</div>
+          <div class="plan-ribbon ribbon-pro"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M12 2s-5 5.5-5 10a5 5 0 0 0 10 0c0-1.5-1-2.5-1-2.5s.5 2-1 3c.3-2-1-3.5-1-5.5-.5 1-2 2-2 4.5A2.5 2.5 0 0 0 12 17"/></svg> 人気No.1</div>
+          <div class="plan-name pro">チケット月額</div>
+          <div class="plan-who">AIを毎日使いたい<br/>選手・個人アスリートへ</div>
           <div class="plan-price">
             <div><span class="plan-price-num">¥980</span><span class="plan-price-unit">/月</span></div>
-            <div class="plan-price-note" style="color:var(--amber)">年払い ¥8,820（約25%お得）</div>
+            <div class="plan-price-note">毎月チケット100枚を自動付与</div>
           </div>
           <div class="plan-divider"></div>
           <div class="plan-feats">
-            <div class="pf"><div class="pf-icon">✓</div><div>PROの全機能（広告なし）</div></div>
-            <div class="pf"><div class="pf-icon">✓</div><div>AI機能すべて <em>完全無制限</em></div></div>
-            <div class="pf"><div class="pf-icon">✓</div><div>CSVエクスポート <em>無制限</em></div></div>
+            <div class="pf"><div class="pf-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M20 6L9 17l-5-5"/></svg></div><div>FREEの全機能</div></div>
+            <div class="pf"><div class="pf-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M20 6L9 17l-5-5"/></svg></div><div>動画フォーム分析 <em>1回3枚消費</em></div></div>
+            <div class="pf"><div class="pf-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M20 6L9 17l-5-5"/></svg></div><div>AI練習メニュー作成 <em>1回2枚消費</em></div></div>
+            <div class="pf"><div class="pf-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M20 6L9 17l-5-5"/></svg></div><div>AI食事分析・AI練習分析コーチ <em>各1〜3枚消費</em></div></div>
+            <div class="pf"><div class="pf-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M20 6L9 17l-5-5"/></svg></div><div>CSVエクスポート <em>無制限</em></div></div>
+            <div class="pf"><div class="pf-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M20 6L9 17l-5-5"/></svg></div><div>広告なし</div></div>
           </div>
-          <a href="https://scorej-run.vercel.app" class="plan-cta cta-elite">ELITEを始める</a>
+          <a href="https://apps.apple.com/jp/app/id6766394981" class="plan-cta cta-pro">チケット月額を始める</a>
         </div>
       </div>
 
@@ -1121,97 +1183,60 @@
       <div class="who-guide" style="margin-top:32px;">
         <div style="font-size:12px; color:var(--sub); text-align:center; margin-bottom:8px; letter-spacing:0.5px;">どのプランを選べばいい？</div>
         <div class="who-item">
-          <div class="who-emoji">🏃</div>
+          <div class="who-emoji"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M5 21l4-6M14 21l-2-5M4 11l4-3 3 3 4-2 4 3M9 8l2-3"/></svg></div>
           <div class="who-body">
             <div class="who-title">とりあえず記録・怪我予防だけしたい → <span style="color:#16a34a">FREE</span></div>
-            <div class="who-desc">タイム記録・練習ログ・怪我リスク診断はすべて無料。AIは広告を見れば1日1回使える。</div>
+            <div class="who-desc">タイム記録・練習ログ・怪我リスク診断はすべて無料。チームに入って体調をコーチと共有するのも無料。AI機能はお試しチケット5枚から。</div>
           </div>
         </div>
         <div class="who-item">
-          <div class="who-emoji">🔥</div>
+          <div class="who-emoji"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M12 2s-5 5.5-5 10a5 5 0 0 0 10 0c0-1.5-1-2.5-1-2.5s.5 2-1 3c.3-2-1-3.5-1-5.5-.5 1-2 2-2 4.5A2.5 2.5 0 0 0 12 17"/></svg></div>
           <div class="who-body">
-            <div class="who-title">AIを毎日フル活用したい → <span style="color:#16a34a">PRO ¥480/月</span></div>
-            <div class="who-desc"><strong>月480円（コーヒー1杯以下）</strong>でAI練習分析・フォーム分析・食事分析が月30回。真剣に強くなりたい選手に。</div>
-          </div>
-        </div>
-        <div class="who-item">
-          <div class="who-emoji">👑</div>
-          <div class="who-body">
-            <div class="who-title">回数制限なく使い倒したい → <span style="color:#d97706">ELITE ¥980/月</span></div>
-            <div class="who-desc">AI機能すべて完全無制限。記録を追い続けるシリアスアスリート向け。</div>
+            <div class="who-title">AIを毎日フル活用したい → <span style="color:#16a34a">チケット月額 ¥980/月</span></div>
+            <div class="who-desc"><strong>月980円</strong>で毎月チケット100枚。動画フォーム分析・AI練習メニュー・食事分析まで、使いたい時に使いたいだけ。真剣に強くなりたい選手に。</div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- チームプラン -->
+    <!-- コーチプラン -->
     <div class="plan-section" id="plan-team">
-      <div class="plan-grid">
+      <div class="who-guide" style="margin-bottom:24px;">
+        <div class="who-item">
+          <div class="who-emoji"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.6.5 1 1.3 1 2.5h6c0-1.2.4-2 1-2.5A6 6 0 0 0 12 3z"/></svg></div>
+          <div class="who-body">
+            <div class="who-title">チーム機能そのものは、すべて無料です</div>
+            <div class="who-desc">部員の招待・体調一覧・スケジュール共有・チームメッセージ・選手動画の確認は、コーチプランに入らなくても使えます。<strong>コーチプランは、コーチ自身のAI機能を無制限にするための追加プランです。</strong></div>
+          </div>
+        </div>
+      </div>
 
-        <!-- Team Standard -->
+      <div class="plan-grid" style="max-width:340px; margin:0 auto;">
+        <!-- Coach -->
         <div class="plan-card team-card">
-          <div class="plan-ribbon ribbon-team">チーム</div>
-          <div class="plan-name team">Team</div>
-          <div class="plan-who">部員〜20名程度の<br/>学校・クラブチームへ</div>
+          <div class="plan-ribbon ribbon-team"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><rect x="4" y="9" width="16" height="11" rx="1"/><path d="M4 9h16v3H4z" fill="currentColor" fill-opacity="0.15"/><path d="M12 9v11M12 9C9 9 8 6 9 5s3-1 3 4c0-5 2-5 3-4s0 4-3 4z"/></svg> 今なら1ヶ月無料</div>
+          <div class="plan-name team">コーチプラン</div>
+          <div class="plan-who">チームを持つ顧問・<br/>コーチ・監督の方へ</div>
           <div class="plan-price">
-            <div><span class="plan-price-num">¥2,980</span><span class="plan-price-unit">/月</span></div>
-            <div class="plan-price-note" style="color:#1d4ed8">部員は全員無料で参加</div>
+            <div><span class="plan-price-num">¥1,980</span><span class="plan-price-unit">/月</span></div>
+            <div class="plan-price-note" style="color:#1d4ed8">部員は全員ずっと無料で参加</div>
           </div>
           <div class="plan-divider"></div>
           <div class="plan-feats">
-            <div class="pf"><div class="pf-icon">✓</div><div>部員全員の体調を一括管理</div></div>
-            <div class="pf"><div class="pf-icon">✓</div><div>怪我リスク・痛み報告の通知</div></div>
-            <div class="pf"><div class="pf-icon">✓</div><div>チームスケジュール共有</div></div>
-            <div class="pf"><div class="pf-icon">✓</div><div>チームメッセージ・アナウンス</div></div>
-            <div class="pf"><div class="pf-icon">✓</div><div>選手動画の管理・確認</div></div>
-            <div class="pf"><div class="pf-icon">✓</div><div>部員 <em>20名まで</em></div></div>
-            <div class="pf dim"><div class="pf-icon">—</div><div>AI動画フォーム分析 <em>Team Pro以上</em></div></div>
+            <div class="pf"><div class="pf-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M20 6L9 17l-5-5"/></svg></div><div>部員全員の体調・怪我リスクを一覧管理 <em>無料機能</em></div></div>
+            <div class="pf"><div class="pf-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M20 6L9 17l-5-5"/></svg></div><div>痛み報告のリアルタイム通知 <em>無料機能</em></div></div>
+            <div class="pf"><div class="pf-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M20 6L9 17l-5-5"/></svg></div><div>チームスケジュール・メッセージ共有 <em>無料機能</em></div></div>
+            <div class="pf"><div class="pf-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M20 6L9 17l-5-5"/></svg></div><div>選手動画の確認・コメント <em>無料機能</em></div></div>
+            <div class="pf"><div class="pf-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M20 6L9 17l-5-5"/></svg></div><div>コーチ自身のAI機能 <em>完全無制限</em></div></div>
+            <div class="pf"><div class="pf-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M20 6L9 17l-5-5"/></svg></div><div>広告なし</div></div>
           </div>
-          <a href="mailto:focusports.com@gmail.com?subject=Teamプラン相談" class="plan-cta cta-team">導入を相談する</a>
-        </div>
-
-        <!-- Team Pro -->
-        <div class="plan-card team-card" style="border-color:rgba(99,102,241,0.5); box-shadow:0 8px 40px rgba(99,102,241,0.15);">
-          <div class="plan-ribbon" style="background:linear-gradient(90deg,#4f46e5,#2563eb); color:#fff;">Team Pro</div>
-          <div class="plan-name" style="color:#4f46e5">Team Pro</div>
-          <div class="plan-who">大規模校・強豪チーム<br/>・複数部活担当の顧問へ</div>
-          <div class="plan-price">
-            <div><span class="plan-price-num">¥4,980</span><span class="plan-price-unit">/月</span></div>
-            <div class="plan-price-note" style="color:#4f46e5">部員は全員無料で参加</div>
-          </div>
-          <div class="plan-divider"></div>
-          <div class="plan-feats">
-            <div class="pf"><div class="pf-icon">✓</div><div>Teamの全機能</div></div>
-            <div class="pf"><div class="pf-icon">✓</div><div>AI動画フォーム分析 <em>コーチが全部員分管理</em></div></div>
-            <div class="pf"><div class="pf-icon">✓</div><div>練習データのCSV一括エクスポート</div></div>
-            <div class="pf"><div class="pf-icon">✓</div><div>部員 <em>人数無制限</em></div></div>
-            <div class="pf"><div class="pf-icon">✓</div><div>優先サポート・導入サポート</div></div>
-          </div>
-          <a href="mailto:focusports.com@gmail.com?subject=Team Proプラン相談" class="plan-cta" style="background:linear-gradient(90deg,#4f46e5,#2563eb); color:#fff; box-shadow:0 4px 20px rgba(79,70,229,0.4);">導入を相談する</a>
+          <a href="mailto:team.deepwork2026@gmail.com?subject=コーチプラン 1ヶ月無料トライアル希望" class="plan-cta cta-team">1ヶ月無料で試してみる</a>
         </div>
       </div>
 
-      <!-- who guide team -->
-      <div class="who-guide" style="margin-top:32px;">
-        <div style="font-size:12px; color:var(--sub); text-align:center; margin-bottom:8px; letter-spacing:0.5px;">どのチームプランを選べばいい？</div>
-        <div class="who-item">
-          <div class="who-emoji">🏫</div>
-          <div class="who-body">
-            <div class="who-title">中高の顧問・クラブコーチ → <span style="color:#1d4ed8">Team ¥2,980/月</span></div>
-            <div class="who-desc">部員20名程度の学校・クラブに最適。体調管理・スケジュール共有・痛み通知がすべて揃う。<strong>部員の費用は¥0。</strong></div>
-          </div>
-        </div>
-        <div class="who-item">
-          <div class="who-emoji">🏆</div>
-          <div class="who-body">
-            <div class="who-title">強豪校・大規模チーム → <span style="color:#4f46e5">Team Pro ¥4,980/月</span></div>
-            <div class="who-desc">部員人数無制限・AI動画フォーム分析・CSV一括出力。本格的な強化体制を組むチームへ。</div>
-          </div>
-        </div>
-      </div>
       <div class="plan-toggle-note">
-        ※ チームプランの申込・導入サポートはメールにてご対応します。<br/>
-        部員の方は個人プランに登録後、コードを入力してチームに参加します。
+        ※ 今なら期間限定で、コーチプランを<strong style="color:#1d4ed8">1ヶ月間無料</strong>でお試しいただけます。合わなければそのままで大丈夫です。<br/>
+        部員の方は個人プランに登録後、チームコードを入力するだけで参加できます（費用はかかりません）。
       </div>
     </div>
   </div>
@@ -1220,7 +1245,7 @@
 <!-- ── DEVELOPER ── -->
 <section class="dev-section fade-in" id="story">
   <div class="dev-inner">
-    <div class="dev-tag">✦ Developer</div>
+    <div class="dev-tag"> Developer</div>
     <div class="dev-content">
       <div class="dev-photo-wrap">
         <img src="dev-photo.jpg" alt="sCORE 開発者" class="dev-photo" style="object-fit:cover; object-position:center top;" />
@@ -1250,11 +1275,11 @@
     <div class="cta-bottom-title">チーム管理を、<br/>もっとシンプルに。</div>
     <div class="cta-bottom-sub">まず選手が無料で使い始める。<br/>コーチは招待コードを送るだけ。今すぐ始められる。</div>
     <div class="cta-wrap" style="margin:0 auto">
-      <a href="https://scorej-run.vercel.app" class="btn-primary">
+      <a href="https://apps.apple.com/jp/app/id6766394981" class="btn-primary">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/></svg>
         sCORE を無料で使う
       </a>
-      <a href="mailto:focusports.com@gmail.com?subject=チーム導入相談" class="btn-ghost">チーム導入を相談する →</a>
+      <a href="mailto:team.deepwork2026@gmail.com?subject=チーム導入相談" class="btn-ghost">チーム導入を相談する →</a>
     </div>
   </div>
 </div>
@@ -1262,7 +1287,7 @@
 <!-- ── 保護者の方へ ── -->
 <section class="parent-section fade-in" id="parents">
   <div class="parent-inner">
-    <div class="parent-tag">✦ For Parents</div>
+    <div class="parent-tag"> For Parents</div>
     <div class="parent-title">保護者の方へ</div>
     <p class="parent-sub">
       お子さんがsCOREを使い始める前に、安心してご確認いただけるよう、<br/>
@@ -1272,7 +1297,7 @@
     <div class="parent-cards">
 
       <div class="parent-card fade-in fade-in-delay-1">
-        <div class="parent-card-icon" style="background:rgba(22,101,52,0.1)">🔒</div>
+        <div class="parent-card-icon" style="background:rgba(22,101,52,0.1)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
         <div>
           <div class="parent-card-title">データは安全に保管されています</div>
           <div class="parent-card-desc">
@@ -1283,7 +1308,7 @@
       </div>
 
       <div class="parent-card fade-in fade-in-delay-2">
-        <div class="parent-card-icon" style="background:rgba(59,130,246,0.1)">💬</div>
+        <div class="parent-card-icon" style="background:rgba(59,130,246,0.1)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M21 12a8 8 0 1 1-3.2-6.4L21 4l-1 4.4c.65 1.1 1 2.35 1 3.6z"/></svg></div>
         <div>
           <div class="parent-card-title">コーチと選手の個人的なやりとりはできません</div>
           <div class="parent-card-desc">
@@ -1295,7 +1320,7 @@
       </div>
 
       <div class="parent-card fade-in fade-in-delay-3">
-        <div class="parent-card-icon" style="background:rgba(245,158,11,0.1)">👁</div>
+        <div class="parent-card-icon" style="background:rgba(245,158,11,0.1)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></div>
         <div>
           <div class="parent-card-title">選手のデータはチーム内でのみ共有</div>
           <div class="parent-card-desc">
@@ -1307,7 +1332,7 @@
       </div>
 
       <div class="parent-card fade-in fade-in-delay-4">
-        <div class="parent-card-icon" style="background:rgba(239,68,68,0.1)">🧒</div>
+        <div class="parent-card-icon" style="background:rgba(239,68,68,0.1)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M9 10V7a3 3 0 0 1 6 0v3M12 14v3"/></svg></div>
         <div>
           <div class="parent-card-title">未成年の利用について</div>
           <div class="parent-card-desc">
@@ -1324,7 +1349,7 @@
       <div class="parent-contact-title">ご不明な点はお気軽にお問い合わせください</div>
       <div class="parent-contact-text">
         データの取り扱い・プライバシーに関するご質問は下記までお気軽にどうぞ。<br/>
-        <a href="mailto:focusports.com@gmail.com" class="parent-contact-link">focusports.com@gmail.com</a>
+        <a href="mailto:team.deepwork2026@gmail.com" class="parent-contact-link">team.deepwork2026@gmail.com</a>
       </div>
     </div>
   </div>
@@ -1334,14 +1359,14 @@
 <footer>
   <p style="font-size:14px; font-weight:700; color:var(--sub); margin-bottom:12px;">sCORE — 陸上競技チーム管理の新常識</p>
   <div class="footer-links">
-    <a href="https://scorej-run.vercel.app">アプリを開く</a>
+    <a href="https://apps.apple.com/jp/app/id6766394981">アプリを開く</a>
     <a href="#features">機能一覧</a>
     <a href="#pricing">料金プラン</a>
     <a href="#story">開発者について</a>
     <a href="#parents">保護者の方へ</a>
     <a href="https://scorej-run.vercel.app/terms">利用規約</a>
     <a href="https://scorej-run.vercel.app/privacy">プライバシー</a>
-    <a href="mailto:focusports.com@gmail.com">お問い合わせ</a>
+    <a href="mailto:team.deepwork2026@gmail.com">お問い合わせ</a>
   </div>
   <p style="margin-top:16px">© 2026 sCORE. All rights reserved.</p>
 </footer>

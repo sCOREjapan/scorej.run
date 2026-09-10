@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>オンボーディング後半 3案</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #F6F4EF;
+    font-family: -apple-system, "Hiragino Sans", sans-serif;
+    padding: 32px 24px 80px;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; color: #1e1b3a; }
+  .brief {
+    background: #fff; border: 1px solid #e8e4da; border-radius: 12px;
+    padding: 14px 18px; margin-bottom: 28px; font-size: 13px; color: #444; line-height: 1.7;
+    max-width: 920px;
+  }
+  .brief b { color: #111; }
+  .panels { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start; }
+  .panel { width: 300px; }
+  .panel-head { margin-bottom: 10px; }
+  .letter {
+    display: inline-block; width: 22px; height: 22px; border-radius: 6px;
+    background: #ddd; color: #333; font-weight: 800; font-size: 13px;
+    text-align: center; line-height: 22px; margin-right: 6px;
+  }
+  .panel.rec .letter { background: #166534; color: #fff; }
+  .panel-name { font-weight: 800; font-size: 14px; color: #1e1b3a; }
+  .badge-rec {
+    display: inline-block; background: #166534; color: #fff; font-size: 10px;
+    font-weight: 800; padding: 2px 8px; border-radius: 10px; margin-left: 6px;
+    vertical-align: middle;
+  }
+  .diff { font-size: 11.5px; color: #777; margin: 4px 0 12px; line-height: 1.5; }
+
+  .frame-wrap { width: 300px; height: 652px; position: relative; }
+  .bezel {
+    position: absolute; inset: 0;
+    background: #111; border-radius: 46px; padding: 7px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+  }
+  .screen { position: relative; width: 100%; height: 100%; border-radius: 40px; overflow: hidden; background: #fff; }
+  .notch {
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 40%; height: 22px; background: #111; border-radius: 0 0 14px 14px; z-index: 50;
+  }
+  .canvas {
+    width: 375px; height: 812px;
+    transform-origin: top left;
+    transform: scale(0.7627);
+    position: absolute; top: 0; left: 0;
+    font-family: -apple-system, "Hiragino Sans", sans-serif;
+  }
+
+  /* onboarding.tsx の実トークン */
+  .bg-white { background: #ffffff; }
+  .grad { background: linear-gradient(135deg, #22c55e 0%, #166534 100%); }
+  .tPri  { color: #111827; }
+  .tSec  { color: #6b7280; }
+  .tHint { color: #9ca3af; }
+  .brand { color: #166534; }
+
+  .content { padding: 28px 24px; height: 100%; }
+  .iconBlob {
+    width: 68px; height: 68px; border-radius: 34px;
+    align-items: center; justify-content: center;
+    display: flex; margin: 0 auto 14px;
+    color: #fff; font-size: 28px;
+  }
+  .doneBadge {
+    align-self: center; margin: 0 auto 10px; display: block; width: fit-content;
+    background: rgba(34,197,94,0.12); border-radius: 20px; padding: 6px 16px;
+    font-size: 11px; font-weight: 800; color: #166534;
+  }
+  .revealTitle { font-size: 21px; font-weight: 900; color: #111827; text-align: center; margin: 4px 0 18px; line-height: 1.35; }
+  .statCard {
+    background: #f6f6f8; border-radius: 18px; padding: 16px; margin-bottom: 18px;
+  }
+  .statRow { display: flex; justify-content: space-between; padding: 6px 0; font-size: 12.5px; }
+  .statRow .lbl { font-weight: 700; color: #111827; }
+  .statRow .val { font-weight: 900; color: #166534; }
+
+  .gBtn {
+    background: linear-gradient(135deg, #22c55e 0%, #166534 100%);
+    border-radius: 50px; padding: 16px; text-align: center;
+    color: #fff; font-weight: 800; font-size: 15px;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .skipTxt { text-align: center; margin-top: 12px; font-size: 12.5px; color: #9ca3af; font-weight: 600; }
+
+  /* A案: 今日の状態チェック → ソフトな案内 */
+  .checkRow { display: flex; gap: 8px; justify-content: center; margin: 14px 0 20px; }
+  .checkPill {
+    flex: 1; background: #f6f6f8; border-radius: 14px; padding: 12px 6px; text-align: center;
+    border: 1.5px solid transparent;
+  }
+  .checkPill.sel { border-color: #166534; background: rgba(34,197,94,0.08); }
+  .checkPill .emoji { font-size: 20px; }
+  .checkPill .lbl { font-size: 10px; font-weight: 700; color: #6b7280; margin-top: 4px; }
+  .adviceCard {
+    background: linear-gradient(135deg, rgba(34,197,94,0.08), rgba(22,101,52,0.05));
+    border-radius: 18px; padding: 16px; margin-bottom: 16px; border: 1px solid rgba(22,101,52,0.15);
+  }
+  .adviceCard .eyebrow { font-size: 10.5px; font-weight: 800; color: #166534; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .adviceCard .body { font-size: 13px; font-weight: 700; color: #111827; line-height: 1.5; }
+  .softLine { text-align: center; font-size: 11.5px; color: #6b7280; margin-top: 10px; line-height: 1.6; }
+  .softLine b { color: #166534; }
+
+  /* B案: 直接paywall */
+  .heroB { text-align: center; margin-bottom: 14px; }
+  .heroB .offer { font-size: 10px; font-weight: 800; color: #6b7280; letter-spacing: 1px; }
+  .heroB h2 { font-size: 20px; font-weight: 900; color: #111827; margin: 4px 0 6px; }
+  .cmpB { background: #f6f6f8; border-radius: 16px; padding: 14px; margin-bottom: 14px; }
+  .cmpB .row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 11.5px; }
+  .cmpB .row .f { font-weight: 700; color: #111827; }
+  .priceB {
+    background: rgba(34,197,94,0.1); border-radius: 14px; padding: 12px 14px; margin-bottom: 14px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .priceB .l { font-size: 13px; font-weight: 800; color: #111827; }
+  .priceB .badge { background: #166534; color: #fff; font-size: 9.5px; font-weight: 800; padding: 3px 8px; border-radius: 10px; }
+
+  /* C案: そのままホームへ、通知許可だけ */
+  .notifIcon { font-size: 44px; text-align: center; margin-bottom: 14px; }
+  .notifTitle { font-size: 18px; font-weight: 900; color: #111827; text-align: center; margin-bottom: 8px; }
+  .notifSub { font-size: 12.5px; color: #6b7280; text-align: center; line-height: 1.6; margin-bottom: 24px; }
+</style>
+</head>
+<body>
+
+<h1>オンボーディング「reveal」後の3案</h1>
+<div class="brief">
+  <b>指示原文：</b>「新規ユーザーからのサブスク課金を促すオンボーディングにしたい」→その後「初回体験の再設計：登録後3分以内に、
+  本人のデータを使った『今日の状態・次にすべきこと』を出す。AI動画分析やチケット購入を初回の目的にしない、これいいと思う」。<br>
+  <b>今の実装</b>：quiz(名前・種目)→処理演出→reveal(プロフィール確認カード)→「始める」ボタンでhandleFinish()→ホームへ直行。
+  reveal後に何も挟んでいない。<b>解釈が割れる点</b>：「サブスク課金を促す」と「初回の目的にしない」を両立させる強さの調整。
+</div>
+
+<div class="panels">
+
+  <!-- ============ 案A（推奨） ============ -->
+  <div class="panel rec">
+    <div class="panel-head">
+      <span class="letter">A</span><span class="panel-name">今日の状態チェック→ソフトな一言案内</span><span class="badge-rec">推奨</span>
+      <div class="diff">reveal後に1タップの疲労チェックを挟み、本物のデータで「今日のおすすめ」を出す。課金訴求は下の1行だけ、閉じても進める。</div>
+    </div>
+    <div class="frame-wrap">
+      <div class="bezel"><div class="screen"><div class="notch"></div>
+        <div class="canvas" style="transform:scale(0.7627)">
+          <div class="bg-white" style="width:375px;height:812px;">
+            <div class="content">
+              <div class="iconBlob grad">⚡</div>
+              <div class="doneBadge">準備完了</div>
+              <div class="revealTitle">たけださん、<br>今日の状態を教えてください</div>
+
+              <div class="checkRow">
+                <div class="checkPill"><div class="emoji">😊</div><div class="lbl">元気</div></div>
+                <div class="checkPill sel"><div class="emoji">😐</div><div class="lbl">普通</div></div>
+                <div class="checkPill"><div class="emoji">😓</div><div class="lbl">疲れ気味</div></div>
+              </div>
+
+              <div class="adviceCard">
+                <div class="eyebrow">今日のおすすめ</div>
+                <div class="body">「普通」なら軽めのジョグ20分がちょうど良いペース。無理せず今週を積み上げていきましょう。</div>
+              </div>
+
+              <div class="gBtn">はじめる →</div>
+              <div class="softLine">この判断、毎日<b>自動</b>で出せます。<br>気になったら後で「チケットプラン」から。</div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 案B ============ -->
+  <div class="panel">
+    <div class="panel-head">
+      <span class="letter">B</span><span class="panel-name">reveal直後に比較paywallを直接挿入</span>
+      <div class="diff">今回リニューアルした paywall.tsx（Free vs チケット比較）をreveal直後の最終ステップとしてそのまま出す。スキップは可能だが最初から課金訴求が主役になる。</div>
+    </div>
+    <div class="frame-wrap">
+      <div class="bezel"><div class="screen"><div class="notch"></div>
+        <div class="canvas" style="transform:scale(0.7627)">
+          <div class="bg-white" style="width:375px;height:812px;">
+            <div class="content">
+              <div class="heroB">
+                <div class="offer">🎁 3日間無料トライアル</div>
+                <h2>もっと、AIを<br>使いこなす。</h2>
+              </div>
+              <div class="cmpB">
+                <div class="row"><span class="f">広告非表示</span><span>Free ✕ / チケット ✓</span></div>
+                <div class="row"><span class="f">毎月チケット100枚</span><span>Free ✕ / チケット ✓</span></div>
+                <div class="row"><span class="f">AI機能</span><span>Free ✓ / チケット ✓</span></div>
+              </div>
+              <div class="priceB">
+                <div class="l">チケット月額プラン ¥980/月</div>
+                <div class="badge">おすすめ</div>
+              </div>
+              <div class="gBtn">3日間無料で始める</div>
+              <div class="skipTxt">無料プランのまま続ける</div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 案C ============ -->
+  <div class="panel">
+    <div class="panel-head">
+      <span class="letter">C</span><span class="panel-name">課金訴求なし・通知許可だけ取ってホームへ</span>
+      <div class="diff">reveal後は通知許可の依頼のみ。課金の話は一切せず、既存のNoadUpsellModal（Day0以降・広告視聴後）に完全に委ねる、最も「初回の目的にしない」を徹底した案。</div>
+    </div>
+    <div class="frame-wrap">
+      <div class="bezel"><div class="screen"><div class="notch"></div>
+        <div class="canvas" style="transform:scale(0.7627)">
+          <div class="bg-white" style="width:375px;height:812px;">
+            <div class="content" style="padding-top:80px;">
+              <div class="notifIcon">🔔</div>
+              <div class="notifTitle">明日も続けられるように</div>
+              <div class="notifSub">練習後のリマインドを送ります。<br>通知はいつでもオフにできます。</div>
+              <div class="gBtn">通知を許可する</div>
+              <div class="skipTxt">後で設定する</div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<p style="margin-top:36px; font-size:12px; color:#888;">
+  選んだレターを言えば、そのまま app/onboarding.tsx の reveal フェーズ後に実装します。A案がベースの場合、「今日のおすすめ」は既存のinjuryRisk.ts等の計算ロジックと接続する想定です。
+</p>
+
+</body>
+</html>

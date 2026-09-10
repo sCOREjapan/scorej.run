@@ -15,25 +15,31 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { LinearGradient } from 'expo-linear-gradient'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { usePurchase } from '../context/PurchaseContext'
 import { PRODUCT_IDS, TICKET_MONTHLY_GRANT } from '../lib/purchaseService'
-import { trackPaywallView } from '../lib/analytics'
+import { trackPaywallView, trackTrialStarted } from '../lib/analytics'
 import Toast from 'react-native-toast-message'
+import DarkScreenBg, { DARK_ACCENT } from '../components/DarkGradientBg'
 
-const BRAND  = '#16a34a'
+// 2026-09-07: オンボーディング刷新のダークグリーン系デザインシステムに合わせて全面刷新。
+// BRANDはonboarding.tsxの基調色(#166534)に統一（旧#16a34aはこのファイル内でのみ使う
+// 微妙に違う緑で、画面をまたぐと色が揃わなかったため）。
+const BRAND  = '#166534'
 const TIX    = '#f59e0b'
 const GOLD   = '#d97706'
-const BG     = '#f6f6f8'
-const CARD   = '#ffffff'
 const BORDER = 'rgba(0,0,0,0.08)'
+const CARD   = '#ffffff'
 const TEXT_PRIMARY = '#111827'
 const TEXT_SECONDARY = '#6b7280'
 const TEXT_HINT = '#9ca3af'
+// ダーク背景(緑グラデーション)に直接乗る文字色。白カードの中の文字は上のTEXT_*のまま。
+const DTXT       = '#ffffff'
+const DTXT_SUB   = 'rgba(255,255,255,0.72)'
+const DTXT_HINT  = 'rgba(255,255,255,0.55)'
 
-type PlanId = 'noad' | 'ticket_monthly' | 'coach'
+type PlanId = 'ticket_monthly' | 'coach'
 type Period = 'monthly' | 'yearly'
 
 // ── プラン定義 ─────────────────────────────────────────────────────
@@ -50,19 +56,12 @@ type PlanConfig = {
 function buildPlans(t: (key: string, opts?: any) => string): PlanConfig[] {
   const perMonth = t('paywall.perMonth')
   const perMonthEquiv = t('paywall.perMonthEquiv')
+  // 2026-09-07: ¥480広告なしプラン単体は新規販売を終了（チケット月額プランに一本化）。
+  // 既存加入者はlib/adGate.tsのisLegacyUnlimitedNoad()でグランドファザリングされ続けるため、
+  // PRODUCT_IDS.noad_monthly/noad_yearlyやPlanTierの'noad'自体は削除していない。
   return [
     {
-      id: 'noad', color: BRAND, icon: '🚫',
-      label: t('paywall.plans.noad.label'), tagline: t('paywall.plans.noad.tagline'),
-      monthly: { productId: PRODUCT_IDS.noad_monthly, price: '¥480',  period: perMonth },
-      yearly:  { productId: PRODUCT_IDS.noad_yearly,  price: '¥400',  period: perMonthEquiv, note: t('paywall.plans.noad.yearlyNote') },
-      features: [
-        t('paywall.plans.noad.feature1'),
-        t('paywall.plans.noad.feature2'),
-      ],
-    },
-    {
-      id: 'ticket_monthly', color: TIX, icon: '🎫',
+      id: 'ticket_monthly', color: BRAND, icon: '🎫',
       label: t('paywall.plans.ticket_monthly.label'), tagline: t('paywall.plans.ticket_monthly.tagline'),
       monthly: { productId: PRODUCT_IDS.ticket_monthly, price: '¥980', period: perMonth },
       features: [
@@ -104,11 +103,21 @@ function trialDaysFromPackage(pkg: any): number | null {
   }
 }
 
-function CheckRow({ color, text }: { color: string; text: string }) {
+// 月額（または年額の月換算）price文字列（例:"¥980"）から1日あたりの目安額を出す。
+// 「月額980円」より「1日あたり33円」の方が心理的な負担感が小さく見えるアンカリング表示。
+// ¥表記以外(将来の多通貨対応)や数値が取れない場合はnullを返して非表示にする。
+function dailyPriceLabel(t: (key: string, opts?: any) => string, priceStr: string): string | null {
+  const n = Number(priceStr.replace(/[^\d]/g, ''))
+  if (!n) return null
+  const daily = Math.max(1, Math.round(n / 30))
+  return t('paywall.perDayApprox', { price: `¥${daily.toLocaleString()}` })
+}
+
+function CheckRow({ color, text, dark }: { color: string; text: string; dark?: boolean }) {
   return (
     <View style={st.checkRow}>
       <Ionicons name="checkmark-circle" size={16} color={color} />
-      <Text style={st.checkText}>{text}</Text>
+      <Text style={[st.checkText, dark ? { color: DTXT_SUB } : null]}>{text}</Text>
     </View>
   )
 }
@@ -121,15 +130,19 @@ export default function PaywallScreen() {
 
   const PLANS = buildPlans(t)
   // 2026-09-07: サブスク推奨画面をリニューアル。チケットプランを一律で推奨する
-  // 比較デザインに切り替えたため、noad単体パラメータもticket_monthlyへ収束させる。
-  // coachプラン（CoachPlanBanner等からの専用導線）のみ従来の3プラン一覧UIを維持。
+  // 比較デザイン(Free/チケットの2択のみ・コーチはテキストリンクのみ)を追加したが、
+  // 2026-09-08: コーチプランと980円プランを両方きちんと選べる既存の3プラン一覧UI
+  // （下のuseComparisonDesign=falseの分岐）だけを残すことになったため、
+  // 比較デザイン分岐は使わない（コードは残すが常にfalse固定）。
   const initialPlan: PlanId = planParam === 'coach' ? 'coach' : 'ticket_monthly'
-  const useComparisonDesign = initialPlan !== 'coach'
+  const useComparisonDesign = false
   const [selected,   setSelected]   = useState<PlanId>(initialPlan)
-  const [periods,    setPeriods]    = useState<Record<PlanId, Period>>({ noad: 'monthly', ticket_monthly: 'monthly', coach: 'monthly' })
+  const [periods,    setPeriods]    = useState<Record<PlanId, Period>>({ ticket_monthly: 'monthly', coach: 'monthly' })
   const [purchasing, setPurchasing] = useState(false)
   const [restoring,  setRestoring]  = useState(false)
   const fadeAnim = useRef(new Animated.Value(0)).current
+  // 購入ボタンの「少し光らせる」呼吸するグロー（0↔1を往復するだけの単純なopacityアニメ）
+  const ctaGlow = useRef(new Animated.Value(0)).current
   // setPurchasingは再レンダー待ちで反映が非同期なため、連打防止には同期的なrefロックが必要
   const purchaseLockRef = useRef(false)
 
@@ -137,6 +150,14 @@ export default function PaywallScreen() {
     Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: true }).start()
     refreshStatus().catch(() => {})
     trackPaywallView(`paywall_screen:${initialPlan}`)
+    const glowLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(ctaGlow, { toValue: 1, duration: 1400, useNativeDriver: true }),
+        Animated.timing(ctaGlow, { toValue: 0, duration: 1400, useNativeDriver: true }),
+      ])
+    )
+    glowLoop.start()
+    return () => glowLoop.stop()
   }, [])
 
   // 購入済みならホームへ（コーチ/広告なしのいずれか、またはチケット月額プランが有効なら）
@@ -182,12 +203,13 @@ export default function PaywallScreen() {
     purchaseLockRef.current = true
     setPurchasing(true)
     try {
-      await purchase(targetPkg)
+      const ok = await purchase(targetPkg)
+      if (ok && selectedTrialDays) trackTrialStarted(selected)
     } finally {
       setPurchasing(false)
       purchaseLockRef.current = false
     }
-  }, [targetPkg, purchase, packagesDiagnostic])
+  }, [targetPkg, purchase, packagesDiagnostic, selectedTrialDays, selected])
 
   const handleRestore = useCallback(async () => {
     setRestoring(true)
@@ -197,22 +219,37 @@ export default function PaywallScreen() {
   // ── 購入ボタン以下（法的必須テキスト・復元・DEV用）は新旧デザイン共通 ──
   const renderPurchaseFooter = () => (
     <>
-      <TouchableOpacity
-        onPress={handlePurchase}
-        disabled={purchasing || !packagesReady}
-        activeOpacity={0.85}
-        style={[st.purchaseBtn, { backgroundColor: selectedPlan.color }, (purchasing || !packagesReady) && { opacity: 0.55 }]}
-      >
-        {purchasing ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={st.purchaseBtnText}>
-            {selectedTrialDays
-              ? t('paywall.startTrial', { days: selectedTrialDays })
-              : t('paywall.startPlan', { label: selectedPlan.label, price: selectedTerms.price, period: selectedTerms.period })}
-          </Text>
-        )}
-      </TouchableOpacity>
+      <View style={st.purchaseBtnWrap}>
+        {/* 「少し光らせる」— ボタンの外周にごく淡く呼吸するグローを1枚敷くだけ。
+            iOS/Android/webのどこでもぼかしCSSに頼らず同じ見た目になるよう、
+            半透明の同色背景レイヤーのopacityをアニメーションさせる方式にしている */}
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            st.purchaseBtnGlow,
+            {
+              opacity: ctaGlow.interpolate({ inputRange: [0, 1], outputRange: [0.18, 0.4] }),
+              transform: [{ scale: ctaGlow.interpolate({ inputRange: [0, 1], outputRange: [1, 1.03] }) }],
+            },
+          ]}
+        />
+        <TouchableOpacity
+          onPress={handlePurchase}
+          disabled={purchasing || !packagesReady}
+          activeOpacity={0.85}
+          style={[st.purchaseBtn, (purchasing || !packagesReady) && { opacity: 0.55 }]}
+        >
+          {purchasing ? (
+            <ActivityIndicator color={selectedPlan.color} />
+          ) : (
+            <Text style={[st.purchaseBtnText, { color: selectedPlan.color }]}>
+              {selectedTrialDays
+                ? t('paywall.startTrial', { days: selectedTrialDays })
+                : t('paywall.startPlan', { label: selectedPlan.label, price: selectedTerms.price, period: selectedTerms.period })}
+            </Text>
+          )}
+        </TouchableOpacity>
+      </View>
       {selectedTrialDays ? (
         <Text style={st.trialSubtext}>
           {t('paywall.trialSubtext', { price: selectedTerms.price, period: selectedTerms.period })}
@@ -241,7 +278,7 @@ export default function PaywallScreen() {
       {/* ── 復元ボタン（Apple審査で必須） ── */}
       <TouchableOpacity onPress={handleRestore} disabled={restoring} style={st.restoreBtn}>
         {restoring
-          ? <ActivityIndicator color={TEXT_SECONDARY} size="small" />
+          ? <ActivityIndicator color={DTXT_SUB} size="small" />
           : <Text style={st.restoreText}>{t('paywall.restoreButton')}</Text>
         }
       </TouchableOpacity>
@@ -274,11 +311,12 @@ export default function PaywallScreen() {
   )
 
   return (
+    <DarkScreenBg>
     <SafeAreaView style={st.safe} edges={['top', 'bottom']}>
       {/* ── ヘッダー ── */}
       <View style={st.header}>
         <TouchableOpacity onPress={() => router.back()} style={st.closeBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="閉じる" accessibilityRole="button">
-          <Ionicons name="close" size={24} color={TEXT_PRIMARY} />
+          <Ionicons name="close" size={24} color={DTXT} />
         </TouchableOpacity>
         <Text style={st.headerTitle}>{t('paywall.headerTitle')}</Text>
         <View style={{ width: 40 }} />
@@ -286,8 +324,8 @@ export default function PaywallScreen() {
 
       {useComparisonDesign ? (
         <Animated.ScrollView style={{ flex: 1, opacity: fadeAnim }} contentContainerStyle={st.scrollCompare}>
-          {/* ── ヒーロー（グラデーション） ── */}
-          <LinearGradient colors={['#eafaf0', '#bdeecb', '#8fdcae']} style={st.heroGrad}>
+          {/* ── ヒーロー（ダーク背景に直接乗せる。他のオンボーディング画面と同じeyebrow+見出しの並び） ── */}
+          <View style={st.heroWrap}>
             {selectedTrialDays ? (
               <View style={st.heroOffer}>
                 <Text style={st.heroOfferTxt}>{t('paywall.trialBadge', { days: selectedTrialDays })}</Text>
@@ -295,9 +333,9 @@ export default function PaywallScreen() {
             ) : null}
             <Text style={st.heroTitle}>{t('paywall.compare.heroTitle')}</Text>
             <Text style={st.heroSub}>{t('paywall.compare.heroSubtitle', { count: TICKET_MONTHLY_GRANT })}</Text>
-          </LinearGradient>
+          </View>
 
-          {/* ── Free vs チケット 比較表 ── */}
+          {/* ── Free vs チケット 比較表（白カードのまま＝可読性優先。選択カードが白のオンボーディングと同じ言語） ── */}
           <View style={st.cmpWrap}>
             <View style={st.cmpColsRow}>
               <View style={{ flex: 1 }} />
@@ -329,11 +367,15 @@ export default function PaywallScreen() {
             </View>
           </View>
 
-          {/* ── 価格カード ── */}
+          {/* ── 価格カード（白カードに統一） ── */}
           <View style={st.priceCard}>
             <View>
               <Text style={st.priceCardLabel}>{selectedPlan.label}</Text>
               <Text style={st.priceCardSub}>{t('paywall.compare.priceCardSub', { price: selectedTerms.price })}</Text>
+              {(() => {
+                const daily = dailyPriceLabel(t, selectedTerms.price)
+                return daily ? <Text style={st.priceCardDaily}>{daily}</Text> : null
+              })()}
             </View>
             <View style={st.priceCardBadge}>
               <Text style={st.priceCardBadgeTxt}>{t('paywall.recommended')}</Text>
@@ -348,16 +390,22 @@ export default function PaywallScreen() {
             <Text style={st.skipTxt}>{t('paywall.compare.skipContinue')}</Text>
           </TouchableOpacity>
 
+          {/* 2026-09-07: 比較デザインはFree/チケットの2択のみでコーチプランへの導線が
+              無かったため、見つけやすいように控えめなテキストリンクを追加 */}
+          <TouchableOpacity onPress={() => router.push('/paywall?plan=coach')} style={st.coachLinkBtn} activeOpacity={0.7}>
+            <Text style={st.coachLinkTxt}>{t('paywall.compare.coachLink')}</Text>
+          </TouchableOpacity>
+
           <View style={{ height: 32 }} />
         </Animated.ScrollView>
       ) : (
       <Animated.ScrollView style={{ flex: 1, opacity: fadeAnim }} contentContainerStyle={st.scroll}>
 
-        {/* ── リード文 ── */}
-        <Text style={st.lead}><Text style={{ color: BRAND, fontWeight: '900' }}>{t('paywall.leadHighlight')}</Text>{t('paywall.leadRest')}</Text>
+        {/* ── リード文（ダーク背景に直接乗せる） ── */}
+        <Text style={st.lead}><Text style={{ color: DARK_ACCENT, fontWeight: '900' }}>{t('paywall.leadHighlight')}</Text>{t('paywall.leadRest')}</Text>
         <Text style={st.subLead}>{t('paywall.subLead')}</Text>
 
-        {/* ── プランカード ── */}
+        {/* ── プランカード（未選択=半透明白／選択=白。オンボーディングのDarkChoiceCardと同じ言語） ── */}
         {PLANS.map(plan => {
           const isSelected = selected === plan.id
           const period = plan.yearly ? periods[plan.id] : 'monthly'
@@ -371,7 +419,7 @@ export default function PaywallScreen() {
               style={[
                 st.planCard,
                 plan.recommended && { marginTop: 14 },
-                isSelected && { borderColor: plan.color, borderWidth: 2 },
+                isSelected && [st.planCardSelected, { borderColor: plan.color }],
               ]}
             >
               {plan.recommended && (
@@ -388,9 +436,9 @@ export default function PaywallScreen() {
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <Text style={{ fontSize: 18 }}>{plan.icon}</Text>
-                    <Text style={[st.planLabel, isSelected && { color: plan.color }]}>{plan.label}</Text>
+                    <Text style={[st.planLabel, isSelected ? { color: plan.color } : { color: DTXT }]}>{plan.label}</Text>
                   </View>
-                  <Text style={st.planTagline}>{plan.tagline}</Text>
+                  <Text style={[st.planTagline, !isSelected && { color: DTXT_SUB }]}>{plan.tagline}</Text>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
                   {trialDays ? (
@@ -398,33 +446,37 @@ export default function PaywallScreen() {
                       <Text style={st.trialBadgeTxt}>{t('paywall.trialBadge', { days: trialDays })}</Text>
                     </View>
                   ) : null}
-                  <Text style={[st.planPrice, { color: plan.color }]}>{terms.price}</Text>
-                  <Text style={st.planPeriod}>{terms.period}</Text>
+                  <Text style={[st.planPrice, { color: isSelected ? plan.color : DTXT }]}>{terms.price}</Text>
+                  <Text style={[st.planPeriod, !isSelected && { color: DTXT_HINT }]}>{terms.period}</Text>
                   {period === 'yearly' && plan.yearly && <Text style={st.planNote}>{plan.yearly.note}</Text>}
+                  {(() => {
+                    const daily = dailyPriceLabel(t, terms.price)
+                    return daily ? <Text style={[st.planDaily, !isSelected && { color: DTXT_SUB }]}>{daily}</Text> : null
+                  })()}
                 </View>
               </View>
 
               {/* 月額/年額トグル（年額オプションがあるプランのみ） */}
               {plan.yearly && (
-                <View style={st.seg}>
+                <View style={[st.seg, !isSelected && st.segDark]}>
                   <TouchableOpacity
                     onPress={() => setPeriods(p => ({ ...p, [plan.id]: 'monthly' }))}
                     style={[st.segBtn, period === 'monthly' && { backgroundColor: plan.color }]}
                   >
-                    <Text style={[st.segBtnTxt, period === 'monthly' && st.segBtnTxtActive]}>{t('paywall.monthly')}</Text>
+                    <Text style={[st.segBtnTxt, !isSelected && { color: DTXT_SUB }, period === 'monthly' && st.segBtnTxtActive]}>{t('paywall.monthly')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => setPeriods(p => ({ ...p, [plan.id]: 'yearly' }))}
                     style={[st.segBtn, period === 'yearly' && { backgroundColor: plan.color }]}
                   >
-                    <Text style={[st.segBtnTxt, period === 'yearly' && st.segBtnTxtActive]}>{t('paywall.yearlyDiscount')}</Text>
+                    <Text style={[st.segBtnTxt, !isSelected && { color: DTXT_SUB }, period === 'yearly' && st.segBtnTxtActive]}>{t('paywall.yearlyDiscount')}</Text>
                   </TouchableOpacity>
                 </View>
               )}
 
               {/* 機能リスト */}
               <View style={st.featList}>
-                {plan.features.map(f => <CheckRow key={f} color={plan.color} text={f} />)}
+                {plan.features.map(f => <CheckRow key={f} color={isSelected ? plan.color : DARK_ACCENT} text={f} dark={!isSelected} />)}
               </View>
             </TouchableOpacity>
           )
@@ -436,54 +488,66 @@ export default function PaywallScreen() {
       </Animated.ScrollView>
       )}
     </SafeAreaView>
+    </DarkScreenBg>
   )
 }
 
 const st = StyleSheet.create({
-  safe:            { flex: 1, backgroundColor: BG },
+  safe:            { flex: 1, backgroundColor: 'transparent' },
   header:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
   closeBtn:        { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle:     { fontSize: 17, fontWeight: '700', color: TEXT_PRIMARY },
+  headerTitle:     { fontSize: 17, fontWeight: '700', color: DTXT },
   scroll:          { paddingHorizontal: 16, paddingTop: 8 },
-  lead:            { fontSize: 26, fontWeight: '900', color: TEXT_PRIMARY, textAlign: 'center', lineHeight: 36, marginBottom: 8 },
-  subLead:         { fontSize: 14, color: TEXT_SECONDARY, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
-  planCard:        { backgroundColor: CARD, borderRadius: 21, padding: 18, marginBottom: 14, borderWidth: 1.5, borderColor: BORDER, position: 'relative' },
+  lead:            { fontSize: 26, fontWeight: '900', color: DTXT, textAlign: 'center', lineHeight: 36, marginBottom: 8 },
+  subLead:         { fontSize: 14, color: DTXT_SUB, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+  // 未選択=半透明白カード／選択=白カード（onboarding.tsxのDarkChoiceCardと同じ言語）
+  planCard:        { backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 21, padding: 18, marginBottom: 14, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.18)', position: 'relative' },
+  planCardSelected:{ backgroundColor: CARD, borderWidth: 2 },
   recBadge:        { position: 'absolute', top: -11, left: 18, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4 },
   recBadgeTxt:     { fontSize: 11, fontWeight: '800', color: '#fff' },
   planTop:         { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 14 },
-  radio:           { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: '#d1d5db', alignItems: 'center', justifyContent: 'center', marginTop: 2 },
+  radio:           { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: 'rgba(255,255,255,0.4)', alignItems: 'center', justifyContent: 'center', marginTop: 2 },
   radioDot:        { width: 10, height: 10, borderRadius: 5 },
   planLabel:       { fontSize: 17, fontWeight: '800', color: TEXT_PRIMARY },
   planTagline:     { fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 },
   planPrice:       { fontSize: 22, fontWeight: '900', fontVariant: ['tabular-nums'] },
   planPeriod:      { fontSize: 11, color: TEXT_HINT, marginTop: 1 },
-  planNote:        { fontSize: 10, color: '#16a34a', marginTop: 2, fontWeight: '700' },
+  planNote:        { fontSize: 10, color: DARK_ACCENT, marginTop: 2, fontWeight: '700' },
+  planDaily:       { fontSize: 10, color: TEXT_HINT, marginTop: 2 },
   trialBadge:      { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 3 },
   trialBadgeTxt:   { fontSize: 10.5, fontWeight: '800', color: '#fff' },
   seg:             { flexDirection: 'row', backgroundColor: '#f0f2f5', borderRadius: 12, padding: 3, gap: 3, marginBottom: 14 },
+  segDark:         { backgroundColor: 'rgba(255,255,255,0.14)' },
   segBtn:          { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 9 },
   segBtnTxt:       { fontSize: 12, fontWeight: '700', color: TEXT_SECONDARY },
   segBtnTxtActive: { color: '#fff' },
   featList:        { gap: 8, paddingLeft: 4 },
   checkRow:        { flexDirection: 'row', alignItems: 'center', gap: 8 },
   checkText:       { fontSize: 13, color: TEXT_SECONDARY, flex: 1 },
-  purchaseBtn:     { borderRadius: 21, paddingVertical: 16, alignItems: 'center', marginTop: 8, marginBottom: 4 },
-  purchaseBtnText: { fontSize: 16, fontWeight: '800', color: '#fff' },
-  trialSubtext:    { fontSize: 11, color: TEXT_HINT, textAlign: 'center', marginTop: -2, marginBottom: 4 },
-  legalBox:        { backgroundColor: '#eef0f3', borderRadius: 14, padding: 14, marginTop: 16 },
-  legalText:       { fontSize: 11, color: TEXT_SECONDARY, lineHeight: 18 },
-  legalLink:       { fontSize: 11, color: TEXT_SECONDARY, textDecorationLine: 'underline' },
+  // 購入CTAは白いカプセル＋プラン色文字（オンボーディングのDarkCTAButtonと統一）
+  purchaseBtnWrap: { marginTop: 8, marginBottom: 4 },
+  purchaseBtn:     { borderRadius: 21, paddingVertical: 16, alignItems: 'center', backgroundColor: '#fff' },
+  purchaseBtnText: { fontSize: 16, fontWeight: '800' },
+  // ボタンよりひと回り大きい半透明レイヤー。ぼかしCSSを使わず「淡い光の輪」に見せる
+  purchaseBtnGlow: {
+    position: 'absolute', top: -6, left: -6, right: -6, bottom: -6,
+    borderRadius: 27, backgroundColor: DARK_ACCENT,
+  },
+  trialSubtext:    { fontSize: 11, color: DTXT_HINT, textAlign: 'center', marginTop: -2, marginBottom: 4 },
+  legalBox:        { backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 14, padding: 14, marginTop: 16 },
+  legalText:       { fontSize: 11, color: DTXT_SUB, lineHeight: 18 },
+  legalLink:       { fontSize: 11, color: DTXT_SUB, textDecorationLine: 'underline' },
   restoreBtn:      { alignItems: 'center', paddingVertical: 14, minHeight: 44, justifyContent: 'center' },
-  restoreText:     { fontSize: 14, color: TEXT_SECONDARY },
+  restoreText:     { fontSize: 14, color: DTXT_SUB },
 
-  // ── 比較デザイン（2026-09-07リニューアル：Free vs チケットプラン） ──
+  // ── 比較デザイン（2026-09-07リニューアル：Free vs チケットプラン／ダークグリーン刷新） ──
   scrollCompare:   { paddingBottom: 8 },
-  heroGrad:        { marginHorizontal: 16, borderRadius: 24, paddingVertical: 24, paddingHorizontal: 20, alignItems: 'center', marginBottom: -18 },
-  heroOffer:       { backgroundColor: 'rgba(13,51,32,0.12)', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4, marginBottom: 8 },
-  heroOfferTxt:    { fontSize: 11, fontWeight: '800', color: '#0d3320' },
-  heroTitle:       { fontSize: 24, fontWeight: '900', color: '#0d3320', textAlign: 'center', lineHeight: 30, marginBottom: 8, letterSpacing: -0.3 },
-  heroSub:         { fontSize: 12.5, color: 'rgba(13,51,32,0.65)', textAlign: 'center', lineHeight: 19 },
-  cmpWrap:         { marginHorizontal: 16, backgroundColor: CARD, borderRadius: 20, padding: 18, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 16, elevation: 2 },
+  heroWrap:        { paddingHorizontal: 28, paddingTop: 8, paddingBottom: 22, alignItems: 'center' },
+  heroOffer:       { backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4, marginBottom: 10 },
+  heroOfferTxt:    { fontSize: 11, fontWeight: '800', color: DARK_ACCENT },
+  heroTitle:       { fontSize: 24, fontWeight: '900', color: DTXT, textAlign: 'center', lineHeight: 30, marginBottom: 8, letterSpacing: -0.3 },
+  heroSub:         { fontSize: 12.5, color: DTXT_SUB, textAlign: 'center', lineHeight: 19 },
+  cmpWrap:         { marginHorizontal: 16, backgroundColor: CARD, borderRadius: 20, padding: 18, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 16, elevation: 2 },
   cmpColsRow:      { flexDirection: 'row', alignItems: 'center', paddingBottom: 10, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: '#eee' },
   cmpColH:         { width: 60, textAlign: 'center', fontSize: 12, fontWeight: '800', color: TEXT_SECONDARY },
   cmpColHActive:   { color: '#fff', backgroundColor: BRAND, borderRadius: 10, paddingVertical: 4, overflow: 'hidden' },
@@ -493,11 +557,14 @@ const st = StyleSheet.create({
   cmpMark:         { width: 60, textAlign: 'center', fontSize: 16 },
   cmpMarkYes:      { color: BRAND, fontWeight: '800' },
   cmpMarkNo:       { color: '#d1d5db' },
-  priceCard:       { marginHorizontal: 16, marginTop: 14, borderRadius: 18, padding: 16, backgroundColor: '#eafaf0', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  priceCardLabel:  { fontSize: 14, fontWeight: '800', color: '#0d3320' },
-  priceCardSub:    { fontSize: 10.5, color: '#3d6b52', marginTop: 2 },
+  priceCard:       { marginHorizontal: 16, marginTop: 14, borderRadius: 18, padding: 16, backgroundColor: CARD, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  priceCardLabel:  { fontSize: 14, fontWeight: '800', color: BRAND },
+  priceCardSub:    { fontSize: 10.5, color: TEXT_SECONDARY, marginTop: 2 },
+  priceCardDaily:  { fontSize: 10.5, color: BRAND, marginTop: 2, fontWeight: '700' },
   priceCardBadge:  { backgroundColor: BRAND, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 },
   priceCardBadgeTxt:{ color: '#fff', fontSize: 10, fontWeight: '800' },
   skipBtn:         { alignItems: 'center', paddingVertical: 10, minHeight: 44, justifyContent: 'center' },
-  skipTxt:         { fontSize: 13, color: TEXT_HINT, fontWeight: '600' },
+  skipTxt:         { fontSize: 13, color: DTXT_HINT, fontWeight: '600' },
+  coachLinkBtn:    { alignItems: 'center', paddingVertical: 6, minHeight: 32, justifyContent: 'center' },
+  coachLinkTxt:    { fontSize: 12, color: DTXT_HINT, fontWeight: '600', textDecorationLine: 'underline' },
 })

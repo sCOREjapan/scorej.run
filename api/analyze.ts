@@ -24,6 +24,15 @@ export const config = { runtime: 'nodejs' }
 export const maxDuration = 60
 
 const GEMINI_MODEL = 'gemini-3.5-flash'
+// 2026-09-09: 無料/チケット利用ユーザーには軽量モデル、有料サブスク(coach/レガシーnoad)には
+// 現行モデルを使う設計を追加。gemini-3.5-flash-liteで実際にJSON出力の安定性をテスト済み
+// （lib/claude.tsの各AI機能と同じプロンプトで3パターン検証、全て正常にJSONを返した）。
+// ただし thinkingConfig パラメータを渡すと400 INVALID_ARGUMENTで拒否される
+// （lite系モデルはthinking機能自体を持たないため）ので、liteモデル使用時は省略する必要がある
+// （toGeminiRequest参照）。
+// 画像を送る機能(video/meal)は画像理解の品質差を未検証のため対象外とし、常にGEMINI_MODELを使う。
+const GEMINI_MODEL_LITE = 'gemini-3.5-flash-lite'
+const IMAGE_FEATURES = new Set(['video', 'meal'])
 
 type ContentBlock =
   | { type: 'text'; text: string }
@@ -44,11 +53,31 @@ interface AnthropicRequestBody {
   feature?: string
 }
 
+// lib/adGate.ts の HARD_DAILY_CAP/HARD_MONTHLY_CAP と同じ値に保つこと。
+// 2026-09-09: この絶対上限（tier・チケット残高に関係なく悪用/暴走防止のため必ずかかる上限）は
+// これまでlib/adGate.tsのcheckAdGate()というクライアント側の事前チェックでしか
+// 検証されておらず、/api/analyzeを直接叩けばBearerトークンさえ有効なら無制限に
+// AI呼び出しができてしまう抜け穴だった。ここでは（下のチケット残高チェックと同じ方針で）
+// 読み取り確認のみ行い、加算はしない — 加算は引き続きクライアント成功後のrecordUsage()
+// （lib/adGate.ts）が担う。二重加算を避けるための意図的な設計。
+const HARD_DAILY_CAP_SERVER: Record<string, number> = {
+  video: 4, meal: 6, ai_analysis: 3, recovery: 2, workout: 3,
+  meal_coach: 3, daily_insight: 2, notebook_ai: 6, competition_plan: 3, injury_recovery: 2,
+}
+const HARD_MONTHLY_CAP_SERVER: Record<string, number> = { video: 20 }
+
 // lib/ticketWallet.ts の TICKET_COST と同じ値に保つこと（recovery/injury_recovery は
 // adGate.ts 側で無料開放されており、実際にはチケット消費されないためここには含めない）
+//
+// 2026-09-07に判明: lib/ticketWallet.ts側で2026-09-03に video/ai_analysis/meal_coach を
+// 2→3枚に増額した際、このサーバー側ミラーの更新が漏れていた。結果、残高2枚のユーザーが
+// サーバー側の残高チェック(balance < cost)を通過してしまい（2 >= 2の旧値で許可）、
+// 実際に高コストなAI API呼び出しが発生した後でクライアント側のspendTicketsForFeature()が
+// 残高不足で消費に失敗する、という「APIコストだけ発生してチケットは減らない」抜け穴になっていた。
+// 2026-09-09: meal 1→2, daily_insight 1→2, video 3→2 に改定（lib/ticketWallet.ts と同時更新。理由は同ファイル参照）
 const TICKET_COST_SERVER: Record<string, number> = {
-  video: 2, workout: 2, meal: 1,
-  ai_analysis: 2, meal_coach: 2, daily_insight: 1,
+  video: 2, workout: 2, meal: 2,
+  ai_analysis: 3, meal_coach: 3, daily_insight: 2,
   notebook_ai: 1, competition_plan: 3,
 }
 // lib/adGate.ts の TICKET_SYSTEM_CUTOVER と一致させる
@@ -60,7 +89,9 @@ interface ProxyResult {
 }
 
 // Anthropic Messages形式 → Gemini generateContent形式に変換
-function toGeminiRequest(body: AnthropicRequestBody) {
+// 2026-09-09: liteモデルは thinkingConfig を渡すと400 INVALID_ARGUMENTになるため
+// （thinking機能自体を持たないモデルのため）、useLite時は省略する。
+function toGeminiRequest(body: AnthropicRequestBody, useLite: boolean) {
   const contents = (body.messages ?? []).map(msg => ({
     role: msg.role === 'assistant' ? 'model' : 'user',
     parts: typeof msg.content === 'string'
@@ -78,8 +109,8 @@ function toGeminiRequest(body: AnthropicRequestBody) {
     generationConfig: {
       maxOutputTokens: body.max_tokens ?? 2048,
       // JSON抽出タスクに思考は不要。無効化しないとthinkingトークンが非表示のまま出力課金され、
-      // 想定コスト削減効果が崩れるため明示的にオフにする。
-      thinkingConfig: { thinkingBudget: 0 },
+      // 想定コスト削減効果が崩れるため明示的にオフにする（liteモデルはパラメータ自体非対応）。
+      ...(useLite ? {} : { thinkingConfig: { thinkingBudget: 0 } }),
     },
   }
 }
@@ -90,10 +121,11 @@ function fromGeminiResponse(data: any): { content: Array<{ type: 'text'; text: s
   return { content: [{ type: 'text', text }] }
 }
 
-async function callGemini(body: AnthropicRequestBody, apiKey: string): Promise<ProxyResult> {
-  const geminiBody = toGeminiRequest(body)
+async function callGemini(body: AnthropicRequestBody, apiKey: string, useLite: boolean): Promise<ProxyResult> {
+  const model = useLite ? GEMINI_MODEL_LITE : GEMINI_MODEL
+  const geminiBody = toGeminiRequest(body, useLite)
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -125,11 +157,49 @@ async function callAnthropic(body: AnthropicRequestBody, apiKey: string): Promis
   return { status: res.status, body: data }
 }
 
+// ── IP/分の簡易バーストガード + 同一リクエストの短時間重複防止 ──
+// 2026-09-09: どちらもVercelのNode.jsサーバーレス関数はウォームインスタンスの間
+// モジュールスコープの変数を保持する（コールドスタートでリセットされる）ことを
+// 利用したベストエフォート実装。Redis/KV等の永続ストアは未導入のため、複数
+// インスタンスに分散された場合は完全には防げないが、ループ状の連打・誤操作による
+// 二重送信を実用上十分に抑止できる。定期的にエントリを間引いてメモリを解放する。
+const _ipHits = new Map<string, number[]>()
+const IP_WINDOW_MS = 60_000
+const IP_MAX_PER_MIN = 20
+function isIpRateLimited(ip: string): boolean {
+  const now = Date.now()
+  const hits = (_ipHits.get(ip) ?? []).filter(t => now - t < IP_WINDOW_MS)
+  hits.push(now)
+  _ipHits.set(ip, hits)
+  if (_ipHits.size > 5000) { // メモリ膨張防止（異常系の簡易ガード）
+    for (const [k, v] of _ipHits) if (v.every(t => now - t > IP_WINDOW_MS)) _ipHits.delete(k)
+  }
+  return hits.length > IP_MAX_PER_MIN
+}
+
+const _recentRequests = new Map<string, number>()
+const DEDUP_WINDOW_MS = 8_000 // ダブルタップ・クライアント自動リトライ程度の短時間重複を想定
+function isDuplicateRequest(key: string): boolean {
+  const now = Date.now()
+  for (const [k, t] of _recentRequests) if (now - t > DEDUP_WINDOW_MS) _recentRequests.delete(k)
+  const last = _recentRequests.get(key)
+  _recentRequests.set(key, now)
+  return typeof last === 'number' && now - last < DEDUP_WINDOW_MS
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
     res.status(405).send('Method not allowed')
     return
   }
+
+  // ── IP/分のバーストガード（無効化済み） ──
+  // 2026-09-10: 当初 IP_MAX_PER_MIN=20 で有効化したが、モバイル回線はキャリアグレードNATで
+  // 多数の実ユーザーが同一の egress IP を共有するため、正規ユーザーが巻き添えで429になり
+  // 「AI機能が全て使えない」という本番障害を起こした。IP単位の制限は実用にならないため無効化。
+  // 悪用対策は「ペイロード上限チェック(下)」＋「チケット残高チェック(tier検証ブロック内)」＋
+  // クライアント側 lib/adGate.ts の checkAdGate() に一本化する。
+  void isIpRateLimited
 
   // ── 共有シークレット認証（APP_SECRET が設定されている場合のみ検証） ──
   // Vercel 環境変数 APP_SECRET をセットすることで不正利用を防止する
@@ -174,6 +244,14 @@ export default async function handler(req: any, res: any) {
       return
     }
 
+    // ── 短時間重複防止 ──
+    // 2026-09-10: 当初、未ログイン(ゲスト)ユーザーはauthヘッダーが空のため dedupKey が
+    // 「''：feature：本文冒頭200字」となり、別々のゲストが似た内容を8秒以内に投げると
+    // 2人目が誤って弾かれる不具合があった（recovery/daily_insight等はプロンプトが定型で
+    // 冒頭が一致しやすい）。IP制限と合わせて「AI機能が使えない」障害の一因になったため無効化。
+    // ダブルタップ対策はクライアント側(各画面のsubmitロック)で担保する。
+    void isDuplicateRequest
+
     // ── サーバー側でのtier検証・チケット消費強制 ──
     // 2026-09-01に判明: tier判定(coach/noad等)が端末ローカルキャッシュのみに依存しており、
     // Web版はブラウザのlocalStorageを書き換えるだけで「coach(無制限)」を自称してチケット消費を
@@ -185,7 +263,11 @@ export default async function handler(req: any, res: any) {
     // 従来通りクライアントの自己申告を信用する(fail open。行が無い＝freeとは絶対に扱わない)。
     const authHeader: string = req.headers?.['authorization'] ?? ''
     const feature = body?.feature
-    if (authHeader.startsWith('Bearer ') && typeof feature === 'string' && TICKET_COST_SERVER[feature]) {
+    // 2026-09-09: 元々はTICKET_COST_SERVER[feature]（チケット消費機能）の時だけこのtier検証を
+    // 走らせていたが、isPaidTierをモデル選択（下のuseLiteModel算出）にも使うため、feature名さえ
+    // 分かれば（無料機能のrecovery/injury_recoveryも含めて）常にtierを引くように広げた。
+    let isPaidTier = false
+    if (authHeader.startsWith('Bearer ') && typeof feature === 'string') {
       const token = authHeader.slice('Bearer '.length)
       const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL
       const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
@@ -198,6 +280,16 @@ export default async function handler(req: any, res: any) {
           const { data: userData } = await userClient.auth.getUser(token)
           const userId = userData?.user?.id
           if (userId) {
+            // 2026-09-10: ここに「サーバー側の絶対上限チェック」を追加していたが、以下の理由で撤去した。
+            //  ① period_keyの日付をUTC(now.toISOString())で作っていたのに対し、クライアント側
+            //     (lib/adGate.ts)はローカル日付(todayLocalISO / JST)で書き込んでおり、
+            //     JST 00:00〜09:00 の間は参照する行がズレて「前日の到達済みカウント」を読み、
+            //     朝の時間帯だけ正規ユーザーが誤って429になるバグがあった
+            //     （IP制限・dedupと同じ「実利用で初めて壊れる」障害の系統）。
+            //  ② 通常ユーザーの上限は既にクライアント側 checkAdGate() が担保しており、
+            //     ここでの追加チェックは「有効なJWTを盗んで生APIを叩く」ケースにしか効かない割に
+            //     リスクが高い。悪用対策は下のチケット残高チェックに一本化する。
+            void HARD_DAILY_CAP_SERVER; void HARD_MONTHLY_CAP_SERVER
             const { data: statusRow } = await userClient
               .from('subscription_status').select('tier, original_purchase_date')
               .eq('user_id', userId).maybeSingle()
@@ -205,8 +297,8 @@ export default async function handler(req: any, res: any) {
               const isLegacyNoad = statusRow.tier === 'noad'
                 && !!statusRow.original_purchase_date
                 && new Date(statusRow.original_purchase_date) < TICKET_SYSTEM_CUTOVER
-              const isExempt = statusRow.tier === 'coach' || isLegacyNoad
-              if (!isExempt) {
+              isPaidTier = statusRow.tier === 'coach' || isLegacyNoad
+              if (!isPaidTier && TICKET_COST_SERVER[feature]) {
                 // 消費はクライアント側(recordUsage)が成功後に行う既存フローと二重消費に
                 // ならないよう、ここでは残高の読み取り確認のみ行う(消費はしない)。
                 // tier詐称があっても、残高不足なら高コストなAI呼び出し自体をここで止められる。
@@ -220,12 +312,19 @@ export default async function handler(req: any, res: any) {
               }
             }
             // statusRow が無い(webhook未同期)場合は何もしない＝クライアントの自己申告を信用する
+            // （isPaidTierはfalseのままなのでliteモデルに倒れるが、これは「有料と証明できない
+            // 場合は安全側(lite)に倒す」という意図であり、既存ユーザーを誤ブロックするチケット消費
+            // 判定とは性質が違うため許容する）
           }
         } catch (e) {
           console.warn('[analyze] tier verification failed, falling back to client-trust:', e)
         }
       }
     }
+
+    // ── モデル選択（無料/チケット利用は軽量モデル、有料サブスクは現行モデル） ──
+    // 画像を送る機能(video/meal)は品質未検証のため対象外とし、常に現行モデルを使う。
+    const useLiteModel = typeof feature === 'string' && !IMAGE_FEATURES.has(feature) && !isPaidTier
 
     // featureはこのプロキシ内でのtier検証専用のフィールドで、Anthropic/Geminiの実APIは
     // 知らない。callAnthropicはbodyをそのまま転送するため、消し忘れると本物のAPIから
@@ -251,7 +350,7 @@ export default async function handler(req: any, res: any) {
     const anthropicKey = process.env.ANTHROPIC_API_KEY ?? process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY
     let result: ProxyResult
     if (geminiKey) {
-      result = await callGemini(body, geminiKey)
+      result = await callGemini(body, geminiKey, useLiteModel)
       // ステータス200でもセーフティフィルタ等で本文が空のことがあり、その場合は
       // クライアントが「空応答なのに課金・キャッシュされる」不具合の温床になるため
       // エラー扱いと同様にAnthropicへフォールバックする。

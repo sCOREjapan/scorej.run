@@ -37,8 +37,15 @@ export type TicketFeature =
   | 'meal_coach' | 'daily_insight' | 'notebook_ai' | 'competition_plan' | 'injury_recovery'
 export const TICKET_COST: Record<TicketFeature, number> = {
   // 2026-09-03: 動画分析・AI診断・食事コーチは1回あたりのAPIコストが高いため増額(2→3枚)
-  video: 3, workout: 2, meal: 1,
-  ai_analysis: 3, recovery: 1, meal_coach: 3, daily_insight: 1,
+  // 2026-09-09: 出力トークン量あたりの価格を機能間で見直し。
+  //   meal: 画像1枚を送信するがnotebook_ai等のテキスト専用機能と同額(1枚)だったため2枚に増額
+  //   daily_insight: max_tokens=1400と出力量が多い割に1枚のままで、800トークンのworkout(2枚)
+  //   より割安になっていたため2枚に増額
+  //   video: フレーム数を8→6枚に削減し1回あたりの画像トークンが約25%減ったため3→2枚に減額
+  // 変更する場合は api/analyze.ts の TICKET_COST_SERVER も必ず同時に更新すること
+  // （片方だけ更新すると「APIコストだけ発生してチケットは減らない」不具合の原因になる）
+  video: 2, workout: 2, meal: 2,
+  ai_analysis: 3, recovery: 1, meal_coach: 3, daily_insight: 2,
   notebook_ai: 1, competition_plan: 3, injury_recovery: 3,
 }
 
@@ -213,12 +220,12 @@ export async function spendTicketsForFeature(feature: TicketFeature): Promise<bo
   return spendTickets(TICKET_COST[feature])
 }
 
-// ── 広告視聴でチケットを直接獲得（1日5回まで） ───────────────────
+// ── 広告視聴でチケットを直接獲得（1日10回まで） ───────────────────
 // 1日の上限カウント自体は（乱用されても影響が小さいため）端末ローカルのままとするが、
 // 実際に加算されるチケット残高は grantTickets() 経由でログイン中はサーバーに反映される。
 // 2026-09-07: 旧上限10枚は「広告収益よりAPIコストの方が高い」問題を悪化させる方向
-// だったため5枚に引き下げ。チケットプラン(月100枚)への誘導を優先する方針に合わせた。
-const AD_TICKET_DAILY_CAP = 5
+// だったため5枚に引き下げていたが、2026-09-09に10枚へ戻すことになった。
+const AD_TICKET_DAILY_CAP = 10
 const AD_TICKET_DAILY_KEY = 'score_ticket_ad_daily'
 
 async function getAdTicketDaily(): Promise<{ date: string; count: number }> {

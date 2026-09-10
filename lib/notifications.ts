@@ -194,6 +194,42 @@ export async function scheduleEventReminders(
   } catch {}
 }
 
+// 2026-09-09: 設計書§3-5「動画分析→改善メモ→2週間後に同じ角度で再撮影」の
+// リマインダー。scheduleEventRemindersと同じくexpo-notificationsのDATEトリガーを使う。
+export async function scheduleVideoRecheckReminder(noteId: string, eventLabel: string, days = 14): Promise<boolean> {
+  if (Platform.OS === 'web') return false
+  const notif = await getExpoNotif()
+  if (!notif) return false
+  try {
+    const { status } = await notif.getPermissionsAsync()
+    if (status !== 'granted') {
+      const r = await notif.requestPermissionsAsync()
+      if (r.status !== 'granted') return false
+    }
+  } catch { return false }
+
+  const fireAt = new Date(Date.now() + days * 86400_000)
+  try {
+    await notif.scheduleNotificationAsync({
+      identifier: `video-recheck-${noteId}`,
+      content: {
+        title: 'sCORE 🎥 フォームの再チェック',
+        body: `${days}日前に分析した${eventLabel}のフォーム、変化を確認しに動画分析へ`,
+        sound: true,
+      },
+      trigger: { type: notif.SchedulableTriggerInputTypes.DATE, date: fireAt },
+    })
+    return true
+  } catch { return false }
+}
+
+export async function cancelVideoRecheckReminder(noteId: string): Promise<void> {
+  if (Platform.OS === 'web') return
+  const notif = await getExpoNotif()
+  if (!notif) return
+  await notif.cancelScheduledNotificationAsync(`video-recheck-${noteId}`).catch(() => {})
+}
+
 /** 予定削除時に呼ぶ。予約済みの事前通知を取り消す */
 export async function cancelEventReminders(eventId: string): Promise<void> {
   if (Platform.OS === 'web') return

@@ -14,6 +14,7 @@ import Constants from 'expo-constants'
 import { Ionicons } from '@expo/vector-icons'
 import { AuthProvider, useAuth } from '../context/AuthContext'
 import { claimReferralRewards, REFERRAL_BONUS_TICKETS } from '../lib/referral'
+import { trackOnboardingStep } from '../lib/analytics'
 import { ThemeProvider, useTheme } from '../context/ThemeContext'
 import { PurchaseProvider } from '../context/PurchaseContext'
 import { LanguageProvider, useLanguage } from '../context/LanguageContext'
@@ -23,7 +24,6 @@ import { TutorialProvider, isTutorialDone } from '../lib/tutorialContext'
 import TutorialSlides from '../components/TutorialSlides'
 import LineCommunityBanner from '../components/LineCommunityBanner'
 import CoachPlanBanner from '../components/CoachPlanBanner'
-import { initOneSignal, requestPushPermission } from '../lib/notify'
 import { initAdmob, showAppOpenAd } from '../lib/admob'
 import { isAnyAdShowing, setAnyAdShowing } from '../lib/adLock'
 // expo-tracking-transparency: 動的インポートでバージョン非互換クラッシュを防ぐ
@@ -109,6 +109,7 @@ function ConsentModal({ onAccept }: { onAccept: () => void }) {
 
   const handleAccept = async () => {
     await AsyncStorage.setItem(CONSENT_KEY, new Date().toISOString()).catch(() => {})
+    trackOnboardingStep('consent_completed')
     onAccept()
   }
 
@@ -666,17 +667,10 @@ function RootLayoutNav() {
   const segments = useSegments()
   const { colors } = useTheme()
 
-  // アプリ起動時に OneSignal を初期化（許可ダイアログは初回のみ）
-  useEffect(() => {
-    if (Platform.OS === 'web') {
-      initOneSignal().then(() => {
-        if (typeof localStorage !== 'undefined' && !localStorage.getItem('score_push_asked')) {
-          localStorage.setItem('score_push_asked', '1')
-          requestPushPermission()
-        }
-      }).catch(() => {})
-    }
-  }, [])
+  // 2026-09-09: プッシュ通知はExpo Push(ネイティブのみ)に切り替えたため、
+  // Web版でのOneSignal初期化ブロックは撤去（lib/notify.ts参照）。
+  // ネイティブ側の許可リクエスト・トークン登録はteam.tsx側で
+  // チーム作成・参加のタイミングに合わせてregisterTeamPush()経由で行う。
 
   // 3秒後のタイマー発火時点で最新のsegmentsを参照するためのref（[]依存だと古い値のまま固定されてしまう）
   const segmentsRef = useRef(segments)

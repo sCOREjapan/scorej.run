@@ -2,7 +2,7 @@
 // 価値提案カルーセル（旧Slide1-5）は app/onboarding.tsx に統合済み。
 // ここはログイン手段の選択のみを行う（ロジック・ボタンの挙動は一切変更していない）。
 
-import React, { useRef, useState } from 'react'
+import React, { useRef, useState, useEffect } from 'react'
 import {
   View, Text, TouchableOpacity, StyleSheet,
   ActivityIndicator, Platform, ScrollView, Animated, Easing,
@@ -13,6 +13,7 @@ import { useAuth } from '../context/AuthContext'
 import { BRAND, TEXT } from '../lib/theme'
 import { Sounds, unlockAudio } from '../lib/sounds'
 import { useTranslation } from 'react-i18next'
+import { trackOnboardingStep } from '../lib/analytics'
 
 const RED = BRAND   // アプリ全体のグリーンに統一（旧: 赤 #E53E3E）
 
@@ -36,6 +37,8 @@ export default function AuthScreen() {
 
   const isInAppBrowser = typeof navigator !== 'undefined' &&
     /Instagram|FBAN|FBAV|Twitter|Line|MicroMessenger|GSA/i.test(navigator.userAgent)
+
+  useEffect(() => { trackOnboardingStep('auth_prompt_viewed') }, [])
 
   const handleGoogle = () => {
     if (isInAppBrowser) {
@@ -94,7 +97,7 @@ export default function AuthScreen() {
           )}
 
           <Animated.View style={[{ width: '100%' }, guest]}>
-            <TouchableOpacity style={lg.guestBtn} onPress={() => { unlockAudio(); Sounds.tap(); continueAsGuest() }} activeOpacity={0.7}>
+            <TouchableOpacity style={lg.guestBtn} onPress={() => { unlockAudio(); Sounds.tap(); trackOnboardingStep('guest_selected'); continueAsGuest() }} activeOpacity={0.7}>
               <Ionicons name="person-outline" size={16} color={TEXT.hint} />
               <Text style={lg.guestText}>{t('auth.continueAsGuest')}</Text>
             </TouchableOpacity>

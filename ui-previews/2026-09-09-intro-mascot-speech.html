@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>intro mascot speech — 3案</title>
+<style>
+  :root{
+    --brand:#166534; --g1:#22c55e; --tint:#f0fdf4; --sborder:#d7ecdf;
+    --text-primary:#111827; --text-secondary:#6b7280; --text-hint:#9ca3af;
+    --page-bg:#F6F4EF; --panel-bg:#ffffff; --panel-border:#e8e4da;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; padding:32px; background:var(--page-bg);
+    font-family:-apple-system, "Hiragino Sans", sans-serif;
+    color:var(--text-primary);
+  }
+  h1{font-size:18px; margin:0 0 4px;}
+  .brief{
+    background:#fff; border:1px solid var(--panel-border); border-radius:14px;
+    padding:16px 20px; margin-bottom:28px; max-width:900px; font-size:13px; line-height:1.7; color:var(--text-secondary);
+  }
+  .brief b{color:var(--text-primary);}
+  .quote{
+    display:block; margin-top:8px; padding:10px 14px; background:var(--tint);
+    border-left:3px solid var(--brand); border-radius:6px; color:var(--text-primary); font-weight:600;
+  }
+  .row{ display:flex; gap:28px; flex-wrap:wrap; align-items:flex-start; }
+  .panel{
+    background:var(--panel-bg); border:1px solid var(--panel-border); border-radius:20px;
+    padding:20px; width:306px; position:relative;
+  }
+  .panel.rec{ border-color:var(--brand); box-shadow:0 0 0 2px var(--brand) inset; }
+  .badge{
+    position:absolute; top:-12px; left:20px; background:var(--brand); color:#fff;
+    font-size:11px; font-weight:800; padding:4px 10px; border-radius:20px; letter-spacing:0.5px;
+  }
+  .panel h2{ font-size:15px; margin:0 0 4px; }
+  .panel .diff{ font-size:12px; color:var(--text-secondary); margin-bottom:14px; min-height:32px; line-height:1.5;}
+
+  /* ── iPhone frame: design space 390x844pt, K = 270/390 ── */
+  .frame{
+    width:284px; height:598.6px; border-radius:38px; background:#000;
+    padding:7px; position:relative; box-shadow:0 8px 24px rgba(0,0,0,0.18);
+  }
+  .screen{
+    width:100%; height:100%; border-radius:32px; overflow:hidden; position:relative;
+    background:#ffffff;
+  }
+  .notch{
+    position:absolute; top:0; left:50%; transform:translateX(-50%);
+    width:120px; height:20px; background:#000; border-radius:0 0 14px 14px; z-index:5;
+  }
+  .stage{
+    position:absolute; inset:0;
+    /* design canvas 390x844, scaled by K */
+    --K: 0.6923;
+  }
+  .design{
+    width:390px; height:844px; transform:scale(var(--K)); transform-origin:top left;
+    position:relative;
+  }
+  .pt{ position:absolute; }
+
+  /* shared: logo row */
+  .logoRow{ display:flex; align-items:center; gap:14px; }
+  .logoMark{ width:56px; height:56px; border-radius:16px; background:var(--brand); display:flex; align-items:center; justify-content:center; }
+  .logoMark span{ color:#fff; font-size:30px; font-weight:900; }
+  .logoName{ color:var(--text-primary); font-size:26px; font-weight:900; letter-spacing:-1px; line-height:1; }
+  .logoTag{ color:var(--text-hint); font-size:10px; font-weight:600; letter-spacing:1.5px; margin-top:4px; }
+
+  /* mascot image */
+  .mascot{ display:block; }
+
+  /* speech bubble (established pattern: bg color+20, border color+70, tail) */
+  .bubble{
+    position:relative; background:rgba(22,101,52,0.08); border:1.5px solid rgba(22,101,52,0.35);
+    border-radius:18px; padding:14px 16px;
+  }
+  .bubbleTitle{ color:var(--text-primary); font-size:19px; font-weight:900; letter-spacing:-0.5px; line-height:1.3; margin:0 0 6px; }
+  .bubbleSub{ color:var(--text-secondary); font-size:12.5px; line-height:1.55; margin:0; }
+
+  .tailDown{
+    position:absolute; width:0; height:0;
+    border-left:9px solid transparent; border-right:9px solid transparent;
+    border-top:11px solid rgba(22,101,52,0.35);
+  }
+  .tailDownInner{
+    position:absolute; width:0; height:0;
+    border-left:7px solid transparent; border-right:7px solid transparent;
+    border-top:9px solid rgba(22,101,52,0.08);
+  }
+  .tailLeft{
+    position:absolute; width:0; height:0;
+    border-top:9px solid transparent; border-bottom:9px solid transparent;
+    border-right:11px solid rgba(22,101,52,0.35);
+  }
+  .tailLeftInner{
+    position:absolute; width:0; height:0;
+    border-top:7px solid transparent; border-bottom:7px solid transparent;
+    border-right:9px solid rgba(22,101,52,0.08);
+  }
+
+  /* meter placeholder (shared context, not the decision) */
+  .meterWrap{ display:flex; flex-direction:column; align-items:center; }
+  .meterCircle{
+    width:220px; height:220px; border-radius:110px; border:12px solid #eef1ef; position:relative;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .meterArc{
+    position:absolute; inset:-12px; border-radius:110px; border:12px solid transparent;
+    border-top-color:var(--g1); border-right-color:var(--g1); transform:rotate(-45deg);
+  }
+  .meterNum{ font-size:44px; font-weight:800; color:var(--g1); font-family:"Barlow Condensed", -apple-system; }
+  .meterLabel{ color:var(--text-hint); font-size:11px; font-weight:700; margin-top:2px; letter-spacing:0.5px; }
+  .cta{
+    margin-top:14px; background:rgba(22,101,52,0.08); border:1.5px solid var(--brand);
+    color:var(--brand); font-size:13px; font-weight:800; padding:10px 22px; border-radius:24px;
+  }
+  .holdHint{ color:var(--text-hint); font-size:10.5px; margin-top:10px; }
+
+  footer{ margin-top:28px; font-size:12px; color:var(--text-hint); max-width:900px; }
+</style>
+</head>
+<body>
+
+<h1>オンボーディング1枚目 — キャラが喋る吹き出しレイアウト（3案）</h1>
+<div class="brief">
+  お題（原文）:
+  <span class="quote">「体のスコアが、怪我を防ぎ あなたを強くする。睡眠・疲労・練習負荷を統合分析し今日のベストな練習をAIが導く」これをキャラクターが喋ってるふうに。いい感じに配置して。キャラで描く</span>
+  design space: <b>390×844pt</b>（K=0.6923で270px幅に縮小表示。ロゴ行・メーター220pt・CTA・ホールドヒントは既存実装のまま、新規要素＝キャラ＋吹き出しの配置だけが3案で異なる）
+</div>
+
+<div class="row">
+
+  <!-- ─────────── A: サイドバイサイド（推奨） ─────────── -->
+  <div class="panel rec">
+    <div class="badge">推奨</div>
+    <h2>A. 横並び（キャラ＋吹き出し）</h2>
+    <div class="diff">キャラを左下に、吹き出しを右上に配置。吹き出しの尻尾がキャラの頭を指す。怪我リスクカードで確立済みの吹き出しスタイル（bg=color20/border=color70）をそのまま流用</div>
+    <div class="frame"><div class="screen">
+      <div class="notch"></div>
+      <div class="stage"><div class="design">
+        <div class="pt" style="top:56pt; left:28pt;">
+          <div class="logoRow">
+            <div class="logoMark"><span>S</span></div>
+            <div>
+              <div class="logoName">sCORE</div>
+              <div class="logoTag">TRACK &amp; FIELD</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- キャラ 左下 -->
+        <div class="pt" style="top:150pt; left:24pt;">
+          <img class="mascot" src="assets/mascot_onboarding_ready.png" style="width:92pt; height:auto;">
+        </div>
+        <!-- 吹き出し 右、キャラの頭の高さ -->
+        <div class="pt" style="top:140pt; left:118pt; width:248pt;">
+          <div class="bubble">
+            <div class="bubbleTitle">体のスコアが、<br>怪我を防ぎ<br>あなたを強くする。</div>
+            <div class="bubbleSub">睡眠・疲労・練習負荷を統合分析し<br>今日のベストな練習をAIが導く</div>
+          </div>
+          <div class="tailLeft" style="left:-11px; top:34px;"></div>
+          <div class="tailLeftInner" style="left:-9px; top:36px;"></div>
+        </div>
+
+        <div class="pt" style="top:400pt; left:0; width:390pt;">
+          <div class="meterWrap">
+            <div class="meterCircle"><div class="meterArc"></div>
+              <div style="text-align:center;"><div class="meterNum">65</div><div class="meterLabel">怪我リスク</div></div>
+            </div>
+            <div class="cta">✦ クエストを始める</div>
+            <div class="holdHint">長押しして始める</div>
+          </div>
+        </div>
+      </div></div>
+    </div></div>
+  </div>
+
+  <!-- ─────────── B: コミック風・上に吹き出し ─────────── -->
+  <div class="panel">
+    <h2>B. キャラ中央＋上に吹き出し</h2>
+    <div class="diff">キャラをロゴ直下に中央配置し、頭上に大きめの吹き出し（尻尾が下向きでキャラの頭を指す）。キャラがビジュアルの主役になり、テキストは思考/発言としてふわっと乗る</div>
+    <div class="frame"><div class="screen">
+      <div class="notch"></div>
+      <div class="stage"><div class="design">
+        <div class="pt" style="top:56pt; left:28pt;">
+          <div class="logoRow">
+            <div class="logoMark"><span>S</span></div>
+            <div>
+              <div class="logoName">sCORE</div>
+              <div class="logoTag">TRACK &amp; FIELD</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 吹き出し 上（キャラの頭上） -->
+        <div class="pt" style="top:146pt; left:28pt; width:334pt;">
+          <div class="bubble" style="text-align:center;">
+            <div class="bubbleTitle" style="font-size:17px;">体のスコアが、怪我を防ぎ<br>あなたを強くする。</div>
+            <div class="bubbleSub">睡眠・疲労・練習負荷を統合分析し<br>今日のベストな練習をAIが導く</div>
+          </div>
+          <div class="tailDown" style="left:50%; margin-left:-9px; bottom:-11px;"></div>
+          <div class="tailDownInner" style="left:50%; margin-left:-7px; bottom:-9px;"></div>
+        </div>
+
+        <!-- キャラ 中央、吹き出しの下 -->
+        <div class="pt" style="top:262pt; left:0; width:390pt; display:flex; justify-content:center;">
+          <img class="mascot" src="assets/mascot_onboarding_ready.png" style="width:104pt; height:auto;">
+        </div>
+
+        <div class="pt" style="top:436pt; left:0; width:390pt;">
+          <div class="meterWrap">
+            <div class="meterCircle"><div class="meterArc"></div>
+              <div style="text-align:center;"><div class="meterNum">65</div><div class="meterLabel">怪我リスク</div></div>
+            </div>
+            <div class="cta">✦ クエストを始める</div>
+            <div class="holdHint">長押しして始める</div>
+          </div>
+        </div>
+      </div></div>
+    </div></div>
+  </div>
+
+  <!-- ─────────── C: 最小限・小さく添えるだけ ─────────── -->
+  <div class="panel">
+    <h2>C. 最小限（小さく寄り添うだけ）</h2>
+    <div class="diff">吹き出しの形は作らず、既存タイポグラフィのテキスト左上に小さなキャラ（アイコン程度）を添えるだけ。レイアウト変更は最小限で「言ってる感」だけを匂わせる</div>
+    <div class="frame"><div class="screen">
+      <div class="notch"></div>
+      <div class="stage"><div class="design">
+        <div class="pt" style="top:56pt; left:28pt;">
+          <div class="logoRow">
+            <div class="logoMark"><span>S</span></div>
+            <div>
+              <div class="logoName">sCORE</div>
+              <div class="logoTag">TRACK &amp; FIELD</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 小さいキャラ、テキストの左上に添える -->
+        <div class="pt" style="top:150pt; left:28pt;">
+          <img class="mascot" src="assets/mascot_onboarding_ready.png" style="width:40pt; height:auto;">
+        </div>
+        <div class="pt" style="top:150pt; left:78pt; width:284pt;">
+          <div class="bubbleTitle" style="font-size:26px; letter-spacing:-1px; line-height:1.3;">体のスコアが、<br>怪我を防ぎ<br>あなたを強くする。</div>
+        </div>
+        <div class="pt" style="top:288pt; left:28pt; width:334pt;">
+          <div class="bubbleSub" style="font-size:13px; line-height:1.6;">睡眠・疲労・練習負荷を統合分析し<br>今日のベストな練習をAIが導く</div>
+        </div>
+
+        <div class="pt" style="top:436pt; left:0; width:390pt;">
+          <div class="meterWrap">
+            <div class="meterCircle"><div class="meterArc"></div>
+              <div style="text-align:center;"><div class="meterNum">65</div><div class="meterLabel">怪我リスク</div></div>
+            </div>
+            <div class="cta">✦ クエストを始める</div>
+            <div class="holdHint">長押しして始める</div>
+          </div>
+        </div>
+      </div></div>
+    </div></div>
+  </div>
+
+</div>
+
+<footer>
+  A/B/Cのレターを伝えてもらえれば、そのまま app/onboarding.tsx の IntroSlide1 に実装します（吹き出しの色・角丸は既存のホーム画面マスコット吹き出しと同じトークンを使用）。
+</footer>
+
+</body>
+</html>

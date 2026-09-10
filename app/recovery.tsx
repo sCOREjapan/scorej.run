@@ -4,6 +4,7 @@ import {
   TextInput, ActivityIndicator, Animated, Alert,
 } from 'react-native'
 import { checkAdGate, recordUsage } from '../lib/adGate'
+import { trackFeatureUse } from '../lib/analytics'
 import AdGateModal from '../components/AdGateModal'
 import TicketGateModal from '../components/TicketGateModal'
 import Toast from 'react-native-toast-message'
@@ -107,6 +108,11 @@ const ZONES: ZoneDef[] = [
 const PAIN_TYPES     = [{id:'sharp'},{id:'dull'},{id:'burning'},{id:'aching'}]
 const TIMING_OPTIONS = [{id:'during'},{id:'after'},{id:'both'},{id:'constant'}]
 const DURATION_OPTIONS=[{id:'today'},{id:'3days'},{id:'week'},{id:'month'}]
+// 2026-09-08: 「復帰プラン生成時にウエイトルームが使えるか等の入力欄が欲しい」との要望に対応。
+// AIが提案する代替練習(exercises/training_modification)が、実際には無い設備前提の
+// 内容にならないようにするための任意入力（未入力なら従来通りプロンプトに含めない）
+const GYM_FREQ_OPTIONS = [{id:'1-2'},{id:'3-4'},{id:'5plus'}]
+const GYM_EQUIPMENT_OPTIONS = [{id:'dumbbell'},{id:'barbell'},{id:'machine'},{id:'band'},{id:'bodyweight'}]
 const SEVERITY_COLOR = { mild:'#34C759', moderate:'#FF9500', severe:'#FF3B30' }
 const STORAGE_KEY = 'trackmate_recovery_records'
 const RECOVERY_CACHE_KEY = 'trackmate_recovery_ai_cache_v1'
@@ -127,6 +133,10 @@ export default function RecoveryScreen() {
   const [timing,    setTiming]    = useState('')
   const [duration,  setDuration]  = useState('')
   const [notes,     setNotes]     = useState('')
+  // トレーニング環境（任意）: ウエイトルーム利用可否・頻度・使用可能な器具
+  const [gymAccess,    setGymAccess]    = useState<'yes'|'no'|''>('')
+  const [gymFreq,      setGymFreq]      = useState('')
+  const [gymEquipment, setGymEquipment] = useState<string[]>([])
   const [view,      setView]      = useState<'front'|'back'>('front')
   const [loading,   setLoading]   = useState(false)
   const [result,    setResult]    = useState<RecoveryResult|null>(null)
@@ -171,8 +181,19 @@ export default function RecoveryScreen() {
     const _apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
     const _endpoint = `${_apiBase}/api/analyze`
 
+    // トレーニング環境（任意）: 未入力なら従来通りプロンプトに含めない
+    const envLines: string[] = []
+    if (gymAccess === 'yes') {
+      envLines.push(t('recovery.envPromptGymYes'))
+      if (gymFreq) envLines.push(t('recovery.envPromptFreq', { freq: t(`recovery.gymFreqOptions.${gymFreq}`) }))
+      if (gymEquipment.length > 0) envLines.push(t('recovery.envPromptEquipment', { list: gymEquipment.map(id => t(`recovery.gymEquipmentOptions.${id}`)).join('、') }))
+    } else if (gymAccess === 'no') {
+      envLines.push(t('recovery.envPromptGymNo'))
+    }
+    const envLine = envLines.length > 0 ? `\n${t('recovery.envPromptHeader')}:${envLines.join('。')}` : ''
+
     // ── 結果キャッシュ: 同一入力なら API を再呼び出しせず保存済み結果を返す（コスト削減） ──
-    const _cacheSig = JSON.stringify([[...bodyParts].sort(), painLevel, painType, timing, duration, (notes||'').trim()])
+    const _cacheSig = JSON.stringify([[...bodyParts].sort(), painLevel, painType, timing, duration, (notes||'').trim(), gymAccess, gymFreq, [...gymEquipment].sort()])
     try {
       const _raw = await AsyncStorage.getItem(RECOVERY_CACHE_KEY)
       if (_raw) {
@@ -197,10 +218,11 @@ export default function RecoveryScreen() {
 `あなたは陸上競技に詳しいスポーツトレーナーです。選手の症状をもとに、ケアと回復のアドバイスをしてください。医療診断ではなく、参考情報として提供してください。
 
 部位:${partLabels} / 痛みLv:${painLevel}/10 / 性質:${typeLabel} / タイミング:${timingLabel} / 期間:${durLabel}
-追加:${notes||'なし'}
+追加:${notes||'なし'}${envLine}
+${envLines.length > 0 ? '\n' + t('recovery.envPromptInstruction') : ''}
 
 以下JSONのみで返答（他テキスト不要）:
-{"suspected_condition":"傷害名","severity":"mild|moderate|severe","immediate_actions":["今すぐすること1","2","3"],"rice_protocol":{"rest":"安静方法","ice":"アイシング方法と時間","compression":"圧迫方法","elevation":"挙上方法"},"taping":{"purpose":"目的","method":"ステップバイステップの貼り方（テープの向き・角度・長さを具体的に）","tape_type":"推奨テープ種類"},"recovery_timeline":{"phase1":{"period":"0〜3日","description":"急性期の対応"},"phase2":{"period":"4〜14日","description":"回復期のリハビリ"},"phase3":{"period":"2〜8週","description":"競技復帰プロセス"}},"exercises":["エクササイズ1（回数・方法）","2","3"],"see_doctor_if":["病院受診サイン1","2","3"],"training_modification":"代替練習と注意点","medical_basis":"医学的根拠の説明"}${promptLanguageLine ? '\n' + promptLanguageLine : ''}`
+{"suspected_condition":"考えられる負担の種類（断定せず一般的な傾向として。例:『ふくらはぎの張りによる負担』）","severity":"mild|moderate|severe","immediate_actions":["今すぐすること1","2","3"],"rice_protocol":{"rest":"安静方法","ice":"アイシング方法と時間","compression":"圧迫方法","elevation":"挙上方法"},"taping":{"purpose":"目的","method":"ステップバイステップの貼り方（テープの向き・角度・長さを具体的に）","tape_type":"推奨テープ種類"},"recovery_timeline":{"phase1":{"period":"0〜3日","description":"急性期の対応"},"phase2":{"period":"4〜14日","description":"回復期のリハビリ"},"phase3":{"period":"2〜8週","description":"競技復帰プロセス"}},"exercises":["エクササイズ1（回数・方法）","2","3"],"see_doctor_if":["病院受診サイン1","2","3"],"training_modification":"代替練習と注意点","medical_basis":"このアドバイスの一般的な理由（医学的診断ではなく、あくまで参考情報としての説明）"}${promptLanguageLine ? '\n' + promptLanguageLine : ''}`
           }]
         }),
       }, 35000)
@@ -231,6 +253,7 @@ export default function RecoveryScreen() {
 
       // AI相談に成功した場合のみ利用回数・チケットを消費する（失敗時に課金しないため）
       await recordUsage('recovery')
+      trackFeatureUse('recovery')
       if (needsTicket) Toast.show({ type: 'info', text1: t('recovery.ticketUsedToast', { n: ticketCost }), visibilityTime: 1800 })
       // 結果をキャッシュに保存（同一入力の再分析でAPIコストを発生させない）
       try {
@@ -395,6 +418,45 @@ export default function RecoveryScreen() {
             <TextInput style={s.notesInput} value={notes} onChangeText={setNotes}
               placeholder={t('recovery.notesPlaceholder')} placeholderTextColor="#9ca3af"
               multiline numberOfLines={3} />
+
+            {/* トレーニング環境（任意）: 代替練習の提案が実際の設備に合うようにするための入力。
+                2026-09-08 ユーザー要望により追加。未入力ならAIプロンプトに含めない(挙動は不変)。 */}
+            <Text style={s.secTitle}>{t('recovery.gymAccessTitle')}</Text>
+            <View style={s.chipRow}>
+              {(['yes','no'] as const).map(v=>(
+                <TouchableOpacity key={v} style={[s.chip,gymAccess===v&&s.chipActive]}
+                  onPress={()=>setGymAccess(prev => prev===v ? '' : v)}>
+                  <Text style={[s.chipTxt,gymAccess===v&&s.chipTxtActive]}>{t(`recovery.gymAccessOptions.${v}`)}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {gymAccess === 'yes' && (
+              <>
+                <Text style={s.secTitle}>{t('recovery.gymFreqTitle')}</Text>
+                <View style={s.chipRow}>
+                  {GYM_FREQ_OPTIONS.map(p=>(
+                    <TouchableOpacity key={p.id} style={[s.chip,gymFreq===p.id&&s.chipActive]}
+                      onPress={()=>setGymFreq(prev => prev===p.id ? '' : p.id)}>
+                      <Text style={[s.chipTxt,gymFreq===p.id&&s.chipTxtActive]}>{t(`recovery.gymFreqOptions.${p.id}`)}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <Text style={s.secTitle}>{t('recovery.gymEquipmentTitle')}</Text>
+                <View style={s.chipRow}>
+                  {GYM_EQUIPMENT_OPTIONS.map(p=>{
+                    const active = gymEquipment.includes(p.id)
+                    return (
+                      <TouchableOpacity key={p.id} style={[s.chip,active&&s.chipActive]}
+                        onPress={()=>setGymEquipment(prev => active ? prev.filter(x=>x!==p.id) : [...prev, p.id])}>
+                        <Text style={[s.chipTxt,active&&s.chipTxtActive]}>{t(`recovery.gymEquipmentOptions.${p.id}`)}</Text>
+                      </TouchableOpacity>
+                    )
+                  })}
+                </View>
+              </>
+            )}
 
             {apiError ? (
               <View style={s.errorBox}>

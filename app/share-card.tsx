@@ -758,7 +758,7 @@ export default function ShareCardScreen() {
     if (!selected) return
     // 「カード」(DYNAMIC SPEED)は広告なしプラン限定。プレビューはさせるが保存はここで止める。
     if (cardVariant === 'card' && !isNoad) {
-      router.push('/paywall?plan=noad')
+      router.push('/paywall?plan=ticket_monthly')
       return
     }
     setExporting(true)
@@ -801,7 +801,7 @@ export default function ShareCardScreen() {
   const handleNativeSave = useCallback(async () => {
     if (!previewRef.current) return
     if (cardVariant === 'card' && !isNoad) {
-      router.push('/paywall?plan=noad')
+      router.push('/paywall?plan=ticket_monthly')
       return
     }
     setExporting(true)
@@ -834,7 +834,7 @@ export default function ShareCardScreen() {
   const handleShare = useCallback(async () => {
     if (!previewRef.current) return
     if (cardVariant === 'card' && !isNoad) {
-      router.push('/paywall?plan=noad')
+      router.push('/paywall?plan=ticket_monthly')
       return
     }
     if (!(await Sharing.isAvailableAsync())) {

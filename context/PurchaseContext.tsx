@@ -16,7 +16,7 @@ import {
 import { cacheSubscriptionStatus, readCachedTier } from '../lib/subscriptionCache'
 import { setAdSuppressed } from '../lib/admob'
 import { grantMonthlyTicketsIfNeeded } from '../lib/ticketWallet'
-import { trackUpgrade } from '../lib/analytics'
+import { trackUpgrade, trackCheckoutStarted } from '../lib/analytics'
 import { useAuth } from './AuthContext'
 import { supabase } from '../lib/supabase'
 import { useTranslation } from 'react-i18next'
@@ -212,6 +212,9 @@ export function PurchaseProvider({ children }: { children: React.ReactNode }) {
 
   const purchase = useCallback(async (pkg: any): Promise<boolean> => {
     try {
+      // 2026-09-09: impression(upgrade_view)→completion(upgrade_complete)の間の
+      // 「実際に購入を試みた」瞬間が計測できていなかったため追加。
+      trackCheckoutStarted(pkg?.identifier ?? pkg?.product?.identifier ?? 'unknown', 'purchase_context')
       const result = await _purchasePackage(pkg)
       if (result) {
         await refreshStatus()

@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>processing screen — キャラ+チェックリスト 3案</title>
+<style>
+  :root{
+    --brand:#166534; --g1:#22c55e; --tint:#f0fdf4; --sborder:#d7ecdf;
+    --text-primary:#111827; --text-secondary:#6b7280; --text-hint:#9ca3af;
+    --page-bg:#F6F4EF; --panel-bg:#ffffff; --panel-border:#e8e4da;
+  }
+  *{box-sizing:border-box;}
+  body{ margin:0; padding:32px; background:var(--page-bg); font-family:-apple-system,"Hiragino Sans",sans-serif; color:var(--text-primary); }
+  h1{font-size:18px; margin:0 0 4px;}
+  .brief{ background:#fff; border:1px solid var(--panel-border); border-radius:14px; padding:16px 20px; margin-bottom:28px; max-width:960px; font-size:13px; line-height:1.7; color:var(--text-secondary); }
+  .brief b{color:var(--text-primary);}
+  .quote{ display:block; margin-top:8px; padding:10px 14px; background:var(--tint); border-left:3px solid var(--brand); border-radius:6px; color:var(--text-primary); font-weight:600; }
+  .fixed{ margin-top:10px; font-size:12.5px; } .fixed li{ margin-bottom:2px; }
+  .row{ display:flex; gap:28px; flex-wrap:wrap; align-items:flex-start; }
+  .panel{ background:var(--panel-bg); border:1px solid var(--panel-border); border-radius:20px; padding:20px; width:306px; position:relative; }
+  .panel.rec{ border-color:var(--brand); box-shadow:0 0 0 2px var(--brand) inset; }
+  .badge{ position:absolute; top:-12px; left:20px; background:var(--brand); color:#fff; font-size:11px; font-weight:800; padding:4px 10px; border-radius:20px; letter-spacing:0.5px; }
+  .panel h2{ font-size:15px; margin:0 0 4px; }
+  .panel .diff{ font-size:12px; color:var(--text-secondary); margin-bottom:14px; min-height:48px; line-height:1.5;}
+
+  .frame{ width:284px; height:598.6px; border-radius:38px; background:#000; padding:7px; position:relative; box-shadow:0 8px 24px rgba(0,0,0,0.18); }
+  .screen{ width:100%; height:100%; border-radius:32px; overflow:hidden; position:relative; background:#ffffff; }
+  .notch{ position:absolute; top:0; left:50%; transform:translateX(-50%); width:120px; height:20px; background:#000; border-radius:0 0 14px 14px; z-index:5; }
+  .stage{ position:absolute; inset:0; }
+  .design{ width:390px; height:844px; transform:scale(0.6923); transform-origin:top left; position:relative; }
+  .pt{ position:absolute; }
+
+  .mascotFloat{ animation: floaty 2.8s ease-in-out infinite; }
+  @keyframes floaty{ 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-12px);} }
+
+  .ring{ width:220px; height:220px; border-radius:110px; border:12px solid #eef1ef; position:relative; display:flex; align-items:center; justify-content:center; }
+  .ringArc{ position:absolute; inset:-12px; border-radius:110px; border:12px solid transparent; border-top-color:var(--g1); border-right-color:var(--g1); transform:rotate(45deg); }
+  .pTitle{ font-size:19px; font-weight:900; color:var(--text-primary); text-align:center; margin-top:20px; }
+  .pStep{ font-size:12px; font-weight:700; color:var(--text-hint); margin-top:4px; text-align:center; font-variant-numeric:tabular-nums; }
+
+  .itemText{ font-size:13.5px; color:var(--text-secondary); }
+  .itemTextDone{ color:var(--text-primary); font-weight:700; }
+  .dotDone{ width:22px; height:22px; border-radius:11px; background:var(--g1); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .dotDone svg{ width:12px; height:12px; }
+  .dotActive{ width:22px; height:22px; border-radius:11px; background:var(--g1); opacity:0.4; flex-shrink:0; animation:pulse 0.96s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{transform:scale(1);} 50%{transform:scale(1.35);} }
+  .dotPending{ width:22px; height:22px; border-radius:11px; border:2px solid var(--sborder); flex-shrink:0; }
+
+  /* ── A: 白カードで全体を包む（推奨） ── */
+  .listCardA{ background:#fff; border-radius:20px; padding:18px 20px; box-shadow:0 8px 22px rgba(22,101,52,0.12); width:100%; }
+  .rowA{ display:flex; align-items:center; gap:12px; padding:7px 0; }
+
+  /* ── B: 行ごとに白ピル ── */
+  .rowB{ display:flex; align-items:center; gap:12px; background:#fff; border-radius:16px; padding:12px 16px; box-shadow:0 4px 12px rgba(22,101,52,0.10); margin-bottom:10px; }
+
+  /* ── C: 背景なし、行を大きく強調 ── */
+  .rowC{ display:flex; align-items:center; gap:14px; padding:9px 0; }
+  .rowC .itemText{ font-size:14.5px; }
+
+  footer{ margin-top:28px; font-size:12px; color:var(--text-hint); max-width:960px; }
+</style>
+</head>
+<body>
+
+<h1>準備中（processing）画面 — キャラ＋チェックリスト（3案）</h1>
+<div class="brief">
+  お題:
+  <span class="quote">キャラの動き／キャラのサイズ・位置／チェックリストのデザイン、を変更したい</span>
+  <ul class="fixed">
+    <li>✅ <b>キャラの動き</b>: intro画面で採用した浮遊ループ（上下・ease-in-out）をそのまま流用（3案共通・確定）</li>
+    <li>✅ <b>キャラのサイズ・位置</b>: 64×110pt→108×186ptに拡大し、リングの上端に少し重なる位置まで近づける（3案共通・確定）</li>
+    <li>🔶 <b>チェックリストのデザインだけ3案で異なる</b>: 全体を白カードで包む（A）／行ごとに白ピル（B）／背景なしのまま行を大きく強調（C）</li>
+  </ul>
+</div>
+
+<div class="row">
+
+  <!-- A -->
+  <div class="panel rec">
+    <div class="badge">推奨</div>
+    <h2>A. 白カードで全体を包む</h2>
+    <div class="diff">チェックリスト全体を1枚の白いカード（角丸20・影）に収める。intro画面の吹き出しと同じ質感で画面全体の統一感が出る</div>
+    <div class="frame"><div class="screen">
+      <div class="notch"></div>
+      <div class="stage"><div class="design">
+        <div class="pt" style="top:150px; left:0; width:390px; text-align:center;">
+          <img class="mascotFloat" src="assets/mascot_onboarding_thinking.png" style="width:108px; height:auto;">
+        </div>
+        <div class="pt" style="top:300px; left:85px;">
+          <div class="ring"><div class="ringArc"></div></div>
+        </div>
+        <div class="pt" style="top:540px; left:0; width:390px;">
+          <div class="pTitle">初回チェックを準備中...</div>
+          <div class="pStep">2 / 3</div>
+        </div>
+        <div class="pt" style="top:610px; left:24px; width:342px;">
+          <div class="listCardA">
+            <div class="rowA"><div class="dotDone"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="itemText itemTextDone">回答を確認中...</div></div>
+            <div class="rowA"><div class="dotActive"></div><div class="itemText itemTextDone">今日の目安を計算中...</div></div>
+            <div class="rowA"><div class="dotPending"></div><div class="itemText">結果をまとめています...</div></div>
+          </div>
+        </div>
+      </div></div>
+    </div></div>
+  </div>
+
+  <!-- B -->
+  <div class="panel">
+    <h2>B. 行ごとに白ピル</h2>
+    <div class="diff">各項目を独立した白いピル型カードにして、1つずつ完了していく感じを強調。項目間の余白でリズムが出る</div>
+    <div class="frame"><div class="screen">
+      <div class="notch"></div>
+      <div class="stage"><div class="design">
+        <div class="pt" style="top:150px; left:0; width:390px; text-align:center;">
+          <img class="mascotFloat" src="assets/mascot_onboarding_thinking.png" style="width:108px; height:auto;">
+        </div>
+        <div class="pt" style="top:300px; left:85px;">
+          <div class="ring"><div class="ringArc"></div></div>
+        </div>
+        <div class="pt" style="top:540px; left:0; width:390px;">
+          <div class="pTitle">初回チェックを準備中...</div>
+          <div class="pStep">2 / 3</div>
+        </div>
+        <div class="pt" style="top:610px; left:24px; width:342px;">
+          <div class="rowB"><div class="dotDone"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="itemText itemTextDone">回答を確認中...</div></div>
+          <div class="rowB"><div class="dotActive"></div><div class="itemText itemTextDone">今日の目安を計算中...</div></div>
+          <div class="rowB"><div class="dotPending"></div><div class="itemText">結果をまとめています...</div></div>
+        </div>
+      </div></div>
+    </div></div>
+  </div>
+
+  <!-- C -->
+  <div class="panel">
+    <h2>C. 背景なし・行を大きく強調</h2>
+    <div class="diff">カード化はせず現状路線のまま、行の高さと文字サイズだけ上げてメリハリを強める。変化を最小限にしたい場合の案</div>
+    <div class="frame"><div class="screen">
+      <div class="notch"></div>
+      <div class="stage"><div class="design">
+        <div class="pt" style="top:150px; left:0; width:390px; text-align:center;">
+          <img class="mascotFloat" src="assets/mascot_onboarding_thinking.png" style="width:108px; height:auto;">
+        </div>
+        <div class="pt" style="top:300px; left:85px;">
+          <div class="ring"><div class="ringArc"></div></div>
+        </div>
+        <div class="pt" style="top:540px; left:0; width:390px;">
+          <div class="pTitle">初回チェックを準備中...</div>
+          <div class="pStep">2 / 3</div>
+        </div>
+        <div class="pt" style="top:614px; left:32px; width:326px;">
+          <div class="rowC"><div class="dotDone"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="itemText itemTextDone">回答を確認中...</div></div>
+          <div class="rowC"><div class="dotActive"></div><div class="itemText itemTextDone">今日の目安を計算中...</div></div>
+          <div class="rowC"><div class="dotPending"></div><div class="itemText">結果をまとめています...</div></div>
+        </div>
+      </div></div>
+    </div></div>
+  </div>
+
+</div>
+
+<footer>A/B/Cのレターを伝えてもらえれば、app/onboarding.tsx の processing フェーズにそのまま実装します（キャラの動き・サイズ・位置は3案共通ですでに確定）。</footer>
+
+</body>
+</html>

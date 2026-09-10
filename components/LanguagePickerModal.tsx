@@ -4,6 +4,7 @@
 import React from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Modal } from 'react-native'
 import { useLanguage } from '../context/LanguageContext'
+import { trackOnboardingStep } from '../lib/analytics'
 
 const BRAND = '#166534'
 
@@ -20,10 +21,10 @@ export default function LanguagePickerModal() {
             </View>
             <Text style={s.title}>言語を選択{'\n'}Select your language</Text>
 
-            <TouchableOpacity style={s.btn} onPress={() => setLanguage('ja')} activeOpacity={0.85}>
+            <TouchableOpacity style={s.btn} onPress={() => { trackOnboardingStep('language_selected', { lang: 'ja', auto: false }); setLanguage('ja') }} activeOpacity={0.85}>
               <Text style={s.btnText}>日本語</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[s.btn, { marginTop: 12 }]} onPress={() => setLanguage('en')} activeOpacity={0.85}>
+            <TouchableOpacity style={[s.btn, { marginTop: 12 }]} onPress={() => { trackOnboardingStep('language_selected', { lang: 'en', auto: false }); setLanguage('en') }} activeOpacity={0.85}>
               <Text style={s.btnText}>English</Text>
             </TouchableOpacity>
           </View>

@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>A案 リファイン Before/After</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #F6F4EF;
+    font-family: -apple-system, "Hiragino Sans", sans-serif;
+    padding: 32px 24px 80px;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; color: #1e1b3a; }
+  .brief {
+    background: #fff; border: 1px solid #e8e4da; border-radius: 12px;
+    padding: 14px 18px; margin-bottom: 28px; font-size: 13px; color: #444; line-height: 1.7;
+    max-width: 920px;
+  }
+  .panels { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start; }
+  .panel { width: 300px; }
+  .panel-head { margin-bottom: 10px; }
+  .tag {
+    display: inline-block; font-size: 10px; font-weight: 800; padding: 3px 9px;
+    border-radius: 8px; margin-bottom: 6px; letter-spacing: 0.5px;
+  }
+  .tag.before { background: #eee; color: #888; }
+  .tag.after { background: #166534; color: #fff; }
+  .panel-name { font-weight: 800; font-size: 14px; color: #1e1b3a; display: block; }
+  .diff { font-size: 11.5px; color: #777; margin: 4px 0 12px; line-height: 1.6; }
+
+  .frame-wrap { width: 300px; height: 652px; position: relative; }
+  .bezel { position: absolute; inset: 0; background: #111; border-radius: 46px; padding: 7px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
+  .screen { position: relative; width: 100%; height: 100%; border-radius: 40px; overflow: hidden; background: #fff; }
+  .notch { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 40%; height: 22px; background: #111; border-radius: 0 0 14px 14px; z-index: 50; }
+  .canvas { width: 375px; height: 812px; transform-origin: top left; transform: scale(0.7627); position: absolute; top: 0; left: 0; }
+
+  /* ============ BEFORE（元のA案そのまま） ============ */
+  .before-body { font-family: -apple-system, "Hiragino Sans", sans-serif; padding: 28px 24px; height: 100%; background: #fff; }
+  .b-iconBlob {
+    width: 68px; height: 68px; border-radius: 34px;
+    background: linear-gradient(135deg, #22c55e 0%, #166534 100%);
+    align-items: center; justify-content: center; display: flex; margin: 0 auto 14px;
+    color: #fff; font-size: 28px;
+  }
+  .b-badge { align-self: center; margin: 0 auto 10px; display: block; width: fit-content; background: rgba(34,197,94,0.12); border-radius: 20px; padding: 6px 16px; font-size: 11px; font-weight: 800; color: #166534; }
+  .b-title { font-size: 21px; font-weight: 900; color: #111827; text-align: center; margin: 4px 0 18px; line-height: 1.35; }
+  .b-checkRow { display: flex; gap: 8px; justify-content: center; margin: 14px 0 20px; }
+  .b-pill { flex: 1; background: #f6f6f8; border-radius: 14px; padding: 12px 6px; text-align: center; border: 1.5px solid transparent; }
+  .b-pill.sel { border-color: #166534; background: rgba(34,197,94,0.08); }
+  .b-pill .emoji { font-size: 20px; }
+  .b-pill .lbl { font-size: 10px; font-weight: 700; color: #6b7280; margin-top: 4px; }
+  .b-advice { background: linear-gradient(135deg, rgba(34,197,94,0.08), rgba(22,101,52,0.05)); border-radius: 18px; padding: 16px; margin-bottom: 16px; border: 1px solid rgba(22,101,52,0.15); }
+  .b-advice .eyebrow { font-size: 10.5px; font-weight: 800; color: #166534; margin-bottom: 4px; }
+  .b-advice .body { font-size: 13px; font-weight: 700; color: #111827; line-height: 1.5; }
+  .b-btn { background: linear-gradient(135deg, #22c55e 0%, #166534 100%); border-radius: 50px; padding: 16px; text-align: center; color: #fff; font-weight: 800; font-size: 15px; }
+  .b-soft { text-align: center; font-size: 11.5px; color: #6b7280; margin-top: 10px; line-height: 1.6; }
+
+  /* ============ AFTER（リファイン版） ============ */
+  .a-body { font-family: 'Barlow', -apple-system, "Hiragino Sans", sans-serif; padding: 32px 24px 28px; height: 100%; background: #fff; display: flex; flex-direction: column; }
+  .a-eyebrow { font-family: 'Barlow', sans-serif; font-size: 12px; font-weight: 700; color: #9ca3af; letter-spacing: 1.2px; text-align: center; margin-bottom: 18px; }
+
+  /* リング（readiness score）── SVG stroke-dashoffsetで実装。RN側もreact-native-svgのCircleで同じ手法が使える */
+  .ring-wrap { display: flex; justify-content: center; margin-bottom: 22px; position: relative; }
+  .ring-svg { width: 148px; height: 148px; transform: rotate(-90deg); }
+  .ring-track { fill: none; stroke: #eef1ec; stroke-width: 12; }
+  .ring-fill {
+    fill: none; stroke: #22c55e; stroke-width: 12; stroke-linecap: round;
+    stroke-dasharray: 402; /* 2*π*64 */
+    stroke-dashoffset: 402; /* 初期値=満タン=0%表示。JSで値までアニメーション */
+    transition: stroke-dashoffset 1.1s cubic-bezier(.22,.9,.3,1);
+  }
+  .ring-center {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .ring-num { font-family: 'Barlow Condensed', sans-serif; font-size: 44px; font-weight: 800; color: #111827; line-height: 1; }
+  .ring-label { font-size: 10px; font-weight: 700; color: #9ca3af; letter-spacing: 0.5px; margin-top: 2px; }
+  .ring-pulse {
+    position: absolute; width: 148px; height: 148px; border-radius: 50%;
+    border: 2px solid #22c55e; opacity: 0; pointer-events: none;
+  }
+  @keyframes ringPulse {
+    0%   { transform: scale(0.85); opacity: 0.5; }
+    100% { transform: scale(1.25); opacity: 0; }
+  }
+  .ring-pulse.go { animation: ringPulse 1s cubic-bezier(.22,.9,.3,1) 1; }
+  @keyframes countIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .ring-num.go { animation: countIn .4s ease-out .5s both; }
+
+  .a-headline {
+    font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 800; color: #111827;
+    text-align: center; line-height: 1.15; letter-spacing: -0.2px; margin-bottom: 22px;
+  }
+
+  /* mood選択：横並びカード、選択時は塗り */
+  .a-moodLabel { font-size: 12px; font-weight: 700; color: #6b7280; margin-bottom: 8px; }
+  .a-moodRow { display: flex; gap: 10px; margin-bottom: 20px; }
+  .a-mood {
+    flex: 1; border-radius: 16px; padding: 14px 4px; text-align: center;
+    background: #f6f6f8; border: 1.5px solid #eee; transition: all .2s;
+  }
+  .a-mood.sel { background: #166534; border-color: #166534; }
+  .a-mood .emoji { font-size: 22px; display: block; margin-bottom: 4px; }
+  .a-mood .lbl { font-size: 10.5px; font-weight: 700; color: #6b7280; }
+  .a-mood.sel .lbl { color: #fff; }
+
+  /* アドバイスカード：ダークグリーン塗り、白文字で強く */
+  .a-advice {
+    background: #14532d; border-radius: 20px; padding: 18px 20px; margin-bottom: 22px;
+    position: relative; overflow: hidden;
+  }
+  .a-advice::after {
+    content: ''; position: absolute; top: -30px; right: -30px; width: 100px; height: 100px;
+    border-radius: 50%; background: rgba(34,197,94,0.25);
+  }
+  .a-advice .eyebrow { font-size: 10px; font-weight: 800; color: #86efac; letter-spacing: 1px; margin-bottom: 6px; position: relative; }
+  .a-advice .body { font-size: 14.5px; font-weight: 700; color: #fff; line-height: 1.55; position: relative; }
+
+  .a-spacer { flex: 1; }
+  .a-btn {
+    background: #166534; border-radius: 18px; padding: 17px; text-align: center;
+    color: #fff; font-weight: 800; font-size: 15.5px; letter-spacing: 0.2px;
+    box-shadow: 0 8px 20px rgba(22,101,52,0.35);
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .a-soft { text-align: center; font-size: 11px; color: #9ca3af; margin-top: 12px; line-height: 1.6; font-weight: 500; }
+  .a-soft b { color: #166534; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<h1>A案 デザインリファイン — Before / After</h1>
+<div class="brief">
+  「Aでいいんだけど、デザインがダサすぎる」を受けて、UI/UX Pro Maxのfitness/wellness系推奨
+  （Barlow Condensed見出し・ソフトシャドウ系の上質感・スコアリング表現）を反映。構成（今日の状態チェック→パーソナライズ提案→ソフトな案内）は変えず、見せ方だけ大幅に上げた。
+  主な変更：①小さいアイコン丸→Whoop/Oura流の<b>スコアリング（readinessリング）</b>を主役に　②見出しをBarlow Condensedの太い縮小フォントに　③moodカードを大きく・選択時は塗りつぶしで明確に　④淡い緑の情報ボックス→<b>濃緑ベタ塗り＋白文字</b>の強いアドバイスカードに　⑤ボタンにブランドカラーの影を追加。
+</div>
+
+<div class="panels">
+
+  <div class="panel">
+    <div class="panel-head">
+      <span class="tag before">BEFORE</span>
+      <span class="panel-name">最初に見せた案</span>
+      <div class="diff">全体的に淡い・平坦・情報ボックスが弱い。ブランドの説得力が出ていない。</div>
+    </div>
+    <div class="frame-wrap">
+      <div class="bezel"><div class="screen"><div class="notch"></div>
+        <div class="canvas" style="transform:scale(0.7627)">
+          <div class="before-body" style="width:375px;height:812px;">
+            <div class="b-iconBlob">⚡</div>
+            <div class="b-badge">準備完了</div>
+            <div class="b-title">たけださん、<br>今日の状態を教えてください</div>
+            <div class="b-checkRow">
+              <div class="b-pill"><div class="emoji">😊</div><div class="lbl">元気</div></div>
+              <div class="b-pill sel"><div class="emoji">😐</div><div class="lbl">普通</div></div>
+              <div class="b-pill"><div class="emoji">😓</div><div class="lbl">疲れ気味</div></div>
+            </div>
+            <div class="b-advice">
+              <div class="eyebrow">今日のおすすめ</div>
+              <div class="body">「普通」なら軽めのジョグ20分がちょうど良いペース。無理せず今週を積み上げていきましょう。</div>
+            </div>
+            <div class="b-btn">はじめる →</div>
+            <div class="b-soft">この判断、毎日自動で出せます。<br>気になったら後で「チケットプラン」から。</div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <span class="tag after">AFTER</span>
+      <span class="panel-name">リファイン版</span>
+      <div class="diff">リング型スコア表示を主役に、太い縮小フォントの見出し、選択状態が明確なmoodカード、濃緑ベタ塗りの説得力あるアドバイスカードに刷新。</div>
+    </div>
+    <div class="frame-wrap">
+      <div class="bezel"><div class="screen"><div class="notch"></div>
+        <div class="canvas" style="transform:scale(0.7627)">
+          <div class="a-body" style="width:375px;height:812px;">
+            <div class="a-eyebrow">TODAY'S READINESS</div>
+            <div class="ring-wrap">
+              <div class="ring-pulse" id="ringPulse"></div>
+              <svg class="ring-svg" viewBox="0 0 148 148">
+                <circle class="ring-track" cx="74" cy="74" r="64"></circle>
+                <circle class="ring-fill" id="ringFill" cx="74" cy="74" r="64"></circle>
+              </svg>
+              <div class="ring-center">
+                <div class="ring-num" id="ringNum">0</div>
+                <div class="ring-label">/ 100</div>
+              </div>
+            </div>
+            <div class="a-headline">たけださん、<br>今日の状態は？</div>
+
+            <div class="a-moodLabel">コンディション</div>
+            <div class="a-moodRow">
+              <div class="a-mood"><span class="emoji">😊</span><span class="lbl">元気</span></div>
+              <div class="a-mood sel"><span class="emoji">😐</span><span class="lbl">普通</span></div>
+              <div class="a-mood"><span class="emoji">😓</span><span class="lbl">疲れ気味</span></div>
+            </div>
+
+            <div class="a-advice">
+              <div class="eyebrow">今日のおすすめ</div>
+              <div class="body">軽めのジョグ20分がちょうど良いペース。無理せず今週を積み上げていきましょう。</div>
+            </div>
+
+            <div class="a-spacer"></div>
+            <div class="a-btn">はじめる <span>→</span></div>
+            <div class="a-soft">この判断、毎日自動で出せます。気になったら<b>チケットプラン</b>から。</div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<p style="margin-top:36px; font-size:12px; color:#888;">
+  これでOKなら実装します。フォントはBarlow Condensed(見出し)を新規で読み込む前提です（現状のアプリはシステムフォントのみ）。
+  読み込みなしでシステムフォント太字のままにする場合は教えてください。
+</p>
+
+<script>
+  // リングアニメーション: 0→70 を stroke-dashoffset + カウントアップで表現
+  // RN実装ではreact-native-svgのCircleでstrokeDashoffsetをAnimated.Valueにし、
+  // Animated.timing(duration:1100, easing:Easing.bezier(.22,.9,.3,1))で同じ動きにする
+  const CIRCUMFERENCE = 402;
+  const TARGET = 70;
+  function playRingAnim() {
+    const fill = document.getElementById('ringFill');
+    const num = document.getElementById('ringNum');
+    const pulse = document.getElementById('ringPulse');
+    if (!fill || !num) return;
+    fill.style.transition = 'none';
+    fill.style.strokeDashoffset = CIRCUMFERENCE;
+    num.textContent = '0';
+    num.classList.remove('go');
+    pulse.classList.remove('go');
+    void fill.offsetWidth; // reflow して transition none を確定させる
+    requestAnimationFrame(() => {
+      fill.style.transition = 'stroke-dashoffset 1.1s cubic-bezier(.22,.9,.3,1)';
+      fill.style.strokeDashoffset = CIRCUMFERENCE - (CIRCUMFERENCE * TARGET / 100);
+    });
+    num.classList.add('go');
+    // カウントアップ（0→70、リングと同じ1.1s強で終わるように）
+    const start = performance.now();
+    const dur = 1100;
+    function tick(now) {
+      const p = Math.min(1, (now - start) / dur);
+      const eased = 1 - Math.pow(1 - p, 3);
+      num.textContent = Math.round(TARGET * eased);
+      if (p < 1) requestAnimationFrame(tick);
+      else pulse.classList.add('go');
+    }
+    requestAnimationFrame(tick);
+  }
+  window.addEventListener('load', () => setTimeout(playRingAnim, 300));
+  document.querySelectorAll('.frame-wrap').forEach(f => f.style.cursor = 'pointer');
+  document.querySelectorAll('.frame-wrap')[1]?.addEventListener('click', playRingAnim);
+</script>
+
+</body>
+</html>

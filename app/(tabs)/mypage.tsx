@@ -97,7 +97,14 @@ export default function MyPageScreen() {
           </View>
 
           {/* ── レベル ── */}
-          <View style={[s.levelCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          {/* 2026-09-09: app/level-roadmap.tsxへの遷移導線がアプリ内のどこにも無く、
+              画面自体は実装済みなのに誰も到達できない「孤立画面」になっていたバグ修正。
+              ここ(自分のレベル表示)から詳細ロードマップへ飛べるようにした。 */}
+          <TouchableOpacity
+            style={[s.levelCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            onPress={() => router.push('/level-roadmap')}
+            activeOpacity={0.75}
+          >
             <Text style={s.levelEmoji}>{levelInfo.emoji}</Text>
             <View style={{ flex: 1, gap: 6 }}>
               <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
@@ -111,7 +118,8 @@ export default function MyPageScreen() {
                 {t('mypage.levelSub', { count: sessions.length, toNext: Math.ceil(levelInfo.xpToNext / 100) })}
               </Text>
             </View>
-          </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textHint} />
+          </TouchableOpacity>
 
           {/* ── 種目別ベスト ── */}
           <View style={[s.pbCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -134,6 +142,19 @@ export default function MyPageScreen() {
               </Text>
             )}
           </View>
+
+          {/* ── 全国ランキング ── */}
+          {/* 2026-09-09: app/ranking.tsxも同様に遷移導線が無かった孤立画面バグ修正 */}
+          <HapticTouch
+            haptic="whoosh"
+            style={[s.settingsBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            onPress={() => { unlockAudio(); router.push('/ranking') }}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="podium-outline" size={20} color={colors.textSec} />
+            <Text style={[s.settingsBtnText, { color: colors.text }]}>{t('mypage.ranking')}</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.textHint} style={{ marginLeft: 'auto' as any }} />
+          </HapticTouch>
 
           {/* ── 統計 ── */}
           <View style={[s.statsRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>

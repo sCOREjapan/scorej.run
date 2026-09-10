@@ -5,7 +5,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Platform } from 'react-native'
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
-import { syncAll, syncProfileToCloud } from '../lib/cloudSync'
+import { syncAll, syncProfileToCloud, resolveAppUserId } from '../lib/cloudSync'
+import { registerAppPush } from '../lib/notify'
 import Toast from 'react-native-toast-message'
 import * as WebBrowser from 'expo-web-browser'
 import * as Linking from 'expo-linking'
@@ -14,6 +15,7 @@ import * as AppleAuthentication from 'expo-apple-authentication'
 import * as Crypto from 'expo-crypto'
 import { GoogleSignin, statusCodes as GoogleStatusCodes } from '@react-native-google-signin/google-signin'
 import { useTranslation } from 'react-i18next'
+import { trackOnboardingStep } from '../lib/analytics'
 
 // expo-web-browser の結果を Supabase が処理できるよう登録
 // iOS 26 で稀に throw するため try-catch で保護
@@ -156,6 +158,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           AsyncStorage.setItem('userId', s.user.id).catch(() => {})
           syncAll(s.user.id).catch(() => {})
           syncProfileToCloud(s.user.id).catch(() => {})
+          // 2026-09-09: 通知許可のダイアログが起動直後に出て体験を損なわないよう、
+          // 少し遅らせてから登録する（Expo Push Token取得＋user_push_tokensへの登録）
+          setTimeout(() => {
+            resolveAppUserId(s.user.id).then(id => { if (id) registerAppPush(id) }).catch(() => {})
+          }, 4000)
         } else if (storedUserId?.startsWith('guest_') || storedUserId === 'guest') {
           // ゲストとして続けていたユーザーを再認識（アプリ再起動でもゲスト状態を維持）
           setIsGuest(true)
@@ -203,6 +210,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               AsyncStorage.setItem('userId', newSession.user.id).catch(() => {})
               syncAll(newSession.user.id).catch(() => {})
               syncProfileToCloud(newSession.user.id).catch(() => {})
+              setTimeout(() => {
+                resolveAppUserId(newSession.user.id).then(id => { if (id) registerAppPush(id) }).catch(() => {})
+              }, 4000)
             }
           }
           // セッション終了時はキャッシュをクリア
@@ -260,6 +270,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       if (error) {
         Toast.show({ type: 'error', text1: t('auth.googleLoginFailed'), text2: error.message, visibilityTime: 5000 })
+      } else {
+        trackOnboardingStep('auth_completed', { provider: 'google' })
       }
     } catch (e: any) {
       if (e?.code === GoogleStatusCodes.SIGN_IN_CANCELLED) return  // ユーザーキャンセル
@@ -301,6 +313,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             nonce:    rawNonce,
           })
           if (error) Toast.show({ type: 'error', text1: t('auth.appleLoginFailed'), text2: error.message })
+          else trackOnboardingStep('auth_completed', { provider: 'apple' })
         } else {
           // Expo Go などネイティブ機能なし → ブラウザ経由で Web の auth ページへ
           await WebBrowser.openBrowserAsync(SITE_URL + '?auth=apple')

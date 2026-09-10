@@ -13,7 +13,6 @@ export type TutorialSpotKey =
 export type TutorialStepId =
   | 'welcome'
   | 'quick_input'
-  | 'condition_modal'
   | 'risk_card'
   | 'stretch_banner'
   | 'goal_section'
@@ -44,22 +43,20 @@ export const TUTORIAL_STEPS: Record<TutorialStepId, TutorialStep> = {
     action: 'next',
     nextStep: 'quick_input',
   },
+  // 2026-09-09: このボタンの実体を「サクッと入力（体調モーダルを開く）」から
+  // 「フォーム分析（/video-analysisへ遷移）」に変更したのに合わせてステップも更新。
+  // 元々はタップ後にcondition_modalステップ（体調モーダルの操作待ち）へ進んでいたが、
+  // 新しいボタンはモーダルではなく別画面へ遷移するため、そのステップは意味を失った。
+  // ホーム画面上で完結する情報提示のみのステップ（action:'next'）に変更し、
+  // condition_modalを飛ばしてrisk_cardへ直接つなげている。
   quick_input: {
     id: 'quick_input',
-    title: 'サクッと入力',
-    description: 'ここをタップして今日の\n体の状態を入力しよう 👆',
+    title: 'フォーム分析',
+    description: 'ここをタップすると、動画から\nAIがフォームを分析してくれるよ 🎥',
     spotKey: 'home_quick_input',
-    action: 'tap',
-    nextStep: 'condition_modal',
-    tooltipPosition: 'top',
-  },
-  condition_modal: {
-    id: 'condition_modal',
-    title: 'コンディションを記録',
-    description: '疲労度・コンディションを\nスライダーで入力して保存してね。\n保存したら次に進みます ✅',
-    spotKey: null,
     action: 'next',
     nextStep: 'risk_card',
+    tooltipPosition: 'top',
   },
   risk_card: {
     id: 'risk_card',
@@ -131,7 +128,6 @@ export const TUTORIAL_STEPS: Record<TutorialStepId, TutorialStep> = {
 export const TUTORIAL_ORDER: TutorialStepId[] = [
   'welcome',
   'quick_input',
-  'condition_modal',
   'risk_card',
   'stretch_banner',
   'goal_section',

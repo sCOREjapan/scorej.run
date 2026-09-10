@@ -9,12 +9,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { BRAND, TEXT } from '../lib/theme'
 import { checkAdGate, recordUsage, getTier, checkAndConsumeDailyAllowance } from '../lib/adGate'
 import { TICKET_COST, grantTickets } from '../lib/ticketWallet'
+import { TICKET_MONTHLY_GRANT } from '../lib/purchaseService'
 import AdGateModal from '../components/AdGateModal'
 import TicketGateModal from '../components/TicketGateModal'
 import BannerAdView from '../components/BannerAdView'
 import { useAuth } from '../context/AuthContext'
 import { useRouter, useNavigation } from 'expo-router'
-import { trackFeatureUse } from '../lib/analytics'
+import { trackFeatureUse, trackEvent } from '../lib/analytics'
+import * as Clipboard from 'expo-clipboard'
+import { scheduleVideoRecheckReminder } from '../lib/notifications'
 import Toast from 'react-native-toast-message'
 import * as ImagePicker from 'expo-image-picker'
 import * as VideoThumbnails from 'expo-video-thumbnails'
@@ -154,7 +157,13 @@ function dimensionsForEventDisplay(event: string, t: (key: string) => string) {
 }
 
 const STORAGE_KEY      = 'trackmate_video_annotations'
-const MAX_FRAMES       = 8
+// 2026-09-09: 実利用データでvideoが全AI機能の中で圧倒的に呼び出し回数が多い
+// （直近30日で7,410回）と判明し、APIコスト削減の最大レバーと特定できたため8→6に削減。
+// 元々5→6枚化した際は「480→440pxへ微減して総トークン量を維持」という設計判断が
+// 既にされていた(下のresize処理のコメント参照)。8枚への増加はその後の変更で、
+// 同様の総量調整をせずに増やしていたため、6枚に戻すことで実質的にその設計に復元する形になる。
+// 画像を減らす分、分析対象の局面が減る（フォーム分析の精度リスク）というトレードオフは残る。
+const MAX_FRAMES       = 6
 const THUMB_W          = 320
 
 function buildFocusHints(t: (key: string, opts?: any) => string): string[] {
@@ -927,6 +936,10 @@ function NativeVideoAnalysis() {
   const [result, setResult]           = useState<AnalysisResult | null>(null)
   const [prevScore, setPrevScore]     = useState<number | null>(null)
   const [rawText, setRawText]         = useState('')
+  // 2026-09-09: 設計書§3-5「動画→改善メモ→再撮影予約→比較」。
+  // 改善メモのコピー・2週間後リマインダーの状態（結果ごとにリセット）
+  const [notesCopied,     setNotesCopied]     = useState(false)
+  const [recheckScheduled,setRecheckScheduled]= useState(false)
   const [error, setError]             = useState('')
   const [stepLabel, setStepLabel]     = useState('')
   const [adGateVisible,     setAdGateVisible]     = useState(false)
@@ -979,12 +992,18 @@ function NativeVideoAnalysis() {
         allowsEditing: false, quality: 1,
       })
       if (!res.canceled && res.assets[0]) {
-        setVideoUri(res.assets[0].uri)
         // expo-image-picker は動画アセットの再生時間を「ミリ秒」で返す（秒ではない）。
         // これが取れないと、動画の長さに関わらず固定タイムスタンプで
         // フレーム抽出することになり、短い動画では黒コマ、長い動画では
         // 一部区間しか分析されない不具合が起きるため、必ず実測値を使う。
         const durMs = (res.assets[0] as any).duration
+        // 2026-09-10: 1分を超える動画は、6フレームを均等抽出すると各コマの間隔が
+        // 10秒以上空いてフォーム分析に使えないため受け付けない。
+        if (typeof durMs === 'number' && durMs > 60_000) {
+          Alert.alert(t('videoAnalysis.native.videoTooLongTitle'), t('videoAnalysis.native.videoTooLongBody'))
+          return
+        }
+        setVideoUri(res.assets[0].uri)
         setVideoDurationMs(typeof durMs === 'number' && durMs > 0 ? durMs : null)
         setLocalVideoUri(null)
         setResult(null); setRawText(''); setError(''); setFrames([]); setReportedWrongPerson(false)
@@ -992,6 +1011,36 @@ function NativeVideoAnalysis() {
         setPhase('idle')
       }
     } catch (e: any) { Alert.alert(t('videoAnalysis.native.pickErrorTitle'), e?.message ?? t('videoAnalysis.native.pickErrorMessage')) }
+  }
+
+  // 2026-09-09: 設計書§3-5。改善点(focus)と次の一歩(nextStep)をクリップボードへ
+  // コピーする。「保存」の実体は既にaddVideoAnalysisHistory()が自動で行っている
+  // （lib/videoAnalysisHistoryStore.ts）ため、ここでは「次回の練習メモに使える形」で
+  // 手元に持ち出せるようにするのが目的。
+  async function copyImprovementNote() {
+    if (!result) return
+    const lines = [
+      result.focus.title ? `🔥 ${result.focus.title}: ${result.focus.text}` : '',
+      result.nextStep.title ? `🎯 ${result.nextStep.title}: ${result.nextStep.text}` : '',
+    ].filter(Boolean)
+    if (lines.length === 0) return
+    await Clipboard.setStringAsync(lines.join('\n'))
+    setNotesCopied(true)
+    trackEvent('video_action_saved', { feature: 'video', metadata: { action: 'copy_note' } })
+    Toast.show({ type: 'success', text1: t('videoAnalysis.native.noteCopiedToast'), visibilityTime: 1800 })
+  }
+
+  async function scheduleRecheck() {
+    if (!result || recheckScheduled) return
+    const noteId = `${event || 'unknown'}_${Date.now()}`
+    const ok = await scheduleVideoRecheckReminder(noteId, event ? getEventLabel(event, language) : t('videoAnalysis.native.recheckDefaultEventLabel'), 14)
+    if (ok) {
+      setRecheckScheduled(true)
+      trackEvent('video_recheck_scheduled', { feature: 'video', metadata: { days: 14 } })
+      Toast.show({ type: 'success', text1: t('videoAnalysis.native.recheckScheduledToast'), visibilityTime: 2000 })
+    } else {
+      Toast.show({ type: 'error', text1: t('videoAnalysis.native.recheckScheduleFailedToast') })
+    }
   }
 
   // 複数人動画で対象と違う選手が分析されてしまった場合の自己申告チケット返還。
@@ -1293,6 +1342,9 @@ dimensions:上記${dims.length}項目(${dimIdList})全て必須。focusは改善
       setResult(parsed)
       setPhase('result')
       setPrevScore(prevEntry?.score ?? null)
+      setNotesCopied(false)
+      setRecheckScheduled(false)
+      if (prevEntry) trackEvent('video_comparison_viewed', { feature: 'video', metadata: { score_diff: parsed.score - prevEntry.score } })
       adCreditRef.current = false  // 分析成功でクレジット消費
       // 広告視聴後の分析が完了したら、広告なしプランへのアップセルを提示
       if (usedAdCredit) setUpsellVisible(true)
@@ -1464,7 +1516,10 @@ dimensions:上記${dims.length}項目(${dimIdList})全て必須。focusは改善
             {videoUri ? t('videoAnalysis.native.videoSelected') : t('videoAnalysis.native.videoSelectPrompt')}
           </Text>
           {!videoUri && (
-            <Text style={{ color: '#9ca3af', fontSize: 12, marginTop: 4 }}>{t('videoAnalysis.native.videoFormats')}</Text>
+            <>
+              <Text style={{ color: '#9ca3af', fontSize: 12, marginTop: 4 }}>{t('videoAnalysis.native.videoFormats')}</Text>
+              <Text style={{ color: '#9ca3af', fontSize: 12, marginTop: 2 }}>{t('videoAnalysis.native.videoDurationNote')}</Text>
+            </>
           )}
         </TouchableOpacity>
 
@@ -1680,6 +1735,36 @@ dimensions:上記${dims.length}項目(${dimIdList})全て必須。focusは改善
                   <FeedbackCardView icon="🎯" label={t('videoAnalysis.native.nextStep')} color="#2563eb" bg="#eff6ff"
                     card={result.nextStep} frameUri={result.nextStep.bbox ? frames[result.nextStep.bbox.f] : undefined} />
                 )}
+
+                {/* 2026-09-09: 設計書§3-5「動画→改善メモ→再撮影予約」。見て終わりにしない */}
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TouchableOpacity
+                    onPress={copyImprovementNote}
+                    disabled={notesCopied}
+                    activeOpacity={0.8}
+                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+                      backgroundColor: notesCopied ? '#f0fdf4' : '#fff', borderWidth: 1.5,
+                      borderColor: notesCopied ? '#16a34a55' : '#e5e7eb', borderRadius: 14, paddingVertical: 12 }}
+                  >
+                    <Ionicons name={notesCopied ? 'checkmark-circle' : 'copy-outline'} size={16} color={notesCopied ? '#16a34a' : '#4b5563'} />
+                    <Text style={{ fontSize: 12.5, fontWeight: '700', color: notesCopied ? '#16a34a' : '#4b5563' }}>
+                      {notesCopied ? t('videoAnalysis.native.noteCopiedButton') : t('videoAnalysis.native.copyNoteButton')}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={scheduleRecheck}
+                    disabled={recheckScheduled}
+                    activeOpacity={0.8}
+                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+                      backgroundColor: recheckScheduled ? '#eff6ff' : '#fff', borderWidth: 1.5,
+                      borderColor: recheckScheduled ? '#2563eb55' : '#e5e7eb', borderRadius: 14, paddingVertical: 12 }}
+                  >
+                    <Ionicons name={recheckScheduled ? 'checkmark-circle' : 'calendar-outline'} size={16} color={recheckScheduled ? '#2563eb' : '#4b5563'} />
+                    <Text style={{ fontSize: 12.5, fontWeight: '700', color: recheckScheduled ? '#2563eb' : '#4b5563' }}>
+                      {recheckScheduled ? t('videoAnalysis.native.recheckScheduledButton') : t('videoAnalysis.native.scheduleRecheckButton')}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
 
@@ -1786,7 +1871,7 @@ dimensions:上記${dims.length}項目(${dimIdList})全て必須。focusは改善
                   <Text style={{ color: '#fff', fontSize: 17, fontWeight: '800' }}>{t('videoAnalysis.native.upsellTitle')}</Text>
                 </View>
                 <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, lineHeight: 20 }}>
-                  {t('videoAnalysis.native.upsellBody')}
+                  {t('videoAnalysis.native.upsellBody', { n: TICKET_MONTHLY_GRANT })}
                 </Text>
                 <View style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 14, gap: 8 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1800,12 +1885,12 @@ dimensions:上記${dims.length}項目(${dimIdList})全て必須。focusは改善
                       </View>
                       <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>{t('videoAnalysis.native.upsellPrice')}</Text>
                     </View>
-                    <Text style={{ color: '#4ade80', fontSize: 12, fontWeight: '700' }}>{t('videoAnalysis.native.upsellNoAdsFull')}</Text>
+                    <Text style={{ color: '#4ade80', fontSize: 12, fontWeight: '700' }}>{t('videoAnalysis.native.upsellNoAdsFull', { n: TICKET_MONTHLY_GRANT })}</Text>
                   </View>
                 </View>
                 <TouchableOpacity
                   style={{ backgroundColor: '#166534', borderRadius: 14, paddingVertical: 15, alignItems: 'center' }}
-                  onPress={() => { setUpsellVisible(false); router.push('/paywall?plan=noad' as any) }}
+                  onPress={() => { setUpsellVisible(false); router.push('/paywall?plan=ticket_monthly' as any) }}
                   activeOpacity={0.85}
                 >
                   <Text style={{ color: '#fff', fontSize: 15, fontWeight: '800' }}>{t('videoAnalysis.native.upsellCta')}</Text>
@@ -2282,6 +2367,11 @@ ${summary}
     if (!vid?.src) { Alert.alert(t('videoAnalysis.web.selectVideoAlert')); return false }
     if (!vid.duration)
       await new Promise<void>(r => vid.addEventListener('loadedmetadata', () => r(), { once: true }))
+    // 2026-09-10: 1分超はフレーム間隔が空きすぎてフォーム分析に使えないため受け付けない
+    if (vid.duration > 60) {
+      Alert.alert(t('videoAnalysis.native.videoTooLongTitle'), t('videoAnalysis.native.videoTooLongBody'))
+      return false
+    }
     setPhase('analyzing')
     const dur  = vid.duration
     const step = Math.max(dur / MAX_FRAMES, 0.5)
@@ -2394,6 +2484,9 @@ ${summary}
             <Ionicons name="cloud-upload-outline" size={20} color="#fff" />
             <Text style={s.uploadBtnText}>{videoName ? t('videoAnalysis.web.changeVideo') : t('videoAnalysis.web.chooseVideo')}</Text>
           </TouchableOpacity>
+          {!videoName && (
+            <Text style={{ color: '#9ca3af', fontSize: 12, marginTop: 8, textAlign: 'center' }}>{t('videoAnalysis.native.videoDurationNote')}</Text>
+          )}
 
           {/* ── 種目選択 ── */}
           <View style={s.settingCard}>

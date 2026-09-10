@@ -87,6 +87,11 @@ export default function CoachLandingPage() {
     if (isWeb) Linking.openURL('https://scorej-run.vercel.app/auth')
     else router.push('/auth')
   }
+  // 2026-09-08: コーチはWeb版でも十分使えるため、「Web版を使う」と
+  // 「アプリをインストールする」の2択をヒーローCTAに用意する
+  const handleAppStore = () => {
+    Linking.openURL('https://apps.apple.com/jp/app/id6766394981')
+  }
 
   return (
     <View style={s.root}>
@@ -133,10 +138,16 @@ export default function CoachLandingPage() {
           </FadeCard>
 
           <FadeCard delay={440}>
-            <TouchableOpacity style={s.heroBtn} onPress={handleTrial} activeOpacity={0.85}>
-              <Text style={s.heroBtnTxt}>{t('coachLanding.heroBtn')}</Text>
-              <Ionicons name="arrow-forward" size={18} color={WHITE} />
-            </TouchableOpacity>
+            <View style={s.heroBtnRow}>
+              <TouchableOpacity style={s.heroBtn} onPress={handleTrial} activeOpacity={0.85}>
+                <Text style={s.heroBtnTxt}>{t('coachLanding.heroBtn')}</Text>
+                <Ionicons name="arrow-forward" size={18} color={WHITE} />
+              </TouchableOpacity>
+              <TouchableOpacity style={s.heroBtnSecondary} onPress={handleAppStore} activeOpacity={0.85}>
+                <Ionicons name="logo-apple" size={18} color={BLACK} />
+                <Text style={s.heroBtnSecondaryTxt}>{t('coachLanding.heroBtnApp')}</Text>
+              </TouchableOpacity>
+            </View>
             <Text style={s.heroNote}>{t('coachLanding.heroNote')}</Text>
           </FadeCard>
 
@@ -285,6 +296,7 @@ export default function CoachLandingPage() {
               <Text style={[s.planName, { color: WHITE }]}>{t('coachLanding.plan2Name')}</Text>
               <Text style={[s.planPrice, { color: WHITE }]}>{t('coachLanding.plan2Price')}</Text>
               <Text style={[s.planPer, { color: 'rgba(255,255,255,0.6)' }]}>{t('coachLanding.plan2Per')}</Text>
+              <Text style={s.planNote}>{t('coachLanding.plan2Note')}</Text>
               {plan2Features.map((f, i) => (
                 <View key={i} style={s.planFeat}>
                   <Ionicons name="checkmark-circle" size={15} color={GREEN_M} />
@@ -372,13 +384,21 @@ const s = StyleSheet.create({
   heroBadgeTxt: { color: GREEN, fontWeight: '800', fontSize: 12 },
   heroTitle: { color: BLACK, fontSize: isWeb ? 44 : 30, fontWeight: '900', lineHeight: isWeb ? 56 : 40, marginBottom: 20 },
   heroSub:   { color: GRAY,  fontSize: 16, lineHeight: 28, marginBottom: 36 },
+  heroBtnRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 12 },
   heroBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: GREEN, borderRadius: 50,
-    paddingHorizontal: 28, paddingVertical: 16, alignSelf: 'flex-start', marginBottom: 12,
+    paddingHorizontal: 28, paddingVertical: 16, alignSelf: 'flex-start',
     shadowColor: GREEN, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 16, elevation: 8,
   },
   heroBtnTxt: { color: WHITE, fontWeight: '900', fontSize: 16 },
+  // 「アプリをインストール」— Web版CTAと並べる控えめな二番手ボタン
+  heroBtnSecondary: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: WHITE, borderRadius: 50, borderWidth: 1.5, borderColor: LGRAY,
+    paddingHorizontal: 28, paddingVertical: 16, alignSelf: 'flex-start',
+  },
+  heroBtnSecondaryTxt: { color: BLACK, fontWeight: '900', fontSize: 16 },
   heroNote:   { color: GRAY, fontSize: 12, marginBottom: 44 },
 
   // Dashboard preview
@@ -479,6 +499,7 @@ const s = StyleSheet.create({
   planName:  { color: GRAY, fontWeight: '700', fontSize: 13 },
   planPrice: { color: BLACK, fontWeight: '900', fontSize: 36, marginVertical: 2 },
   planPer:   { color: GRAY, fontSize: 12, marginBottom: 14 },
+  planNote:  { color: 'rgba(255,255,255,0.55)', fontSize: 11, lineHeight: 16, marginBottom: 14 },
   planFeat:  { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
   planFeatTxt: { color: GRAY, fontSize: 13 },
   planBtn: {

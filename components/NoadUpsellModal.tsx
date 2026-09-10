@@ -1,17 +1,14 @@
 // components/NoadUpsellModal.tsx
-// チケットプランの案内モーダル（1日1回程度）
+// チケットプランの案内モーダル
 // 2026-09-07: paywall画面が「チケットプラン推奨」の比較デザインに刷新されたのに合わせ、
 // このモーダルの文言・導線も¥480広告なしプラン推奨からチケットプラン推奨に統一。
-// 表示頻度も週1回→1日1回に変更（呼び出し側のトリガーは index.tsx の起動時タイマーに加え、
-// 広告視聴でチケットを獲得した直後にも呼ぶ想定）。
-// 表示条件: FREEプラン かつ 前回表示から1日以上経過（未表示なら即表示）
-// ticket_monthly / coach プランに加入済みの場合は呼び出し側でそもそも表示しない
 //
-// 2026-09-07 追記（marketing-council / Sutherland案）:
-// 「広告を見てチケットを稼いだ直後」に売り込み文言を出すのは、対価を払った直後に
-// また対価を求める格好になり心理的に逆効果になりうる、という指摘を受け、
-// context='post_ad_watch' のときだけ「お疲れさまでした」から始まる感謝フレーミングに
-// 差し替える（表示頻度・導線はdaily/post_ad_watchで変えない。文言だけの実験）。
+// 2026-09-07 追記(オンボーディング再設計): 起動6秒後の自動表示・広告視聴直後の表示は
+// どちらも廃止した(登録直後に売り込まない方針のため)。このモーダル自体はDay7の
+// 週次レポート到達後に出す課金導線として再利用する想定で残してあるが、
+// 現時点ではどこからも自動的には呼ばれない(呼び出し側を実装するまで表示頻度は週1回に戻す)。
+// 表示条件: FREEプラン かつ 前回表示から7日以上経過（未表示なら即表示）
+// ticket_monthly / coach プランに加入済みの場合は呼び出し側でそもそも表示しない
 
 import React, { useRef, useEffect, useMemo } from 'react'
 import {
@@ -27,7 +24,7 @@ import { TICKET_MONTHLY_GRANT } from '../lib/purchaseService'
 import { trackPaywallView, trackPaywallDismiss } from '../lib/analytics'
 
 const LAST_SHOWN_KEY = 'score_noad_upsell_last_shown'
-const INTERVAL_MS = 1 * 24 * 60 * 60 * 1000
+const INTERVAL_MS = 7 * 24 * 60 * 60 * 1000
 
 // ── 表示すべきか判定（呼び出し側で tier === 'free' を確認してから呼ぶ） ──
 export async function shouldShowNoadUpsell(): Promise<boolean> {

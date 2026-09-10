@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>paywall比較デザイン 3案</title>
+<style>
+  :root {
+    --design-w: 375;
+    --design-h: 812;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #F6F4EF;
+    font-family: -apple-system, "Hiragino Sans", sans-serif;
+    padding: 32px 24px 80px;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; color: #1e1b3a; }
+  .brief {
+    background: #fff; border: 1px solid #e8e4da; border-radius: 12px;
+    padding: 14px 18px; margin-bottom: 28px; font-size: 13px; color: #444; line-height: 1.7;
+    max-width: 900px;
+  }
+  .brief b { color: #111; }
+  .panels {
+    display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start;
+  }
+  .panel { width: 300px; }
+  .panel-head { margin-bottom: 10px; }
+  .letter {
+    display: inline-block; width: 22px; height: 22px; border-radius: 6px;
+    background: #ddd; color: #333; font-weight: 800; font-size: 13px;
+    text-align: center; line-height: 22px; margin-right: 6px;
+  }
+  .panel.rec .letter { background: #16a34a; color: #fff; }
+  .panel-name { font-weight: 800; font-size: 14px; color: #1e1b3a; }
+  .badge-rec {
+    display: inline-block; background: #16a34a; color: #fff; font-size: 10px;
+    font-weight: 800; padding: 2px 8px; border-radius: 10px; margin-left: 6px;
+    vertical-align: middle;
+  }
+  .diff { font-size: 11.5px; color: #777; margin: 4px 0 12px; line-height: 1.5; }
+
+  /* ── iPhoneフレーム ── */
+  .frame-wrap {
+    width: 300px; height: 652px; /* 812 * (300/375) = 649.6 -> ほぼ440:956比の相似 */
+    position: relative;
+  }
+  .bezel {
+    position: absolute; inset: 0;
+    background: #111; border-radius: 46px; padding: 7px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+  }
+  .screen {
+    position: relative; width: 100%; height: 100%;
+    border-radius: 40px; overflow: hidden; background: #fff;
+  }
+  .notch {
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 40%; height: 22px; background: #111; border-radius: 0 0 14px 14px; z-index: 50;
+  }
+
+  /* ── 設計空間キャンバス（375x812固定→scaleで screen に合わせる） ── */
+  .canvas {
+    width: 375px; height: 812px;
+    transform-origin: top left;
+    /* scale = screen実サイズ / 375 (screenはbezel padding 7px引いた分) */
+    transform: scale(0.7787); /* (300-14)/375 = 0.7627 → 実測後に微調整 */
+    position: absolute; top: 0; left: 0;
+    font-family: -apple-system, "Hiragino Sans", sans-serif;
+  }
+
+  /* ==== 実装トークン（app/paywall.tsx から） ==== */
+  .bg      { background: #f6f6f8; }
+  .card    { background: #ffffff; }
+  .border  { border-color: rgba(0,0,0,0.08); }
+  .tPri    { color: #111827; }
+  .tSec    { color: #6b7280; }
+  .tHint   { color: #9ca3af; }
+  .brand   { color: #16a34a; }
+  .brandBg { background: #16a34a; }
+
+  .ph-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px 8px;
+  }
+  .ph-close { width: 32px; height: 32px; display:flex; align-items:center; justify-content:center; font-size: 20px; color:#111827; }
+  .ph-title { font-size: 15px; font-weight: 700; color:#111827; }
+
+  /* ---- 案A/B 共通: グラデーションヒーロー ---- */
+  .hero {
+    padding: 22px 20px 26px;
+    text-align: center;
+    color: #0d3320;
+  }
+  .hero .offer {
+    font-size: 10.5px; font-weight: 800; letter-spacing: 1.5px; color: rgba(13,51,32,0.55);
+    margin-bottom: 6px;
+  }
+  .hero h2 {
+    margin: 0 0 8px; font-size: 25px; font-weight: 900; letter-spacing: -0.3px; line-height: 1.25;
+  }
+  .hero p {
+    margin: 0; font-size: 12.5px; color: rgba(13,51,32,0.65); line-height: 1.6;
+  }
+
+  /* ---- 比較テーブル ---- */
+  .cmp-wrap { margin: 0 16px; background: #fff; border-radius: 20px; padding: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.06); }
+  .cmp-cols {
+    display: grid; grid-template-columns: 1fr 76px 84px; align-items: center;
+    padding-bottom: 10px; margin-bottom: 6px; border-bottom: 1px solid #eee;
+  }
+  .cmp-cols .lbl { font-size: 11px; color: #9ca3af; }
+  .cmp-cols .col-h { text-align: center; font-size: 12px; font-weight: 800; color: #6b7280; }
+  .cmp-cols .col-h.active {
+    color: #fff; background: #16a34a; border-radius: 10px; padding: 4px 0;
+  }
+  .cmp-row {
+    display: grid; grid-template-columns: 1fr 76px 84px; align-items: center;
+    padding: 9px 0;
+  }
+  .cmp-row .feat { font-size: 12px; font-weight: 700; color: #1f2937; }
+  .cmp-row .feat .sub { display:block; font-size: 9.5px; font-weight: 500; color: #9ca3af; margin-top:1px; }
+  .mark { text-align: center; font-size: 15px; }
+  .mark.yes { color: #16a34a; }
+  .mark.no  { color: #d1d5db; }
+
+  .price-card {
+    margin: 14px 16px 0; border-radius: 18px; padding: 14px 16px;
+    background: linear-gradient(135deg, #eafaf0, #cdf0dd);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .price-card .pc-l { font-size: 14px; font-weight: 800; color: #0d3320; }
+  .price-card .pc-sub { font-size: 10.5px; color: #3d6b52; margin-top: 2px; }
+  .price-card .pc-save { background: #16a34a; color: #fff; font-size: 10px; font-weight: 800; padding: 4px 10px; border-radius: 12px; }
+
+  .cta {
+    margin: 14px 16px 0; background: #16a34a; border-radius: 16px; padding: 14px;
+    text-align: center; color: #fff; font-weight: 800; font-size: 14px;
+  }
+  .skip { text-align: center; margin-top: 10px; font-size: 12px; color: #9ca3af; font-weight: 600; }
+
+  /* ---- 案C: 3列比較（カード積み上げ寄り） ---- */
+  .heroC {
+    padding: 18px 16px 14px; text-align:center;
+  }
+  .heroC h2 { margin:0 0 6px; font-size: 21px; font-weight: 900; color:#111827; }
+  .heroC p { margin:0; font-size: 12px; color:#6b7280; line-height:1.5; }
+  .cmp3-wrap { margin: 8px 12px 0; background:#fff; border-radius:18px; padding:14px 10px; box-shadow: 0 6px 18px rgba(0,0,0,0.05); }
+  .cmp3-cols { display:grid; grid-template-columns: 1.3fr 0.85fr 0.85fr 0.85fr; padding-bottom:8px; margin-bottom:4px; border-bottom:1px solid #eee; }
+  .cmp3-cols .col-h { text-align:center; font-size:10.5px; font-weight:800; color:#6b7280; }
+  .cmp3-cols .col-h.active { color:#16a34a; }
+  .cmp3-row { display:grid; grid-template-columns: 1.3fr 0.85fr 0.85fr 0.85fr; padding:7px 0; align-items:center; }
+  .cmp3-row .feat { font-size:10.5px; font-weight:700; color:#1f2937; }
+  .mark3 { text-align:center; font-size:13px; }
+  .cta3 { margin: 12px 12px 0; background:#16a34a; border-radius:14px; padding:13px; text-align:center; color:#fff; font-weight:800; font-size:13px; }
+  .link3 { text-align:center; margin-top:8px; font-size:11px; color:#16a34a; font-weight:700; text-decoration:underline; }
+
+</style>
+</head>
+<body>
+
+<h1>paywall比較デザイン — お題</h1>
+<div class="brief">
+  <b>指示原文：</b>「この前サブスクのトライアル推奨の全体カード画面作ったと思うんだけどデザイン終わってたから
+  こんな感じのデザインに変更して欲しい。できる限り真似して。チケットプランを推奨」<br>
+  参考画像＝緑グラデ「Go Unlimited」比較カード（SPECIAL OFFER／見出し／Starter・Unlimited列比較／機能行✓×／
+  下部グラデ価格帯／Continueボタン）。<b>解釈が割れる点</b>：sCOREには実際は3プラン（広告なし／チケット月額／コーチ）
+  あるが、参考画像は2列比較のみ。コーチプランをこの画面でどう扱うかが分かれ目。
+</div>
+
+<div class="panels">
+
+  <!-- ============ 案A（推奨） ============ -->
+  <div class="panel rec">
+    <div class="panel-head">
+      <span class="letter">A</span><span class="panel-name">2列比較・厳密再現</span><span class="badge-rec">推奨</span>
+      <div class="diff">参考画像に最も忠実。Free vs チケットプランの2列のみ。コーチプランは下部に小さいリンクで退避。</div>
+    </div>
+    <div class="frame-wrap">
+      <div class="bezel">
+        <div class="screen">
+          <div class="notch"></div>
+          <div class="canvas" style="transform:scale(0.7627)">
+            <div class="bg" style="width:375px;height:812px;">
+              <div class="ph-header">
+                <div class="ph-close">✕</div>
+                <div class="ph-title">プランを選ぶ</div>
+                <div style="width:32px"></div>
+              </div>
+              <div class="hero" style="background:linear-gradient(180deg,#eafaf0 0%,#bdeecb 55%,#8fdcae 100%);">
+                <div class="offer">🎁 3日間無料トライアル</div>
+                <h2>もっと、AIを<br>使いこなす。</h2>
+                <p>広告なし＋毎月チケット100枚で<br>フォーム分析も回復相談も気にせず使える</p>
+              </div>
+              <div class="cmp-wrap" style="margin-top:-18px;">
+                <div class="cmp-cols">
+                  <div class="lbl"></div>
+                  <div class="col-h">Free</div>
+                  <div class="col-h active">チケット</div>
+                </div>
+                <div class="cmp-row">
+                  <div class="feat">広告非表示</div>
+                  <div class="mark no">✕</div>
+                  <div class="mark yes">✓</div>
+                </div>
+                <div class="cmp-row">
+                  <div class="feat">毎月チケット自動付与<span class="sub">100枚/月</span></div>
+                  <div class="mark no">✕</div>
+                  <div class="mark yes">✓</div>
+                </div>
+                <div class="cmp-row">
+                  <div class="feat">AI機能（フォーム分析・回復相談等）</div>
+                  <div class="mark yes">✓</div>
+                  <div class="mark yes">✓</div>
+                </div>
+                <div class="cmp-row">
+                  <div class="feat">チケット追加購入</div>
+                  <div class="mark yes">✓</div>
+                  <div class="mark yes">✓</div>
+                </div>
+              </div>
+              <div class="price-card">
+                <div>
+                  <div class="pc-l">チケット月額プラン</div>
+                  <div class="pc-sub">月額¥980・いつでも解約OK</div>
+                </div>
+                <div class="pc-save">おすすめ</div>
+              </div>
+              <div class="cta">3日間無料で始める</div>
+              <div class="skip">無料プランのまま続ける</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 案B ============ -->
+  <div class="panel">
+    <div class="panel-head">
+      <span class="letter">B</span><span class="panel-name">2列比較・コーチも列内リンク化</span>
+      <div class="diff">Aとほぼ同じ2列比較だが、価格カードの下に「コーチプランを見る」を残し3プラン導線を維持。</div>
+    </div>
+    <div class="frame-wrap">
+      <div class="bezel">
+        <div class="screen">
+          <div class="notch"></div>
+          <div class="canvas" style="transform:scale(0.7627)">
+            <div class="bg" style="width:375px;height:812px;">
+              <div class="ph-header">
+                <div class="ph-close">✕</div>
+                <div class="ph-title">プランを選ぶ</div>
+                <div style="width:32px"></div>
+              </div>
+              <div class="hero" style="background:linear-gradient(180deg,#eafaf0 0%,#bdeecb 55%,#8fdcae 100%); padding-bottom:20px;">
+                <div class="offer">おすすめプラン</div>
+                <h2>チケット<br>月額プラン</h2>
+                <p>広告なし＋毎月チケット100枚自動付与</p>
+              </div>
+              <div class="cmp-wrap" style="margin-top:-14px;">
+                <div class="cmp-cols">
+                  <div class="lbl"></div>
+                  <div class="col-h">Free</div>
+                  <div class="col-h active">チケット</div>
+                </div>
+                <div class="cmp-row">
+                  <div class="feat">広告非表示</div>
+                  <div class="mark no">✕</div>
+                  <div class="mark yes">✓</div>
+                </div>
+                <div class="cmp-row">
+                  <div class="feat">毎月チケット自動付与<span class="sub">100枚/月</span></div>
+                  <div class="mark no">✕</div>
+                  <div class="mark yes">✓</div>
+                </div>
+                <div class="cmp-row">
+                  <div class="feat">AI機能（フォーム分析・回復相談等）</div>
+                  <div class="mark yes">✓</div>
+                  <div class="mark yes">✓</div>
+                </div>
+              </div>
+              <div class="price-card">
+                <div>
+                  <div class="pc-l">¥980<span style="font-size:11px;font-weight:600;"> / 月</span></div>
+                  <div class="pc-sub">3日間無料トライアルつき</div>
+                </div>
+                <div class="pc-save">🎁 3日間無料</div>
+              </div>
+              <div class="cta">無料トライアルを始める</div>
+              <div class="skip" style="text-decoration:underline; color:#16a34a; font-weight:700;">コーチプランを見る →</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 案C ============ -->
+  <div class="panel">
+    <div class="panel-head">
+      <span class="letter">C</span><span class="panel-name">3列比較（全プラン維持）</span>
+      <div class="diff">参考画像の見た目より現行機能の網羅性を優先。Free/チケット/コーチを3列で並べ、既存3プラン構成を崩さない。</div>
+    </div>
+    <div class="frame-wrap">
+      <div class="bezel">
+        <div class="screen">
+          <div class="notch"></div>
+          <div class="canvas" style="transform:scale(0.7627)">
+            <div class="bg" style="width:375px;height:812px;">
+              <div class="ph-header">
+                <div class="ph-close">✕</div>
+                <div class="ph-title">プランを選ぶ</div>
+                <div style="width:32px"></div>
+              </div>
+              <div class="heroC" style="background:linear-gradient(180deg,#eafaf0, #d7f3e2); padding-top:20px;">
+                <h2>怪我リスクチェックは<br><span class="brand">ずっと無料</span></h2>
+                <p>もっと使うなら、チケットプランがおすすめ</p>
+              </div>
+              <div class="cmp3-wrap">
+                <div class="cmp3-cols">
+                  <div></div>
+                  <div class="col-h">Free</div>
+                  <div class="col-h active">チケット</div>
+                  <div class="col-h">コーチ</div>
+                </div>
+                <div class="cmp3-row"><div class="feat">広告非表示</div><div class="mark3">✕</div><div class="mark3 brand">✓</div><div class="mark3 brand">✓</div></div>
+                <div class="cmp3-row"><div class="feat">毎月チケット</div><div class="mark3">−</div><div class="mark3 brand">100枚</div><div class="mark3 brand">無制限</div></div>
+                <div class="cmp3-row"><div class="feat">AI機能</div><div class="mark3 brand">✓</div><div class="mark3 brand">✓</div><div class="mark3 brand">✓</div></div>
+                <div class="cmp3-row"><div class="feat">チーム管理</div><div class="mark3">✕</div><div class="mark3">✕</div><div class="mark3 brand">✓</div></div>
+              </div>
+              <div class="price-card" style="margin:12px 12px 0;">
+                <div>
+                  <div class="pc-l">チケット月額プラン ¥980/月</div>
+                  <div class="pc-sub">🎁 3日間無料トライアルつき</div>
+                </div>
+                <div class="pc-save">おすすめ</div>
+              </div>
+              <div class="cta3">3日間無料で始める</div>
+              <div class="link3">他のプランと比較する</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<p style="margin-top:36px; font-size:12px; color:#888;">
+  「Aで」「Bだけどコーチのリンクいらない」のように選んだレターを言ってもらえれば、その案で app/paywall.tsx に実装します。
+</p>
+
+</body>
+</html>

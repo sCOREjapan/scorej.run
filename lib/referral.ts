@@ -54,13 +54,15 @@ export async function redeemReferralCode(rawCode: string): Promise<RedeemResult>
   const userId = await getMyUserId()
   if (!userId) return 'not_logged_in'
 
-  const { data: codeRow } = await supabase
-    .from('referral_codes').select('referrer_user_id').eq('code', code).maybeSingle()
-  if (!codeRow) return 'invalid_code'
-  if (codeRow.referrer_user_id === userId) return 'self_code'
+  // 2026-09-09: referral_codes への直接selectは「全件ダンプ可能」なRLS漏洩の原因になって
+  // いたため撤去（supabase/fix_referral_codes_exposure.sql参照）。単一コードのreferrer_user_idだけを
+  // 返すSECURITY DEFINER関数経由に変更。
+  const { data: referrerUserId } = await supabase.rpc('lookup_referral_code', { p_code: code })
+  if (!referrerUserId) return 'invalid_code'
+  if (referrerUserId === userId) return 'self_code'
 
   const { error } = await supabase.from('referral_redemptions').insert({
-    code, referrer_user_id: codeRow.referrer_user_id, redeemer_user_id: userId,
+    code, referrer_user_id: referrerUserId, redeemer_user_id: userId,
   })
   if (error) {
     // unique制約違反(23505) = このアカウントは既に紹介報酬を受け取り済み

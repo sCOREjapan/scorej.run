@@ -3,6 +3,7 @@ import { useFocusEffect } from '@react-navigation/native'
 import { useTranslation } from 'react-i18next'
 import { useLanguage } from '../../context/LanguageContext'
 import { getEventLabel } from '../../lib/eventLabels'
+import { windAdjustedTimes } from '../../lib/windConversion'
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   TextInput, Modal, KeyboardAvoidingView, Platform, Animated, Alert, Dimensions, Pressable,
@@ -25,6 +26,7 @@ import type { RaceRecord, AthleticsEvent, ChartDataPoint, TrainingSession } from
 import type { SleepRecord } from '../../types'
 import { exportAllDataCSV, exportAllDataJSON } from '../../lib/export'
 import { checkAdGate, recordUsage } from '../../lib/adGate'
+import { shouldShowInterstitial, showInterstitialAd } from '../../lib/admob'
 import { localDateStr, todayLocalISO } from '../../lib/dateLocal'
 import AdGateModal from '../../components/AdGateModal'
 import QuickLogModal from '../../components/QuickLogModal'
@@ -203,6 +205,18 @@ function RecordCard({ record, onDelete, onEdit }: { record: RaceRecord; onDelete
             {record.wind_ms >= 0 ? `+${record.wind_ms}` : record.wind_ms}m/s
           </Text>
         )}
+        {record.wind_ms !== undefined && record.result_ms !== undefined && (() => {
+          const adj = windAdjustedTimes(record.result_ms / 1000, record.wind_ms, record.event)
+          if (!adj) return null
+          return (
+            <Text style={styles.windConvertedText} numberOfLines={1}>
+              {t('records.recordCard.windConverted', {
+                noWind: msToDisplay(adj.noWindSec * 1000, record.event),
+                plus2: msToDisplay(adj.plus2Sec * 1000, record.event),
+              })}
+            </Text>
+          )
+        })()}
         {record.hurdle_height_cm !== undefined && (
           <Text style={styles.windText}>H{record.hurdle_height_cm}cm</Text>
         )}
@@ -1580,6 +1594,9 @@ export default function RecordsScreen() {
     )
     setWeightRecords(next)
     Toast.show({ type: 'success', text1: t('records.toast.weightSaved', { kg }), visibilityTime: 1500 })
+    setTimeout(async () => {
+      if (await shouldShowInterstitial()) await showInterstitialAd().catch(() => {})
+    }, 400)
   }, [t])
 
   const handleDeleteWeight = useCallback(async (id: string) => {
@@ -1718,6 +1735,14 @@ export default function RecordsScreen() {
         : t('records.toast.recordsCount', { n: newRecs.length })
       Toast.show({ type: 'success', text1: `✅ ${summary}${anyPB && !editId ? t('records.toast.pbCelebration') : ''}` })
       resetForm(); setModalVisible(false)
+      // インタースティシャル広告（2026-09-08 追加）。既存の練習記録保存(practice-input/
+      // manual-log/gps-run)と同じ2回に1回のカウンターを共有する。ただし自己ベスト達成の
+      // 祝福（紙吹雪3秒）と、既存記録の編集(editId)は演出を邪魔しないため対象外にする
+      if (!anyPB && !editId) {
+        setTimeout(async () => {
+          if (await shouldShowInterstitial()) await showInterstitialAd().catch(() => {})
+        }, 400)
+      }
     } catch {
       Sounds.error()
       Toast.show({ type: 'error', text1: t('records.toast.saveFailed') })
@@ -2367,6 +2392,7 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   recordMid:    { flex: 1, gap: 2 },
   recordResult: { color: colors.text, fontSize: 22, fontWeight: '800', fontVariant: ['tabular-nums'] },
   windText:     { color: colors.textHint, fontSize: 11 },
+  windConvertedText: { color: colors.textHint, fontSize: 10, marginTop: 1 },
   windRow:      { flexDirection: 'row', alignItems: 'center', gap: 8 },
   windSignBtn:  { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   windSignBtnMinus: { backgroundColor: '#fee2e2', borderColor: '#fca5a5' },

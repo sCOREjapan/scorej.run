@@ -26,6 +26,15 @@ import { getSessionTypeLabel } from '../lib/sessionTypeLabels'
 
 const SESSIONS_KEY = 'trackmate_sessions'
 
+// 疲労度クイック選択（manual-log.tsxと同じ5段階）
+const FATIGUE_QUICK = [
+  { v: 2,  emoji: '😴' },
+  { v: 4,  emoji: '😊' },
+  { v: 6,  emoji: '😐' },
+  { v: 8,  emoji: '😰' },
+  { v: 10, emoji: '🤯' },
+]
+
 // ── 日付ヘルパー ─────────────────────────────────────────────────
 /** ローカル日付を YYYY-MM-DD 文字列に変換（toISOStringはUTCになるのでNG） */
 function localDateStr(d: Date): string {
@@ -169,6 +178,10 @@ export default function QuickLogModal({ visible, onClose, onSaved, editSession }
   const [showShare, setShowShare]       = useState(false)
   const [shareData, setShareData]       = useState<PracticeShareData | null>(null)
   const [selectedDate, setSelectedDate] = useState(dateOffset(0))
+  // 疲労度クイック選択（manual-log.tsxと同じ5段階）。
+  // 2026-09-08: 自由文に疲労度を書かないとfatigue_levelが常に既定値5になり、
+  // 怪我リスクスコアが何を記録しても同じような値に張り付く不具合の修正で追加
+  const [fatigueQuick, setFatigueQuick] = useState<number | null>(null)
 
   const slideAnim = useRef(new Animated.Value(300)).current
 
@@ -178,8 +191,10 @@ export default function QuickLogModal({ visible, onClose, onSaved, editSession }
       if (editSession) {
         setFreeText(editSession.notes ?? '')
         setSelectedDate(editSession.session_date)
+        setFatigueQuick(editSession.fatigue_level ?? null)
       } else {
         setSelectedDate(dateOffset(0))
+        setFatigueQuick(null)
       }
       Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 10, useNativeDriver: Platform.OS !== 'web' }).start()
     } else {
@@ -189,6 +204,7 @@ export default function QuickLogModal({ visible, onClose, onSaved, editSession }
 
   function handleClose() {
     setFreeText('')
+    setFatigueQuick(null)
     setShowShare(false)  // ゾンビModal防止
     onClose()
   }
@@ -208,6 +224,9 @@ export default function QuickLogModal({ visible, onClose, onSaved, editSession }
 
     // ── 保存 ──────────────────────────────────
     const toNum = (v: any) => (v !== null && v !== undefined && v !== 'null' && !isNaN(Number(v)) && Number(v) > 0) ? Number(v) : undefined
+    // クイック選択があればそちらを優先（自由文に書き忘れても既定値5に張り付かないようにする）
+    const finalFatigue = fatigueQuick ?? toNum(parsed.fatigue_level) ?? 5
+    parsed.fatigue_level = finalFatigue
     try {
       const parsedFields = {
         session_date:    parsed.session_date    || today,
@@ -216,7 +235,7 @@ export default function QuickLogModal({ visible, onClose, onSaved, editSession }
         time_ms:         toNum(parsed.time_ms),
         distance_m:      toNum(parsed.distance_m),
         reps:            toNum(parsed.reps),
-        fatigue_level:   toNum(parsed.fatigue_level) ?? 5,
+        fatigue_level:   finalFatigue,
         condition_level: toNum(parsed.condition_level) ?? 7,
         notes:           freeText,
       }
@@ -231,6 +250,7 @@ export default function QuickLogModal({ visible, onClose, onSaved, editSession }
         successNotify()
         Toast.show({ type: 'success', text1: t('quickLogModal.toastUpdateSuccess'), visibilityTime: 1500 })
         setFreeText('')
+        setFatigueQuick(null)
         onSaved?.()
         onClose()
         return
@@ -283,6 +303,7 @@ export default function QuickLogModal({ visible, onClose, onSaved, editSession }
       })
       setShowShare(true)
       setFreeText('')
+      setFatigueQuick(null)
       onSaved?.()
     } catch {
       Toast.show({ type: 'error', text1: t('quickLogModal.toastSaveErrorTitle'), text2: t('quickLogModal.toastSaveErrorBody') })
@@ -363,6 +384,29 @@ export default function QuickLogModal({ visible, onClose, onSaved, editSession }
             placeholderTextColor={colors.textHint}
             textAlignVertical="top"
           />
+
+          {/* ── 疲労度クイック選択（任意。未選択なら文中の記述→既定値5の順でフォールバック） ── */}
+          <Text style={[st.hint, { marginTop: 12, marginBottom: 6 }]}>{t('quickLogModal.fatigueLabel')}</Text>
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 4 }}>
+            {FATIGUE_QUICK.map(f => (
+              <TouchableOpacity
+                key={f.v}
+                onPress={() => { Sounds.tap(); setFatigueQuick(prev => prev === f.v ? null : f.v) }}
+                activeOpacity={0.8}
+                style={{
+                  flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 12,
+                  borderWidth: 1.5,
+                  borderColor: fatigueQuick === f.v ? BRAND : colors.border,
+                  backgroundColor: fatigueQuick === f.v ? BRAND + '18' : colors.surface2,
+                }}
+              >
+                <Text style={{ fontSize: 20 }}>{f.emoji}</Text>
+                <Text style={{ fontSize: 10, marginTop: 2, fontWeight: '700', color: fatigueQuick === f.v ? BRAND : colors.textHint }}>
+                  {t(`manualLog.fatigueLevels.${f.v}`)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
           <HapticTouch
             haptic="save"

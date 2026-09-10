@@ -17,6 +17,7 @@ import { getMealAnalysisPrompt, getCompetitionPlanPrompt, getCompetitionPlanChun
 import { narrativeLanguageInstruction } from './aiLanguage'
 import type { Language } from '../context/LanguageContext'
 import { getAiAuthHeader } from './supabase'
+import { trackAiRequestFailed } from './analytics'
 
 const MODEL = 'claude-haiku-4-5-20251001'
 // Vercel proxy URL（APIキーをクライアントに持たせない）
@@ -102,12 +103,18 @@ async function callClaude(req: MessagesRequest): Promise<string> {
 
   if (!res.ok) {
     const errText = await res.text().catch(() => '')
+    if (req.feature) trackAiRequestFailed(req.feature, `http_${res.status}`)
     throw new Error(`Anthropic API エラー (${res.status}): ${errText}`)
   }
 
   const json = await res.json()
   const block = json?.content?.[0]
   const text = block?.type === 'text' && block.text ? block.text : ''
+  // 2026-09-09: 空応答はHTTPレベルでは200(成功)なので、上のエラー分岐だけでは
+  // 検知できない。api/analyze.ts側でGemini空応答→Anthropicフォールバック済みの
+  // はずだが、両方失敗した場合はここに空文字が届く。呼び出し元(safeParseJSON等)は
+  // 個別にエラーを投げるが、feature名が分かるのはここだけなので先に記録しておく。
+  if (!text.trim() && req.feature) trackAiRequestFailed(req.feature, 'empty_response')
   return text
 }
 
@@ -301,6 +308,9 @@ export async function getRecoveryAdvice(
   const text = await callClaude({
     model: MODEL,
     max_tokens: 512,
+    // 2026-09-09: feature名が無いとサーバー側(api/analyze.ts)のtier判定・軽量モデル振り分けの
+    // 対象にならないため追加（この機能自体は無料だが、モデル選択には使われる）
+    feature: 'recovery',
     system: systemPrompt,
     messages: [
       {
@@ -313,40 +323,11 @@ export async function getRecoveryAdvice(
   return safeParseJSON<RecoveryStatus>(text)
 }
 
-// ─────────────────────────────────────────
-// 5. 週次トレーニングサマリー
-// ─────────────────────────────────────────
-export async function getWeeklySummary(
-  sessions: TrainingSession[],
-  profile: UserProfile
-): Promise<{ summary: string; next_week_focus: string; praise: string }> {
-  const sessionText = sessions
-    .map(s =>
-      `${s.session_date}: ${s.session_type} ${s.event ?? ''} ` +
-      `${s.time_ms ? formatMs(s.time_ms) : ''} 疲労${s.fatigue_level}/10`
-    )
-    .join('\n')
-
-  const text = await callClaude({
-    model: MODEL,
-    max_tokens: 512,
-    system: `あなたは${profile.event_category === 'sprint' ? '短距離' : '中長距離'}専門の陸上コーチです。
-選手の1週間の練習記録を見て、以下のJSONを返してください：
-{
-  "summary": "1週間の練習の総評（2文）",
-  "next_week_focus": "来週取り組むべきこと（1文）",
-  "praise": "選手への具体的な褒め言葉（1文）"
-}`,
-    messages: [
-      {
-        role: 'user',
-        content: `先週の練習記録：\n${sessionText || 'データなし'}`,
-      },
-    ],
-  })
-
-  return safeParseJSON(text)
-}
+// 2026-09-09: 「週次トレーニングサマリー」(getWeeklySummary)はコードベース全体を
+// 検索してもimport/呼び出し元が1件も無い完全なデッドコードだったため削除した
+// （formatMsもこの関数専用のヘルパーだったため合わせて削除）。API課金対象なのに
+// 使われていない=無駄な保守コストだった。将来同機能を作る場合はticketWallet.ts/
+// adGate.tsにfeature名を登録し、チケット消費・利用回数上限を必ず設定すること。
 
 // ─────────────────────────────────────────
 // 5. 怪我復帰プラン生成
@@ -368,9 +349,10 @@ export async function generateInjuryRecoveryPlan(params: {
 }): Promise<InjuryDayPlan[]> {
   const { side, parts, injuryType, description, painLevel, hasSwelling, language = 'ja' } = params
   // 呼び出し元の入力チェックに関わらず、ここでも上限をかける（防御的多層化）。
-  // 90日を超える指定は現実的な復帰プランの範囲を超え、チャンク数が際限なく増えて
-  // トークン消費が膨れ上がるため強制的にクランプする。
-  const totalDays = Math.min(Math.max(params.totalDays, 1), 90)
+  // 2026-09-09: 90日だと6日ごとのチャンク分割で最大15回のAPI呼び出しが発生し、
+  // 「1日2回まで無料」の想定を大きく超えていたため30日(最大5チャンク)に縮小
+  // （呼び出し元 app/(tabs)/competition.tsx の同名クランプと揃えること）。
+  const totalDays = Math.min(Math.max(params.totalDays, 1), 30)
 
   const bodyInfo = `部位: ${side}${parts.join('・')}
 種類: ${injuryType}
@@ -400,7 +382,7 @@ async function generateInjuryRecoveryPlanChunk(
 ): Promise<InjuryDayPlan[]> {
   const days = endDay - startDay + 1
 
-  const system = `あなたはスポーツ医学の専門家です。選手の怪我情報をもとに、回復プランの一部をJSON配列で返してください。
+  const system = `あなたは陸上競技のコンディショニングアドバイザーです。医療診断や治療の代わりではなく、一般的な練習調整の目安として、選手の怪我情報をもとに回復プランの一部をJSON配列で返してください。
 全体では受傷からday=1〜day=${totalDays}までの回復プランを作成中で、今回はそのうちday=${startDay}〜day=${endDay}（${days}日分）だけを生成してください。
 
 返却形式（${days}要素の配列、day番号は${startDay}から${endDay}まで）:
@@ -420,21 +402,12 @@ async function generateInjuryRecoveryPlanChunk(
   const text = await callClaude({
     model: MODEL,
     max_tokens: 3000,
+    // 2026-09-09: recoveryと同じ理由でfeature名を追加（軽量モデル振り分け対象にするため）
+    feature: 'injury_recovery',
     system,
     messages: [{ role: 'user', content: user }],
   })
 
   if (!text) throw new Error('AIからの応答が空でした')
   return safeParseJSON<InjuryDayPlan[]>(text)
-}
-
-// ─────────────────────────────────────────
-// ユーティリティ
-// ─────────────────────────────────────────
-function formatMs(ms: number): string {
-  const totalSec = ms / 1000
-  if (totalSec < 60) return `${totalSec.toFixed(2)}秒`
-  const min = Math.floor(totalSec / 60)
-  const sec = (totalSec % 60).toFixed(2)
-  return `${min}分${sec}秒`
 }
