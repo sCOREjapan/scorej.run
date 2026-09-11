@@ -316,7 +316,13 @@
         "stretch": "Lowered risk with stretching"
       }
     },
-    "continueButton": "Continue"
+    "continueButton": "Continue",
+    "rewardHint": "Finish them all to get 🎫{{n}} tickets",
+    "reward": {
+      "ribbon": "Item Obtained",
+      "amount": "Tickets × {{n}}",
+      "caption": "Day {{day}} mission reward"
+    }
   },
   "weeklyReport": {
     "title": "Weekly Report",

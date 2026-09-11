@@ -20,7 +20,7 @@
 //   <Modal transparent animationType="fade" {...modalProps}> ... </Modal>
 //   <TouchableOpacity onPress={() => close()} />                       // 閉じるだけ
 //   <TouchableOpacity onPress={() => close(() => router.push('/x'))} />// 閉じてから遷移
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Platform } from 'react-native'
 
 // Android の <Modal animationType="fade"> のフェード時間（RN 既定）にあわせた繰り上げ遅延
@@ -58,4 +58,58 @@ export function useOverlayDismiss(onClosed: () => void) {
   }
 
   return { visible, modalProps, close }
+}
+
+/**
+ * useOverlayDismiss の姉妹フック。「親から渡された visible prop で開閉し、常時マウント
+ * されたまま使う」モーダル用（QuickConditionModal・MissionModal等。CoachPlanBanner等の
+ * 「条件付きマウントで開き、閉じる=アンマウント」パターンとは開始状態が逆になる）。
+ *
+ * 2026-09-11: MissionModalでuseOverlayDismissをそのまま使ってしまい、内部の
+ * visible状態がpropと無関係にtrue始まりのため、ホーム画面を開いた瞬間から
+ * モーダルが「開きっぱなし・読み込み中のまま」になって何度タップしても反応しない
+ * 不具合を作ってしまった。原因はこの初期状態の違いなので、常時マウント型には
+ * 必ずこちらを使う。
+ *
+ *   const { modalProps, close } = usePropOverlayDismiss(visible, onClose)
+ *   <Modal transparent animationType="fade" {...modalProps}> ... </Modal>
+ *   <TouchableOpacity onPress={() => close()} />                       // 閉じるだけ
+ *   <TouchableOpacity onPress={() => close(() => router.push('/x'))} />// 閉じてから遷移
+ */
+export function usePropOverlayDismiss(visible: boolean, onClosed: () => void) {
+  const [shown, setShown] = useState(visible)
+  const afterRef = useRef<null | (() => void)>(null)
+  const closingRef = useRef(false)
+
+  useEffect(() => {
+    if (visible) {
+      closingRef.current = false
+      setShown(true)
+    }
+  }, [visible])
+
+  const finish = () => {
+    if (!closingRef.current) return
+    closingRef.current = false
+    onClosed()
+    const after = afterRef.current
+    afterRef.current = null
+    after?.()
+  }
+
+  const close = (afterClose?: () => void) => {
+    if (closingRef.current) return
+    afterRef.current = afterClose ?? null
+    closingRef.current = true
+    setShown(false)
+    if (Platform.OS !== 'ios') setTimeout(finish, ANDROID_FADE_MS)
+  }
+
+  const modalProps = {
+    visible: shown,
+    onRequestClose: () => close(),
+    onDismiss: Platform.OS === 'ios' ? finish : undefined,
+  }
+
+  return { modalProps, close }
 }

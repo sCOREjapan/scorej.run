@@ -1,14 +1,20 @@
-// components/MissionEntryCard.tsx — ホーム画面常駐の3日間ミッション入口カード
+// components/MissionEntryCard.tsx — ホーム画面右下に常駐する3日間ミッションの丸バッジ
 // 2026-09-11: components/FirstRunChecklist.tsx を置き換える。タスク自体はここには置かず、
 // タップでMissionModal（components/MissionModal.tsx）を開いて詳細を見せる導線だけを持つ。
+// 2026-09-11追記: 当初はスクロール内の横長カードだったが、「ポケポケみたいに右下に丸で」
+// という指示でフローティングの丸バッジに変更。ホーム画面のSafeAreaView内・ScrollViewの
+// 外側（きょうだい要素）に置くことで、スクロールしても常に同じ位置に浮いたままになる。
 import React, { useState, useCallback } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { useFocusEffect } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useTheme, type ThemeColors } from '../context/ThemeContext'
 import { BRAND } from '../lib/theme'
 import { ensureMissionStarted, getMissionDayProgress, currentMissionDay, getMissionState } from '../lib/missionStore'
+
+const G1 = '#22c55e'
 
 export default function MissionEntryCard({ onPress }: { onPress: () => void }) {
   const { t } = useTranslation()
@@ -36,32 +42,36 @@ export default function MissionEntryCard({ onPress }: { onPress: () => void }) {
   useFocusEffect(useCallback(() => { load() }, [load]))
 
   if (!visible) return null
+  const remaining = total - doneCount
 
   return (
-    <TouchableOpacity style={s.card} onPress={onPress} activeOpacity={0.85}>
-      <View style={s.iconWrap}>
-        <Ionicons name="flag" size={20} color="#fff" />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={[s.title, { color: colors.text }]}>{t('mission.entry.title', { day })}</Text>
-        <Text style={[s.sub, { color: colors.textSec }]}>{t('mission.entry.sub', { done: doneCount, total })}</Text>
-      </View>
-      <Ionicons name="chevron-forward" size={18} color={colors.textHint} />
+    <TouchableOpacity style={s.wrap} onPress={onPress} activeOpacity={0.85} accessibilityLabel={t('mission.entry.title', { day })}>
+      <LinearGradient colors={[G1, BRAND]} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={s.circle}>
+        <Ionicons name="flag" size={24} color="#fff" />
+        <Text style={s.dayText}>{t('mission.dayBadge', { day })}</Text>
+      </LinearGradient>
+      {remaining > 0 && (
+        <View style={s.badgeDot}><Text style={s.badgeDotText}>{remaining}</Text></View>
+      )}
     </TouchableOpacity>
   )
 }
 
 const makeS = (colors: ThemeColors) => StyleSheet.create({
-  card: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    borderRadius: 20, borderWidth: 1, borderColor: 'rgba(22,101,52,0.24)',
-    backgroundColor: 'rgba(22,101,52,0.07)', padding: 14, marginBottom: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 14, elevation: 3,
+  wrap: {
+    position: 'absolute', right: 18, bottom: 22, zIndex: 30,
   },
-  iconWrap: {
-    width: 40, height: 40, borderRadius: 14, backgroundColor: BRAND,
+  circle: {
+    width: 60, height: 60, borderRadius: 30,
     alignItems: 'center', justifyContent: 'center',
+    borderWidth: 3, borderColor: colors.bg,
+    shadowColor: BRAND, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 10,
   },
-  title: { fontSize: 14, fontWeight: '800' },
-  sub:   { fontSize: 12, fontWeight: '600', marginTop: 2 },
+  dayText: { color: '#fff', fontSize: 8.5, fontWeight: '900', marginTop: 1, letterSpacing: 0.3 },
+  badgeDot: {
+    position: 'absolute', top: -4, right: -4, minWidth: 20, height: 20, borderRadius: 10,
+    backgroundColor: '#ef4444', borderWidth: 2, borderColor: colors.bg,
+    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3,
+  },
+  badgeDotText: { color: '#fff', fontSize: 10.5, fontWeight: '900' },
 })

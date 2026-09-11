@@ -2087,16 +2087,6 @@ ${sleepText || 'データなし'}
             <WeekDateBar selected={selectedDate} onChange={setSelectedDate} conditionMap={conditionMap} />
           </AnimatedEntry>
 
-          {/* ── 3日間ミッション入口カード（旧: はじめてチェックリスト）
-              2026-09-11: 「いつでもいい」常駐チェックリスト(FirstRunChecklist)から、
-              Day1〜Day3に分けて日をまたぐたびに再訪させるミッション形式に置き換えた。
-              2026-09-08: 「初めの3ステップ→今日まだ入力してない→フォロー」の順に並べたいとの
-              指示で、isViewingToday条件の外側はそのままに表示位置だけ先頭へ移動した
-              （過去日付を見ている時もこのカードだけは従来通り表示され続ける） ── */}
-          <AnimatedEntry delay={30}>
-            <MissionEntryCard onPress={() => setShowMission(true)} />
-          </AnimatedEntry>
-
           {/* ── ここから：今日を見ている時だけ表示するセクション群 ── */}
           {isViewingToday && (<>
           {/* ── 今日まだ入力していないことCTA（未入力があれば最優先で表示） ── */}
@@ -2669,6 +2659,12 @@ ${sleepText || 'データなし'}
           {/* ── ここまで：今日限定セクション ── */}
 
         </ScrollView>
+
+        {/* ── 3日間ミッションの丸バッジ（右下フローティング。ポケポケ参照）
+            2026-09-11: ScrollViewの外側（きょうだい）に置くことで、スクロールしても
+            常に同じ位置に浮いたままになる。タブバー・FABとは別レイヤーなので、
+            このスクリーン自身の下端からの相対位置で衝突しない範囲に置く。 ── */}
+        <MissionEntryCard onPress={() => setShowMission(true)} />
       </SafeAreaView>
 
       {/* ── リカバリー完了バナー ── */}

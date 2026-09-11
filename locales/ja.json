@@ -316,7 +316,13 @@
         "stretch": "ストレッチでリスクを軽減"
       }
     },
-    "continueButton": "続ける"
+    "continueButton": "続ける",
+    "rewardHint": "全部達成すると 🎫{{n}}枚 がもらえるよ",
+    "reward": {
+      "ribbon": "アイテム獲得",
+      "amount": "チケット × {{n}}",
+      "caption": "Day{{day}}のミッション達成報酬"
+    }
   },
   "weeklyReport": {
     "title": "週次レポート",
