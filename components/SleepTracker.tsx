@@ -8,6 +8,7 @@ import {
   ScrollView,
 } from 'react-native'
 import type { SleepRecord } from '../types'
+import { todayLocalISO } from '../lib/dateLocal'
 
 interface Props {
   record?: SleepRecord
@@ -47,7 +48,11 @@ const QUALITY_LABELS: Record<number, string> = {
 }
 
 const SleepTracker: React.FC<Props> = ({ record, onSave, isLoading = false }) => {
-  const today = new Date().toISOString().split('T')[0]
+  // 2026-09-11バグ修正: new Date().toISOString()はUTC日付を返すため、JST 0-9時に
+  // 記録するユーザーだけ前日の日付で保存されてしまっていた（このプロジェクトで既に
+  // 何度か踏んでいるのと同根の落とし穴。lib/missionStore.tsのコメント参照）。
+  // JSTローカル日付を返すtodayLocalISO()に差し替える。
+  const today = todayLocalISO()
 
   const [sleepStart, setSleepStart] = useState(
     record?.sleep_start ? record.sleep_start.slice(11, 16) : '23:00'

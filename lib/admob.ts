@@ -8,13 +8,18 @@
 import { Platform } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { isAnyAdShowing, setAnyAdShowing } from './adLock'
+import { todayLocalISO } from './dateLocal'
 
 // ── ストレージキー ─────────────────────────────────────────────
 const SAVE_COUNT_KEY        = 'score_save_count_interstitial'
 const APP_OPEN_LAST_KEY     = 'score_app_open_last_shown'
 const DAILY_INSIGHT_KEY     = 'score_daily_insight_claimed'
 
-const todayStr = () => new Date().toISOString().slice(0, 10)
+// 2026-09-11バグ修正: toISOString()はUTC日付を返すため、JST 0-9時のユーザーだけ
+// 「今日」判定が前日のままになり、App Open広告の1日1回表示や日次コンテンツの
+// 「今日はもう見た」判定が最大9時間ズレる不具合があった。JSTローカル日付を返す
+// todayLocalISO()に差し替える。
+const todayStr = () => todayLocalISO()
 
 // ── AdMob 広告ユニットID ───────────────────────────────────────
 const AD_UNIT_IDS = {

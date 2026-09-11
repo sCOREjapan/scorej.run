@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Platform } from 'react-native'
 import * as FileSystem from 'expo-file-system/legacy'
 import * as Sharing from 'expo-sharing'
+import { todayLocalISO } from './dateLocal'
 
 // ── ネイティブ共有ヘルパー ───────────────────────────────────────────
 async function shareFileNative(content: string, filename: string, mimeType: string): Promise<void> {
@@ -82,7 +83,9 @@ export async function exportAllDataCSV(): Promise<void> {
     } catch {}
   }
 
-  const dateStr = new Date().toISOString().slice(0, 10)
+  // JSTローカル日付を使う（toISOString()のUTC日付だとJST 0-9時のユーザーだけ
+  // ファイル名の日付が前日になっていた）
+  const dateStr = todayLocalISO()
   const filename = `score_export_${dateStr}.csv`
 
   if (Platform.OS === 'web') {
@@ -134,7 +137,9 @@ export async function exportAllDataJSON(): Promise<void> {
   }
 
   const json = JSON.stringify(result, null, 2)
-  const dateStr = new Date().toISOString().slice(0, 10)
+  // JSTローカル日付を使う（toISOString()のUTC日付だとJST 0-9時のユーザーだけ
+  // ファイル名の日付が前日になっていた）
+  const dateStr = todayLocalISO()
   const filename = `score_backup_${dateStr}.json`
 
   if (Platform.OS === 'web') {

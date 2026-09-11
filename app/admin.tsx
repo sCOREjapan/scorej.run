@@ -11,6 +11,7 @@ import Svg, {
 } from 'react-native-svg'
 import { supabase } from '../lib/supabase'
 import { Ionicons } from '@expo/vector-icons'
+import { todayLocalISO } from '../lib/dateLocal'
 
 const ADMIN_PASS = process.env.EXPO_PUBLIC_ADMIN_PASSWORD ?? 'score2026admin'
 
@@ -420,7 +421,7 @@ export default function AdminScreen() {
         const url  = URL.createObjectURL(blob)
         const a    = document.createElement('a')
         a.href = url
-        a.download = `churned_users_${new Date().toISOString().slice(0, 10)}.csv`
+        a.download = `churned_users_${todayLocalISO()}.csv`
         document.body.appendChild(a)
         a.click()
         document.body.removeChild(a)

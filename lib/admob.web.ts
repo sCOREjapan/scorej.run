@@ -3,9 +3,13 @@
  * Web では広告は一切表示しない。全関数はno-op / false を返す。
  */
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { todayLocalISO } from './dateLocal'
 
 const DAILY_INSIGHT_KEY = 'score_daily_insight_claimed'
-const todayStr = () => new Date().toISOString().slice(0, 10)
+// 2026-09-11バグ修正: toISOString()はUTC日付を返すため、JST 0-9時のユーザーだけ
+// 「今日」判定が前日のままになり、既に見た日次コンテンツが再表示されない（最大9時間の
+// 遅延）不具合があった。JSTローカル日付を返すtodayLocalISO()に差し替える。
+const todayStr = () => todayLocalISO()
 
 export function setAdSuppressed(_value: boolean): void {}
 export async function shouldShowInterstitial(): Promise<boolean> { return false }

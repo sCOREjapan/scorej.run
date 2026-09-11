@@ -28,6 +28,7 @@ import Toast from 'react-native-toast-message'
 import { Sounds, isSoundEnabled, isHapticsEnabled, setSoundEnabled, setHapticsEnabled, loadSoundPrefs } from '../lib/sounds'
 import AdGateModal from '../components/AdGateModal'
 import { trackFeatureUse } from '../lib/analytics'
+import { todayLocalISO } from '../lib/dateLocal'
 
 // テーマに関わらず固定のブランド/セマンティックカラー
 const BRAND   = '#166534'  // アプリのブランドグリーン
@@ -126,7 +127,7 @@ async function exportCSV(t: (key: string, opts?: any) => string) {
       csv += row.join(',') + '\n'
     })
 
-    const filename = `score_${new Date().toISOString().slice(0, 10)}.csv`
+    const filename = `score_${todayLocalISO()}.csv`
 
     if (typeof document !== 'undefined') {
       // Web: ダウンロードリンクを生成
