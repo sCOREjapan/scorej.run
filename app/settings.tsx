@@ -24,6 +24,7 @@ import AnimatedSection from '../components/AnimatedSection'
 import { requestPermission, getPermission, startAllSchedulers } from '../lib/notifications'
 import { checkAdGate, recordUsage } from '../lib/adGate'
 import { getTicketBalance, grantProfileCompleteBonusIfNeeded } from '../lib/ticketWallet'
+import { getMyRankingSettings, setMyRankingSettings } from '../lib/rankingOptIn'
 import Toast from 'react-native-toast-message'
 import { Sounds, isSoundEnabled, isHapticsEnabled, setSoundEnabled, setHapticsEnabled, loadSoundPrefs } from '../lib/sounds'
 import AdGateModal from '../components/AdGateModal'
@@ -230,6 +231,40 @@ export default function SettingsScreen() {
   useEffect(() => {
     AsyncStorage.getItem(TEAM_ROLE_KEY).then(v => setTeamRole(v)).catch(() => {})
   }, [])
+
+  // 2026-09-11: 全国ランキング参加設定（参加は任意・表示名は自分で決める）
+  const [rankingOptIn, setRankingOptIn] = useState(false)
+  const [rankingName,  setRankingName]  = useState('')
+  const [rankingSaving, setRankingSaving] = useState(false)
+  useEffect(() => {
+    if (isGuest || !user?.id) return
+    getMyRankingSettings(user.id).then(s => { setRankingOptIn(s.optIn); setRankingName(s.displayName) })
+  }, [user?.id, isGuest])
+
+  const handleRankingOptInChange = async (next: boolean) => {
+    if (!user?.id) return
+    // オンにする時、表示名が空ならこの場では保存しない(名前を入力してもらってから
+    // 下の保存ボタンで確定する)。オフにする時は即座に保存して参加を取りやめる。
+    setRankingOptIn(next)
+    if (!next) {
+      setRankingSaving(true)
+      const ok = await setMyRankingSettings(user.id, { optIn: false, displayName: rankingName })
+      setRankingSaving(false)
+      Toast.show({ type: ok ? 'success' : 'error', text1: ok ? t('settings.ranking.leftToast') : t('settings.ranking.saveFailedToast') })
+    }
+  }
+
+  const saveRankingSettings = async () => {
+    if (!user?.id) return
+    if (rankingOptIn && !rankingName.trim()) {
+      Toast.show({ type: 'error', text1: t('settings.ranking.nameRequiredToast') })
+      return
+    }
+    setRankingSaving(true)
+    const ok = await setMyRankingSettings(user.id, { optIn: rankingOptIn, displayName: rankingName })
+    setRankingSaving(false)
+    Toast.show({ type: ok ? 'success' : 'error', text1: ok ? t('settings.ranking.savedToast') : t('settings.ranking.saveFailedToast') })
+  }
 
   // 通知
   const [notifSettings, setNotifSettings] = useState<NotifSettings>({
@@ -846,6 +881,49 @@ export default function SettingsScreen() {
               )}
             </SectionCard>
           </AnimatedSection>
+
+          {/* ── 全国ランキング参加設定 ─────────────────────────────
+              2026-09-11: 「参加は任意で、名前はつけれるように」との指示で追加。
+              これまではログインしているだけで自己ベストがランキング取得対象に
+              なっていた(本名の頭文字が無断表示)。参加を明示オプトインにし、
+              表示名も本名ではなく自分で決めた名前に変更した
+              (詳細はsupabase/ranking_opt_in_migration.sql・lib/rankingOptIn.ts参照)。 */}
+          {!isGuest && (
+            <AnimatedSection delay={100}>
+              <SectionCard title={t('settings.ranking.title')}>
+                <View style={styles.switchRow}>
+                  <View style={{ flex: 1, marginRight: 12 }}>
+                    <Text style={styles.switchLabel}>{t('settings.ranking.optInSwitch')}</Text>
+                    <Text style={{ color: colors.textHint, fontSize: 11, marginTop: 3, lineHeight: 15 }}>
+                      {t('settings.ranking.optInHint')}
+                    </Text>
+                  </View>
+                  <Switch
+                    value={rankingOptIn}
+                    onValueChange={handleRankingOptInChange}
+                    trackColor={{ false: colors.switchTrack, true: BRAND }}
+                    thumbColor="#fff"
+                    ios_backgroundColor={colors.switchTrack}
+                    disabled={rankingSaving}
+                  />
+                </View>
+                {rankingOptIn && (
+                  <>
+                    <View style={styles.divider} />
+                    <LabeledInput
+                      label={t('settings.ranking.nameLabel')}
+                      value={rankingName}
+                      onChangeText={setRankingName}
+                      placeholder={t('settings.ranking.namePlaceholder')}
+                    />
+                    <TouchableOpacity style={styles.saveBtn} onPress={saveRankingSettings} activeOpacity={0.85} disabled={rankingSaving}>
+                      <Text style={styles.saveBtnText}>{rankingSaving ? t('settings.ranking.saving') : t('settings.ranking.save')}</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </SectionCard>
+            </AnimatedSection>
+          )}
 
           {/* ── チーム設定 ────────────────────────────────────── */}
           <AnimatedSection delay={120}>

@@ -21,6 +21,13 @@ import { useTranslation } from 'react-i18next'
 import { useLanguage } from '../context/LanguageContext'
 import { getEventLabel } from '../lib/eventLabels'
 import type { Language } from '../context/LanguageContext'
+import { useAuth } from '../context/AuthContext'
+import { getMyRankingSettings } from '../lib/rankingOptIn'
+
+// 2026-09-11: 「参加は任意」のバナーを毎回出さないための既読フラグ(端末ローカル)。
+// オプトイン状態そのものはSupabase(profiles.ranking_opt_in)が正なので、
+// これはあくまで「まだ参加していない人に、次回また出すか」の表示制御用。
+const BANNER_DISMISSED_KEY = 'trackmate_ranking_optin_banner_dismissed'
 
 // ─── 定数 ───────────────────────────────────────────────────────────────
 const RECORDS_KEY = 'trackmate_race_records'
@@ -149,18 +156,14 @@ function generateMockRanking(event: AthleticsEvent, lang: Language, t: (key: str
 }
 
 // ─── Supabase からのランキング取得 ────────────────────────────────────
+// 2026-09-11: 「参加は任意にして、名前は付けられるように」との指示で、race_records/
+// profilesへの直接クロスユーザークエリ(かつては本名の頭文字を無断で表示していた)から、
+// get_event_ranking() RPC(SECURITY DEFINER)経由に変更。オプトイン済み・表示名を
+// 自分で設定したユーザーだけが対象になる(supabase/ranking_opt_in_migration.sql参照)。
+// 並び順もRPC側で確定して返るため、ここでのorder byは不要。
 async function fetchRankingFromSupabase(event: AthleticsEvent, lang: Language, t: (key: string, opts?: any) => string): Promise<RankingEntry[] | null> {
   try {
-    const isFieldEvent = FIELD_EVENTS.includes(event)
-    const baseQuery = supabase
-      .from('race_records')
-      .select('id, user_id, result_display, result_ms, result_cm, race_date, profiles(name)')
-      .eq('event', event)
-      .eq('is_pb', true)
-    // フィールド種目はresult_cm降順（距離が大きい方が上位）、トラック種目はresult_ms昇順
-    const { data, error } = isFieldEvent
-      ? await baseQuery.order('result_cm', { ascending: false })
-      : await baseQuery.order('result_ms', { ascending: true })
+    const { data, error } = await supabase.rpc('get_event_ranking', { p_event: event })
     if (error || !data || (data as unknown[]).length === 0) return null
 
     const myRaw = await AsyncStorage.getItem(RECORDS_KEY)
@@ -168,26 +171,24 @@ async function fetchRankingFromSupabase(event: AthleticsEvent, lang: Language, t
     const myPB = myRecords.find(r => r.event === event && r.is_pb)
 
     return (data as Array<{
-      id: string
       user_id: string
+      display_name: string
       result_display: string
       result_ms?: number
       result_cm?: number
       race_date: string
-      profiles?: { name?: string } | null
-    }>).map((row, i) => {
-      const rawName: string = (row.profiles as { name?: string } | null)?.name ?? ''
-      return {
-        rank: i + 1,
-        userId: row.user_id,
-        displayName: anonymize(rawName, lang, t),
-        result: row.result_display,
-        resultMs: row.result_ms,
-        resultCm: row.result_cm,
-        raceDate: row.race_date,
-        isMe: myPB?.result_ms === row.result_ms && myPB?.result_display === row.result_display,
-      }
-    })
+    }>).map((row, i) => ({
+      rank: i + 1,
+      userId: row.user_id,
+      // 自分で決めた表示名をそのまま出す(本名ベースの頭文字匿名化はもう不要 —
+      // 参加する時点でランキング用の名前を自分で選んでいるため)
+      displayName: row.display_name,
+      result: row.result_display,
+      resultMs: row.result_ms,
+      resultCm: row.result_cm,
+      raceDate: row.race_date,
+      isMe: myPB?.result_ms === row.result_ms && myPB?.result_display === row.result_display,
+    }))
   } catch {
     return null
   }
@@ -243,6 +244,7 @@ export default function RankingScreen() {
   const router = useRouter()
   const { t } = useTranslation()
   const { language } = useLanguage()
+  const { user, isGuest } = useAuth()
   const navigation = useNavigation()
   useEffect(() => { navigation.setOptions({ title: t('ranking.headerTitle') }) }, [navigation, t, language])
 
@@ -252,6 +254,23 @@ export default function RankingScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const [usedMock, setUsedMock] = useState(false)
   const [activeTab, setActiveTab] = useState<'track' | 'field'>('track')
+
+  // 2026-09-11: 「参加は任意で」の指示で追加。自分がまだランキング参加を
+  // 決めていない場合だけ、参加を促すバナーを出す(既に参加中/明示的に
+  // 却下済みなら出さない)。null=まだ読み込み中(判定不能なので何も出さない)。
+  const [myOptIn, setMyOptIn] = useState<boolean | null>(null)
+  const [bannerDismissed, setBannerDismissed] = useState(false)
+
+  useEffect(() => {
+    if (isGuest || !user?.id) { setMyOptIn(false); return }
+    getMyRankingSettings(user.id).then(s => setMyOptIn(s.optIn))
+    AsyncStorage.getItem(BANNER_DISMISSED_KEY).then(v => setBannerDismissed(v === '1'))
+  }, [user?.id, isGuest])
+
+  const dismissBanner = useCallback(() => {
+    setBannerDismissed(true)
+    AsyncStorage.setItem(BANNER_DISMISSED_KEY, '1').catch(() => {})
+  }, [])
 
   const loadRanking = useCallback(async (event: AthleticsEvent, isRefresh = false) => {
     if (isRefresh) setRefreshing(true)
@@ -289,11 +308,29 @@ export default function RankingScreen() {
   // ─── UI ─────────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
+      {/* 参加オプトインバナー: まだ決めていない(参加中でも明示的却下済みでもない)場合のみ表示 */}
+      {!isGuest && myOptIn === false && !bannerDismissed && (
+        <View style={styles.optInBanner}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+            <Ionicons name="shield-checkmark-outline" size={16} color={NEON.green} style={{ marginTop: 1 }} />
+            <Text style={styles.optInBannerText}>{t('ranking.optInBanner')}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+            <TouchableOpacity style={styles.optInJoinBtn} onPress={() => router.push('/settings' as any)}>
+              <Text style={styles.optInJoinBtnText}>{t('ranking.optInJoinBtn')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.optInDismissBtn} onPress={dismissBanner}>
+              <Text style={styles.optInDismissBtnText}>{t('ranking.optInDismissBtn')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {/* お知らせバナー */}
       <View style={styles.infoBanner}>
         <Ionicons name="information-circle-outline" size={15} color={TEXT.secondary} />
         <Text style={styles.infoBannerText}>
-          {t('ranking.infoBanner')}
+          {isGuest ? t('ranking.infoBannerGuest') : t('ranking.infoBanner')}
         </Text>
       </View>
 
@@ -407,6 +444,32 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000000',
   },
+  optInBanner: {
+    backgroundColor: 'rgba(34,197,94,0.08)',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(34,197,94,0.18)',
+  },
+  optInBannerText: {
+    color: TEXT.secondary,
+    fontSize: 12,
+    flex: 1,
+    lineHeight: 18,
+  },
+  optInJoinBtn: {
+    backgroundColor: NEON.green,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  optInJoinBtnText: { color: '#000', fontSize: 12.5, fontWeight: '800' },
+  optInDismissBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  optInDismissBtnText: { color: TEXT.hint, fontSize: 12.5, fontWeight: '700' },
   infoBanner: {
     flexDirection: 'row',
     alignItems: 'center',

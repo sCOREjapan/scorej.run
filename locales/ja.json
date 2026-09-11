@@ -639,6 +639,19 @@
       "deleteFailedMessage": "通信状態を確認してもう一度お試しください。問題が続く場合はサポートまでご連絡ください。",
       "deleting": "削除しています…"
     },
+    "ranking": {
+      "title": "全国ランキング",
+      "optInSwitch": "ランキングに参加する",
+      "optInHint": "オンにすると、自己ベストが全国ランキングに表示されます。本名は表示されません。",
+      "nameLabel": "表示名",
+      "namePlaceholder": "例: ランナーT",
+      "save": "保存する",
+      "saving": "保存しています…",
+      "savedToast": "ランキング設定を保存しました",
+      "leftToast": "ランキング参加をやめました",
+      "saveFailedToast": "保存に失敗しました。通信状態を確認してください",
+      "nameRequiredToast": "表示名を入力してください"
+    },
     "team": {
       "title": "チーム設定",
       "currentRole": "現在のロール",
@@ -2800,7 +2813,11 @@
   },
   "ranking": {
     "headerTitle": "全国ランキング",
-    "infoBanner": "データはSupabase経由で取得。ログインすると自分の記録も登録されます",
+    "infoBanner": "表示されているのは、ランキングへの参加を選んだユーザーの記録だけです",
+    "infoBannerGuest": "ログインすると、自分の記録を任意でランキングに参加させられます",
+    "optInBanner": "あなたの自己ベストを全国ランキングに表示しますか？参加は任意で、表示名は自由に決められます（本名は表示されません）",
+    "optInJoinBtn": "参加する",
+    "optInDismissBtn": "今はしない",
     "tabTrack": "トラック",
     "tabField": "フィールド",
     "rankingTitle": "{{event}} ランキング",
@@ -2812,7 +2829,7 @@
     "headerDate": "日付",
     "me": "自分",
     "emptyText": "この種目の記録がありません",
-    "footerNote": "※ 記録は自己ベスト（PB）のみ表示。個人情報保護のため匿名表示しています。",
+    "footerNote": "※ 記録は自己ベスト（PB）のみ表示。参加は任意で、表示名は参加時にご自身で設定したものです。",
     "anonSuffix": "{{initial}}選手",
     "anonFallback": "選手"
   },

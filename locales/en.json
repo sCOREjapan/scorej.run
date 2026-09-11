@@ -639,6 +639,19 @@
       "deleteFailedMessage": "Please check your connection and try again. Contact support if the problem continues.",
       "deleting": "Deleting…"
     },
+    "ranking": {
+      "title": "National Ranking",
+      "optInSwitch": "Join the ranking",
+      "optInHint": "When on, your personal bests appear on the national ranking. Your real name is never shown.",
+      "nameLabel": "Display name",
+      "namePlaceholder": "e.g. RunnerT",
+      "save": "Save",
+      "saving": "Saving…",
+      "savedToast": "Ranking settings saved",
+      "leftToast": "You left the ranking",
+      "saveFailedToast": "Failed to save. Please check your connection",
+      "nameRequiredToast": "Please enter a display name"
+    },
     "team": {
       "title": "Team Settings",
       "currentRole": "Current role",
@@ -2800,7 +2813,11 @@
   },
   "ranking": {
     "headerTitle": "National Rankings",
-    "infoBanner": "Data comes from Supabase. Sign in to also register your own records",
+    "infoBanner": "Only records from users who opted in to the ranking are shown here",
+    "infoBannerGuest": "Sign in to optionally add your own records to the ranking",
+    "optInBanner": "Want to show your personal bests on the national ranking? It's optional, and you pick your own display name (your real name is never shown)",
+    "optInJoinBtn": "Join",
+    "optInDismissBtn": "Not now",
     "tabTrack": "Track",
     "tabField": "Field",
     "rankingTitle": "{{event}} Rankings",
@@ -2812,7 +2829,7 @@
     "headerDate": "Date",
     "me": "You",
     "emptyText": "No records for this event yet",
-    "footerNote": "※ Only personal bests (PB) are shown. Names are anonymized to protect privacy.",
+    "footerNote": "※ Only personal bests (PB) are shown. Joining is optional, and the display name is the one you chose when you joined.",
     "anonSuffix": "Athlete {{initial}}",
     "anonFallback": "Athlete"
   },
