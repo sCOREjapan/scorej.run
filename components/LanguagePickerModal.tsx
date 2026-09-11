@@ -5,14 +5,27 @@ import React from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Modal } from 'react-native'
 import { useLanguage } from '../context/LanguageContext'
 import { trackOnboardingStep } from '../lib/analytics'
+import { useOverlayDismiss } from '../lib/useOverlayDismiss'
 
 const BRAND = '#166534'
 
 export default function LanguagePickerModal() {
   const { setLanguage } = useLanguage()
+  // 2026-09-11: <Modal visible>固定+親(AuthGate)の条件アンマウントで閉じていたため、
+  // 選択直後にiOSのoverFullScreen presentation破棄と次画面(同意モーダル)のpresentが
+  // 競合し、タップ無反応になるフリーズがあった。閉じ切ってから言語を確定する
+  // （lib/useOverlayDismiss.ts参照）。
+  const { modalProps, close } = useOverlayDismiss(() => {})
 
+  const choose = (lang: 'ja' | 'en') => {
+    trackOnboardingStep('language_selected', { lang, auto: false })
+    close(() => setLanguage(lang))
+  }
+
+  // 言語選択は必須ステップでキャンセル導線が無いため、onRequestClose(Android物理戻る)
+  // は元々未設定のまま(バイパスさせない)にする。visible/onDismissだけ拝借する。
   return (
-    <Modal visible transparent animationType="fade">
+    <Modal transparent animationType="fade" visible={modalProps.visible} onDismiss={modalProps.onDismiss}>
       <View style={s.overlay}>
         <SafeAreaView style={{ flex: 1, justifyContent: 'flex-end' }}>
           <View style={s.sheet}>
@@ -21,10 +34,10 @@ export default function LanguagePickerModal() {
             </View>
             <Text style={s.title}>言語を選択{'\n'}Select your language</Text>
 
-            <TouchableOpacity style={s.btn} onPress={() => { trackOnboardingStep('language_selected', { lang: 'ja', auto: false }); setLanguage('ja') }} activeOpacity={0.85}>
+            <TouchableOpacity style={s.btn} onPress={() => choose('ja')} activeOpacity={0.85}>
               <Text style={s.btnText}>日本語</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[s.btn, { marginTop: 12 }]} onPress={() => { trackOnboardingStep('language_selected', { lang: 'en', auto: false }); setLanguage('en') }} activeOpacity={0.85}>
+            <TouchableOpacity style={[s.btn, { marginTop: 12 }]} onPress={() => choose('en')} activeOpacity={0.85}>
               <Text style={s.btnText}>English</Text>
             </TouchableOpacity>
           </View>

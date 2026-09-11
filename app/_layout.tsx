@@ -26,6 +26,7 @@ import LineCommunityBanner from '../components/LineCommunityBanner'
 import CoachPlanBanner from '../components/CoachPlanBanner'
 import { initAdmob, showAppOpenAd } from '../lib/admob'
 import { isAnyAdShowing, setAnyAdShowing } from '../lib/adLock'
+import { useOverlayDismiss } from '../lib/useOverlayDismiss'
 // expo-tracking-transparency: 動的インポートでバージョン非互換クラッシュを防ぐ
 
 // ── iOS 26 beta Hermes 0.81.5 クラッシュ回避 ───────────────────────
@@ -107,10 +108,20 @@ function ConsentModal({ onAccept }: { onAccept: () => void }) {
   const [innerDoc, setInnerDoc] = useState<null | 'terms' | 'privacy'>(null)
   const allChecked = termsChecked && privacyChecked
 
-  const handleAccept = async () => {
-    await AsyncStorage.setItem(CONSENT_KEY, new Date().toISOString()).catch(() => {})
-    trackOnboardingStep('consent_completed')
-    onAccept()
+  // 2026-09-11: 同意直後にこのModalが親側(AuthGate)の条件アンマウントで閉じられ、
+  // 直後に走るオンボーディング/タブへの画面遷移とiOSのoverFullScreen presentation
+  // 破棄が競合してタップ無反応になるフリーズがあった（CoachPlanBanner等と同根。
+  // lib/useOverlayDismiss.ts参照）。フェードし切ってからonAcceptを呼ぶ。
+  // なお下の「全文表示⇄同意画面」の出し分けはどちらも同じ<Modal>要素を返す
+  // ため(Reactは型が同じ要素を差分更新するだけでアンマウントしない)、そちらは
+  // 元々この不具合の対象ではない。
+  const { modalProps, close } = useOverlayDismiss(onAccept)
+
+  const handleAccept = () => {
+    close(() => {
+      AsyncStorage.setItem(CONSENT_KEY, new Date().toISOString()).catch(() => {})
+      trackOnboardingStep('consent_completed')
+    })
   }
 
   // ── 全文表示ビュー（アプリ内ドキュメントビューア）──────
@@ -120,7 +131,7 @@ function ConsentModal({ onAccept }: { onAccept: () => void }) {
       : require('./privacy').default
 
     return (
-      <Modal visible transparent animationType="slide">
+      <Modal transparent animationType="slide" visible={modalProps.visible} onDismiss={modalProps.onDismiss}>
         <View style={{ flex: 1, backgroundColor: '#fff' }}>
           {/* ヘッダー */}
           <SafeAreaView edges={['top']} style={{ backgroundColor: '#166534' }}>
@@ -166,7 +177,7 @@ function ConsentModal({ onAccept }: { onAccept: () => void }) {
 
   // ── メイン同意画面 ──────────────────────────────────────
   return (
-    <Modal visible transparent animationType="fade">
+    <Modal transparent animationType="fade" visible={modalProps.visible} onDismiss={modalProps.onDismiss}>
       <View style={cs.overlay}>
         <SafeAreaView style={{ flex: 1, justifyContent: 'flex-end' }}>
           <View style={cs.sheet}>

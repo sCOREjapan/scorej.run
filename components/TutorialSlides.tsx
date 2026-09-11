@@ -1,8 +1,8 @@
 // components/TutorialSlides.tsx — スライド形式チュートリアル
 
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import {
-  Animated, Dimensions, Modal, StyleSheet,
+  Animated, Dimensions, Modal, Platform, StyleSheet,
   Text, TouchableOpacity, View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -42,18 +42,46 @@ export default function TutorialSlides() {
   const [step, setStep] = useState(0)
   const fadeAnim = useRef(new Animated.Value(1)).current
 
-  // active が false になったらリセット
-  const prevActive = useRef(active)
-  if (!active && prevActive.current) {
-    prevActive.current = false
-    // 次回起動時のためステップをリセット
-    setTimeout(() => setStep(0), 300)
-  }
-  if (active && !prevActive.current) {
-    prevActive.current = true
+  // 2026-09-11: 以前はactive===falseの瞬間に<Modal visible>ごと即アンマウントして
+  // 閉じていたため(if(!active)return null)、iOSのoverFullScreen presentation破棄が
+  // 閉じた直後の操作(タブ遷移やホーム画面のタップ)と競合してタップ無反応になる
+  // フリーズがあった（CoachPlanBanner等と同根。lib/useOverlayDismiss.ts参照）。
+  // activeはsettings.tsx等から何度でも再度trueになり得るため、フックとしての
+  // useOverlayDismissではなくactiveの変化を追うeffectでvisibleをフェードさせてから
+  // 実際にアンマウント(rendered=false)する。
+  const [rendered, setRendered] = useState(active)
+  const [visible,  setVisible]  = useState(active)
+  const closingRef = useRef(false)
+
+  useEffect(() => {
+    if (active) {
+      closingRef.current = false
+      setRendered(true)
+      setVisible(true)
+      return
+    }
+    if (!rendered) return
+    closingRef.current = true
+    setVisible(false)
+    // 次回表示のためステップをリセット（フェードアウトが終わる頃合いで）
+    const resetTimer = setTimeout(() => setStep(0), 300)
+    // iOSは<Modal onDismiss>で実際に閉じ切ってからrendered=falseにするが、
+    // AndroidはonDismissが発火しないためフェード相当の遅延で繰り上げる。
+    if (Platform.OS === 'ios') return () => clearTimeout(resetTimer)
+    const closeTimer = setTimeout(() => {
+      if (closingRef.current) { closingRef.current = false; setRendered(false) }
+    }, 300)
+    return () => { clearTimeout(resetTimer); clearTimeout(closeTimer) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active])
+
+  const finishClose = () => {
+    if (!closingRef.current) return
+    closingRef.current = false
+    setRendered(false)
   }
 
-  if (!active) return null
+  if (!rendered) return null
 
   const slide = SLIDES[step]
   const isLast = step === SLIDES.length - 1
@@ -83,7 +111,13 @@ export default function TutorialSlides() {
   const cardTop = Math.max(insets.top + 20, SH / 2 - 170)
 
   return (
-    <Modal visible transparent animationType="fade" statusBarTranslucent>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      onDismiss={Platform.OS === 'ios' ? finishClose : undefined}
+    >
       {/* 背景 */}
       <View style={StyleSheet.absoluteFill}>
         <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.55)' }]} />

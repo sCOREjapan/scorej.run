@@ -369,10 +369,45 @@ function MealEditModal({ meal, onClose, onChangeMealType, onDelete }: {
   const { t } = useTranslation()
   const { colors } = useTheme()
   const styles = useMemo(() => makeStyles(colors), [colors])
-  if (!meal) return null
+
+  // 2026-09-11: 以前はmeal===nullの瞬間に<Modal>ごと即アンマウントして閉じていたため、
+  // iOSのoverFullScreen presentation破棄が「区分変更」「削除」ボタン直後の操作と
+  // 競合し、画面がタップ無反応になるフリーズがあった（CoachPlanBanner等と同根の
+  // 不具合。lib/useOverlayDismiss.ts参照）。表示中の中身(shownMeal)はフェードアウト
+  // の間も保持し、Modalをvisible=falseで完全にフェードさせ切ってから親のonCloseを呼ぶ。
+  const [shownMeal, setShownMeal] = useState<MealRecord | null>(meal)
+  const [visible,   setVisible]   = useState(!!meal)
+  const pendingCloseRef = useRef(false)
+
+  useEffect(() => {
+    if (meal) {
+      pendingCloseRef.current = false
+      setShownMeal(meal)
+      setVisible(true)
+    }
+  }, [meal])
+
+  const finishClose = () => {
+    if (!pendingCloseRef.current) return
+    pendingCloseRef.current = false
+    onClose()
+  }
+  const requestClose = () => {
+    pendingCloseRef.current = true
+    setVisible(false)
+    if (Platform.OS !== 'ios') setTimeout(finishClose, 260)
+  }
+
+  if (!shownMeal) return null
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.editModalBackdrop} onPress={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={requestClose}
+      onDismiss={Platform.OS === 'ios' ? finishClose : undefined}
+    >
+      <Pressable style={styles.editModalBackdrop} onPress={requestClose}>
         <Pressable style={styles.editModalSheet} onPress={() => {}}>
           <Text style={styles.editModalTitle}>{t('nutrition.editModal.title')}</Text>
           <Text style={styles.editModalLabel}>{t('nutrition.editModal.category')}</Text>
@@ -381,23 +416,23 @@ function MealEditModal({ meal, onClose, onChangeMealType, onDelete }: {
               <HapticTouch
                 key={mt.value}
                 haptic="toggleOn"
-                style={[styles.chip, meal.meal_type === mt.value && styles.chipActive]}
-                onPress={() => { onChangeMealType(meal.id, mt.value); onClose() }}
+                style={[styles.chip, shownMeal.meal_type === mt.value && styles.chipActive]}
+                onPress={() => { onChangeMealType(shownMeal.id, mt.value); requestClose() }}
               >
-                <Ionicons name={mt.icon} size={15} color={meal.meal_type === mt.value ? '#fff' : colors.textSec} />
-                <Text style={[styles.chipText, meal.meal_type === mt.value && styles.chipTextActive]}>{t(`nutrition.mealTypes.${mt.value}`)}</Text>
+                <Ionicons name={mt.icon} size={15} color={shownMeal.meal_type === mt.value ? '#fff' : colors.textSec} />
+                <Text style={[styles.chipText, shownMeal.meal_type === mt.value && styles.chipTextActive]}>{t(`nutrition.mealTypes.${mt.value}`)}</Text>
               </HapticTouch>
             ))}
           </View>
           <TouchableOpacity
             style={styles.editModalDeleteBtn}
-            onPress={() => { onDelete(meal.id); onClose() }}
+            onPress={() => { onDelete(shownMeal.id); requestClose() }}
             activeOpacity={0.8}
           >
             <Ionicons name="trash-outline" size={15} color="#FF3B30" />
             <Text style={styles.editModalDeleteText}>{t('nutrition.editModal.delete')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.editModalCloseBtn} onPress={onClose} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.editModalCloseBtn} onPress={requestClose} activeOpacity={0.7}>
             <Text style={styles.editModalCloseText}>{t('nutrition.editModal.close')}</Text>
           </TouchableOpacity>
         </Pressable>
