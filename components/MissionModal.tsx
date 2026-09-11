@@ -167,6 +167,7 @@ export default function MissionModal({ visible, onClose, onNavigateCondition, on
     <Modal transparent animationType="fade" {...modalProps}>
       <View style={s.overlay}>
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => close()} />
+        <View style={s.sheetShadow}>
         <View style={s.sheet}>
 
           {phase === 'loading' && (
@@ -267,6 +268,7 @@ export default function MissionModal({ visible, onClose, onNavigateCondition, on
             </>
           )}
 
+        </View>
         </View>
       </View>
 
@@ -639,10 +641,21 @@ const rs = StyleSheet.create({
 })
 
 const makeStyles = (colors: ThemeColors) => StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  // 2026-09-11: 「ポケポケみたいな、画面より一回り小さいカードタイプにして」との指示で、
+  // 画面下端に張り付く全幅ボトムシート(角丸は上だけ・影なし)から、四辺に余白のある
+  // 中央フロートカード(角丸は四隅・影つき)に変更(ui-previews/2026-09-11-mission-modal-
+  // カード型.html のA案)。overlayをjustifyContent:'center'にし、paddingHorizontalで
+  // 左右の余白を作る。上下の余白はsheetShadowのmaxHeight('78%')が残りを空ける。
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', paddingHorizontal: 20 },
+  // shadowとoverflow:'hidden'は同じViewに同居できない(iOSでshadowごと角丸に
+  // クリップされてしまう)ため、影担当の外側Viewと、クリップ担当の内側Viewを分けている。
+  sheetShadow: {
+    borderRadius: 28, maxHeight: '78%',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 20 }, shadowOpacity: 0.35, shadowRadius: 30, elevation: 20,
+  },
   sheet: {
-    backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    overflow: 'hidden', maxHeight: '86%',
+    backgroundColor: colors.surface, borderRadius: 28,
+    overflow: 'hidden', flexShrink: 1,
   },
   // 2026-09-11: 最初flex:1にしていたが、sheetがmaxHeightのみ(明示的heightなし)で
   // 中身に応じて自動サイズされるコンテナのため、flex:1(flex-basis:0%)だと「伸びる先の
