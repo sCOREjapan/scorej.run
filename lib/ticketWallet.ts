@@ -24,6 +24,8 @@ const MONTHLY_TRIAL_DAILY_KEY = 'score_ticket_monthly_trial_daily_last_granted' 
 const MISSION_PROFILE_KEY  = 'score_ticket_mission_profile'
 const MISSION_LINE_KEY     = 'score_ticket_mission_line'
 const MISSION_GOAL_KEY     = 'score_ticket_mission_goal'
+const MISSION_DAY1_KEY     = 'score_ticket_mission_day1'
+const MISSION_DAY2_KEY     = 'score_ticket_mission_day2'
 
 // 2026-09-03: APIコスト(600円/日)が広告収益(500円/日)を上回り赤字だったため、
 // 無料付与量を見直し（10→5枚、ミッション5→3枚）。既存ユーザーの体験は変えず、
@@ -196,6 +198,19 @@ export async function grantLineJoinBonusIfNeeded(): Promise<{ granted: boolean }
 /** 初めて目標を設定したらチケットを1回だけ付与する */
 export async function grantFirstGoalBonusIfNeeded(): Promise<{ granted: boolean }> {
   const granted = await grantOnceGeneric(MISSION_BONUS, 'mission_goal', '1', MISSION_GOAL_KEY)
+  return { granted }
+}
+
+// 2026-09-11: 3日間アクティベーションミッション(lib/missionStore.ts)のDay1/Day2報酬。
+// マーカーはミッション開始日(startDate)込みにして、ミッションが再スタートしても
+// （原則しない設計だが将来のリセット機能を見越して）同じstartDateに対しては
+// 1回しか付与しないようにする。
+export async function grantMissionDay1BonusIfNeeded(startDate: string): Promise<{ granted: boolean }> {
+  const granted = await grantOnceGeneric(5, 'mission_day1', startDate, MISSION_DAY1_KEY)
+  return { granted }
+}
+export async function grantMissionDay2BonusIfNeeded(startDate: string): Promise<{ granted: boolean }> {
+  const granted = await grantOnceGeneric(2, 'mission_day2', startDate, MISSION_DAY2_KEY)
   return { granted }
 }
 

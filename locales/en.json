@@ -275,6 +275,49 @@
     "itemStretch": "Stretch to lower your score",
     "guidedTourLink": "View guided tour"
   },
+  "mission": {
+    "entry": {
+      "title": "Day {{day}} Mission",
+      "sub": "{{done}}/{{total}} done"
+    },
+    "dayBadge": "Day {{day}}",
+    "task": {
+      "practice": "Log a practice",
+      "condition": "Log your condition",
+      "video": "Try video form analysis",
+      "competition": "Register a competition",
+      "meal": "Try AI meal analysis",
+      "stretch": "Stretch to lower your risk"
+    },
+    "day1": {
+      "title": "First steps",
+      "sub": "Log a practice and your condition so sCORE gets to know you"
+    },
+    "day2": {
+      "title": "Keep it going",
+      "sub": "Keep logging, and try AI meal analysis today"
+    },
+    "day3": {
+      "title": "Last step",
+      "sub": "Log your condition and stretch to lower your risk"
+    },
+    "claimButton": "Claim {{n}} tickets",
+    "waitForNextDay": "Today's done. Come back tomorrow for the next mission",
+    "viewSummaryButton": "See your 3-day results",
+    "summary": {
+      "title": "Nice work over these 3 days",
+      "body": "Your data is now building up in sCORE. Keep logging to train smarter and avoid injuries.",
+      "item": {
+        "practice": "Started logging practices",
+        "condition": "Started tracking condition",
+        "video": "Tried AI form analysis",
+        "competition": "Registered a competition",
+        "meal": "Tried AI meal analysis",
+        "stretch": "Lowered risk with stretching"
+      }
+    },
+    "continueButton": "Continue"
+  },
   "weeklyReport": {
     "title": "Weekly Report",
     "loading": "Crunching the numbers...",
@@ -1388,7 +1431,11 @@
         "yearlyNote": "¥19,800/year (2 months free)"
       }
     },
-    "perDayApprox": "~{{price}}/day"
+    "perDayApprox": "~{{price}}/day",
+    "sale": {
+      "banner": "You finished the 3-day mission! 24-hour offer",
+      "continueFree": "Continue for free"
+    }
   },
   "records": {
     "header": {
@@ -3003,9 +3050,16 @@
     "notesTitle": "📝 Additional notes (optional)",
     "notesPlaceholder": "Pain during a specific motion, past injuries, etc...",
     "gymAccessTitle": "🏋️ Do you have access to a weight room? (optional)",
-    "gymAccessOptions": { "yes": "Yes", "no": "No" },
+    "gymAccessOptions": {
+      "yes": "Yes",
+      "no": "No"
+    },
     "gymFreqTitle": "About how many times a week?",
-    "gymFreqOptions": { "1-2": "1-2x/week", "3-4": "3-4x/week", "5plus": "5+x/week" },
+    "gymFreqOptions": {
+      "1-2": "1-2x/week",
+      "3-4": "3-4x/week",
+      "5plus": "5+x/week"
+    },
     "gymEquipmentTitle": "What equipment is available? (select all that apply)",
     "gymEquipmentOptions": {
       "dumbbell": "Dumbbells",

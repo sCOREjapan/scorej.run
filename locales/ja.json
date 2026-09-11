@@ -275,6 +275,49 @@
     "itemStretch": "ストレッチをしてスコアを下げる",
     "guidedTourLink": "使い方ガイドを見る"
   },
+  "mission": {
+    "entry": {
+      "title": "Day{{day}}のミッション",
+      "sub": "{{done}}/{{total}} 完了"
+    },
+    "dayBadge": "Day {{day}}",
+    "task": {
+      "practice": "練習を記録しよう",
+      "condition": "体調を入力しよう",
+      "video": "動画分析をしよう",
+      "competition": "大会を登録しよう",
+      "meal": "食事分析をしてみよう",
+      "stretch": "ストレッチをしてリスクを下げよう"
+    },
+    "day1": {
+      "title": "はじめの一歩",
+      "sub": "練習と体調を記録して、sCOREにあなたのことを教えよう"
+    },
+    "day2": {
+      "title": "今日も続けよう",
+      "sub": "記録を続けながら、食事分析にも挑戦してみよう"
+    },
+    "day3": {
+      "title": "最後のステップ",
+      "sub": "体調を記録して、ストレッチでリスクを下げてみよう"
+    },
+    "claimButton": "チケット{{n}}枚を受け取る",
+    "waitForNextDay": "今日の分は完了。次の日のミッションを待とう",
+    "viewSummaryButton": "3日間の結果を見る",
+    "summary": {
+      "title": "3日間、おつかれさまでした",
+      "body": "あなたの記録がsCOREに蓄積されました。これからも続けて、怪我なく強くなりましょう。",
+      "item": {
+        "practice": "練習記録をスタート",
+        "condition": "体調管理をスタート",
+        "video": "AIフォーム分析を体験",
+        "competition": "大会を登録",
+        "meal": "AI食事分析を体験",
+        "stretch": "ストレッチでリスクを軽減"
+      }
+    },
+    "continueButton": "続ける"
+  },
   "weeklyReport": {
     "title": "週次レポート",
     "loading": "集計中...",
@@ -1388,7 +1431,11 @@
         "yearlyNote": "年¥19,800（2ヶ月分お得）"
       }
     },
-    "perDayApprox": "1日あたり約{{price}}"
+    "perDayApprox": "1日あたり約{{price}}",
+    "sale": {
+      "banner": "3日間ミッション達成のお祝い！24時間限定オファー",
+      "continueFree": "今回は無料のまま続ける"
+    }
   },
   "records": {
     "header": {
@@ -3003,9 +3050,16 @@
     "notesTitle": "📝 追加メモ（任意）",
     "notesPlaceholder": "動作で痛む・過去の怪我など...",
     "gymAccessTitle": "🏋️ ウエイトルームは使えますか？（任意）",
-    "gymAccessOptions": { "yes": "使える", "no": "使えない" },
+    "gymAccessOptions": {
+      "yes": "使える",
+      "no": "使えない"
+    },
     "gymFreqTitle": "週何回くらい使えますか？",
-    "gymFreqOptions": { "1-2": "週1〜2回", "3-4": "週3〜4回", "5plus": "週5回以上" },
+    "gymFreqOptions": {
+      "1-2": "週1〜2回",
+      "3-4": "週3〜4回",
+      "5plus": "週5回以上"
+    },
     "gymEquipmentTitle": "使える器具は？（複数選択可）",
     "gymEquipmentOptions": {
       "dumbbell": "ダンベル",

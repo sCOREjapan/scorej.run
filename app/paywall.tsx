@@ -19,7 +19,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { usePurchase } from '../context/PurchaseContext'
 import { PRODUCT_IDS, TICKET_MONTHLY_GRANT } from '../lib/purchaseService'
-import { trackPaywallView, trackTrialStarted } from '../lib/analytics'
+import { trackPaywallView, trackTrialStarted, trackEvent } from '../lib/analytics'
+import { getMissionState } from '../lib/missionStore'
 import Toast from 'react-native-toast-message'
 import DarkScreenBg, { DARK_ACCENT } from '../components/DarkGradientBg'
 
@@ -113,6 +114,27 @@ function dailyPriceLabel(t: (key: string, opts?: any) => string, priceStr: strin
   return t('paywall.perDayApprox', { price: `¥${daily.toLocaleString()}` })
 }
 
+// 2026-09-11: 3日間ミッション達成直後の「?sale=1」導線用。StoreKit/Play Consoleの
+// 導入価格(Introductory Offer、価格>0のもの)が実際に設定されていれば、その価格を
+// そのまま表示する。設定されていない場合はnullを返し、呼び出し側は通常価格のまま
+// 表示する（「980→480」と謳っておいて実際は980円のまま課金される、という事故を防ぐ。
+// 本当にその価格で購入できることは、この画面のコードではなくApp Store Connect /
+// RevenueCat側の商品設定が保証する）。
+function paidIntroPriceString(pkg: any): string | null {
+  const intro = pkg?.product?.introPrice
+  if (!intro || typeof intro.price !== 'number' || intro.price <= 0) return null
+  return intro.priceString ?? null
+}
+
+// 24時間セールの残り時間を HH:MM:SS 表記にする
+function formatCountdown(ms: number): string {
+  const totalSec = Math.max(0, Math.floor(ms / 1000))
+  const h = Math.floor(totalSec / 3600)
+  const m = Math.floor((totalSec % 3600) / 60)
+  const sec = totalSec % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+}
+
 function CheckRow({ color, text, dark }: { color: string; text: string; dark?: boolean }) {
   return (
     <View style={st.checkRow}>
@@ -125,8 +147,26 @@ function CheckRow({ color, text, dark }: { color: string; text: string; dark?: b
 export default function PaywallScreen() {
   const router = useRouter()
   const { t } = useTranslation()
-  const { plan: planParam } = useLocalSearchParams<{ plan?: string }>()
+  const { plan: planParam, sale: saleParam } = useLocalSearchParams<{ plan?: string; sale?: string }>()
   const { tier, hasTicketMonthly, packages, packagesDiagnostic, packagesReady, purchase, restore, refreshStatus } = usePurchase()
+
+  // 2026-09-11: 3日間ミッション達成直後の「?plan=ticket_monthly&sale=1」導線。
+  // 期限はlib/missionStore.tsのstartSaleWindowIfNeeded()で「続ける」を押した瞬間に
+  // 確定済みのものを読むだけ（この画面の再訪でカウントダウンが延長されないように）。
+  const isSaleMode = saleParam === '1'
+  const [saleExpiresAt, setSaleExpiresAt] = useState<string | null>(null)
+  const [nowTick, setNowTick] = useState(Date.now())
+  useEffect(() => {
+    if (!isSaleMode) return
+    getMissionState().then(s => setSaleExpiresAt(s.saleExpiresAt ?? null)).catch(() => {})
+  }, [isSaleMode])
+  useEffect(() => {
+    if (!isSaleMode || !saleExpiresAt) return
+    const timer = setInterval(() => setNowTick(Date.now()), 1000)
+    return () => clearInterval(timer)
+  }, [isSaleMode, saleExpiresAt])
+  const saleRemainingMs = saleExpiresAt ? new Date(saleExpiresAt).getTime() - nowTick : 0
+  const saleActive = isSaleMode && saleExpiresAt != null && saleRemainingMs > 0
 
   const PLANS = buildPlans(t)
   // 2026-09-07: サブスク推奨画面をリニューアル。チケットプランを一律で推奨する
@@ -405,12 +445,28 @@ export default function PaywallScreen() {
         <Text style={st.lead}><Text style={{ color: DARK_ACCENT, fontWeight: '900' }}>{t('paywall.leadHighlight')}</Text>{t('paywall.leadRest')}</Text>
         <Text style={st.subLead}>{t('paywall.subLead')}</Text>
 
+        {/* ── 3日間ミッション達成直後の24時間セールバナー ── */}
+        {saleActive && (
+          <View style={st.saleBanner}>
+            <Ionicons name="time" size={16} color="#fff" />
+            <Text style={st.saleBannerText}>{t('paywall.sale.banner')}</Text>
+            <Text style={st.saleBannerCountdown}>{formatCountdown(saleRemainingMs)}</Text>
+          </View>
+        )}
+
         {/* ── プランカード（未選択=半透明白／選択=白。オンボーディングのDarkChoiceCardと同じ言語） ── */}
         {PLANS.map(plan => {
           const isSelected = selected === plan.id
           const period = plan.yearly ? periods[plan.id] : 'monthly'
           const terms = period === 'yearly' && plan.yearly ? plan.yearly : plan.monthly
           const trialDays = trialDaysFor(terms.productId)
+          // セール対象はチケット月額プランのみ。App Store Connect/RevenueCat側で
+          // 導入価格(価格>0のIntroductory Offer)が実際に設定されている時だけ、
+          // 割引後の価格をそのまま表示する（設定が無ければ通常価格のまま＝誇大表示を避ける）
+          const salePkg = plan.id === 'ticket_monthly'
+            ? packages.find((p: any) => p.product?.identifier === terms.productId)
+            : null
+          const saleIntroPrice = saleActive && salePkg ? paidIntroPriceString(salePkg) : null
           return (
             <TouchableOpacity
               key={plan.id}
@@ -446,11 +502,18 @@ export default function PaywallScreen() {
                       <Text style={st.trialBadgeTxt}>{t('paywall.trialBadge', { days: trialDays })}</Text>
                     </View>
                   ) : null}
-                  <Text style={[st.planPrice, { color: isSelected ? plan.color : DTXT }]}>{terms.price}</Text>
+                  {saleIntroPrice ? (
+                    <>
+                      <Text style={[st.planPriceStrike, !isSelected && { color: DTXT_HINT }]}>{terms.price}</Text>
+                      <Text style={[st.planPrice, { color: isSelected ? plan.color : DTXT }]}>{saleIntroPrice}</Text>
+                    </>
+                  ) : (
+                    <Text style={[st.planPrice, { color: isSelected ? plan.color : DTXT }]}>{terms.price}</Text>
+                  )}
                   <Text style={[st.planPeriod, !isSelected && { color: DTXT_HINT }]}>{terms.period}</Text>
                   {period === 'yearly' && plan.yearly && <Text style={st.planNote}>{plan.yearly.note}</Text>}
                   {(() => {
-                    const daily = dailyPriceLabel(t, terms.price)
+                    const daily = dailyPriceLabel(t, saleIntroPrice ?? terms.price)
                     return daily ? <Text style={[st.planDaily, !isSelected && { color: DTXT_SUB }]}>{daily}</Text> : null
                   })()}
                 </View>
@@ -484,6 +547,15 @@ export default function PaywallScreen() {
 
         {renderPurchaseFooter()}
 
+        {/* 2026-09-11: セール導線では「離脱=悪」ではなく、断る選択肢を明示して
+            不安なく閉じられるようにする（見た目の緊急性はカウントダウンで十分に
+            出しているため、無料継続の導線を隠す必要はない） */}
+        {saleActive && (
+          <TouchableOpacity onPress={() => router.back()} style={st.saleSkipBtn} activeOpacity={0.7}>
+            <Text style={st.saleSkipText}>{t('paywall.sale.continueFree')}</Text>
+          </TouchableOpacity>
+        )}
+
         <View style={{ height: 32 }} />
       </Animated.ScrollView>
       )}
@@ -511,6 +583,7 @@ const st = StyleSheet.create({
   planLabel:       { fontSize: 17, fontWeight: '800', color: TEXT_PRIMARY },
   planTagline:     { fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 },
   planPrice:       { fontSize: 22, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  planPriceStrike: { fontSize: 13, fontWeight: '700', textDecorationLine: 'line-through', fontVariant: ['tabular-nums'] },
   planPeriod:      { fontSize: 11, color: TEXT_HINT, marginTop: 1 },
   planNote:        { fontSize: 10, color: DARK_ACCENT, marginTop: 2, fontWeight: '700' },
   planDaily:       { fontSize: 10, color: TEXT_HINT, marginTop: 2 },
@@ -539,6 +612,15 @@ const st = StyleSheet.create({
   legalLink:       { fontSize: 11, color: DTXT_SUB, textDecorationLine: 'underline' },
   restoreBtn:      { alignItems: 'center', paddingVertical: 14, minHeight: 44, justifyContent: 'center' },
   restoreText:     { fontSize: 14, color: DTXT_SUB },
+  saleBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'stretch',
+    backgroundColor: 'rgba(217,119,6,0.9)', borderRadius: 14, paddingVertical: 10, paddingHorizontal: 14,
+    marginBottom: 14,
+  },
+  saleBannerText:      { flex: 1, color: '#fff', fontSize: 12.5, fontWeight: '800' },
+  saleBannerCountdown: { color: '#fff', fontSize: 15, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  saleSkipBtn:  { alignItems: 'center', paddingVertical: 12, marginTop: 4 },
+  saleSkipText: { fontSize: 13, color: DTXT_SUB, textDecorationLine: 'underline' },
 
   // ── 比較デザイン（2026-09-07リニューアル：Free vs チケットプラン／ダークグリーン刷新） ──
   scrollCompare:   { paddingBottom: 8 },

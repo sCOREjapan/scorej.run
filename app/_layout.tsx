@@ -487,8 +487,11 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       try {
         const lineSeen = await AsyncStorage.getItem(LINE_BANNER_SEEN_KEY)
         if (lineSeen !== currentVersion) queue.push('line')
-        const coachSeen = await AsyncStorage.getItem(COACH_BANNER_SEEN_KEY)
-        if (coachSeen !== currentVersion) queue.push('coach')
+        // 2026-09-11: コーチプラン値下げバナーは一旦非表示にする（3日間ミッション+セール
+        // 導線に置き換える方針のため）。コンポーネント本体・キュー処理・dismissBannerは
+        // そのまま残してあるので、この2行を戻すだけで復活できる。
+        // const coachSeen = await AsyncStorage.getItem(COACH_BANNER_SEEN_KEY)
+        // if (coachSeen !== currentVersion) queue.push('coach')
       } catch {}
       if (queue.length) setBannerQueue(queue)
     })()

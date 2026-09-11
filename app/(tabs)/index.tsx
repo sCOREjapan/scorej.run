@@ -27,7 +27,8 @@ import Logo from '../../components/Logo'
 import PWAInstallPrompt from '../../components/PWAInstallPrompt'
 import QuickLogModal from '../../components/QuickLogModal'
 import QuickConditionModal from '../../components/QuickConditionModal'
-import FirstRunChecklist from '../../components/FirstRunChecklist'
+import MissionEntryCard from '../../components/MissionEntryCard'
+import MissionModal from '../../components/MissionModal'
 import {
   shouldShowDay3Offer, shouldShowDay5Offer, markDay3OfferShown, markDay5OfferShown,
   markFirstScoreViewed,
@@ -1397,6 +1398,7 @@ export default function DashboardScreen() {
   const [selectedDate,    setSelectedDate]    = useState(getTodayISO())
   const [showQuickLog,    setShowQuickLog]    = useState(false)
   const [showQuickCondition, setShowQuickCondition] = useState(false)
+  const [showMission, setShowMission] = useState(false)
   const [showRiskBreakdown, setShowRiskBreakdown] = useState(false)
   const [conditionMap,    setConditionMap]    = useState<Record<string,number>>({})
   const conditionLevel = conditionMap[selectedDate] ?? 6
@@ -2085,19 +2087,14 @@ ${sleepText || 'データなし'}
             <WeekDateBar selected={selectedDate} onChange={setSelectedDate} conditionMap={conditionMap} />
           </AnimatedEntry>
 
-          {/* ── はじめてチェックリスト（旧: 自動チュートリアル）
+          {/* ── 3日間ミッション入口カード（旧: はじめてチェックリスト）
+              2026-09-11: 「いつでもいい」常駐チェックリスト(FirstRunChecklist)から、
+              Day1〜Day3に分けて日をまたぐたびに再訪させるミッション形式に置き換えた。
               2026-09-08: 「初めの3ステップ→今日まだ入力してない→フォロー」の順に並べたいとの
               指示で、isViewingToday条件の外側はそのままに表示位置だけ先頭へ移動した
-              （過去日付を見ている時もこのチェックリストだけは従来通り表示され続ける） ── */}
+              （過去日付を見ている時もこのカードだけは従来通り表示され続ける） ── */}
           <AnimatedEntry delay={30}>
-            <FirstRunChecklist
-              hasLoggedPractice={sessions.length > 0}
-              hasSetGoalOrCompetition={goals.length > 0 || compDaysLeft != null}
-              hasStretched={hasStretched}
-              onNavigatePractice={() => router.push('/manual-log' as any)}
-              onNavigateGoal={() => router.push('/(tabs)/competition' as any)}
-              onNavigateStretch={handleStretchStart}
-            />
+            <MissionEntryCard onPress={() => setShowMission(true)} />
           </AnimatedEntry>
 
           {/* ── ここから：今日を見ている時だけ表示するセクション群 ── */}
@@ -2702,6 +2699,13 @@ ${sleepText || 'データなし'}
         date={selectedDate}
         onClose={() => { setShowQuickCondition(false); onConditionModalClose() }}
         onSaved={() => reloadAll()}
+      />
+
+      <MissionModal
+        visible={showMission}
+        onClose={() => setShowMission(false)}
+        onNavigateCondition={() => setShowQuickCondition(true)}
+        onNavigateStretch={handleStretchStart}
       />
 
       {/* ── 怪我リスク内訳モーダル ── */}
