@@ -190,19 +190,26 @@ export default function QuickConditionModal({ visible, onClose, onSaved, date }:
 
       // ── 睡眠を保存 ──
       // 睡眠タブの詳細記録（就寝/起床時刻・メモ）が既にある場合、ここでの上書きで
-      // 消してしまわないよう、対象日の既存レコードを引き継いだ上で
-      // duration_min/quality_score だけを更新する
+      // 消してしまわないよう、対象日の既存レコードを引き継ぐ。
+      // 2026-09-12バグ修正: 以前はduration_min/quality_scoreを無条件にこのクイック
+      // 入力側の値(sleepH・condition/2)で上書きしていたため、睡眠タブで「7」と手動
+      // 入力したスコアが、後で日次のクイック記録を使っただけで「3」等の無関係な値
+      // (体調condition÷2という別指標)に化けてしまうバグがあった（ユーザー報告：
+      // 「睡眠記録でつけられる1~10のスコアが次の日には変わってしまっています」）。
+      // sleep_startの有無で「睡眠タブで作られた詳細記録か」を判定し、詳細記録が
+      // 既にある場合はduration_min/quality_scoreともにそちらの値を優先して残す。
       const userId = (await AsyncStorage.getItem('userId').catch(() => null)) ?? 'local'
       await updateSleepRecords(current => {
         const existing = current.find(r => r.sleep_date === targetDate)
         const rest = current.filter(r => r.sleep_date !== targetDate)
+        const hasDetailedRecord = !!existing?.sleep_start
         return [{
           ...existing,
           id:            existing?.id ?? Crypto.randomUUID(),
           user_id:       userId,
           sleep_date:    targetDate,
-          duration_min:  Math.round(sleepH * 60),
-          quality_score: Math.round(condition / 2),
+          duration_min:  hasDetailedRecord ? existing!.duration_min : Math.round(sleepH * 60),
+          quality_score: hasDetailedRecord ? existing!.quality_score : Math.round(condition / 2),
           created_at:    existing?.created_at ?? new Date().toISOString(),
         }, ...rest].slice(0, 365)
       })

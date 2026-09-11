@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import Svg, { Circle } from 'react-native-svg'
+import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg'
 import * as Haptics from 'expo-haptics'
 import { Sounds, unlockAudio } from '../lib/sounds'
 import { todayLocalISO } from '../lib/dateLocal'
@@ -114,34 +114,54 @@ async function saveResult(reduction: number): Promise<{ applied: number; capped:
 }
 
 // ── 円形タイマー ──────────────────────────────────────────────
-function CircularTimer({ progress, seconds, color }: {
+// 2026-09-12: 「絵自体を画面いっぱいに、スタートボタンをその縁の中に」「白でも黒でもない
+// ふわっと癒し系の配色に」との指示で全面刷新（旧180pt・単色・動的な赤黄緑の警告色→
+// 355pt・コーラル/セージのグラデーション固定）。数字とその下のメインボタンは
+// children として渡し、リングの中で縦積み中央寄せにする(絶対配置を使わず素直に
+// flexで中央揃えできるため)。
+// 2026-09-12追記: 実機フィードバック「リングをもっと大きく、画面幅いっぱいに」を受けて
+// 290→355ptへ再拡大。contentのpadding(20pt)を打ち消す分、ringSectionにマイナス
+// マージンを入れて画面端ぎりぎり(左右10pt)まで広げている。
+const RING_SIZE = 355
+const RING_R    = 160
+const CORAL  = '#f0a58f'
+const SAGE   = '#8fb89a'
+// リング内のメインボタン・アクセント用（グラデーション端のCORALよりやや濃く、
+// クリーム背景(#FBF3EA)の上でも視認性を確保するための色）
+const ACCENT = '#e08b6f'
+
+function CircularTimer({ progress, done, children }: {
   progress: number
-  seconds: number
-  color:    string
+  done?:    boolean
+  children: React.ReactNode
 }) {
-  const r             = 78
-  const circumference = 2 * Math.PI * r
+  const circumference = 2 * Math.PI * RING_R
   const dashOffset    = circumference * (1 - progress)
+  const c = RING_SIZE / 2
 
   return (
-    <View style={{ width: 180, height: 180, alignItems: 'center', justifyContent: 'center' }}>
-      <Svg width={180} height={180} viewBox="0 0 180 180" style={{ position: 'absolute' }}>
-        <Circle cx={90} cy={90} r={r} fill="none" stroke="#e5e7eb" strokeWidth={10} />
+    <View style={{ width: RING_SIZE, height: RING_SIZE, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={RING_SIZE} height={RING_SIZE} viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`} style={{ position: 'absolute' }}>
+        <Defs>
+          <LinearGradient id="stretchRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <Stop offset="0%" stopColor={CORAL} />
+            <Stop offset="100%" stopColor={SAGE} />
+          </LinearGradient>
+        </Defs>
+        <Circle cx={c} cy={c} r={RING_R} fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth={14} />
         <Circle
-          cx={90} cy={90} r={r}
+          cx={c} cy={c} r={RING_R}
           fill="none"
-          stroke={color}
-          strokeWidth={10}
+          stroke={done ? SAGE : 'url(#stretchRingGrad)'}
+          strokeWidth={14}
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={dashOffset}
           rotation={-90}
-          origin="90, 90"
+          origin={`${c}, ${c}`}
         />
       </Svg>
-      <Text style={{ color: '#111827', fontSize: 60, fontWeight: '900', lineHeight: 64 }}>
-        {seconds.toString().padStart(2, '0')}
-      </Text>
+      {children}
     </View>
   )
 }
@@ -604,17 +624,20 @@ function StretchScreen({
     }
   }
 
-  const progress   = secondsPerStretch > 0 ? 1 - secondsLeft / secondsPerStretch : 0
-  const timerColor =
-    secondsLeft > 20 ? '#C8102E' :
-    secondsLeft > 10 ? '#F5A623' : '#34C759'
+  const progress = secondsPerStretch > 0 ? 1 - secondsLeft / secondsPerStretch : 0
+  // 2026-09-12: 左側タイマーが0になり、右側へ切り替わるまでの待ち時間(700ms)。
+  // この間だけリングを完了色にして「次は右」を見せる(カウントダウンのカウント
+  // ダウン用useEffect内のsetTimeout(700ms)と同じ条件で判定している)。
+  const justSwitchingSide = !isManual && isStarted && !isPaused && secondsLeft <= 0 && side === 'left'
 
   const completeLabel = side === 'left' ? t('stretchRecovery.stretch.completeLeft') : t('stretchRecovery.stretch.complete')
 
   if (!part) return null
 
   return (
-    <View style={{ flex: 1 }}>
+    // 2026-09-12: 「白でも黒でもない、ふわっと・癒し系の配色に」との指示でこの画面
+    // だけクリーム系の背景(#FBF3EA)に。他の2画面(部位選択・完了)は元の配色のまま。
+    <View style={{ flex: 1, backgroundColor: '#FBF3EA' }}>
       {/* 進捗 */}
       <View style={ss.progressRow}>
         <Text style={ss.progressText}>{currentIndex + 1}/{parts.length}</Text>
@@ -648,7 +671,7 @@ function StretchScreen({
       )}
 
       <ScrollView contentContainerStyle={ss.content} showsVerticalScrollIndicator={false}>
-        {/* 部位名 */}
+        {/* 部位名（マスコットは元サイズのまま変更なし） */}
         {getPartMascotImage(part) ? (
           <Image source={getPartMascotImage(part)} style={ss.partMascot} resizeMode="contain" />
         ) : (
@@ -662,51 +685,56 @@ function StretchScreen({
             <View style={[ss.sideStep, side === 'left' && ss.sideStepActive]}>
               <Text style={[ss.sideStepText, side === 'left' && { color: '#fff' }]}>{t('stretchRecovery.stretch.left')}</Text>
             </View>
-            <Ionicons name="arrow-forward" size={14} color="#c4b5b5" style={{ marginHorizontal: 4 }} />
+            <Ionicons name="arrow-forward" size={14} color="#d9cfc3" style={{ marginHorizontal: 4 }} />
             <View style={[ss.sideStep, side === 'right' && ss.sideStepActive]}>
               <Text style={[ss.sideStepText, side === 'right' && { color: '#fff' }]}>{t('stretchRecovery.stretch.right')}</Text>
             </View>
           </View>
         )}
 
-        {/* タイマー or 手動表示 */}
+        {/* ── タイマー（画面いっぱいの大型リング。スタート/一時停止ボタンは
+            リングの内側、数字のすぐ下に配置。2026-09-12: 「絵自体を画面いっぱい
+            にして、スタートボタンをその縁の中に」との指示で刷新） ── */}
         {!isManual ? (
-          <View style={{ alignItems: 'center', marginVertical: 28 }}>
-            <CircularTimer
-              progress={progress}
-              seconds={secondsLeft}
-              color={timerColor}
-            />
+          <View style={ss.ringSection}>
+            <CircularTimer progress={progress} done={justSwitchingSide}>
+              {justSwitchingSide ? (
+                <>
+                  <Text style={ss.ringDoneLabel}>{t('stretchRecovery.stretch.sideDoneLabel')}</Text>
+                  <Text style={ss.ringNextLabel}>{t('stretchRecovery.stretch.nextSide', { side: t('stretchRecovery.stretch.right') })}</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={ss.ringNum}>{secondsLeft.toString().padStart(2, '0')}</Text>
+                  {!isStarted ? (
+                    <TouchableOpacity
+                      style={[ss.ringBtn, { backgroundColor: ACCENT }]}
+                      onPress={() => { unlockAudio(); setIsStarted(true) }}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons name="play" size={16} color="#fff" />
+                      <Text style={ss.ringBtnText}>
+                        {side === 'left' ? t('stretchRecovery.stretch.startLeft') : side === 'right' ? t('stretchRecovery.stretch.startRight') : t('stretchRecovery.stretch.start')}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      style={[ss.ringBtn, { backgroundColor: isPaused ? SAGE : ACCENT }]}
+                      onPress={() => setIsPaused(v => !v)}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons name={isPaused ? 'play' : 'pause'} size={16} color="#fff" />
+                      <Text style={ss.ringBtnText}>{isPaused ? t('stretchRecovery.stretch.resume') : t('stretchRecovery.stretch.pause')}</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              )}
+            </CircularTimer>
           </View>
         ) : (
           <View style={{ alignItems: 'center', marginVertical: 28 }}>
-            <Ionicons name="timer-outline" size={64} color="#d1d5db" />
+            <Ionicons name="timer-outline" size={64} color="#c9beb2" />
             <Text style={ss.manualHint}>{t('stretchRecovery.stretch.manualHint')}</Text>
-          </View>
-        )}
-
-        {/* ── スタート前（タイマーモード）── */}
-        {!isStarted && !isManual && (
-          <View style={ss.btnRow}>
-            <TouchableOpacity style={ss.subBtn} onPress={handleBack} activeOpacity={0.7} accessibilityLabel={t('stretchRecovery.back')}>
-              <Ionicons name="arrow-back" size={20} color="#9ca3af" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[ss.mainBtn, { backgroundColor: '#C8102E' }]}
-              onPress={() => {
-                unlockAudio()
-                setIsStarted(true)
-              }}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="play" size={20} color="#fff" />
-              <Text style={ss.mainBtnText}>
-                {side === 'left' ? t('stretchRecovery.stretch.startLeft') : side === 'right' ? t('stretchRecovery.stretch.startRight') : t('stretchRecovery.stretch.start')}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={ss.subBtn} onPress={() => advanceNext(true)} activeOpacity={0.7}>
-              <Text style={ss.skipText}>{t('stretchRecovery.stretch.skip')}</Text>
-            </TouchableOpacity>
           </View>
         )}
 
@@ -714,10 +742,10 @@ function StretchScreen({
         {isManual && (
           <View style={ss.btnRow}>
             <TouchableOpacity style={ss.subBtn} onPress={handleBack} activeOpacity={0.7} accessibilityLabel={t('stretchRecovery.back')}>
-              <Ionicons name="arrow-back" size={20} color="#9ca3af" />
+              <Ionicons name="arrow-back" size={20} color="#b0a695" />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[ss.mainBtn, { backgroundColor: '#C8102E' }]}
+              style={[ss.mainBtn, { backgroundColor: ACCENT }]}
               onPress={handleComplete}
               activeOpacity={0.85}
             >
@@ -730,28 +758,26 @@ function StretchScreen({
           </View>
         )}
 
-        {/* ── 実施中（タイマーモード）── */}
-        {isStarted && !isManual && (
-          <View style={ss.btnRow}>
+        {/* ── タイマーモード: リングの下の補助ボタン(戻る＋スキップ/今すぐ完了) ── */}
+        {!isManual && (
+          <View style={ss.btnRowOutside}>
             <TouchableOpacity style={ss.subBtn} onPress={handleBack} activeOpacity={0.7} accessibilityLabel={t('stretchRecovery.back')}>
-              <Ionicons name="arrow-back" size={20} color="#9ca3af" />
+              <Ionicons name="arrow-back" size={20} color="#b0a695" />
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[ss.mainBtn, isPaused ? { backgroundColor: '#34C759' } : { backgroundColor: '#555' }]}
-              onPress={() => setIsPaused(v => !v)}
-              activeOpacity={0.85}
-            >
-              <Ionicons name={isPaused ? 'play' : 'pause'} size={18} color="#fff" />
-              <Text style={ss.mainBtnText}>{isPaused ? t('stretchRecovery.stretch.resume') : t('stretchRecovery.stretch.pause')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[ss.subBtn2, { backgroundColor: '#C8102E' }]}
-              onPress={handleComplete}
-              activeOpacity={0.85}
-              accessibilityLabel={completeLabel}
-            >
-              <Ionicons name={side === 'left' ? 'arrow-forward' : 'checkmark'} size={20} color="#fff" />
-            </TouchableOpacity>
+            {!isStarted ? (
+              <TouchableOpacity style={ss.subBtn} onPress={() => advanceNext(true)} activeOpacity={0.7}>
+                <Text style={ss.skipText}>{t('stretchRecovery.stretch.skip')}</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={[ss.subBtn2, { backgroundColor: ACCENT }]}
+                onPress={handleComplete}
+                activeOpacity={0.85}
+                accessibilityLabel={completeLabel}
+              >
+                <Ionicons name={side === 'left' ? 'arrow-forward' : 'checkmark'} size={20} color="#fff" />
+              </TouchableOpacity>
+            )}
           </View>
         )}
       </ScrollView>
@@ -764,12 +790,12 @@ const ss = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12,
   },
-  progressText:  { color: '#6b7280', fontSize: 14, fontWeight: '700' },
+  progressText:  { color: '#8a8072', fontSize: 14, fontWeight: '700' },
   timeBadge:     {
-    backgroundColor: '#f0f2f5', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
+    backgroundColor: '#ffffff', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)',
     paddingHorizontal: 10, paddingVertical: 5,
   },
-  timeBadgeText: { color: '#6b7280', fontSize: 13, fontWeight: '700' },
+  timeBadgeText: { color: '#8a8072', fontSize: 13, fontWeight: '700' },
   timePicker:    {
     flexDirection: 'row', justifyContent: 'center', gap: 8,
     paddingHorizontal: 20, paddingBottom: 10,
@@ -779,13 +805,13 @@ const ss = StyleSheet.create({
     borderRadius: 10, paddingVertical: 12, alignItems: 'center',
     borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
   },
-  timeOptActive: { backgroundColor: 'rgba(200,16,46,0.06)', borderWidth: 1.5, borderColor: '#C8102E' },
-  timeOptText:   { color: '#6b7280', fontSize: 14, fontWeight: '700' },
+  timeOptActive: { backgroundColor: 'rgba(224,139,111,0.10)', borderWidth: 1.5, borderColor: ACCENT },
+  timeOptText:   { color: '#8a8072', fontSize: 14, fontWeight: '700' },
   content:       { padding: 20, paddingBottom: 40, alignItems: 'center' },
   partIcon:      { fontSize: 48, marginBottom: 8 },
   partMascot:    { width: 168, height: 128, marginBottom: 4 },
-  partName:      { color: '#111827', fontSize: 26, fontWeight: '900', textAlign: 'center' },
-  manualHint:    { color: '#6b7280', fontSize: 14, fontWeight: '600', marginTop: 12, textAlign: 'center' },
+  partName:      { color: '#4a4238', fontSize: 26, fontWeight: '900', textAlign: 'center' },
+  manualHint:    { color: '#8a8072', fontSize: 14, fontWeight: '600', marginTop: 12, textAlign: 'center' },
   // 左右インジケーター
   sideIndicator: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
@@ -793,21 +819,37 @@ const ss = StyleSheet.create({
   },
   sideStep: {
     width: 38, height: 38, borderRadius: 19,
-    backgroundColor: 'rgba(0,0,0,0.06)',
+    backgroundColor: '#ffffff',
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.10)',
+    borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.06)',
   },
   sideStepActive: {
-    backgroundColor: '#C8102E',
-    borderColor: '#C8102E',
+    backgroundColor: ACCENT,
+    borderColor: ACCENT,
   },
   sideStepText: {
-    color: '#9ca3af', fontSize: 14, fontWeight: '900',
+    color: '#b0a695', fontSize: 14, fontWeight: '900',
   },
-  // ボタン
+  // ── リング(タイマー本体)。少し下寄りに置いて親指で押しやすくする ──
+  // marginHorizontal:-10 はcontent側のpadding(20pt)を一部打ち消し、リングを
+  // 画面端ぎりぎり(左右10pt)まで広げるため
+  ringSection:   { alignItems: 'center', marginTop: 30, marginHorizontal: -10 },
+  ringNum:       { color: '#4a4238', fontSize: 72, fontWeight: '900', lineHeight: 76 },
+  ringBtn:       {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, borderRadius: 24, paddingVertical: 12, paddingHorizontal: 28, marginTop: 14,
+  },
+  ringBtnText:   { color: '#fff', fontSize: 14, fontWeight: '800' },
+  ringDoneLabel: { color: SAGE, fontSize: 18, fontWeight: '800', marginBottom: 6 },
+  ringNextLabel: { color: '#4a4238', fontSize: 30, fontWeight: '900' },
+  // ── ボタン(手動モード用のフル行、およびリング下の補助行) ──
   btnRow:        {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     width: '100%', marginTop: 8,
+  },
+  btnRowOutside: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12,
+    marginTop: 18,
   },
   mainBtn:       {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
@@ -815,15 +857,15 @@ const ss = StyleSheet.create({
   },
   mainBtnText:   { color: '#fff', fontSize: 16, fontWeight: '900' },
   subBtn:        {
-    width: 52, height: 52, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: 'rgba(0,0,0,0.10)',
+    width: 48, height: 48, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)',
     borderRadius: 16, backgroundColor: '#ffffff',
   },
   subBtn2:       {
-    width: 52, height: 52, alignItems: 'center', justifyContent: 'center',
+    width: 48, height: 48, alignItems: 'center', justifyContent: 'center',
     borderRadius: 16,
   },
-  skipText:      { color: '#6b7280', fontSize: 10, fontWeight: '700' },
+  skipText:      { color: '#8a8072', fontSize: 10, fontWeight: '700' },
 })
 
 // ══════════════════════════════════════════════════════════════

@@ -278,7 +278,9 @@
   "mission": {
     "entry": {
       "title": "Day{{day}}のミッション",
-      "sub": "{{done}}/{{total}} 完了"
+      "sub": "{{done}}/{{total}} 完了",
+      "saleTitle": "24時間限定セール",
+      "saleBadge": "SALE"
     },
     "dayBadge": "Day {{day}}",
     "task": {
@@ -3755,7 +3757,9 @@
       "pause": "一時停止",
       "resume": "再開",
       "completeLeft": "左完了 →",
-      "complete": "完了"
+      "complete": "完了",
+      "sideDoneLabel": "よくできました",
+      "nextSide": "次は{{side}}"
     },
     "complete": {
       "title": "お疲れさまでした",

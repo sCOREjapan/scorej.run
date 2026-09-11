@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ストレッチタイマー — 最終確認</title>
+<style>
+  :root{
+    --text:#4a4238; --text-sec:#8a8072; --text-hint:#b0a695;
+    --page-bg:#f6f4ef; --panel-border:#e8e4da;
+    --healing-bg:#fbf3ea;
+    --coral:#e08b6f; --sage:#8fb89a;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--page-bg); font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif; color:#111; padding:28px 20px 60px; }
+  h1{ font-size:20px; margin:0 0 6px; }
+  .quote{ background:#fff; border:1px solid var(--panel-border); border-radius:12px; padding:12px 16px; font-size:13px; color:#6b7280; max-width:820px; margin:0 0 24px; line-height:1.7; }
+  .quote b{ color:#111; }
+  .legend{ font-size:11.5px; color:#9ca3af; margin-bottom:28px; }
+
+  .panels{ display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start; }
+  .panel{ background:#fff; border:1px solid var(--panel-border); border-radius:18px; padding:14px; width:260px; }
+  .panel.reco{ border-color:var(--coral); box-shadow:0 0 0 2px rgba(224,139,111,0.15); }
+  .panel-head{ display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+  .letter{ width:22px; height:22px; border-radius:11px; background:#f0f2f5; color:#111; font-size:12px; font-weight:900; display:flex; align-items:center; justify-content:center; }
+  .panel.reco .letter{ background:var(--coral); color:#fff; }
+  .pname{ font-size:13px; font-weight:800; flex:1; }
+  .badge{ font-size:9.5px; font-weight:900; color:#fff; background:var(--coral); padding:2px 8px; border-radius:10px; }
+  .desc{ font-size:11px; color:#6b7280; line-height:1.6; margin:6px 0 10px; }
+  .spec{ font-size:10px; color:#9ca3af; line-height:1.7; margin:8px 0 12px; border-top:1px dashed var(--panel-border); padding-top:8px; }
+  .spec b{ color:#6b7280; }
+
+  .frameOuter{ width:230px; height:498.3px; overflow:hidden; }
+  .frame{
+    width:375px; height:812px; border-radius:48px; background:#000; padding:8px;
+    box-shadow:0 6px 18px rgba(0,0,0,0.18);
+    transform:scale(0.613); transform-origin:top left;
+  }
+  .screen{ width:100%; height:100%; border-radius:40px; overflow:hidden; position:relative; background:var(--healing-bg); }
+  .notch{ position:absolute; top:0; left:50%; transform:translateX(-50%); width:120px; height:24px; background:#000; border-radius:0 0 16px 16px; z-index:30; }
+
+  .progRow{ display:flex; align-items:center; justify-content:space-between; padding:44px 20px 4px; }
+  .progText{ font-size:14px; font-weight:700; color:var(--text-sec); }
+  .timeBadge{ border-radius:8px; border:1px solid rgba(0,0,0,0.06); padding:5px 10px; font-size:13px; font-weight:700; background:#fff; color:var(--text-sec); }
+
+  .mascotWrap{ display:flex; flex-direction:column; align-items:center; }
+  .partMascot{ width:150px; height:114px; margin-top:0; }
+  .partName{ font-size:24px; font-weight:900; text-align:center; color:var(--text); margin:2px 0 10px; }
+  .sideRow{ display:flex; align-items:center; justify-content:center; gap:6px; }
+  .sidePill{ width:32px; height:32px; border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:900; background:#fff; color:var(--text-hint); border:1.5px solid rgba(0,0,0,0.06); }
+  .sidePill.on{ background:var(--coral); border-color:var(--coral); color:#fff; }
+
+  .ringWrap{ position:relative; display:flex; align-items:center; justify-content:center; margin:8px auto 0; }
+  .ringNum{ position:absolute; font-weight:900; color:var(--text); font-size:64px; }
+  .ringBtnIn{ position:absolute; border-radius:24px; padding:12px 30px; font-size:14px; font-weight:800; color:#fff; background:var(--coral); top:186px; }
+  .btnOutside{ display:flex; align-items:center; gap:12px; justify-content:center; margin-top:14px; }
+  .subBtn{ width:44px; height:44px; border-radius:22px; display:flex; align-items:center; justify-content:center; font-size:16px; background:#fff; border:1px solid rgba(0,0,0,0.06); color:var(--text-hint); }
+  .breathHint{ text-align:center; color:var(--text-hint); font-size:11.5px; font-weight:600; margin-top:2px; }
+
+  footer{ margin-top:36px; font-size:12px; color:#6b7280; }
+</style>
+</head>
+<body>
+
+<h1>ストレッチタイマー — 最終確認</h1>
+<div class="quote">
+  お題: <b>「いい感じだけど、タイマー自体は真ん中〜押しやすさ的に少し下の方に。スコッぴー(マスコット)は従来通りのサイズで配置したまま」</b>。
+  これまでの合意事項(癒し配色・リング拡大・ボタンはリング内)を維持しつつ、マスコットを元のサイズ(150×114pt)に戻し、
+  リングの中心が画面のやや下寄り(縦方向でおよそ58%の位置)に来るよう配置を調整。
+</div>
+<div class="legend">設計空間 375×812pt（K=1）。表示は0.613倍縮小。</div>
+
+<div class="panels">
+
+  <div class="panel reco">
+    <div class="panel-head"><div class="letter">✓</div><div class="pname">最終案（開始前）</div><span class="badge">この内容で実装</span></div>
+    <div class="desc">マスコットは元サイズのまま最上部に表示。リングは直径290ptを維持しつつ、中心を画面下寄りに配置し、親指が届きやすい位置に。ボタンはリング内、数字のすぐ下。</div>
+    <div class="spec"><b>mascot</b> 150×114pt(元サイズ)<br><b>ring中心</b> 画面縦の約58%位置<br><b>btn</b> リング内・下寄り</div>
+    <div class="frameOuter"><div class="frame">
+      <div class="screen">
+        <div class="notch"></div>
+        <div class="progRow"><div class="progText">1/2</div><div class="timeBadge">30秒</div></div>
+        <div class="mascotWrap">
+          <img class="partMascot" src="../assets/illustrations/stretches/stretch_hip.png">
+          <div class="partName">股関節</div>
+          <div class="sideRow"><div class="sidePill on">左</div><div class="sidePill">右</div></div>
+        </div>
+        <div class="ringWrap">
+          <svg width="290" height="290">
+            <defs><linearGradient id="gF" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#f0a58f"/><stop offset="100%" stop-color="#8fb89a"/></linearGradient></defs>
+            <circle cx="145" cy="145" r="128" fill="none" stroke="rgba(0,0,0,0.06)" stroke-width="14"/>
+            <circle cx="145" cy="145" r="128" fill="none" stroke="url(#gF)" stroke-width="14" stroke-linecap="round" stroke-dasharray="804" stroke-dashoffset="180" transform="rotate(-90 145 145)"/>
+          </svg>
+          <div class="ringNum" style="top:88px;">18</div>
+          <div class="ringBtnIn">一時停止</div>
+        </div>
+        <div class="btnOutside">
+          <div class="subBtn">←</div>
+          <div class="subBtn" style="font-size:10px; font-weight:700;">スキップ</div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><div class="letter">✓</div><div class="pname">カウント完了時</div></div>
+    <div class="desc">0になったらリングがセージ単色に。数字の位置に「よくできました」→「次は右」を表示してから自動で右側の計測へ。</div>
+    <div class="spec"><b>切替</b> 0.8秒後に右側へ自動進行</div>
+    <div class="frameOuter"><div class="frame">
+      <div class="screen">
+        <div class="notch"></div>
+        <div class="progRow"><div class="progText">1/2</div><div class="timeBadge">30秒</div></div>
+        <div class="mascotWrap">
+          <img class="partMascot" src="../assets/illustrations/stretches/stretch_hip.png">
+          <div class="partName">股関節</div>
+          <div class="sideRow"><div class="sidePill on">左</div><div class="sidePill">右</div></div>
+        </div>
+        <div class="ringWrap">
+          <svg width="290" height="290"><circle cx="145" cy="145" r="128" fill="none" stroke="rgba(0,0,0,0.06)" stroke-width="14"/><circle cx="145" cy="145" r="128" fill="none" stroke="#8fb89a" stroke-width="14" stroke-linecap="round" stroke-dasharray="804" stroke-dashoffset="0" transform="rotate(-90 145 145)"/></svg>
+          <div class="ringNum" style="top:104px; font-size:20px; color:#8fb89a;">よくできました</div>
+          <div class="ringNum" style="top:136px; font-size:28px;">次は右</div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+</div>
+
+<footer>これで良ければ「これで実装して」と言ってください。app/stretch-recovery.tsx に反映します。</footer>
+
+</body>
+</html>

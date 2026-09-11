@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ストレッチタイマー — 大型リング 3案</title>
+<style>
+  :root{
+    --red:#C8102E; --amber:#F5A623; --green:#34C759;
+    --text:#111827; --text-sec:#6b7280; --text-hint:#9ca3af;
+    --page-bg:#f6f4ef; --panel-border:#e8e4da; --bg:#ffffff; --surface2:#f0f2f5; --border:rgba(0,0,0,0.08);
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--page-bg); font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif; color:var(--text); padding:28px 20px 60px; }
+  h1{ font-size:20px; margin:0 0 6px; }
+  .quote{ background:#fff; border:1px solid var(--panel-border); border-radius:12px; padding:12px 16px; font-size:13px; color:var(--text-sec); max-width:860px; margin:0 0 24px; line-height:1.7; }
+  .quote b{ color:var(--text); }
+  .refImg{ width:70px; border-radius:10px; border:1px solid var(--panel-border); float:right; margin:0 0 8px 12px; }
+  .legend{ font-size:11.5px; color:var(--text-hint); margin-bottom:28px; clear:both; }
+
+  .panels{ display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start; }
+  .panel{ background:#fff; border:1px solid var(--panel-border); border-radius:18px; padding:14px; width:246px; }
+  .panel.reco{ border-color:var(--red); box-shadow:0 0 0 2px rgba(200,16,46,0.12); }
+  .panel-head{ display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+  .letter{ width:22px; height:22px; border-radius:11px; background:var(--surface2); color:var(--text); font-size:12px; font-weight:900; display:flex; align-items:center; justify-content:center; }
+  .panel.reco .letter{ background:var(--red); color:#fff; }
+  .pname{ font-size:13px; font-weight:800; flex:1; }
+  .badge{ font-size:9.5px; font-weight:900; color:#fff; background:var(--red); padding:2px 8px; border-radius:10px; }
+  .desc{ font-size:11px; color:var(--text-sec); line-height:1.6; margin:6px 0 10px; min-height:110px; }
+  .spec{ font-size:10px; color:var(--text-hint); line-height:1.7; margin:8px 0 12px; border-top:1px dashed var(--panel-border); padding-top:8px; }
+  .spec b{ color:var(--text-sec); }
+  .playBtn{ display:block; width:100%; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-size:11.5px; font-weight:700; padding:7px 0; border-radius:10px; cursor:pointer; margin-bottom:10px; }
+
+  .frameOuter{ width:210px; height:454.7px; overflow:hidden; }
+  .frame{
+    width:375px; height:812px; border-radius:48px; background:#000; padding:8px;
+    box-shadow:0 6px 18px rgba(0,0,0,0.18);
+    transform:scale(0.56); transform-origin:top left;
+  }
+  .screen{ width:100%; height:100%; border-radius:40px; overflow:hidden; position:relative; }
+  .notch{ position:absolute; top:0; left:50%; transform:translateX(-50%); width:120px; height:24px; background:#000; border-radius:0 0 16px 16px; z-index:30; }
+
+  .light .screen{ background:#fff; }
+  .dark  .screen{ background:#0b0b10; }
+
+  .progRow{ display:flex; align-items:center; justify-content:space-between; padding:44px 20px 8px; }
+  .progText{ font-size:14px; font-weight:700; }
+  .light .progText{ color:var(--text-sec); }
+  .dark  .progText{ color:#8b8b96; }
+  .timeBadge{ border-radius:8px; border:1px solid; padding:5px 10px; font-size:13px; font-weight:700; }
+  .light .timeBadge{ background:var(--surface2); border-color:var(--border); color:var(--text-sec); }
+  .dark  .timeBadge{ background:#1a1a22; border-color:#2a2a34; color:#c8c8d4; }
+
+  .headRow{ display:flex; align-items:center; justify-content:center; gap:8px; padding:0 20px 6px; }
+  .headName{ font-size:18px; font-weight:900; }
+  .light .headName{ color:var(--text); }
+  .dark  .headName{ color:#fff; }
+  .sidePill{ width:26px; height:26px; border-radius:13px; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:900; }
+  .light .sidePill{ background:rgba(0,0,0,0.06); color:var(--text-hint); border:1.5px solid rgba(0,0,0,0.10); }
+  .dark  .sidePill{ background:#1c1c26; color:#8b8b96; border:1.5px solid #2a2a34; }
+  .sidePill.on{ background:var(--red); border-color:var(--red); color:#fff; }
+
+  .ringWrap{ position:relative; display:flex; align-items:center; justify-content:center; margin:14px auto 0; }
+  .ringNum{ position:absolute; font-weight:900; }
+  .light .ringNum{ color:var(--text); }
+  .dark  .ringNum{ color:#fff; }
+  .nextLabel{ position:absolute; font-weight:800; font-size:15px; }
+  .light .nextLabel{ color:var(--red); }
+  .dark  .nextLabel{ color:#a78bfa; }
+
+  .ringBtnIn{ position:absolute; border-radius:24px; padding:12px 28px; font-size:14px; font-weight:800; color:#fff; }
+  .btnOutside{ display:flex; align-items:center; gap:12px; justify-content:center; margin-top:18px; }
+  .subBtn{ width:44px; height:44px; border-radius:22px; display:flex; align-items:center; justify-content:center; font-size:16px; }
+  .light .subBtn{ background:#fff; border:1px solid var(--border); color:var(--text-hint); }
+  .dark  .subBtn{ background:#1a1a22; border:1px solid #2a2a34; color:#8b8b96; }
+  .mainPill{ border-radius:24px; padding:13px 32px; font-size:14px; font-weight:800; color:#fff; }
+
+  .mascotTiny{ width:40px; height:32px; }
+
+  footer{ margin-top:36px; font-size:12px; color:var(--text-sec); }
+</style>
+</head>
+<body>
+
+<h1>ストレッチタイマー — 大型リング 3案</h1>
+<div class="quote">
+  <img class="refImg" src="../assets/illustrations/stretches/stretch_hip.png" style="display:none;">
+  お題: <b>「絵自体を画面いっぱいにして、スタートボタンをその縁の中に追加。カウント終わったら『逆足』とか次の表示が出て」</b>（送っていただいた、大きな円形タイマーの参考画像がベース）。
+  リング（円グラフ）を画面幅いっぱいまで大きくし、数字の下にボタンを配置し、カウント0で「次は右」のような案内を出す——ここまでは共通。
+  <b>「その縁の中に」をどこまで文字通り取るか</b>（リングの輪の内側に完全に収めるか／リング直下に寄せるか）と、<b>配色（現行の白基調のまま／参考画像に寄せたダーク基調）</b>で3案に解釈を分けた。
+</div>
+<div class="legend">設計空間 375×812pt（K=1）。表示は0.56倍縮小。対象は「開始前」の股関節(左右あり)状態＋カウント完了時のプレビューを並記。</div>
+
+<div class="panels">
+
+  <!-- A -->
+  <div class="panel light reco">
+    <div class="panel-head"><div class="letter">A</div><div class="pname">白基調・ボタンはリング内</div><span class="badge">推奨</span></div>
+    <div class="desc">現行の白ベースの配色は変えず、リングだけを画面幅いっぱい(直径290pt)に拡大。スタートボタンは数字のすぐ下、リングの輪の内側に完全に収まる位置に配置。カウント0時は数字の位置に「次は右」を表示。アプリの他画面とのトーンが揃う、最も安全な組み合わせ。</div>
+    <div class="spec"><b>ring</b> 290×290pt(画面比77%)<br><b>btn位置</b> リング中心+65pt(輪の内側)<br><b>配色</b> 白基調のまま</div>
+    <div class="frameOuter"><div class="frame">
+      <div class="screen">
+        <div class="notch"></div>
+        <div class="progRow"><div class="progText">1/2</div><div class="timeBadge">30秒</div></div>
+        <div class="headRow">
+          <img class="mascotTiny" src="../assets/illustrations/stretches/stretch_hip.png">
+          <div class="headName">股関節</div>
+          <div class="sidePill on">左</div><div class="sidePill">右</div>
+        </div>
+        <div class="ringWrap">
+          <svg width="290" height="290"><circle cx="145" cy="145" r="128" fill="none" stroke="#e5e7eb" stroke-width="14"/><circle cx="145" cy="145" r="128" fill="none" stroke="#C8102E" stroke-width="14" stroke-linecap="round" stroke-dasharray="804" stroke-dashoffset="180" transform="rotate(-90 145 145)"/></svg>
+          <div class="ringNum" style="font-size:68px; top:88px;">18</div>
+          <div class="ringBtnIn" style="background:#C8102E; top:190px;">一時停止</div>
+        </div>
+        <div class="btnOutside">
+          <div class="subBtn">←</div>
+          <div class="subBtn" style="font-size:10px; font-weight:700;">スキップ</div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- A完了時 -->
+  <div class="panel light">
+    <div class="panel-head"><div class="letter">A′</div><div class="pname">Aのカウント完了時</div></div>
+    <div class="desc">0になった瞬間、リング内の数字が「次は右」に切り替わり、少し間を置いて右側の計測に自動で進む。ユーザーは足を組み替えるタイミングをリングを見るだけで把握できる。</div>
+    <div class="spec"><b>切替</b> 数字→「次は右」(0.7秒後に右側へ)<br><b>リングの色</b> 完了直後は緑にフラッシュ</div>
+    <div class="frameOuter"><div class="frame">
+      <div class="screen">
+        <div class="notch"></div>
+        <div class="progRow"><div class="progText">1/2</div><div class="timeBadge">30秒</div></div>
+        <div class="headRow">
+          <img class="mascotTiny" src="../assets/illustrations/stretches/stretch_hip.png">
+          <div class="headName">股関節</div>
+          <div class="sidePill on">左</div><div class="sidePill">右</div>
+        </div>
+        <div class="ringWrap">
+          <svg width="290" height="290"><circle cx="145" cy="145" r="128" fill="none" stroke="#e5e7eb" stroke-width="14"/><circle cx="145" cy="145" r="128" fill="none" stroke="#34C759" stroke-width="14" stroke-linecap="round" stroke-dasharray="804" stroke-dashoffset="0" transform="rotate(-90 145 145)"/></svg>
+          <div class="nextLabel" style="top:108px; font-size:22px;">✓ 完了</div>
+          <div class="nextLabel" style="top:140px; color:#111827; font-size:30px; font-weight:900;">次は右</div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- B -->
+  <div class="panel light">
+    <div class="panel-head"><div class="letter">B</div><div class="pname">白基調・ボタンはリング直下</div></div>
+    <div class="desc">リングの大きさ・配色はAと同じだが、送っていただいた参考画像の実際のレイアウト（ボタンはリングの輪の中ではなく、リング下端のすぐ外側）に忠実に寄せた案。リング内は数字だけに保たれ、視認性を優先。</div>
+    <div class="spec"><b>ring</b> 290×290pt<br><b>btn位置</b> リング下端の外側(参考画像に忠実)<br><b>配色</b> 白基調のまま</div>
+    <div class="frameOuter"><div class="frame">
+      <div class="screen">
+        <div class="notch"></div>
+        <div class="progRow"><div class="progText">1/2</div><div class="timeBadge">30秒</div></div>
+        <div class="headRow">
+          <img class="mascotTiny" src="../assets/illustrations/stretches/stretch_hip.png">
+          <div class="headName">股関節</div>
+          <div class="sidePill on">左</div><div class="sidePill">右</div>
+        </div>
+        <div class="ringWrap">
+          <svg width="290" height="290"><circle cx="145" cy="145" r="128" fill="none" stroke="#e5e7eb" stroke-width="14"/><circle cx="145" cy="145" r="128" fill="none" stroke="#C8102E" stroke-width="14" stroke-linecap="round" stroke-dasharray="804" stroke-dashoffset="180" transform="rotate(-90 145 145)"/></svg>
+          <div class="ringNum" style="font-size:68px; top:112px;">18</div>
+        </div>
+        <div class="btnOutside" style="margin-top:22px;">
+          <div class="subBtn">←</div>
+          <div class="mainPill" style="background:#C8102E;">一時停止</div>
+          <div class="subBtn" style="font-size:10px; font-weight:700;">スキップ</div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- C -->
+  <div class="panel dark">
+    <div class="panel-head"><div class="letter">C</div><div class="pname">参考画像に寄せたダーク基調</div></div>
+    <div class="desc">配色まで参考画像に寄せ、ダーク背景＋グラデーションリングの没入感を再現する大穴案。ボタンはリング内側(Aと同じ配置)。アプリの他画面（白基調）とはトーンが変わるため、この画面だけ「集中モード」として独立させる前提。</div>
+    <div class="spec"><b>ring</b> 300×300pt<br><b>背景</b> #0b0b10のダーク<br><b>リング色</b> 紫→青のグラデーション</div>
+    <div class="frameOuter"><div class="frame">
+      <div class="screen">
+        <div class="notch"></div>
+        <div class="progRow"><div class="progText">1/2</div><div class="timeBadge">30秒</div></div>
+        <div class="headRow">
+          <div class="headName" style="color:#fff;">股関節</div>
+          <div class="sidePill on">左</div><div class="sidePill">右</div>
+        </div>
+        <div class="ringWrap">
+          <svg width="300" height="300">
+            <defs><linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#7c3aed"/><stop offset="100%" stop-color="#3b82f6"/></linearGradient></defs>
+            <circle cx="150" cy="150" r="132" fill="none" stroke="#22222c" stroke-width="14"/>
+            <circle cx="150" cy="150" r="132" fill="none" stroke="url(#g1)" stroke-width="14" stroke-linecap="round" stroke-dasharray="829" stroke-dashoffset="186" transform="rotate(-90 150 150)"/>
+          </svg>
+          <div class="ringNum" style="font-size:68px; top:92px;">18</div>
+          <div class="ringBtnIn" style="background:#3b82f6; top:196px;">一時停止</div>
+        </div>
+        <div class="btnOutside">
+          <div class="subBtn">←</div>
+          <div class="subBtn" style="font-size:10px; font-weight:700;">スキップ</div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+</div>
+
+<footer>選んだレター（A/B/C。A′はAの完了時の見せ方の確認用）を言えば、そのままReact Native実装（app/stretch-recovery.tsx）に進みます。「Aやけどダーク配色で」のような組み合わせもOKです。</footer>
+
+</body>
+</html>

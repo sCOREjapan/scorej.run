@@ -278,7 +278,9 @@
   "mission": {
     "entry": {
       "title": "Day {{day}} Mission",
-      "sub": "{{done}}/{{total}} done"
+      "sub": "{{done}}/{{total}} done",
+      "saleTitle": "24-hour limited sale",
+      "saleBadge": "SALE"
     },
     "dayBadge": "Day {{day}}",
     "task": {
@@ -3755,7 +3757,9 @@
       "pause": "Pause",
       "resume": "Resume",
       "completeLeft": "Left Done →",
-      "complete": "Done"
+      "complete": "Done",
+      "sideDoneLabel": "Nice work",
+      "nextSide": "Next: {{side}}"
     },
     "complete": {
       "title": "Great work!",

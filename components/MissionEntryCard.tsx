@@ -12,7 +12,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
-import { useFocusEffect } from 'expo-router'
+import { useFocusEffect, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useTheme, type ThemeColors } from '../context/ThemeContext'
 import { BRAND } from '../lib/theme'
@@ -21,6 +21,8 @@ import { ensureMissionStarted, getMissionDayProgress, currentMissionDay, getMiss
 const G1 = '#22c55e'
 const GRAY_1 = '#9ca3af'
 const GRAY_2 = '#6b7280'
+const GOLD  = '#f59e0b'
+const GOLD2 = '#fbbf24'
 const RING_SIZE = 80
 const CIRCLE_SIZE = 60
 
@@ -87,16 +89,30 @@ function RippleRing({ active, delay, size, color }: { active: boolean; delay: nu
 export default function MissionEntryCard({ onPress }: { onPress: () => void }) {
   const { t } = useTranslation()
   const { colors } = useTheme()
+  const router = useRouter()
   const s = makeS(colors)
   const [visible,   setVisible]   = useState(false)
   const [day,       setDay]       = useState(1)
   const [doneCount, setDoneCount] = useState(0)
   const [total,     setTotal]     = useState(0)
+  // 2026-09-12: 「ミッション自体は消えても、24時間セールだけは消えないように」との
+  // 指示で追加。finished後もsaleExpiresAtが有効な間はバッジを残し、タップ先を
+  // ミッションモーダルではなく/mission-offerへ直接切り替える(セール中は見せる
+  // タスクが無いため)。saleExpiresAtはAsyncStorage(missionStore.ts)に保存済みの
+  // 実タイムスタンプなので、アプリを閉じて再度開いても消えない。
+  const [saleMode,  setSaleMode]  = useState(false)
 
   const load = useCallback(async () => {
-    // finished(結果カード〜セールまで見終えた)ならもう出さない
+    // finished(結果カード〜セールまで見終えた)場合、24時間セール期限がまだ
+    // 残っていればセール専用バッジとして出し続け、切れていたら完全に消す
     const already = await getMissionState()
-    if (already.finished) { setVisible(false); return }
+    if (already.finished) {
+      const stillOnSale = !!already.saleExpiresAt && new Date(already.saleExpiresAt).getTime() > Date.now()
+      setSaleMode(stillOnSale)
+      setVisible(stillOnSale)
+      return
+    }
+    setSaleMode(false)
     const state = await ensureMissionStarted()
     const activeDay = currentMissionDay(state.startDate)
     const progress = await getMissionDayProgress(activeDay, state.startDate, state)
@@ -111,26 +127,31 @@ export default function MissionEntryCard({ onPress }: { onPress: () => void }) {
 
   if (!visible) return null
   const remaining = total - doneCount
-  const hasRemaining = remaining > 0
+  const hasRemaining = saleMode ? true : remaining > 0
 
   return (
-    <TouchableOpacity style={s.wrap} onPress={onPress} activeOpacity={0.85} accessibilityLabel={t('mission.entry.title', { day })}>
-      <RippleRing active={hasRemaining} delay={0}    size={RING_SIZE} color={BRAND} />
-      <RippleRing active={hasRemaining} delay={600}  size={RING_SIZE} color={BRAND} />
-      <RippleRing active={hasRemaining} delay={1200} size={RING_SIZE} color={BRAND} />
+    <TouchableOpacity
+      style={s.wrap}
+      onPress={saleMode ? () => router.push('/mission-offer' as any) : onPress}
+      activeOpacity={0.85}
+      accessibilityLabel={saleMode ? t('mission.entry.saleTitle') : t('mission.entry.title', { day })}
+    >
+      <RippleRing active={hasRemaining} delay={0}    size={RING_SIZE} color={saleMode ? GOLD : BRAND} />
+      <RippleRing active={hasRemaining} delay={600}  size={RING_SIZE} color={saleMode ? GOLD : BRAND} />
+      <RippleRing active={hasRemaining} delay={1200} size={RING_SIZE} color={saleMode ? GOLD : BRAND} />
       <View>
         <View style={s.circleShadow}>
           <LinearGradient
-            colors={hasRemaining ? [G1, BRAND] : [GRAY_1, GRAY_2]}
+            colors={saleMode ? [GOLD2, GOLD] : hasRemaining ? [G1, BRAND] : [GRAY_1, GRAY_2]}
             start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }}
             style={s.circle}
           >
-            <Ionicons name="flag" size={24} color="#fff" />
-            <Text style={s.dayText}>{t('mission.dayBadge', { day })}</Text>
+            <Ionicons name={saleMode ? 'pricetag' : 'flag'} size={24} color="#fff" />
+            <Text style={s.dayText}>{saleMode ? t('mission.entry.saleBadge') : t('mission.dayBadge', { day })}</Text>
             <ShineSweep active={hasRemaining} size={CIRCLE_SIZE} />
           </LinearGradient>
         </View>
-        {hasRemaining && (
+        {!saleMode && hasRemaining && (
           <View style={s.badgeDot}><Text style={s.badgeDotText}>{remaining}</Text></View>
         )}
       </View>
