@@ -323,6 +323,53 @@ export async function getRecoveryAdvice(
   return safeParseJSON<RecoveryStatus>(text)
 }
 
+// ─────────────────────────────────────────
+// 4-2. 3日間ミッション結果カードのAIコメント
+// ─────────────────────────────────────────
+// 2026-09-11: 「実際に3日間記録したデータから統計を見せてほしい」との指示。
+// 数字自体(セッション数・体調推移等)はlib/missionStore.tsのgetMissionStats()で
+// 確定的に計算し、ここではAIに「その数字をどう解釈するか」の短いコメントだけを
+// 作らせる（数字の生成をAIに任せると桁を間違える/生成のたびに違う値を言う
+// リスクがあるため、事実はコードで確定させ、AIは解釈担当に限定する）。
+export interface MissionSummaryInsight {
+  headline: string  // 一言見出し（例:「3日間、着実に積み上げましたね」）
+  comment:  string  // 2〜3文の personalized コメント
+}
+
+export async function getMissionSummaryInsight(
+  stats: {
+    totalSessions: number
+    conditionFirst: number | null
+    conditionLast: number | null
+    videoScore: number | null
+    hasMealAnalysis: boolean
+    hasCompetitionRegistered: boolean
+    riskReduction: number | null
+  },
+  language: Language,
+): Promise<MissionSummaryInsight> {
+  const systemPrompt = `あなたは陸上競技の親しみやすいAIコーチです。選手が3日間のミッションで記録した実データが与えられます。
+数字を書き換えたり新しい数値を作らないでください（与えられた数字だけを根拠にしてください）。
+以下のJSON形式で、短く前向きなコメントだけを返してください:
+{"headline":"10〜20文字程度の一言見出し","comment":"2〜3文の personalized なコメント。データに基づいた具体的な気づきと、次の3日間も続けたくなるような前向きな一言を含める"}
+医学的な診断や断定は避け、あくまで練習記録に基づく一般的な励ましに留めてください。${narrativeLanguageInstruction(language)}`
+
+  const text = await callClaude({
+    model: MODEL,
+    max_tokens: 300,
+    feature: 'mission_summary',
+    system: systemPrompt,
+    messages: [
+      {
+        role: 'user',
+        content: `3日間の記録データ: ${JSON.stringify(stats)}`,
+      },
+    ],
+  })
+
+  return safeParseJSON<MissionSummaryInsight>(text)
+}
+
 // 2026-09-09: 「週次トレーニングサマリー」(getWeeklySummary)はコードベース全体を
 // 検索してもimport/呼び出し元が1件も無い完全なデッドコードだったため削除した
 // （formatMsもこの関数専用のヘルパーだったため合わせて削除）。API課金対象なのに

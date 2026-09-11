@@ -214,3 +214,44 @@ export async function getMissionAchievements(startDate: string, state: MissionSt
   }
   return Array.from(doneKeys)
 }
+
+// ── 結果カード用の実データ集計（AIに渡す・そのまま数字として表示する両方に使う） ──
+// 2026-09-11: 「実際に3日間記録したデータから統計を出してほしい」との指示。
+// AIには「解釈」だけをさせ、数字自体はここで確定的に計算する
+// （AIの生成に数字を委ねると桁を間違える/日によって違う値を言うブレのリスクがあるため）。
+export interface MissionStats {
+  totalSessions: number             // 3日間の練習記録数
+  conditionFirst: number | null     // Day1の体調スコア
+  conditionLast: number | null      // 記録がある最後の日の体調スコア
+  videoScore: number | null         // 動画分析のスコア（あれば）
+  hasMealAnalysis: boolean
+  hasCompetitionRegistered: boolean
+  riskReduction: number | null      // ストレッチによる怪我リスク軽減(%)
+}
+
+export async function getMissionStats(startDate: string): Promise<MissionStats> {
+  const dates = [0, 1, 2].map(i => localDateStr(new Date(new Date(startDate + 'T00:00:00').getTime() + i * 86400000)))
+  const [sessions, condMap, videoList, meals, competitions, stretch] = await Promise.all([
+    readJson<TrainingSession[]>(SESSIONS_KEY, []),
+    getConditionMap().catch(() => ({} as Record<string, number>)),
+    readJson<VideoAnalysisHistoryEntry[]>(VIDEO_ANALYSIS_HISTORY_KEY, []),
+    readJson<MealRecord[]>(MEALS_KEY, []),
+    readJson<Array<{ competition_date?: string }>>(COMPETITIONS_KEY, []),
+    getStretchResult().catch(() => null),
+  ])
+
+  const totalSessions = sessions.filter(s => dates.includes(s.session_date)).length
+  const conditionValues = dates.map(d => condMap?.[d]).filter((v): v is number => v != null)
+  const videoEntry = videoList.find(v => v.created_at && dates.includes(localDateStr(new Date(v.created_at))))
+  const hasMealAnalysis = meals.some(m => dates.includes(m.meal_date) && !!m.advice)
+
+  return {
+    totalSessions,
+    conditionFirst: conditionValues[0] ?? null,
+    conditionLast: conditionValues[conditionValues.length - 1] ?? null,
+    videoScore: videoEntry?.score ?? null,
+    hasMealAnalysis,
+    hasCompetitionRegistered: competitions.length > 0,
+    riskReduction: dates.includes(stretch?.date ?? '') ? (stretch?.reduction ?? null) : null,
+  }
+}

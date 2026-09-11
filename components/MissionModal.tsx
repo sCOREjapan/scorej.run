@@ -18,12 +18,14 @@ import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useTheme, type ThemeColors } from '../context/ThemeContext'
+import { useLanguage } from '../context/LanguageContext'
 import { usePropOverlayDismiss } from '../lib/useOverlayDismiss'
 import { trackEvent } from '../lib/analytics'
+import { getMissionSummaryInsight, type MissionSummaryInsight } from '../lib/claude'
 import {
   ensureMissionStarted, getMissionDayProgress, currentMissionDay, claimDayReward,
-  finishMission, startSaleWindowIfNeeded, getMissionAchievements,
-  type MissionState, type MissionDayProgress, type MissionDay, type MissionTaskStatus,
+  finishMission, startSaleWindowIfNeeded, getMissionAchievements, getMissionStats,
+  type MissionState, type MissionDayProgress, type MissionDay, type MissionTaskStatus, type MissionStats,
 } from '../lib/missionStore'
 
 const BRAND = '#166534'
@@ -237,6 +239,7 @@ export default function MissionModal({ visible, onClose, onNavigateCondition, on
           {phase === 'summary' && mission && (
             <MissionSummary
               colors={colors} t={t}
+              startDate={mission.startDate}
               achievements={achievements}
               onContinue={handleContinueToSale}
             />
@@ -408,13 +411,46 @@ const jb = StyleSheet.create({
   markerCircleDone: { backgroundColor: GOLD2, borderColor: '#fff' },
 })
 
-function MissionSummary({ colors, t, achievements, onContinue }: {
+// 2026-09-11: 「実際に3日間記録したデータから統計を出して、AIに分析させてほしい」との
+// 指示で、静的な「やったことチェックリスト」だけだった結果画面に、実データの集計
+// (getMissionStats・確定的な数字)とAIの一言コメント(getMissionSummaryInsight)を追加した。
+// AI呼び出しが失敗しても(クレジット切れ・タイムアウト等)続けるボタンは止めず、
+// 数字とチェックリストだけで結果画面として成立するようにフォールバックする。
+function MissionSummary({ colors, t, startDate, achievements, onContinue }: {
   colors: ThemeColors
   t: (key: string, opts?: any) => string
+  startDate: string
   achievements: MissionTaskStatus['key'][]
   onContinue: () => void
 }) {
   const s = makeStyles(colors)
+  const { language } = useLanguage()
+  const [stats, setStats] = useState<MissionStats | null>(null)
+  const [insight, setInsight] = useState<MissionSummaryInsight | null>(null)
+  const [insightLoading, setInsightLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const st = await getMissionStats(startDate).catch(() => null)
+      if (cancelled) return
+      setStats(st)
+      if (!st) { setInsightLoading(false); return }
+      try {
+        const result = await getMissionSummaryInsight(st, language)
+        if (!cancelled) setInsight(result)
+      } catch {
+        // AI分析が失敗しても数字とチェックリストだけで結果画面として成立させる
+      } finally {
+        if (!cancelled) setInsightLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [startDate, language])
+
+  const conditionDiff = stats && stats.conditionFirst != null && stats.conditionLast != null
+    ? stats.conditionLast - stats.conditionFirst : null
+
   return (
     <>
       <LinearGradient colors={[BRAND, G1, '#86efac']} start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1.2 }} style={[s.header, { alignItems: 'center', paddingBottom: 24 }]}>
@@ -427,6 +463,49 @@ function MissionSummary({ colors, t, achievements, onContinue }: {
           </View>
           <Text style={[s.title, { color: colors.text, textAlign: 'center', marginTop: 14 }]}>{t('mission.summary.title')}</Text>
           <Text style={[s.sub, { color: colors.textSec, textAlign: 'center' }]}>{t('mission.summary.body')}</Text>
+
+          {/* AIコメント（読み込み中はスピナー、失敗時は静かに非表示） */}
+          {insightLoading ? (
+            <View style={s.insightCard}>
+              <ActivityIndicator color={BRAND} size="small" />
+            </View>
+          ) : insight ? (
+            <View style={s.insightCard}>
+              <View style={s.insightBadge}>
+                <Ionicons name="sparkles" size={12} color="#fff" />
+                <Text style={s.insightBadgeText}>{t('mission.summary.aiBadge')}</Text>
+              </View>
+              <Text style={s.insightHeadline}>{insight.headline}</Text>
+              <Text style={s.insightComment}>{insight.comment}</Text>
+            </View>
+          ) : null}
+
+          {/* 実データの統計（確定的にここで計算した数字。AIには解釈しかさせない） */}
+          {stats && (
+            <View style={s.statsRow}>
+              <View style={s.statCard}>
+                <Text style={s.statValue}>{stats.totalSessions}</Text>
+                <Text style={s.statLabel}>{t('mission.summary.stat.sessions')}</Text>
+              </View>
+              <View style={s.statCard}>
+                <Text style={s.statValue}>
+                  {conditionDiff != null ? (conditionDiff >= 0 ? `+${conditionDiff}` : `${conditionDiff}`) : '—'}
+                </Text>
+                <Text style={s.statLabel}>{t('mission.summary.stat.condition')}</Text>
+              </View>
+              {stats.videoScore != null ? (
+                <View style={s.statCard}>
+                  <Text style={s.statValue}>{stats.videoScore}</Text>
+                  <Text style={s.statLabel}>{t('mission.summary.stat.videoScore')}</Text>
+                </View>
+              ) : (
+                <View style={s.statCard}>
+                  <Text style={s.statValue}>{stats.riskReduction != null ? `-${stats.riskReduction}%` : '—'}</Text>
+                  <Text style={s.statLabel}>{t('mission.summary.stat.riskReduction')}</Text>
+                </View>
+              )}
+            </View>
+          )}
 
           {achievements.length > 0 && (
             <View style={s.summaryCard}>
@@ -517,4 +596,21 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   summaryRowText: { fontSize: 13, fontWeight: '600' },
+  insightCard: {
+    width: '100%', backgroundColor: BRAND + '0d', borderRadius: 16, borderWidth: 1, borderColor: BRAND + '22',
+    padding: 14, marginTop: 18, alignItems: 'center',
+  },
+  insightBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: BRAND, borderRadius: 10,
+    paddingHorizontal: 8, paddingVertical: 3, alignSelf: 'flex-start', marginBottom: 8,
+  },
+  insightBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+  insightHeadline: { fontSize: 14, fontWeight: '800', color: colors.text, alignSelf: 'flex-start' },
+  insightComment: { fontSize: 12.5, color: colors.textSec, lineHeight: 19, marginTop: 6, alignSelf: 'flex-start' },
+  statsRow: { flexDirection: 'row', width: '100%', gap: 10, marginTop: 14 },
+  statCard: {
+    flex: 1, backgroundColor: colors.surface2, borderRadius: 14, paddingVertical: 12, alignItems: 'center',
+  },
+  statValue: { fontSize: 19, fontWeight: '900', color: BRAND },
+  statLabel: { fontSize: 10.5, color: colors.textHint, fontWeight: '600', marginTop: 2, textAlign: 'center' },
 })

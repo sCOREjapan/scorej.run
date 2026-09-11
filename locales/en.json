@@ -314,6 +314,13 @@
         "competition": "Registered a competition",
         "meal": "Tried AI meal analysis",
         "stretch": "Lowered risk with stretching"
+      },
+      "aiBadge": "AI Insight",
+      "stat": {
+        "sessions": "Practices",
+        "condition": "Condition change",
+        "videoScore": "Form score",
+        "riskReduction": "Risk reduced"
       }
     },
     "continueButton": "Continue",

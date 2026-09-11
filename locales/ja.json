@@ -314,6 +314,13 @@
         "competition": "大会を登録",
         "meal": "AI食事分析を体験",
         "stretch": "ストレッチでリスクを軽減"
+      },
+      "aiBadge": "AI分析",
+      "stat": {
+        "sessions": "練習記録",
+        "condition": "体調の変化",
+        "videoScore": "フォームスコア",
+        "riskReduction": "リスク軽減"
       }
     },
     "continueButton": "続ける",
