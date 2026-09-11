@@ -12,7 +12,7 @@
 // ホーム画面を開いた瞬間からモーダルが「開きっぱなし・読み込み中のまま」になり、何度
 // タップしても反応しない不具合になっていた。常時マウント型は必ずusePropOverlayDismissを使う。
 import React, { useEffect, useRef, useState, useCallback } from 'react'
-import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, Animated, Easing } from 'react-native'
+import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, Animated, Easing, ScrollView } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
@@ -193,7 +193,12 @@ export default function MissionModal({ visible, onClose, onNavigateCondition, on
                 {mission && allDays && <MissionJourneyBar allDays={allDays} mission={mission} />}
               </LinearGradient>
 
-              <View style={s.body}>
+              {/* 2026-09-11: 固定maxHeight('86%')のsheetに対してbodyがただのViewだと、
+                  タスク数が多い日(Day1は4件)や大きい文字サイズ設定の端末（特にAndroidは
+                  システムフォントサイズ変更を使うユーザーが多い）でコンテンツが
+                  overflow:'hidden'に切られ、下側のタスク行がタップできなくなる恐れが
+                  あったためScrollViewに変更。 */}
+              <ScrollView style={s.bodyScroll} contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
                 <View style={{ gap: 10 }}>
                   {progress.tasks.map(task => (
                     <TouchableOpacity
@@ -258,7 +263,7 @@ export default function MissionModal({ visible, onClose, onNavigateCondition, on
                     </LinearGradient>
                   </TouchableOpacity>
                 )}
-              </View>
+              </ScrollView>
             </>
           )}
 
@@ -639,6 +644,10 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
     overflow: 'hidden', maxHeight: '86%',
   },
+  // headerは固定サイズのまま、bodyScrollだけがsheetの残り高さ(maxHeight制約込み)まで
+  // flexで伸び、それを超えたらスクロールする（タスク数が多い日・大きい文字サイズ設定でも
+  // 下側のタスク行が絶対に押せなくならないようにするため）。
+  bodyScroll: { flex: 1 },
   header: { paddingTop: 18, paddingHorizontal: 22, paddingBottom: 22 },
   headerTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   dayPill: { backgroundColor: '#fff', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6 },
