@@ -140,16 +140,18 @@ export default function MissionOfferScreen() {
     purchaseLockRef.current = true
     setPurchasing(true)
     try {
+      // 2026-09-11バグ修正: ここでrouter.back()を呼ぶと、購入成功でtier/hasTicketMonthlyが
+      // 更新された時に発火する下のuseEffect（同じくrouter.back()を呼ぶ）と合わせて
+      // 2回popしてしまい、意図した1画面戻る以上に戻ってしまう不具合があった
+      // （app/paywall.tsxの同等処理と見比べて発覚。あちらはuseEffect側のみに任せている）。
+      // ナビゲーションはuseEffect側だけに一本化する。
       const ok = await purchase(purchaseTargetPkg)
-      if (ok) {
-        trackTrialStarted('ticket_monthly')
-        router.back()
-      }
+      if (ok) trackTrialStarted('ticket_monthly')
     } finally {
       setPurchasing(false)
       purchaseLockRef.current = false
     }
-  }, [purchaseTargetPkg, purchase, packagesDiagnostic, router, t])
+  }, [purchaseTargetPkg, purchase, packagesDiagnostic, t])
 
   // App Store審査要件(3.1.1): 購入復元ボタンは全ての課金導線に必須
   const handleRestore = useCallback(async () => {
