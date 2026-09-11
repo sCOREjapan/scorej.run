@@ -303,10 +303,12 @@
     },
     "claimButton": "Claim {{n}} tickets",
     "waitForNextDay": "Today's done. Come back tomorrow for the next mission",
+    "bonusTasksHint": "Tickets already claimed! Try the rest of today's tasks too",
     "viewSummaryButton": "See your 3-day results",
     "summary": {
       "title": "Nice work over these 3 days",
       "body": "Your data is now building up in sCORE. Keep logging to train smarter and avoid injuries.",
+      "reportTitle": "Your 3-day summary",
       "item": {
         "practice": "Started logging practices",
         "condition": "Started tracking condition",
@@ -317,14 +319,20 @@
       },
       "aiBadge": "AI Insight",
       "stat": {
-        "sessions": "Practices",
-        "condition": "Condition change",
-        "videoScore": "Form score",
-        "riskReduction": "Risk reduced"
-      }
+        "sessionsLine": "You logged {v} practice sessions",
+        "conditionUpLine": "Your condition improved by {v} points",
+        "conditionDownLine": "Your condition shifted by {v} points",
+        "conditionFlatLine": "Your condition stayed steady",
+        "conditionNoneLine": "Your condition log is building up",
+        "videoScoreLine": "AI form analysis scored you {v}",
+        "riskReductionLine": "AI check lowered your injury risk by {v}%",
+        "riskReductionNoneLine": "AI kept an eye on your condition"
+      },
+      "viewOfferButton": "View the offer",
+      "fallbackMessage": "Thank you for logging your practice and condition for 3 days straight. Everything you recorded is now building up in sCORE. Keep this pace and get stronger, injury-free."
     },
     "continueButton": "Continue",
-    "rewardHint": "Finish them all to get 🎫{{n}} tickets",
+    "rewardHint": "Complete it to get 🎫{{n}} tickets",
     "reward": {
       "ribbon": "Item Obtained",
       "amount": "Tickets × {{n}}",
@@ -571,7 +579,8 @@
       "adsShown": "Ads will be shown",
       "viewPlans": "View plans",
       "manage": "Manage",
-      "restorePurchases": "Restore purchases"
+      "restorePurchases": "Restore purchases",
+      "issueReceipt": "Issue usage certificate"
     },
     "tickets": {
       "title": "Tickets",
@@ -1406,6 +1415,13 @@
     "monthly": "Monthly",
     "yearlyDiscount": "Yearly (2 months free)",
     "trialBadge": "🎁 {{days}}-day free trial",
+    "coachTeamSizeNote": "Current team size: {{count}} members",
+    "coachTierTableTitle": "3 pricing tiers based on your team size",
+    "coachTier": {
+      "upTo15": "Up to 15",
+      "upTo30": "Up to 30",
+      "unlimited": "Unlimited"
+    },
     "startTrial": "Start {{days}}-day free trial",
     "startPlan": "Start {{label}}  {{price}}{{period}}",
     "trialSubtext": "After the trial ends, this automatically switches to {{price}}{{period}}",
@@ -4176,5 +4192,38 @@
     "restoreNoneBody": "No previous purchase was found",
     "restoreErrorTitle": "Restore Error",
     "restoreErrorBody": "Failed to restore"
+  },
+  "missionOffer": {
+    "eyebrow": "3-Day Mission Complete",
+    "countdownLabel": "Ends in",
+    "title": "You've earned it —\na special offer",
+    "urgencyLine": "Sign up within 24 hours for",
+    "discountBadge": "Limited time {{pct}}% OFF",
+    "ctaButton": "Start now",
+    "skipButton": "Continue with the free plan"
+  },
+  "receipt": {
+    "headerTitle": "Usage Certificate",
+    "recipientLabel": "Recipient name",
+    "recipientPlaceholder": "e.g. ABC High School Track Team",
+    "screenshotHint": "This updates the certificate below. Screenshot the certificate to submit for expense reimbursement.",
+    "certTitle": "Usage Certificate",
+    "issueDate": "Issued: {{date}}",
+    "recipientFallback": "Valued User",
+    "recipientSuffix": "",
+    "rowService": "Service",
+    "rowPlan": "Plan",
+    "rowAmount": "Amount",
+    "perMonth": "/month",
+    "rowMemo": "Description",
+    "memoValue": "App service usage fee",
+    "issuerLabel": "Issuer",
+    "planLabel": {
+      "free": "FREE Plan",
+      "noad": "Ad-Free Plan",
+      "ticketMonthly": "Ticket Monthly Plan",
+      "coach": "Coach Plan"
+    },
+    "disclaimer": "This certificate confirms your use of our service. For an official purchase receipt, please also refer to the purchase confirmation email sent by Apple or Google at the time of purchase."
   }
 }

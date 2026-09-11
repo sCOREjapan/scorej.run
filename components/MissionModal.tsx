@@ -13,6 +13,7 @@
 // タップしても反応しない不具合になっていた。常時マウント型は必ずusePropOverlayDismissを使う。
 import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, Animated, Easing } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
@@ -22,9 +23,10 @@ import { useLanguage } from '../context/LanguageContext'
 import { usePropOverlayDismiss } from '../lib/useOverlayDismiss'
 import { trackEvent } from '../lib/analytics'
 import { getMissionSummaryInsight, type MissionSummaryInsight } from '../lib/claude'
+import TypewriterText from './TypewriterText'
 import {
   ensureMissionStarted, getMissionDayProgress, currentMissionDay, claimDayReward,
-  finishMission, startSaleWindowIfNeeded, getMissionAchievements, getMissionStats,
+  finishMission, startSaleWindowIfNeeded, getMissionStats,
   type MissionState, type MissionDayProgress, type MissionDay, type MissionTaskStatus, type MissionStats,
 } from '../lib/missionStore'
 
@@ -34,6 +36,7 @@ const GOLD  = '#f59e0b'
 const GOLD2 = '#fbbf24'
 const TICKET_ICON = require('../assets/icons/ticket.png')
 const MASCOT_CELEBRATE = require('../assets/illustrations/mascot/mascot_ticket_celebrate.png')
+const MASCOT_READY = require('../assets/illustrations/mascot/mascot_onboarding_ready.png')
 
 interface Props {
   visible: boolean
@@ -72,7 +75,6 @@ export default function MissionModal({ visible, onClose, onNavigateCondition, on
   const [day,          setDay]          = useState<MissionDay>(1)
   const [progress,     setProgress]     = useState<MissionDayProgress | null>(null)
   const [claiming,     setClaiming]     = useState(false)
-  const [achievements, setAchievements] = useState<MissionTaskStatus['key'][]>([])
   const [rewardTickets, setRewardTickets] = useState(0)
   const [showRewardPopup, setShowRewardPopup] = useState(false)
   const [allDays, setAllDays] = useState<MissionDayProgress[] | null>(null)
@@ -115,11 +117,8 @@ export default function MissionModal({ visible, onClose, onNavigateCondition, on
     }
   }
 
-  const handleShowSummary = async () => {
-    if (!mission) return
-    const achieved = await getMissionAchievements(mission.startDate, mission)
-    setAchievements(achieved)
-    trackEvent('mission_summary_viewed', { feature: 'mission', metadata: { achieved } })
+  const handleShowSummary = () => {
+    trackEvent('mission_summary_viewed', { feature: 'mission' })
     setPhase('summary')
   }
 
@@ -128,7 +127,9 @@ export default function MissionModal({ visible, onClose, onNavigateCondition, on
       await startSaleWindowIfNeeded()
       await finishMission()
       trackEvent('mission_sale_shown', { feature: 'mission' })
-      router.push('/paywall?plan=ticket_monthly&sale=1' as any)
+      // 2026-09-11: 「オファー画面を作り直したい」との指示で、汎用paywallに?sale=1を
+      // 足すだけの旧導線から、ミッション達成専用のapp/mission-offer.tsxに差し替えた
+      router.push('/mission-offer' as any)
     })
   }
 
@@ -147,6 +148,19 @@ export default function MissionModal({ visible, onClose, onNavigateCondition, on
       case 'meal':        navigateTo('/(tabs)/nutrition'); break
       case 'stretch':     close(onNavigateStretch); break
     }
+  }
+
+  // 2026-09-11: 「全面的に変更してほしい」との指示で、結果画面はボトムシート内ではなく
+  // 白フェードで画面全体を覆う独立のフルスクリーン演出(MissionReveal)にした。
+  if (phase === 'summary' && mission) {
+    return (
+      <Modal transparent animationType="fade" {...modalProps}>
+        <MissionReveal
+          startDate={mission.startDate}
+          onContinue={handleContinueToSale}
+        />
+      </Modal>
+    )
   }
 
   return (
@@ -200,8 +214,12 @@ export default function MissionModal({ visible, onClose, onNavigateCondition, on
                   ))}
                 </View>
 
-                {/* Day1/Day2: 全タスク完了→チケット受け取り */}
-                {day !== 3 && progress.allDone && !progress.rewardClaimed && (
+                {/* Day1/Day2: 報酬対象タスク完了→チケット受け取り
+                    2026-09-11: 動画分析(Day1)・食事分析(Day2)はチケットが無いとできないのに、
+                    報酬(チケット)自体がそのタスク込みの全タスク完了が条件、という鶏卵状態だった
+                    のを修正。rewardEligibleは練習・体調の2つだけで満たされる（lib/missionStore.ts
+                    参照）ので、そこで先にチケットを受け取ってからチケット消費タスクに進める。 */}
+                {day !== 3 && progress.rewardEligible && !progress.rewardClaimed && (
                   <TouchableOpacity onPress={handleClaim} disabled={claiming} activeOpacity={0.85} style={{ marginTop: 18 }}>
                     <LinearGradient colors={[GOLD2, GOLD]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.claimBtn}>
                       {claiming
@@ -213,13 +231,21 @@ export default function MissionModal({ visible, onClose, onNavigateCondition, on
                     </LinearGradient>
                   </TouchableOpacity>
                 )}
-                {day !== 3 && progress.allDone && progress.rewardClaimed && (
+                {/* 受け取り済みだが、まだ残タスクがある（Day1の動画分析・大会登録やDay2の
+                    食事分析が未了）場合は「次の日を待とう」ではなく「残りにも挑戦しよう」を出す */}
+                {day !== 3 && progress.rewardClaimed && progress.allDone && (
                   <View style={s.doneBanner}>
                     <Ionicons name="checkmark-circle" size={16} color={BRAND} />
                     <Text style={s.doneBannerText}>{t('mission.waitForNextDay')}</Text>
                   </View>
                 )}
-                {day !== 3 && !progress.allDone && (
+                {day !== 3 && progress.rewardClaimed && !progress.allDone && (
+                  <View style={s.doneBanner}>
+                    <Ionicons name="checkmark-circle" size={16} color={BRAND} />
+                    <Text style={s.doneBannerText}>{t('mission.bonusTasksHint')}</Text>
+                  </View>
+                )}
+                {day !== 3 && !progress.rewardEligible && (
                   <Text style={s.hintText}>{t('mission.rewardHint', { n: progress.rewardTickets })}</Text>
                 )}
 
@@ -236,14 +262,6 @@ export default function MissionModal({ visible, onClose, onNavigateCondition, on
             </>
           )}
 
-          {phase === 'summary' && mission && (
-            <MissionSummary
-              colors={colors} t={t}
-              startDate={mission.startDate}
-              achievements={achievements}
-              onContinue={handleContinueToSale}
-            />
-          )}
         </View>
       </View>
 
@@ -366,30 +384,36 @@ const cs = StyleSheet.create({
 // 各Dayの区切り位置にマイル ストーン(Day1/2はチケット、Day3はプレゼント)を置き、
 // そのDayの報酬を受け取り済み(Day3は全タスク完了)になったら円を白く塗りつぶす。
 function MissionJourneyBar({ allDays, mission }: { allDays: MissionDayProgress[]; mission: MissionState }) {
-  const counts = allDays.map(d => d.tasks.length)
-  const totalTasks = counts.reduce((a, b) => a + b, 0)
-  const doneTasks = allDays.reduce((sum, d) => sum + d.tasks.filter(x => x.done).length, 0)
-  const fillPct = totalTasks > 0 ? Math.min(100, (doneTasks / totalTasks) * 100) : 0
-
-  let cumulative = 0
-  const markers = counts.map((c, i) => {
-    cumulative += c
-    return { day: (i + 1) as MissionDay, pct: totalTasks > 0 ? (cumulative / totalTasks) * 100 : 0 }
-  })
   const achieved = (d: MissionDay) =>
     d === 1 ? mission.claimedDay1 : d === 2 ? mission.claimedDay2 : allDays[2]?.allDone ?? false
+
+  // 2026-09-11: 「間隔を均等にする」「達成した分だけ線に色がつくように」との指示で、
+  // タスク数の重みづけ(4:3:2)をやめてDay1/2/3を等間隔(33/66/100%)に配置し直した。
+  // 塗り分けは区間ごと(=そのDayを達成したら区間が満タンになる)で、達成前の日は
+  // 「今日のタスクのうち何個終えたか」の分だけ区間内で滑らかに伸びる
+  // （進行中でも見た目に動きがあるようにしつつ、達成の瞬間に区間が確定する）。
+  const SEGMENT = 100 / 3
+  const dayDoneFrac = (i: number) => {
+    const d = allDays[i]
+    if (!d || d.tasks.length === 0) return 0
+    return d.tasks.filter(x => x.done).length / d.tasks.length
+  }
+  const fillPct = ([1, 2, 3] as MissionDay[]).reduce((sum, day, i) => {
+    return sum + SEGMENT * (achieved(day) ? 1 : dayDoneFrac(i))
+  }, 0)
 
   return (
     <View style={jb.wrap}>
       <View style={jb.track}>
-        <View style={[jb.fill, { width: `${fillPct}%` }]} />
+        <View style={[jb.fill, { width: `${Math.min(100, fillPct)}%` }]} />
       </View>
-      {markers.map(m => {
-        const done = achieved(m.day)
+      {([1, 2, 3] as MissionDay[]).map((day, i) => {
+        const done = achieved(day)
+        const pct = SEGMENT * (i + 1)
         return (
-          <View key={m.day} style={[jb.markerWrap, { left: `${m.pct}%` }]}>
+          <View key={day} style={[jb.markerWrap, { left: `${pct}%` }]}>
             <View style={[jb.markerCircle, done && jb.markerCircleDone]}>
-              {m.day === 3
+              {day === 3
                 ? <Ionicons name="gift" size={12} color={done ? BRAND : '#fff'} />
                 : <Image source={TICKET_ICON} style={{ width: 13, height: 13 }} resizeMode="contain" />}
             </View>
@@ -416,120 +440,181 @@ const jb = StyleSheet.create({
 // (getMissionStats・確定的な数字)とAIの一言コメント(getMissionSummaryInsight)を追加した。
 // AI呼び出しが失敗しても(クレジット切れ・タイムアウト等)続けるボタンは止めず、
 // 数字とチェックリストだけで結果画面として成立するようにフォールバックする。
-function MissionSummary({ colors, t, startDate, achievements, onContinue }: {
-  colors: ThemeColors
-  t: (key: string, opts?: any) => string
+// ── Day3結果の演出画面（フルスクリーン。ui-previews系のmitame運用は経ていないが、
+//    ユーザーの言語化「白フェードアウト→イン、キャラ+タイピングで文章、その後
+//    オファーボタン」をそのまま実装） ──
+// 2026-09-11: 「全面的に変更してほしい」との指示で、ボトムシート内の統計カード+
+// チェックリストという構成をやめ、画面全体を使った1枚の演出に作り直した。
+// 「白へのフェードアウト」はモーダル切り替えの瞬間に既に白一色(whiteFade=1)で
+// 覆っているため改めてフェードさせる必要がなく、データが揃ってから白を
+// フェードアウトさせて中身を見せる（＝実質的に指示の「フェードアウト→イン」を
+// 1本のアニメーションで実現している）。
+function MissionReveal({ startDate, onContinue }: {
   startDate: string
-  achievements: MissionTaskStatus['key'][]
   onContinue: () => void
 }) {
-  const s = makeStyles(colors)
+  const { t } = useTranslation()
   const { language } = useLanguage()
   const [stats, setStats] = useState<MissionStats | null>(null)
   const [insight, setInsight] = useState<MissionSummaryInsight | null>(null)
-  const [insightLoading, setInsightLoading] = useState(true)
+  const [ready, setReady] = useState(false)
+  const [showCta, setShowCta] = useState(false)
+  const whiteFade = useRef(new Animated.Value(1)).current
+  const ctaFade = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       const st = await getMissionStats(startDate).catch(() => null)
+      let ins: MissionSummaryInsight | null = null
+      if (st) {
+        try { ins = await getMissionSummaryInsight(st, language) } catch { /* フォールバック文言を使う */ }
+      }
       if (cancelled) return
       setStats(st)
-      if (!st) { setInsightLoading(false); return }
-      try {
-        const result = await getMissionSummaryInsight(st, language)
-        if (!cancelled) setInsight(result)
-      } catch {
-        // AI分析が失敗しても数字とチェックリストだけで結果画面として成立させる
-      } finally {
-        if (!cancelled) setInsightLoading(false)
-      }
+      setInsight(ins)
+      setReady(true)
+      Animated.timing(whiteFade, {
+        toValue: 0, duration: 550, delay: 150, easing: Easing.out(Easing.cubic), useNativeDriver: true,
+      }).start()
     })()
     return () => { cancelled = true }
   }, [startDate, language])
+
+  // AIが失敗しても画面が空にならないよう、フォールバックの文章を用意しておく
+  const message = insight?.comment || t('mission.summary.fallbackMessage')
+
+  useEffect(() => {
+    if (!ready) return
+    const typingMs = 300 + Array.from(message).length * 28
+    const timer = setTimeout(() => {
+      setShowCta(true)
+      Animated.timing(ctaFade, { toValue: 1, duration: 400, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start()
+    }, typingMs)
+    return () => clearTimeout(timer)
+  }, [ready, message])
 
   const conditionDiff = stats && stats.conditionFirst != null && stats.conditionLast != null
     ? stats.conditionLast - stats.conditionFirst : null
 
   return (
-    <>
-      <LinearGradient colors={[BRAND, G1, '#86efac']} start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1.2 }} style={[s.header, { alignItems: 'center', paddingBottom: 24 }]}>
-        <Text style={{ fontSize: 44 }}>🏆</Text>
-      </LinearGradient>
-      <View style={s.body}>
-        <View style={{ alignItems: 'center', marginTop: -36 }}>
-          <View style={s.summaryIconRing}>
-            <Text style={{ fontSize: 30 }}>🎉</Text>
-          </View>
-          <Text style={[s.title, { color: colors.text, textAlign: 'center', marginTop: 14 }]}>{t('mission.summary.title')}</Text>
-          <Text style={[s.sub, { color: colors.textSec, textAlign: 'center' }]}>{t('mission.summary.body')}</Text>
+    <View style={{ flex: 1, backgroundColor: '#fff' }}>
+      <SafeAreaView style={{ flex: 1 }}>
+        <View style={rv.wrap}>
+          <Image source={MASCOT_READY} style={rv.mascot} resizeMode="contain" />
+          <Text style={rv.title}>{t('mission.summary.title')}</Text>
 
-          {/* AIコメント（読み込み中はスピナー、失敗時は静かに非表示） */}
-          {insightLoading ? (
-            <View style={s.insightCard}>
-              <ActivityIndicator color={BRAND} size="small" />
-            </View>
-          ) : insight ? (
-            <View style={s.insightCard}>
-              <View style={s.insightBadge}>
-                <Ionicons name="sparkles" size={12} color="#fff" />
-                <Text style={s.insightBadgeText}>{t('mission.summary.aiBadge')}</Text>
-              </View>
-              <Text style={s.insightHeadline}>{insight.headline}</Text>
-              <Text style={s.insightComment}>{insight.comment}</Text>
-            </View>
-          ) : null}
+          {ready && (
+            <TypewriterText text={message} speed={26} delay={100} style={rv.message} />
+          )}
 
-          {/* 実データの統計（確定的にここで計算した数字。AIには解釈しかさせない） */}
-          {stats && (
-            <View style={s.statsRow}>
-              <View style={s.statCard}>
-                <Text style={s.statValue}>{stats.totalSessions}</Text>
-                <Text style={s.statLabel}>{t('mission.summary.stat.sessions')}</Text>
+          {/* 2026-09-11: 「数字だけ表示されても何もわからない、総合データ的な見え方が
+              ほしい」との指摘で、3つの孤立した数字カードをやめ、1枚の「レポートカード」に
+              まとめた。各行も裸の数値ではなく「練習ログを2回記録できました」のような
+              一文にし、数値部分だけ太字色付けで強調する（文脈がある状態で数字が目に入る）。 */}
+          {showCta && stats && (
+            <Animated.View style={[rv.reportCard, { opacity: ctaFade }]}>
+              <View style={rv.reportHeader}>
+                <Ionicons name="ribbon" size={14} color={GOLD} />
+                <Text style={rv.reportHeaderText}>{t('mission.summary.reportTitle')}</Text>
               </View>
-              <View style={s.statCard}>
-                <Text style={s.statValue}>
-                  {conditionDiff != null ? (conditionDiff >= 0 ? `+${conditionDiff}` : `${conditionDiff}`) : '—'}
-                </Text>
-                <Text style={s.statLabel}>{t('mission.summary.stat.condition')}</Text>
-              </View>
+              <StatLine
+                icon="barbell-outline"
+                color={BRAND}
+                template={t('mission.summary.stat.sessionsLine')}
+                value={`${stats.totalSessions}`}
+              />
+              <StatLine
+                icon="heart-outline"
+                color={conditionDiff != null && conditionDiff < 0 ? '#f59e0b' : '#22c55e'}
+                template={
+                  conditionDiff == null ? t('mission.summary.stat.conditionNoneLine')
+                  : conditionDiff > 0 ? t('mission.summary.stat.conditionUpLine')
+                  : conditionDiff < 0 ? t('mission.summary.stat.conditionDownLine')
+                  : t('mission.summary.stat.conditionFlatLine')
+                }
+                value={conditionDiff != null ? `${conditionDiff > 0 ? '+' : ''}${conditionDiff}` : ''}
+              />
               {stats.videoScore != null ? (
-                <View style={s.statCard}>
-                  <Text style={s.statValue}>{stats.videoScore}</Text>
-                  <Text style={s.statLabel}>{t('mission.summary.stat.videoScore')}</Text>
-                </View>
+                <StatLine
+                  icon="videocam-outline"
+                  color="#4A9FFF"
+                  template={t('mission.summary.stat.videoScoreLine')}
+                  value={`${stats.videoScore}`}
+                />
               ) : (
-                <View style={s.statCard}>
-                  <Text style={s.statValue}>{stats.riskReduction != null ? `-${stats.riskReduction}%` : '—'}</Text>
-                  <Text style={s.statLabel}>{t('mission.summary.stat.riskReduction')}</Text>
-                </View>
+                <StatLine
+                  icon="shield-checkmark-outline"
+                  color={BRAND}
+                  template={stats.riskReduction != null ? t('mission.summary.stat.riskReductionLine') : t('mission.summary.stat.riskReductionNoneLine')}
+                  value={stats.riskReduction != null ? `${stats.riskReduction}` : ''}
+                />
               )}
-            </View>
+            </Animated.View>
           )}
-
-          {achievements.length > 0 && (
-            <View style={s.summaryCard}>
-              {/* 実際にDay1〜3で達成したタスクだけを表示する（未達成の項目は出さない） */}
-              {achievements.map(k => (
-                <View key={k} style={s.summaryRow}>
-                  <Ionicons name="checkmark-circle" size={16} color={BRAND} />
-                  <Text style={[s.summaryRowText, { color: colors.text }]}>{t(`mission.summary.item.${k}`)}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-
-          <TouchableOpacity onPress={onContinue} activeOpacity={0.85} style={{ width: '100%', marginTop: 18 }}>
-            <LinearGradient colors={[GOLD2, GOLD]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.claimBtn}>
-              <Ionicons name="arrow-forward-circle" size={18} color="#fff" />
-              <Text style={s.claimBtnText}>{t('mission.continueButton')}</Text>
-            </LinearGradient>
-          </TouchableOpacity>
         </View>
-      </View>
-    </>
+
+        {showCta && (
+          <Animated.View style={[rv.ctaWrap, { opacity: ctaFade }]}>
+            <TouchableOpacity onPress={onContinue} activeOpacity={0.85}>
+              <LinearGradient colors={[GOLD2, GOLD]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={rv.ctaBtn}>
+                <Ionicons name="gift" size={18} color="#fff" />
+                <Text style={rv.ctaBtnText}>{t('mission.summary.viewOfferButton')}</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+      </SafeAreaView>
+
+      {/* データ取得中は白一色で覆っておき、揃ったらフェードアウトして見せる */}
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#fff', opacity: whiteFade }]} />
+    </View>
   )
 }
+// 数字を「裸の値」ではなく1文の中の強調語として見せるための行コンポーネント。
+// template内の "{v}" を境に前後を分割し、value部分だけ太字・色付けで挟む。
+// value===''(条件が取れなかった等)のときは自然にvalue部分だけ省く。
+function StatLine({ icon, color, template, value }: {
+  icon: keyof typeof Ionicons.glyphMap
+  color: string
+  template: string
+  value: string
+}) {
+  const [before, after] = template.split('{v}')
+  return (
+    <View style={rv.reportRow}>
+      <View style={[rv.reportIconChip, { backgroundColor: color + '18' }]}>
+        <Ionicons name={icon} size={15} color={color} />
+      </View>
+      <Text style={rv.reportRowText}>
+        {before}
+        {value ? <Text style={[rv.reportRowValue, { color }]}>{value}</Text> : null}
+        {after}
+      </Text>
+    </View>
+  )
+}
+
+const rv = StyleSheet.create({
+  wrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
+  mascot: { width: 132, height: 132, marginBottom: 14 },
+  title: { fontSize: 20, fontWeight: '900', color: BRAND, textAlign: 'center', marginBottom: 16 },
+  message: { fontSize: 15.5, lineHeight: 25, color: '#374151', textAlign: 'center' },
+  reportCard: { marginTop: 26, width: '100%', backgroundColor: '#f6f6f8', borderRadius: 18, padding: 16, gap: 12 },
+  reportHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
+  reportHeaderText: { fontSize: 11.5, fontWeight: '800', color: '#9ca3af', letterSpacing: 0.3 },
+  reportRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  reportIconChip: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  reportRowText: { flex: 1, fontSize: 13.5, lineHeight: 19, color: '#374151', fontWeight: '600' },
+  reportRowValue: { fontWeight: '900', fontSize: 14.5 },
+  ctaWrap: { paddingHorizontal: 24, paddingBottom: 16 },
+  ctaBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    paddingVertical: 16, borderRadius: 28,
+    shadowColor: GOLD, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 14, elevation: 8,
+  },
+  ctaBtnText: { color: '#fff', fontSize: 15, fontWeight: '900' },
+})
 
 const rs = StyleSheet.create({
   backdrop: { backgroundColor: 'rgba(0,0,0,0.55)' },
@@ -586,31 +671,4 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   doneBannerText: { color: BRAND, fontSize: 13, fontWeight: '700' },
   hintText: { marginTop: 16, textAlign: 'center', fontSize: 11.5, color: colors.textHint },
-  summaryIconRing: {
-    width: 72, height: 72, borderRadius: 36, backgroundColor: colors.surface, borderWidth: 4, borderColor: colors.surface2,
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 6,
-  },
-  summaryCard: {
-    width: '100%', backgroundColor: colors.surface2, borderRadius: 16, padding: 16, marginTop: 18, gap: 11,
-  },
-  summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  summaryRowText: { fontSize: 13, fontWeight: '600' },
-  insightCard: {
-    width: '100%', backgroundColor: BRAND + '0d', borderRadius: 16, borderWidth: 1, borderColor: BRAND + '22',
-    padding: 14, marginTop: 18, alignItems: 'center',
-  },
-  insightBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: BRAND, borderRadius: 10,
-    paddingHorizontal: 8, paddingVertical: 3, alignSelf: 'flex-start', marginBottom: 8,
-  },
-  insightBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
-  insightHeadline: { fontSize: 14, fontWeight: '800', color: colors.text, alignSelf: 'flex-start' },
-  insightComment: { fontSize: 12.5, color: colors.textSec, lineHeight: 19, marginTop: 6, alignSelf: 'flex-start' },
-  statsRow: { flexDirection: 'row', width: '100%', gap: 10, marginTop: 14 },
-  statCard: {
-    flex: 1, backgroundColor: colors.surface2, borderRadius: 14, paddingVertical: 12, alignItems: 'center',
-  },
-  statValue: { fontSize: 19, fontWeight: '900', color: BRAND },
-  statLabel: { fontSize: 10.5, color: colors.textHint, fontWeight: '600', marginTop: 2, textAlign: 'center' },
 })

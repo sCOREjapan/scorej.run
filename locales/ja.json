@@ -303,10 +303,12 @@
     },
     "claimButton": "チケット{{n}}枚を受け取る",
     "waitForNextDay": "今日の分は完了。次の日のミッションを待とう",
+    "bonusTasksHint": "チケットは受け取り済み！残りのタスクもやってみよう",
     "viewSummaryButton": "3日間の結果を見る",
     "summary": {
       "title": "3日間、おつかれさまでした",
       "body": "あなたの記録がsCOREに蓄積されました。これからも続けて、怪我なく強くなりましょう。",
+      "reportTitle": "3日間の記録まとめ",
       "item": {
         "practice": "練習記録をスタート",
         "condition": "体調管理をスタート",
@@ -317,14 +319,20 @@
       },
       "aiBadge": "AI分析",
       "stat": {
-        "sessions": "練習記録",
-        "condition": "体調の変化",
-        "videoScore": "フォームスコア",
-        "riskReduction": "リスク軽減"
-      }
+        "sessionsLine": "練習ログを{v}回記録できました",
+        "conditionUpLine": "体調が{v}ポイント上向きました",
+        "conditionDownLine": "体調は{v}ポイント動きました",
+        "conditionFlatLine": "体調は安定していました",
+        "conditionNoneLine": "体調の記録も少しずつ増えています",
+        "videoScoreLine": "AIフォーム分析でスコア{v}点を記録",
+        "riskReductionLine": "AI診断で怪我リスクが{v}%下がりました",
+        "riskReductionNoneLine": "AIがコンディションを見守っています"
+      },
+      "viewOfferButton": "オファーを見る",
+      "fallbackMessage": "3日間、練習と体調の記録を続けてくれてありがとう。積み重ねたデータはsCOREにしっかり蓄積されています。この調子で、怪我なく強くなっていきましょう。"
     },
     "continueButton": "続ける",
-    "rewardHint": "全部達成すると 🎫{{n}}枚 がもらえるよ",
+    "rewardHint": "達成すると 🎫{{n}}枚 がもらえるよ",
     "reward": {
       "ribbon": "アイテム獲得",
       "amount": "チケット × {{n}}",
@@ -571,7 +579,8 @@
       "adsShown": "広告が表示されます",
       "viewPlans": "プランを見る",
       "manage": "管理する",
-      "restorePurchases": "購入を復元する"
+      "restorePurchases": "購入を復元する",
+      "issueReceipt": "ご利用証明書を発行"
     },
     "tickets": {
       "title": "チケット",
@@ -1406,6 +1415,13 @@
     "monthly": "月額",
     "yearlyDiscount": "年額（2ヶ月分お得）",
     "trialBadge": "🎁 {{days}}日間無料",
+    "coachTeamSizeNote": "現在のチーム登録人数：{{count}}人",
+    "coachTierTableTitle": "チームの登録人数に応じた3段階の料金",
+    "coachTier": {
+      "upTo15": "〜15人",
+      "upTo30": "〜30人",
+      "unlimited": "無制限"
+    },
     "startTrial": "{{days}}日間無料で始める",
     "startPlan": "{{label}} を始める  {{price}}{{period}}",
     "trialSubtext": "無料期間終了後、自動的に{{price}}{{period}}に切り替わります",
@@ -4176,5 +4192,38 @@
     "restoreNoneBody": "以前の購入が見つかりませんでした",
     "restoreErrorTitle": "復元エラー",
     "restoreErrorBody": "復元に失敗しました"
+  },
+  "missionOffer": {
+    "eyebrow": "3日間ミッション達成",
+    "countdownLabel": "残り",
+    "title": "がんばったあなたへ\n特別オファー",
+    "urgencyLine": "24時間以内に登録で",
+    "discountBadge": "期間限定 {{pct}}%OFF",
+    "ctaButton": "今すぐ始める",
+    "skipButton": "今回は無料のまま続ける"
+  },
+  "receipt": {
+    "headerTitle": "ご利用証明書",
+    "recipientLabel": "宛名",
+    "recipientPlaceholder": "例）○○高校 陸上競技部",
+    "screenshotHint": "入力すると下の証明書に反映されます。証明書部分をスクリーンショットして、部費精算等にご利用ください。",
+    "certTitle": "ご利用証明書",
+    "issueDate": "発行日：{{date}}",
+    "recipientFallback": "ご利用者様",
+    "recipientSuffix": "御中",
+    "rowService": "サービス名",
+    "rowPlan": "ご利用プラン",
+    "rowAmount": "ご利用料金",
+    "perMonth": "/月",
+    "rowMemo": "摘要",
+    "memoValue": "アプリサービス利用料として",
+    "issuerLabel": "発行者",
+    "planLabel": {
+      "free": "FREEプラン",
+      "noad": "広告なしプラン",
+      "ticketMonthly": "チケット月額プラン",
+      "coach": "コーチプラン"
+    },
+    "disclaimer": "本証明書は、当社が提供するサービスをご利用いただいていることを証明するものです。App Store／Google Playを通じた決済の正式な購入証明としては、購入時にApple／Googleから届く購入完了メールもあわせてご参照ください。"
   }
 }

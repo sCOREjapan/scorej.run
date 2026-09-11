@@ -29,6 +29,7 @@ import QuickLogModal from '../../components/QuickLogModal'
 import QuickConditionModal from '../../components/QuickConditionModal'
 import MissionEntryCard from '../../components/MissionEntryCard'
 import MissionModal from '../../components/MissionModal'
+import { devCompleteDayTasks } from '../../lib/missionStore'
 import {
   shouldShowDay3Offer, shouldShowDay5Offer, markDay3OfferShown, markDay5OfferShown,
   markFirstScoreViewed,
@@ -560,6 +561,11 @@ function ScoreOverviewCard({
       )}
 
       {/* ── ウォームアップ導線（軽め・常時表示） ── */}
+      {/* 2026-09-11: PressableScaleはstyleを外側のPressableに付けるだけで、子要素は
+          内側のAnimated.View(flexDirection指定なし=デフォルトcolumn)にそのまま
+          渡される作り。row化するには他の箇所(ストレッチバナー等)と同じく、中に
+          flexDirection:'row'のViewを1枚挟む必要がある——それが抜けていて
+          アイコン・テキスト・矢印が縦積みになっていた不具合を修正。 */}
       <PressableScale
         onPress={() => router.push({ pathname: '/warmup', params: { risk: warmupRisk } } as any)}
         haptic="light"
@@ -567,9 +573,11 @@ function ScoreOverviewCard({
         scaleAmount={0.97}
         style={[so.warmupLink, { backgroundColor: colors.surface }]}
       >
-        <Ionicons name="flame-outline" size={16} color={colors.textSec} />
-        <Text style={[so.warmupLinkText, { color: colors.text }]} numberOfLines={1}>{t('home.warmupLink.title')}</Text>
-        <Ionicons name="chevron-forward" size={14} color={colors.textHint} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Ionicons name="flame-outline" size={16} color={colors.textSec} />
+          <Text style={[so.warmupLinkText, { color: colors.text }]} numberOfLines={1}>{t('home.warmupLink.title')}</Text>
+          <Ionicons name="chevron-forward" size={14} color={colors.textHint} />
+        </View>
       </PressableScale>
     </>
   )
@@ -2331,6 +2339,31 @@ ${sleepText || 'データなし'}
             </View>
           )}
 
+          {/* 開発用: Day1/2/3が要求するタスクを、実際に動画分析・食事分析・
+              ストレッチ等を最後まで行わなくてもワンタップで全部達成扱いにする
+              （判定ロジック自体は本番と同じ実データストアを通す。startDateの
+              付け替えも含めた詳細はlib/missionStore.ts devCompleteDayTasksを参照）。
+              押した直後にそのDayのミッションモーダルを開き、チェック済みの状態を
+              その場で確認できるようにしている。 */}
+          {__DEV__ && (
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginBottom: 8 }}>
+              {([1, 2, 3] as const).map(d => (
+                <TouchableOpacity
+                  key={d}
+                  style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, backgroundColor: '#16653414' }}
+                  onPress={async () => {
+                    unlockAudio(); Sounds.pop()
+                    await devCompleteDayTasks(d)
+                    setDevMissionDay(d)
+                    setShowMission(true)
+                  }}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#166534' }}>[DEV]Day{d}全部達成</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
           {__DEV__ && (
             <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginBottom: 8 }}>
               {[
@@ -2502,34 +2535,6 @@ ${sleepText || 'データなし'}
             </View>
           </AnimatedEntry>
 
-          {/* ── 今日のAIアドバイス（AIコーチカード） ── */}
-          <AnimatedEntry delay={140}>
-            <TouchableOpacity
-              style={[s.aiCoachCard, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}
-              onPress={() => { unlockAudio(); if (insightClaimed) { handleGetAIAdvice() } else { handleDailyInsight() } }}
-              activeOpacity={0.85}
-              disabled={insightLoading}
-            >
-              <View style={s.aiCoachDarkIcon}>
-                {insightLoading
-                  ? <ActivityIndicator color="#fff" size="small" />
-                  : <Ionicons name="sparkles" size={22} color="#fff" />}
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[s.aiCoachLabel, { color: colors.text }]}>{t('home.aiCoachCard.title')}</Text>
-                <Text style={[s.aiCoachSub, { color: colors.textSec }]} numberOfLines={1}>
-                  {insightClaimed ? t('home.aiCoachCard.viewAdvice') : t('home.aiCoachCard.analyze')}
-                </Text>
-              </View>
-              {!insightClaimed && (
-                <View style={s.ticketBadge}>
-                  <Text style={s.ticketBadgeText}>{t('home.aiCoachCard.ticketBadge', { n: TICKET_COST.daily_insight })}</Text>
-                </View>
-              )}
-              <Ionicons name="chevron-forward" size={18} color={colors.textHint} />
-            </TouchableOpacity>
-          </AnimatedEntry>
-
           {/* ── クイックアクセス（線画アイコンで統一） ── */}
           <AnimatedEntry delay={160}>
             <View style={{ gap: 8 }}>
@@ -2570,6 +2575,36 @@ ${sleepText || 'データなし'}
                 })}
               </ScrollView>
             </View>
+          </AnimatedEntry>
+
+          {/* ── 今日のAIアドバイス（AIコーチカード）
+              2026-09-11: 「クイックアクセスの下に移動」の指示でここに移動（元はクイック
+              アクセスより上にあった） ── */}
+          <AnimatedEntry delay={170}>
+            <TouchableOpacity
+              style={[s.aiCoachCard, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}
+              onPress={() => { unlockAudio(); if (insightClaimed) { handleGetAIAdvice() } else { handleDailyInsight() } }}
+              activeOpacity={0.85}
+              disabled={insightLoading}
+            >
+              <View style={s.aiCoachDarkIcon}>
+                {insightLoading
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Ionicons name="sparkles" size={22} color="#fff" />}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.aiCoachLabel, { color: colors.text }]}>{t('home.aiCoachCard.title')}</Text>
+                <Text style={[s.aiCoachSub, { color: colors.textSec }]} numberOfLines={1}>
+                  {insightClaimed ? t('home.aiCoachCard.viewAdvice') : t('home.aiCoachCard.analyze')}
+                </Text>
+              </View>
+              {!insightClaimed && (
+                <View style={s.ticketBadge}>
+                  <Text style={s.ticketBadgeText}>{t('home.aiCoachCard.ticketBadge', { n: TICKET_COST.daily_insight })}</Text>
+                </View>
+              )}
+              <Ionicons name="chevron-forward" size={18} color={colors.textHint} />
+            </TouchableOpacity>
           </AnimatedEntry>
 
           {/* ── 改善タスク（ある場合のみ表示） ── */}

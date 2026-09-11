@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   TextInput, KeyboardAvoidingView, Platform, Modal, Linking, Dimensions,
-  Animated, Easing, ActivityIndicator, Alert, RefreshControl,
+  Animated, Easing, ActivityIndicator, Alert, RefreshControl, Image,
 } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
 const SCREEN_H = Dimensions.get('window').height
@@ -17,6 +17,8 @@ import Svg, { Circle } from 'react-native-svg'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import Toast from 'react-native-toast-message'
 import { BRAND } from '../../lib/theme'
+// 2026-09-11: 素の絵文字🎫から、他画面と揃えて実チケット画像に統一した
+const TICKET_ICON = require('../../assets/icons/ticket.png')
 import AnimatedSection from '../../components/AnimatedSection'
 import { calcInjuryRisk, type InjuryRiskResult } from '../../lib/injuryRisk'
 import { calcLevelInfo, RANK_TIERS, getTierTitle } from '../../lib/gamification'
@@ -2232,7 +2234,7 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
               >
                 {aiGenerating ? <ActivityIndicator size="small" color="#fff"/> : (
                   <>
-                    <Text style={{fontSize:15}}>🎫</Text>
+                    <Image source={TICKET_ICON} style={{width:17,height:17}} resizeMode="contain" />
                     <Text style={{color:'#fff',fontSize:15,fontWeight:'800'}}>{t('team.coachDashboard.aiMenuGenerateButton', { cost: TICKET_COST.workout })}</Text>
                   </>
                 )}

@@ -24,6 +24,41 @@ const GRAY_2 = '#6b7280'
 const RING_SIZE = 80
 const CIRCLE_SIZE = 60
 
+// 2026-09-11: 「ポケポケのUIを参考に、ホーム画面をより良くできる箇所があれば」との指示で追加。
+// ポケポケのショップ/パックアイコンにある「光がバッジの上を定期的に滑る」ツヤ演出を移植。
+// レイアウト・配置は一切変えず、既存の丸バッジの上に重ねるだけの装飾アニメーションなので、
+// mitameの3案プレビューは通さず直接実装した（動きの解釈が割れる余地がない単純な光沢表現のため）。
+// やることが残っている間だけ動かす（波紋と同じ理由＝「まだ何かある」を伝える演出なので、
+// 空の時に動かし続けると逆に紛らわしい）。
+function ShineSweep({ active, size }: { active: boolean; size: number }) {
+  const x = useRef(new Animated.Value(0)).current
+  useEffect(() => {
+    if (!active) { x.stopAnimation(); x.setValue(0); return }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(2200),
+        Animated.timing(x, { toValue: 1, duration: 700, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(x, { toValue: 0, duration: 0, useNativeDriver: true }),
+      ])
+    )
+    loop.start()
+    return () => loop.stop()
+  }, [active])
+  const translateX = x.interpolate({ inputRange: [0, 1], outputRange: [-size * 0.9, size * 0.9] })
+  return (
+    <Animated.View pointerEvents="none" style={{
+      position: 'absolute', top: -size * 0.3, bottom: -size * 0.3, width: size * 0.4,
+      transform: [{ translateX }, { rotate: '25deg' }],
+    }}>
+      <LinearGradient
+        colors={['transparent', 'rgba(255,255,255,0.65)', 'transparent']}
+        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+        style={{ flex: 1 }}
+      />
+    </Animated.View>
+  )
+}
+
 // app/onboarding.tsx の RiskMeterCTA と同一実装（波紋が3本、600msずつずれて広がり続ける）
 function RippleRing({ active, delay, size, color }: { active: boolean; delay: number; size: number; color: string }) {
   const t = useRef(new Animated.Value(0)).current
@@ -84,14 +119,17 @@ export default function MissionEntryCard({ onPress }: { onPress: () => void }) {
       <RippleRing active={hasRemaining} delay={600}  size={RING_SIZE} color={BRAND} />
       <RippleRing active={hasRemaining} delay={1200} size={RING_SIZE} color={BRAND} />
       <View>
-        <LinearGradient
-          colors={hasRemaining ? [G1, BRAND] : [GRAY_1, GRAY_2]}
-          start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }}
-          style={s.circle}
-        >
-          <Ionicons name="flag" size={24} color="#fff" />
-          <Text style={s.dayText}>{t('mission.dayBadge', { day })}</Text>
-        </LinearGradient>
+        <View style={s.circleShadow}>
+          <LinearGradient
+            colors={hasRemaining ? [G1, BRAND] : [GRAY_1, GRAY_2]}
+            start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }}
+            style={s.circle}
+          >
+            <Ionicons name="flag" size={24} color="#fff" />
+            <Text style={s.dayText}>{t('mission.dayBadge', { day })}</Text>
+            <ShineSweep active={hasRemaining} size={CIRCLE_SIZE} />
+          </LinearGradient>
+        </View>
         {hasRemaining && (
           <View style={s.badgeDot}><Text style={s.badgeDotText}>{remaining}</Text></View>
         )}
@@ -105,11 +143,17 @@ const makeS = (colors: ThemeColors) => StyleSheet.create({
     position: 'absolute', right: 8, bottom: 12, zIndex: 30,
     width: RING_SIZE, height: RING_SIZE, alignItems: 'center', justifyContent: 'center',
   },
+  // 影(shadow/elevation)とツヤ演出のクリップ(overflow:hidden)は同じViewに同居できない
+  // (Androidのelevationがoverflow:hiddenと衝突して欠ける)ため、影は外側、クリップは
+  // 内側のグラデーション本体側に分けている。
+  circleShadow: {
+    width: CIRCLE_SIZE, height: CIRCLE_SIZE, borderRadius: CIRCLE_SIZE / 2,
+    shadowColor: BRAND, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 10,
+  },
   circle: {
     width: CIRCLE_SIZE, height: CIRCLE_SIZE, borderRadius: CIRCLE_SIZE / 2,
-    alignItems: 'center', justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
     borderWidth: 3, borderColor: colors.bg,
-    shadowColor: BRAND, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 10,
   },
   dayText: { color: '#fff', fontSize: 8.5, fontWeight: '900', marginTop: 1, letterSpacing: 0.3 },
   badgeDot: {

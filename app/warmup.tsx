@@ -16,23 +16,26 @@ type RiskLevel = 'low' | 'moderate' | 'high'
 
 interface WarmupItem {
   id: string
-  icon: string
+  icon: keyof typeof Ionicons.glyphMap
   category: Category
   levels: RiskLevel[]  // which risk levels include this item
 }
 
+// 2026-09-11: 生の絵文字+細い縦バーだけの一覧が「テンプレっぽい」との指摘で、
+// カテゴリごとに色分けした丸アイコンチップ(Ionicons)に変更した
+// （components/MissionModal.tsxのタスクアイコンチップと同じ考え方）。
 // name/detailは言語依存のため持たず、id経由でt('warmup.items.<id>.name'等)を引く
 const ITEMS: WarmupItem[] = [
-  { id: 'jog',        icon: '🏃', category: 'jog',      levels: ['low','moderate','high'] },
-  { id: 'calf',       icon: '🦵', category: 'mobility', levels: ['low','moderate','high'] },
-  { id: 'hip',        icon: '⭕', category: 'mobility', levels: ['low','moderate','high'] },
-  { id: 'leg_swing',  icon: '🔄', category: 'mobility', levels: ['low','moderate','high'] },
-  { id: 'dynamic',    icon: '🤸', category: 'mobility', levels: ['low','moderate','high'] },
-  { id: 'lunge',      icon: '🚶', category: 'drill',    levels: ['low','moderate'] },
-  { id: 'skip',       icon: '⬆️', category: 'drill',    levels: ['low','moderate'] },
-  { id: 'carioca',    icon: '🔀', category: 'drill',    levels: ['low','moderate'] },
-  { id: 'bounding',   icon: '💨', category: 'drill',    levels: ['low'] },
-  { id: 'strides',    icon: '🏁', category: 'sprint',   levels: ['low','moderate'] },
+  { id: 'jog',        icon: 'walk-outline',           category: 'jog',      levels: ['low','moderate','high'] },
+  { id: 'calf',       icon: 'body-outline',           category: 'mobility', levels: ['low','moderate','high'] },
+  { id: 'hip',        icon: 'sync-outline',           category: 'mobility', levels: ['low','moderate','high'] },
+  { id: 'leg_swing',  icon: 'swap-horizontal-outline', category: 'mobility', levels: ['low','moderate','high'] },
+  { id: 'dynamic',    icon: 'accessibility-outline',  category: 'mobility', levels: ['low','moderate','high'] },
+  { id: 'lunge',      icon: 'footsteps-outline',      category: 'drill',    levels: ['low','moderate'] },
+  { id: 'skip',       icon: 'trending-up-outline',    category: 'drill',    levels: ['low','moderate'] },
+  { id: 'carioca',    icon: 'shuffle-outline',        category: 'drill',    levels: ['low','moderate'] },
+  { id: 'bounding',   icon: 'flash-outline',          category: 'drill',    levels: ['low'] },
+  { id: 'strides',    icon: 'flag-outline',           category: 'sprint',   levels: ['low','moderate'] },
 ]
 
 const CATEGORY_COLORS: Record<Category, string> = {
@@ -114,8 +117,9 @@ export default function WarmupScreen() {
                   onPress={() => toggle(item.id)}
                   style={[st.item, i < items.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }, isChecked && st.itemChecked]}
                 >
-                  <View style={[st.catDot, { backgroundColor: catColor }]} />
-                  <Text style={st.itemIcon}>{item.icon}</Text>
+                  <View style={[st.iconChip, { backgroundColor: catColor + '18' }]}>
+                    <Ionicons name={item.icon} size={19} color={catColor} />
+                  </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[st.itemName, isChecked && { color: colors.textHint, textDecorationLine: 'line-through' }]}>
                       {t(`warmup.items.${item.id}.name`)}
@@ -170,10 +174,9 @@ const makeSt = (colors: ThemeColors) => StyleSheet.create({
   progressFill:  { height: '100%', borderRadius: 3 },
   progressLabel: { color: colors.textHint, fontSize: 12, fontWeight: '700', minWidth: 36, textAlign: 'right' },
   list:          { backgroundColor: colors.card, borderRadius: 14, overflow: 'hidden' },
-  item:          { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 14, gap: 10 },
+  item:          { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, gap: 12 },
   itemChecked:   { opacity: 0.55 },
-  catDot:        { width: 4, height: 36, borderRadius: 2 },
-  itemIcon:      { fontSize: 22 },
+  iconChip:      { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   itemName:      { color: colors.text, fontSize: 15, fontWeight: '700', marginBottom: 2 },
   itemDetail:    { color: colors.textSec, fontSize: 12, lineHeight: 17 },
   checkbox:      {

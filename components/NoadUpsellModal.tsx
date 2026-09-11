@@ -13,7 +13,7 @@
 import React, { useRef, useEffect, useMemo } from 'react'
 import {
   Modal, View, Text, TouchableOpacity,
-  Animated, StyleSheet,
+  Animated, StyleSheet, Image,
 } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Ionicons } from '@expo/vector-icons'
@@ -25,6 +25,8 @@ import { trackPaywallView, trackPaywallDismiss } from '../lib/analytics'
 
 const LAST_SHOWN_KEY = 'score_noad_upsell_last_shown'
 const INTERVAL_MS = 7 * 24 * 60 * 60 * 1000
+// 2026-09-11: 素の絵文字🎫から、他画面と揃えて実チケット画像に統一した
+const TICKET_ICON = require('../assets/icons/ticket.png')
 
 // ── 表示すべきか判定（呼び出し側で tier === 'free' を確認してから呼ぶ） ──
 export async function shouldShowNoadUpsell(): Promise<boolean> {
@@ -97,7 +99,7 @@ export default function NoadUpsellModal({ visible, onClose, onUpgrade, context =
 
         <View style={s.headerRow}>
           <View style={s.iconWrap}>
-            <Text style={{ fontSize: 26 }}>🎫</Text>
+            <Image source={TICKET_ICON} style={{ width: 38, height: 38 }} resizeMode="contain" />
           </View>
           <View style={{ flex: 1, gap: 3 }}>
             <Text style={s.title}>

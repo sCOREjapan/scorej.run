@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react'
-import { Animated, TouchableOpacity, Platform, View, Text, StyleSheet, Pressable, useWindowDimensions, Modal, Linking } from 'react-native'
+import { Animated, TouchableOpacity, Platform, View, Text, StyleSheet, Pressable, useWindowDimensions, Modal, Linking, Image } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTranslation } from 'react-i18next'
 import BannerAdView from '../../components/BannerAdView'
@@ -15,6 +15,10 @@ import { triggerQuickLog } from '../../lib/quickLogEvent'
 import { initNotificationsOnFirstLaunch } from '../../lib/notifications'
 import { todayLocalISO } from '../../lib/dateLocal'
 import { getTicketBalance } from '../../lib/ticketWallet'
+
+// 2026-09-11: タブバー常駐のチケット残高バッジも、他の画面と合わせて素の絵文字🎫から
+// 実チケット画像に統一した
+const TICKET_ICON = require('../../assets/icons/ticket.png')
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name']
 
@@ -186,7 +190,8 @@ function CustomTabBar({ bottomInset, ticketBalance }: { bottomInset: number; tic
           onPress={() => { unlockAudio(); Sounds.tap(); router.push('/tickets' as any) }}
           activeOpacity={0.8}
         >
-          <Text style={tb.ticketBadgeText}>🎫 {ticketBalance}</Text>
+          <Image source={TICKET_ICON} style={{ width: 14, height: 14, marginRight: 3 }} resizeMode="contain" />
+          <Text style={tb.ticketBadgeText}>{ticketBalance}</Text>
         </TouchableOpacity>
       )}
       {TAB_ITEMS.map(tab => {

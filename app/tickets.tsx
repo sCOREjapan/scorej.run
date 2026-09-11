@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Image,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -19,10 +19,18 @@ import { useTheme, type ThemeColors } from '../context/ThemeContext'
 const TIX    = '#f59e0b'
 const BRAND  = '#16a34a'
 
+// 2026-09-11: 残高チップ・ライトパックが素の絵文字🎫、お得パックだけ🎟️
+// （プラットフォームによっては赤い観覧チケット風に見える）という不揃いだった状態を
+// コアくん監修の実チケット画像に統一。お得(value)パックは「プレミアム感」を出したい
+// との指示で、金色×ホロ箔加工のプレミアム版チケット画像を追加でリクエストし、
+// PREMIUM_TICKET_ICONとして反映した。
+const TICKET_ICON = require('../assets/icons/ticket.png')
+const PREMIUM_TICKET_ICON = require('../assets/icons/ticket_premium.png')
+
 // per/labelKeyはロケール依存のためキーだけ持ち、実際の文言はレンダー時にt()で解決する
 const PACKS = [
-  { id: 'light' as const, productId: PRODUCT_IDS.tickets_light, count: 15, price: '¥370', perKey: 'tickets.perLight', labelKey: 'tickets.packLight', popular: false },
-  { id: 'value' as const, productId: PRODUCT_IDS.tickets_value, count: 50, price: '¥730', perKey: 'tickets.perValue', labelKey: 'tickets.packValue', popular: true },
+  { id: 'light' as const, productId: PRODUCT_IDS.tickets_light, count: 15, price: '¥370', perKey: 'tickets.perLight', labelKey: 'tickets.packLight', popular: false, icon: TICKET_ICON },
+  { id: 'value' as const, productId: PRODUCT_IDS.tickets_value, count: 50, price: '¥730', perKey: 'tickets.perValue', labelKey: 'tickets.packValue', popular: true,  icon: PREMIUM_TICKET_ICON },
 ]
 
 export default function TicketsScreen() {
@@ -124,7 +132,10 @@ export default function TicketsScreen() {
       <ScrollView contentContainerStyle={st.scroll}>
         <View style={st.balanceCard}>
           <Text style={st.balanceLabel}>{t('tickets.currentBalance')}</Text>
-          <Text style={st.balanceNum}>🎫 {tickets}<Text style={st.balanceUnit}>{t('tickets.balanceUnit')}</Text></Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Image source={TICKET_ICON} style={{ width: 30, height: 30 }} resizeMode="contain" />
+            <Text style={st.balanceNum}>{tickets}<Text style={st.balanceUnit}>{t('tickets.balanceUnit')}</Text></Text>
+          </View>
         </View>
 
         {PACKS.map(pack => {
@@ -139,7 +150,7 @@ export default function TicketsScreen() {
               {pack.popular && (
                 <View style={st.popBadge}><Text style={st.popBadgeTxt}>{t('tickets.popular')}</Text></View>
               )}
-              <Text style={{ fontSize: 26, width: 44, textAlign: 'center' }}>{pack.popular ? '🎟️' : '🎫'}</Text>
+              <Image source={pack.icon} style={{ width: 40, height: 40 }} resizeMode="contain" />
               <View style={{ flex: 1 }}>
                 <Text style={st.packCount}>{t(pack.labelKey)} {t('tickets.packCountSuffix', { count: pack.count })}</Text>
                 <Text style={st.packPer}>{t(pack.perKey)}</Text>

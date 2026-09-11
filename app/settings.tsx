@@ -645,6 +645,17 @@ export default function SettingsScreen() {
                   <Text style={{ fontSize: 13, color: colors.textSec }}>{t('settings.currentPlan.restorePurchases')}</Text>
                 </TouchableOpacity>
               )}
+              {/* 2026-09-11: 「部費で経費精算したい先生向けに領収書的なものが欲しい」との
+                  指摘で追加。有料プラン加入者のみに表示する（無料ユーザーには不要なため） */}
+              {isNoad && (
+                <TouchableOpacity
+                  onPress={() => router.push('/receipt' as any)}
+                  style={{ marginTop: 10, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 4 }}
+                >
+                  <Ionicons name="receipt-outline" size={14} color={colors.textSec} />
+                  <Text style={{ fontSize: 13, color: colors.textSec }}>{t('settings.currentPlan.issueReceipt')}</Text>
+                </TouchableOpacity>
+              )}
             </SectionCard>
           </AnimatedSection>
 

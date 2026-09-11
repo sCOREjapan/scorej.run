@@ -5,7 +5,7 @@
 // あわせて、月額プラン(¥980〜)への導線を最上段の主CTAにし、広告視聴・単発購入は
 // その下のサブ導線に格下げ（APIコストが広告収益を上回っていたための収益改善施策）。
 import React, { useEffect, useRef, useState } from 'react'
-import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native'
+import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
@@ -18,6 +18,8 @@ import { useTranslation } from 'react-i18next'
 
 const BRAND = '#166534'
 const TIX   = '#f59e0b'
+// 2026-09-11: 素の絵文字🎫から、他画面と揃えて実チケット画像に統一した
+const TICKET_ICON = require('../assets/icons/ticket.png')
 const TEXT_1 = '#111827'
 const TEXT_2 = '#6b7280'
 const TEXT_HINT = '#9ca3af'
@@ -90,7 +92,7 @@ export default function TicketGateModal({ visible, feature, ticketCost, ticketBa
 
         <View style={st.body}>
           <View style={st.iconWrap}>
-            <Text style={{ fontSize: 34 }}>🎫</Text>
+            <Image source={TICKET_ICON} style={{ width: 52, height: 52 }} resizeMode="contain" />
           </View>
           <Text style={st.title}>{t('ticketGateModal.title')}</Text>
           <Text style={st.sub}>
@@ -131,7 +133,7 @@ export default function TicketGateModal({ visible, feature, ticketCost, ticketBa
               onPress={() => { onClose(); router.push('/tickets') }}
               activeOpacity={0.85}
             >
-              <Text style={{ fontSize: 15 }}>🎫</Text>
+              <Image source={TICKET_ICON} style={{ width: 17, height: 17 }} resizeMode="contain" />
               <Text style={st.secondaryBtnTxt}>{t('ticketGateModal.buyTickets')}</Text>
             </TouchableOpacity>
           </View>

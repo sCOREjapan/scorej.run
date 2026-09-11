@@ -15,11 +15,11 @@
 //   詰むと離脱するので、進んだ日までのタスクは常に遡って達成扱いにできる）。
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { todayLocalISO, localDateStr } from './dateLocal'
-import { VIDEO_ANALYSIS_HISTORY_KEY, type VideoAnalysisHistoryEntry } from './videoAnalysisHistoryStore'
-import { getConditionMap } from './conditionStore'
-import { getStretchResult } from './stretchResultStore'
+import { VIDEO_ANALYSIS_HISTORY_KEY, type VideoAnalysisHistoryEntry, addVideoAnalysisHistory } from './videoAnalysisHistoryStore'
+import { getConditionMap, updateConditionMap } from './conditionStore'
+import { getStretchResult, updateStretchResult } from './stretchResultStore'
 import { grantMissionDay1BonusIfNeeded, grantMissionDay2BonusIfNeeded } from './ticketWallet'
-import type { TrainingSession, MealRecord } from '../types'
+import type { TrainingSession, MealRecord, CompetitionPlan } from '../types'
 
 const MISSION_STATE_KEY  = 'score_mission_state_v1'
 const SESSIONS_KEY       = 'trackmate_sessions'
@@ -48,6 +48,13 @@ export interface MissionDayProgress {
   date: string              // このDayに対応するJSTローカル日付
   tasks: MissionTaskStatus[]
   allDone: boolean
+  // 2026-09-11: 「動画分析(Day1)・食事分析(Day2)はチケットが無いとできないのに、
+  // その日の報酬(チケット)自体がそのタスク込みの全タスク完了を条件にしている」という
+  // 鶏卵問題が発覚（新規ユーザーはチケット0枚で詰む）。Day1・Day2は、チケット不要な
+  // 練習・体調の2タスクが終わった時点でrewardEligible=trueにし、先にチケットを
+  // 受け取ってからチケット消費タスクに進めるようにする。Day3はチケットを使う
+  // タスクを含まないため、この後払い分割は不要（rewardEligible=allDoneのまま）。
+  rewardEligible: boolean
   rewardTickets: number      // このDayを全部終えた時に貰えるチケット枚数（Day3は0=結果カードが報酬）
   rewardClaimed: boolean
 }
@@ -180,7 +187,13 @@ export async function getMissionDayProgress(day: MissionDay, startDate: string, 
       { key: 'practice', done: practice }, { key: 'condition', done: condition },
       { key: 'video', done: video }, { key: 'competition', done: competition },
     ]
-    return { day, date, tasks, allDone: tasks.every(t => t.done), rewardTickets: 5, rewardClaimed: state.claimedDay1 }
+    // 動画分析はチケット消費タスクなので、チケット不要な練習・体調の2つが終わった時点で
+    // 報酬を受け取れるようにする（受け取ったチケットでそのまま動画分析に進めるように）
+    return {
+      day, date, tasks, allDone: tasks.every(t => t.done),
+      rewardEligible: practice && condition,
+      rewardTickets: 5, rewardClaimed: state.claimedDay1,
+    }
   }
   if (day === 2) {
     const [practice, condition, meal] = await Promise.all([
@@ -189,12 +202,21 @@ export async function getMissionDayProgress(day: MissionDay, startDate: string, 
     const tasks: MissionTaskStatus[] = [
       { key: 'practice', done: practice }, { key: 'condition', done: condition }, { key: 'meal', done: meal },
     ]
-    return { day, date, tasks, allDone: tasks.every(t => t.done), rewardTickets: 2, rewardClaimed: state.claimedDay2 }
+    // 2026-09-11:「食事分析も同じ」との指摘で、Day1と同じ理由(食事分析はチケット消費
+    // タスク)によりDay2もrewardEligibleを練習・体調の2つだけで満たすようにした。
+    // 理屈上はDay1の報酬(5枚)が残っていれば食事分析(1枚)は賄えるはずだが、Day1の
+    // チケットを他の用途に使い切っていた場合でもDay2で詰まないようにする防御的な統一。
+    return {
+      day, date, tasks, allDone: tasks.every(t => t.done),
+      rewardEligible: practice && condition,
+      rewardTickets: 2, rewardClaimed: state.claimedDay2,
+    }
   }
-  // day === 3
+  // day === 3（チケットを使うタスクが無いため後払い分割は不要）
   const [condition, stretch] = await Promise.all([hasLoggedConditionOn(date), hasStretchedOn(date)])
   const tasks: MissionTaskStatus[] = [{ key: 'condition', done: condition }, { key: 'stretch', done: stretch }]
-  return { day, date, tasks, allDone: tasks.every(t => t.done), rewardTickets: 0, rewardClaimed: true }
+  const day3AllDone = tasks.every(t => t.done)
+  return { day, date, tasks, allDone: day3AllDone, rewardEligible: day3AllDone, rewardTickets: 0, rewardClaimed: true }
 }
 
 /**
@@ -253,5 +275,111 @@ export async function getMissionStats(startDate: string): Promise<MissionStats> 
     hasMealAnalysis,
     hasCompetitionRegistered: competitions.length > 0,
     riskReduction: dates.includes(stretch?.date ?? '') ? (stretch?.reduction ?? null) : null,
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// DEV専用: 「Day Nのタスクを全部達成扱いにする」ワンタップボタン用。
+// 2026-09-11: 実際に動画分析・食事分析・ストレッチ等を最後まで行わないと
+// ミッションのタスク完了フローを試せず、Day1/2/3プレビュー(forceDay)だけでは
+// 「タスクが全部終わった状態」を検証しきれないとの指摘で追加。
+// 各タスクは実データストアに「今日の分」のダミー記録を1件足すだけなので、
+// 判定ロジック(hasLoggedPracticeOn等)は本番と完全に同じ経路を通る。
+// startDateを「今日がDay Nになる日付」へ付け替えてから書き込むことで、
+// video(created_at基準)のように日付を後から偽装できないタスクも含めて
+// 常に「今日」のデータとして矛盾なく成立させる。
+// __DEV__ビルドのボタンからのみ呼ばれる想定。
+// ══════════════════════════════════════════════════════════════════════
+async function devMarkPracticeToday(): Promise<void> {
+  const date = todayLocalISO()
+  const sessions = await readJson<TrainingSession[]>(SESSIONS_KEY, [])
+  if (sessions.some(s => s.session_date === date)) return
+  const entry: TrainingSession = {
+    id: `dev_${Date.now()}`,
+    user_id: 'dev',
+    session_date: date,
+    session_type: 'easy',
+    fatigue_level: 3,
+    condition_level: 7,
+    notes: 'DEVテスト用のダミー練習記録です。',
+    created_at: new Date().toISOString(),
+  }
+  await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify([entry, ...sessions])).catch(() => {})
+}
+
+async function devMarkConditionToday(): Promise<void> {
+  const date = todayLocalISO()
+  await updateConditionMap(current => ({ ...current, [date]: 7 }))
+}
+
+async function devMarkVideoAnalyzedToday(): Promise<void> {
+  await addVideoAnalysisHistory({ event: 'DEVテスト', score: 80, headline: 'DEV: 動画分析タスクを達成扱いにしました' })
+}
+
+async function devMarkCompetitionRegistered(): Promise<void> {
+  const list = await readJson<Array<{ competition_date?: string }>>(COMPETITIONS_KEY, [])
+  if (list.length > 0) return
+  const compDate = localDateStr(new Date(Date.now() + 90 * 86400000))
+  const entry: CompetitionPlan = {
+    id: `dev_${Date.now()}`,
+    user_id: 'dev',
+    competition_name: 'DEVテスト大会',
+    competition_date: compDate,
+    event: '100m',
+    target_time_ms: 12000,
+    days_until: 90,
+    phases: [],
+    peak_week: 1,
+    taper_start_week: 1,
+    key_advice: 'DEVテスト用のダミー大会です。',
+    created_at: new Date().toISOString(),
+  }
+  await AsyncStorage.setItem(COMPETITIONS_KEY, JSON.stringify([entry, ...list])).catch(() => {})
+}
+
+async function devMarkMealAnalyzedToday(): Promise<void> {
+  const date = todayLocalISO()
+  const list = await readJson<MealRecord[]>(MEALS_KEY, [])
+  const entry: MealRecord = {
+    id: `dev_${Date.now()}`,
+    user_id: 'dev',
+    meal_date: date,
+    meal_type: 'lunch',
+    foods: [],
+    total_calories: 0,
+    total_protein: 0,
+    total_carb: 0,
+    total_fat: 0,
+    advice: 'DEVテスト用のダミー食事分析コメントです。',
+    created_at: new Date().toISOString(),
+  }
+  await AsyncStorage.setItem(MEALS_KEY, JSON.stringify([entry, ...list])).catch(() => {})
+}
+
+async function devMarkStretchToday(): Promise<void> {
+  const date = todayLocalISO()
+  await updateStretchResult(() => ({ date, reduction: 12, showBanner: false, lastReduction: 12 }))
+}
+
+/**
+ * DEV専用: Day Nのタスクを全部達成扱いにする。まずstartDateを「今日がDay Nに
+ * 当たる日付」へ付け替え(既にその条件を満たしていれば変更しない)、その上で
+ * そのDayが必要とするタスク分のダミー記録を書き込む。
+ */
+export async function devCompleteDayTasks(day: MissionDay): Promise<void> {
+  const state = await readState()
+  const today = todayLocalISO()
+  const wantStartDate = localDateStr(new Date(new Date(today + 'T00:00:00').getTime() - (day - 1) * 86400000))
+  if (currentMissionDay(state.startDate || wantStartDate, today) !== day || !state.startDate) {
+    state.startDate = wantStartDate
+    await writeState(state)
+  }
+
+  if (day === 1) {
+    await Promise.all([devMarkPracticeToday(), devMarkConditionToday(), devMarkVideoAnalyzedToday(), devMarkCompetitionRegistered()])
+  } else if (day === 2) {
+    await Promise.all([devMarkPracticeToday(), devMarkConditionToday(), devMarkMealAnalyzedToday()])
+  } else {
+    await Promise.all([devMarkConditionToday(), devMarkStretchToday()])
   }
 }

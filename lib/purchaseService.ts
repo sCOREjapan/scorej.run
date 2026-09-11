@@ -9,9 +9,14 @@ export const ENTITLEMENT_TICKET_MONTHLY = 'ticket_monthly'
 export const PRODUCT_IDS = {
   noad_monthly:   'score_noad_monthly_v2',    // ¥480/月    広告なしプラン
   noad_yearly:    'score_noad_yearly_v2',      // ¥4,800/年
-  coach_monthly:  'score_coach_monthly_v2',    // ¥1,980/月  コーチプラン
+  coach_monthly:  'score_coach_monthly_v2',    // ¥1,980/月  コーチプラン(〜15人)
   coach_yearly:   'score_coach_yearly_v1',     // ¥19,800/年
+  // lib/purchaseService.native.tsの同名エントリと同じ説明を参照（Webスタブなので実際には未使用）
+  coach_monthly_30:        'score_coach_monthly_30_v1',        // ¥2,980/月  コーチプラン(〜30人)
+  coach_monthly_unlimited: 'score_coach_monthly_unlimited_v1', // ¥4,980/月  コーチプラン(無制限)
   ticket_monthly: 'score_ticket_monthly_v1',   // ¥980/月  チケット月額（広告なし＋毎月チケット100枚）
+  // lib/purchaseService.native.tsの同名エントリと同じ説明を参照（Webスタブなので実際には未使用）
+  ticket_monthly_sale: 'score_ticket_monthly_sale_v1', // ¥680/月 チケット月額(3日間ミッション限定オファー)
   tickets_light:  'score_tickets_15_v1',       // ¥370  チケット15枚（消耗型）
   tickets_value:  'score_tickets_50_v1',       // ¥730  チケット50枚（消耗型）
 }

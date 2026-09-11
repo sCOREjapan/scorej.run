@@ -1,6 +1,7 @@
 // app/paywall.tsx — sCORE プラン選択・購入画面
 // App Store Review ガイドライン対応:
-//  - 全機能は無料で利用可能（チケット制、初回5枚付与）
+//  - 全機能は無料で利用可能（チケット制。初回付与は2026-09-11に廃止し、
+//    3日間ミッションのDay1報酬(5枚)に置き換え済み。lib/missionStore.ts参照）
 //  - 広告なしプラン: 広告を非表示にするだけ
 //  - チケット月額プラン: 広告なし＋毎月チケット100枚
 //  - コーチプラン: チケット月額プランの内容＋チーム管理・コーチ向け機能
@@ -11,7 +12,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Platform, Animated, Linking, Alert,
+  ActivityIndicator, Platform, Animated, Linking, Alert, Image,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -21,6 +22,7 @@ import { usePurchase } from '../context/PurchaseContext'
 import { PRODUCT_IDS, TICKET_MONTHLY_GRANT } from '../lib/purchaseService'
 import { trackPaywallView, trackTrialStarted, trackEvent } from '../lib/analytics'
 import { getMissionState } from '../lib/missionStore'
+import { fetchMembers } from '../lib/supabaseTeam'
 import Toast from 'react-native-toast-message'
 import DarkScreenBg, { DARK_ACCENT } from '../components/DarkGradientBg'
 
@@ -32,6 +34,9 @@ const TIX    = '#f59e0b'
 const GOLD   = '#d97706'
 const BORDER = 'rgba(0,0,0,0.08)'
 const CARD   = '#ffffff'
+const TICKET_ICON = require('../assets/icons/ticket.png')
+// 2026-09-11: 「チケット月額プランの横は、プレミアム(金×ホロ箔)チケットの方にしてほしい」との指示
+const PREMIUM_TICKET_ICON = require('../assets/icons/ticket_premium.png')
 const TEXT_PRIMARY = '#111827'
 const TEXT_SECONDARY = '#6b7280'
 const TEXT_HINT = '#9ca3af'
@@ -62,6 +67,8 @@ function buildPlans(t: (key: string, opts?: any) => string): PlanConfig[] {
   // PRODUCT_IDS.noad_monthly/noad_yearlyやPlanTierの'noad'自体は削除していない。
   return [
     {
+      // iconは'🎫'のまま持たせておき(型を崩さないため)、描画側でticket_monthlyだけ
+      // 実チケット画像に差し替える(2026-09-11: 他画面と絵柄を統一するため)
       id: 'ticket_monthly', color: BRAND, icon: '🎫',
       label: t('paywall.plans.ticket_monthly.label'), tagline: t('paywall.plans.ticket_monthly.tagline'),
       monthly: { productId: PRODUCT_IDS.ticket_monthly, price: '¥980', period: perMonth },
@@ -126,6 +133,17 @@ function paidIntroPriceString(pkg: any): string | null {
   return intro.priceString ?? null
 }
 
+// 2026-09-11: 「16人の壁」対策。コーチプランをチーム人数に応じた3段階制にした
+// （〜15人¥1,980／〜30人¥2,980／無制限¥4,980。同じサブスクライブグループ内の
+// 別商品として作成——導入価格ではなく普通の価格設定。lib/purchaseService.ts参照）。
+// 商品がまだストア側で未作成/未承認の間は、purchase()側がpackagesに見つからず
+// 従来通りエラー表示になるだけで、¥1,980の基本コーチプラン自体には影響しない。
+function coachTierForMemberCount(count: number): { productId: string; price: string } {
+  if (count > 30) return { productId: PRODUCT_IDS.coach_monthly_unlimited, price: '¥4,980' }
+  if (count > 15) return { productId: PRODUCT_IDS.coach_monthly_30, price: '¥2,980' }
+  return { productId: PRODUCT_IDS.coach_monthly, price: '¥1,980' }
+}
+
 // 24時間セールの残り時間を HH:MM:SS 表記にする
 function formatCountdown(ms: number): string {
   const totalSec = Math.max(0, Math.floor(ms / 1000))
@@ -150,9 +168,10 @@ export default function PaywallScreen() {
   const { plan: planParam, sale: saleParam } = useLocalSearchParams<{ plan?: string; sale?: string }>()
   const { tier, hasTicketMonthly, packages, packagesDiagnostic, packagesReady, purchase, restore, refreshStatus } = usePurchase()
 
-  // 2026-09-11: 3日間ミッション達成直後の「?plan=ticket_monthly&sale=1」導線。
-  // 期限はlib/missionStore.tsのstartSaleWindowIfNeeded()で「続ける」を押した瞬間に
-  // 確定済みのものを読むだけ（この画面の再訪でカウントダウンが延長されないように）。
+  // 2026-09-11: 元々は3日間ミッション達成直後の「?plan=ticket_monthly&sale=1」導線
+  // だったが、専用のapp/mission-offer.tsxに差し替えたため、この画面には現在どこからも
+  // ?sale=1では遷移してこない（components/MissionModal.tsx参照）。呼び出し側が無くなった
+  // だけで壊れてはいないため、他からの直リンクに備えて分岐自体はそのまま残してある。
   const isSaleMode = saleParam === '1'
   const [saleExpiresAt, setSaleExpiresAt] = useState<string | null>(null)
   const [nowTick, setNowTick] = useState(Date.now())
@@ -168,7 +187,31 @@ export default function PaywallScreen() {
   const saleRemainingMs = saleExpiresAt ? new Date(saleExpiresAt).getTime() - nowTick : 0
   const saleActive = isSaleMode && saleExpiresAt != null && saleRemainingMs > 0
 
+  // 2026-09-11: コーチプランの3段階制のため、自分のチームの現在の登録人数を読む。
+  // コーチとして未セットアップ（trackmate_team_setupが無い）場合は従来通り
+  // 基本の¥1,980のまま（coachTierForMemberCountのデフォルト分岐）。
+  const [teamMemberCount, setTeamMemberCount] = useState<number | null>(null)
+  useEffect(() => {
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem('trackmate_team_setup')
+        if (!raw) return
+        const setup = JSON.parse(raw)
+        if (!setup?.code) return
+        const members = await fetchMembers(setup.code)
+        setTeamMemberCount(members.length)
+      } catch {}
+    })()
+  }, [])
+
   const PLANS = buildPlans(t)
+  if (teamMemberCount != null) {
+    const coachPlan = PLANS.find(p => p.id === 'coach')
+    if (coachPlan) {
+      const tier = coachTierForMemberCount(teamMemberCount)
+      coachPlan.monthly = { ...coachPlan.monthly, productId: tier.productId, price: tier.price }
+    }
+  }
   // 2026-09-07: サブスク推奨画面をリニューアル。チケットプランを一律で推奨する
   // 比較デザイン(Free/チケットの2択のみ・コーチはテキストリンクのみ)を追加したが、
   // 2026-09-08: コーチプランと980円プランを両方きちんと選べる既存の3プラン一覧UI
@@ -491,10 +534,17 @@ export default function PaywallScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={{ fontSize: 18 }}>{plan.icon}</Text>
+                    {plan.id === 'ticket_monthly'
+                      ? <Image source={PREMIUM_TICKET_ICON} style={{ width: 20, height: 20 }} resizeMode="contain" />
+                      : <Text style={{ fontSize: 18 }}>{plan.icon}</Text>}
                     <Text style={[st.planLabel, isSelected ? { color: plan.color } : { color: DTXT }]}>{plan.label}</Text>
                   </View>
                   <Text style={[st.planTagline, !isSelected && { color: DTXT_SUB }]}>{plan.tagline}</Text>
+                  {plan.id === 'coach' && teamMemberCount != null && (
+                    <Text style={[st.planTagline, { fontSize: 11, opacity: 0.8 }]}>
+                      {t('paywall.coachTeamSizeNote', { count: teamMemberCount })}
+                    </Text>
+                  )}
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
                   {trialDays ? (
@@ -518,6 +568,42 @@ export default function PaywallScreen() {
                   })()}
                 </View>
               </View>
+
+              {/* 2026-09-11: 「16人の壁」対策の3段階制。裏で価格が動的に切り替わるだけだと
+                  コーチから見て「なぜこの値段なのか」が分からず不安になるため、料金カード
+                  自体に3段階を明示し、現在の登録人数がどこに当たるかを見せる。 */}
+              {plan.id === 'coach' && (() => {
+                const currentPrice = teamMemberCount != null ? coachTierForMemberCount(teamMemberCount).price : null
+                const tiers = [
+                  { label: t('paywall.coachTier.upTo15'), price: '¥1,980' },
+                  { label: t('paywall.coachTier.upTo30'), price: '¥2,980' },
+                  { label: t('paywall.coachTier.unlimited'), price: '¥4,980' },
+                ]
+                return (
+                  <View style={st.tierTable}>
+                    <Text style={[st.tierTableTitle, !isSelected && { color: DTXT_SUB }]}>{t('paywall.coachTierTableTitle')}</Text>
+                    {tiers.map(tier => {
+                      const isCurrent = currentPrice === tier.price
+                      return (
+                        <View
+                          key={tier.label}
+                          style={[
+                            st.tierRow,
+                            { backgroundColor: isSelected ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.06)' },
+                            isCurrent && { backgroundColor: plan.color + '22', borderColor: plan.color, borderWidth: 1 },
+                          ]}
+                        >
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            {isCurrent && <Ionicons name="checkmark-circle" size={13} color={plan.color} />}
+                            <Text style={[st.tierLabel, !isSelected && { color: DTXT_SUB }, isCurrent && { color: isSelected ? plan.color : DTXT, fontWeight: '800' }]}>{tier.label}</Text>
+                          </View>
+                          <Text style={[st.tierPrice, !isSelected && { color: DTXT_SUB }, isCurrent && { color: isSelected ? plan.color : DTXT, fontWeight: '800' }]}>{tier.price}</Text>
+                        </View>
+                      )
+                    })}
+                  </View>
+                )
+              })()}
 
               {/* 月額/年額トグル（年額オプションがあるプランのみ） */}
               {plan.yearly && (
@@ -589,6 +675,11 @@ const st = StyleSheet.create({
   planDaily:       { fontSize: 10, color: TEXT_HINT, marginTop: 2 },
   trialBadge:      { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 3 },
   trialBadgeTxt:   { fontSize: 10.5, fontWeight: '800', color: '#fff' },
+  tierTable:       { marginTop: 12, marginBottom: 4, gap: 6 },
+  tierTableTitle:  { fontSize: 11, fontWeight: '700', color: TEXT_HINT, marginBottom: 2 },
+  tierRow:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 10, paddingVertical: 7, paddingHorizontal: 10 },
+  tierLabel:       { fontSize: 12.5, color: TEXT_SECONDARY },
+  tierPrice:       { fontSize: 13, color: TEXT_SECONDARY, fontVariant: ['tabular-nums'] },
   seg:             { flexDirection: 'row', backgroundColor: '#f0f2f5', borderRadius: 12, padding: 3, gap: 3, marginBottom: 14 },
   segDark:         { backgroundColor: 'rgba(255,255,255,0.14)' },
   segBtn:          { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 9 },
