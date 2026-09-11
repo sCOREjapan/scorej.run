@@ -644,10 +644,12 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
     overflow: 'hidden', maxHeight: '86%',
   },
-  // headerは固定サイズのまま、bodyScrollだけがsheetの残り高さ(maxHeight制約込み)まで
-  // flexで伸び、それを超えたらスクロールする（タスク数が多い日・大きい文字サイズ設定でも
-  // 下側のタスク行が絶対に押せなくならないようにするため）。
-  bodyScroll: { flex: 1 },
+  // 2026-09-11: 最初flex:1にしていたが、sheetがmaxHeightのみ(明示的heightなし)で
+  // 中身に応じて自動サイズされるコンテナのため、flex:1(flex-basis:0%)だと「伸びる先の
+  // 余白」が定まらずbodyScrollの高さが潰れ、タスク一覧が丸ごと表示されない実機バグに
+  // なった。flexShrink:1（flex-basis:autoのまま）にすると、中身が短い時はそのままの
+  // 高さで表示され、maxHeightを超える時だけ収縮してスクロール可能になる。
+  bodyScroll: { flexShrink: 1 },
   header: { paddingTop: 18, paddingHorizontal: 22, paddingBottom: 22 },
   headerTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   dayPill: { backgroundColor: '#fff', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6 },
