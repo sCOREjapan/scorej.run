@@ -14,16 +14,22 @@
 //      Settings → API → service_role key（既に設定済み）
 //   3. RevenueCatのWebhook URL を https://scorej-run.vercel.app/api/revenuecat-webhook に設定
 //
-// 【設計方針】(2026-09-10 変更)
+// 【設計方針】(2026-09-10 変更、2026-09-11 期限切れの扱いを修正)
 //   以前は app_user_id を取り出して RevenueCat REST API に問い合わせ「今の全entitlement」を
 //   再取得していたが、そのために Secret API Key(sk_...) が必要で、その鍵はダッシュボード上で
 //   一度しか表示されず取得が困難だった。
 //   代わりに Webhook のイベントペイロードだけから判定する方式に変更:
 //     ・課金/更新/復活などのアクティブ化イベント → 確定した tier で upsert
 //     ・キャンセル/請求問題/一時停止 → 期限切れまではアクセス維持のため upsert(期限を更新)
-//     ・期限切れ(EXPIRATION) → その行を削除し、以降は端末側SDKの申告を真実として扱う
-//       （webhookだけでは「coachは切れたがnoadは残っている」等の複合状態を復元できないため、
-//         誤ったダウングレードを書くよりも「サーバー側の記録を消してSDKに委ねる」方が安全）
+//     ・期限切れ(EXPIRATION) → イベントに含まれる entitlement 分のフィールドだけを
+//       null/false にクリアする upsert(行自体は削除しない)。
+//       2026-09-11: 以前は行ごとDELETEしていたが、同じuser_idの行に同居している
+//       「今回のイベントに無関係な entitlement」の情報（例: coachが切れた瞬間に
+//       ticket_monthlyの記録まで一緒に消える）を巻き込んで失う上、行が無くなると
+//       api/analyze.tsのサーバー側チケット残高チェックがまるごとスキップされ
+//       (fail open)、期限切れ直後という一番厳しくすべきタイミングで逆に緩く
+//       なってしまうバグがあった。イベントで名前が挙がった entitlement のフィールド
+//       だけをクリアし、行自体とそれ以外のフィールドは残すことで両方を防ぐ。
 export const config = { runtime: 'nodejs' }
 
 // アクティブ化とみなすイベント種別
@@ -89,17 +95,39 @@ export default async function handler(req: any, res: any) {
       : (typeof event?.entitlement_id === 'string' ? [event.entitlement_id] : [])
     if (entIds.length === 0) entIds = inferEntitlementsFromProduct(event?.product_id)
 
-    // ── 期限切れ → subscription_status の行を削除して端末SDKに委ねる ──
+    // ── tier / ticket_monthly を判定 ──
+    const hasCoach = entIds.includes('coach')
+    const hasNoad = entIds.includes('noad')
+    const hasTicketMonthly = entIds.includes('ticket_monthly')
+
+    // ── 期限切れ → 該当entitlementのフィールドだけをクリア(行は消さない) ──
+    // ファイル冒頭コメント参照。無関係なentitlementやフィールドは触らない。
     if (DEACTIVATE_TYPES.has(type)) {
-      const delRes = await fetch(`${supabaseUrl}/rest/v1/subscription_status?user_id=eq.${encodeURIComponent(appUserId)}`, {
-        method: 'DELETE', headers: sbHeaders,
-      })
-      if (!delRes.ok && delRes.status !== 404) {
-        const errText = await delRes.text().catch(() => '')
-        res.status(500).json({ error: `Supabase delete失敗: ${errText}` })
+      if (!hasCoach && !hasNoad && !hasTicketMonthly) {
+        res.status(200).json({ status: 'ignored', reason: 'expiration for unrecognized entitlement' })
         return
       }
-      res.status(200).json({ status: 'ok', action: 'deleted', user_id: appUserId, type })
+      const clearPatch: Record<string, unknown> = { user_id: appUserId, updated_at: new Date().toISOString() }
+      if (hasCoach || hasNoad) {
+        clearPatch.tier = null
+        clearPatch.expires_at = null
+        clearPatch.original_purchase_date = null
+      }
+      if (hasTicketMonthly) {
+        clearPatch.has_ticket_monthly = false
+        clearPatch.ticket_monthly_expires_at = null
+      }
+      const clearRes = await fetch(`${supabaseUrl}/rest/v1/subscription_status`, {
+        method: 'POST',
+        headers: { ...sbHeaders, Prefer: 'resolution=merge-duplicates' },
+        body: JSON.stringify(clearPatch),
+      })
+      if (!clearRes.ok) {
+        const errText = await clearRes.text().catch(() => '')
+        res.status(500).json({ error: `Supabase upsert失敗: ${errText}` })
+        return
+      }
+      res.status(200).json({ status: 'ok', action: 'cleared', user_id: appUserId, type, clearPatch })
       return
     }
 
@@ -108,11 +136,6 @@ export default async function handler(req: any, res: any) {
       res.status(200).json({ status: 'ignored', reason: `unhandled type: ${type}` })
       return
     }
-
-    // ── tier / ticket_monthly を判定 ──
-    const hasCoach = entIds.includes('coach')
-    const hasNoad = entIds.includes('noad')
-    const hasTicketMonthly = entIds.includes('ticket_monthly')
 
     const expiresAt = typeof event?.expiration_at_ms === 'number'
       ? new Date(event.expiration_at_ms).toISOString() : null

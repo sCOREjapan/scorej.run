@@ -5,23 +5,28 @@ import { Ionicons } from '@expo/vector-icons'
 import Toast from 'react-native-toast-message'
 import { grantLineJoinBonusIfNeeded } from '../lib/ticketWallet'
 import { useTranslation } from 'react-i18next'
+import { useOverlayDismiss } from '../lib/useOverlayDismiss'
 
 const LINE_OPENCHAT_URL =
   'https://line.me/ti/g2/jLaBKGHQlJ6xlPaNYBhI_6N0O8OAPvVefJ2Lsw?utm_source=invitation&utm_medium=link_copy&utm_campaign=default'
 
 export default function LineCommunityBanner({ onDismiss }: { onDismiss: () => void }) {
   const { t } = useTranslation()
-  const handleJoin = () => {
+  // Modal を即アンマウントせず、フェードアウトしてから onDismiss（＝キュー送り）を
+  // 実行する。閉じる処理と次のバナー／画面遷移が競合してタップ不能になる
+  // フリーズを防ぐ（useOverlayDismiss 参照）。
+  const { modalProps, close } = useOverlayDismiss(onDismiss)
+
+  const handleJoin = () => close(() => {
     Linking.openURL(LINE_OPENCHAT_URL).catch(() => {})
     // 参加ボタンを押した時点で自己申告としてチケットを1回だけ付与
     grantLineJoinBonusIfNeeded().then(({ granted }) => {
       if (granted) Toast.show({ type: 'success', text1: t('lineCommunityBanner.ticketGranted') })
     }).catch(() => {})
-    onDismiss()
-  }
+  })
 
   return (
-    <Modal visible transparent animationType="fade">
+    <Modal transparent animationType="fade" {...modalProps}>
       <ImageBackground
         source={require('../assets/banners/line-community-banner.png')}
         style={styles.bg}
@@ -30,7 +35,7 @@ export default function LineCommunityBanner({ onDismiss }: { onDismiss: () => vo
         <SafeAreaView style={styles.safe}>
           {/* 閉じるボタン */}
           <TouchableOpacity
-            onPress={onDismiss}
+            onPress={() => close()}
             style={styles.closeBtn}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             activeOpacity={0.75}
@@ -57,7 +62,7 @@ export default function LineCommunityBanner({ onDismiss }: { onDismiss: () => vo
               <Ionicons name="chatbubbles" size={18} color="#fff" />
               <Text style={styles.joinBtnText}>{t('lineCommunityBanner.cta')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={onDismiss} activeOpacity={0.7}>
+            <TouchableOpacity onPress={() => close()} activeOpacity={0.7}>
               <Text style={styles.laterText}>{t('lineCommunityBanner.later')}</Text>
             </TouchableOpacity>
           </View>

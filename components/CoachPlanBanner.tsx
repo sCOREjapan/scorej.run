@@ -4,18 +4,18 @@ import { Modal, View, Text, TouchableOpacity, ImageBackground, StyleSheet, SafeA
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import { useOverlayDismiss } from '../lib/useOverlayDismiss'
 
 export default function CoachPlanBanner({ onDismiss }: { onDismiss: () => void }) {
   const router = useRouter()
   const { t } = useTranslation()
-
-  const handleView = () => {
-    onDismiss()
-    router.push('/paywall?plan=coach')
-  }
+  // Modal を即アンマウントせず、フェードアウトしてから onDismiss（＝キュー送り）を
+  // 実行する。「詳細」は閉じ切ってから /paywall へ遷移させ、遷移とネイティブ
+  // モーダル破棄が競合して画面がタップ不能になるフリーズを防ぐ（useOverlayDismiss 参照）。
+  const { modalProps, close } = useOverlayDismiss(onDismiss)
 
   return (
-    <Modal visible transparent animationType="fade">
+    <Modal transparent animationType="fade" {...modalProps}>
       <ImageBackground
         source={require('../assets/banners/coach-plan-banner.png')}
         style={styles.bg}
@@ -24,7 +24,7 @@ export default function CoachPlanBanner({ onDismiss }: { onDismiss: () => void }
         <SafeAreaView style={styles.safe}>
           {/* 閉じるボタン */}
           <TouchableOpacity
-            onPress={onDismiss}
+            onPress={() => close()}
             style={styles.closeBtn}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             activeOpacity={0.75}
@@ -47,11 +47,15 @@ export default function CoachPlanBanner({ onDismiss }: { onDismiss: () => void }
                 {t('coachPlanBanner.desc')}
               </Text>
             </View>
-            <TouchableOpacity style={styles.viewBtn} onPress={handleView} activeOpacity={0.85}>
+            <TouchableOpacity
+              style={styles.viewBtn}
+              onPress={() => close(() => router.push('/paywall?plan=coach'))}
+              activeOpacity={0.85}
+            >
               <Ionicons name="trophy" size={18} color="#fff" />
               <Text style={styles.viewBtnText}>{t('coachPlanBanner.cta')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={onDismiss} activeOpacity={0.7}>
+            <TouchableOpacity onPress={() => close()} activeOpacity={0.7}>
               <Text style={styles.laterText}>{t('coachPlanBanner.later')}</Text>
             </TouchableOpacity>
           </View>

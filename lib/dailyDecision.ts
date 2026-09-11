@@ -43,6 +43,10 @@ export function decideDailyAction(input: DailyCheckinInput): DailyDecision {
   if (lowSleep)    reasons.push(`睡眠${input.sleepHours}時間（目安6時間未満）`)
   if (highFatigue) reasons.push('疲労度が高い')
   if (lowCond)      reasons.push('体調スコアが低め')
+  // 軽い違和感は他の要因と重なった場合も理由から漏らさない（以前は睡眠不足+高疲労+
+  // 高強度予定の複合判定に先に該当すると、mild painを報告していたことが結果に一切
+  // 反映されないまま消えていた）
+  if (input.pain === 'mild') reasons.push('軽い違和感がある')
 
   // ── 強い痛みは他の要因に関わらず最優先で休養判定 ──
   if (input.pain === 'strong') {
@@ -69,7 +73,6 @@ export function decideDailyAction(input: DailyCheckinInput): DailyDecision {
   }
 
   if (input.pain === 'mild') {
-    reasons.push('軽い違和感がある')
     return {
       level: 'caution',
       headline: '違和感のある部位に無理をかけない',
