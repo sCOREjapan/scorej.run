@@ -3759,7 +3759,10 @@
       "completeLeft": "左完了 →",
       "complete": "完了",
       "sideDoneLabel": "よくできました",
-      "nextSide": "次は{{side}}"
+      "nextSide": "次は{{side}}",
+      "timeLeftLabel": "残り時間",
+      "secondsUnit": "秒",
+      "nextUpLabel": "次の動作"
     },
     "complete": {
       "title": "お疲れさまでした",

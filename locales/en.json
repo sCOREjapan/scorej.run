@@ -3759,7 +3759,10 @@
       "completeLeft": "Left Done →",
       "complete": "Done",
       "sideDoneLabel": "Nice work",
-      "nextSide": "Next: {{side}}"
+      "nextSide": "Next: {{side}}",
+      "timeLeftLabel": "Time left",
+      "secondsUnit": "sec",
+      "nextUpLabel": "Next up"
     },
     "complete": {
       "title": "Great work!",

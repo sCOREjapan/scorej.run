@@ -638,7 +638,8 @@ function StretchScreen({
     // 2026-09-12: 「白でも黒でもない、ふわっと・癒し系の配色に」との指示でこの画面
     // だけクリーム系の背景(#FBF3EA)に。他の2画面(部位選択・完了)は元の配色のまま。
     <View style={{ flex: 1, backgroundColor: '#FBF3EA' }}>
-      {/* 進捗 */}
+      {/* 進捗（2026-09-12: 参考画像を受けて、数字だけでなくバーでもセッション全体の
+          進み具合が分かるように追加） */}
       <View style={ss.progressRow}>
         <Text style={ss.progressText}>{currentIndex + 1}/{parts.length}</Text>
         <TouchableOpacity
@@ -650,6 +651,9 @@ function StretchScreen({
             {isManual ? t('stretchRecovery.stretch.timeFree') : t('stretchRecovery.stretch.timeSeconds', { n: secondsPerStretch })}
           </Text>
         </TouchableOpacity>
+      </View>
+      <View style={ss.sessionBarTrack}>
+        <View style={[ss.sessionBarFill, { width: `${((currentIndex + 1) / parts.length) * 100}%` }]} />
       </View>
 
       {/* 秒数選択シート */}
@@ -705,7 +709,9 @@ function StretchScreen({
                 </>
               ) : (
                 <>
+                  <Text style={ss.ringCaption}>{t('stretchRecovery.stretch.timeLeftLabel')}</Text>
                   <Text style={ss.ringNum}>{secondsLeft.toString().padStart(2, '0')}</Text>
+                  <Text style={ss.ringUnit}>{t('stretchRecovery.stretch.secondsUnit')}</Text>
                   {!isStarted ? (
                     <TouchableOpacity
                       style={[ss.ringBtn, { backgroundColor: ACCENT }]}
@@ -780,6 +786,27 @@ function StretchScreen({
             )}
           </View>
         )}
+
+        {/* ── 次の動作プレビュー（2026-09-12: 参考画像を受けて追加。最後の部位では
+            表示しない） ── */}
+        {!isLast && parts[currentIndex + 1] && (
+          <TouchableOpacity
+            style={ss.nextCard}
+            onPress={() => setCurrentIndex(i => i + 1)}
+            activeOpacity={0.8}
+          >
+            {getPartMascotImage(parts[currentIndex + 1]) ? (
+              <Image source={getPartMascotImage(parts[currentIndex + 1])} style={ss.nextCardMascot} resizeMode="contain" />
+            ) : (
+              <Text style={ss.nextCardIcon}>{parts[currentIndex + 1].icon}</Text>
+            )}
+            <View style={{ flex: 1 }}>
+              <Text style={ss.nextCardLabel}>{t('stretchRecovery.stretch.nextUpLabel')}</Text>
+              <Text style={ss.nextCardName}>{getPartName(parts[currentIndex + 1], t)}</Text>
+            </View>
+            <Ionicons name="arrow-forward" size={18} color={SAGE} />
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </View>
   )
@@ -796,6 +823,13 @@ const ss = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 5,
   },
   timeBadgeText: { color: '#8a8072', fontSize: 13, fontWeight: '700' },
+  // 2026-09-12: セッション全体の進み具合を示すバー（「3/12」の数字だけでは
+  // 分かりにくいとの参考画像フィードバックを受けて追加）
+  sessionBarTrack: {
+    height: 4, borderRadius: 2, backgroundColor: 'rgba(0,0,0,0.06)',
+    marginHorizontal: 20, marginBottom: 4, overflow: 'hidden',
+  },
+  sessionBarFill: { height: 4, borderRadius: 2, backgroundColor: SAGE },
   timePicker:    {
     flexDirection: 'row', justifyContent: 'center', gap: 8,
     paddingHorizontal: 20, paddingBottom: 10,
@@ -834,7 +868,9 @@ const ss = StyleSheet.create({
   // marginHorizontal:-10 はcontent側のpadding(20pt)を一部打ち消し、リングを
   // 画面端ぎりぎり(左右10pt)まで広げるため
   ringSection:   { alignItems: 'center', marginTop: 30, marginHorizontal: -10 },
+  ringCaption:   { color: '#b0a695', fontSize: 13, fontWeight: '700', marginBottom: 2 },
   ringNum:       { color: '#4a4238', fontSize: 72, fontWeight: '900', lineHeight: 76 },
+  ringUnit:      { color: '#b0a695', fontSize: 13, fontWeight: '700', marginTop: -2 },
   ringBtn:       {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 8, borderRadius: 24, paddingVertical: 12, paddingHorizontal: 28, marginTop: 14,
@@ -866,6 +902,16 @@ const ss = StyleSheet.create({
     borderRadius: 16,
   },
   skipText:      { color: '#8a8072', fontSize: 10, fontWeight: '700' },
+  // ── 次の動作プレビューカード ──
+  nextCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    width: '100%', marginTop: 22, padding: 14, borderRadius: 18,
+    backgroundColor: 'rgba(143,184,154,0.14)', borderWidth: 1, borderColor: 'rgba(143,184,154,0.3)',
+  },
+  nextCardMascot: { width: 40, height: 32 },
+  nextCardIcon:   { fontSize: 26, width: 40, textAlign: 'center' },
+  nextCardLabel:  { color: '#8a8072', fontSize: 11, fontWeight: '700' },
+  nextCardName:   { color: '#4a4238', fontSize: 15, fontWeight: '800', marginTop: 1 },
 })
 
 // ══════════════════════════════════════════════════════════════
