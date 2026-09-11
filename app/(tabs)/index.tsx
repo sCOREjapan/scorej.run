@@ -29,7 +29,13 @@ import QuickLogModal from '../../components/QuickLogModal'
 import QuickConditionModal from '../../components/QuickConditionModal'
 import MissionEntryCard from '../../components/MissionEntryCard'
 import MissionModal from '../../components/MissionModal'
-import { devCompleteDayTasks } from '../../lib/missionStore'
+import { devCompleteDayTasks, devCompleteAllMissions } from '../../lib/missionStore'
+
+// TEMP(実機テスト用): __DEV__はRelease/TestFlightビルドではfalseになるため、他の[DEV]系
+// ボタン（__DEV__ゲート）は実機の配布ビルドでは表示されない。このフラグはそれとは独立に
+// 「ミッション全達成」ボタンだけを配布ビルドでも出すための一時スイッチ。
+// 実機での動作確認が終わったら必ずfalseに戻す（または本ボタンごと削除する）こと。
+const SHOW_TEMP_MISSION_DEV_BUTTON = true
 import {
   shouldShowDay3Offer, shouldShowDay5Offer, markDay3OfferShown, markDay5OfferShown,
   markFirstScoreViewed,
@@ -2361,6 +2367,25 @@ ${sleepText || 'データなし'}
                   <Text style={{ fontSize: 11, fontWeight: '700', color: '#166534' }}>[DEV]Day{d}全部達成</Text>
                 </TouchableOpacity>
               ))}
+            </View>
+          )}
+
+          {/* TEMP(実機テスト用): 3日間ミッションを1タップで全て達成扱いにする（報酬受け取り込み）。
+              __DEV__ではなくSHOW_TEMP_MISSION_DEV_BUTTONで出し分けているため、Release/TestFlight
+              の実機ビルドでも表示される。動作確認が終わったら削除すること。 */}
+          {SHOW_TEMP_MISSION_DEV_BUTTON && (
+            <View style={{ alignItems: 'center', marginBottom: 8 }}>
+              <TouchableOpacity
+                style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, backgroundColor: '#7c2d1214' }}
+                onPress={async () => {
+                  unlockAudio(); Sounds.pop()
+                  await devCompleteAllMissions()
+                  setDevMissionDay(3)
+                  setShowMission(true)
+                }}
+              >
+                <Text style={{ fontSize: 11, fontWeight: '700', color: '#7c2d12' }}>[TEMP]ミッション全達成（実機テスト用）</Text>
+              </TouchableOpacity>
             </View>
           )}
 

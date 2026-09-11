@@ -290,8 +290,12 @@ export async function getMissionStats(startDate: string): Promise<MissionStats> 
 // 常に「今日」のデータとして矛盾なく成立させる。
 // __DEV__ビルドのボタンからのみ呼ばれる想定。
 // ══════════════════════════════════════════════════════════════════════
-async function devMarkPracticeToday(): Promise<void> {
-  const date = todayLocalISO()
+// 2026-09-11追記: devCompleteAllMissions（3日間まとめて達成扱いにする）用に、
+// 対象日付を引数で渡せるようにした（省略時は今日のまま＝devCompleteDayTasksからの
+// 呼び出しと完全互換）。videoだけはaddVideoAnalysisHistoryがcreated_atを常に
+// 「今」に固定するため、日付を後から偽装できない（devCompleteAllMissionsが
+// Day1の日付を必ず今日に合わせることでこの制約を回避している）。
+async function devMarkPracticeOn(date: string): Promise<void> {
   const sessions = await readJson<TrainingSession[]>(SESSIONS_KEY, [])
   if (sessions.some(s => s.session_date === date)) return
   const entry: TrainingSession = {
@@ -306,11 +310,12 @@ async function devMarkPracticeToday(): Promise<void> {
   }
   await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify([entry, ...sessions])).catch(() => {})
 }
+const devMarkPracticeToday = () => devMarkPracticeOn(todayLocalISO())
 
-async function devMarkConditionToday(): Promise<void> {
-  const date = todayLocalISO()
+async function devMarkConditionOn(date: string): Promise<void> {
   await updateConditionMap(current => ({ ...current, [date]: 7 }))
 }
+const devMarkConditionToday = () => devMarkConditionOn(todayLocalISO())
 
 async function devMarkVideoAnalyzedToday(): Promise<void> {
   await addVideoAnalysisHistory({ event: 'DEVテスト', score: 80, headline: 'DEV: 動画分析タスクを達成扱いにしました' })
@@ -337,8 +342,7 @@ async function devMarkCompetitionRegistered(): Promise<void> {
   await AsyncStorage.setItem(COMPETITIONS_KEY, JSON.stringify([entry, ...list])).catch(() => {})
 }
 
-async function devMarkMealAnalyzedToday(): Promise<void> {
-  const date = todayLocalISO()
+async function devMarkMealAnalyzedOn(date: string): Promise<void> {
   const list = await readJson<MealRecord[]>(MEALS_KEY, [])
   const entry: MealRecord = {
     id: `dev_${Date.now()}`,
@@ -355,11 +359,12 @@ async function devMarkMealAnalyzedToday(): Promise<void> {
   }
   await AsyncStorage.setItem(MEALS_KEY, JSON.stringify([entry, ...list])).catch(() => {})
 }
+const devMarkMealAnalyzedToday = () => devMarkMealAnalyzedOn(todayLocalISO())
 
-async function devMarkStretchToday(): Promise<void> {
-  const date = todayLocalISO()
+async function devMarkStretchOn(date: string): Promise<void> {
   await updateStretchResult(() => ({ date, reduction: 12, showBanner: false, lastReduction: 12 }))
 }
+const devMarkStretchToday = () => devMarkStretchOn(todayLocalISO())
 
 /**
  * DEV専用: Day Nのタスクを全部達成扱いにする。まずstartDateを「今日がDay Nに
@@ -382,4 +387,31 @@ export async function devCompleteDayTasks(day: MissionDay): Promise<void> {
   } else {
     await Promise.all([devMarkConditionToday(), devMarkStretchToday()])
   }
+}
+
+/**
+ * DEV専用(実機テスト用): 3日間ミッションを1タップで全て達成扱いにする(報酬受け取り込み)。
+ * startDateは今日に固定してDay1=今日にする(動画分析の記録created_atが常に「今」に
+ * なる制約のため、Day1だけは実日付と一致させる必要がある)。Day2/Day3は明日・明後日の
+ * 日付でタスクを書き込む(日付キー照合のみのタスクは未来日付でも問題なく完了扱いになる)。
+ */
+export async function devCompleteAllMissions(): Promise<void> {
+  const today = todayLocalISO()
+  const day2Date = localDateStr(new Date(new Date(today + 'T00:00:00').getTime() + 86400000))
+  const day3Date = localDateStr(new Date(new Date(today + 'T00:00:00').getTime() + 2 * 86400000))
+
+  const state = await readState()
+  state.startDate = today
+  await writeState(state)
+
+  // Day1
+  await Promise.all([devMarkPracticeOn(today), devMarkConditionOn(today), devMarkVideoAnalyzedToday(), devMarkCompetitionRegistered()])
+  // Day2
+  await Promise.all([devMarkPracticeOn(day2Date), devMarkConditionOn(day2Date), devMarkMealAnalyzedOn(day2Date)])
+  // Day3
+  await Promise.all([devMarkConditionOn(day3Date), devMarkStretchOn(day3Date)])
+
+  // Day1/Day2の報酬を受け取り済みにする(チケットも付与)
+  await claimDayReward(1, today)
+  await claimDayReward(2, today)
 }
