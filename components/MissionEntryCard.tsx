@@ -4,8 +4,12 @@
 // 2026-09-11追記: 当初はスクロール内の横長カードだったが、「ポケポケみたいに右下に丸で」
 // という指示でフローティングの丸バッジに変更。ホーム画面のSafeAreaView内・ScrollViewの
 // 外側（きょうだい要素）に置くことで、スクロールしても常に同じ位置に浮いたままになる。
-import React, { useState, useCallback } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+// 2026-09-11追記2: 「オンボーディングの水滴が落ちた時みたいに強調し続けて」との指示で、
+// app/onboarding.tsx の RiskMeterCTA と同じ波紋(RippleRing)を移植。今日のタスクが
+// 残っている間だけ波紋を出し、全部終わったらグレーにして波紋も止める
+// （「やることがある」を視覚的に伝える演出なので、やることが無い時に出し続けると逆に嘘になる）。
+import React, { useEffect, useRef, useState, useCallback } from 'react'
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { useFocusEffect } from 'expo-router'
@@ -15,6 +19,35 @@ import { BRAND } from '../lib/theme'
 import { ensureMissionStarted, getMissionDayProgress, currentMissionDay, getMissionState } from '../lib/missionStore'
 
 const G1 = '#22c55e'
+const GRAY_1 = '#9ca3af'
+const GRAY_2 = '#6b7280'
+const RING_SIZE = 80
+const CIRCLE_SIZE = 60
+
+// app/onboarding.tsx の RiskMeterCTA と同一実装（波紋が3本、600msずつずれて広がり続ける）
+function RippleRing({ active, delay, size, color }: { active: boolean; delay: number; size: number; color: string }) {
+  const t = useRef(new Animated.Value(0)).current
+  useEffect(() => {
+    if (!active) { t.stopAnimation(); t.setValue(0); return }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.timing(t, { toValue: 1, duration: 1800, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+        Animated.timing(t, { toValue: 0, duration: 0, useNativeDriver: true }),
+      ])
+    )
+    loop.start()
+    return () => loop.stop()
+  }, [active])
+  const scale = t.interpolate({ inputRange: [0, 1], outputRange: [0.25, 1] })
+  const opacity = t.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 0.45, 0] })
+  return (
+    <Animated.View pointerEvents="none" style={{
+      position: 'absolute', width: size, height: size, borderRadius: size / 2,
+      borderWidth: 1.5, borderColor: color, opacity, transform: [{ scale }],
+    }} />
+  )
+}
 
 export default function MissionEntryCard({ onPress }: { onPress: () => void }) {
   const { t } = useTranslation()
@@ -43,26 +76,37 @@ export default function MissionEntryCard({ onPress }: { onPress: () => void }) {
 
   if (!visible) return null
   const remaining = total - doneCount
+  const hasRemaining = remaining > 0
 
   return (
     <TouchableOpacity style={s.wrap} onPress={onPress} activeOpacity={0.85} accessibilityLabel={t('mission.entry.title', { day })}>
-      <LinearGradient colors={[G1, BRAND]} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={s.circle}>
-        <Ionicons name="flag" size={24} color="#fff" />
-        <Text style={s.dayText}>{t('mission.dayBadge', { day })}</Text>
-      </LinearGradient>
-      {remaining > 0 && (
-        <View style={s.badgeDot}><Text style={s.badgeDotText}>{remaining}</Text></View>
-      )}
+      <RippleRing active={hasRemaining} delay={0}    size={RING_SIZE} color={BRAND} />
+      <RippleRing active={hasRemaining} delay={600}  size={RING_SIZE} color={BRAND} />
+      <RippleRing active={hasRemaining} delay={1200} size={RING_SIZE} color={BRAND} />
+      <View>
+        <LinearGradient
+          colors={hasRemaining ? [G1, BRAND] : [GRAY_1, GRAY_2]}
+          start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }}
+          style={s.circle}
+        >
+          <Ionicons name="flag" size={24} color="#fff" />
+          <Text style={s.dayText}>{t('mission.dayBadge', { day })}</Text>
+        </LinearGradient>
+        {hasRemaining && (
+          <View style={s.badgeDot}><Text style={s.badgeDotText}>{remaining}</Text></View>
+        )}
+      </View>
     </TouchableOpacity>
   )
 }
 
 const makeS = (colors: ThemeColors) => StyleSheet.create({
   wrap: {
-    position: 'absolute', right: 18, bottom: 22, zIndex: 30,
+    position: 'absolute', right: 8, bottom: 12, zIndex: 30,
+    width: RING_SIZE, height: RING_SIZE, alignItems: 'center', justifyContent: 'center',
   },
   circle: {
-    width: 60, height: 60, borderRadius: 30,
+    width: CIRCLE_SIZE, height: CIRCLE_SIZE, borderRadius: CIRCLE_SIZE / 2,
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 3, borderColor: colors.bg,
     shadowColor: BRAND, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 10,

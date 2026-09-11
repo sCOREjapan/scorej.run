@@ -171,6 +171,9 @@ async function grantOnceGeneric(
   })
 }
 
+// 2026-09-11: 呼び出し元(app/onboarding.tsx)を撤去した。3日間ミッション(lib/missionStore.ts)の
+// Day1報酬(🎫5枚)が実質的な後継のため、両方呼ぶと初日に二重付与(5+5枚)になってしまう。
+// 関数自体は元に戻す時のために残してある。
 /** オンボーディング完了時に1回だけ初期チケットを付与する（2回目以降は何もしない） */
 export async function grantStarterTicketsIfNeeded(): Promise<void> {
   await grantOnceGeneric(STARTER_TICKETS, 'starter', '1', STARTER_KEY)

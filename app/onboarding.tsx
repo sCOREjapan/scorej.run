@@ -40,7 +40,6 @@ import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 import { getEventLabel } from '../lib/eventLabels'
 import { getPrefectureLabel, getRegionLabel } from '../lib/prefectureLabels'
-import { grantStarterTicketsIfNeeded } from '../lib/ticketWallet'
 import { BRAND, TEXT } from '../lib/theme'
 import { Sounds, unlockAudio } from '../lib/sounds'
 import { lightTap, mediumTap } from '../lib/haptics'
@@ -1011,7 +1010,9 @@ export default function OnboardingScreen() {
 
     const authed = !!user?.id || isGuest
     await setOnboarded()
-    await grantStarterTicketsIfNeeded()
+    // 2026-09-11: オンボーディング完了時の即時5枚付与(grantStarterTicketsIfNeeded)は撤去。
+    // 3日間ミッション(lib/missionStore.ts)のDay1報酬(🎫5枚)が実質的に置き換わっており、
+    // 両方残すと初日だけ実質10枚(5+5)の二重付与になってしまう。
     // 将来のホーム画面パーソナライズ用に目的を保存（現時点では読み出し側は未実装）
     await AsyncStorage.setItem('trackmate_onboarding_goal', goal || 'pb').catch(() => {})
     if (!authed) {

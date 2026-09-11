@@ -38,6 +38,8 @@ interface Props {
   onClose: () => void
   onNavigateCondition: () => void
   onNavigateStretch: () => void
+  // 開発用: 実際の経過日数を無視してDay1/2/3を強制的に表示する（__DEV__ボタンから使用）
+  forceDay?: MissionDay | null
 }
 
 type Phase = 'loading' | 'tasks' | 'summary'
@@ -56,7 +58,7 @@ const TASK_CHIP_COLOR: Record<MissionTaskStatus['key'], string> = {
   competition: GOLD, meal: '#f97316', stretch: '#06b6d4',
 }
 
-export default function MissionModal({ visible, onClose, onNavigateCondition, onNavigateStretch }: Props) {
+export default function MissionModal({ visible, onClose, onNavigateCondition, onNavigateStretch, forceDay = null }: Props) {
   const { t } = useTranslation()
   const { colors } = useTheme()
   const router = useRouter()
@@ -71,16 +73,23 @@ export default function MissionModal({ visible, onClose, onNavigateCondition, on
   const [achievements, setAchievements] = useState<MissionTaskStatus['key'][]>([])
   const [rewardTickets, setRewardTickets] = useState(0)
   const [showRewardPopup, setShowRewardPopup] = useState(false)
+  const [allDays, setAllDays] = useState<MissionDayProgress[] | null>(null)
 
   const load = useCallback(async () => {
     const state = await ensureMissionStarted()
-    const activeDay = currentMissionDay(state.startDate)
-    const prog = await getMissionDayProgress(activeDay, state.startDate, state)
+    const activeDay = forceDay ?? currentMissionDay(state.startDate)
+    const [prog, d1, d2, d3] = await Promise.all([
+      getMissionDayProgress(activeDay, state.startDate, state),
+      getMissionDayProgress(1, state.startDate, state),
+      getMissionDayProgress(2, state.startDate, state),
+      getMissionDayProgress(3, state.startDate, state),
+    ])
     setMission(state)
     setDay(activeDay)
     setProgress(prog)
+    setAllDays([d1, d2, d3])
     setPhase('tasks')
-  }, [])
+  }, [forceDay])
 
   useEffect(() => {
     if (!visible) return
@@ -138,9 +147,6 @@ export default function MissionModal({ visible, onClose, onNavigateCondition, on
     }
   }
 
-  const doneCount = progress ? progress.tasks.filter(x => x.done).length : 0
-  const totalCount = progress ? progress.tasks.length : 1
-
   return (
     <Modal transparent animationType="fade" {...modalProps}>
       <View style={s.overlay}>
@@ -168,9 +174,7 @@ export default function MissionModal({ visible, onClose, onNavigateCondition, on
                 </View>
                 <Text style={s.title}>{t(`mission.day${day}.title`)}</Text>
                 <Text style={s.sub}>{t(`mission.day${day}.sub`)}</Text>
-                <View style={s.progressTrack}>
-                  <View style={[s.progressFill, { width: `${(doneCount / totalCount) * 100}%` }]} />
-                </View>
+                {mission && allDays && <MissionJourneyBar allDays={allDays} mission={mission} />}
               </LinearGradient>
 
               <View style={s.body}>
@@ -351,6 +355,57 @@ function ConfettiBurst({ progress }: { progress: Animated.Value }) {
 }
 const cs = StyleSheet.create({
   dot: { position: 'absolute', top: '50%', left: '50%', width: 8, height: 8, marginTop: -4, marginLeft: -4, borderRadius: 2 },
+})
+
+// ── 3日間ぶんの旅程バー（ポケポケのデイリーミッション画面参照）──
+// 2026-09-11: 「今日のタスク」だけの進捗バーだと3日間ミッション全体の見通しが
+// 立たないという指摘で、Day1〜3の全タスク数(4+3+2=9)に対する通算進捗に変更。
+// 各Dayの区切り位置にマイル ストーン(Day1/2はチケット、Day3はプレゼント)を置き、
+// そのDayの報酬を受け取り済み(Day3は全タスク完了)になったら円を白く塗りつぶす。
+function MissionJourneyBar({ allDays, mission }: { allDays: MissionDayProgress[]; mission: MissionState }) {
+  const counts = allDays.map(d => d.tasks.length)
+  const totalTasks = counts.reduce((a, b) => a + b, 0)
+  const doneTasks = allDays.reduce((sum, d) => sum + d.tasks.filter(x => x.done).length, 0)
+  const fillPct = totalTasks > 0 ? Math.min(100, (doneTasks / totalTasks) * 100) : 0
+
+  let cumulative = 0
+  const markers = counts.map((c, i) => {
+    cumulative += c
+    return { day: (i + 1) as MissionDay, pct: totalTasks > 0 ? (cumulative / totalTasks) * 100 : 0 }
+  })
+  const achieved = (d: MissionDay) =>
+    d === 1 ? mission.claimedDay1 : d === 2 ? mission.claimedDay2 : allDays[2]?.allDone ?? false
+
+  return (
+    <View style={jb.wrap}>
+      <View style={jb.track}>
+        <View style={[jb.fill, { width: `${fillPct}%` }]} />
+      </View>
+      {markers.map(m => {
+        const done = achieved(m.day)
+        return (
+          <View key={m.day} style={[jb.markerWrap, { left: `${m.pct}%` }]}>
+            <View style={[jb.markerCircle, done && jb.markerCircleDone]}>
+              {m.day === 3
+                ? <Ionicons name="gift" size={12} color={done ? BRAND : '#fff'} />
+                : <Image source={TICKET_ICON} style={{ width: 13, height: 13 }} resizeMode="contain" />}
+            </View>
+          </View>
+        )
+      })}
+    </View>
+  )
+}
+const jb = StyleSheet.create({
+  wrap: { marginTop: 18, height: 26, justifyContent: 'center' },
+  track: { height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.35)', overflow: 'hidden' },
+  fill: { height: 8, borderRadius: 4, backgroundColor: '#fff' },
+  markerWrap: { position: 'absolute', top: 0, marginLeft: -13, width: 26, height: 26, alignItems: 'center', justifyContent: 'center' },
+  markerCircle: {
+    width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.25)',
+    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.7)', alignItems: 'center', justifyContent: 'center',
+  },
+  markerCircleDone: { backgroundColor: GOLD2, borderColor: '#fff' },
 })
 
 function MissionSummary({ colors, t, achievements, onContinue }: {

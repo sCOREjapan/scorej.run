@@ -1399,6 +1399,8 @@ export default function DashboardScreen() {
   const [showQuickLog,    setShowQuickLog]    = useState(false)
   const [showQuickCondition, setShowQuickCondition] = useState(false)
   const [showMission, setShowMission] = useState(false)
+  // 開発用: [DEV]ボタンからDay1/2/3を強制指定してプレビューする（__DEV__ビルドでしか出ない）
+  const [devMissionDay, setDevMissionDay] = useState<1 | 2 | 3 | null>(null)
   const [showRiskBreakdown, setShowRiskBreakdown] = useState(false)
   const [conditionMap,    setConditionMap]    = useState<Record<string,number>>({})
   const conditionLevel = conditionMap[selectedDate] ?? 6
@@ -2314,6 +2316,21 @@ ${sleepText || 'データなし'}
             </TouchableOpacity>
           )}
 
+          {/* 開発用: 実際の経過日数を無視してミッションのDay1/2/3をそれぞれプレビューできる */}
+          {__DEV__ && (
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginBottom: 8 }}>
+              {([1, 2, 3] as const).map(d => (
+                <TouchableOpacity
+                  key={d}
+                  style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, backgroundColor: '#16653414' }}
+                  onPress={() => { setDevMissionDay(d); setShowMission(true) }}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#166534' }}>[DEV]Day{d}ミッション</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
           {__DEV__ && (
             <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginBottom: 8 }}>
               {[
@@ -2699,9 +2716,10 @@ ${sleepText || 'データなし'}
 
       <MissionModal
         visible={showMission}
-        onClose={() => setShowMission(false)}
+        onClose={() => { setShowMission(false); setDevMissionDay(null) }}
         onNavigateCondition={() => setShowQuickCondition(true)}
         onNavigateStretch={handleStretchStart}
+        forceDay={devMissionDay}
       />
 
       {/* ── 怪我リスク内訳モーダル ── */}
