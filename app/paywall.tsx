@@ -210,6 +210,17 @@ export default function PaywallScreen() {
     if (coachPlan) {
       const tier = coachTierForMemberCount(teamMemberCount)
       coachPlan.monthly = { ...coachPlan.monthly, productId: tier.productId, price: tier.price }
+      // 2026-09-12バグ修正: 「年額は安くなってる表記なのに、実際に課金しようとすると
+      // 19800円だった」という報告への対応。coachPlan.yearly(¥1,650/月換算=¥19,800/年)は
+      // 〜15人ティアの価格のまま固定のPRODUCT_IDS.coach_yearly 1本しか無く、
+      // 〜30人/無制限ティアの年額商品がまだ存在しない。そのため上のmonthlyだけを
+      // ティアに応じて差し替えても、年額を選ぶと常にこの安い〜15人ティアの価格・商品で
+      // 課金されてしまっていた(表示と実際の請求額のズレどころか、大きいチームほど
+      // 本来より安く課金されてしまう実害あり)。〜15人ティア以外では年額の選択肢
+      // 自体を一旦非表示にする(該当ティアの年額商品を作成するまでの暫定対応)。
+      if (tier.productId !== PRODUCT_IDS.coach_monthly) {
+        delete coachPlan.yearly
+      }
     }
   }
   // 2026-09-07: サブスク推奨画面をリニューアル。チケットプランを一律で推奨する
