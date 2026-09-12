@@ -850,6 +850,12 @@ function RootLayoutNav() {
             name="paywall"
             options={{ headerShown: false, presentation: 'modal' }}
           />
+          {/* 2026-09-12: エントリが無いとネイティブの標準ヘッダーがルート名
+              "mission-offer" をそのままタイトル表示してしまっていた不具合を修正 */}
+          <Stack.Screen
+            name="mission-offer"
+            options={{ headerShown: false, presentation: 'modal' }}
+          />
           <Stack.Screen
             name="tickets"
             options={{ headerShown: false, presentation: 'modal' }}

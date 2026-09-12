@@ -277,11 +277,13 @@ export default function CombinedEventsScreen() {
 
 const ce = StyleSheet.create({
   safe:        { flex: 1, backgroundColor: BG },
-  header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8, paddingVertical: 8 },
+  // 2026-09-12: 実機(Dynamic Island機種)で、ヘッダーのタイトルと種目切り替えピルが
+  // 縦に詰まりすぎて重なって見えるとの報告を受け、paddingVertical/marginTopを拡大
+  header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8, paddingVertical: 12 },
   iconBtn:     { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 17, fontWeight: '700', color: TEXT_PRIMARY },
 
-  controlRow:     { flexDirection: 'row', justifyContent: 'center', marginTop: 4, marginBottom: 14 },
+  controlRow:     { flexDirection: 'row', justifyContent: 'center', marginTop: 10, marginBottom: 14 },
   categoryPills:  { flexDirection: 'row', gap: 8 },
   categoryPill:   { paddingHorizontal: 20, paddingVertical: 9, borderRadius: 20, backgroundColor: BRAND_SOFT, borderWidth: 1.5, borderColor: 'transparent' },
   categoryPillActive: { backgroundColor: BRAND + '18', borderColor: BRAND },

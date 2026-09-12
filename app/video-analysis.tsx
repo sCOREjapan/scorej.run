@@ -1233,7 +1233,9 @@ dimensions:上記${dims.length}項目(${dimIdList})全て必須。focusは改善
           // JSONパース失敗→総合スコア60点の汎用フォールバックになる不具合が発生していた。
           // 2026-08-29: 2600でも、実際の走行フォーム画像(情報量が多い)+gemini-3.5-flashの組み合わせで
           // 同じ途中切れが再発したため引き上げ（api/analyze.ts側の上限も4096に合わせて引き上げ済み）。
-          max_tokens: 3800,
+          // 2026-09-12: 実機で「AIの応答を解析できませんでした」が再発。3800はサーバー側の
+          // 上限4096より低く、余地を残したまま切り詰めていたため上限まで引き上げ。
+          max_tokens: 4096,
           messages: [{ role: 'user', content: [...imageBlocks, { type: 'text', text: prompt }] }],
         }),
       }, 65000)  // サーバー側(api/analyze.ts)のmaxDuration=60秒より長くする。45秒のままだと

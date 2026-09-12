@@ -437,13 +437,19 @@ export default function SettingsScreen() {
                         // アカウントで再ログインした時にデータが残っているように見え、
                         // 「削除したのに復活した」という同じ不具合になる。そのため失敗時は
                         // サインアウトせず、再試行できる状態のまま残す。
+                        // 2026-09-12: 500の実際の原因がこれまで一切見えず(サーバー側にも
+                        // console.errorが無かった)デバッグ不能だったため、レスポンス本文を
+                        // 開発時にログへ出す(ユーザー向け文言は変えない)。
+                        const bodyText = await res.text().catch(() => '')
+                        console.error('[delete-account] failed:', res.status, bodyText)
                         Alert.alert(t('settings.account.deleteFailedTitle'), t('settings.account.deleteFailedMessage'))
                         return
                       }
                       // サーバー側の削除に成功した時だけローカルクリア＋サインアウトする
                       await AsyncStorage.clear().catch(() => {})
                       await signOut().catch(() => {})
-                    } catch (_) {
+                    } catch (e) {
+                      console.error('[delete-account] client exception:', e)
                       Alert.alert(t('settings.account.deleteFailedTitle'), t('settings.account.deleteFailedMessage'))
                     }
                   },

@@ -84,6 +84,9 @@ export default async function handler(req: any, res: any) {
     //    ここは握りつぶさず失敗として返す（再試行させる）。
     const { data: userRow, error: userRowErr } = await admin.from('users').select('id').eq('auth_id', authId).maybeSingle()
     if (userRowErr) {
+      // 2026-09-12: 500になった時にVercelのログに実際の原因が一切残っておらず
+      // (「no message」としか出ない)デバッグできなかったため、console.errorを追加
+      console.error('[delete-account] users select failed:', userRowErr)
       res.status(500).json({ error: `内部ユーザー情報の取得に失敗しました: ${userRowErr.message}` })
       return
     }
@@ -136,12 +139,14 @@ export default async function handler(req: any, res: any) {
     if (authDelErr) {
       // ここまでの個人データは消えているが、Authアカウント自体は残ってしまった状態。
       // クライアント側は「再試行してください」を表示できるよう失敗として返す。
+      console.error('[delete-account] auth.admin.deleteUser failed:', authDelErr, { deleted, failed })
       res.status(500).json({ error: `Authユーザー削除に失敗: ${authDelErr.message}`, deleted, failed })
       return
     }
 
     res.status(200).json({ status: 'ok', deleted, failed })
   } catch (e: any) {
+    console.error('[delete-account] unhandled exception:', e)
     res.status(500).json({ error: e?.message ?? 'Unknown error' })
   }
 }
