@@ -24,7 +24,6 @@ import {
   View, Text, TouchableOpacity, StyleSheet, ActivityIndicator,
   Animated, Easing, Image, ImageBackground, Alert, Linking,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
@@ -64,7 +63,7 @@ function priceToNumber(priceStr: string): number | null {
 export default function MissionOfferScreen() {
   const router = useRouter()
   const { t } = useTranslation()
-  const { packages, packagesDiagnostic, packagesReady, purchase, restore, tier, hasTicketMonthly } = usePurchase()
+  const { packages, packagesDiagnostic, packagesReady, purchase, restore, hasTicketMonthly } = usePurchase()
 
   const [saleExpiresAt, setSaleExpiresAt] = useState<string | null>(null)
   const [nowTick, setNowTick] = useState(Date.now())
@@ -94,13 +93,19 @@ export default function MissionOfferScreen() {
     return () => clearInterval(timer)
   }, [saleExpiresAt])
 
-  // 加入済みなら見せる意味が無いのでホームへ戻す（app/paywall.tsxと同じ方針）
+  // 加入済みなら見せる意味が無いのでホームへ戻す。
+  // 2026-09-12バグ修正: paywall.tsxの条件(tier !== 'free' || hasTicketMonthly)を
+  // そのまま持ってきていたが、paywallはticket_monthly/コーチ両方を売る画面なので
+  // tier!=='free'（コーチ加入済みも含む）で正しい。この画面はticket_monthlyの
+  // セール専用のため、無関係なコーチプランが(過去のSandboxテスト等で)有効なだけで
+  // 「購入を復元する」を押すとコーチプランが有効になったかのように画面が反応し、
+  // ホームへ戻ってしまう実害があった。この画面ではhasTicketMonthlyだけを見る。
   useEffect(() => {
-    if (tier !== 'free' || hasTicketMonthly) {
+    if (hasTicketMonthly) {
       Toast.show({ type: 'success', text1: t('paywall.planActive') })
       router.back()
     }
-  }, [tier, hasTicketMonthly])
+  }, [hasTicketMonthly])
 
   const saleRemainingMs = saleExpiresAt ? new Date(saleExpiresAt).getTime() - nowTick : 0
   const saleActive = saleExpiresAt != null && saleRemainingMs > 0
@@ -160,108 +165,109 @@ export default function MissionOfferScreen() {
   }, [restore])
 
   return (
-    <ImageBackground source={OFFER_BG} style={{ flex: 1 }} resizeMode="cover">
-      {/* 背景画像の上にごく薄い黒を1枚敷き、どんな画像が来ても文字の可読性を担保する */}
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <LinearGradient colors={['rgba(0,0,0,0.35)', 'rgba(0,0,0,0.1)', 'rgba(0,0,0,0.55)']} locations={[0, 0.4, 1]} style={StyleSheet.absoluteFill} />
-      </View>
+    // 2026-09-12: 「これもミッション画面と同じようにカードタイプにして」との指示で、
+    // 全画面の背景画像テイクオーバーから、components/MissionModal.tsxのA案(中央フロート
+    // カード)と同じ構図(暗幕の背景+四辺マージン+四隅丸角+影)に変更。
+    <View style={s.overlay}>
+      <Animated.View style={[s.cardShadow, { opacity: fadeAnim }]}>
+        <ImageBackground source={OFFER_BG} style={s.card} imageStyle={{ borderRadius: 28 }} resizeMode="cover">
+          {/* 背景画像の上にごく薄い黒を1枚敷き、どんな画像が来ても文字の可読性を担保する */}
+          <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            <LinearGradient colors={['rgba(0,0,0,0.35)', 'rgba(0,0,0,0.1)', 'rgba(0,0,0,0.55)']} locations={[0, 0.4, 1]} style={StyleSheet.absoluteFill} />
+          </View>
 
-      <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-        <TouchableOpacity onPress={() => router.back()} style={s.closeBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel={t('tickets.closeLabel')}>
-          <Ionicons name="close" size={22} color="#fff" />
-        </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.back()} style={s.closeBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel={t('tickets.closeLabel')}>
+            <Ionicons name="close" size={20} color="#fff" />
+          </TouchableOpacity>
 
-        {/* 2026-09-11: 短辺の端末(iPhone SE等)だとフッターのボタンがカードに被る恐れが
-            あったため、固定flex分割ではなくScrollViewにした。長い端末では
-            contentContainerStyleのflexGrow+justifyContentで縦中央寄せ、
-            短い端末では自然にスクロールできる。 */}
-        <Animated.ScrollView style={{ flex: 1, opacity: fadeAnim }} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
-          <View style={s.body}>
-            {saleActive && (
-              <View style={s.countdownPill}>
-                <Ionicons name="time" size={14} color="#fff" />
-                <Text style={s.countdownText}>{t('missionOffer.countdownLabel')} {formatCountdown(saleRemainingMs)}</Text>
-              </View>
-            )}
-
-            <Text style={s.eyebrow}>{t('missionOffer.eyebrow')}</Text>
-            <Image source={MASCOT_OFFER} style={s.mascot} resizeMode="contain" />
-            <Text style={s.title}>{t('missionOffer.title')}</Text>
-
-            {showingDiscount && (
-              <Text style={s.urgencyLine}>{t('missionOffer.urgencyLine')}</Text>
-            )}
-            <View style={s.priceRow}>
-              {showingDiscount && (
-                <Text style={s.priceStrike}>{regularPrice}</Text>
+          <Animated.ScrollView style={{ flex: 1 }} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+            <View style={s.body}>
+              {saleActive && (
+                <View style={s.countdownPill}>
+                  <Ionicons name="time" size={14} color="#fff" />
+                  <Text style={s.countdownText}>{t('missionOffer.countdownLabel')} {formatCountdown(saleRemainingMs)}</Text>
+                </View>
               )}
-              <Text style={s.priceMain}>{displayPrice}</Text>
-              <Text style={s.pricePeriod}>{t('paywall.perMonth')}</Text>
-            </View>
-            {showingDiscount && discountPct != null && (
-              <View style={s.discountBadge}>
-                <Text style={s.discountBadgeText}>{t('missionOffer.discountBadge', { pct: discountPct })}</Text>
+
+              <Text style={s.eyebrow}>{t('missionOffer.eyebrow')}</Text>
+              <Image source={MASCOT_OFFER} style={s.mascot} resizeMode="contain" />
+              <Text style={s.title}>{t('missionOffer.title')}</Text>
+
+              {showingDiscount && (
+                <Text style={s.urgencyLine}>{t('missionOffer.urgencyLine')}</Text>
+              )}
+              <View style={s.priceRow}>
+                {showingDiscount && (
+                  <Text style={s.priceStrike}>{regularPrice}</Text>
+                )}
+                <Text style={s.priceMain}>{displayPrice}</Text>
+                <Text style={s.pricePeriod}>{t('paywall.perMonth')}</Text>
               </View>
-            )}
+              {showingDiscount && discountPct != null && (
+                <View style={s.discountBadge}>
+                  <Text style={s.discountBadgeText}>{t('missionOffer.discountBadge', { pct: discountPct })}</Text>
+                </View>
+              )}
 
-            <View style={s.featureCard}>
-              <FeatureRow text={t('paywall.plans.ticket_monthly.feature1')} />
-              <FeatureRow text={t('paywall.plans.ticket_monthly.feature2', { count: TICKET_MONTHLY_GRANT })} />
-              <FeatureRow text={t('paywall.plans.ticket_monthly.feature3')} />
-            </View>
-          </View>
-
-          <View style={s.footer}>
-            <View style={s.purchaseBtnWrap}>
-              <Animated.View
-                pointerEvents="none"
-                style={[
-                  s.purchaseBtnGlow,
-                  {
-                    opacity: ctaGlow.interpolate({ inputRange: [0, 1], outputRange: [0.25, 0.5] }),
-                    transform: [{ scale: ctaGlow.interpolate({ inputRange: [0, 1], outputRange: [1, 1.03] }) }],
-                  },
-                ]}
-              />
-              <TouchableOpacity onPress={handlePurchase} disabled={purchasing || !packagesReady} activeOpacity={0.88} style={[s.purchaseBtn, (purchasing || !packagesReady) && { opacity: 0.6 }]}>
-                <LinearGradient colors={[GOLD2, GOLD]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.purchaseBtnInner}>
-                  {purchasing
-                    ? <ActivityIndicator color="#fff" />
-                    : <>
-                        <Image source={TICKET_ICON} style={{ width: 20, height: 20 }} resizeMode="contain" />
-                        <Text style={s.purchaseBtnText}>{t('missionOffer.ctaButton')}</Text>
-                      </>}
-                </LinearGradient>
-              </TouchableOpacity>
+              <View style={s.featureCard}>
+                <FeatureRow text={t('paywall.plans.ticket_monthly.feature1')} />
+                <FeatureRow text={t('paywall.plans.ticket_monthly.feature2', { count: TICKET_MONTHLY_GRANT })} />
+                <FeatureRow text={t('paywall.plans.ticket_monthly.feature3')} />
+              </View>
             </View>
 
-            <TouchableOpacity onPress={() => router.back()} style={s.skipBtn} activeOpacity={0.7}>
-              <Text style={s.skipText}>{t('missionOffer.skipButton')}</Text>
-            </TouchableOpacity>
+            <View style={s.footer}>
+              <View style={s.purchaseBtnWrap}>
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    s.purchaseBtnGlow,
+                    {
+                      opacity: ctaGlow.interpolate({ inputRange: [0, 1], outputRange: [0.25, 0.5] }),
+                      transform: [{ scale: ctaGlow.interpolate({ inputRange: [0, 1], outputRange: [1, 1.03] }) }],
+                    },
+                  ]}
+                />
+                <TouchableOpacity onPress={handlePurchase} disabled={purchasing || !packagesReady} activeOpacity={0.88} style={[s.purchaseBtn, (purchasing || !packagesReady) && { opacity: 0.6 }]}>
+                  <LinearGradient colors={[GOLD2, GOLD]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.purchaseBtnInner}>
+                    {purchasing
+                      ? <ActivityIndicator color="#fff" />
+                      : <>
+                          <Image source={TICKET_ICON} style={{ width: 20, height: 20 }} resizeMode="contain" />
+                          <Text style={s.purchaseBtnText}>{t('missionOffer.ctaButton')}</Text>
+                        </>}
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
 
-            {/* App Store審査要件(3.1.1/3.1.2): 復元ボタン・価格/更新周期/解約方法の明記は
-                背景画像付きの派手な画面でも省略できない。app/paywall.tsxと同じ文言を、
-                この画面のトーンに合わせて控えめな小さい白文字で置いている。 */}
-            <TouchableOpacity onPress={handleRestore} disabled={restoring} style={s.restoreBtn}>
-              {restoring
-                ? <ActivityIndicator color="rgba(255,255,255,0.75)" size="small" />
-                : <Text style={s.restoreText}>{t('paywall.restoreButton')}</Text>}
-            </TouchableOpacity>
-            <Text style={s.legalText}>
-              {t('paywall.legal.autoRenew')} {t('paywall.legal.cancelNotice')} {t('paywall.legal.howToCancel')}
-            </Text>
-            <View style={{ flexDirection: 'row', gap: 16, justifyContent: 'center', marginTop: 6 }}>
-              <TouchableOpacity onPress={() => Linking.openURL('https://scorej-run.vercel.app/privacy')}>
-                <Text style={s.legalLink}>{t('paywall.privacyPolicy')}</Text>
+              <TouchableOpacity onPress={() => router.back()} style={s.skipBtn} activeOpacity={0.7}>
+                <Text style={s.skipText}>{t('missionOffer.skipButton')}</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => Linking.openURL('https://scorej-run.vercel.app/terms')}>
-                <Text style={s.legalLink}>{t('paywall.terms')}</Text>
+
+              {/* App Store審査要件(3.1.1/3.1.2): 復元ボタン・価格/更新周期/解約方法の明記は
+                  背景画像付きの派手な画面でも省略できない。app/paywall.tsxと同じ文言を、
+                  この画面のトーンに合わせて控えめな小さい白文字で置いている。 */}
+              <TouchableOpacity onPress={handleRestore} disabled={restoring} style={s.restoreBtn}>
+                {restoring
+                  ? <ActivityIndicator color="rgba(255,255,255,0.75)" size="small" />
+                  : <Text style={s.restoreText}>{t('paywall.restoreButton')}</Text>}
               </TouchableOpacity>
+              <Text style={s.legalText}>
+                {t('paywall.legal.autoRenew')} {t('paywall.legal.cancelNotice')} {t('paywall.legal.howToCancel')}
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 16, justifyContent: 'center', marginTop: 6 }}>
+                <TouchableOpacity onPress={() => Linking.openURL('https://scorej-run.vercel.app/privacy')}>
+                  <Text style={s.legalLink}>{t('paywall.privacyPolicy')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => Linking.openURL('https://scorej-run.vercel.app/terms')}>
+                  <Text style={s.legalLink}>{t('paywall.terms')}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        </Animated.ScrollView>
-      </SafeAreaView>
-    </ImageBackground>
+          </Animated.ScrollView>
+        </ImageBackground>
+      </Animated.View>
+    </View>
   )
 }
 
@@ -275,9 +281,23 @@ function FeatureRow({ text }: { text: string }) {
 }
 
 const s = StyleSheet.create({
-  closeBtn: { alignSelf: 'flex-end', width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginRight: 4 },
+  // components/MissionModal.tsxのoverlay/sheetShadow/sheetと同じ構図
+  // (中央フロートカード)。paddingHorizontal:20で左右の余白、maxHeightで上下の
+  // 余白を作る。shadowとoverflow:'hidden'は同居できないため影担当(cardShadow)と
+  // クリップ担当(card)を分けている。
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', paddingHorizontal: 20 },
+  cardShadow: {
+    borderRadius: 28, maxHeight: '84%',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 20 }, shadowOpacity: 0.4, shadowRadius: 30, elevation: 20,
+  },
+  card: { borderRadius: 28, overflow: 'hidden', flexShrink: 1 },
+  closeBtn: {
+    position: 'absolute', top: 12, right: 12, zIndex: 10,
+    width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(0,0,0,0.35)',
+    alignItems: 'center', justifyContent: 'center',
+  },
   scrollContent: { flexGrow: 1, justifyContent: 'center' },
-  body: { alignItems: 'center', paddingHorizontal: 28, paddingTop: 4 },
+  body: { alignItems: 'center', paddingHorizontal: 28, paddingTop: 44 },
   countdownPill: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7,

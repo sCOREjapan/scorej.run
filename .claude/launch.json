@@ -8,6 +8,12 @@
       "port": 8082
     },
     {
+      "name": "trackmate-metro",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["expo", "start", "--port", "8081"],
+      "port": 8081
+    },
+    {
       "name": "mockup",
       "runtimeExecutable": "python3",
       "runtimeArgs": ["-m", "http.server", "8099"],

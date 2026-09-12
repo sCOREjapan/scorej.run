@@ -468,6 +468,17 @@ function MissionReveal({ startDate, onContinue }: {
   const [showCta, setShowCta] = useState(false)
   const whiteFade = useRef(new Animated.Value(1)).current
   const ctaFade = useRef(new Animated.Value(0)).current
+  // 2026-09-12バグ修正: 「3日間ミッション達成→白い結果画面への切り替えがフェードなしで
+  // 急すぎて、画面がバグってるように見える」という報告。原因は、この画面を包む
+  // <Modal>自体はphase切り替えの前後で同じインスタンスのまま(visibleがtrueのまま)
+  // 保たれるため、Modal自身のanimationType="fade"は再生されず、中身(タスク一覧→この
+  // 白画面)が1フレームで瞬間的に入れ替わっていたこと。MissionReveal自身のマウント時に
+  // 透明→不透明へフェードインさせることで、切り替え自体をなめらかにする。
+  const mountFade = useRef(new Animated.Value(0)).current
+
+  useEffect(() => {
+    Animated.timing(mountFade, { toValue: 1, duration: 280, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start()
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -505,7 +516,7 @@ function MissionReveal({ startDate, onContinue }: {
     ? stats.conditionLast - stats.conditionFirst : null
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#fff' }}>
+    <Animated.View style={{ flex: 1, backgroundColor: '#fff', opacity: mountFade }}>
       <SafeAreaView style={{ flex: 1 }}>
         <View style={rv.wrap}>
           <Image source={MASCOT_READY} style={rv.mascot} resizeMode="contain" />
@@ -575,7 +586,7 @@ function MissionReveal({ startDate, onContinue }: {
 
       {/* データ取得中は白一色で覆っておき、揃ったらフェードアウトして見せる */}
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#fff', opacity: whiteFade }]} />
-    </View>
+    </Animated.View>
   )
 }
 // 数字を「裸の値」ではなく1文の中の強調語として見せるための行コンポーネント。
