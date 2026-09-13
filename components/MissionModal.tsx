@@ -111,8 +111,17 @@ export default function MissionModal({ visible, onClose, onNavigateCondition, on
     try {
       const { granted, tickets } = await claimDayReward(day as 1 | 2, mission.startDate)
       trackEvent('mission_day_claimed', { feature: 'mission', metadata: { day, granted, tickets } })
-      setRewardTickets(tickets)
-      setShowRewardPopup(true)
+      // 2026-09-13バグ修正: 「チケット受け取りボタンが何回でも押せる」との報告。
+      // claimDayReward自体はサーバー側(ticket_wallet_grant_once)で二重付与防止済みだが、
+      // ここでgrantedの結果を見ずに毎回setShowRewardPopup(true)していたため、既に受け取り
+      // 済み(granted=false)でも毎回「チケット獲得」演出が出て、実際は貰えていないのに
+      // 何度でも貰えているように見えていた。granted=falseの時は演出を出さずload()だけ行う
+      // (load()がprogress.rewardClaimed=trueを反映してボタン自体も消えるはずだが、
+      // 万一のズレに備えて演出表示側もgrantedで確実にガードする)。
+      if (granted) {
+        setRewardTickets(tickets)
+        setShowRewardPopup(true)
+      }
       // 再読み込みして受け取り済み状態を反映（演出の裏側で先に済ませておく）
       await load()
     } finally {

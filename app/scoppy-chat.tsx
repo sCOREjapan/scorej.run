@@ -13,6 +13,7 @@ import {
   ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useTheme, type ThemeColors } from '../context/ThemeContext'
 import { useLanguage } from '../context/LanguageContext'
@@ -33,6 +34,7 @@ const MASCOT_THINKING = require('../assets/illustrations/mascot/mascot_onboardin
 
 export default function ScoppyChatScreen() {
   const { t } = useTranslation()
+  const router = useRouter()
   const { colors } = useTheme()
   const { language } = useLanguage()
   const { isGuest } = useAuth()
@@ -146,7 +148,13 @@ export default function ScoppyChatScreen() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       <View style={s.topBar}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 }}>
+          {/* 2026-09-13バグ修正: 「ホーム画面に戻るボタンがわかりにくい」との報告。
+              headerShown:falseの独自ヘッダーなのに戻る手段が無く、iOSの端スワイプ
+              ジェスチャーだけが頼りだった(気づきにくい)。明示的な戻るボタンを追加する */}
+          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ marginRight: 2 }}>
+            <Ionicons name="chevron-back" size={24} color={colors.text} />
+          </TouchableOpacity>
           <Image source={MASCOT_READY} style={s.topBarMascot} resizeMode="contain" />
           <Text style={s.topBarTitle}>{t('scoppyChat.title')}</Text>
           {/* 2026-09-13: 「1チケット5質問」の残数を可視化(lib/scoppyChatStore.ts参照)。
@@ -170,6 +178,12 @@ export default function ScoppyChatScreen() {
             <Image source={MASCOT_READY} style={s.emptyMascot} resizeMode="contain" />
             <Text style={s.emptyTitle}>{t('scoppyChat.emptyTitle')}</Text>
             <Text style={s.emptySub}>{t('scoppyChat.emptySub')}</Text>
+            {/* 2026-09-13バグ修正: 「チケット消費することが何も記載がない」との報告。
+                料金体系(5回で1枚)を最初に明示する */}
+            <View style={s.costNote}>
+              <Ionicons name="pricetag-outline" size={13} color={colors.textHint} />
+              <Text style={s.costNoteText}>{t('scoppyChat.costNote')}</Text>
+            </View>
             <View style={s.suggestWrap}>
               {suggestions.map((q, i) => (
                 <TouchableOpacity key={i} style={s.suggestChip} onPress={() => handleSend(q)} activeOpacity={0.75}>
@@ -249,7 +263,9 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 30 },
   emptyMascot: { width: 96, height: 96, marginBottom: 12 },
   emptyTitle: { fontSize: 16, fontWeight: '800', color: colors.text, marginBottom: 4 },
-  emptySub: { fontSize: 13, color: colors.textSec, textAlign: 'center', lineHeight: 19, marginBottom: 20, paddingHorizontal: 16 },
+  emptySub: { fontSize: 13, color: colors.textSec, textAlign: 'center', lineHeight: 19, marginBottom: 12, paddingHorizontal: 16 },
+  costNote: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 20 },
+  costNoteText: { fontSize: 11.5, color: colors.textHint },
   suggestWrap: { width: '100%', gap: 8 },
   suggestChip: {
     backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,

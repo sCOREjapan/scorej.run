@@ -4271,6 +4271,7 @@
     "clearMessage": "これまでの会話がすべて削除されます。この操作は取り消せません。",
     "cancel": "キャンセル",
     "clearConfirm": "削除する",
-    "creditsRemaining": "残り{{n}}回無料"
+    "creditsRemaining": "残り{{n}}回無料",
+    "costNote": "チケット1枚で5回まで質問できます"
   }
 }

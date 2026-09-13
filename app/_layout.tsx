@@ -860,18 +860,17 @@ function RootLayoutNav() {
           />
           {/* 2026-09-12: エントリが無いとネイティブの標準ヘッダーがルート名
               "mission-offer" をそのままタイトル表示してしまっていた不具合を修正 */}
-          {/* 2026-09-13: 「背景がおかしい/灰色」の実機フィードバックの本当の原因はこれだった。
-              presentation:'modal'はOS標準のカード型モーダル(角丸+外側に余白+システム既定の
-              背景)を使うため、この画面自身が持つ暗幕オーバーレイ+フロートカード(A案)と
-              二重に入れ子になり、システム側の角丸カード(灰色っぽい既定背景)の中に
-              さらに小さい丸角カードが浮く、という見た目になっていた。paywall.tsx等の
-              画面いっぱいに描画する画面ではこの二重角丸が目立たないため気づかれなかった。
-              transparentModalはOS側のカード演出(角丸・余白・既定背景)を一切描かず、画面を
-              完全に透明な全画面オーバーレイとして扱うため、この画面自身のオーバーレイ
-              (rgba透過)がそのまま手前の画面(ホーム)に重なって正しく見える。 */}
+          {/* 2026-09-13: 「背景がおかしい/灰色」のWeb版プレビューでの見え方(presentation:'modal'
+              がOS標準の角丸カードを使い、この画面自身のオーバーレイと二重に入れ子になる問題)
+              を解消しようとtransparentModalに変更したが、実機(TestFlight build60)で
+              「灰色になって何も操作できなくなる」という、見た目の問題より深刻な操作不能
+              状態を引き起こしてしまった。react-native-screensのtransparentModalは
+              タッチイベントが正しく届かなくなる既知の不具合報告があり、それに該当したと
+              考えられる。動作の確実性を優先し、元のpresentation:'modal'に戻した
+              (二重角丸の見た目はWeb版プレビュー限定の軽微な問題として許容する)。 */}
           <Stack.Screen
             name="mission-offer"
-            options={{ headerShown: false, presentation: 'transparentModal' }}
+            options={{ headerShown: false, presentation: 'modal' }}
           />
           <Stack.Screen
             name="tickets"
