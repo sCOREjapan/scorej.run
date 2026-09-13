@@ -105,11 +105,19 @@ export default function MissionOfferScreen() {
   // セール専用のため、無関係なコーチプランが(過去のSandboxテスト等で)有効なだけで
   // 「購入を復元する」を押すとコーチプランが有効になったかのように画面が反応し、
   // ホームへ戻ってしまう実害があった。この画面ではhasTicketMonthlyだけを見る。
+  // 2026-09-13バグ修正: 「オファー画面が灰色になって何も操作できなくなる」の原因が
+  // これだった疑いが強い。この画面はmarking-offer→router.push()で"presentation:modal"
+  // として提示された直後であり、mount時点で既にhasTicketMonthlyがtrue(テストアカウントが
+  // 過去のセッションで既にticket_monthlyを保有している等)だと、このuseEffectがmountと
+  // ほぼ同時にrouter.back()を呼んでしまう。iOSのモーダル提示アニメーションが完了する前に
+  // 即座に戻る操作が割り込むと、提示と破棄が競合し、画面が中途半端な状態(暗い/操作不能)の
+  // まま固まる不具合が起きる(usePropOverlayDismiss.tsで同種の問題を回避しているのと同じ根)。
+  // 提示アニメーションが終わる程度の猶予(400ms)を空けてから戻ることで回避する。
   useEffect(() => {
-    if (hasTicketMonthly) {
-      Toast.show({ type: 'success', text1: t('paywall.planActive') })
-      router.back()
-    }
+    if (!hasTicketMonthly) return
+    Toast.show({ type: 'success', text1: t('paywall.planActive') })
+    const timer = setTimeout(() => router.back(), 400)
+    return () => clearTimeout(timer)
   }, [hasTicketMonthly])
 
   const saleRemainingMs = saleExpiresAt ? new Date(saleExpiresAt).getTime() - nowTick : 0
