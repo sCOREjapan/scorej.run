@@ -81,6 +81,7 @@ export async function checkAndConsumeDailyAllowance(key: string, dailyCap: numbe
 export type Feature =
   | 'ai_analysis' | 'video' | 'meal' | 'csv' | 'recovery' | 'workout'
   | 'meal_coach' | 'daily_insight' | 'notebook_ai' | 'competition_plan' | 'injury_recovery'
+  | 'scoppy_chat'
 
 // チケット制導入日：これより前に広告なしプランに加入していたユーザーは
 // 全機能引き続き無制限にする（既存加入者の体験を変えないため）
@@ -108,6 +109,10 @@ function isFreeInjuryFeature(feature: Feature): boolean {
 const HARD_DAILY_CAP: Partial<Record<Feature, number>> = {
   video: 4, meal: 6, ai_analysis: 3, recovery: 2, workout: 3,
   meal_coach: 3, daily_insight: 2, notebook_ai: 6, competition_plan: 3, injury_recovery: 2,
+  // 2026-09-13: コーチプラン等の無制限tierはチケット不要(isUnlimitedBypass)で
+  // スコッピーとの会話もチケット消費が発生しないため、ここでの絶対上限だけが
+  // 唯一の歯止めになる。1回の相談で数往復する会話形式のため他機能より高めに設定
+  scoppy_chat: 20,
 }
 const HARD_DAILY_KEY = 'score_feature_hard_daily_usage'
 

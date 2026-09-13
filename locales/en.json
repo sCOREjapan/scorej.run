@@ -1309,6 +1309,7 @@
       "eventPrefix": "  Event: {{event}}",
       "ticketUsedToast": "🎫 Used {{n}} ticket(s)",
       "parseFailedError": "Couldn't parse the AI's response. Please try again later.",
+      "parseFailedTruncatedError": "The AI's response was too long and got cut off. Please try again (we already retried once automatically, but it still didn't work).",
       "analysisFailedError": "Analysis failed",
       "apiErrorMessage": "API error ({{status}}): {{body}}",
       "defaultHeadline": "Analysis complete",
@@ -3956,7 +3957,8 @@
       "notebook_ai": "Notebook AI Analysis",
       "competition_plan": "Competition Plan Generator",
       "injury_recovery": "Return-to-Play Plan Generator",
-      "default": "this feature"
+      "default": "this feature",
+      "scoppy_chat": "Ask Scoppy"
     },
     "guest": {
       "title": "Login Required",
@@ -4249,5 +4251,26 @@
       "coach": "Coach Plan"
     },
     "disclaimer": "This certificate confirms your use of our service. For an official purchase receipt, please also refer to the purchase confirmation email sent by Apple or Google at the time of purchase."
+  },
+  "scoppyChat": {
+    "title": "Ask Scoppy",
+    "emptyTitle": "Ask me anything!",
+    "emptySub": "Ask about track & field form, training,\nor rules — anything you're curious about",
+    "suggestions": [
+      "What's the pacing strategy for an 800m?",
+      "How do I shorten ground contact time?",
+      "What should I do for a warm-up before practice?",
+      "How do I deal with lingering fatigue?"
+    ],
+    "placeholder": "Ask Scoppy a question...",
+    "thinking": "Thinking...",
+    "errorMessage": "I couldn't answer that... please try asking again.",
+    "dailyLimitTitle": "Daily limit reached",
+    "dailyLimitMessage": "You've reached today's limit for chatting with Scoppy. Come back tomorrow!",
+    "clearTitle": "Delete chat history?",
+    "clearMessage": "This will delete the entire conversation. This can't be undone.",
+    "cancel": "Cancel",
+    "clearConfirm": "Delete",
+    "creditsRemaining": "{{n}} free left"
   }
 }

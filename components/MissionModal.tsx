@@ -78,6 +78,9 @@ export default function MissionModal({ visible, onClose, onNavigateCondition, on
   const [rewardTickets, setRewardTickets] = useState(0)
   const [showRewardPopup, setShowRewardPopup] = useState(false)
   const [allDays, setAllDays] = useState<MissionDayProgress[] | null>(null)
+  // 2026-09-13: tasks→summary切り替え時の透け防止用の白幕(下のhandleShowSummary/
+  // return部のコメント参照)。
+  const transitionCover = useRef(new Animated.Value(0)).current
 
   const load = useCallback(async () => {
     const state = await ensureMissionStarted()
@@ -119,7 +122,19 @@ export default function MissionModal({ visible, onClose, onNavigateCondition, on
 
   const handleShowSummary = () => {
     trackEvent('mission_summary_viewed', { feature: 'mission' })
-    setPhase('summary')
+    // 2026-09-13再修正: 前回(5807eec)の対策(MissionReveal側のmountFade)は逆効果だった。
+    // MissionRevealのルート自体をopacity 0から開始させたため、フェードインの最初の数フレーム
+    // は「白背景ごと透明」になり、transparentなModalの向こう側(ホーム画面)が一瞬透けて
+    // 見えるという、元の「急に切り替わる」より悪い見え方になっていた(ユーザー報告で発覚)。
+    // 正しい直し方: tasks→summaryはこの<Modal>が同じインスタンスのまま中身だけ差し替わる
+    // ため、切り替わる瞬間を常駐の白幕(transitionCover)で先に覆ってから中身を切り替える。
+    // 白幕は常にModal内の最前面にいる(下のreturn参照)ので、透ける余地がない。
+    Animated.timing(transitionCover, {
+      toValue: 1, duration: 200, easing: Easing.out(Easing.cubic), useNativeDriver: true,
+    }).start(() => {
+      setPhase('summary')
+      transitionCover.setValue(0) // 新画面も自前の白幕(whiteFade)で覆われた状態なので瞬時に戻して良い
+    })
   }
 
   const handleContinueToSale = () => {
@@ -152,19 +167,18 @@ export default function MissionModal({ visible, onClose, onNavigateCondition, on
 
   // 2026-09-11: 「全面的に変更してほしい」との指示で、結果画面はボトムシート内ではなく
   // 白フェードで画面全体を覆う独立のフルスクリーン演出(MissionReveal)にした。
-  if (phase === 'summary' && mission) {
-    return (
-      <Modal transparent animationType="fade" {...modalProps}>
+  // 2026-09-13: 以前はこのsummaryフェーズだけ別の<Modal>で早期returnしていたが、
+  // どのフェーズでも<Modal>自体は同じインスタンスのまま(visibleがtrueの間ずっとマウント
+  // されている)なので、別々に書いても得はなく、むしろ下のtransitionCover(常駐の白幕)を
+  // 「Modal内の最前面に必ずいる」ようにするために1つの<Modal>にまとめた。
+  return (
+    <Modal transparent animationType="fade" {...modalProps}>
+      {phase === 'summary' && mission ? (
         <MissionReveal
           startDate={mission.startDate}
           onContinue={handleContinueToSale}
         />
-      </Modal>
-    )
-  }
-
-  return (
-    <Modal transparent animationType="fade" {...modalProps}>
+      ) : (
       <View style={s.overlay}>
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => close()} />
         <View style={s.sheetShadow}>
@@ -271,6 +285,7 @@ export default function MissionModal({ visible, onClose, onNavigateCondition, on
         </View>
         </View>
       </View>
+      )}
 
       {/* ── 受け取り演出（ゴールドのバースト光線＋紙吹雪＋コインポップ） ── */}
       {showRewardPopup && (
@@ -281,6 +296,12 @@ export default function MissionModal({ visible, onClose, onNavigateCondition, on
           onClose={() => setShowRewardPopup(false)}
         />
       )}
+
+      {/* 2026-09-13: tasks→summary切り替え時の透け防止用の白幕。常にModal内の最前面(最後の
+          子要素)に置くことで、handleShowSummaryがこれを不透明にしてから中身を差し替えても
+          必ずその上に乗り、向こう側が透けることはない。ふだんはopacity 0で操作を邪魔しない
+          よう pointerEvents="none"。 */}
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#fff', opacity: transitionCover }]} />
     </Modal>
   )
 }
@@ -468,17 +489,13 @@ function MissionReveal({ startDate, onContinue }: {
   const [showCta, setShowCta] = useState(false)
   const whiteFade = useRef(new Animated.Value(1)).current
   const ctaFade = useRef(new Animated.Value(0)).current
-  // 2026-09-12バグ修正: 「3日間ミッション達成→白い結果画面への切り替えがフェードなしで
-  // 急すぎて、画面がバグってるように見える」という報告。原因は、この画面を包む
-  // <Modal>自体はphase切り替えの前後で同じインスタンスのまま(visibleがtrueのまま)
-  // 保たれるため、Modal自身のanimationType="fade"は再生されず、中身(タスク一覧→この
-  // 白画面)が1フレームで瞬間的に入れ替わっていたこと。MissionReveal自身のマウント時に
-  // 透明→不透明へフェードインさせることで、切り替え自体をなめらかにする。
-  const mountFade = useRef(new Animated.Value(0)).current
-
-  useEffect(() => {
-    Animated.timing(mountFade, { toValue: 1, duration: 280, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start()
-  }, [])
+  // 2026-09-12に「切り替えが急すぎる」対策としてここにmountFade(このルート自体を
+  // opacity 0から280msでフェードイン)を追加したが、2026-09-13に撤回した。ルート自体を
+  // 透明から始めると、フェードインの最初の数フレームは背景色ごと透明になり、transparentな
+  // <Modal>の向こう側(ホーム画面)が一瞬透けて見える方が目立ってしまっていた。
+  // 正しい対策は呼び出し側(MissionModal本体)のtransitionCoverで先に覆ってから
+  // このコンポーネントに切り替えること。ここはルートを常に不透明のままにし、
+  // 下のwhiteFade(データ取得完了まで白一色で覆う)だけで十分。
 
   useEffect(() => {
     let cancelled = false
@@ -516,7 +533,7 @@ function MissionReveal({ startDate, onContinue }: {
     ? stats.conditionLast - stats.conditionFirst : null
 
   return (
-    <Animated.View style={{ flex: 1, backgroundColor: '#fff', opacity: mountFade }}>
+    <View style={{ flex: 1, backgroundColor: '#fff' }}>
       <SafeAreaView style={{ flex: 1 }}>
         <View style={rv.wrap}>
           <Image source={MASCOT_READY} style={rv.mascot} resizeMode="contain" />
@@ -586,7 +603,7 @@ function MissionReveal({ startDate, onContinue }: {
 
       {/* データ取得中は白一色で覆っておき、揃ったらフェードアウトして見せる */}
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#fff', opacity: whiteFade }]} />
-    </Animated.View>
+    </View>
   )
 }
 // 数字を「裸の値」ではなく1文の中の強調語として見せるための行コンポーネント。

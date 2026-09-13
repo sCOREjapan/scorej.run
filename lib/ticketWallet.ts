@@ -37,6 +37,7 @@ const MISSION_BONUS   = 3   // 各ワンタイムミッション（プロフィ�
 export type TicketFeature =
   | 'video' | 'workout' | 'meal' | 'ai_analysis' | 'recovery'
   | 'meal_coach' | 'daily_insight' | 'notebook_ai' | 'competition_plan' | 'injury_recovery'
+  | 'scoppy_chat'
 export const TICKET_COST: Record<TicketFeature, number> = {
   // 2026-09-03: 動画分析・AI診断・食事コーチは1回あたりのAPIコストが高いため増額(2→3枚)
   // 2026-09-09: 出力トークン量あたりの価格を機能間で見直し。
@@ -49,6 +50,9 @@ export const TICKET_COST: Record<TicketFeature, number> = {
   video: 2, workout: 2, meal: 2,
   ai_analysis: 3, recovery: 1, meal_coach: 3, daily_insight: 2,
   notebook_ai: 1, competition_plan: 3, injury_recovery: 3,
+  // 2026-09-13: スコッピーとの会話機能。max_tokens=400・画像なしのテキストのみで
+  // notebook_ai(1枚)と同等のコストのため同額にした
+  scoppy_chat: 1,
 }
 
 type Wallet = { tickets: number }

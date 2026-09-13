@@ -79,6 +79,8 @@ const TICKET_COST_SERVER: Record<string, number> = {
   video: 2, workout: 2, meal: 2,
   ai_analysis: 3, meal_coach: 3, daily_insight: 2,
   notebook_ai: 1, competition_plan: 3,
+  // 2026-09-13: スコッピーとの会話機能。lib/ticketWallet.ts の TICKET_COST と同値
+  scoppy_chat: 1,
 }
 // lib/adGate.ts の TICKET_SYSTEM_CUTOVER と一致させる
 const TICKET_SYSTEM_CUTOVER = new Date('2026-08-06T00:00:00.000Z')
@@ -116,9 +118,15 @@ function toGeminiRequest(body: AnthropicRequestBody, useLite: boolean) {
 }
 
 // Gemini応答 → Anthropic Messages形式のレスポンスに変換（lib/claude.ts の解析コードをそのまま通すため）
-function fromGeminiResponse(data: any): { content: Array<{ type: 'text'; text: string }> } {
+// 2026-09-13: finishReasonを握りつぶしていたため、クライアント側は「JSONが途中で切れて
+// パース失敗した」場合と「そもそも変な応答だった」場合を区別できなかった。Anthropicは
+// もともとトップレベルに stop_reason（'max_tokens'等）を返すので、GeminiのfinishReasonも
+// 同じ形に変換して合わせる。これでクライアントは呼び出し先(Gemini/Anthropic)を意識せず
+// 「max_tokensで切れたか」だけを見て、途中で切れた場合の自動リトライ等ができる。
+function fromGeminiResponse(data: any): { content: Array<{ type: 'text'; text: string }>; stop_reason: string } {
   const text = data?.candidates?.[0]?.content?.parts?.map((p: any) => p?.text ?? '').join('') ?? ''
-  return { content: [{ type: 'text', text }] }
+  const finishReason = data?.candidates?.[0]?.finishReason
+  return { content: [{ type: 'text', text }], stop_reason: finishReason === 'MAX_TOKENS' ? 'max_tokens' : 'end_turn' }
 }
 
 async function callGemini(body: AnthropicRequestBody, apiKey: string, useLite: boolean): Promise<ProxyResult> {
@@ -188,6 +196,20 @@ function isDuplicateRequest(key: string): boolean {
 }
 
 export default async function handler(req: any, res: any) {
+  // 2026-09-13: スコッピー会話機能のデバッグ中に発覚。このAPIはOPTIONSプリフライトに
+  // 一切応答しておらず(即405)、かつCORSヘッダーも返していなかった。ネイティブアプリの
+  // fetch()はCORSの対象外なので気づかれなかったが、Web版(localhost:8082等の開発環境や、
+  // 将来別オリジンから叩くケース)でContent-Type: application/json付きのPOSTを送ると
+  // ブラウザが先に送るOPTIONSプリフライトが405で弾かれ、実際のPOSTが送信される前に
+  // ブラウザ側で「Failed to fetch」として握りつぶされる（本番のscorej-run.vercel.app
+  // 自身から見れば同一オリジンなので問題化していなかった）。
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-App-Secret')
+  if (req.method === 'OPTIONS') {
+    res.status(204).end()
+    return
+  }
   if (req.method !== 'POST') {
     res.status(405).send('Method not allowed')
     return
@@ -324,7 +346,11 @@ export default async function handler(req: any, res: any) {
 
     // ── モデル選択（無料/チケット利用は軽量モデル、有料サブスクは現行モデル） ──
     // 画像を送る機能(video/meal)は品質未検証のため対象外とし、常に現行モデルを使う。
-    const useLiteModel = typeof feature === 'string' && !IMAGE_FEATURES.has(feature) && !isPaidTier
+    // 2026-09-13: 「一番やっすいAIにしておいて」との指示で、scoppy_chat(陸上の一般知識Q&A、
+    // 個人データを使わない雑談寄りの機能)はコーチプラン等の有料tierでも常にliteモデルを使う
+    // ようisPaidTier判定を無視する(他の分析系AI機能は品質維持のため有料tierは現行モデルのまま)
+    const useLiteModel = feature === 'scoppy_chat'
+      || (typeof feature === 'string' && !IMAGE_FEATURES.has(feature) && !isPaidTier)
 
     // featureはこのプロキシ内でのtier検証専用のフィールドで、Anthropic/Geminiの実APIは
     // 知らない。callAnthropicはbodyをそのまま転送するため、消し忘れると本物のAPIから

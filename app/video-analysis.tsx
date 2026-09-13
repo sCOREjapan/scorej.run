@@ -1222,42 +1222,6 @@ dimensions:上記${dims.length}項目(${dimIdList})全て必須。focusは改善
       const apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
       const endpoint = `${apiBase}/api/analyze`
 
-      const res = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(await getAiAuthHeader()) },
-        body: JSON.stringify({
-          model: 'claude-sonnet-5',
-          feature: 'video',
-          // レーダーチャート方式(7項目×score/confidence/reason/bbox + strength/focus/nextStep + practice)で
-          // 応答JSONが旧スキーマよりかなり大きくなったため増量。1500のままだと応答が途中で切れて
-          // JSONパース失敗→総合スコア60点の汎用フォールバックになる不具合が発生していた。
-          // 2026-08-29: 2600でも、実際の走行フォーム画像(情報量が多い)+gemini-3.5-flashの組み合わせで
-          // 同じ途中切れが再発したため引き上げ（api/analyze.ts側の上限も4096に合わせて引き上げ済み）。
-          // 2026-09-12: 実機で「AIの応答を解析できませんでした」が再発。3800はサーバー側の
-          // 上限4096より低く、余地を残したまま切り詰めていたため上限まで引き上げ。
-          max_tokens: 4096,
-          messages: [{ role: 'user', content: [...imageBlocks, { type: 'text', text: prompt }] }],
-        }),
-      }, 65000)  // サーバー側(api/analyze.ts)のmaxDuration=60秒より長くする。45秒のままだと
-                 // Geminiの応答が46〜59秒かかったケースでサーバーは間に合っているのに
-                 // クライアントが先にタイムアウトしてエラーになっていた
-
-      if (!res.ok) {
-        const errBody = await res.text().catch(() => '')
-        throw new Error(t('videoAnalysis.native.apiErrorMessage', { status: res.status, body: errBody.slice(0, 120) }))
-      }
-      const json = await res.json()
-      // Sonnet 5 は thinking ブロックが content[0] に入るため、text ブロックを探して取得する
-      const text = json?.content?.find((b: any) => b.type === 'text')?.text ?? ''
-      setRawText(text)
-
-      // JSONパース（複数の方法で試みる）
-      let parsed: AnalysisResult | null = null
-      // 方法1: コードブロック内のJSON（greedyで完全なJSONを取得）
-      const codeMatch = text.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/)
-      // 方法2: 生のJSON（コードブロックなし）
-      const rawMatch = text.match(/\{[\s\S]*\}/)
-      const jsonStr = codeMatch?.[1] ?? rawMatch?.[0] ?? null
       const emptyCard = (): FeedbackCard => ({ title: '', text: '' })
       const isConfidence = (v: any): v is Confidence => v === 'low' || v === 'medium' || v === 'high'
       const asBbox = (b: any): FrameRef | undefined =>
@@ -1265,50 +1229,104 @@ dimensions:上記${dims.length}項目(${dimIdList})全て必須。focusは改善
           && typeof b.w === 'number' && typeof b.h === 'number' && b.w > 0 && b.h > 0) ? b : undefined
       const asCard = (c: any): FeedbackCard =>
         c && typeof c.title === 'string' ? { title: c.title, text: c.text ?? '', bbox: asBbox(c.bbox) } : emptyCard()
-      if (jsonStr) {
-        try {
-          const p = JSON.parse(jsonStr) as any
-          // 総合スコアが数値でない場合は「JSONは解析できたが中身が不完全」なケース。
-          // 以前ここを60点にフォールバックしていたため、エラーにもならず偽の60点が
-          // 正常な結果として表示され続ける不具合があった（総合パース失敗時のエラー化とは
-          // 別経路のため、そちらの修正だけでは直っていなかった）。ここも素直に失敗扱いにする。
-          if (typeof p.score !== 'number') throw new Error('score missing')
-          const { dims: expectedDims } = dimensionsForEventDisplay(event, t)
-          const rawDims: any[] = Array.isArray(p.dimensions) ? p.dimensions : []
-          const dimensions: DimensionScore[] = expectedDims.map(d => {
-            const found = rawDims.find(r => r?.id === d.id)
-            return {
-              id: d.id,
-              label: d.label,
-              score: typeof found?.score === 'number' ? Math.max(0, Math.min(100, found.score)) : 60,
-              confidence: isConfidence(found?.confidence) ? found.confidence : 'low',
-              reason: typeof found?.reason === 'string' ? found.reason : '',
-              bbox: asBbox(found?.bbox),
+
+      // 2026-09-13: 「動画分析でエラーが出る」の再発報告を受けて調査。max_tokensの上限を
+      // 何度引き上げても(1500→2600→3800→4096)、AIがまれに指定文字数を超過して出力全体が
+      // 途中で切れる(truncation)のを都度手動で追いかけるだけでは根本解決にならない。
+      // ここでは呼び出し1回分を関数にまとめ、①応答がstop_reason='max_tokens'で切れていたか
+      // を機械的に検知し、②切れていてJSONパースにも失敗した場合だけ、同じ内容でもう1回だけ
+      // 自動リトライする(AIの出力長には毎回ばらつきがあり、同じ入力でも次は収まることが多い)。
+      // 2回とも失敗した場合のみユーザーにエラーを見せる。
+      const callOnce = async (): Promise<{ parsed: AnalysisResult | null; text: string; truncated: boolean }> => {
+        const res = await fetchWithTimeout(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(await getAiAuthHeader()) },
+          body: JSON.stringify({
+            model: 'claude-sonnet-5',
+            feature: 'video',
+            max_tokens: 4096, // サーバー側(api/analyze.ts)の上限も4096
+            messages: [{ role: 'user', content: [...imageBlocks, { type: 'text', text: prompt }] }],
+          }),
+        }, 65000)  // サーバー側(api/analyze.ts)のmaxDuration=60秒より長くする。45秒のままだと
+                   // Geminiの応答が46〜59秒かかったケースでサーバーは間に合っているのに
+                   // クライアントが先にタイムアウトしてエラーになっていた
+
+        if (!res.ok) {
+          const errBody = await res.text().catch(() => '')
+          throw new Error(t('videoAnalysis.native.apiErrorMessage', { status: res.status, body: errBody.slice(0, 120) }))
+        }
+        const json = await res.json()
+        // Sonnet 5 は thinking ブロックが content[0] に入るため、text ブロックを探して取得する
+        const text = json?.content?.find((b: any) => b.type === 'text')?.text ?? ''
+        const truncated = json?.stop_reason === 'max_tokens'
+
+        // JSONパース（複数の方法で試みる）
+        let parsedOnce: AnalysisResult | null = null
+        // 方法1: コードブロック内のJSON（greedyで完全なJSONを取得）
+        const codeMatch = text.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/)
+        // 方法2: 生のJSON（コードブロックなし）
+        const rawMatch = text.match(/\{[\s\S]*\}/)
+        const jsonStr = codeMatch?.[1] ?? rawMatch?.[0] ?? null
+        if (jsonStr) {
+          try {
+            const p = JSON.parse(jsonStr) as any
+            // 総合スコアが数値でない場合は「JSONは解析できたが中身が不完全」なケース。
+            // 以前ここを60点にフォールバックしていたため、エラーにもならず偽の60点が
+            // 正常な結果として表示され続ける不具合があった（総合パース失敗時のエラー化とは
+            // 別経路のため、そちらの修正だけでは直っていなかった）。ここも素直に失敗扱いにする。
+            if (typeof p.score !== 'number') throw new Error('score missing')
+            const { dims: expectedDims } = dimensionsForEventDisplay(event, t)
+            const rawDims: any[] = Array.isArray(p.dimensions) ? p.dimensions : []
+            const dimensions: DimensionScore[] = expectedDims.map(d => {
+              const found = rawDims.find(r => r?.id === d.id)
+              return {
+                id: d.id,
+                label: d.label,
+                score: typeof found?.score === 'number' ? Math.max(0, Math.min(100, found.score)) : 60,
+                confidence: isConfidence(found?.confidence) ? found.confidence : 'low',
+                reason: typeof found?.reason === 'string' ? found.reason : '',
+                bbox: asBbox(found?.bbox),
+              }
+            })
+            parsedOnce = {
+              score: p.score,
+              headline: p.headline ?? t('videoAnalysis.native.defaultHeadline'),
+              dimensions,
+              confidenceOverall: isConfidence(p.confidenceOverall) ? p.confidenceOverall : 'low',
+              strength: asCard(p.strength),
+              focus: asCard(p.focus),
+              nextStep: asCard(p.nextStep),
+              practice: {
+                theme: p.practice?.theme ?? '',
+                drill: p.practice?.drill ?? '',
+                drillDetail: p.practice?.drillDetail ?? '',
+              },
+              frameNotes: Array.isArray(p.frameNotes) ? p.frameNotes : undefined,
             }
-          })
-          parsed = {
-            score: p.score,
-            headline: p.headline ?? t('videoAnalysis.native.defaultHeadline'),
-            dimensions,
-            confidenceOverall: isConfidence(p.confidenceOverall) ? p.confidenceOverall : 'low',
-            strength: asCard(p.strength),
-            focus: asCard(p.focus),
-            nextStep: asCard(p.nextStep),
-            practice: {
-              theme: p.practice?.theme ?? '',
-              drill: p.practice?.drill ?? '',
-              drillDetail: p.practice?.drillDetail ?? '',
-            },
-            frameNotes: Array.isArray(p.frameNotes) ? p.frameNotes : undefined,
-          }
-        } catch { parsed = null }
+          } catch { parsedOnce = null }
+        }
+        return { parsed: parsedOnce, text, truncated }
       }
+
+      let { parsed, text, truncated } = await callOnce()
+      if (!parsed && truncated) {
+        console.warn('[video-analysis] response truncated (max_tokens), retrying once')
+        ;({ parsed, text, truncated } = await callOnce())
+      }
+      setRawText(text)
+
       // JSONが取得できなかった場合、以前は「スコア60点固定」の中身のない仮結果を
       // 生成してそのまま成功扱いにしていたが、これはAIが混雑等でまともに応答できなかった
       // ときに偽の分析結果をユーザーに提示し、かつチケットも消費してしまう不具合だった。
       // 解析失敗は素直に失敗として扱い、チケットを消費せずリトライを促す。
       if (!parsed) {
-        throw new Error(t('videoAnalysis.native.parseFailedError'))
+        // 2026-09-13: 原因の切り分けができるよう、失敗理由(切れたか/JSONが見当たらなかったか)と
+        // 応答末尾をログに残す。ユーザー向けメッセージも、切れたと分かっている場合は専用の
+        // 文言にする(単なる「解析できません」より、再試行で直る可能性が高いことが伝わるように)。
+        console.error('[video-analysis] parse failed. truncated=', truncated, 'textTail=', text.slice(-300))
+        throw new Error(truncated
+          ? t('videoAnalysis.native.parseFailedTruncatedError')
+          : t('videoAnalysis.native.parseFailedError'))
       }
 
       // 同じ種目の直近分析があればスコア差分表示のために保持

@@ -722,9 +722,14 @@ function RootLayoutNav() {
 
   // @expo/vector-icons はビルド時に自動バンドルされるためここでのロードは不要
   // ただし旧来との互換性のため残す（エラーを抑制）
+  // 2026-09-13: Web版でネットワークが遅いとexpo-font(内部でfontfaceobserverを使用)が
+  // 6000msでタイムアウトし、「Uncaught Error: 6000ms timeout exceeded」がキャッチされずに
+  // 赤いエラー画面(開発時)/クラッシュ相当の表示になる不具合が実機検証中に発生した。
+  // 上のコメント通りWebでは元々このuseFonts呼び出し自体が不要なので、Webでは空のfontMapを
+  // 渡してfontfaceobserverの経路そのものを踏ませない（ネイティブ側の挙動は変更しない）。
   let _ioniconsFontSrc: Font.FontSource
   try { _ioniconsFontSrc = require('../node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf') } catch { _ioniconsFontSrc = '' }
-  const [fontsLoaded] = Font.useFonts({ 'Ionicons': _ioniconsFontSrc })
+  const [fontsLoaded] = Font.useFonts(Platform.OS === 'web' ? {} : { 'Ionicons': _ioniconsFontSrc })
   const [splashDone,  setSplashDone]  = useState(false)
   const [minTimeDone, setMinTimeDone] = useState(false)
 
@@ -791,6 +796,9 @@ function RootLayoutNav() {
             }}
           />
           <Stack.Screen name="warmup" options={{ title: 'ウォームアップ', headerShown: true }} />
+          {/* 2026-09-13: 「AIスコッピーと会話できる機能」。画面自身が独自のトップバー
+              (マスコット+タイトル+履歴クリア)を持つためheaderShown:false */}
+          <Stack.Screen name="scoppy-chat" options={{ headerShown: false, presentation: 'card' }} />
           <Stack.Screen
             name="session-detail"
             options={{ title: '練習詳細', headerStyle: { backgroundColor: '#000000' }, headerTintColor: '#FFFFFF', presentation: 'card' }}
@@ -852,9 +860,18 @@ function RootLayoutNav() {
           />
           {/* 2026-09-12: エントリが無いとネイティブの標準ヘッダーがルート名
               "mission-offer" をそのままタイトル表示してしまっていた不具合を修正 */}
+          {/* 2026-09-13: 「背景がおかしい/灰色」の実機フィードバックの本当の原因はこれだった。
+              presentation:'modal'はOS標準のカード型モーダル(角丸+外側に余白+システム既定の
+              背景)を使うため、この画面自身が持つ暗幕オーバーレイ+フロートカード(A案)と
+              二重に入れ子になり、システム側の角丸カード(灰色っぽい既定背景)の中に
+              さらに小さい丸角カードが浮く、という見た目になっていた。paywall.tsx等の
+              画面いっぱいに描画する画面ではこの二重角丸が目立たないため気づかれなかった。
+              transparentModalはOS側のカード演出(角丸・余白・既定背景)を一切描かず、画面を
+              完全に透明な全画面オーバーレイとして扱うため、この画面自身のオーバーレイ
+              (rgba透過)がそのまま手前の画面(ホーム)に重なって正しく見える。 */}
           <Stack.Screen
             name="mission-offer"
-            options={{ headerShown: false, presentation: 'modal' }}
+            options={{ headerShown: false, presentation: 'transparentModal' }}
           />
           <Stack.Screen
             name="tickets"

@@ -71,20 +71,25 @@ export default function MissionOfferScreen() {
   const [restoring, setRestoring] = useState(false)
   const purchaseLockRef = useRef(false)
   const fadeAnim = useRef(new Animated.Value(0)).current
-  const ctaGlow  = useRef(new Animated.Value(0)).current
+  // 2026-09-13: 「これあからさますぎるから、波紋みたいなエフェクトに」との実機フィードバックで、
+  // 単色の四角がスケール+不透明度で明滅する旧ctaGlow(1個・塗りつぶし)から、ボタンの縁から
+  // 輪郭だけの輪が2つ位相をずらして外側に広がりながら消えていく「波紋」演出に変更。
+  // 1個だけだと点滅に見えるため、900msずらした2個目を重ねて途切れなく見えるようにする。
+  const ripple1 = useRef(new Animated.Value(0)).current
+  const ripple2 = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
     getMissionState().then(s => setSaleExpiresAt(s.saleExpiresAt ?? null)).catch(() => {})
     trackPaywallView('mission_offer_screen')
     Animated.timing(fadeAnim, { toValue: 1, duration: 400, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start()
-    const glowLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(ctaGlow, { toValue: 1, duration: 1400, useNativeDriver: true }),
-        Animated.timing(ctaGlow, { toValue: 0, duration: 1400, useNativeDriver: true }),
-      ])
+    const makeRippleLoop = (val: Animated.Value) => Animated.loop(
+      Animated.timing(val, { toValue: 1, duration: 1800, easing: Easing.out(Easing.ease), useNativeDriver: true })
     )
-    glowLoop.start()
-    return () => glowLoop.stop()
+    const loop1 = makeRippleLoop(ripple1)
+    const loop2 = makeRippleLoop(ripple2)
+    loop1.start()
+    const staggerTimer = setTimeout(() => loop2.start(), 900) // 2個目を半周期ずらして開始
+    return () => { loop1.stop(); loop2.stop(); clearTimeout(staggerTimer) }
   }, [])
 
   useEffect(() => {
@@ -218,16 +223,19 @@ export default function MissionOfferScreen() {
 
             <View style={s.footer}>
               <View style={s.purchaseBtnWrap}>
-                <Animated.View
-                  pointerEvents="none"
-                  style={[
-                    s.purchaseBtnGlow,
-                    {
-                      opacity: ctaGlow.interpolate({ inputRange: [0, 1], outputRange: [0.25, 0.5] }),
-                      transform: [{ scale: ctaGlow.interpolate({ inputRange: [0, 1], outputRange: [1, 1.03] }) }],
-                    },
-                  ]}
-                />
+                {[ripple1, ripple2].map((val, i) => (
+                  <Animated.View
+                    key={i}
+                    pointerEvents="none"
+                    style={[
+                      s.purchaseBtnRipple,
+                      {
+                        opacity: val.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 0.5, 0] }),
+                        transform: [{ scale: val.interpolate({ inputRange: [0, 1], outputRange: [1, 1.18] }) }],
+                      },
+                    ]}
+                  />
+                ))}
                 <TouchableOpacity onPress={handlePurchase} disabled={purchasing || !packagesReady} activeOpacity={0.88} style={[s.purchaseBtn, (purchasing || !packagesReady) && { opacity: 0.6 }]}>
                   <LinearGradient colors={[GOLD2, GOLD]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.purchaseBtnInner}>
                     {purchasing
@@ -285,9 +293,19 @@ const s = StyleSheet.create({
   // (中央フロートカード)。paddingHorizontal:20で左右の余白、maxHeightで上下の
   // 余白を作る。shadowとoverflow:'hidden'は同居できないため影担当(cardShadow)と
   // クリップ担当(card)を分けている。
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', paddingHorizontal: 20 },
+  // 2026-09-13: 「カード少し小さすぎるからもう少しだけ縦長に」との実機フィードバックで調整。
+  // 横幅を少し絞りつつ(20→24)、maxHeightを引き上げ+minHeightを追加してカード自体を
+  // 縦に伸ばした。中身はscrollContent側のjustifyContent:'center'で伸びた分の余白に
+  // 自然に収まる(空白が下だけに偏らない)。
+  // 2026-09-13: 「背景灰色なのもおかしい」との指摘でrgba→単色不透明に一度変更したが、
+  // 「若干黒が入った透明にして、ホーム画面の上に表示される感じ」との指示で透過に戻した。
+  // このpresentation:'modal'画面はStack.Screen遷移で、ネイティブ(iOS)ではOSが本当に
+  // 手前の画面(ホーム)を透かして暗く見せる。Web版のプレビューだけはpresentation:'modal'の
+  // 実装差で手前の画面がアンマウントされ無地グレーに見えることがあるが、実機での見え方が
+  // 正であるためrgba(透過)を正式仕様として維持する。
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', paddingHorizontal: 24 },
   cardShadow: {
-    borderRadius: 28, maxHeight: '84%',
+    borderRadius: 28, minHeight: '76%', maxHeight: '90%',
     shadowColor: '#000', shadowOffset: { width: 0, height: 20 }, shadowOpacity: 0.4, shadowRadius: 30, elevation: 20,
   },
   card: { borderRadius: 28, overflow: 'hidden', flexShrink: 1 },
@@ -297,7 +315,11 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   scrollContent: { flexGrow: 1, justifyContent: 'center' },
-  body: { alignItems: 'center', paddingHorizontal: 28, paddingTop: 44 },
+  // 2026-09-13: 「カード少し小さすぎるからもう少しだけ縦長に」対応。cardShadow側のmin/
+  // maxHeightだけでは(cardがflexShrink:1で中身に合わせて縮む作りのため)確実に大きくなる
+  // 保証がないので、確実に効く方法として中身の縦方向の余白そのものを底上げした
+  // (paddingTop/marginBottom/marginTop等を少しずつ増やす。合計で+40〜50pt程度)。
+  body: { alignItems: 'center', paddingHorizontal: 28, paddingTop: 56 },
   countdownPill: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7,
@@ -305,10 +327,10 @@ const s = StyleSheet.create({
   },
   countdownText: { color: '#fff', fontSize: 12.5, fontWeight: '800', fontVariant: ['tabular-nums'] },
   eyebrow: { color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '700', letterSpacing: 0.5, marginBottom: 6 },
-  mascot: { width: 128, height: 128, marginBottom: 4 },
+  mascot: { width: 128, height: 128, marginBottom: 8 },
   title: {
     color: '#fff', fontSize: 23, fontWeight: '900', textAlign: 'center', lineHeight: 30,
-    marginBottom: 18, textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
+    marginBottom: 24, textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
   },
   urgencyLine: { color: GOLD2, fontSize: 13.5, fontWeight: '800', marginBottom: 4 },
   priceRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
@@ -318,16 +340,19 @@ const s = StyleSheet.create({
   discountBadge: { backgroundColor: GOLD, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4, marginTop: 8 },
   discountBadgeText: { color: '#241300', fontSize: 12.5, fontWeight: '900' },
   featureCard: {
-    marginTop: 22, width: '100%', backgroundColor: 'rgba(255,255,255,0.94)',
-    borderRadius: 18, padding: 16, gap: 11,
+    marginTop: 28, width: '100%', backgroundColor: 'rgba(255,255,255,0.94)',
+    borderRadius: 18, padding: 18, gap: 13,
   },
   featureRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   featureText: { flex: 1, color: '#1f2937', fontSize: 13.5, fontWeight: '700' },
-  footer: { paddingHorizontal: 24, paddingBottom: 8, paddingTop: 24 },
+  footer: { paddingHorizontal: 24, paddingBottom: 10, paddingTop: 30 },
   purchaseBtnWrap: { position: 'relative' },
-  purchaseBtnGlow: {
+  // 2026-09-13: 塗りつぶしの単色グロー(旧purchaseBtnGlow)は「あからさますぎる」との指摘で、
+  // ボタンの縁をなぞる輪郭線だけのリングに変更(波紋演出)。中を塗らないことで、
+  // 光るというより水面の波紋が広がって消える見た目になる。
+  purchaseBtnRipple: {
     position: 'absolute', top: -6, left: -6, right: -6, bottom: -6,
-    borderRadius: 30, backgroundColor: GOLD,
+    borderRadius: 30, borderWidth: 2, borderColor: GOLD,
   },
   purchaseBtn: { borderRadius: 26, overflow: 'hidden' },
   purchaseBtnInner: {

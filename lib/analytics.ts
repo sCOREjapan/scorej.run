@@ -98,7 +98,7 @@ export function trackSessionRecord(sessionType: string) {
 // （APIコスト是正の議論で判明）ため追加。呼び出し元も合わせて追加した。
 export function trackFeatureUse(
   feature: 'ai_analysis' | 'meal' | 'video' | 'csv' | 'recovery' | 'meal_coach'
-    | 'workout' | 'daily_insight' | 'notebook_ai' | 'injury_recovery',
+    | 'workout' | 'daily_insight' | 'notebook_ai' | 'injury_recovery' | 'scoppy_chat',
 ) {
   trackEvent('use_feature', { feature })
 }

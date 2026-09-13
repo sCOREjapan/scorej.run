@@ -377,6 +377,53 @@ export async function getMissionSummaryInsight(
 // adGate.tsにfeature名を登録し、チケット消費・利用回数上限を必ず設定すること。
 
 // ─────────────────────────────────────────
+// 4.5. スコッピーとの会話（陸上競技の一般知識Q&A）
+// ─────────────────────────────────────────
+// 2026-09-13: 「AIスコッピー(メインキャラ)と会話ができる機能」の要望で新規追加。
+// ユーザーの決定: ①ホーム画面のスコッピータップから開く ②回答範囲は陸上競技の
+// 一般知識のみ（本人の記録データは今回は使わない。将来の拡張候補）③他のAI機能と
+// 同じくチケット消費(1枚/メッセージ。lib/ticketWallet.ts/lib/adGate.ts/
+// api/analyze.tsのTICKET_COST_SERVERにscoppy_chatとして登録済み)。
+export interface ScoppyChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+// 陸上競技と無関係な質問（雑談・他分野の相談等）にAPIコストを使わせないための
+// システムプロンプト側のガードレール。JSONではなく自然文で返す通常のチャットのため
+// safeParseJSONは使わず、callClaude()の戻り値(text)をそのまま表示する。
+const SCOPPY_SYSTEM_PROMPT = `あなたは陸上競技アプリ「sCORE」のマスコットキャラクター「スコッピー」です。
+明るく親しみやすい、選手を励ますコーチのような口調で話してください（絵文字は使わない。一人称は「ボク」）。
+
+回答してよい範囲:
+- 陸上競技の種目・ルール・フォーム・トレーニング理論・ウォームアップ/クールダウン・栄養・怪我予防など、
+  陸上競技に関する一般的な知識のみ。
+- 特定の個人の記録データは与えられていないため、「あなたの場合は」のような断定はせず、
+  一般論として答える。
+
+回答してはいけない範囲:
+- 陸上競技と無関係な話題（雑談・他競技・時事・プログラミング等）を聞かれたら、丁寧に
+  「陸上競技のことなら何でも聞いてね！」と伝えて話題を戻す。知っていても答えない。
+- 医学的診断・断定的な治療方針は述べない（怪我については「早めに専門家に相談してね」で締める）。
+
+回答の長さは3〜5文程度に収め、長文で説明しすぎない（チャット形式のため）。`
+
+export async function askScoppy(history: ScoppyChatMessage[], language: Language): Promise<string> {
+  // トークンコスト増大を防ぐため、直近の会話だけをAPIに送る（表示用の全履歴は
+  // 呼び出し元(lib/scoppyChatStore.ts)がAsyncStorage側で別途保持する）
+  const recent = history.slice(-16)
+  const text = await callClaude({
+    model: MODEL,
+    max_tokens: 400,
+    feature: 'scoppy_chat',
+    system: SCOPPY_SYSTEM_PROMPT + narrativeLanguageInstruction(language),
+    messages: recent.map(m => ({ role: m.role, content: m.content })),
+  })
+  if (!text.trim()) throw new Error('スコッピーからの返答を取得できませんでした。もう一度お試しください。')
+  return text.trim()
+}
+
+// ─────────────────────────────────────────
 // 5. 怪我復帰プラン生成
 // ─────────────────────────────────────────
 // Vercel Edge Function のプラン上の実行時間上限（コード上のmaxDuration=60とは別に、

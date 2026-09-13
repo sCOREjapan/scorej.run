@@ -512,7 +512,27 @@ function ScoreOverviewCard({
               <View style={[so.speechTailBorder, { borderLeftColor: cfg.color + '70' }]} />
               <View style={[so.speechTail, { borderLeftColor: cfg.color + '20' }]} />
             </View>
-            <RiskMascot image={cfg.mascotImage} size={100} />
+            {/* 2026-09-13: 「AIスコッピーと会話できる機能」の入口。カード全体のタップは
+                従来通りリスク内訳(onPressBreakdown)に使われているため、マスコット画像だけを
+                個別のTouchableOpacityで包む(RN標準の挙動として、入れ子のタップ可能要素は
+                内側が優先されるため外側のonPressBreakdownは発火しない)。気づいてもらえるよう
+                吹き出しアイコンのバッジを右下に添える。
+                2026-09-13追記: Web(react-native-web)はネイティブと違い、入れ子の
+                Pressable/TouchableOpacityがDOMのclickイベントバブリングをデフォルトでは
+                止めないため、ここで発火させた後にPressableScale側のonPressBreakdownにも
+                イベントが伝播し「チャットを開いたはずが詳細画面に飛ぶ」事故になり得る。
+                stopPropagation()で明示的に止め、ネイティブ/Web両方で意図通りに動くようにする。 */}
+            <TouchableOpacity
+              onPress={(e) => { e.stopPropagation(); router.push('/scoppy-chat') }}
+              activeOpacity={0.8}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={so.mascotChatEntry}
+            >
+              <RiskMascot image={cfg.mascotImage} size={100} />
+              <View style={so.mascotChatBadge}>
+                <Ionicons name="chatbubble-ellipses" size={13} color="#fff" />
+              </View>
+            </TouchableOpacity>
           </View>
 
           {/* フラット塗りつぶしスケールバー（低〜中〜高の目盛り・現在値まで単色塗り） */}
@@ -617,6 +637,14 @@ const makeSoStyles = (colors: ThemeColors) => StyleSheet.create({
   riskScoreNum:  { fontSize: 38, fontWeight: '800', color: colors.text, letterSpacing: -1, fontVariant: ['tabular-nums'] },
   riskScoreMax:  { fontSize: 14, fontWeight: '600', color: colors.textHint, marginLeft: 1 },
   riskDivider:   { width: 1, height: 32, backgroundColor: colors.border },
+  // 2026-09-13: スコッピー(マスコット)タップ→AIチャット導線のバッジ
+  mascotChatEntry: { position: 'relative' },
+  mascotChatBadge: {
+    position: 'absolute', right: -2, bottom: 2,
+    width: 22, height: 22, borderRadius: 11, backgroundColor: '#166534',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: colors.surface,
+  },
   riskMessage:   { fontSize: 12.5, fontWeight: '500', color: colors.textSec, marginTop: 4, lineHeight: 16 },
   // マスコットが喋っている風の吹き出し（バッジ・メッセージ・天気ボーナスをまとめて1つに）
   speechBubble:  { position: 'relative', borderRadius: 14, borderWidth: 1.5, paddingHorizontal: 12, paddingVertical: 8, marginRight: 12 },

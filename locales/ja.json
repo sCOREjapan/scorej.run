@@ -1309,6 +1309,7 @@
       "eventPrefix": "　種目：{{event}}",
       "ticketUsedToast": "🎫 チケットを{{n}}枚使用しました",
       "parseFailedError": "AIの応答を解析できませんでした。時間をおいてもう一度お試しください。",
+      "parseFailedTruncatedError": "AIの応答が長すぎて途中で切れてしまいました。もう一度お試しください（自動で1回再試行しましたが、それでも解決しませんでした）。",
       "analysisFailedError": "分析に失敗しました",
       "apiErrorMessage": "APIエラー ({{status}}): {{body}}",
       "defaultHeadline": "分析完了",
@@ -3956,7 +3957,8 @@
       "notebook_ai": "練習ノートAI解析",
       "competition_plan": "大会プラン生成",
       "injury_recovery": "復帰プラン生成",
-      "default": "機能"
+      "default": "機能",
+      "scoppy_chat": "スコッピーに聞く"
     },
     "guest": {
       "title": "ログインが必要です",
@@ -4249,5 +4251,26 @@
       "coach": "コーチプラン"
     },
     "disclaimer": "本証明書は、当社が提供するサービスをご利用いただいていることを証明するものです。App Store／Google Playを通じた決済の正式な購入証明としては、購入時にApple／Googleから届く購入完了メールもあわせてご参照ください。"
+  },
+  "scoppyChat": {
+    "title": "スコッピーに聞く",
+    "emptyTitle": "何でも聞いてね！",
+    "emptySub": "陸上競技のフォーム・トレーニング・ルールなど、\n気になることを気軽に聞いてみよう",
+    "suggestions": [
+      "800mのペース配分のコツは？",
+      "接地時間を短くするには？",
+      "練習前のアップは何をすればいい？",
+      "疲労が抜けないときの対処法は？"
+    ],
+    "placeholder": "スコッピーに質問する...",
+    "thinking": "考え中...",
+    "errorMessage": "うまく答えられなかった…もう一度聞いてみてね。",
+    "dailyLimitTitle": "本日の上限に達しました",
+    "dailyLimitMessage": "スコッピーとの会話は1日の上限に達しました。また明日話しかけてね。",
+    "clearTitle": "会話履歴を削除しますか？",
+    "clearMessage": "これまでの会話がすべて削除されます。この操作は取り消せません。",
+    "cancel": "キャンセル",
+    "clearConfirm": "削除する",
+    "creditsRemaining": "残り{{n}}回無料"
   }
 }

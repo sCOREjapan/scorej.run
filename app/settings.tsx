@@ -199,7 +199,7 @@ function LabeledInput({
 
 // ── メイン設定画面 ─────────────────────────────────────────
 export default function SettingsScreen() {
-  const { user, signOut, isGuest, signOutGuest } = useAuth()
+  const { user, session, signOut, isGuest, signOutGuest } = useAuth()
   const { scheme, colors, setScheme } = useTheme()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const { t } = useTranslation()
@@ -416,14 +416,33 @@ export default function SettingsScreen() {
                       signOutGuest()
                       return
                     }
+                    // 2026-09-13: 「まだアカウント削除できない」との再報告。Vercel側の
+                    // ログ(delete-account)を確認したところ、直近ずっとこのエンドポイントへの
+                    // アクセスが一件も無かった＝サーバーに届く前(fetchより前)で毎回失敗して
+                    // いたことが判明。最有力候補は下のsupabase.auth.getSession()がaccessToken
+                    // を返さないケース(トークン期限切れ等)。ここで打ち切っていた旧実装を、
+                    // ①まずAuthContextが持つ最新のsessionを使う→②それも無ければ
+                    // getSession()→③それも無ければrefreshSession()を1回試す、の3段構えにし、
+                    // 失敗理由を必ずreasonに残す。
+                    const resolveAccessToken = async (): Promise<{ token: string | null; reason: string }> => {
+                      if (session?.access_token) return { token: session.access_token, reason: 'context-session' }
+                      const { data: sessionData, error: getErr } = await supabase.auth.getSession()
+                      if (sessionData?.session?.access_token) return { token: sessionData.session.access_token, reason: 'getSession' }
+                      const { data: refreshed, error: refreshErr } = await supabase.auth.refreshSession()
+                      if (refreshed?.session?.access_token) return { token: refreshed.session.access_token, reason: 'refreshSession' }
+                      return { token: null, reason: `no-token(get=${getErr?.message ?? 'null'},refresh=${refreshErr?.message ?? 'null'})` }
+                    }
                     try {
-                      const { data: sessionData } = await supabase.auth.getSession()
-                      const accessToken = sessionData?.session?.access_token
+                      const { token: accessToken, reason: tokenReason } = await resolveAccessToken()
                       if (!accessToken) {
                         // セッションが取れない＝サーバー側で本人確認できないため、
                         // ここで打ち切ってサインアウトもしない（黙って「削除できたことにする」と
                         // 同じ不具合を繰り返すため）。ユーザーには失敗を明示し再試行を促す。
-                        Alert.alert(t('settings.account.deleteFailedTitle'), t('settings.account.deleteFailedMessage'))
+                        console.error('[delete-account] no access token:', tokenReason)
+                        // 2026-09-13(暫定・削除予定): サーバーログに一切痕跡が残らない不具合が
+                        // 続いているため、実機テスト中だけ実際の原因をアラートに出す。
+                        // 本番リリース前に元の t('settings.account.deleteFailedMessage') のみに戻すこと。
+                        Alert.alert(t('settings.account.deleteFailedTitle'), `${t('settings.account.deleteFailedMessage')}\n\n[debug] ${tokenReason}`)
                         return
                       }
                       Toast.show({ type: 'info', text1: t('settings.account.deleting') })
@@ -442,15 +461,17 @@ export default function SettingsScreen() {
                         // 開発時にログへ出す(ユーザー向け文言は変えない)。
                         const bodyText = await res.text().catch(() => '')
                         console.error('[delete-account] failed:', res.status, bodyText)
-                        Alert.alert(t('settings.account.deleteFailedTitle'), t('settings.account.deleteFailedMessage'))
+                        // 2026-09-13(暫定・削除予定): 上と同様、実機テスト中だけ詳細を表示。
+                        Alert.alert(t('settings.account.deleteFailedTitle'), `${t('settings.account.deleteFailedMessage')}\n\n[debug] HTTP ${res.status}: ${bodyText.slice(0, 200)}`)
                         return
                       }
                       // サーバー側の削除に成功した時だけローカルクリア＋サインアウトする
                       await AsyncStorage.clear().catch(() => {})
                       await signOut().catch(() => {})
-                    } catch (e) {
+                    } catch (e: any) {
                       console.error('[delete-account] client exception:', e)
-                      Alert.alert(t('settings.account.deleteFailedTitle'), t('settings.account.deleteFailedMessage'))
+                      // 2026-09-13(暫定・削除予定): 上と同様、実機テスト中だけ詳細を表示。
+                      Alert.alert(t('settings.account.deleteFailedTitle'), `${t('settings.account.deleteFailedMessage')}\n\n[debug] ${e?.message ?? String(e)}`)
                     }
                   },
                 },
