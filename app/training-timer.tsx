@@ -17,16 +17,21 @@ import {
 } from '../lib/trainingTimerSettings'
 import { useTranslation } from 'react-i18next'
 
-const BG = '#171326'
-const CARD = '#231d38'
-const BORDER = 'rgba(255,255,255,0.08)'
-const TEXT_PRIMARY = '#ffffff'
-const TEXT_SECONDARY = '#b5aed0'
-const TEXT_HINT = '#8b85a8'
-const IDLE_COLOR = '#8b85a8'
-const BRAND = '#22d3ee'        // work（シアン）
-const REST_COLOR = '#fb923c'   // rest（オレンジ）
-const SET_REST_COLOR = '#a78bfa' // setRest（バイオレット）
+// 2026-09-13: 「白基調に変更」との指示で、reaction-start.tsx等と揃えていたダーク基調
+// デザイン(2026-09-04導入)から白基調へ変更。カードを面(#fff)、ページ全体をごく薄い
+// グレー(#f4f5f7)にすることで、カードが「浮いている」影が実際に見えるようにした
+// (暗い背景の上では影のコントラストがほぼ出ないため)。アクセント3色(シアン/オレンジ/
+// バイオレット)は白背景での視認性を保つため、元の淡いトーンよりやや濃くした
+const BG = '#f4f5f7'
+const CARD = '#ffffff'
+const BORDER = 'rgba(0,0,0,0.08)'
+const TEXT_PRIMARY = '#1a1a2e'
+const TEXT_SECONDARY = '#6b7280'
+const TEXT_HINT = '#9ca3af'
+const IDLE_COLOR = '#7c7595'
+const BRAND = '#0891b2'        // work（シアン）
+const REST_COLOR = '#ea580c'   // rest（オレンジ）
+const SET_REST_COLOR = '#7c3aed' // setRest（バイオレット）
 
 type Phase = 'idle' | 'work' | 'rest' | 'setRest' | 'done'
 
@@ -215,21 +220,21 @@ export default function TrainingTimerScreen() {
           // 2026-09-13: 「真ん中の再生マークっていうよりは、この四角全体が再生ボタンに
           // なるようにしたい、この四角をちょっと立体的にして」との指示で、中央の小さい
           // 円だけがタップ対象だったのをやめ、カード全体をPressableScaleで包んでボタン化。
-          // 立体感は、影を強め(shadowOffset/Radius/Opacityを増やす)+下端に一段濃い色の
-          // ボーダーを足すことで「浮いていて押せそう」な見た目にした
+          // 立体感は影(tt.card自体に常設)+下端だけ濃い色のボーダーで出す。稼働中カードにも
+          // 同じ立体感を付けたいとの追加指示があったため、下のelse節にも同じ処理を適用した
           <PressableScale onPress={handleStart} scaleAmount={0.97} haptic="medium" style={{ width: '100%', aspectRatio: 1.15 }}>
             <View style={[
-              tt.card, tt.cardButton,
-              { borderColor: phaseColor, backgroundColor: phaseColor + '14', borderBottomColor: phaseColor, shadowColor: phaseColor },
+              tt.card,
+              { borderColor: phaseColor, backgroundColor: phaseColor + '14', borderBottomColor: phaseColor },
             ]}>
               <View style={[tt.startBtn, { backgroundColor: phaseColor }]}>
-                <Ionicons name="play" size={28} color={BG} />
+                <Ionicons name="play" size={28} color={CARD} />
               </View>
               <Text style={tt.idleSummary}>{settings.mode === 'interval' ? t('trainingTimer.idleSummaryInterval', { work: settings.workSec, reps: settings.reps, sets: settings.sets }) : t('trainingTimer.idleSummaryNormal', { work: settings.workSec })}</Text>
             </View>
           </PressableScale>
         ) : (
-          <View style={[tt.card, { borderColor: phaseColor, backgroundColor: phaseColor + '14' }]}>
+          <View style={[tt.card, { borderColor: phaseColor, backgroundColor: phaseColor + '14', borderBottomColor: phaseColor }]}>
             {phase !== 'done' && <Text style={[tt.phaseLabel, { color: phaseColor }]}>{phaseLabel}</Text>}
             <Text style={[tt.timeText, { color: phaseColor }]}>{phase === 'done' ? '🎉' : formatTime(remaining)}</Text>
             {settings.mode === 'interval' && (
@@ -352,9 +357,9 @@ const tt = StyleSheet.create({
   iconBtn:     { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 17, fontWeight: '700', color: TEXT_PRIMARY },
   editBtn:     { paddingHorizontal: 14, paddingVertical: 8 },
-  editBtnText: { fontSize: 15, fontWeight: '700', color: '#38bdf8' },
+  editBtnText: { fontSize: 15, fontWeight: '700', color: '#0284c7' },
 
-  modeRow:     { flexDirection: 'row', marginHorizontal: 16, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 14, padding: 3, gap: 3 },
+  modeRow:     { flexDirection: 'row', marginHorizontal: 16, backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 14, padding: 3, gap: 3 },
   modeBtn:     { flex: 1, paddingVertical: 10, borderRadius: 11, alignItems: 'center' },
   modeBtnActive: { backgroundColor: CARD },
   modeText:    { fontSize: 13, fontWeight: '700', color: TEXT_SECONDARY },
@@ -364,20 +369,18 @@ const tt = StyleSheet.create({
 
   stepBar:     { flexDirection: 'row', width: '100%', gap: 10 },
   stepSegmentWrap: { flex: 1, alignItems: 'center', gap: 8 },
-  stepSegment: { width: '100%', height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.12)' },
+  stepSegment: { width: '100%', height: 6, borderRadius: 3, backgroundColor: 'rgba(0,0,0,0.08)' },
   stepLabel:   { fontSize: 11.5, fontWeight: '600', color: TEXT_HINT },
 
-  // 2026-09-13: idle時のカードを「押せるボタン」に見せるための立体感。
-  // 影を強め(shadowOffset/Radius/Opacityを通常より大きく)、下端だけ地色より
-  // 濃いボーダー(borderBottomColorをphaseColorそのものにして境界をはっきりさせる)
-  // を足すことで、上から光が当たって浮いているような見た目にする
-  cardButton: {
-    borderBottomWidth: 6,
-    shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.35, shadowRadius: 20, elevation: 10,
-  },
+  // 2026-09-13: 「白に変更したあと、真ん中の四角の周りに影を作って浮き出てるみたいな
+  // 感じに」との指示で、白基調化に合わせてidle/稼働中どちらのカードにも影を常設。
+  // 白背景の上では影(neutralな黒)が実際に見えるようになる(暗い背景では出なかった)。
+  // 下端だけ地色より濃いボーダー(borderBottomColorをphaseColorにする、呼び出し側で指定)
+  // を足すことで、上から光が当たって浮いているような見た目を強調する
   card: {
     width: '100%', aspectRatio: 1.15, borderRadius: 32,
-    borderWidth: 3, alignItems: 'center', justifyContent: 'center', gap: 14,
+    borderWidth: 3, borderBottomWidth: 6, alignItems: 'center', justifyContent: 'center', gap: 14,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.12, shadowRadius: 20, elevation: 8,
   },
   phaseLabel:  { fontSize: 16, fontWeight: '800' },
   timeText:    { fontSize: 52, fontWeight: '900', fontVariant: ['tabular-nums'] },
@@ -386,26 +389,26 @@ const tt = StyleSheet.create({
   // 親のPressableScale)。少し大きくして中央での存在感を保つ
   startBtn:    { width: 72, height: 72, borderRadius: 36, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center' },
   progressRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
-  progressBadge: { backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6 },
+  progressBadge: { backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6 },
   progressBadgeText: { fontSize: 13, fontWeight: '700', color: TEXT_SECONDARY },
 
   btnRow:      { flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingBottom: 16 },
   secondaryBtn:{ flex: 1, backgroundColor: CARD, borderWidth: 1.5, borderColor: BORDER, borderRadius: 18, paddingVertical: 16, alignItems: 'center' },
   secondaryBtnText: { fontSize: 14, fontWeight: '700', color: TEXT_PRIMARY },
   primaryBtn:  { flex: 1.4, backgroundColor: BRAND, borderRadius: 18, paddingVertical: 16, alignItems: 'center' },
-  primaryBtnText: { fontSize: 14, fontWeight: '800', color: '#171326' },
+  primaryBtnText: { fontSize: 14, fontWeight: '800', color: '#ffffff' },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
-  modalCard:   { backgroundColor: BG, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: '75%', borderWidth: 1, borderColor: BORDER, borderBottomWidth: 0 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  modalCard:   { backgroundColor: CARD, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: '75%', borderWidth: 1, borderColor: BORDER, borderBottomWidth: 0 },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
   modalTitle:  { fontSize: 17, fontWeight: '800', color: TEXT_PRIMARY },
 
   settingRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   settingLabel:{ fontSize: 14, fontWeight: '700', color: TEXT_PRIMARY },
-  valueBadge:  { backgroundColor: 'rgba(34,211,238,0.16)', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 },
+  valueBadge:  { backgroundColor: 'rgba(8,145,178,0.14)', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 },
   settingValue:{ fontSize: 15, fontWeight: '800', color: BRAND, fontVariant: ['tabular-nums'] },
   stepper:     { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  stepperBtn:  { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
+  stepperBtn:  { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(0,0,0,0.06)', alignItems: 'center', justifyContent: 'center' },
   stepperValue:{ fontSize: 16, fontWeight: '800', color: TEXT_PRIMARY, minWidth: 24, textAlign: 'center', fontVariant: ['tabular-nums'] },
 
   historyRow:  { backgroundColor: CARD, borderWidth: 1.5, borderColor: BORDER, borderRadius: 14, padding: 12 },
