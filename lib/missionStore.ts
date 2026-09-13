@@ -99,15 +99,25 @@ export async function finishMission(): Promise<void> {
 
 /**
  * Day3の結果カードから「続ける」を押した瞬間に24時間セールの期限を確定する。
- * 既に確定済みなら上書きしない（画面を出入りするたびに24時間が延長されるのを防ぐ）。
+ * 有効期限内ならまだ上書きしない（画面を出入りするたびに24時間が延長されるのを防ぐ）。
+ *
+ * 2026-09-14バグ修正:「オファー画面の割引が出ない(¥980のまま)」の再発報告で発覚。
+ * 元は「!state.saleExpiresAt（未セットの時だけ）」しか見ておらず、一度セールが切れて
+ * saleExpiresAtが過去日付のまま残っている状態だと、値自体はtruthyなので二度と
+ * 再セットされなかった（=そのユーザーは一生「割引なしの通常価格」しか見えなくなる）。
+ * app/mission-offer.tsxのDEVボタン([TEMP]ミッション全達成/[DEV]Day3全部達成)で
+ * 同じ端末から日をまたいで繰り返しテストすると、初回の期限切れ状態がそのまま
+ * 残ってしまい、何度直しても「まだ直ってない」ように見えていたのはこれが原因。
+ * 「未セット or 既に期限切れ」なら新しい24時間を発行するよう条件を広げる。
  */
 export async function startSaleWindowIfNeeded(): Promise<string> {
   const state = await readState()
-  if (!state.saleExpiresAt) {
+  const expired = !state.saleExpiresAt || new Date(state.saleExpiresAt).getTime() <= Date.now()
+  if (expired) {
     state.saleExpiresAt = new Date(Date.now() + 24 * 3600 * 1000).toISOString()
     await writeState(state)
   }
-  return state.saleExpiresAt
+  return state.saleExpiresAt!
 }
 
 /** Day1/Day2のタスクを全部終えた時に呼ぶ。チケット付与+受け取り済みフラグの更新を一括で行う */

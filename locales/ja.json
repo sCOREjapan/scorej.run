@@ -418,10 +418,12 @@
       "today": "今日のおすすめ",
       "title": "ストレッチ5分で",
       "gain": "怪我リスク -12%",
-      "start": "開始する"
+      "start": "開始する",
+      "startCta": "ストレッチ開始！"
     },
     "warmupLink": {
-      "title": "練習前のウォームアップを見る"
+      "title": "練習前のウォームアップを見る",
+      "short": "練習前ウォームアップ"
     },
     "conditionCardDefaultLabel": "今日の体調",
     "improvementTasksTitle": "改善タスク",

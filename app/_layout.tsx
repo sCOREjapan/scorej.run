@@ -901,6 +901,15 @@ function RootLayoutNav() {
           <Stack.Screen name="referral-challenge" options={{ headerShown: false }} />
           <Stack.Screen name="coach-view"       options={{ headerShown: false }} />
           <Stack.Screen name="level-roadmap"    options={{ headerShown: false }} />
+          {/* 2026-09-14: アプリ全体のバグ再点検で発覚。以下5画面はいずれも自前の戻るボタン付き
+              ヘッダー(chevron-back/独自タイトル行)を実装済みなのに、ここへの登録漏れで
+              ネイティブの標準ヘッダー(黒地白文字・ルート名をそのまま表示)が上に重複表示されて
+              いた——mission-offer/training-timerで過去に見つけたのと全く同じ不具合クラス。 */}
+          <Stack.Screen name="admin"          options={{ headerShown: false }} />
+          <Stack.Screen name="growth-report"  options={{ headerShown: false }} />
+          <Stack.Screen name="meal-coach"     options={{ headerShown: false }} />
+          <Stack.Screen name="receipt"        options={{ headerShown: false }} />
+          <Stack.Screen name="weekly-report"  options={{ headerShown: false }} />
         </Stack>
       </AuthGate>
       <Toast />

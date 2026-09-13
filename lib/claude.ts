@@ -2,7 +2,6 @@
 // SDK の代わりに fetch を直接使用（React Native 互換性のため）
 
 import type {
-  VideoAnalysisResult,
   MealAnalysisResult,
   RecoveryStatus,
   UserProfile,
@@ -12,7 +11,6 @@ import type {
   InjuryDayPlan,
   WeekPlan,
 } from '../types'
-import { getVideoAnalysisPrompt } from '../prompts/video'
 import { getMealAnalysisPrompt, getCompetitionPlanPrompt, getCompetitionPlanChunkPrompt, getSleepAdvicePrompt } from '../prompts/index'
 import { narrativeLanguageInstruction } from './aiLanguage'
 import type { Language } from '../context/LanguageContext'
@@ -155,37 +153,12 @@ function safeParseJSON<T>(text: string): T {
   }
 }
 
-// ─────────────────────────────────────────
-// 1. 動画分析
-// ─────────────────────────────────────────
-export async function analyzeVideo(
-  frameBase64List: string[],
-  event: AthleticsEvent
-): Promise<VideoAnalysisResult> {
-  const systemPrompt = getVideoAnalysisPrompt(event)
-
-  const imageContents: ContentBlock[] = frameBase64List.map(base64 => ({
-    type: 'image',
-    source: { type: 'base64', media_type: detectMediaType(base64), data: base64 },
-  }))
-
-  const text = await callClaude({
-    model: MODEL,
-    max_tokens: 2048,
-    system: systemPrompt,
-    messages: [
-      {
-        role: 'user',
-        content: [
-          ...imageContents,
-          { type: 'text', text: `種目: ${event}。この種目のコーチとして詳しくフォームを分析し、JSONで返してください。` },
-        ],
-      },
-    ],
-  })
-
-  return safeParseJSON<VideoAnalysisResult>(text)
-}
+// 2026-09-14: 動画分析(analyzeVideo)はこのファイル上に定義されていたが、実際の呼び出しは
+// app/video-analysis.tsx内で直接fetchする独自実装(6フレーム均等割り・複数フォールバック・
+// truncation自動リトライ付き)に置き換わっており、この関数はコードベース全体を検索しても
+// 呼び出し元が1件も無い完全なデッドコードだった（2026-09-09に削除したgetWeeklySummaryと
+// 同じパターン）。API費用の見直し中に発見・削除。ContentBlock型・detectMediaType・
+// safeParseJSONは他機能でも使うため残す。
 
 // ─────────────────────────────────────────
 // 2. 食事分析
@@ -410,8 +383,13 @@ const SCOPPY_SYSTEM_PROMPT = `あなたは陸上競技アプリ「sCORE」のマ
 
 export async function askScoppy(history: ScoppyChatMessage[], language: Language): Promise<string> {
   // トークンコスト増大を防ぐため、直近の会話だけをAPIに送る（表示用の全履歴は
-  // 呼び出し元(lib/scoppyChatStore.ts)がAsyncStorage側で別途保持する）
-  const recent = history.slice(-16)
+  // 呼び出し元(lib/scoppyChatStore.ts)がAsyncStorage側で別途保持する）。
+  // 2026-09-14: 「API費用をもっと抑えられないか」との指示でAPIコストを再点検した際、
+  // このチャットは長く続くほど毎ターン過去分を丸ごと再送する構造(会話が伸びるほど
+  // 1メッセージあたりのコストが線形に増える)だと判明。SCOPPY_SYSTEM_PROMPTで既に
+  // 「陸上の一般知識のみ・個人データは使わない」と範囲を絞っているため、直近8件
+  // (往復4ターン分)でも回答品質はほぼ変わらない想定で16→8に削減。
+  const recent = history.slice(-8)
   const text = await callClaude({
     model: MODEL,
     max_tokens: 400,

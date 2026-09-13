@@ -1242,7 +1242,15 @@ dimensions:上記${dims.length}項目(${dimIdList})全て必須。focusは改善
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...(await getAiAuthHeader()) },
           body: JSON.stringify({
-            model: 'claude-sonnet-5',
+            // 2026-09-14: 「API費用をもっと抑えられないか」の再点検で発覚。api/analyze.tsは
+            // GEMINI_API_KEY設定時、この model フィールドを無視して常にGemini側の定数
+            // (GEMINI_MODEL/GEMINI_MODEL_LITE)を使うため、通常時はここが何であっても
+            // コストに影響しない。ただしGeminiが失敗/空応答だった場合のAnthropicフォールバック
+            // (callAnthropic)だけはこのmodelがそのまま使われる。以前はclaude-sonnet-5(高額)を
+            // 指定していたが、同じフォームチェック用プロンプトを使っていた旧lib/claude.tsの
+            // analyzeVideo()は元々claude-haiku-4-5だった実績があり、フォールバックという
+            // 低頻度経路にわざわざ高額モデルを使う理由がないため haiku に統一する。
+            model: 'claude-haiku-4-5-20251001',
             feature: 'video',
             max_tokens: 4096, // サーバー側(api/analyze.ts)の上限も4096
             messages: [{ role: 'user', content: [...imageBlocks, { type: 'text', text: prompt }] }],

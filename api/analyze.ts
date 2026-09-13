@@ -248,7 +248,7 @@ export default async function handler(req: any, res: any) {
     // (実機で「毎回失敗する」として報告された不具合の真因)。scoppy_chatだけ上限を緩和する。
     const MAX_IMAGES = 12
     const MAX_MESSAGES_DEFAULT = 4
-    const MAX_MESSAGES_CHAT = 20 // lib/claude.tsのaskScoppy()側のslice(-16)に余裕を持たせた値
+    const MAX_MESSAGES_CHAT = 20 // lib/claude.tsのaskScoppy()側のslice(-8)（2026-09-14に16→8へ削減）に余裕を持たせた値
     const MAX_MESSAGES = body?.feature === 'scoppy_chat' ? MAX_MESSAGES_CHAT : MAX_MESSAGES_DEFAULT
     const MAX_BASE64_CHARS = 20_000_000 // 概算20MB相当
     const messages = body?.messages ?? []

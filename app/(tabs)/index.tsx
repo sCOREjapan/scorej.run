@@ -558,54 +558,103 @@ function ScoreOverviewCard({
       </PressableScale>
       </TutorialSpot>
 
-      {/* ── ストレッチバナー（リスク40以上 or チュートリアル中は常時表示） ── */}
-      {(riskScore >= 40 || !!onStretchStart) && onStretchStart && (
+      {/* ── ストレッチ＋ウォームアップ統合行（2026-09-14、mitameプレビューB案で確定） ──
+          左＝軽いテキストボタン(ウォームアップ)、右＝色付きピル(ストレッチ開始！)。
+          非対称にすることで「ストレッチが主・ウォームアップが従」の主従関係を保ちつつ、
+          「-12%」の効果訴求だけは小さく残す。リスクが中程度(warmupRisk==='moderate'、
+          スコア25〜74)の間は、ストレッチ開始ボタンから水の波紋エフェクトを出して誘導を強める。 */}
+      {!!onStretchStart && (
         <TutorialSpot spotKey="home_stretch_banner">
-        <PressableScale
-          onPress={onStretchStart}
-          haptic="medium"
-          sound="whoosh"
-          scaleAmount={0.97}
-          style={[so.stretchBanner, { backgroundColor: colors.surface }]}
-        >
-          <View style={{ width: '100%', flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <View style={so.stretchIconWrap}>
-              <Ionicons name="body-outline" size={22} color={BRAND} />
+        <View style={[so.stretchWarmupRow, { backgroundColor: colors.surface }]}>
+          {/* 2026-09-14バグ修正:「アイコンと文字が同じ行になっていない」報告の原因。
+              PressableScaleはstyleを外側のPressableに渡すだけで、children自体は内側の
+              Animated.View(flexDirection指定なし=デフォルトcolumn)にそのまま渡される作り
+              （旧warmupLinkで一度踏んで直したのと同じ罠——マージ時に書き直して再発させた）。
+              so.swLeft/so.swBtnのflexDirection:'row'は外側のPressableにしか効かないため、
+              children側は必ずflexDirection:'row'のViewを1枚挟んで明示する。 */}
+          <PressableScale
+            onPress={() => router.push({ pathname: '/warmup', params: { risk: warmupRisk } } as any)}
+            haptic="light"
+            sound="tap"
+            scaleAmount={0.97}
+            style={so.swLeft}
+          >
+            <View style={so.swLeftRow}>
+              <Ionicons name="flame-outline" size={17} color={colors.textSec} />
+              <Text style={[so.swLeftText, { color: colors.text }]} numberOfLines={1}>{t('home.warmupLink.short')}</Text>
             </View>
-            <View style={{ flex: 1, gap: 1 }}>
-              <Text style={so.stretchLabel} numberOfLines={1}>{t('home.stretchBanner.today')}</Text>
-              <Text style={[so.stretchText, { color: colors.text }]} numberOfLines={1}>{t('home.stretchBanner.title')}</Text>
-              <Text style={[so.stretchGain, { color: BRAND }]} numberOfLines={1}>{t('home.stretchBanner.gain')}</Text>
-            </View>
-            <View style={so.stretchBtn}>
-              <Text style={so.stretchBtnText}>{t('home.stretchBanner.start')}</Text>
-              <Ionicons name="chevron-forward" size={14} color="#fff" />
-            </View>
+          </PressableScale>
+
+          <View style={[so.swDivider, { backgroundColor: colors.border }]} />
+
+          <View style={so.swRight}>
+            <Text style={[so.swGain, { color: BRAND }]} numberOfLines={1}>{t('home.stretchBanner.gain')}</Text>
+            <PressableScale
+              onPress={onStretchStart}
+              haptic="medium"
+              sound="whoosh"
+              scaleAmount={0.97}
+              style={so.swBtn}
+            >
+              <StretchRipple active={warmupRisk === 'moderate'} />
+              <View style={so.swBtnRow}>
+                <Ionicons name="body-outline" size={14} color="#fff" />
+                <Text style={so.swBtnText}>{t('home.stretchBanner.startCta')}</Text>
+              </View>
+            </PressableScale>
           </View>
-        </PressableScale>
+        </View>
         </TutorialSpot>
       )}
-
-      {/* ── ウォームアップ導線（軽め・常時表示） ── */}
-      {/* 2026-09-11: PressableScaleはstyleを外側のPressableに付けるだけで、子要素は
-          内側のAnimated.View(flexDirection指定なし=デフォルトcolumn)にそのまま
-          渡される作り。row化するには他の箇所(ストレッチバナー等)と同じく、中に
-          flexDirection:'row'のViewを1枚挟む必要がある——それが抜けていて
-          アイコン・テキスト・矢印が縦積みになっていた不具合を修正。 */}
-      <PressableScale
-        onPress={() => router.push({ pathname: '/warmup', params: { risk: warmupRisk } } as any)}
-        haptic="light"
-        sound="tap"
-        scaleAmount={0.97}
-        style={[so.warmupLink, { backgroundColor: colors.surface }]}
-      >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Ionicons name="flame-outline" size={16} color={colors.textSec} />
-          <Text style={[so.warmupLinkText, { color: colors.text }]} numberOfLines={1}>{t('home.warmupLink.title')}</Text>
-          <Ionicons name="chevron-forward" size={14} color={colors.textHint} />
-        </View>
-      </PressableScale>
     </>
+  )
+}
+
+// 2026-09-14: リスクが中程度(warmupRisk==='moderate')の間、ストレッチ開始ボタンから
+// 水の波紋が広がるエフェクトを出す（ユーザー指示：ストレッチ導線を強める）。
+// 2本のリングを850ms(1700msの半周期)ずらしてループさせる、標準的なmaterial ripple構成。
+// ボタン自身と同じ角丸・同じ大きさから始めてscaleで外へ広げるので、ピル形状のまま滲み出る。
+function StretchRipple({ active }: { active: boolean }) {
+  const ring0 = useRef(new Animated.Value(0)).current
+  const ring1 = useRef(new Animated.Value(0)).current
+
+  useEffect(() => {
+    if (!active) return
+    // 注意: Animated.loop(Animated.timing(v,{toValue:1}))単体だと、1周目が
+    // 終わった時点でvが既に1になっており、2周目は「1→1」の距離0アニメーションに
+    // なって停止して見える（実機検証で発覚）。sequenceの最後に duration:0 で
+    // 0へ瞬時に戻す区間を挟み、毎周ちゃんと0→1を描かせる。
+    const makeLoop = (v: Animated.Value) => Animated.loop(
+      Animated.sequence([
+        Animated.timing(v, { toValue: 1, duration: 1700, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(v, { toValue: 0, duration: 0, useNativeDriver: true }),
+      ])
+    )
+    const loop0 = makeLoop(ring0)
+    const loop1 = makeLoop(ring1)
+    loop0.start()
+    const t = setTimeout(() => loop1.start(), 850)
+    return () => {
+      loop0.stop(); loop1.stop(); clearTimeout(t)
+      ring0.setValue(0); ring1.setValue(0)
+    }
+  }, [active])
+
+  if (!active) return null
+
+  const ringStyle = (v: Animated.Value) => ({
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 18,
+    backgroundColor: '#fff',
+    opacity: v.interpolate({ inputRange: [0, 1], outputRange: [0.45, 0] }),
+    transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 1.85] }) }],
+  })
+
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      <Animated.View style={ringStyle(ring0)} />
+      <Animated.View style={ringStyle(ring1)} />
+    </View>
   )
 }
 
@@ -670,22 +719,27 @@ const makeSoStyles = (colors: ThemeColors) => StyleSheet.create({
   statInline:      { width: 64, borderRadius: 16, paddingVertical: 8, paddingHorizontal: 4, alignItems: 'center', gap: 4, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
   statInlineVal:   { fontSize: 16, fontWeight: '700', letterSpacing: -0.5, color: colors.text, fontVariant: ['tabular-nums'] },
   statInlineLabel: { fontSize: 9, fontWeight: '400', color: colors.textSec },
-  // ストレッチバナー（アイコン＋2行テキスト＋ピルCTA）
-  stretchBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
+  // 2026-09-14: ストレッチバナー＋ウォームアップ導線を1行に統合（mitameプレビューB案で確定）。
+  // 左＝軽いテキストボタン(ウォームアップ)、右＝色付きピル(ストレッチ開始！)+「-12%」の非対称構成。
+  stretchWarmupRow: {
+    flexDirection: 'row', alignItems: 'center',
     borderRadius: 20, paddingHorizontal: 16, paddingVertical: 12, marginTop: 8,
     borderWidth: 1, borderColor: colors.border,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.07, shadowRadius: 12, elevation: 3,
   },
-  stretchIconWrap: { width: 44, height: 44, borderRadius: 14, backgroundColor: BRAND + '14', alignItems: 'center', justifyContent: 'center' },
-  stretchLabel:  { fontSize: 11, fontWeight: '600', color: colors.textHint },
-  stretchText:   { fontSize: 13, fontWeight: '500' },
-  stretchGain:   { fontSize: 14, fontWeight: '800' },
-  stretchBtn:    { flexDirection: 'row', alignItems: 'center', gap: 2, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: BRAND },
-  stretchBtnText:{ color: '#fff', fontSize: 12.5, fontWeight: '700' },
-  warmupLink:    { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 14, marginTop: 8 },
-  warmupLinkText:{ flex: 1, fontSize: 12.5, fontWeight: '600' },
+  swLeft:      { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, minWidth: 0 },
+  // PressableScaleのchildrenは内側Animated.Viewが受け取る(デフォルトcolumn)ため、
+  // 見た目上の行方向レイアウトはこの内側Viewで明示的に組む(swLeft/swBtn自体のflexDirection
+  // は外側Pressableの箱の向きにしか効かない。上のJSX側コメント参照)。
+  swLeftRow:   { flexDirection: 'row', alignItems: 'center', gap: 8, width: '100%' },
+  swLeftText:  { fontSize: 13, fontWeight: '500' },
+  swDivider:   { width: 1, height: 32, marginHorizontal: 12 },
+  swRight:     { alignItems: 'flex-end', flexShrink: 0 },
+  swGain:      { fontSize: 10, fontWeight: '800', marginBottom: 4 },
+  swBtn:       { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: BRAND, overflow: 'visible' },
+  swBtnRow:    { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  swBtnText:   { color: '#fff', fontSize: 12.5, fontWeight: '700' },
 })
 
 

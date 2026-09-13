@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>ストレッチ導線統合プレビュー</title>
+<style>
+  :root{
+    /* ---- sCORE 実トークン（lib/theme.ts, context/ThemeContext.tsx LIGHT より実測） ---- */
+    --bg:      #f6f6f8;
+    --surface: #ffffff;
+    --surface2:#f0f2f5;
+    --border:  rgba(0,0,0,0.08);
+    --text:    #111827;
+    --textSec: #6b7280;
+    --textHint:#9ca3af;
+    --brand:   #166534;
+    --brand-14:rgba(22,101,52,0.078); /* BRAND + '14' */
+
+    /* ---- プレビュー用の紙面トーン(アプリ本体とは無関係) ---- */
+    --paper: #f6f4ef;
+    --panelBorder: #e8e4da;
+    --ink: #2b2b28;
+    --muted: #8a8578;
+    --accent: #b5502e;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:-apple-system, "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif;
+    padding:32px 24px 60px;
+  }
+  h1{font-size:20px; margin:0 0 4px;}
+  .lead{font-size:13px; color:var(--muted); margin:0 0 20px;}
+  .brief{
+    background:#fff; border:1px solid var(--panelBorder); border-radius:12px;
+    padding:14px 18px; margin-bottom:28px; font-size:13px; line-height:1.7; max-width:900px;
+  }
+  .brief b{color:var(--accent);}
+  .brief .quote{ color:#555; }
+
+  .row{
+    display:flex; gap:28px; flex-wrap:wrap; align-items:flex-start;
+  }
+  .col{ width:390px; }
+  .col-head{
+    display:flex; align-items:center; gap:8px; margin-bottom:10px; min-height:44px;
+  }
+  .letter{
+    width:26px; height:26px; border-radius:8px; background:var(--ink); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; flex-shrink:0;
+  }
+  .col-title{ font-size:14px; font-weight:700; }
+  .col-sub{ font-size:11.5px; color:var(--muted); margin-top:1px; }
+  .badge-rec{
+    font-size:10.5px; font-weight:700; background:var(--accent); color:#fff;
+    border-radius:20px; padding:2px 9px; margin-left:2px;
+  }
+
+  .frame-wrap{
+    border-radius:44px; padding:9px; background:#111; box-shadow:0 12px 28px rgba(0,0,0,0.16);
+    display:inline-block;
+  }
+  .frame-wrap.rec{ box-shadow:0 0 0 3px var(--accent), 0 12px 28px rgba(0,0,0,0.16); }
+  .screen{
+    width:390px; height:520px; background:var(--bg); border-radius:36px;
+    overflow:hidden; position:relative;
+  }
+  .notch{
+    position:absolute; top:0; left:50%; transform:translateX(-50%);
+    width:120px; height:24px; background:#111; border-radius:0 0 16px 16px; z-index:5;
+  }
+  .scroll{ padding:52px 16px 16px; }
+
+  /* ---- 文脈用スライバー（リスクカード下端 / 目標セクション上端） ---- */
+  .ctx-card{
+    background:var(--surface); border:1px solid var(--border); border-radius:20px;
+    padding:12px 16px; opacity:0.55;
+  }
+  .ctx-row{ display:flex; align-items:center; gap:8px; }
+  .ctx-dot{ width:8px; height:8px; border-radius:4px; background:var(--textHint); }
+  .ctx-bar{ flex:1; height:8px; background:var(--surface2); border-radius:4px; }
+  .ctx-cut{
+    height:14px; margin-top:-8px; border-radius:0 0 20px 20px;
+    background:linear-gradient(var(--bg), transparent);
+  }
+  .ctx-below{
+    margin-top:14px; font-size:11px; color:var(--textHint); font-weight:600;
+    padding-left:2px; opacity:0.6;
+  }
+
+  /* ---- 現状 (Before) ---- */
+  .stretchBanner{
+    display:flex; align-items:center; gap:12px; border-radius:20px;
+    padding:12px 16px; margin-top:8px;
+    background:var(--surface); border:1px solid var(--border);
+    box-shadow:0 4px 12px rgba(0,0,0,0.07);
+  }
+  .stretchIconWrap{
+    width:44px; height:44px; border-radius:14px; background:var(--brand-14);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:20px;
+  }
+  .stretchTextCol{ flex:1; min-width:0; }
+  .stretchLabel{ font-size:11px; font-weight:600; color:var(--textHint); }
+  .stretchText{ font-size:13px; font-weight:500; color:var(--text); margin-top:1px; }
+  .stretchGain{ font-size:14px; font-weight:800; color:var(--brand); margin-top:1px; }
+  .stretchBtn{
+    display:flex; align-items:center; gap:2px; border-radius:18px;
+    padding:9px 14px; background:var(--brand); flex-shrink:0;
+  }
+  .stretchBtnText{ color:#fff; font-size:12.5px; font-weight:700; }
+
+  .warmupLink{
+    display:flex; align-items:center; gap:8px; border-radius:14px;
+    padding:10px 14px; margin-top:8px; background:var(--surface);
+  }
+  .warmupLinkText{ flex:1; font-size:12.5px; font-weight:600; color:var(--text); }
+
+  /* ---- 統合カード（A / B 共通の外枠） ---- */
+  .mergedCard{
+    display:flex; align-items:center; border-radius:20px;
+    padding:12px 16px; margin-top:8px;
+    background:var(--surface); border:1px solid var(--border);
+    box-shadow:0 4px 12px rgba(0,0,0,0.07);
+  }
+
+  /* ---- A: 完全に均等な2ボタン ---- */
+  .equalRow{ display:flex; gap:10px; width:100%; }
+  .equalBtn{
+    flex:1; display:flex; align-items:center; justify-content:center; gap:6px;
+    border-radius:14px; padding:12px 8px; font-size:13px; font-weight:700;
+  }
+  .equalBtn.left{ background:var(--surface2); border:1px solid var(--border); color:var(--text); }
+  .equalBtn.right{ background:var(--brand); color:#fff; }
+  .equalBtn .ic{ font-size:15px; line-height:1; }
+
+  /* ---- B: 非対称（軽いテキスト + 色付きピル、-12%残す） ---- */
+  .asymRow{ display:flex; align-items:center; width:100%; }
+  .asymLeft{
+    flex:1; display:flex; align-items:center; gap:8px; min-width:0;
+  }
+  .asymLeft .ic{ font-size:17px; color:var(--textSec); }
+  .asymLeftText{ font-size:13px; font-weight:500; color:var(--text); }
+  .asymDivider{ width:1px; height:32px; background:var(--border); margin:0 12px; flex-shrink:0; }
+  .asymRight{ display:flex; flex-direction:column; align-items:flex-end; flex-shrink:0; }
+  .asymGain{ font-size:10px; font-weight:800; color:var(--brand); margin-bottom:4px; }
+  .asymBtn{
+    display:flex; align-items:center; gap:4px; border-radius:18px;
+    padding:9px 14px; background:var(--brand);
+  }
+  .asymBtn .ic{ font-size:14px; }
+  .asymBtnText{ color:#fff; font-size:12.5px; font-weight:700; }
+
+  footer{
+    margin-top:36px; font-size:12px; color:var(--muted); max-width:900px;
+    border-top:1px dashed var(--panelBorder); padding-top:14px; line-height:1.8;
+  }
+  footer b{ color:var(--ink); }
+</style>
+</head>
+<body>
+
+  <h1>ホーム画面「ストレッチ」導線 統合案</h1>
+  <p class="lead">design space: 390pt幅 / K=1 (px=pt) ・ トークンは lib/theme.ts, context/ThemeContext.tsx, app/(tabs)/index.tsx の実値</p>
+
+  <div class="brief">
+    <b>お題（ユーザーの言語化）:</b><br>
+    <span class="quote">「この二つを、一行にまとめて、右半分にストレッチ開始！ボタン、左半分に練習前ウォームアップ　っていうボタンにするっていう案はどう？」</span><br>
+    → Claude提案: <span class="quote">「1行にまとめるのは賛成、右側のストレッチボタンだけ少し大きめ・色付きのまま残し、その中かすぐ上に『-12%』の数値を小さく残す。左側のウォームアップは提案通り軽めのテキストボタンのまま」</span><br>
+    このアレンジで進めるか(<b>B</b>)、完全に均等な2ボタン(<b>A</b>、ユーザー原案どおり)でいくかの確認用モックです。
+  </div>
+
+  <div class="row">
+
+    <!-- 現状 -->
+    <div class="col">
+      <div class="col-head">
+        <div class="letter" style="background:var(--muted);">現</div>
+        <div>
+          <div class="col-title">現状（Before）</div>
+          <div class="col-sub">バナー1つ + リンク1つ、縦に2段</div>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="screen">
+          <div class="notch"></div>
+          <div class="scroll">
+            <div class="ctx-card">
+              <div class="ctx-row"><div class="ctx-dot"></div><div class="ctx-bar"></div></div>
+            </div>
+            <div class="ctx-cut"></div>
+
+            <div class="stretchBanner">
+              <div class="stretchIconWrap">🧘</div>
+              <div class="stretchTextCol">
+                <div class="stretchLabel">今日のおすすめ</div>
+                <div class="stretchText">ストレッチで整える</div>
+                <div class="stretchGain">怪我リスク -12%</div>
+              </div>
+              <div class="stretchBtn"><span class="stretchBtnText">開始する</span><span style="color:#fff;font-size:11px;">›</span></div>
+            </div>
+
+            <div class="warmupLink">
+              <span style="font-size:16px;color:var(--textSec);">🔥</span>
+              <div class="warmupLinkText">練習前のウォームアップを見る</div>
+              <span style="font-size:13px;color:var(--textHint);">›</span>
+            </div>
+
+            <div class="ctx-below">目標 ―――――――――</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- A: 完全均等 -->
+    <div class="col">
+      <div class="col-head">
+        <div class="letter">A</div>
+        <div>
+          <div class="col-title">完全に均等な2ボタン</div>
+          <div class="col-sub">ユーザー原案どおり／「-12%」は無くなる</div>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="screen">
+          <div class="notch"></div>
+          <div class="scroll">
+            <div class="ctx-card">
+              <div class="ctx-row"><div class="ctx-dot"></div><div class="ctx-bar"></div></div>
+            </div>
+            <div class="ctx-cut"></div>
+
+            <div class="mergedCard">
+              <div class="equalRow">
+                <div class="equalBtn left"><span class="ic">🔥</span>ウォームアップ</div>
+                <div class="equalBtn right"><span class="ic">🧘</span>ストレッチ開始！</div>
+              </div>
+            </div>
+
+            <div class="ctx-below">目標 ―――――――――</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- B: 非対称(推奨) -->
+    <div class="col">
+      <div class="col-head">
+        <div class="letter" style="background:var(--accent);">B</div>
+        <div>
+          <div class="col-title">非対称（軽いテキスト＋色付きピル）<span class="badge-rec">推奨</span></div>
+          <div class="col-sub">「-12%」を小さく残し、主従がはっきり分かる</div>
+        </div>
+      </div>
+      <div class="frame-wrap rec">
+        <div class="screen">
+          <div class="notch"></div>
+          <div class="scroll">
+            <div class="ctx-card">
+              <div class="ctx-row"><div class="ctx-dot"></div><div class="ctx-bar"></div></div>
+            </div>
+            <div class="ctx-cut"></div>
+
+            <div class="mergedCard">
+              <div class="asymRow">
+                <div class="asymLeft">
+                  <span class="ic">🔥</span>
+                  <span class="asymLeftText">ウォームアップ</span>
+                </div>
+                <div class="asymDivider"></div>
+                <div class="asymRight">
+                  <div class="asymGain">怪我リスク -12%</div>
+                  <div class="asymBtn"><span class="ic">🧘</span><span class="asymBtnText">ストレッチ開始！</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="ctx-below">目標 ―――――――――</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    <b>選び方のポイント:</b><br>
+    ・<b>A（均等）</b>: 見た目はスッキリするが、「ウォームアップ」と「ストレッチ」が同じ強さに見える → ストレッチの方が本来メインの推奨行動なのに埋もれる。「-12%」という具体的な効果訴求も消える。<br>
+    ・<b>B（非対称・推奨）</b>: ストレッチ側だけ色とピル形状で主役だと分かる。「-12%」を小さく残せるので効果訴求が消えない。ウォームアップは軽いテキストのままなので「サブ導線」として自然。<br><br>
+    レターを教えてください（例:「Bで」）。そのまま app/(tabs)/index.tsx に実装します。微調整（色味・余白など）も言葉でどうぞ。
+  </footer>
+
+</body>
+</html>

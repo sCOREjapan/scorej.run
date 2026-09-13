@@ -418,10 +418,12 @@
       "today": "Today's Pick",
       "title": "5 min of stretching",
       "gain": "Injury risk −12%",
-      "start": "Start"
+      "start": "Start",
+      "startCta": "Start Stretch!"
     },
     "warmupLink": {
-      "title": "See your pre-practice warm-up"
+      "title": "See your pre-practice warm-up",
+      "short": "Warm-up"
     },
     "conditionCardDefaultLabel": "Today's Condition",
     "improvementTasksTitle": "Improvement Tasks",

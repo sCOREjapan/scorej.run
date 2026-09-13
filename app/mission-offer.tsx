@@ -32,7 +32,7 @@ import Toast from 'react-native-toast-message'
 import { usePurchase } from '../context/PurchaseContext'
 import { PRODUCT_IDS, TICKET_MONTHLY_GRANT } from '../lib/purchaseService'
 import { trackPaywallView, trackTrialStarted } from '../lib/analytics'
-import { getMissionState } from '../lib/missionStore'
+import { startSaleWindowIfNeeded } from '../lib/missionStore'
 
 const BRAND = '#166534'
 const GOLD  = '#f59e0b'
@@ -79,7 +79,17 @@ export default function MissionOfferScreen() {
   const ripple2 = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
-    getMissionState().then(s => setSaleExpiresAt(s.saleExpiresAt ?? null)).catch(() => {})
+    // 2026-09-14バグ修正:「特別オファーのはずなのに割引(¥680・取り消し線・カウントダウン)が
+    // 出ず、ただの¥980表示になる」不具合の原因。従来はこの画面はgetMissionState()で
+    // 読むだけで、セール期限(saleExpiresAt)を確定させる責務は呼び出し元
+    // (components/MissionModal.tsxのhandleContinueToSale)だけが持っていた。しかし
+    // components/MissionEntryCard.tsxの「セール中バッジ」等、別経路からもこの画面へ
+    // 直接遷移できるため、呼び出し元がstartSaleWindowIfNeeded()を呼び忘れる／
+    // 呼ぶ前にこの画面が先に読みに行く、といった経路次第でsaleExpiresAtがnullのまま
+    // になり得た。呼び出し元に責務を分散させず、この画面自身がマウント時に必ず
+    // startSaleWindowIfNeeded()を呼ぶ形に一本化する。既にセット済みなら上書きしない
+    // ので24時間が再延長される心配はなく、どの経路から来ても割引表示が必ず保証される。
+    startSaleWindowIfNeeded().then(exp => setSaleExpiresAt(exp)).catch(() => {})
     trackPaywallView('mission_offer_screen')
     Animated.timing(fadeAnim, { toValue: 1, duration: 400, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start()
     const makeRippleLoop = (val: Animated.Value) => Animated.loop(
@@ -183,7 +193,19 @@ export default function MissionOfferScreen() {
     // カード)と同じ構図(暗幕の背景+四辺マージン+四隅丸角+影)に変更。
     <View style={s.overlay}>
       <Animated.View style={[s.cardShadow, { opacity: fadeAnim }]}>
-        <ImageBackground source={OFFER_BG} style={s.card} imageStyle={{ borderRadius: 28 }} resizeMode="cover">
+        {/* 2026-09-14: 「カードの背景が灰色単色に見える」報告への対処。原因はこのセッションの
+            環境では再現できず特定できていない(このアプリのweb開発サーバー上ではOFFER_BG画像は
+            正しく表示されることを確認済み)が、万一OFFER_BG(1.7MBの大きめPNG)の読み込みが
+            遅い/失敗する端末があった場合に備え、画像と同系統の色(暗い緑)をbackgroundColorとして
+            敷いておく(読み込み中や失敗時に素の灰色/透明ではなくこの色が見える)。
+            onErrorで実際に読み込み失敗した場合をログに残し、次回の実機ログで原因を特定できるようにする。 */}
+        <ImageBackground
+          source={OFFER_BG}
+          style={[s.card, { backgroundColor: '#0d2818' }]}
+          imageStyle={{ borderRadius: 28 }}
+          resizeMode="cover"
+          onError={(e) => console.error('[mission-offer] background image failed to load:', e.nativeEvent.error)}
+        >
           {/* 背景画像の上にごく薄い黒を1枚敷き、どんな画像が来ても文字の可読性を担保する */}
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
             <LinearGradient colors={['rgba(0,0,0,0.35)', 'rgba(0,0,0,0.1)', 'rgba(0,0,0,0.55)']} locations={[0, 0.4, 1]} style={StyleSheet.absoluteFill} />
