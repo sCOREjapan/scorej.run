@@ -38,7 +38,7 @@ export async function getMyRankingSettings(userId: string | null | undefined): P
  * （lib/cloudSync.ts syncProfileToCloud() と同じ理由）。
  * name/primary_event等の他フィールドは触らない(upsertは渡したキーだけを更新する)。
  */
-export async function setMyRankingSettings(userId: string, settings: RankingSettings): Promise<boolean> {
+export async function setMyRankingSettings(userId: string, settings: RankingSettings): Promise<{ ok: boolean; debugMessage?: string }> {
   try {
     const { error } = await supabase.from('profiles').upsert({
       user_id: userId,
@@ -46,8 +46,17 @@ export async function setMyRankingSettings(userId: string, settings: RankingSett
       ranking_display_name: settings.displayName.trim() || null,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' })
-    return !error
-  } catch {
-    return false
+    if (error) {
+      // 2026-09-13: 「ランキング参加できない」との報告でエラーを握りつぶしていたことが
+      // 判明。supabase/ranking_opt_in_migration.sqlが未実行だとprofilesテーブルに
+      // ranking_opt_in/ranking_display_name列が存在せず失敗する可能性が高いため、
+      // 原因切り分けのため一時的に実際のエラーを返す(呼び出し元でデバッグ表示に使う)
+      console.error('[rankingOptIn] upsert failed:', error)
+      return { ok: false, debugMessage: error.message }
+    }
+    return { ok: true }
+  } catch (e: any) {
+    console.error('[rankingOptIn] upsert exception:', e)
+    return { ok: false, debugMessage: e?.message ?? String(e) }
   }
 }

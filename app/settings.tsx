@@ -248,9 +248,15 @@ export default function SettingsScreen() {
     setRankingOptIn(next)
     if (!next) {
       setRankingSaving(true)
-      const ok = await setMyRankingSettings(user.id, { optIn: false, displayName: rankingName })
+      const { ok, debugMessage } = await setMyRankingSettings(user.id, { optIn: false, displayName: rankingName })
       setRankingSaving(false)
-      Toast.show({ type: ok ? 'success' : 'error', text1: ok ? t('settings.ranking.leftToast') : t('settings.ranking.saveFailedToast') })
+      // 2026-09-13(暫定・削除予定): 「ランキング参加できない」の原因特定のため、
+      // 失敗時だけ実際のエラーをトーストに付記する。原因判明後は通常文言に戻すこと。
+      Toast.show({
+        type: ok ? 'success' : 'error',
+        text1: ok ? t('settings.ranking.leftToast') : t('settings.ranking.saveFailedToast'),
+        text2: ok ? undefined : debugMessage,
+      })
     }
   }
 
@@ -261,9 +267,13 @@ export default function SettingsScreen() {
       return
     }
     setRankingSaving(true)
-    const ok = await setMyRankingSettings(user.id, { optIn: rankingOptIn, displayName: rankingName })
+    const { ok, debugMessage } = await setMyRankingSettings(user.id, { optIn: rankingOptIn, displayName: rankingName })
     setRankingSaving(false)
-    Toast.show({ type: ok ? 'success' : 'error', text1: ok ? t('settings.ranking.savedToast') : t('settings.ranking.saveFailedToast') })
+    Toast.show({
+      type: ok ? 'success' : 'error',
+      text1: ok ? t('settings.ranking.savedToast') : t('settings.ranking.saveFailedToast'),
+      text2: ok ? undefined : debugMessage,
+    })
   }
 
   // 通知
