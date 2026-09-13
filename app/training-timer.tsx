@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import * as Crypto from 'expo-crypto'
 import SimpleSlider from '../components/SimpleSlider'
+import PressableScale from '../components/PressableScale'
 import { unlockAudio, Sounds, preloadStarterSounds, playTimerBeep, playTimerEnd } from '../lib/sounds'
 import { todayLocalISO } from '../lib/dateLocal'
 import {
@@ -210,27 +211,35 @@ export default function TrainingTimerScreen() {
           </View>
         )}
 
-        <View style={[tt.card, { borderColor: phaseColor, backgroundColor: phaseColor + '14' }]}>
-          {phase === 'idle' ? (
-            <>
+        {phase === 'idle' ? (
+          // 2026-09-13: 「真ん中の再生マークっていうよりは、この四角全体が再生ボタンに
+          // なるようにしたい、この四角をちょっと立体的にして」との指示で、中央の小さい
+          // 円だけがタップ対象だったのをやめ、カード全体をPressableScaleで包んでボタン化。
+          // 立体感は、影を強め(shadowOffset/Radius/Opacityを増やす)+下端に一段濃い色の
+          // ボーダーを足すことで「浮いていて押せそう」な見た目にした
+          <PressableScale onPress={handleStart} scaleAmount={0.97} haptic="medium" style={{ width: '100%', aspectRatio: 1.15 }}>
+            <View style={[
+              tt.card, tt.cardButton,
+              { borderColor: phaseColor, backgroundColor: phaseColor + '14', borderBottomColor: phaseColor, shadowColor: phaseColor },
+            ]}>
+              <View style={[tt.startBtn, { backgroundColor: phaseColor }]}>
+                <Ionicons name="play" size={28} color={BG} />
+              </View>
               <Text style={tt.idleSummary}>{settings.mode === 'interval' ? t('trainingTimer.idleSummaryInterval', { work: settings.workSec, reps: settings.reps, sets: settings.sets }) : t('trainingTimer.idleSummaryNormal', { work: settings.workSec })}</Text>
-              <TouchableOpacity style={tt.startBtn} onPress={handleStart} activeOpacity={0.85}>
-                <Ionicons name="play" size={24} color="#171326" />
-              </TouchableOpacity>
-            </>
-          ) : (
-            <>
-              {phase !== 'done' && <Text style={[tt.phaseLabel, { color: phaseColor }]}>{phaseLabel}</Text>}
-              <Text style={[tt.timeText, { color: phaseColor }]}>{phase === 'done' ? '🎉' : formatTime(remaining)}</Text>
-              {settings.mode === 'interval' && (
-                <View style={tt.progressRow}>
-                  <View style={tt.progressBadge}><Text style={tt.progressBadgeText}>{t('trainingTimer.setProgress', { cur: curSet, total: settings.sets })}</Text></View>
-                  <View style={tt.progressBadge}><Text style={tt.progressBadgeText}>{t('trainingTimer.repProgress', { cur: curRep, total: settings.reps })}</Text></View>
-                </View>
-              )}
-            </>
-          )}
-        </View>
+            </View>
+          </PressableScale>
+        ) : (
+          <View style={[tt.card, { borderColor: phaseColor, backgroundColor: phaseColor + '14' }]}>
+            {phase !== 'done' && <Text style={[tt.phaseLabel, { color: phaseColor }]}>{phaseLabel}</Text>}
+            <Text style={[tt.timeText, { color: phaseColor }]}>{phase === 'done' ? '🎉' : formatTime(remaining)}</Text>
+            {settings.mode === 'interval' && (
+              <View style={tt.progressRow}>
+                <View style={tt.progressBadge}><Text style={tt.progressBadgeText}>{t('trainingTimer.setProgress', { cur: curSet, total: settings.sets })}</Text></View>
+                <View style={tt.progressBadge}><Text style={tt.progressBadgeText}>{t('trainingTimer.repProgress', { cur: curRep, total: settings.reps })}</Text></View>
+              </View>
+            )}
+          </View>
+        )}
       </View>
 
       <View style={tt.btnRow}>
@@ -358,6 +367,14 @@ const tt = StyleSheet.create({
   stepSegment: { width: '100%', height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.12)' },
   stepLabel:   { fontSize: 11.5, fontWeight: '600', color: TEXT_HINT },
 
+  // 2026-09-13: idle時のカードを「押せるボタン」に見せるための立体感。
+  // 影を強め(shadowOffset/Radius/Opacityを通常より大きく)、下端だけ地色より
+  // 濃いボーダー(borderBottomColorをphaseColorそのものにして境界をはっきりさせる)
+  // を足すことで、上から光が当たって浮いているような見た目にする
+  cardButton: {
+    borderBottomWidth: 6,
+    shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.35, shadowRadius: 20, elevation: 10,
+  },
   card: {
     width: '100%', aspectRatio: 1.15, borderRadius: 32,
     borderWidth: 3, alignItems: 'center', justifyContent: 'center', gap: 14,
@@ -365,7 +382,9 @@ const tt = StyleSheet.create({
   phaseLabel:  { fontSize: 16, fontWeight: '800' },
   timeText:    { fontSize: 52, fontWeight: '900', fontVariant: ['tabular-nums'] },
   idleSummary: { fontSize: 14, fontWeight: '700', color: TEXT_SECONDARY, textAlign: 'center', paddingHorizontal: 24 },
-  startBtn:    { width: 64, height: 64, borderRadius: 32, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center' },
+  // 2026-09-13: カード全体がボタンになったので、これは単なる視覚的な目印(タップ対象は
+  // 親のPressableScale)。少し大きくして中央での存在感を保つ
+  startBtn:    { width: 72, height: 72, borderRadius: 36, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center' },
   progressRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
   progressBadge: { backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6 },
   progressBadgeText: { fontSize: 13, fontWeight: '700', color: TEXT_SECONDARY },
