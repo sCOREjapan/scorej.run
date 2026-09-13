@@ -7,7 +7,6 @@ export type TutorialSpotKey =
   | 'home_goal_section'
   | 'home_countdown_card'
   | 'notebook_menu_link'
-  | 'competition_tab'
   | 'records_share_btn'
 
 export type TutorialStepId =
@@ -17,7 +16,6 @@ export type TutorialStepId =
   | 'stretch_banner'
   | 'goal_section'
   | 'notebook_menu'
-  | 'competition_tab'
   | 'share_card'
   | 'complete'
 
@@ -91,18 +89,10 @@ export const TUTORIAL_STEPS: Record<TutorialStepId, TutorialStep> = {
     description: '「メニュー」から今日の練習メニューを\n確認・記録できるよ 📋',
     spotKey: 'notebook_menu_link',
     action: 'next',
-    nextStep: 'competition_tab',
-    tabIndex: 2,
-    tooltipPosition: 'top',
-  },
-  competition_tab: {
-    id: 'competition_tab',
-    title: '試合計画・怪我復帰',
-    description: 'AIが試合までの練習計画や\n怪我からの回復プランを作ってくれるよ 🏁',
-    spotKey: 'competition_tab',
-    action: 'next',
+    // 2026-09-13: 「クイックアクセスから試合計画を削除」に伴い、この項目を案内していた
+    // competition_tabステップを削除(spotKeyの対象が無くなるため)。次のステップへ直結させた
     nextStep: 'share_card',
-    tabIndex: 3,
+    tabIndex: 2,
     tooltipPosition: 'top',
   },
   share_card: {
@@ -132,7 +122,6 @@ export const TUTORIAL_ORDER: TutorialStepId[] = [
   'stretch_banner',
   'goal_section',
   'notebook_menu',
-  'competition_tab',
   'share_card',
   'complete',
 ]

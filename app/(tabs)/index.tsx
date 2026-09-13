@@ -2607,7 +2607,9 @@ ${sleepText || 'データなし'}
                   { icon: 'clipboard-outline' as const,  label: t('home.quickAccess.menu'),           route: '/workout-menu',       spotKey: 'notebook_menu_link' as const },
                   { icon: 'calendar-outline' as const,   label: t('home.quickAccess.calendar'),       route: '/(tabs)/calendar',    spotKey: undefined },
                   { icon: 'restaurant-outline' as const, label: t('home.quickAccess.mealAnalysis'),   route: '/(tabs)/nutrition',   spotKey: undefined },
-                  { icon: 'flag-outline' as const,       label: t('home.quickAccess.competitionPlan'), route: '/(tabs)/competition', spotKey: 'competition_tab' as const },
+                  // 2026-09-13: ユーザー指示で撤去。試合計画自体は競技タブ(/(tabs)/competition)
+                  // から引き続き利用可能。このアイテムを案内していたチュートリアルステップ
+                  // (competition_tab)もlib/tutorial.tsから同時に削除した
                   { icon: 'megaphone-outline' as const,  label: t('home.quickAccess.starter'),        route: '/reaction-start',            spotKey: undefined },
                   { icon: 'calculator-outline' as const, label: t('home.quickAccess.combinedEvents'), route: '/multi-event-score',    spotKey: undefined },
                   { icon: 'stopwatch-outline' as const,  label: t('home.quickAccess.trainingTimer'),  route: '/training-timer', spotKey: undefined },
