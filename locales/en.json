@@ -511,11 +511,7 @@
       "competitionCountdown": "Until competition",
       "daysUnit": "{{n}}d",
       "countdown": "Countdown",
-      "registerCompetition": "Register competition",
-      "scoppyChat": "Ask Scoppy",
-      "scoppyChatSub": "Track & field Q&A",
-      "workoutMenu": "AI Workout Menu",
-      "workoutMenuSub": "Build today's menu"
+      "registerCompetition": "Register competition"
     },
     "aiCoachCard": {
       "title": "Today's AI Advice",

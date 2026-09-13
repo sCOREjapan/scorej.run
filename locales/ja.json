@@ -511,11 +511,7 @@
       "competitionCountdown": "大会まで",
       "daysUnit": "{{n}}日",
       "countdown": "カウントダウン",
-      "registerCompetition": "大会を登録",
-      "scoppyChat": "スコッピーに聞く",
-      "scoppyChatSub": "陸上の疑問を質問",
-      "workoutMenu": "AI練習メニュー",
-      "workoutMenuSub": "今日のメニュー作成"
+      "registerCompetition": "大会を登録"
     },
     "aiCoachCard": {
       "title": "今日のAIアドバイス",

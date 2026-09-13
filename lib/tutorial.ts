@@ -76,13 +76,10 @@ export const TUTORIAL_STEPS: Record<TutorialStepId, TutorialStep> = {
     nextStep: 'goal_section',
     tooltipPosition: 'bottom',
   },
-  // 2026-09-13: この位置にあった目標カード(home_goal_section)を廃止し
-  // スコッピーとの会話機能の宣伝カードに差し替えたため(app/(tabs)/index.tsx参照)、
-  // このチュートリアルステップもそちらを案内する内容に更新した(idは既存のまま維持)
   goal_section: {
     id: 'goal_section',
-    title: 'スコッピーに聞いてみよう',
-    description: '陸上競技のことで気になることは\nスコッピーに質問できるよ 🤖',
+    title: '目標を設定しよう',
+    description: 'ホーム上部で目標タイムや\n目標試合を設定できるよ 🎯',
     spotKey: 'home_goal_section',
     action: 'next',
     nextStep: 'notebook_menu',
