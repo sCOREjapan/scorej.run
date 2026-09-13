@@ -2516,11 +2516,47 @@ ${sleepText || 'データなし'}
 
           {/* ── ここから：今日を見ている時だけ表示するセクション群 ── */}
           {isViewingToday && (<>
-          {/* ── 目標 ── */}
+          {/* ── 2026-09-13: 目標カードを廃止し、この位置を2つの導線に差し替え ──
+              目標機能(GoalCard、下に定義は残してある)は利用状況が一度も計測されておらず、
+              「タップして手動で目標を追加→自分で進捗を更新し続ける」という、他の主要機能
+              (ミッション・AI分析・チケット消費系)と違って習慣化の仕掛けが無い唯一の機能
+              だった。ユーザーとの相談の結果、①新規実装したスコッピーとの会話機能の
+              宣伝、②既存だがクイックアクセスの中に埋もれて発見されにくいAI練習メニュー
+              生成、の2つの導線に差し替えることにした。GoalCard自体は削除せず残している
+              （目標データを既に持っているユーザーがいる可能性があり、将来別の場所で
+              復活させる余地を残すため）。 */}
           <AnimatedEntry delay={100}>
-            <TutorialSpot spotKey="home_goal_section">
-              <GoalCard goals={goals} onUpdate={handleGoalsUpdate} />
-            </TutorialSpot>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TutorialSpot spotKey="home_goal_section" style={{ flex: 1 }}>
+              <TouchableOpacity
+                style={[s.miniCard, { backgroundColor: colors.surface, borderColor: BRAND, borderWidth: 1.5 }]}
+                onPress={() => router.push('/scoppy-chat' as any)}
+                activeOpacity={0.78}
+              >
+                <View style={s.miniCardIconWrap}>
+                  <Ionicons name="chatbubble-ellipses-outline" size={20} color={BRAND} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.miniCardTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>{t('home.miniCards.scoppyChat')}</Text>
+                  <Text style={s.miniCardSub} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>{t('home.miniCards.scoppyChatSub')}</Text>
+                </View>
+              </TouchableOpacity>
+              </TutorialSpot>
+
+              <TouchableOpacity
+                style={[s.miniCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                onPress={() => router.push('/workout-menu' as any)}
+                activeOpacity={0.78}
+              >
+                <View style={s.miniCardIconWrap}>
+                  <Ionicons name="barbell-outline" size={20} color={BRAND} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.miniCardTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>{t('home.miniCards.workoutMenu')}</Text>
+                  <Text style={s.miniCardSub} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>{t('home.miniCards.workoutMenuSub')}</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
           </AnimatedEntry>
 
           {/* ── フォーム分析 ＋ カウントダウン（アイコン＋2行テキストの統一ミニカード） ── */}
