@@ -2173,18 +2173,22 @@ ${sleepText || 'データなし'}
             </AnimatedEntry>
           ) : !doneBannerDismissed && (
             <AnimatedEntry delay={35}>
-              <View style={{
-                flexDirection: 'row', alignItems: 'center', gap: 8,
-                backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 14, borderWidth: 1, borderColor: BRAND + '40',
-                paddingHorizontal: 14, paddingVertical: 12, marginBottom: 10,
-                shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
-              }}>
+              {/* 2026-09-13: 「どこを押しても消えるようにしておいて」との指示で、
+                  右端の×だけでなくバナー全体をタップで閉じられるようにした */}
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => setDoneBannerDismissed(true)}
+                style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 8,
+                  backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 14, borderWidth: 1, borderColor: BRAND + '40',
+                  paddingHorizontal: 14, paddingVertical: 12, marginBottom: 10,
+                  shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
+                }}
+              >
                 <Ionicons name="checkmark-circle" size={18} color={BRAND} />
                 <Text style={{ flex: 1, color: colors.text, fontSize: 13, fontWeight: '700' }}>{t('home.todoCta.allDone')}</Text>
-                <TouchableOpacity onPress={() => setDoneBannerDismissed(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Ionicons name="close" size={18} color={colors.textHint} />
-                </TouchableOpacity>
-              </View>
+                <Ionicons name="close" size={18} color={colors.textHint} />
+              </TouchableOpacity>
             </AnimatedEntry>
           )}
           {/* ── 水分補給リマインダー ── */}
@@ -2598,7 +2602,8 @@ ${sleepText || 'データなし'}
                 contentContainerStyle={s.quickLinks}
               >
                 {[
-                  { icon: 'videocam-outline' as const,   label: t('home.quickAccess.videoAnalysis'),  route: '/video-analysis',     spotKey: undefined },
+                  // 2026-09-13: 「フォーム分析」ミニカード(この上のセクション)と完全に
+                  // 重複していたため撤去(ホーム画面棚卸しでの指摘)
                   { icon: 'clipboard-outline' as const,  label: t('home.quickAccess.menu'),           route: '/workout-menu',       spotKey: 'notebook_menu_link' as const },
                   { icon: 'calendar-outline' as const,   label: t('home.quickAccess.calendar'),       route: '/(tabs)/calendar',    spotKey: undefined },
                   { icon: 'restaurant-outline' as const, label: t('home.quickAccess.mealAnalysis'),   route: '/(tabs)/nutrition',   spotKey: undefined },
