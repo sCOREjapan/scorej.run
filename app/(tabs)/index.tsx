@@ -2180,7 +2180,10 @@ ${sleepText || 'データなし'}
                 onPress={() => setDoneBannerDismissed(true)}
                 style={{
                   flexDirection: 'row', alignItems: 'center', gap: 8,
-                  backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 14, borderWidth: 1, borderColor: BRAND + '40',
+                  // 2026-09-13バグ修正(/ui-ux-pro-max): 背景が常に白寄り固定(rgba(255,255,255,0.92))
+                  // だったため、ダークモードでは白背景の上にcolors.text(白系)の文字が乗り、
+                  // ほぼ読めなくなっていた。テーマ側のトークン(colors.surface)に差し替え
+                  backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: BRAND + '40',
                   paddingHorizontal: 14, paddingVertical: 12, marginBottom: 10,
                   shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
                 }}
