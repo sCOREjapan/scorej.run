@@ -2792,6 +2792,9 @@
   "timer": {
     "closeLabel": "Close",
     "headerTitle": "Stopwatch",
+    "statusReady": "Ready",
+    "statusRunning": "Running",
+    "statusPaused": "Paused",
     "save": "Save",
     "saving": "Saving...",
     "runningConfirmTitle": "Timer is running",

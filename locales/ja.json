@@ -2792,6 +2792,9 @@
   "timer": {
     "closeLabel": "閉じる",
     "headerTitle": "タイム計測",
+    "statusReady": "準備完了",
+    "statusRunning": "計測中",
+    "statusPaused": "一時停止中",
     "save": "保存",
     "saving": "保存中...",
     "runningConfirmTitle": "タイマー動作中",

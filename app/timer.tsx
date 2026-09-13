@@ -17,6 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import Toast from 'react-native-toast-message'
 import { Ionicons } from '@expo/vector-icons'
 import { BRAND } from '../lib/theme'
+import PressableScale from '../components/PressableScale'
 import { useTheme, type ThemeColors } from '../context/ThemeContext'
 import { todayLocalISO } from '../lib/dateLocal'
 import type { AthleticsEvent, TrainingSession } from '../types'
@@ -49,14 +50,20 @@ interface Split {
 type TimerState = 'idle' | 'running' | 'paused'
 
 // ─── スプリット行 ─────────────────────────────────────────────────────
+// 2026-09-13: 最速ラップの目印を「行全体をうっすら塗る」(気づきにくい)から、
+// 左端に色帯+トロフィーアイコンを添える方式に変更してひと目で分かるようにした
 const SplitRow: React.FC<{ split: Split; highlight: boolean }> = ({ split, highlight }) => {
   const { colors } = useTheme()
   const styles = useMemo(() => makeStyles(colors), [colors])
   return (
     <View style={[styles.splitRow, highlight && styles.splitRowHighlight]}>
-      <Text style={[styles.splitLap, highlight && { color: BRAND }]}>
-        Lap {split.lap}
-      </Text>
+      {highlight && <View style={styles.splitRowAccent} />}
+      <View style={styles.splitLapWrap}>
+        {highlight && <Ionicons name="trophy" size={13} color={BRAND} style={{ marginRight: 4 }} />}
+        <Text style={[styles.splitLap, highlight && { color: BRAND, fontWeight: '800' }]}>
+          Lap {split.lap}
+        </Text>
+      </View>
       <Text style={[styles.splitLapTime, highlight && { color: BRAND }]}>
         {formatStopwatch(split.lapMs)}
       </Text>
@@ -239,55 +246,71 @@ export default function TimerScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* ストップウォッチ */}
-      <View style={styles.watchContainer}>
-        <Text style={styles.watchText}>{formatStopwatch(displayMs)}</Text>
+      {/* 2026-09-13: 「もっといいデザインにして」との指示で全面刷新。
+          数字がむき出しで背景に浮いていただけだったのを、影付きの白カードに収めて
+          存在感を出し、左右の副ボタンも「アイコン+文字が浮いているだけ」から
+          塗りつぶしの丸ボタンに変えてタップ対象であることを分かりやすくした。
+          中央ボタンはtraining-timer.tsxで確立した「濃色ボーダー+強めの影」の
+          立体感を流用し、2画面の見た目を揃えている(timer-hub.tsxで並んで案内されるため) */}
+      <View style={styles.watchCardWrap}>
+        <View style={styles.watchCard}>
+          <Text style={styles.watchLabel}>
+            {timerState === 'running' ? t('timer.statusRunning') : timerState === 'paused' ? t('timer.statusPaused') : t('timer.statusReady')}
+          </Text>
+          <Text style={styles.watchText}>{formatStopwatch(displayMs)}</Text>
+        </View>
       </View>
 
       {/* コントロールボタン */}
       <View style={styles.controlRow}>
         {/* 左: リセット or スプリット */}
         {timerState === 'idle' ? (
-          <View style={styles.sideButton} />
+          <View style={styles.sideButtonSlot} />
         ) : timerState === 'running' ? (
-          <TouchableOpacity style={styles.sideButton} onPress={handleSplit} activeOpacity={0.8}>
-            <View style={styles.splitBtn}>
-              <Ionicons name="flag" size={22} color={colors.text} />
+          <View style={styles.sideButtonSlot}>
+            <PressableScale onPress={handleSplit} scaleAmount={0.92} haptic="light" style={styles.sideButtonPressable}>
+              <View style={styles.sideButton}>
+                <Ionicons name="flag" size={20} color={colors.text} />
+              </View>
               <Text style={styles.sideButtonText}>{t('timer.split')}</Text>
-            </View>
-          </TouchableOpacity>
+            </PressableScale>
+          </View>
         ) : (
-          <TouchableOpacity style={styles.sideButton} onPress={handleReset} activeOpacity={0.8}>
-            <View style={styles.resetBtn}>
-              <Ionicons name="refresh" size={22} color={colors.text} />
+          <View style={styles.sideButtonSlot}>
+            <PressableScale onPress={handleReset} scaleAmount={0.92} haptic="light" style={styles.sideButtonPressable}>
+              <View style={styles.sideButton}>
+                <Ionicons name="refresh" size={20} color={colors.text} />
+              </View>
               <Text style={styles.sideButtonText}>{t('timer.reset')}</Text>
-            </View>
-          </TouchableOpacity>
+            </PressableScale>
+          </View>
         )}
 
         {/* 中央: 開始/停止 */}
-        <TouchableOpacity
-          style={[
-            styles.mainButton,
-            timerState === 'running' ? styles.mainButtonPause : styles.mainButtonStart,
-          ]}
+        <PressableScale
           onPress={
             timerState === 'idle' ? handleStart
             : timerState === 'running' ? handlePause
             : handleResume
           }
-          activeOpacity={0.85}
+          scaleAmount={0.94}
+          haptic="medium"
           accessibilityLabel={timerState === 'running' ? t('timer.pauseLabel') : timerState === 'paused' ? t('timer.resumeLabel') : t('timer.startLabel')}
         >
-          <Ionicons
-            name={timerState === 'running' ? 'pause' : 'play'}
-            size={36}
-            color="#FFFFFF"
-          />
-        </TouchableOpacity>
+          <View style={[
+            styles.mainButton,
+            timerState === 'running' ? styles.mainButtonPause : styles.mainButtonStart,
+          ]}>
+            <Ionicons
+              name={timerState === 'running' ? 'pause' : 'play'}
+              size={34}
+              color="#FFFFFF"
+            />
+          </View>
+        </PressableScale>
 
         {/* 右: 空 (対称レイアウト用) */}
-        <View style={styles.sideButton} />
+        <View style={styles.sideButtonSlot} />
       </View>
 
       {/* スプリット一覧 */}
@@ -298,7 +321,9 @@ export default function TimerScreen() {
       >
         {splits.length === 0 ? (
           <View style={styles.splitsEmpty}>
-            <Ionicons name="flag-outline" size={32} color={colors.textHint} />
+            <View style={styles.splitsEmptyIconWrap}>
+              <Ionicons name="flag-outline" size={26} color={BRAND} />
+            </View>
             <Text style={styles.splitsEmptyText}>{t('timer.splitsEmptyText')}</Text>
           </View>
         ) : (
@@ -385,7 +410,9 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0,0,0,0.08)',
+    // 2026-09-13バグ修正: rgba(0,0,0,...)固定だったためダークモードで見えなくなっていた。
+    // colors.border(テーマ側のトークン)に差し替えて両テーマで正しく見えるようにした
+    borderBottomColor: colors.border,
   },
   headerBack: {
     width: 44,
@@ -409,17 +436,32 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   },
 
   // ストップウォッチ
-  watchContainer: {
+  // 2026-09-13: 数字が背景に裸で浮いているだけだったのを、影付きのカードに収めて
+  // 画面の主役としての存在感を出した(training-timer.tsxのカード刷新と揃えた見た目)
+  watchCardWrap: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  watchCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 28,
+    paddingVertical: 36,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 48,
+    gap: 6,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.1, shadowRadius: 18, elevation: 6,
+  },
+  watchLabel: {
+    color: colors.textHint,
+    fontSize: 12.5,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   watchText: {
     color: colors.text,
-    fontSize: 72,
-    fontWeight: '200',
+    fontSize: 64,
+    fontWeight: '800',
     fontVariant: ['tabular-nums'],
-    letterSpacing: 2,
+    letterSpacing: 1,
   },
 
   // コントロールボタン
@@ -428,39 +470,46 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 36,
+    marginTop: 28,
     marginBottom: 32,
   },
-  sideButton: {
+  sideButtonSlot: {
     width: 72,
     alignItems: 'center',
   },
-  splitBtn: {
+  sideButtonPressable: {
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
-  resetBtn: {
-    alignItems: 'center',
-    gap: 4,
+  // 2026-09-13: 「アイコン+文字が浮いているだけ」から塗りつぶしの丸ボタンに変更し、
+  // タップ対象であることを見た目で分かるようにした
+  sideButton: {
+    width: 52, height: 52, borderRadius: 26,
+    backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border,
+    alignItems: 'center', justifyContent: 'center',
   },
   sideButtonText: {
     color: colors.textSec,
     fontSize: 12,
     fontWeight: '600',
   },
+  // 2026-09-13: training-timer.tsxで確立した「濃色ボーダー+強めの影」の立体感を流用し、
+  // 2画面(timer-hub.tsxで並んで案内される)の見た目を揃えた
   mainButton: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 92, height: 92, borderRadius: 46,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 3, borderBottomWidth: 6,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.18, shadowRadius: 14, elevation: 8,
   },
   mainButtonStart: {
     backgroundColor: BRAND,
+    borderColor: BRAND,
+    borderBottomColor: '#0f4525',
   },
   mainButtonPause: {
-    backgroundColor: colors.surface2,
-    borderWidth: 2,
-    borderColor: colors.border,
+    backgroundColor: '#d97706',
+    borderColor: '#d97706',
+    borderBottomColor: '#92400e',
   },
 
   // スプリット一覧
@@ -476,7 +525,7 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.08)',
+    borderBottomColor: colors.border,
   },
   splitHeaderText: {
     flex: 1,
@@ -491,13 +540,21 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
+    borderBottomColor: colors.border,
   },
+  // 2026-09-13: 最速ラップの目印を、行全体のうっすらした塗り(気づきにくい)から
+  // 左端の色帯+トロフィーアイコンに変更(SplitRowコンポーネント側で追加)
   splitRowHighlight: {
-    backgroundColor: `${BRAND}11`,
+    backgroundColor: `${BRAND}0d`,
+  },
+  splitRowAccent: {
+    position: 'absolute', left: 0, top: 6, bottom: 6, width: 3,
+    backgroundColor: BRAND, borderRadius: 2,
+  },
+  splitLapWrap: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
   },
   splitLap: {
-    flex: 1,
     color: colors.textSec,
     fontSize: 14,
     fontWeight: '600',
@@ -522,6 +579,11 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 40,
     gap: 12,
+  },
+  splitsEmptyIconWrap: {
+    width: 52, height: 52, borderRadius: 26,
+    backgroundColor: `${BRAND}14`,
+    alignItems: 'center', justifyContent: 'center',
   },
   splitsEmptyText: {
     color: colors.textSec,
@@ -562,7 +624,7 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: colors.border,
   },
   confirmTimeLabel: {
     color: colors.textSec,
@@ -592,7 +654,7 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     borderRadius: 20,
     backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: colors.border,
   },
   eventChipActive: {
     backgroundColor: BRAND,
