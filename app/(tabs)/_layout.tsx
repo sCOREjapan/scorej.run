@@ -52,14 +52,20 @@ function AnimatedTabButton({ children, onPress, accessibilityState, style }: any
   )
 }
 
-// ── ラジアルFABアイテム定義（4種類のログ入力）──
+// ── ラジアルFABアイテム定義 ──
 // label は i18n キー。モジュールスコープの定数配列なので、実際の文言解決は
 // レンダー内で t() を使って行う（ここで直接文字列を持つと言語切替に反応できない）
+// 2026-09-13: 「ホーム画面棚卸し」の相談を経て4項目(練習/タイム/睡眠/リカバリー)を
+// 見直した。練習記録・睡眠記録はホーム画面上部のバナーに既に入口があり、タブバー
+// 中央という全タブ共通の一等地に置く理由が薄いため撤去。一方「タイム計測」
+// (/timer=ライブストップウォッチ)と「AIリカバリー相談」(/recovery)はホーム画面の
+// どこにも他の入口が無い孤立機能だったため残す。前者は紛らわしい名前の
+// /training-timer(インターバル等)と、後者は露出の弱かったスコッピーチャットと、
+// それぞれ1つのハブ画面(app/timer-hub.tsx・app/recovery-hub.tsx)にまとめ、
+// FABからはそのハブ画面に飛んでワンタップで選べるようにした。
 const RADIAL_ITEMS: { icon: IoniconsName; labelKey: string; angle: number; route: string; action: string }[] = [
-  { icon: 'barbell-outline',  labelKey: 'tabBar.radialPractice', angle: -150, route: '/practice-input', action: 'practice' },
-  { icon: 'stopwatch-outline',labelKey: 'tabBar.radialTimer',    angle: -110, route: '/timer',          action: 'timer'    },
-  { icon: 'moon-outline',     labelKey: 'tabBar.radialSleep',    angle: -70,  route: '/(tabs)/sleep',    action: 'sleep'    },
-  { icon: 'medkit-outline',   labelKey: 'tabBar.radialRecovery', angle: -30,  route: '/recovery',        action: 'recovery' },
+  { icon: 'stopwatch-outline', labelKey: 'tabBar.radialTimer',    angle: -125, route: '/timer-hub',    action: 'timer_hub'    },
+  { icon: 'medkit-outline',    labelKey: 'tabBar.radialRecovery', angle: -55,  route: '/recovery-hub', action: 'recovery_hub' },
 ]
 
 const RADIUS = 110   // アイテム円の重なりを防ぐ十分な半径

@@ -4273,5 +4273,19 @@
     "clearConfirm": "削除する",
     "creditsRemaining": "残り{{n}}回無料",
     "costNote": "チケット1枚で5回まで質問できます"
+  },
+  "timerHub": {
+    "title": "タイム計測",
+    "liveTimer": "タイム計測",
+    "liveTimerSub": "レースタイムをライブ計測",
+    "trainingTimer": "トレーニングタイマー",
+    "trainingTimerSub": "インターバル・通常練習用"
+  },
+  "recoveryHub": {
+    "title": "リカバリー",
+    "aiRecovery": "AIリカバリー相談",
+    "aiRecoverySub": "怪我の症状をAIに無料相談",
+    "scoppyChat": "スコッピーに聞く",
+    "scoppyChatSub": "陸上の疑問を質問"
   }
 }

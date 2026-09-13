@@ -852,6 +852,10 @@ function RootLayoutNav() {
               headerTitleStyle: { color: '#fff', fontWeight: '800' },
             }}
           />
+          {/* 2026-09-13: タブバー中央FABの中身整理で新設。それぞれ独自のヘッダー
+              (戻る矢印+タイトル)を持つためheaderShown:false */}
+          <Stack.Screen name="timer-hub"    options={{ headerShown: false }} />
+          <Stack.Screen name="recovery-hub" options={{ headerShown: false }} />
           <Stack.Screen name="privacy" options={{ headerShown: false }} />
           <Stack.Screen name="terms"   options={{ headerShown: false }} />
           <Stack.Screen

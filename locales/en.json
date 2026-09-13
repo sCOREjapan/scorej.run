@@ -4273,5 +4273,19 @@
     "clearConfirm": "Delete",
     "creditsRemaining": "{{n}} free left",
     "costNote": "1 ticket lets you ask up to 5 questions"
+  },
+  "timerHub": {
+    "title": "Timers",
+    "liveTimer": "Race Timer",
+    "liveTimerSub": "Live-time your races",
+    "trainingTimer": "Training Timer",
+    "trainingTimerSub": "For intervals & regular sets"
+  },
+  "recoveryHub": {
+    "title": "Recovery",
+    "aiRecovery": "AI Recovery Advice",
+    "aiRecoverySub": "Free AI consultation for injuries",
+    "scoppyChat": "Ask Scoppy",
+    "scoppyChatSub": "Track & field Q&A"
   }
 }
