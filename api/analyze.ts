@@ -242,8 +242,14 @@ export default async function handler(req: any, res: any) {
     // だった。正規クライアントは画像最大6枚(動画分析)・メッセージ1件しか送らないため、
     // 十分な余裕を持たせた上限を超えるリクエストは弾く。認証の有無に関わらず被害の上限を
     // 絞るための対策で、正規利用への影響はない。
+    // 2026-09-13に判明: この前提が崩れていた。scoppy_chat(スコッピーとの会話機能)は
+    // 会話が続くほどlib/claude.tsのaskScoppy()が直近16件の履歴をmessagesにまとめて送るため、
+    // 3往復目には5件を超えて即400 "Too many messages"になり、以後の会話が全て失敗していた
+    // (実機で「毎回失敗する」として報告された不具合の真因)。scoppy_chatだけ上限を緩和する。
     const MAX_IMAGES = 12
-    const MAX_MESSAGES = 4
+    const MAX_MESSAGES_DEFAULT = 4
+    const MAX_MESSAGES_CHAT = 20 // lib/claude.tsのaskScoppy()側のslice(-16)に余裕を持たせた値
+    const MAX_MESSAGES = body?.feature === 'scoppy_chat' ? MAX_MESSAGES_CHAT : MAX_MESSAGES_DEFAULT
     const MAX_BASE64_CHARS = 20_000_000 // 概算20MB相当
     const messages = body?.messages ?? []
     if (messages.length > MAX_MESSAGES) {

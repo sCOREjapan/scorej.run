@@ -100,8 +100,12 @@ export default function ScoppyChatScreen() {
     setMessages(historyBeforeSend)
 
     try {
+      // 2026-09-13バグ修正: 「Too many messages」で毎回失敗する原因の1つが、過去の
+      // 失敗時に追加した「うまく答えられなかった」というassistant発言も含めて毎回
+      // APIに送っていたため、失敗するたびに履歴が積み上がっていたこと(api/analyze.ts側の
+      // メッセージ数上限にも影響)。isErrorが付いた行はAIへの文脈からは除外する
       const reply = await askScoppy(
-        historyBeforeSend.map(m => ({ role: m.role, content: m.content })),
+        historyBeforeSend.filter(m => !m.isError).map(m => ({ role: m.role, content: m.content })),
         language,
       )
       const historyAfterReply = await addScoppyChatMessage({ role: 'assistant', content: reply })
@@ -120,9 +124,13 @@ export default function ScoppyChatScreen() {
       // 一時的に実際のエラー内容をチャット上に出す。原因判明後は
       // t('scoppyChat.errorMessage') だけに戻すこと。
       console.error('[scoppy-chat] askScoppy failed:', e)
+      // isError:true を付け、次回送信時にAIへの文脈からは除外されるようにする
+      // (上のfilter参照。付けないと「answerできなかった」という発言が会話の一部として
+      // 送られ続け、文脈を汚染するだけでなくメッセージ数上限にも余計に貢献してしまう)
       const historyWithError = await addScoppyChatMessage({
         role: 'assistant',
         content: `${t('scoppyChat.errorMessage')}\n[debug] ${e?.message ?? String(e)}`,
+        isError: true,
       })
       setMessages(historyWithError)
     } finally {

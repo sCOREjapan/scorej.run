@@ -811,6 +811,14 @@ function RootLayoutNav() {
             name="timer"
             options={{ title: 'タイマー', headerShown: false, presentation: 'fullScreenModal' }}
           />
+          {/* 2026-09-13: エントリが無く、ネイティブの標準ヘッダー(アプリ全体の既定色=黒地に
+              白文字。screenOptionsのheaderStyle参照)がルート名"training-timer"をそのまま
+              表示してしまっていた不具合を修正。画面自身が独自ヘッダー(「タイマー」+編集
+              ボタン)を持つためheaderShown:false */}
+          <Stack.Screen
+            name="training-timer"
+            options={{ headerShown: false, presentation: 'fullScreenModal' }}
+          />
           <Stack.Screen
             name="share-card"
             options={{ title: '記録シェア', headerShown: false, presentation: 'card' }}

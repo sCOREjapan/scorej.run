@@ -20,6 +20,11 @@ import type { ScoppyChatMessage } from './claude'
 export interface ScoppyChatEntry extends ScoppyChatMessage {
   id: string
   created_at: string
+  // 2026-09-13: 送信失敗時に表示する「うまく答えられなかった」の案内はUI上は
+  // 見せる必要があるが、これをそのまま次回のAPI呼び出しに含めるとAIへの文脈が
+  // 汚染される(assistantが「答えられなかった」と言った続きとして扱われてしまう)ため、
+  // askScoppy()に渡す履歴からはこのフラグが立った行を除外する(app/scoppy-chat.tsx参照)
+  isError?: boolean
 }
 
 export const SCOPPY_CHAT_KEY = 'trackmate_scoppy_chat_history'
@@ -33,7 +38,7 @@ export async function getScoppyChatHistory(): Promise<ScoppyChatEntry[]> {
   return store.get()
 }
 
-export function addScoppyChatMessage(message: ScoppyChatMessage): Promise<ScoppyChatEntry[]> {
+export function addScoppyChatMessage(message: ScoppyChatMessage & { isError?: boolean }): Promise<ScoppyChatEntry[]> {
   return store.update(current => {
     const next: ScoppyChatEntry = {
       ...message,
