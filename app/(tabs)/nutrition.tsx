@@ -813,42 +813,12 @@ export default function NutritionScreen() {
           <Text style={styles.date}>{today}</Text>
         </View>
 
-        {/* 栄養プランの目安（体重ベース） */}
-        <AnimatedSection delay={0} type="scale">
-          <NutritionPlanCard stats={nutritionStats} onGoLogWeight={() => router.push('/(tabs)/records')} />
-        </AnimatedSection>
-
-        {/* 今日の合計 */}
-        <AnimatedSection delay={20} type="scale">
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t('nutrition.todayTotal')}</Text>
-          <MacroRow {...todayTotals} />
-        </View>
-        </AnimatedSection>
-
-        {/* AI食事コーチ 導線 */}
-        <AnimatedSection delay={40} type="fade-up">
-        <TouchableOpacity
-          style={styles.coachEntryBtn}
-          onPress={() => router.push('/meal-coach')}
-          activeOpacity={0.85}
-        >
-          <View style={styles.coachEntryIcon}>
-            <Ionicons name="restaurant-outline" size={20} color={BRAND} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={styles.coachEntryTitle}>{t('nutrition.coach.title')}</Text>
-              <View style={styles.coachEntryBadge}><Text style={styles.coachEntryBadgeText}>PRO</Text></View>
-            </View>
-            <Text style={styles.coachEntrySub}>{t('nutrition.coach.sub')}</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.textHint} />
-        </TouchableOpacity>
-        </AnimatedSection>
-
+        {/* 2026-09-14バグ修正:「スクロールしないと撮影ボタンに辿り着けない」との実機報告で、
+            食事タイプ選択＋撮影/手動入力の2カードをヘッダー直下に移動(元は栄養プラン/今日の
+            合計/AI食事コーチ導線の3カード分下にあった)。「何の食事か選ぶ→撮る」が本来の
+            主動線なので、参照用の目安カード類より先に出す方が自然でもある。 */}
         {/* 食事タイプ・タイミング */}
-        <AnimatedSection delay={80} type="fade-up">
+        <AnimatedSection delay={0} type="fade-up">
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{t('nutrition.mealTypeCard')}</Text>
           <DateSelector date={recordDate} onChange={d => { setRecordDate(d); setResult(null); setImageUri(null) }} />
@@ -871,7 +841,7 @@ export default function NutritionScreen() {
         </AnimatedSection>
 
         {/* 写真選択・分析 / 手動入力 */}
-        <AnimatedSection delay={160} type="fade-up">
+        <AnimatedSection delay={20} type="fade-up">
         <View style={styles.card}>
           <View style={styles.modeTabRow}>
             <HapticTouch haptic="toggleOn" style={[styles.modeTab, inputMode === 'photo' && styles.modeTabActive]} onPress={() => setInputMode('photo')} activeOpacity={0.7}>
@@ -974,6 +944,40 @@ export default function NutritionScreen() {
             </View>
           )}
         </View>
+        </AnimatedSection>
+
+        {/* 栄養プランの目安（体重ベース） */}
+        <AnimatedSection delay={40} type="scale">
+          <NutritionPlanCard stats={nutritionStats} onGoLogWeight={() => router.push('/(tabs)/records')} />
+        </AnimatedSection>
+
+        {/* 今日の合計 */}
+        <AnimatedSection delay={20} type="scale">
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t('nutrition.todayTotal')}</Text>
+          <MacroRow {...todayTotals} />
+        </View>
+        </AnimatedSection>
+
+        {/* AI食事コーチ 導線 */}
+        <AnimatedSection delay={40} type="fade-up">
+        <TouchableOpacity
+          style={styles.coachEntryBtn}
+          onPress={() => router.push('/meal-coach')}
+          activeOpacity={0.85}
+        >
+          <View style={styles.coachEntryIcon}>
+            <Ionicons name="restaurant-outline" size={20} color={BRAND} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={styles.coachEntryTitle}>{t('nutrition.coach.title')}</Text>
+              <View style={styles.coachEntryBadge}><Text style={styles.coachEntryBadgeText}>PRO</Text></View>
+            </View>
+            <Text style={styles.coachEntrySub}>{t('nutrition.coach.sub')}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.textHint} />
+        </TouchableOpacity>
         </AnimatedSection>
 
         {/* スケルトン */}

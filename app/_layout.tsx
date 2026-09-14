@@ -910,6 +910,11 @@ function RootLayoutNav() {
           <Stack.Screen name="meal-coach"     options={{ headerShown: false }} />
           <Stack.Screen name="receipt"        options={{ headerShown: false }} />
           <Stack.Screen name="weekly-report"  options={{ headerShown: false }} />
+          {/* 2026-09-14: チームプラン外部決済(Stripe)ページ。Web版のみで意味を持つ画面 */}
+          <Stack.Screen name="team-plan"         options={{ headerShown: false }} />
+          <Stack.Screen name="team-plan-success" options={{ headerShown: false }} />
+          <Stack.Screen name="admin-generate-code" options={{ headerShown: false }} />
+          <Stack.Screen name="coach-onboarding" options={{ headerShown: false }} />
         </Stack>
       </AuthGate>
       <Toast />

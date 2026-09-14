@@ -65,7 +65,10 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 12,
   },
   headerTitle: { fontSize: 16, fontWeight: '800', color: colors.text },
-  body: { paddingHorizontal: 20, paddingTop: 8, gap: 14 },
+  // 2026-09-14バグ修正:「ボタンが上の方にあって押すのが大変」との実機報告で、
+  // ヘッダー直下ではなく画面の縦方向中央にカードが来るようにした(片手操作の
+  // 届きやすいゾーンに寄せる)。
+  body: { flex: 1, justifyContent: 'center', paddingHorizontal: 20, paddingBottom: 40, gap: 14 },
   card: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
     backgroundColor: colors.surface, borderRadius: 18, padding: 18,

@@ -701,10 +701,21 @@ const role_s = StyleSheet.create({
 function CoachSetupScreen({ onCreated, onBack }: { onCreated:(s:TeamSetup)=>void; onBack:()=>void }) {
   const { t } = useTranslation()
   const { colors } = useTheme()
+  const router = useRouter()
   const su = useMemo(() => makeSuStyles(colors), [colors])
+  const { isCoach } = usePurchase()
   const [teamName,  setTeamName]  = useState('')
   const [coachName, setCoachName] = useState('')
   const [busy, setBusy] = useState(false)
+
+  // 2026-09-14: 「価格表示・コード入力はアプリ内(ここ)ではなく独立したオンボーディング
+  // 画面(app/coach-onboarding.tsx)に一本化する」指示で変更。以前はここに価格＋コード欄を
+  // 直接埋め込んでいたが、コーチ選択直後の導線(app/onboarding.tsx)とここの2箇所で
+  // 同じUIを二重管理するのを避けるため、未加入ならそちらへ委譲するだけにする。
+  useEffect(() => {
+    if (!isCoach) router.replace('/coach-onboarding' as any)
+  }, [isCoach])
+  if (!isCoach) return null
 
   async function create() {
     if (!teamName.trim()||!coachName.trim()) { Toast.show({type:'error',text1:t('team.coachSetup.missingFields')}); return }

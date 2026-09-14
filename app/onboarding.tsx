@@ -1025,7 +1025,11 @@ export default function OnboardingScreen() {
       // この偽画面に着地していたため、本物のSupabase連携チーム作成・ダッシュボード機能
       // (RoleSelectionScreen→CoachSetupScreen、createTeam()でSupabaseに実登録)を持つ
       // app/(tabs)/team.tsx へ着地先を修正した。
-      router.replace('/(tabs)/team' as any)
+      // 2026-09-14: 「コーチ選択画面から新オンボーディング(コードお持ちの方/まだの方)を挟む」
+      // 指示で変更。以前はteam.tsxへ直接着地させていたが、コーチプランは外部決済+コード
+      // 引き換え方式に変わったため、まずapp/coach-onboarding.tsxのゲートを通す
+      // (既にisCoachなら同画面が自動でteam.tsxへスキップする)。
+      router.replace('/coach-onboarding' as any)
     } else {
       // 2026-09-07: 到達後に全画面を自動的に再説明する旧チュートリアルの自動起動はここでも廃止。
       // ホーム画面には常駐の<FirstRunChecklist/>が表示される（app/(tabs)/index.tsx）。

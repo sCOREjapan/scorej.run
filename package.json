@@ -62,7 +62,8 @@
     "react-native-toast-message": "^2.2.1",
     "react-native-view-shot": "4.0.3",
     "react-native-web": "^0.21.0",
-    "react-native-worklets-core": "^1.6.3"
+    "react-native-worklets-core": "^1.6.3",
+    "stripe": "^22.6.2"
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",

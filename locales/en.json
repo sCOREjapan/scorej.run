@@ -4292,5 +4292,18 @@
     "aiRecoverySub": "Free AI consultation for injuries",
     "scoppyChat": "Ask Scoppy",
     "scoppyChatSub": "Track & field Q&A"
+  },
+  "coachOnboarding": {
+    "title": "Get started as a coach",
+    "subtitle": "Creating a team requires the coach plan. Choose whether you already have a redemption code or need to purchase one.",
+    "hasCodeTitle": "I have a code",
+    "hasCodeDesc": "Enter the redemption code you received after purchase",
+    "noCodeTitle": "I don't have one yet",
+    "noCodeDesc": "Opens the team plan purchase page",
+    "codeLabel": "Redemption code",
+    "redeemButton": "Redeem code",
+    "redeemSuccess": "Coach plan activated",
+    "redeemFailed": "Redemption failed",
+    "back": "Back to selection"
   }
 }

@@ -268,7 +268,7 @@ export default function TimerScreen() {
           <View style={styles.sideButtonSlot} />
         ) : timerState === 'running' ? (
           <View style={styles.sideButtonSlot}>
-            <PressableScale onPress={handleSplit} scaleAmount={0.92} haptic="light" style={styles.sideButtonPressable}>
+            <PressableScale onPress={handleSplit} scaleAmount={0.92} haptic="light" style={styles.sideButtonPressable} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <View style={styles.sideButton}>
                 <Ionicons name="flag" size={20} color={colors.text} />
               </View>
@@ -277,7 +277,7 @@ export default function TimerScreen() {
           </View>
         ) : (
           <View style={styles.sideButtonSlot}>
-            <PressableScale onPress={handleReset} scaleAmount={0.92} haptic="light" style={styles.sideButtonPressable}>
+            <PressableScale onPress={handleReset} scaleAmount={0.92} haptic="light" style={styles.sideButtonPressable} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <View style={styles.sideButton}>
                 <Ionicons name="refresh" size={20} color={colors.text} />
               </View>
@@ -483,10 +483,17 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   // 2026-09-13: 「アイコン+文字が浮いているだけ」から塗りつぶしの丸ボタンに変更し、
   // タップ対象であることを見た目で分かるようにした
+  // 2026-09-14バグ修正:「スプリットボタンが埋もれて押せない」との実機報告。機能自体は
+  // 正常(handleSplitは動作確認済み)だったため、原因はcolors.surface2(#f0f2f5)と
+  // 画面背景colors.bg(#f6f6f8)の差がRGBで数ポイントしか無く、ボタンが画面に溶け込んで
+  // 見えていたこと(=タップ対象の位置が視認しづらく、正確に狙えていなかった)と判断。
+  // 白背景+影で他のボタン類と同じ「浮いて見える」立体感を持たせ、はっきり独立した
+  // タップ対象だとわかるようにする。
   sideButton: {
     width: 52, height: 52, borderRadius: 26,
-    backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.border,
     alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.1, shadowRadius: 6, elevation: 3,
   },
   sideButtonText: {
     color: colors.textSec,

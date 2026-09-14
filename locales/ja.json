@@ -4292,5 +4292,18 @@
     "aiRecoverySub": "怪我の症状をAIに無料相談",
     "scoppyChat": "スコッピーに聞く",
     "scoppyChatSub": "陸上の疑問を質問"
+  },
+  "coachOnboarding": {
+    "title": "コーチとして始める",
+    "subtitle": "チームの作成にはコーチプランへの加入が必要です。すでにコードをお持ちか、これから購入するかをお選びください。",
+    "hasCodeTitle": "コードをお持ちの方",
+    "hasCodeDesc": "ご購入後に届いた引き換えコードを入力します",
+    "noCodeTitle": "まだお持ちでない方",
+    "noCodeDesc": "チームプランのご購入ページを開きます",
+    "codeLabel": "引き換えコード",
+    "redeemButton": "コードを引き換える",
+    "redeemSuccess": "コーチプランを有効化しました",
+    "redeemFailed": "引き換えに失敗しました",
+    "back": "選択画面に戻る"
   }
 }

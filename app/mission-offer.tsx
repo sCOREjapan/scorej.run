@@ -20,6 +20,7 @@
 // いない間の一時的な予告表示。実際の請求はOSのネイティブ購入確認画面が必ず本当の価格を
 // 提示するため、黙って多く請求される事故にはならない。
 import React, { useEffect, useRef, useState, useCallback } from 'react'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import {
   View, Text, TouchableOpacity, StyleSheet, ActivityIndicator,
   Animated, Easing, Image, ImageBackground, Alert, Linking,
@@ -188,24 +189,19 @@ export default function MissionOfferScreen() {
   }, [restore])
 
   return (
-    // 2026-09-12: 「これもミッション画面と同じようにカードタイプにして」との指示で、
-    // 全画面の背景画像テイクオーバーから、components/MissionModal.tsxのA案(中央フロート
-    // カード)と同じ構図(暗幕の背景+四辺マージン+四隅丸角+影)に変更。
-    <View style={s.overlay}>
-      <Animated.View style={[s.cardShadow, { opacity: fadeAnim }]}>
-        {/* 2026-09-14: 「カードの背景が灰色単色に見える」報告への対処。原因はこのセッションの
-            環境では再現できず特定できていない(このアプリのweb開発サーバー上ではOFFER_BG画像は
-            正しく表示されることを確認済み)が、万一OFFER_BG(1.7MBの大きめPNG)の読み込みが
-            遅い/失敗する端末があった場合に備え、画像と同系統の色(暗い緑)をbackgroundColorとして
-            敷いておく(読み込み中や失敗時に素の灰色/透明ではなくこの色が見える)。
-            onErrorで実際に読み込み失敗した場合をログに残し、次回の実機ログで原因を特定できるようにする。 */}
-        <ImageBackground
-          source={OFFER_BG}
-          style={[s.card, { backgroundColor: '#0d2818' }]}
-          imageStyle={{ borderRadius: 28 }}
-          resizeMode="cover"
-          onError={(e) => console.error('[mission-offer] background image failed to load:', e.nativeEvent.error)}
-        >
+    // 2026-09-14: 「カードがバグっている、一旦カードじゃなくて普通に1枚の画面として
+    // 全体に表示して」との実機報告で変更。2026-09-12にカード型(中央フロート+四隅丸角+影)へ
+    // 変更したが、ImageBackground+shadow+overflow:hidden+大きめ画像(1.7MB)の組み合わせが
+    // 実機で不安定だったとみられる。影・角丸・マージンを持つ「カード」をやめ、画面全体を
+    // そのままImageBackgroundにする、最もシンプルで壊れにくい構成に戻す。
+    <ImageBackground
+      source={OFFER_BG}
+      style={[s.fullBg, { backgroundColor: '#0d2818' }]}
+      resizeMode="cover"
+      onError={(e) => console.error('[mission-offer] background image failed to load:', e.nativeEvent.error)}
+    >
+      <SafeAreaView style={{ flex: 1 }}>
+        <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
           {/* 背景画像の上にごく薄い黒を1枚敷き、どんな画像が来ても文字の可読性を担保する */}
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
             <LinearGradient colors={['rgba(0,0,0,0.35)', 'rgba(0,0,0,0.1)', 'rgba(0,0,0,0.55)']} locations={[0, 0.4, 1]} style={StyleSheet.absoluteFill} />
@@ -303,9 +299,9 @@ export default function MissionOfferScreen() {
               </View>
             </View>
           </Animated.ScrollView>
-        </ImageBackground>
-      </Animated.View>
-    </View>
+        </Animated.View>
+      </SafeAreaView>
+    </ImageBackground>
   )
 }
 
@@ -319,26 +315,11 @@ function FeatureRow({ text }: { text: string }) {
 }
 
 const s = StyleSheet.create({
-  // components/MissionModal.tsxのoverlay/sheetShadow/sheetと同じ構図
-  // (中央フロートカード)。paddingHorizontal:20で左右の余白、maxHeightで上下の
-  // 余白を作る。shadowとoverflow:'hidden'は同居できないため影担当(cardShadow)と
-  // クリップ担当(card)を分けている。
-  // 2026-09-13: 「カード少し小さすぎるからもう少しだけ縦長に」との実機フィードバックで調整。
-  // 横幅を少し絞りつつ(20→24)、maxHeightを引き上げ+minHeightを追加してカード自体を
-  // 縦に伸ばした。中身はscrollContent側のjustifyContent:'center'で伸びた分の余白に
-  // 自然に収まる(空白が下だけに偏らない)。
-  // 2026-09-13: 「背景灰色なのもおかしい」との指摘でrgba→単色不透明に一度変更したが、
-  // 「若干黒が入った透明にして、ホーム画面の上に表示される感じ」との指示で透過に戻した。
-  // このpresentation:'modal'画面はStack.Screen遷移で、ネイティブ(iOS)ではOSが本当に
-  // 手前の画面(ホーム)を透かして暗く見せる。Web版のプレビューだけはpresentation:'modal'の
-  // 実装差で手前の画面がアンマウントされ無地グレーに見えることがあるが、実機での見え方が
-  // 正であるためrgba(透過)を正式仕様として維持する。
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', paddingHorizontal: 24 },
-  cardShadow: {
-    borderRadius: 28, minHeight: '76%', maxHeight: '90%',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 20 }, shadowOpacity: 0.4, shadowRadius: 30, elevation: 20,
-  },
-  card: { borderRadius: 28, overflow: 'hidden', flexShrink: 1 },
+  // 2026-09-14: 「カードがバグっている、一旦カードじゃなくて普通に1枚の画面として
+  // 全体に表示して」との実機報告でカード構図(中央フロート+四隅丸角+影+マージン)を撤去。
+  // ImageBackground+shadow+overflow:hidden+大きめ画像の組み合わせが実機で不安定だった
+  // とみられるため、画面全体をそのままImageBackgroundにする最もシンプルな構成に戻す。
+  fullBg: { flex: 1 },
   closeBtn: {
     position: 'absolute', top: 12, right: 12, zIndex: 10,
     width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(0,0,0,0.35)',

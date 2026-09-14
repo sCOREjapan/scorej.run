@@ -599,7 +599,7 @@ function ScoreOverviewCard({
               <StretchRipple active={warmupRisk === 'moderate'} />
               <View style={so.swBtnRow}>
                 <Ionicons name="body-outline" size={14} color="#fff" />
-                <Text style={so.swBtnText}>{t('home.stretchBanner.startCta')}</Text>
+                <Text style={so.swBtnText} numberOfLines={1}>{t('home.stretchBanner.startCta')}</Text>
               </View>
             </PressableScale>
           </View>
@@ -728,7 +728,13 @@ const makeSoStyles = (colors: ThemeColors) => StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.07, shadowRadius: 12, elevation: 3,
   },
-  swLeft:      { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, minWidth: 0 },
+  // 2026-09-14バグ修正:「白い部分を押しても反応せず、文字の上しか反応しない」との実機報告。
+  // 親(stretchWarmupRow)がflexDirection:'row'+alignItems:'center'のため、この
+  // Pressableは何も指定しないと中身(アイコン+文字)の高さぶんにしか縦方向がshrink-wrapされず、
+  // カード全体の高さ(paddingVertical:12ぶん)のうち実際にタップ判定があるのは中央の
+  // 薄い帯だけになっていた。alignSelf:'stretch'で親の高さいっぱいまで広げ、
+  // paddingVerticalで見た目のタップ領域も合わせる。
+  swLeft:      { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, minWidth: 0, alignSelf: 'stretch', paddingVertical: 10 },
   // PressableScaleのchildrenは内側Animated.Viewが受け取る(デフォルトcolumn)ため、
   // 見た目上の行方向レイアウトはこの内側Viewで明示的に組む(swLeft/swBtn自体のflexDirection
   // は外側Pressableの箱の向きにしか効かない。上のJSX側コメント参照)。
@@ -737,9 +743,13 @@ const makeSoStyles = (colors: ThemeColors) => StyleSheet.create({
   swDivider:   { width: 1, height: 32, marginHorizontal: 12 },
   swRight:     { alignItems: 'flex-end', flexShrink: 0 },
   swGain:      { fontSize: 10, fontWeight: '800', marginBottom: 4 },
-  swBtn:       { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: BRAND, overflow: 'visible' },
-  swBtnRow:    { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  swBtnText:   { color: '#fff', fontSize: 12.5, fontWeight: '700' },
+  // 2026-09-14バグ修正:「実機でぐちゃぐちゃになっていた」との報告で一回り大きくした
+  // (paddingHorizontal 14→18, paddingVertical 9→11, borderRadius 18→20, フォント12.5→13.5)。
+  // 実機のDynamic Type設定次第でアイコン+テキストが窮屈に詰まって見えていたとみられるため、
+  // 単純に余白を増やして呼吸させる。
+  swBtn:       { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 20, paddingHorizontal: 18, paddingVertical: 11, backgroundColor: BRAND, overflow: 'visible' },
+  swBtnRow:    { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  swBtnText:   { color: '#fff', fontSize: 13.5, fontWeight: '700' },
 })
 
 
