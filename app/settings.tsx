@@ -199,7 +199,7 @@ function LabeledInput({
 
 // ── メイン設定画面 ─────────────────────────────────────────
 export default function SettingsScreen() {
-  const { user, session, signOut, isGuest, signOutGuest } = useAuth()
+  const { user, session, signOut, isGuest, signOutGuest, isCoachMode, resetOnboarding } = useAuth()
   const { scheme, colors, setScheme } = useTheme()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const { t } = useTranslation()
@@ -1003,6 +1003,40 @@ export default function SettingsScreen() {
               >
                 <Ionicons name="swap-horizontal-outline" size={18} color={colors.textSec} />
                 <Text style={styles.actionText}>{t('settings.team.switchRole')}</Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textHint} />
+              </TouchableOpacity>
+
+              {/* 2026-09-14: コーチ専用UI(isCoachMode)と選手向けUIを行き来したい場合、
+                  上の「役割を切り替える」はteam.tsxローカルの役割だけをリセットするため、
+                  オンボーディング全体(目的選択含む)をやり直したい人向けに別ボタンを用意。
+                  resetOnboarding()はisOnboarded・isCoachMode両方をクリアする
+                  (context/AuthContext.tsx参照)。 */}
+              <View style={styles.divider} />
+              <TouchableOpacity
+                style={styles.actionRow}
+                activeOpacity={0.75}
+                onPress={() => {
+                  const doReset = async () => {
+                    await resetOnboarding()
+                    router.replace('/onboarding')
+                  }
+                  if (typeof window !== 'undefined') {
+                    if (window.confirm(t('settings.team.redoOnboardingConfirm'))) doReset()
+                  } else {
+                    Alert.alert(t('settings.team.redoOnboardingTitle'), t('settings.team.redoOnboardingMessage'), [
+                      { text: t('settings.account.cancel'), style: 'cancel' },
+                      { text: t('settings.team.redoOnboardingConfirmBtn'), style: 'destructive', onPress: doReset },
+                    ])
+                  }
+                }}
+              >
+                <Ionicons name="refresh-outline" size={18} color={colors.textSec} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.actionText}>{t('settings.team.redoOnboarding')}</Text>
+                  {isCoachMode && (
+                    <Text style={{ color: colors.textHint, fontSize: 11, marginTop: 2 }}>{t('settings.team.redoOnboardingCoachHint')}</Text>
+                  )}
+                </View>
                 <Ionicons name="chevron-forward" size={16} color={colors.textHint} />
               </TouchableOpacity>
             </SectionCard>

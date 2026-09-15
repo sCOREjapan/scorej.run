@@ -842,7 +842,7 @@ function DarkCTAButton({ label, onPress, disabled }: { label: string; onPress: (
 export default function OnboardingScreen() {
   const router  = useRouter()
   const { t } = useTranslation()
-  const { user, isGuest, setOnboarded } = useAuth()
+  const { user, isGuest, setOnboarded, setCoachMode } = useAuth()
   const { language } = useLanguage()
 
   const CATEGORIES = buildCategories(t)
@@ -1010,6 +1010,10 @@ export default function OnboardingScreen() {
 
     const authed = !!user?.id || isGuest
     await setOnboarded()
+    // 2026-09-14: 「チーム/コーチ」選択時はアプリ全体をコーチ専用UI(怪我リスクスコア等
+    // 選手向け要素を出さない)に切り替える。設定「オンボーディングをやり直す」から
+    // 別の目的でやり直した場合に備え、それ以外の選択では明示的にfalseへ戻す。
+    await setCoachMode(goal === 'team')
     // 2026-09-11: オンボーディング完了時の即時5枚付与(grantStarterTicketsIfNeeded)は撤去。
     // 3日間ミッション(lib/missionStore.ts)のDay1報酬(🎫5枚)が実質的に置き換わっており、
     // 両方残すと初日だけ実質10枚(5+5)の二重付与になってしまう。
@@ -1036,7 +1040,7 @@ export default function OnboardingScreen() {
       trackOnboardingStep('home_reached')
       router.replace('/(tabs)')
     }
-  }, [name, event, category, experience, age, pb, prefecture, goal, user, isGuest, setOnboarded, router])
+  }, [name, event, category, experience, age, pb, prefecture, goal, user, isGuest, setOnboarded, setCoachMode, router])
 
   const canNextStep1 = goal !== ''
   const canNextStep2 = event !== ''

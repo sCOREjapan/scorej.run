@@ -52,6 +52,8 @@ import Toast from 'react-native-toast-message'
 import { autoSyncTeam } from '../../lib/teamAutoSync'
 import { trackAppOpen, trackPaywallView, trackFeatureUse } from '../../lib/analytics'
 import { usePurchase } from '../../context/PurchaseContext'
+import { useAuth } from '../../context/AuthContext'
+import CoachHomeScreen from '../../components/CoachHomeScreen'
 import TutorialSpot from '../../components/TutorialSpot'
 import Svg, { Circle, Defs, LinearGradient, Stop, Path, Rect } from 'react-native-svg'
 import { useTutorial } from '../../lib/tutorialContext'
@@ -1498,6 +1500,7 @@ export default function DashboardScreen() {
   const { language } = useLanguage()
   const dayNames = t('home.dayNames', { returnObjects: true }) as unknown as string[]
   const { tier: purchaseTier, isNoad: purchaseIsNoad } = usePurchase()
+  const { isCoachMode } = useAuth()
   const { active: tutorialActive, stepId: tutStepId, nextStep: tutNext, onConditionModalClose } = useTutorial()
   const { sessions, loading, fetchSessions } = useTrainingSessions()
   const [appOpenCount,     setAppOpenCount]     = useState(0)
@@ -2184,6 +2187,14 @@ ${sleepText || 'データなし'}
     setQuickLogListener(() => setShowQuickLog(true))
     return () => { unregisterHomeScroll(); clearQuickLogListener() }
   }, [])
+
+  // 2026-09-14: 「コーチ選択した人は完全にコーチ専用のUIに変更、怪我リスクとかいらない」
+  // 指示により、isCoachMode===trueなら選手向けの本ダッシュボード(怪我リスク・ストレッチ・
+  // 体調ログ等)を出さず、軽量なCoachHomeScreenに差し替える。
+  // 上のフック群はRules of Hooksを守るため常に実行済みの状態でここに来る(早期returnはOK)。
+  if (isCoachMode) {
+    return <CoachHomeScreen />
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>

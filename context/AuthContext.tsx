@@ -22,6 +22,10 @@ import { trackOnboardingStep } from '../lib/analytics'
 try { WebBrowser.maybeCompleteAuthSession() } catch {}
 
 const ONBOARDING_KEY = 'tm_onboarded'
+// 2026-09-14: コーチ専用UIへの切り替えフラグ。オンボーディングで「チーム/コーチ」を
+// 選んだユーザーはホーム画面等を怪我リスクスコアなしのコーチ専用UIに出し分ける。
+// 設定画面の「オンボーディングをやり直す」でONBOARDING_KEYと一緒にリセットする。
+const COACH_MODE_KEY = 'tm_coach_mode'
 
 // 現在のオリジンを使う（localhost / Vercel / その他デプロイ先すべてに対応）
 const SITE_URL = typeof window !== 'undefined' && window.location?.origin
@@ -69,6 +73,7 @@ interface AuthContextType {
   loading:                 boolean
   isGuest:                 boolean
   isOnboarded:             boolean
+  isCoachMode:             boolean
   signInWithGoogle:        () => Promise<void>
   signInWithApple:         () => Promise<void>
   signInWithEmail:         (email: string, password: string) => Promise<boolean>
@@ -80,11 +85,13 @@ interface AuthContextType {
   continueAsGuest:         () => void
   signOutGuest:            () => void
   setOnboarded:            () => Promise<void>
+  setCoachMode:            (value: boolean) => Promise<void>
+  resetOnboarding:         () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null, session: null, loading: true,
-  isGuest: false, isOnboarded: false,
+  isGuest: false, isOnboarded: false, isCoachMode: false,
   signInWithGoogle:        async () => {},
   signInWithApple:         async () => {},
   signInWithEmail:         async () => false,
@@ -96,6 +103,8 @@ const AuthContext = createContext<AuthContextType>({
   continueAsGuest:         () => {},
   signOutGuest:            () => {},
   setOnboarded:            async () => {},
+  setCoachMode:            async () => {},
+  resetOnboarding:         async () => {},
 })
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -105,6 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading,     setLoading]     = useState(true)
   const [isGuest,     setIsGuest]     = useState(false)
   const [isOnboarded, setIsOnboarded] = useState(false)
+  const [isCoachMode, setIsCoachMode] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -135,8 +145,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const init = async () => {
       try {
         // 1+2+3 を並列実行（直列だと 3 倍かかる）
-        const [ob, sessionResult, storedUserId, initialUrl] = await Promise.all([
+        const [ob, coachMode, sessionResult, storedUserId, initialUrl] = await Promise.all([
           AsyncStorage.getItem(ONBOARDING_KEY).catch(() => null),
+          AsyncStorage.getItem(COACH_MODE_KEY).catch(() => null),
           (supabase.auth as any).getSession().catch(() => ({ data: null })),
           AsyncStorage.getItem('userId').catch(() => null),
           // 起動時のディープリンク URL を取得（メール確認リンクからの起動に対応）
@@ -150,6 +161,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         setIsOnboarded(ob === 'true')
+        setIsCoachMode(coachMode === 'true')
         const s = sessionResult?.data?.session ?? null
         setSession(s)
         setUser(s?.user ?? null)
@@ -526,14 +538,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.setItem(ONBOARDING_KEY, 'true').catch(() => {})
   }, [])
 
+  // ── コーチ専用UIモードの切り替え ─────────────────────────
+  // 2026-09-14: オンボーディングで「チーム/コーチ」を選んだ時に true にする。
+  // ホーム画面等はこれを見て怪我リスクスコア等の選手向けUIを出し分ける。
+  const setCoachMode = useCallback(async (value: boolean) => {
+    setIsCoachMode(value)
+    await AsyncStorage.setItem(COACH_MODE_KEY, value ? 'true' : 'false').catch(() => {})
+  }, [])
+
+  // ── オンボーディングをやり直す（設定画面用） ───────────────
+  // isOnboarded・isCoachMode を両方リセットして /onboarding に戻れるようにする。
+  const resetOnboarding = useCallback(async () => {
+    setIsOnboarded(false)
+    setIsCoachMode(false)
+    await AsyncStorage.multiRemove([ONBOARDING_KEY, COACH_MODE_KEY]).catch(() => {})
+  }, [])
+
   return (
     <AuthContext.Provider value={{
       user, session, loading,
-      isGuest, isOnboarded,
+      isGuest, isOnboarded, isCoachMode,
       signInWithGoogle, signInWithApple,
       signInWithEmail, signUpWithEmail, resendConfirmationEmail,
       sendOtp, verifyOtp,
-      signOut, continueAsGuest, signOutGuest, setOnboarded,
+      signOut, continueAsGuest, signOutGuest, setOnboarded, setCoachMode, resetOnboarding,
     }}>
       {children}
     </AuthContext.Provider>

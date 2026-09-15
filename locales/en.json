@@ -567,6 +567,26 @@
       "injuryFree": "Injury-free streak",
       "daysUnit": "{{n}} days",
       "recordInjuryButton": "Log an injury"
+    },
+    "coach": {
+      "greeting": "Welcome back, Coach {{name}}",
+      "greetingFallback": "Welcome back, Coach",
+      "subline": "Let's support your team's training today",
+      "teamCardLabel": "Your Team",
+      "teamCodeLabel": "Invite Code",
+      "openTeamCta": "Open Team Management",
+      "noTeamTitle": "No team created yet",
+      "noTeamSub": "Create a team to invite your athletes",
+      "createTeamCta": "Create a Team",
+      "quickActionsTitle": "Quick Actions",
+      "actionTimer": "Timer",
+      "actionTimerSub": "Stopwatch & intervals",
+      "actionRecovery": "AI Recovery Advice",
+      "actionRecoverySub": "Consult about an athlete's injury",
+      "actionTeam": "Team Management",
+      "actionTeamSub": "Members, menus & messages",
+      "actionSettings": "Settings",
+      "actionSettingsSub": "Account & notifications"
     }
   },
   "settings": {
@@ -666,7 +686,13 @@
       "switchConfirmWeb": "This will reset your team role. You can set it up again from the Team tab.",
       "switchTitle": "Switch role",
       "switchMessage": "This will reset your team role.",
-      "reset": "Reset"
+      "reset": "Reset",
+      "redoOnboarding": "Redo Onboarding",
+      "redoOnboardingCoachHint": "You can also switch back to athlete features",
+      "redoOnboardingTitle": "Redo onboarding from the start?",
+      "redoOnboardingMessage": "This restarts the goal-selection flow. Your Coach/Athlete mode setting will be reset, but your training records and other data won't be deleted.",
+      "redoOnboardingConfirmBtn": "Restart",
+      "redoOnboardingConfirm": "This restarts the goal-selection flow. Your Coach/Athlete mode setting will be reset, but your training records and other data won't be deleted. Continue?"
     },
     "permissions": {
       "title": "Permissions & Notifications",

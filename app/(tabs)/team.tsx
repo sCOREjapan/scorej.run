@@ -42,6 +42,7 @@ import {
 } from '../../lib/supabaseTeam'
 import { useTheme, type ThemeColors } from '../../context/ThemeContext'
 import { usePurchase } from '../../context/PurchaseContext'
+import { useAuth } from '../../context/AuthContext'
 import { useTrainingSessions } from '../../hooks/useTrainingSessions'
 import HapticTouch from '../../components/HapticTouch'
 import {
@@ -3692,6 +3693,18 @@ export default function TeamScreen() {
   const [joined, setJoined] = useState<JoinedTeam|null>(null)
   const fadeY = useRef(new Animated.Value(0)).current
   const { isCoach } = usePurchase()
+  const { isCoachMode, setCoachMode } = useAuth()
+
+  // 2026-09-14: コーチ専用UI(ホーム画面等)への切り替えフラグ同期。
+  // オンボーディングで「チーム」を選んだ人はapp/onboarding.tsxで既にisCoachMode=trueに
+  // なっているが、①既存ユーザーがteam.tsx経由で後からコーチプランに加入した場合、
+  // ②別端末等でisCoachだけ復元されisCoachModeがまだfalseな場合、を拾えないため、
+  // 「実際にコーチダッシュボードが表示される(=isCoach確定)」タイミングで安全網として
+  // 同期する。これによりホーム画面のisCoachMode分岐(app/(tabs)/index.tsx)も
+  // 正しくコーチ専用UIに切り替わる。
+  useEffect(() => {
+    if (isCoach && !isCoachMode) setCoachMode(true)
+  }, [isCoach, isCoachMode, setCoachMode])
 
   useFocusEffect(useCallback(() => {
     fadeY.setValue(0)

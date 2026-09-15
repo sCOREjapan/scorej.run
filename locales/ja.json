@@ -567,6 +567,26 @@
       "injuryFree": "怪我なし継続",
       "daysUnit": "{{n}} 日",
       "recordInjuryButton": "怪我を記録する"
+    },
+    "coach": {
+      "greeting": "{{name}}コーチ、お疲れ様です",
+      "greetingFallback": "コーチ、お疲れ様です",
+      "subline": "今日もチームの練習をサポートしましょう",
+      "teamCardLabel": "担当チーム",
+      "teamCodeLabel": "招待コード",
+      "openTeamCta": "チーム管理を開く",
+      "noTeamTitle": "まだチームが未作成です",
+      "noTeamSub": "チームを作成して選手を招待しましょう",
+      "createTeamCta": "チームを作成する",
+      "quickActionsTitle": "クイックアクション",
+      "actionTimer": "タイム計測",
+      "actionTimerSub": "ストップウォッチ・インターバル",
+      "actionRecovery": "AIリカバリー相談",
+      "actionRecoverySub": "選手の怪我について相談",
+      "actionTeam": "チーム管理",
+      "actionTeamSub": "メンバー・練習メニュー・連絡",
+      "actionSettings": "設定",
+      "actionSettingsSub": "アカウント・通知など"
     }
   },
   "settings": {
@@ -666,7 +686,13 @@
       "switchConfirmWeb": "チームのロール設定をリセットします。チームタブで再設定できます。",
       "switchTitle": "ロールを切り替え",
       "switchMessage": "チームのロール設定をリセットします。",
-      "reset": "リセット"
+      "reset": "リセット",
+      "redoOnboarding": "オンボーディングをやり直す",
+      "redoOnboardingCoachHint": "選手向けの機能に戻すこともできます",
+      "redoOnboardingTitle": "オンボーディングをやり直しますか？",
+      "redoOnboardingMessage": "目的の選択からやり直します。現在のコーチ/選手モードの設定はリセットされますが、練習記録などのデータは削除されません。",
+      "redoOnboardingConfirmBtn": "やり直す",
+      "redoOnboardingConfirm": "目的の選択からやり直します。現在のコーチ/選手モードの設定はリセットされますが、練習記録などのデータは削除されません。よろしいですか？"
     },
     "permissions": {
       "title": "アクセス許可 & 通知",
