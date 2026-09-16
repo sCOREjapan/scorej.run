@@ -586,7 +586,14 @@
       "actionTeam": "チーム管理",
       "actionTeamSub": "メンバー・練習メニュー・連絡",
       "actionSettings": "設定",
-      "actionSettingsSub": "アカウント・通知など"
+      "actionSettingsSub": "アカウント・通知など",
+      "statusTitle": "今日のチーム状況",
+      "allClear": "全員、順調です",
+      "statusHighRisk": "要注意",
+      "statusPain": "未確認の痛み",
+      "statusNotLogged": "今週未記録",
+      "pbFeedTitle": "自己ベスト更新",
+      "pbFeedLine": "{{name}}選手が{{event}}で更新！"
     }
   },
   "settings": {
@@ -1062,7 +1069,10 @@
       "attentionPoints": "⚠️ 注意ポイント",
       "notSyncedTitle": "まだ練習データが同期されていません",
       "notSyncedHint": "選手が練習を記録すると自動的に表示されます",
-      "joinedDate": "参加日: {{date}}"
+      "joinedDate": "参加日: {{date}}",
+      "streakLabel": "連続記録",
+      "recentSessions": "最近の練習",
+      "conditionShort": "体調{{level}}"
     },
     "teammateProfile": {
       "level": "レベル",

@@ -15,25 +15,51 @@ import { useFocusEffect } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import { useTheme, type ThemeColors } from '../context/ThemeContext'
+import { useLanguage } from '../context/LanguageContext'
 import { BRAND } from '../lib/theme'
+import { getTeamRosterSummary, type TeamRosterSummary } from '../lib/teamRoster'
+import { fetchRecentPbUpdates, type TeamPbEventRow } from '../lib/supabaseTeam'
+import { getEventLabel } from '../lib/eventLabels'
 import Logo from './Logo'
 import PressableScale from './PressableScale'
 
 const SETUP_KEY = 'trackmate_team_setup'
+const RISK_RED    = '#E53935'
+const PAIN_ORANGE = '#FF9500'
+const NEUTRAL_BLUE = '#6366f1'
 
 interface TeamSetup { teamName: string; coachName: string; code: string; createdAt: string }
 
 export default function CoachHomeScreen() {
   const { colors } = useTheme()
   const { t } = useTranslation()
+  const { language } = useLanguage()
   const router = useRouter()
   const s = makeStyles(colors)
   const [setup, setSetup] = useState<TeamSetup | null>(null)
+  // 2026-09-16(P1/P3): 「今日のチーム状況」サマリーと自己ベスト更新フィード。
+  // undefined=未読込、null=データなし(取得失敗含む)、と区別してローディング中の
+  // チラつきを防ぐ
+  const [summary,    setSummary]    = useState<TeamRosterSummary | undefined>(undefined)
+  const [pbUpdates,  setPbUpdates]  = useState<TeamPbEventRow[]>([])
+  const [showNotLogged, setShowNotLogged] = useState(false)
 
   const load = useCallback(async () => {
     try {
       const raw = await AsyncStorage.getItem(SETUP_KEY)
-      setSetup(raw ? JSON.parse(raw) : null)
+      const parsed: TeamSetup | null = raw ? JSON.parse(raw) : null
+      setSetup(parsed)
+      if (parsed?.code) {
+        const [sum, pbs] = await Promise.all([
+          getTeamRosterSummary(parsed.code),
+          fetchRecentPbUpdates(parsed.code, 3),
+        ])
+        setSummary(sum)
+        setPbUpdates(pbs)
+      } else {
+        setSummary(undefined)
+        setPbUpdates([])
+      }
     } catch {
       setSetup(null)
     }
@@ -103,6 +129,87 @@ export default function CoachHomeScreen() {
             </PressableScale>
           )}
 
+          {/* ── 今日のチーム状況(P1) ──────────────────────────────
+              team.tsxのCoachDashboardが既に計算している怪我リスク・未確認の痛みを、
+              ホーム画面からも一目で見えるようにする。競合(TrainHeroic等)の
+              「チームダッシュボード」に相当するが、sCOREは生データではなく
+              件数だけを見せて詳細はタップ先(チームタブ)に委ねる設計にし、
+              「監視されている感」を出さないようにしている。 */}
+          {setup && summary && summary.totalMembers > 0 && (
+            <View style={s.statusCard}>
+              <Text style={s.statusCardTitle}>{t('home.coach.statusTitle')}</Text>
+              {summary.highRiskCount === 0 && summary.unackedPainCount === 0 && summary.notLoggedCount === 0 ? (
+                <View style={s.allClearRow}>
+                  <Ionicons name="checkmark-circle" size={18} color={BRAND} />
+                  <Text style={s.allClearText}>{t('home.coach.allClear')}</Text>
+                </View>
+              ) : (
+                <View style={s.statusChips}>
+                  <PressableScale
+                    onPress={() => router.push({ pathname: '/(tabs)/team', params: { filter: 'danger' } } as any)}
+                    style={summary.highRiskCount === 0 ? [s.statusChip, s.statusChipMuted] : s.statusChip}
+                    disabled={summary.highRiskCount === 0}
+                  >
+                    <View style={s.statusChipRow}>
+                      <Text style={[s.statusChipNum, { color: summary.highRiskCount > 0 ? RISK_RED : colors.textHint }]}>{summary.highRiskCount}</Text>
+                      <Text style={s.statusChipLabel}>{t('home.coach.statusHighRisk')}</Text>
+                    </View>
+                  </PressableScale>
+                  <PressableScale
+                    onPress={() => router.push({ pathname: '/(tabs)/team', params: { filter: 'pain' } } as any)}
+                    style={summary.unackedPainCount === 0 ? [s.statusChip, s.statusChipMuted] : s.statusChip}
+                    disabled={summary.unackedPainCount === 0}
+                  >
+                    <View style={s.statusChipRow}>
+                      <Text style={[s.statusChipNum, { color: summary.unackedPainCount > 0 ? PAIN_ORANGE : colors.textHint }]}>{summary.unackedPainCount}</Text>
+                      <Text style={s.statusChipLabel}>{t('home.coach.statusPain')}</Text>
+                    </View>
+                  </PressableScale>
+                  <PressableScale
+                    onPress={() => setShowNotLogged(v => !v)}
+                    style={summary.notLoggedCount === 0 ? [s.statusChip, s.statusChipMuted] : s.statusChip}
+                    disabled={summary.notLoggedCount === 0}
+                  >
+                    <View style={s.statusChipRow}>
+                      <Text style={[s.statusChipNum, { color: summary.notLoggedCount > 0 ? NEUTRAL_BLUE : colors.textHint }]}>{summary.notLoggedCount}</Text>
+                      <Text style={s.statusChipLabel}>{t('home.coach.statusNotLogged')}</Text>
+                    </View>
+                  </PressableScale>
+                </View>
+              )}
+              {showNotLogged && summary.notLoggedNames.length > 0 && (
+                <View style={s.notLoggedBox}>
+                  <Text style={s.notLoggedText}>{summary.notLoggedNames.join('、')}</Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* ── 自己ベスト更新フィード(P3) ─────────────────────── */}
+          {setup && pbUpdates.length > 0 && (
+            <View style={s.pbCard}>
+              <View style={s.pbCardHeader}>
+                <Ionicons name="trophy" size={16} color="#FF9500" />
+                <Text style={s.pbCardTitle}>{t('home.coach.pbFeedTitle')}</Text>
+              </View>
+              {pbUpdates.map(ev => (
+                <View key={ev.id} style={s.pbRow}>
+                  <Text style={s.pbRowText}>
+                    {t('home.coach.pbFeedLine', {
+                      name: ev.player_name,
+                      event: getEventLabel(ev.event, language) || ev.event,
+                    })}
+                  </Text>
+                  <View style={s.pbRowTimes}>
+                    {!!ev.old_pb && <Text style={s.pbOld}>{ev.old_pb}</Text>}
+                    {!!ev.old_pb && <Ionicons name="arrow-forward" size={11} color={colors.textHint} />}
+                    <Text style={s.pbNew}>{ev.new_pb}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
           <Text style={s.sectionTitle}>{t('home.coach.quickActionsTitle')}</Text>
           <View style={s.actionsGrid}>
             {quickActions.map(a => (
@@ -151,6 +258,38 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   noTeamCardRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   noTeamTitle: { fontSize: 14.5, fontWeight: '800', color: colors.text, marginBottom: 2 },
   noTeamSub: { fontSize: 12.5, color: colors.textSec },
+  statusCard: {
+    backgroundColor: colors.surface, borderRadius: 16, padding: 16, marginBottom: 16,
+    borderWidth: 1, borderColor: colors.border,
+  },
+  statusCardTitle: { fontSize: 12.5, fontWeight: '800', color: colors.textSec, marginBottom: 12 },
+  allClearRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
+  allClearText: { fontSize: 13.5, fontWeight: '700', color: colors.text },
+  statusChips: { flexDirection: 'row', gap: 8 },
+  statusChip: {
+    flex: 1, backgroundColor: colors.surface2, borderRadius: 12, paddingVertical: 12,
+    borderWidth: 1, borderColor: colors.border,
+  },
+  statusChipMuted: { opacity: 0.5 },
+  statusChipRow: { alignItems: 'center', gap: 3 },
+  statusChipNum: { fontSize: 20, fontWeight: '900' },
+  statusChipLabel: { fontSize: 10.5, color: colors.textSec, fontWeight: '700', textAlign: 'center' },
+  notLoggedBox: {
+    marginTop: 10, backgroundColor: NEUTRAL_BLUE + '0f', borderRadius: 10,
+    borderWidth: 1, borderColor: NEUTRAL_BLUE + '30', padding: 10,
+  },
+  notLoggedText: { fontSize: 12, color: colors.textSec, lineHeight: 18 },
+  pbCard: {
+    backgroundColor: 'rgba(255,149,0,0.06)', borderRadius: 16, padding: 16, marginBottom: 16,
+    borderWidth: 1, borderColor: 'rgba(255,149,0,0.22)', gap: 10,
+  },
+  pbCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  pbCardTitle: { fontSize: 12.5, fontWeight: '800', color: '#B45309' },
+  pbRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  pbRowText: { flex: 1, fontSize: 12.5, color: colors.text, fontWeight: '600' },
+  pbRowTimes: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  pbOld: { fontSize: 11.5, color: colors.textHint, textDecorationLine: 'line-through' },
+  pbNew: { fontSize: 13, color: '#FF9500', fontWeight: '900' },
   sectionTitle: { fontSize: 13, fontWeight: '800', color: colors.textSec, marginBottom: 10, letterSpacing: 0.3 },
   actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   actionCard: {

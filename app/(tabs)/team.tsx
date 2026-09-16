@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { useLanguage } from '../../context/LanguageContext'
 import { narrativeLanguageInstruction } from '../../lib/aiLanguage'
-import { useFocusEffect, useRouter } from 'expo-router'
+import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import Svg, { Circle } from 'react-native-svg'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -51,6 +51,7 @@ import {
 import { showNow } from '../../lib/notifications'
 import PulseView from '../../components/PulseView'
 import { localDateStr, todayLocalISO } from '../../lib/dateLocal'
+import { sessionTypeInfo } from '../../lib/sessionTypeLabels'
 import { checkAdGate, recordUsage } from '../../lib/adGate'
 import { TICKET_COST } from '../../lib/ticketWallet'
 import TicketGateModal from '../../components/TicketGateModal'
@@ -1011,7 +1012,15 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
   const [tab,           setTab]           = useState<'members'|'messages'|'videos'|'calendar'|'menu'>('members')
   const [detailMember,  setDetailMember]  = useState<Member|null>(null)
   const [detailRisk,    setDetailRisk]    = useState<InjuryRiskResult|null>(null)
-  const [memberFilter,  setMemberFilter]  = useState<'all'|'danger'|'pain'|'needsAttention'>('all')
+  // 2026-09-16(P0): コーチ用詳細シートに自己ベスト・練習履歴を出すため、
+  // 選手プロフィール(PlayerStatsRow)も一緒に保持する
+  const [detailStats,   setDetailStats]   = useState<PlayerStatsRow|null>(null)
+  // 2026-09-16(P1): ホーム画面の「今日のチーム状況」カードから絞り込み済みで
+  // ここへ飛べるよう、?filter=クエリがあれば初期値として使う
+  const { filter: filterParam } = useLocalSearchParams<{ filter?: string }>()
+  const [memberFilter,  setMemberFilter]  = useState<'all'|'danger'|'pain'|'needsAttention'>(
+    (filterParam === 'danger' || filterParam === 'pain' || filterParam === 'needsAttention') ? filterParam : 'all'
+  )
   const [hiddenDemoIds, setHiddenDemoIds] = useState<string[]>([])
   const [showMenu,      setShowMenu]      = useState(false)
   const [pendingDelete, setPendingDelete] = useState<{id:string;name:string;isDemo:boolean}|null>(null)
@@ -1657,7 +1666,7 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
                       haptic="tap"
                       key={m.id}
                       style={[co.memberCard, { backgroundColor: '#fff', borderLeftWidth: 0, padding: 10 }]}
-                      onPress={() => { setDetailMember(m); setDetailRisk(m.risk) }}
+                      onPress={() => { setDetailMember(m); setDetailRisk(m.risk); setDetailStats(coachPlayerStats.find(s => s.player_name === m.name) ?? null) }}
                       activeOpacity={0.88}
                     >
                       <View style={{flexDirection:'row',alignItems:'center',gap:12}}>
@@ -2118,7 +2127,8 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
         <MemberDetailSheet
           member={detailMember}
           preCalcRisk={detailRisk}
-          onClose={() => { setDetailMember(null); setDetailRisk(null) }}
+          stats={detailStats}
+          onClose={() => { setDetailMember(null); setDetailRisk(null); setDetailStats(null) }}
           onAck={detailMember.ackedByCoach ? undefined : () => ackPain(detailMember.name)}
         />
       )}
@@ -2272,9 +2282,10 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
 // ─────────────────────────────────────────────────────────
 // MemberDetailSheet — コーチ用詳細シート
 // ─────────────────────────────────────────────────────────
-function MemberDetailSheet({ member, preCalcRisk, onClose, onAck }: {
+function MemberDetailSheet({ member, preCalcRisk, stats, onClose, onAck }: {
   member: Member
   preCalcRisk?: InjuryRiskResult | null
+  stats?: PlayerStatsRow | null
   onClose: () => void
   onAck?: () => void
 }) {
@@ -2292,6 +2303,13 @@ function MemberDetailSheet({ member, preCalcRisk, onClose, onAck }: {
   const hasAcked    = (member.painParts?.length ?? 0) > 0 && member.ackedByCoach
   const lvInfo      = calcLevelInfo(member.sessions.length, language)
   const lvTier      = RANK_TIERS.find(t => lvInfo.level >= t.min && lvInfo.level < t.max) ?? RANK_TIERS[0]
+  // 2026-09-16(P0)「コーチ側に選手の記録管理があれば」対応。
+  // これまでコーチ用シートは怪我リスク・体調のみで、選手同士が見られるPB/連続記録/
+  // 目標や、練習ログの履歴が一切無かった。stats(PlayerStatsRow)と直近セッションから補う。
+  const pb          = stats?.pb_display || ''
+  const goal        = stats?.goal || ''
+  const streak      = calcStreak(member.sessions)
+  const recentSessions = member.sessions.slice(0, 5)
 
   return (
     <View style={[StyleSheet.absoluteFill,{backgroundColor:'rgba(0,0,0,0.85)',justifyContent:'flex-end'}]}>
@@ -2397,6 +2415,51 @@ function MemberDetailSheet({ member, preCalcRisk, onClose, onAck }: {
               <Ionicons name="fitness-outline" size={24} color={colors.textHint}/>
               <Text style={{color:colors.textSec,fontSize:12}}>{t('team.memberDetail.notSyncedTitle')}</Text>
               <Text style={{color:colors.textHint,fontSize:11}}>{t('team.memberDetail.notSyncedHint')}</Text>
+            </View>
+          )}
+
+          {/* ─ 自己ベスト・連続記録（選手同士は見えているのにコーチだけ見えなかった情報） ─ */}
+          {(pb || streak > 0) && (
+            <View style={{flexDirection:'row',gap:8,marginBottom:10}}>
+              <View style={{flex:1,alignItems:'center',backgroundColor:'rgba(255,149,0,0.08)',borderRadius:12,borderWidth:1,borderColor:'rgba(255,149,0,0.25)',paddingVertical:12,gap:3}}>
+                <Ionicons name="trophy" size={18} color="#FF9500"/>
+                <Text style={{color: pb ? '#FF9500' : colors.textHint, fontSize:16, fontWeight:'900'}}>{pb || t('team.teammateProfile.notEntered')}</Text>
+                <Text style={{color:colors.textSec,fontSize:10}}>{t('team.teammateProfile.personalBest')}</Text>
+              </View>
+              <View style={{flex:1,alignItems:'center',backgroundColor:'rgba(255,107,53,0.08)',borderRadius:12,borderWidth:1,borderColor:'rgba(255,107,53,0.25)',paddingVertical:12,gap:3}}>
+                <Text style={{fontSize:18}}>🔥</Text>
+                <Text style={{color:'#FF6B35',fontSize:16,fontWeight:'900'}}>{t('team.teammateProfile.streakDays', { n: streak })}</Text>
+                <Text style={{color:colors.textSec,fontSize:10}}>{t('team.memberDetail.streakLabel')}</Text>
+              </View>
+            </View>
+          )}
+          {!!goal && (
+            <View style={{backgroundColor:'rgba(0,122,255,0.06)',borderRadius:12,borderWidth:1,borderColor:'rgba(0,122,255,0.15)',padding:12,marginBottom:10}}>
+              <Text style={{color:'#007AFF',fontSize:11,fontWeight:'700',marginBottom:3}}>{t('team.teammateProfile.goal')}</Text>
+              <Text style={{color:colors.text,fontSize:14,fontWeight:'600'}}>{goal}</Text>
+            </View>
+          )}
+
+          {/* ─ 最近の練習ログ（P0: これまでコーチは現在値のスナップショットしか見られなかった） ─ */}
+          {recentSessions.length > 0 && (
+            <View style={{marginBottom:10}}>
+              <Text style={{color:colors.textSec,fontSize:12,fontWeight:'700',marginBottom:8}}>{t('team.memberDetail.recentSessions')}</Text>
+              <View style={{gap:6}}>
+                {recentSessions.map(s => {
+                  const info = sessionTypeInfo(s.session_type, language)
+                  return (
+                    <View key={s.id} style={{flexDirection:'row',alignItems:'center',gap:10,backgroundColor:colors.surface2,borderRadius:10,paddingVertical:9,paddingHorizontal:12}}>
+                      <View style={{width:7,height:7,borderRadius:3.5,backgroundColor:info.color}}/>
+                      <Text style={{color:colors.textSec,fontSize:11,width:44}}>{s.session_date.slice(5).replace('-','/')}</Text>
+                      <Text style={{color:colors.text,fontSize:12,fontWeight:'700',flex:1}}>{info.label}</Text>
+                      {typeof s.distance_m === 'number' && s.distance_m > 0 && (
+                        <Text style={{color:colors.textSec,fontSize:11}}>{s.distance_m}m</Text>
+                      )}
+                      <Text style={{color:colors.textHint,fontSize:11}}>{t('team.memberDetail.conditionShort', { level: s.condition_level })}</Text>
+                    </View>
+                  )
+                })}
+              </View>
             </View>
           )}
 

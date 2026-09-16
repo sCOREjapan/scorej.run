@@ -586,7 +586,14 @@
       "actionTeam": "Team Management",
       "actionTeamSub": "Members, menus & messages",
       "actionSettings": "Settings",
-      "actionSettingsSub": "Account & notifications"
+      "actionSettingsSub": "Account & notifications",
+      "statusTitle": "Today's Team Status",
+      "allClear": "Everyone looks good",
+      "statusHighRisk": "High risk",
+      "statusPain": "Unreviewed pain",
+      "statusNotLogged": "No log this week",
+      "pbFeedTitle": "Personal Best Updates",
+      "pbFeedLine": "{{name}} set a new PB in {{event}}!"
     }
   },
   "settings": {
@@ -1062,7 +1069,10 @@
       "attentionPoints": "⚠️ Points to Watch",
       "notSyncedTitle": "Practice data hasn't synced yet",
       "notSyncedHint": "This will show automatically once the athlete logs a practice",
-      "joinedDate": "Joined: {{date}}"
+      "joinedDate": "Joined: {{date}}",
+      "streakLabel": "Streak",
+      "recentSessions": "Recent sessions",
+      "conditionShort": "Cond {{level}}"
     },
     "teammateProfile": {
       "level": "Level",
