@@ -3213,7 +3213,8 @@
     "secSeeDoctor": "病院を受診すべき症状",
     "secReference": "参考情報",
     "reBtn": "別の症状を入力する",
-    "promptLanguageLine": ""
+    "promptLanguageLine": "",
+    "guestBanner": "AI相談にはログインが必要です。タップしてログイン／新規登録"
   },
   "practiceInput": {
     "title": "自由入力",

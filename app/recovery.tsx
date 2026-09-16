@@ -333,6 +333,24 @@ ${envLines.length > 0 ? '\n' + t('recovery.envPromptInstruction') : ''}
               </Text>
             </View>
 
+            {/* 2026-09-16実機バグ報告「リカバリー診断機能で反応しない」に対応。
+                実際にはisGuestの場合、部位・症状・タイミングを全部入力してAI相談を押した
+                "後" に初めてログイン促進モーダル(components/AdGateModal.tsx)が出る作りで、
+                コードとしては動いていたが、フォーム入力の手間の後に初めて分かる導線が
+                「押しても反応しない」という体感に繋がっていた可能性が高い。
+                入力を始める前の時点でログインが必要なことを明示するバナーを追加する。 */}
+            {isGuest && (
+              <TouchableOpacity
+                style={s.guestBanner}
+                activeOpacity={0.85}
+                onPress={() => router.replace('/auth')}
+              >
+                <Ionicons name="person-circle-outline" size={18} color="#2563EB" />
+                <Text style={s.guestBannerTxt}>{t('recovery.guestBanner')}</Text>
+                <Ionicons name="chevron-forward" size={16} color="#2563EB" />
+              </TouchableOpacity>
+            )}
+
             {/* ─ ボディマップ ─ */}
             <Text style={s.secTitle}>{t('recovery.bodyMapTitle')}
               <Text style={{color:'#E53935',fontSize:12}}>{t('recovery.multiSelectNote')}</Text>
@@ -826,6 +844,10 @@ const s = StyleSheet.create({
                       backgroundColor:'rgba(255,149,0,0.08)',borderRadius:10,
                       borderWidth:1,borderColor:'rgba(255,149,0,0.28)',marginBottom:16},
   disclaimerBannerTxt:{color:'#b45309',fontSize:11,lineHeight:17,flex:1},
+  guestBanner:      {flexDirection:'row',alignItems:'center',gap:8,padding:12,
+                      backgroundColor:'rgba(37,99,235,0.08)',borderRadius:10,
+                      borderWidth:1,borderColor:'rgba(37,99,235,0.28)',marginBottom:16},
+  guestBannerTxt:   {color:'#2563EB',fontSize:12.5,lineHeight:17,flex:1,fontWeight:'700'},
   ticketCostBadge:  {alignSelf:'center',flexDirection:'row',alignItems:'center',marginTop:14,
                       backgroundColor:'rgba(245,158,11,0.10)',borderRadius:20,
                       paddingHorizontal:12,paddingVertical:5,

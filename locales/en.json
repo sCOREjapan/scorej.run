@@ -3213,7 +3213,8 @@
     "secSeeDoctor": "See a Doctor If",
     "secReference": "Reference",
     "reBtn": "Enter a different symptom",
-    "promptLanguageLine": "Write all text content in natural, fluent English. Keep the JSON field names and the severity enum value (mild/moderate/severe) exactly as specified — do not translate those."
+    "promptLanguageLine": "Write all text content in natural, fluent English. Keep the JSON field names and the severity enum value (mild/moderate/severe) exactly as specified — do not translate those.",
+    "guestBanner": "AI consultation requires an account. Tap to log in or sign up"
   },
   "practiceInput": {
     "title": "Free Entry",
