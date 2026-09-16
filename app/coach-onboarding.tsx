@@ -69,7 +69,20 @@ export default function CoachOnboardingScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <SafeAreaView style={{ flex: 1 }}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+        <TouchableOpacity
+          onPress={() => {
+            // 2026-09-16実機バグ報告「戻るボタンが反応しない」に対応。
+            // この画面への到達経路は両方ともrouter.replace()（app/onboarding.tsxの
+            // handleFinish、app/(tabs)/team.tsxのCoachSetupScreen）で、履歴に戻り先が
+            // 積まれていないため、router.back()は常に何もせず「反応しない」ように
+            // 見えていた。canGoBack()がfalseの時はホームタブへ明示的に逃がす
+            // （team.tsxへ戻すと!isCoachで即このgateへ戻される無限ループになるため避ける）。
+            if (router.canGoBack()) router.back()
+            else router.replace('/(tabs)' as any)
+          }}
+          style={s.backBtn}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
           <Ionicons name="chevron-back" size={22} color={colors.text} />
         </TouchableOpacity>
 

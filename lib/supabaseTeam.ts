@@ -355,6 +355,42 @@ export async function upsertPlayerStats(
   if (__DEV__) console.warn('[upsertPlayerStats] upsert failed:', error.message)
 }
 
+// ── 自己ベスト更新イベント（コーチ向けフィード用）──────────
+// 2026-09-16: team_player_statsは現在値のみでいつ更新されたかの履歴がない。
+// PBが実際に変化した瞬間だけ1行記録し、コーチのホーム画面に「◯◯選手が
+// 100mで自己ベスト更新！」のフィードを出せるようにする（supabase/team_pb_events_migration.sql参照）。
+export interface TeamPbEventRow {
+  id:          string
+  team_code:   string
+  player_name: string
+  event:       string
+  old_pb:      string
+  new_pb:      string
+  achieved_at: string
+}
+
+export async function recordPbUpdate(
+  teamCode: string, playerName: string, event: string, oldPb: string, newPb: string,
+): Promise<void> {
+  if (!isConfigured) return
+  const row = {
+    id: `${teamCode}_${playerName}_${Date.now()}`,
+    team_code: teamCode, player_name: playerName, event, old_pb: oldPb, new_pb: newPb,
+  }
+  const { error } = await teamScopedClient(teamCode).from('team_pb_events').insert(row)
+  if (error && __DEV__) console.warn('[recordPbUpdate]', error.message)
+}
+
+export async function fetchRecentPbUpdates(teamCode: string, limit = 10): Promise<TeamPbEventRow[]> {
+  if (!isConfigured) return []
+  const { data } = await teamScopedClient(teamCode)
+    .from('team_pb_events').select('*')
+    .eq('team_code', teamCode)
+    .order('achieved_at', { ascending: false })
+    .limit(limit)
+  return (data ?? []) as TeamPbEventRow[]
+}
+
 // ── チーム共有カレンダー ────────────────────────────────────
 export type TeamEventType = 'practice' | 'race' | 'rest' | 'meeting' | 'other'
 

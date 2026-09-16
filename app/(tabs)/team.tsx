@@ -33,7 +33,7 @@ import {
   fetchVideos, submitVideo, markVideoWatched,
   fetchBodyReports, upsertBodyReport, ackBodyReport,
   fetchMembers, registerMember, deleteMember,
-  fetchPlayerStats, upsertPlayerStats,
+  fetchPlayerStats, upsertPlayerStats, recordPbUpdate,
   syncTeamSessions, fetchTeamSessions, clearPlayerPrivateData,
   fetchTeamEvents, addTeamEvent, deleteTeamEvent,
   createTeam, fetchTeamByCode, deleteTeam,
@@ -2766,12 +2766,21 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
     const lastSess = sessions[0]
     const cutoff30 = localDateStr(new Date(Date.now() - 30*24*60*60*1000))
     const recent30 = sessions.filter(s => s.session_date >= cutoff30)
+    // 2026-09-16: コーチ向け「自己ベスト更新フィード」(P3)用。
+    // team_player_statsは現在値しか持たないため、実際に値が変わった瞬間だけ
+    // team_pb_eventsに1行記録する（保存の度に毎回記録すると、種目名だけ直した
+    // 時にも「更新」扱いになってしまうため、pb_display自体の変化のみを見る）。
+    const prevPb = playerStats.find(s => s.player_name === joined.playerName)?.pb_display ?? ''
+    const nextPb = editPb.trim()
     try {
       await upsertPlayerStats(
         joined.code, joined.playerName, editEvent.trim(), editPb.trim(), lvInfo.level,
         lastSess?.condition_level ?? 7, lastSess?.fatigue_level ?? 5,
         lastSess?.session_date ?? '', recent30.length, editGoal.trim(), calcStreak(sessions),
       )
+      if (nextPb && nextPb !== prevPb) {
+        recordPbUpdate(joined.code, joined.playerName, editEvent.trim(), prevPb, nextPb).catch(() => {})
+      }
       setShowStatsEdit(false)
       load().catch(() => {})
       Toast.show({ type: 'success', text1: t('team.playerDashboard.profileUpdatedToast'), visibilityTime: 1600 })
