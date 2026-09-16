@@ -3715,40 +3715,51 @@ export default function TeamScreen() {
     return () => anim.stop()
   }, []))
 
-  useEffect(() => {
-    async function init() {
-      try {
-        initOneSignal()
-        const [roleRaw, setupRaw, joinedRaw] = await Promise.all([
-          AsyncStorage.getItem(ROLE_KEY),
-          AsyncStorage.getItem(SETUP_KEY),
-          AsyncStorage.getItem(JOINED_KEY),
-        ])
-        const role = roleRaw as Role|null
-        // 保存済みデータをパース（壊れていたら null 扱い＝セットアップ画面へ戻す）
-        // ※ raw の有無ではなくパース成功を基準にしないと、壊れたデータで
-        //   state だけ 'coach'/'player' になり setup/joined が null → 真っ黒画面になる
-        let parsedSetup:  TeamSetup  | null = null
-        let parsedJoined: JoinedTeam | null = null
-        try { if (setupRaw)  parsedSetup  = JSON.parse(setupRaw) } catch {}
-        try { if (joinedRaw) parsedJoined = JSON.parse(joinedRaw) } catch {}
-        if (parsedSetup)  setSetup(parsedSetup)
-        if (parsedJoined) setJoined(parsedJoined)
+  // 2026-09-16実機バグ報告「設定画面のコーチ↔選手切り替えボタンを押しても何も起きない」
+  // に対応。原因: このuseEffectがマウント時1回しか走らず、タブ自体は
+  // expo-routerのタブナビゲータ上で常駐しているため、設定画面側でAsyncStorageの
+  // ROLE_KEY等を直接クリアしてteamタブへpushしても、既にマウント済みのこの画面は
+  // 再読込されずstateが古いまま(=見た目上何も変わらない)だった。
+  // マウント時に加えてタブがフォーカスされる度にも再読込するようにして解消する。
+  const loadRoleState = useCallback(async () => {
+    try {
+      const [roleRaw, setupRaw, joinedRaw] = await Promise.all([
+        AsyncStorage.getItem(ROLE_KEY),
+        AsyncStorage.getItem(SETUP_KEY),
+        AsyncStorage.getItem(JOINED_KEY),
+      ])
+      const role = roleRaw as Role|null
+      // 保存済みデータをパース（壊れていたら null 扱い＝セットアップ画面へ戻す）
+      // ※ raw の有無ではなくパース成功を基準にしないと、壊れたデータで
+      //   state だけ 'coach'/'player' になり setup/joined が null → 真っ黒画面になる
+      let parsedSetup:  TeamSetup  | null = null
+      let parsedJoined: JoinedTeam | null = null
+      try { if (setupRaw)  parsedSetup  = JSON.parse(setupRaw) } catch {}
+      try { if (joinedRaw) parsedJoined = JSON.parse(joinedRaw) } catch {}
+      setSetup(parsedSetup)
+      setJoined(parsedJoined)
 
-        if (!role) { setState('select-role'); return }
-        if (role === 'coach') {
-          // サブスク有効確認は PurchaseContext が非同期で完了するため
-          // ここでは保存ロールを信頼して遷移し、CoachDashboard 側で isCoach を再確認
-          setState(parsedSetup ? 'coach' : 'coach-setup')
-        } else {
-          setState(parsedJoined ? 'player' : 'player-join')
-        }
-      } catch {
-        setState('select-role')
+      if (!role) { setState('select-role'); return }
+      if (role === 'coach') {
+        // サブスク有効確認は PurchaseContext が非同期で完了するため
+        // ここでは保存ロールを信頼して遷移し、CoachDashboard 側で isCoach を再確認
+        setState(parsedSetup ? 'coach' : 'coach-setup')
+      } else {
+        setState(parsedJoined ? 'player' : 'player-join')
       }
+    } catch {
+      setState('select-role')
     }
-    init()
   }, [])
+
+  useEffect(() => {
+    initOneSignal()
+    loadRoleState()
+  }, [loadRoleState])
+
+  useFocusEffect(useCallback(() => {
+    loadRoleState()
+  }, [loadRoleState]))
 
   // コーチ機能は「チーム作成 + 実メンバー0人（デモプレビュー）」まで無料で到達できる。
   // 実メンバーが1人でも参加した時点（＝実データが流れ始めた時点）で初めて

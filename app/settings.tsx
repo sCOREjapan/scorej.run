@@ -199,7 +199,7 @@ function LabeledInput({
 
 // ── メイン設定画面 ─────────────────────────────────────────
 export default function SettingsScreen() {
-  const { user, session, signOut, isGuest, signOutGuest, isCoachMode, resetOnboarding } = useAuth()
+  const { user, session, signOut, isGuest, signOutGuest, isCoachMode, setCoachMode, resetOnboarding } = useAuth()
   const { scheme, colors, setScheme } = useTheme()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const { t } = useTranslation()
@@ -989,6 +989,10 @@ export default function SettingsScreen() {
                   const doSwitch = async () => {
                     await AsyncStorage.multiRemove([TEAM_ROLE_KEY, TEAM_SETUP_KEY, TEAM_JOINED_KEY]).catch(() => {})
                     setTeamRole(null)
+                    // 2026-09-16: isCoachMode(ホーム画面のコーチ専用UI切り替え)を戻し忘れると、
+                    // チームタブでは役割選択に戻るのにホームだけコーチUIのままという
+                    // 状態がズレる不具合報告があったため、ここでも明示的にfalseへ戻す。
+                    await setCoachMode(false)
                     router.push('/(tabs)/team')
                   }
                   if (typeof window !== 'undefined') {
@@ -1016,9 +1020,16 @@ export default function SettingsScreen() {
                 style={styles.actionRow}
                 activeOpacity={0.75}
                 onPress={() => {
+                  // 2026-09-16実機バグ報告「これを押すとクラッシュする」に対応。
+                  // 原因: resetOnboarding()でisOnboarded=falseにした直後、ここで
+                  // router.replace('/onboarding')を呼んでいたが、isOnboarded=falseへの
+                  // 変更はapp/_layout.tsxのAuthGateも監視しており(authed && !isOnboarded
+                  // && !inOnboarding → /onboardingへ自動遷移)、両者がほぼ同時に
+                  // /onboardingへのreplaceを呼い合う競合状態になっていた
+                  // (Android実機でクラッシュとして顕在化)。AuthGate側に一本化し、
+                  // ここでは明示的な画面遷移を行わない。
                   const doReset = async () => {
                     await resetOnboarding()
-                    router.replace('/onboarding')
                   }
                   if (typeof window !== 'undefined') {
                     if (window.confirm(t('settings.team.redoOnboardingConfirm'))) doReset()
