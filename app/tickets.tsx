@@ -99,13 +99,19 @@ export default function TicketsScreen() {
 
   const handleWatchAd = useCallback(async () => {
     if (adLockRef.current) return
-    if (adTicketsLeft <= 0) {
-      Toast.show({ type: 'info', text1: t('tickets.adLimitTitle'), text2: t('tickets.adLimitBody') })
-      return
-    }
     adLockRef.current = true
-    setWatchingAd(true)
     try {
+      // 2026-09-17実機バグ報告「広告を1回も見ていないのに上限扱いになる」に対応。
+      // adTicketsLeftはuseState(0)の初期値のまま、画面表示直後に素早くタップされると
+      // refresh()の非同期読み込みが間に合わず0(=上限)と誤判定していた。
+      // タップ時点でAsyncStorageから最新値を取り直してから判定する。
+      const fresh = await getAdTicketRemainingToday()
+      setAdTicketsLeft(fresh)
+      if (fresh <= 0) {
+        Toast.show({ type: 'info', text1: t('tickets.adLimitTitle'), text2: t('tickets.adLimitBody') })
+        return
+      }
+      setWatchingAd(true)
       const ok = await watchAdsForReward(1)
       if (!ok) return
       const r = await earnTicketFromAd()
@@ -117,7 +123,7 @@ export default function TicketsScreen() {
       setWatchingAd(false)
       adLockRef.current = false
     }
-  }, [adTicketsLeft, refresh, t])
+  }, [refresh, t])
 
   return (
     <SafeAreaView style={st.safe} edges={['top', 'bottom']}>

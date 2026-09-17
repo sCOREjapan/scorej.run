@@ -65,10 +65,18 @@ export default function TicketGateModal({ visible, feature, ticketCost, ticketBa
   }
 
   const handleWatchAd = async () => {
-    if (adLockRef.current || adTicketsLeft <= 0) return
+    if (adLockRef.current) return
     adLockRef.current = true
-    setWatchingAd(true)
     try {
+      // 2026-09-17実機バグ報告「広告を1回も見ていないのに上限扱いになる」に対応。
+      // adTicketsLeftはuseState(0)の初期値のまま、モーダルが開いた直後に素早く
+      // タップされるとuseEffectの非同期読み込みが間に合わず0(=上限)と誤判定して
+      // いた（何も起きず押しても反応しないように見えるバグの原因）。タップ時点で
+      // AsyncStorageから最新値を取り直してから判定する。
+      const fresh = await getAdTicketRemainingToday()
+      setAdTicketsLeft(fresh)
+      if (fresh <= 0) return
+      setWatchingAd(true)
       const ok = await watchAdsForReward(1)
       if (!ok) return
       const r = await earnTicketFromAd()

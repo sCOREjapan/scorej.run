@@ -38,7 +38,12 @@ export default async function handler(req: any, res: any) {
 
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body
-    const code = (body?.code ?? '').toString().trim().toUpperCase()
+    // 2026-09-17実機バグ報告「発行したコードを入力しても『見つかりません』になる」に対応。
+    // 発行コードはDBに"XXXX-XXXX-XXXX"形式(ダッシュ入り)で保存されているが(admin-generate-team-code.ts
+    // のgenerateCode()参照)、ユーザーがダッシュを省略・打ち間違えて入力すると完全一致検索で
+    // 弾かれていた。英数字以外を除去し、12文字ならダッシュ入り形式に再構成してから照合する。
+    let code = (body?.code ?? '').toString().trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+    if (code.length === 12) code = `${code.slice(0, 4)}-${code.slice(4, 8)}-${code.slice(8, 12)}`
     if (!code) { res.status(400).json({ error: 'コードを入力してください' }); return }
 
     // ── ログイン必須 ──

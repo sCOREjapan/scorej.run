@@ -45,7 +45,11 @@ export default function CoachOnboardingScreen() {
   }, [isCoach])
 
   const handleRedeem = async () => {
-    const trimmed = code.trim().toUpperCase()
+    // 2026-09-17実機バグ報告「コードを入力しても見つからない」に対応。
+    // 発行コードは"XXXX-XXXX-XXXX"形式だが、ユーザーがダッシュを省略して
+    // 入力しても通るよう、英数字以外を除去してから送信する
+    // (api/redeem-team-code.ts側でダッシュを再構成してDBと照合する)。
+    const trimmed = code.trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
     if (!trimmed) return
     setRedeeming(true)
     try {
