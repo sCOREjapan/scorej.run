@@ -83,7 +83,12 @@ export default function AuthScreen() {
             </TouchableOpacity>
           </Animated.View>
 
-          {Platform.OS === 'ios' && (
+          {/* 2026-09-18: 「スマホでAppleログインしていて、web版でも使いたい人がいる」との指摘で修正。
+              signInWithApple()(context/AuthContext.tsx)は既にweb向けのSupabase OAuthリダイレクト
+              経路(Platform.OS==='web'分岐)を持っているのに、このボタン自体はネイティブSDKの制約に
+              引きずられてiOS限定で隠されていた。ボタン表示条件をweb/iOS両方に広げる
+              （Android用のネイティブ実装は無いため対象外のまま）。 */}
+          {(Platform.OS === 'ios' || Platform.OS === 'web') && (
             <Animated.View style={[{ width: '100%', marginTop: 12 }, apple]}>
               <TouchableOpacity style={lg.appleBtn} onPress={handleApple} disabled={appleLoading} activeOpacity={0.85}>
                 {appleLoading ? <ActivityIndicator color="#fff" size="small" /> : (

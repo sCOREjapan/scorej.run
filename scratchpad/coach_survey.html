@@ -1,0 +1,314 @@
+<title>コーチへのご質問</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+  :root {
+    --green: #166534;
+    --green-deep: #0F4A26;
+    --amber: #D97706;
+    --ink: #1F2A24;
+    --sub: #5B6B62;
+    --border: #E1E8E3;
+    --surface: #F4F7F5;
+    --bg: #FFFFFF;
+    --card: #FFFFFF;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --green: #34D399;
+      --green-deep: #16342A;
+      --amber: #F59E0B;
+      --ink: #EAF2ED;
+      --sub: #9FB3A8;
+      --border: #253830;
+      --surface: #16211C;
+      --bg: #0E1613;
+      --card: #141F1A;
+    }
+  }
+  :root[data-theme="dark"] {
+    --green: #34D399;
+    --green-deep: #16342A;
+    --amber: #F59E0B;
+    --ink: #EAF2ED;
+    --sub: #9FB3A8;
+    --border: #253830;
+    --surface: #16211C;
+    --bg: #0E1613;
+    --card: #141F1A;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Noto Sans JP", -apple-system, sans-serif;
+    line-height: 1.7;
+  }
+  .wrap {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 48px 20px 80px;
+  }
+  .eyebrow {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--amber);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  h1 {
+    font-family: "Shippori Mincho", serif;
+    font-weight: 700;
+    font-size: clamp(26px, 5vw, 34px);
+    line-height: 1.4;
+    text-wrap: balance;
+    margin: 0 0 18px;
+    color: var(--ink);
+  }
+  .intro {
+    color: var(--sub);
+    font-size: 14.5px;
+    line-height: 1.8;
+    margin-bottom: 8px;
+  }
+  .intro strong { color: var(--ink); }
+  .meta {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin: 22px 0 40px;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-size: 13px;
+    color: var(--sub);
+  }
+  .meta b { color: var(--ink); }
+  .section {
+    margin-bottom: 40px;
+  }
+  .section-title {
+    font-family: "Shippori Mincho", serif;
+    font-weight: 700;
+    font-size: 19px;
+    color: var(--green);
+    margin: 0 0 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .q {
+    margin-bottom: 26px;
+  }
+  .q label {
+    display: block;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--ink);
+    margin-bottom: 4px;
+    line-height: 1.6;
+  }
+  .q .hint {
+    font-size: 12.5px;
+    color: var(--sub);
+    margin-bottom: 8px;
+  }
+  .optional {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--sub);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 1px 6px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  textarea, input[type="text"] {
+    width: 100%;
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-family: inherit;
+    font-size: 14.5px;
+    color: var(--ink);
+    resize: vertical;
+    min-height: 68px;
+  }
+  input[type="text"] { min-height: unset; }
+  textarea:focus, input[type="text"]:focus {
+    outline: none;
+    border-color: var(--green);
+  }
+  .app-desc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px;
+    margin-bottom: 24px;
+    font-size: 13.5px;
+    color: var(--ink);
+  }
+  .app-desc h3 {
+    font-size: 14px;
+    margin: 0 0 10px;
+    color: var(--green-deep);
+    font-family: "Noto Sans JP", sans-serif;
+    font-weight: 700;
+  }
+  .app-desc ul {
+    margin: 0;
+    padding-left: 18px;
+    color: var(--sub);
+  }
+  .app-desc li { margin-bottom: 6px; }
+  .app-desc li b { color: var(--ink); }
+
+  .submit-row {
+    margin-top: 48px;
+    text-align: center;
+  }
+  #submitBtn {
+    appearance: none;
+    border: none;
+    background: var(--green);
+    color: #fff;
+    font-family: "Noto Sans JP", sans-serif;
+    font-weight: 700;
+    font-size: 15.5px;
+    padding: 15px 40px;
+    border-radius: 999px;
+    cursor: pointer;
+    box-shadow: 0 8px 20px -6px rgba(22,101,52,0.5);
+  }
+  #submitBtn:active { transform: translateY(1px); }
+  .submit-note {
+    margin-top: 14px;
+    font-size: 12px;
+    color: var(--sub);
+  }
+  .status {
+    margin-top: 16px;
+    font-size: 13px;
+    color: var(--green);
+    font-weight: 700;
+    display: none;
+  }
+</style>
+
+<div class="wrap">
+  <div class="eyebrow">sCORE / インタビュー</div>
+  <h1>指導の現場について、<br>お聞かせください</h1>
+  <p class="intro">
+    陸上競技チーム向けアプリ「sCORE」を作っています。<strong>実際に指導されている方の声</strong>を元に、
+    現場で本当に役立つ形に作り直したいと考えており、率直なご意見をいただけると助かります。
+  </p>
+  <div class="meta">⏱ 所要時間の目安：5〜10分　/　✅ 答えたくない質問は空欄で構いません</div>
+
+  <form id="surveyForm">
+
+    <div class="section">
+      <div class="section-title">① 現在の指導について</div>
+
+      <div class="q">
+        <label>1. 陸上を指導されて何年目ですか？どの種目を中心に見ていますか？部員は何人くらいですか？</label>
+        <textarea data-q="指導年数・種目・部員数" placeholder="例：指導歴5年目、短距離中心、部員は25人くらいです"></textarea>
+      </div>
+
+      <div class="q">
+        <label>2. 選手の体調や怪我の兆候は、今どうやって把握していますか？</label>
+        <div class="hint">直近で「もっと早く気づいていれば」と思った出来事があれば、それも教えてください</div>
+        <textarea data-q="体調・怪我の把握方法"></textarea>
+      </div>
+
+      <div class="q">
+        <label>3. 練習メニューは誰が、どうやって決めていますか？決める時に迷うことはありますか？</label>
+        <textarea data-q="練習メニューの決め方"></textarea>
+      </div>
+
+      <div class="q">
+        <label>4. 選手の記録や連絡は、今何を使って管理していますか？（LINE・紙・Excelなど）不便に感じる瞬間はどんな時ですか？</label>
+        <textarea data-q="記録・連絡の管理方法と不便な点"></textarea>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">② sCOREについて</div>
+
+      <div class="app-desc">
+        <h3>sCOREのコーチ向け機能（現状）</h3>
+        <ul>
+          <li><b>今日のチーム状況</b>：要注意な選手の人数・未確認の痛み報告・今週練習記録がない選手を一目で表示</li>
+          <li><b>選手ごとの詳細</b>：怪我リスク・疲労度・自己ベスト・連続記録・直近の練習ログ</li>
+          <li><b>痛み報告への対応</b>：選手が選べる共有レベルに応じて、無理な監視をせず気づける設計</li>
+          <li><b>AIメニュー配信・チーム内メッセージ・大会日程の共有</b></li>
+        </ul>
+      </div>
+
+      <div class="q">
+        <label>5. この中で一番「欲しい」と思った機能はどれですか？理由も教えてください</label>
+        <textarea data-q="一番欲しい機能とその理由"></textarea>
+      </div>
+
+      <div class="q">
+        <label>6. 逆に「いらなそう」「もっとこうだったら」と思う点はありますか？ここには無いけれど「あったら助かる」機能もあれば教えてください</label>
+        <textarea data-q="不要な点・改善点・欲しい機能"></textarea>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">③ 価格・導入について</div>
+
+      <div class="q">
+        <label>7. 部活動の予算はどのように決まりますか？新しいツールの導入には誰の承認が必要ですか？銀行振込・年払い・領収書に対応していることは、導入のしやすさに影響しますか？</label>
+        <textarea data-q="予算・導入承認・支払い方法"></textarea>
+      </div>
+
+      <div class="q">
+        <label>8. 月換算¥1,980〜¥4,950（人数規模別）という価格帯を聞いて、率直にどう感じますか？</label>
+        <textarea data-q="価格への率直な感想"></textarea>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">④ 最後に</div>
+
+      <div class="q">
+        <label>9. ここまでで、一番印象に残った悩みや意見を一言でまとめると？<span class="optional">任意</span></label>
+        <textarea data-q="一言まとめ"></textarea>
+      </div>
+
+      <div class="q">
+        <label>お名前・ご所属<span class="optional">任意</span></label>
+        <input type="text" data-q="お名前・ご所属">
+      </div>
+    </div>
+
+    <div class="submit-row">
+      <button type="submit" id="submitBtn">回答をメールで送信する</button>
+      <div class="submit-note">ボタンを押すとメールアプリが開き、送信準備済みの下書きが表示されます</div>
+      <div class="status" id="status">✓ メールアプリを開きました。内容を確認して送信してください</div>
+    </div>
+  </form>
+</div>
+
+<script>
+  const RECIPIENT = 'team.deepwork2026@gmail.com';
+
+  document.getElementById('surveyForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const fields = document.querySelectorAll('[data-q]');
+    let body = 'sCORE コーチインタビューへのご回答です。\n\n';
+    fields.forEach(function (f) {
+      const q = f.getAttribute('data-q');
+      const a = (f.value || '').trim() || '（未回答）';
+      body += '◼ ' + q + '\n' + a + '\n\n';
+    });
+    const subject = encodeURIComponent('【sCORE】コーチインタビュー回答');
+    const mailto = 'mailto:' + RECIPIENT + '?subject=' + subject + '&body=' + encodeURIComponent(body);
+    window.location.href = mailto;
+    document.getElementById('status').style.display = 'block';
+  });
+</script>

@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>レース行動予定 — 3案プレビュー</title>
+<style>
+  :root {
+    --brand: #166534;
+    --brand-deep: #0d4023;
+    --amber: #D97706;
+    --bg-light: #f6f6f8;
+    --surface: #ffffff;
+    --surface2: #f0f2f5;
+    --border: rgba(0,0,0,0.08);
+    --text: #111827;
+    --textSec: #6b7280;
+    --textHint: #9ca3af;
+    --dark-bg: #0e1f16;
+    --dark-card: #14301f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 40px 24px 80px;
+    background: #eef1ee;
+    font-family: -apple-system, "Hiragino Sans", sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .quote {
+    background: #fff; border: 1px solid #ddd; border-left: 4px solid var(--amber);
+    padding: 12px 16px; border-radius: 8px; font-size: 13px; color: #444;
+    max-width: 900px; margin: 12px 0 30px; line-height: 1.7;
+  }
+  .row { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start; }
+  .panel {
+    background: #fff; border-radius: 16px; padding: 16px 16px 22px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    width: 300px;
+  }
+  .panel.recommended { outline: 3px solid var(--brand); }
+  .panel-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .letter {
+    width: 22px; height: 22px; border-radius: 6px; background: #333; color: #fff;
+    font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: center;
+  }
+  .panel-title { font-size: 14px; font-weight: 800; }
+  .badge {
+    font-size: 10px; font-weight: 800; background: var(--brand); color: #fff;
+    padding: 2px 8px; border-radius: 999px; margin-left: auto;
+  }
+  .panel-sub { font-size: 11.5px; color: #666; margin: 4px 0 12px; line-height: 1.6; min-height: 46px; }
+
+  .frame-outer {
+    width: 300px; height: 652px;
+    background: #000; border-radius: 34px; padding: 7px;
+    position: relative; overflow: hidden;
+  }
+  .notch {
+    position: absolute; top: 7px; left: 50%; transform: translateX(-50%);
+    width: 90px; height: 18px; background: #000; border-radius: 0 0 12px 12px; z-index: 5;
+  }
+  .canvas-holder {
+    width: 300px; height: 638px; border-radius: 28px; overflow: hidden; background: #fff;
+    position: relative;
+  }
+  .canvas {
+    width: 440px; height: 956px;
+    transform-origin: top left;
+    transform: scale(0.681818);
+    position: relative;
+  }
+
+  /* ---- design-space (440x956) styles ---- */
+  .screen { position: absolute; inset: 0; display: none; }
+  .screen.active { display: block; }
+
+  /* A: dark wizard (matches onboarding.tsx) */
+  .a-bg { position: absolute; inset: 0; background: linear-gradient(180deg, var(--dark-bg), #0a1611); }
+  .a-progress { position: absolute; top: 60px; left: 28px; right: 28px; height: 4px; background: rgba(255,255,255,0.12); border-radius: 2px; overflow: hidden; }
+  .a-progress-fill { height: 100%; background: var(--brand); border-radius: 2px; transition: width .3s; }
+  .a-back { position: absolute; top: 90px; left: 28px; color: #cfe8d6; font-size: 22px; }
+  .a-eyebrow { position: absolute; top: 140px; left: 28px; color: var(--amber); font-size: 13px; font-weight: 800; letter-spacing: 2px; }
+  .a-headline { position: absolute; top: 172px; left: 28px; right: 28px; color: #fff; font-size: 26px; font-weight: 800; line-height: 1.4; }
+  .a-sub { position: absolute; top: 250px; left: 28px; right: 28px; color: #a9cdb6; font-size: 15px; line-height: 1.6; }
+  .a-content { position: absolute; top: 320px; left: 28px; right: 28px; bottom: 140px; }
+  .a-chip-row { display: flex; flex-wrap: wrap; gap: 10px; }
+  .a-chip {
+    padding: 14px 18px; border-radius: 14px; background: rgba(255,255,255,0.06);
+    border: 1.5px solid rgba(255,255,255,0.14); color: #fff; font-size: 15px; font-weight: 700;
+  }
+  .a-chip.sel { background: var(--brand); border-color: var(--brand); }
+  .a-textarea {
+    width: 100%; min-height: 120px; background: rgba(255,255,255,0.06); border: 1.5px solid rgba(255,255,255,0.14);
+    border-radius: 14px; color: #fff; font-size: 15px; padding: 14px; margin-top: 8px;
+  }
+  .a-next {
+    position: absolute; bottom: 48px; left: 28px; right: 28px; height: 58px; border-radius: 18px;
+    background: var(--brand); color: #fff; font-size: 17px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* B: light single-scroll form */
+  .b-bg { position: absolute; inset: 0; background: var(--bg-light); }
+  .b-header { position: absolute; top: 56px; left: 24px; right: 24px; }
+  .b-title { font-size: 22px; font-weight: 800; color: var(--text); }
+  .b-sub { font-size: 13px; color: var(--textSec); margin-top: 4px; }
+  .b-scroll { position: absolute; top: 130px; left: 24px; right: 24px; bottom: 0; overflow: hidden; }
+  .b-field { margin-bottom: 20px; }
+  .b-label { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .b-input {
+    background: #fff; border: 1.5px solid var(--border); border-radius: 12px; padding: 14px;
+    font-size: 14px; color: var(--text);
+  }
+  .b-time-row { display: flex; gap: 10px; }
+  .b-time-row .b-input { flex: 1; text-align: center; }
+
+  /* C: chat style */
+  .c-bg { position: absolute; inset: 0; background: #E9EEEA; }
+  .c-header {
+    position: absolute; top: 0; left: 0; right: 0; height: 100px; background: var(--brand);
+    display: flex; align-items: flex-end; padding: 0 24px 16px;
+  }
+  .c-header-title { color: #fff; font-size: 18px; font-weight: 800; }
+  .c-thread { position: absolute; top: 116px; left: 20px; right: 20px; bottom: 140px; overflow: hidden; }
+  .c-bubble-bot {
+    background: #fff; border-radius: 18px 18px 18px 4px; padding: 14px 18px; font-size: 15px;
+    color: var(--text); max-width: 78%; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  .c-bubble-me {
+    background: var(--brand); color: #fff; border-radius: 18px 18px 4px 18px; padding: 14px 18px;
+    font-size: 15px; max-width: 70%; margin-left: auto; margin-bottom: 14px;
+  }
+  .c-input-row {
+    position: absolute; bottom: 40px; left: 20px; right: 20px; height: 64px; background: #fff;
+    border-radius: 20px; border: 1.5px solid var(--border); display: flex; align-items: center; padding: 0 10px 0 20px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+  }
+  .c-input-text { flex: 1; font-size: 14px; color: var(--textHint); }
+  .c-send { width: 44px; height: 44px; border-radius: 22px; background: var(--brand); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 20px; }
+
+  .controls { display: flex; justify-content: space-between; margin-top: 12px; }
+  .ctl-btn {
+    font-size: 12px; padding: 6px 14px; border-radius: 999px; border: 1px solid #ccc; background: #fff; cursor: pointer;
+  }
+  .step-label { font-size: 11px; color: #888; text-align: center; margin-top: 6px; }
+
+  footer { max-width: 900px; margin-top: 40px; font-size: 12.5px; color: #666; line-height: 1.8; }
+</style>
+</head>
+<body>
+
+<h1>レース行動予定 機能 — UI 3案</h1>
+<div class="quote">
+  お題（原文）：「選手プロフィールカードと、選手それぞれの提出してくれたノートを紐づけていつでもみれるように」
+  「選手側は、とにかく入力をしやすく。オンボーディング画面のように、何時に寝る？て感じでどんどん入力していけば
+  練習ノートができるよ、みたいな案」
+</div>
+
+<div class="row">
+
+  <!-- ============ A ============ -->
+  <div>
+    <div class="panel recommended">
+      <div class="panel-head">
+        <div class="letter">A</div>
+        <div class="panel-title">ダークウィザード方式</div>
+        <div class="badge">推奨</div>
+      </div>
+      <div class="panel-sub">onboarding.tsxと全く同じ見た目・進行(進捗バー+1問1答)。「オンボーディングのように」という要望に最も忠実。</div>
+    </div>
+    <div class="frame-outer">
+      <div class="notch"></div>
+      <div class="canvas-holder">
+        <div class="canvas" id="canvas-a">
+          <div class="screen active" data-step="0">
+            <div class="a-bg"></div>
+            <div class="a-progress"><div class="a-progress-fill" style="width:14%"></div></div>
+            <div class="a-back">‹</div>
+            <div class="a-eyebrow">STEP 1 OF 7</div>
+            <div class="a-headline">何時に寝ましたか？</div>
+            <div class="a-sub">前日の就寝時刻を教えてください</div>
+            <div class="a-content">
+              <div class="a-chip-row">
+                <div class="a-chip">21:00</div>
+                <div class="a-chip sel">21:30</div>
+                <div class="a-chip">22:00</div>
+                <div class="a-chip">22:30</div>
+                <div class="a-chip">その他</div>
+              </div>
+            </div>
+            <div class="a-next">次へ</div>
+          </div>
+          <div class="screen" data-step="1">
+            <div class="a-bg"></div>
+            <div class="a-progress"><div class="a-progress-fill" style="width:57%"></div></div>
+            <div class="a-back">‹</div>
+            <div class="a-eyebrow">STEP 4 OF 7</div>
+            <div class="a-headline">朝アップの内容を<br>教えてください</div>
+            <div class="a-sub">いつも通りでOK、簡単にで大丈夫です</div>
+            <div class="a-content">
+              <textarea class="a-textarea" placeholder="例：2000jog 体操 ストレッチ 流し120×3">2000jog 体操 ストレッチ 動的ストレッチ 流し120×3</textarea>
+            </div>
+            <div class="a-next">次へ</div>
+          </div>
+          <div class="screen" data-step="2">
+            <div class="a-bg"></div>
+            <div class="a-progress"><div class="a-progress-fill" style="width:100%"></div></div>
+            <div class="a-back">‹</div>
+            <div class="a-eyebrow">STEP 7 OF 7</div>
+            <div class="a-headline">今の気持ちを<br>一言でどうぞ</div>
+            <div class="a-sub">目標タイム・意気込みなど自由に</div>
+            <div class="a-content">
+              <textarea class="a-textarea" placeholder="例：明日は絶対に3分台を出します！">1500mで3分台を出すことは人生の目標でもあるので、絶対に達成します！</textarea>
+            </div>
+            <div class="a-next">完了する</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="controls">
+      <button class="ctl-btn" onclick="step('a',-1)">‹ 戻る</button>
+      <button class="ctl-btn" onclick="step('a',1)">次へ ›</button>
+    </div>
+    <div class="step-label" id="label-a">1 / 3（デモでは代表的な3画面のみ）</div>
+  </div>
+
+  <!-- ============ B ============ -->
+  <div>
+    <div class="panel">
+      <div class="panel-head">
+        <div class="letter">B</div>
+        <div class="panel-title">ライト1画面フォーム方式</div>
+      </div>
+      <div class="panel-sub">既存の「自己ベスト編集」等と同じ、アプリ本体のライトテーマ。全項目が1画面でスクロールして見える。実装コストが一番低い。</div>
+    </div>
+    <div class="frame-outer">
+      <div class="notch"></div>
+      <div class="canvas-holder">
+        <div class="canvas">
+          <div class="screen active">
+            <div class="b-bg"></div>
+            <div class="b-header">
+              <div class="b-title">レース行動予定</div>
+              <div class="b-sub">9月28日の予定を入力</div>
+            </div>
+            <div class="b-scroll">
+              <div class="b-field">
+                <div class="b-label">就寝 → 起床</div>
+                <div class="b-time-row">
+                  <input class="b-input" value="21:30">
+                  <input class="b-input" value="5:30">
+                </div>
+              </div>
+              <div class="b-field">
+                <div class="b-label">朝アップ内容</div>
+                <textarea class="b-input a-textarea" style="min-height:90px;background:#fff;color:#111827;border-color:rgba(0,0,0,0.08)">2000jog 体操 ストレッチ 流し120×3</textarea>
+              </div>
+              <div class="b-field">
+                <div class="b-label">目標タイム / ラップ</div>
+                <input class="b-input" value="3'55 (400×62/800×62/1200×63)">
+              </div>
+              <div class="b-field">
+                <div class="b-label">目標・意気込み</div>
+                <textarea class="b-input a-textarea" style="min-height:70px;background:#fff;color:#111827;border-color:rgba(0,0,0,0.08)">全力で頑張ります！</textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="controls"><span></span><span></span></div>
+    <div class="step-label">全項目が1画面に収まる（スクロールのみ、ステップ送りなし）</div>
+  </div>
+
+  <!-- ============ C ============ -->
+  <div>
+    <div class="panel">
+      <div class="panel-head">
+        <div class="letter">C</div>
+        <div class="panel-title">チャット形式</div>
+      </div>
+      <div class="panel-sub">今までのLINEでのやり取りに一番近い見た目。ボットが1問ずつ吹き出しで聞き、選手が答えると会話が積み上がっていく。</div>
+    </div>
+    <div class="frame-outer">
+      <div class="notch"></div>
+      <div class="canvas-holder">
+        <div class="canvas" id="canvas-c">
+          <div class="screen active" data-step="0">
+            <div class="c-bg"></div>
+            <div class="c-header"><div class="c-header-title">レース行動予定 Bot</div></div>
+            <div class="c-thread">
+              <div class="c-bubble-bot">何時に寝る予定？🌙</div>
+              <div class="c-bubble-me">21:30</div>
+              <div class="c-bubble-bot">アップの内容を教えて！</div>
+            </div>
+            <div class="c-input-row"><div class="c-input-text">メッセージを入力</div><div class="c-send">➤</div></div>
+          </div>
+          <div class="screen" data-step="1">
+            <div class="c-bg"></div>
+            <div class="c-header"><div class="c-header-title">レース行動予定 Bot</div></div>
+            <div class="c-thread">
+              <div class="c-bubble-me">2000jog 体操 ストレッチ 流し120×3</div>
+              <div class="c-bubble-bot">目標タイムとラップは？🎯</div>
+              <div class="c-bubble-me">3'55 (62-62-63-48)</div>
+              <div class="c-bubble-bot">最後に、意気込みをどうぞ！</div>
+            </div>
+            <div class="c-input-row"><div class="c-input-text">メッセージを入力</div><div class="c-send">➤</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="controls">
+      <button class="ctl-btn" onclick="step('c',-1)">‹ 戻る</button>
+      <button class="ctl-btn" onclick="step('c',1)">次へ ›</button>
+    </div>
+    <div class="step-label" id="label-c">会話がどんどん積み上がっていくイメージ</div>
+  </div>
+
+</div>
+
+<footer>
+  設計空間440×956pt、縮尺 K=0.6818（画面幅300px÷440pt）で統一。色・角丸・フォントは lib/theme.ts / context/ThemeContext.tsx の実トークンをそのまま使用（BRAND #166534、surface #ffffff、border rgba(0,0,0,0.08) 等）。
+  Aはapp/onboarding.tsxのダークウィザード画面と同一の進行方式・配色。
+  選んだ案を教えてください。「Bだけどもう少しこうしたい」のような微調整もこの段階で歓迎です。
+</footer>
+
+<script>
+  const stepIndex = { a: 0, c: 0 };
+  function step(key, dir) {
+    const canvas = document.getElementById('canvas-' + key);
+    const screens = Array.from(canvas.querySelectorAll('.screen'));
+    let idx = stepIndex[key] + dir;
+    idx = Math.max(0, Math.min(screens.length - 1, idx));
+    stepIndex[key] = idx;
+    screens.forEach((s, i) => s.classList.toggle('active', i === idx));
+    const label = document.getElementById('label-' + key);
+    if (label) label.textContent = (idx + 1) + ' / ' + screens.length + '（デモでは代表的な' + screens.length + '画面のみ）';
+  }
+</script>
+
+</body>
+</html>
