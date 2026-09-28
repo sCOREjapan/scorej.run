@@ -6,20 +6,20 @@
 // (request: Request) => Response) のままruntimeだけnodejsに変えると、関数が
 // レスポンスを返せず全リクエストがハングする（2026-07-28に実際に発生・復旧済み）。
 //
-// ルーティング方針（2026-07 Gemini全面移行）:
-//   GEMINI_API_KEY が設定されていれば全AI機能（動画分析・食事分析・大会プラン・
-//   リカバリー助言・週次サマリー・怪我復帰プラン）を Gemini に振り分ける。
-//   クライアント側（lib/claude.ts）は無改修 — リクエスト/レスポンスは Anthropic Messages API 形式のまま。
-//   GEMINI_API_KEY未設定時は自動的に全リクエストが従来のAnthropic経路にフォールバックする。
+// ルーティング方針（2026-09-24: Gemini専用に一本化）:
+//   全AI機能（動画分析・食事分析・大会プラン・リカバリー助言・週次サマリー・怪我復帰プラン等）
+//   は常に Gemini を呼ぶ。クライアント側（lib/claude.ts）は無改修 — リクエスト/レスポンスは
+//   Anthropic Messages API 形式のまま（fromGeminiResponse()でその形に変換して返す）。
+//   「Anthropicのクレジットはもう使わない」との方針により、以前あったAnthropicへの
+//   自動フォールバックは撤去済み。GEMINI_API_KEY未設定/Gemini側の失敗時はそのままエラーを返す。
 //   ⚠️ 2026-07-25: gemini-2.5-flash が新規キーで404（新規ユーザーには提供終了）になったため
 //   gemini-3-flash-preview に切替。→ その gemini-3-flash-preview も2026-07-15に廃止され、
 //   以降ずっと404を返し続けていたことが2026-08-27に発覚（Instagram DM経由のユーザー報告で判明。
-//   下のAnthropicフォールバックが機能していなかった/ANTHROPIC_API_KEY未設定だった可能性が高く、
-//   約1ヶ月間、動画分析等のAI機能が実質的に全滅していたとみられる）。gemini-3.5-flash に切替済み。
-//   Geminiのモデル世代交代が非常に速いため、404が再発したら
+//   当時はAnthropicフォールバックがあったが機能しておらず、約1ヶ月間AI機能が実質的に
+//   全滅していたとみられる）。gemini-3.5-flash に切替済み。Anthropicフォールバックが
+//   無くなった今、Geminiのモデル退役は即座に全AI機能停止に直結するため、404が起きたら
 //   generativelanguage.googleapis.com/v1beta/models?key=... で実際に呼べるモデルを確認し、
-//   この定数だけ差し替えること。あわせて、Anthropicフォールバックが実際に機能しているか
-//   （ANTHROPIC_API_KEYがVercelの環境変数に設定・有効か）も定期的に確認すること。
+//   この定数だけ速やかに差し替えること。
 export const config = { runtime: 'nodejs' }
 export const maxDuration = 60
 
@@ -148,21 +148,6 @@ async function callGemini(body: AnthropicRequestBody, apiKey: string, useLite: b
 
   const data = await res.json()
   return { status: 200, body: fromGeminiResponse(data) }
-}
-
-async function callAnthropic(body: AnthropicRequestBody, apiKey: string): Promise<ProxyResult> {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify(body),
-  })
-
-  const data = await res.json()
-  return { status: res.status, body: data }
 }
 
 // ── IP/分の簡易バーストガード + 同一リクエストの短時間重複防止 ──
@@ -358,10 +343,11 @@ export default async function handler(req: any, res: any) {
     const useLiteModel = feature === 'scoppy_chat'
       || (typeof feature === 'string' && !IMAGE_FEATURES.has(feature) && !isPaidTier)
 
-    // featureはこのプロキシ内でのtier検証専用のフィールドで、Anthropic/Geminiの実APIは
-    // 知らない。callAnthropicはbodyをそのまま転送するため、消し忘れると本物のAPIから
-    // 「未知のフィールド」として400 invalid_request_errorで拒否される
-    // (2026-09-02に実際に発生、全AI機能が停止した)。
+    // featureはこのプロキシ内でのtier検証専用のフィールドで、Gemini/Anthropicの実APIは
+    // 知らない。以前Anthropicへそのまま転送していた際、消し忘れて本物のAPIから
+    // 「未知のフィールド」として400 invalid_request_errorで拒否された事故があった
+    // (2026-09-02に実際に発生、全AI機能が停止した)。Gemini専用になった今もbodyに
+    // 余計なフィールドを残さない習慣として維持する。
     delete (body as any).feature
 
     // max_tokens を 4096 に上限設定（意図しない高コスト呼び出しを防止／出力は入力の5倍高いため上限を絞る）。
@@ -373,31 +359,38 @@ export default async function handler(req: any, res: any) {
       body.max_tokens = 4096
     }
 
-    // GEMINI_API_KEY があれば全リクエストを Gemini に振り分ける（コスト優先）。
-    // ただし無予告のモデル退役・一時障害でGeminiがエラーを返した場合は、
-    // その場でAnthropicへ自動フォールバックする（2026-07-25にgemini-2.5-flashが
-    // 無予告で404になった際、手動でモデル定数を書き換えるまで全AI機能が止まった
-    // 教訓を踏まえた対応。フォールバックは失敗時のみ発生するため通常時のコストは変わらない）。
+    // 2026-09-24: 「Anthropicのクレジットはもう使わない、全部Geminiに繋がるように」との
+    // 指示でAnthropicフォールバックを撤去。以前はGeminiが失敗/空/非JSON応答の時に
+    // Anthropicへ自動フォールバックしていたが、今後は一切呼ばない。GEMINI_API_KEY未設定
+    // 時もエラーを返すのみ（Anthropicへの切替は行わない）。
     const geminiKey = process.env.GEMINI_API_KEY
-    const anthropicKey = process.env.ANTHROPIC_API_KEY ?? process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY
-    let result: ProxyResult
-    if (geminiKey) {
+    if (!geminiKey) {
+      res.status(500).json({ error: 'GEMINI_API_KEY not configured' })
+      return
+    }
+    let result = await callGemini(body, geminiKey, useLiteModel)
+    const checkSoftFailure = (r: typeof result) => {
+      const text = (r.body as any)?.content?.[0]?.text
+      const empty = r.status === 200 && (!text || !String(text).trim())
+      const hasJson = typeof text === 'string' && /\{[\s\S]*\}/.test(text)
+      const nonJson = feature !== 'scoppy_chat' && r.status === 200 && !empty && !hasJson
+      return { text, empty, nonJson }
+    }
+    let check = checkSoftFailure(result)
+    // 2026-09-25: 「食事分析がめっちゃ時間かかる/反応しない」の原因調査で判明。Anthropic
+    // フォールバック撤去(2026-09-24)後、Geminiがステータス200のまま空応答/非JSON応答を
+    // 返すケース(実際にVercelログで確認済み)がそのままクライアントへ素通りするようになった。
+    // これはHTTPエラーではないためlib/claude.tsのRETRYABLE_STATUSにも引っかからず、
+    // クライアント側は一切リトライせず即座に失敗表示していた。Anthropicは使わない方針の
+    // ため、代わりにGemini自身へその場でもう1回だけ投げ直す（同一プロバイダなのでコストは
+    // 増えるが小さく、ユーザー体験としては「たまに遅い」で済み、「反応しない」よりずっと良い）。
+    if (check.empty || check.nonJson) {
+      console.warn('[analyze] Gemini soft-failure, retrying once:', result.status, check.nonJson ? check.text?.slice(0, 200) : '(empty)')
       result = await callGemini(body, geminiKey, useLiteModel)
-      // ステータス200でもセーフティフィルタ等で本文が空のことがあり、その場合は
-      // クライアントが「空応答なのに課金・キャッシュされる」不具合の温床になるため
-      // エラー扱いと同様にAnthropicへフォールバックする。
-      const geminiText = (result.body as any)?.content?.[0]?.text
-      const isEmpty = result.status === 200 && (!geminiText || !String(geminiText).trim())
-      if ((result.status >= 400 || isEmpty) && anthropicKey) {
-        console.warn('[analyze] Gemini failed or returned empty content, falling back to Anthropic:', result.status)
-        result = await callAnthropic(body, anthropicKey)
+      check = checkSoftFailure(result)
+      if (check.empty || check.nonJson) {
+        console.warn('[analyze] Gemini soft-failure again after retry:', result.status, check.nonJson ? check.text?.slice(0, 200) : '(empty)')
       }
-    } else {
-      if (!anthropicKey) {
-        res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' })
-        return
-      }
-      result = await callAnthropic(body, anthropicKey)
     }
     res.status(result.status).json(result.body)
   } catch (e: any) {

@@ -13,7 +13,7 @@ import {
   ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { useRouter } from 'expo-router'
+import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useTheme, type ThemeColors } from '../context/ThemeContext'
 import { useLanguage } from '../context/LanguageContext'
@@ -35,6 +35,11 @@ const MASCOT_THINKING = require('../assets/illustrations/mascot/mascot_onboardin
 export default function ScoppyChatScreen() {
   const { t } = useTranslation()
   const router = useRouter()
+  // 2026-09-24:「練習メニューのよく分からない種目名について、具体的なやり方を教えて
+  // ほしい」との指示で追加。app/workout-menu.tsx(AIMenuResultCard)の各メニュー項目
+  // から「?q=...」付きでこの画面を開くと、その質問を自動送信する。
+  const { q: initialQuestion } = useLocalSearchParams<{ q?: string }>()
+  const autoSentRef = useRef(false)
   const { colors } = useTheme()
   const { language } = useLanguage()
   const { isGuest } = useAuth()
@@ -120,16 +125,13 @@ export default function ScoppyChatScreen() {
       }
       trackFeatureUse('scoppy_chat')
     } catch (e: any) {
-      // 2026-09-13(暫定・削除予定): 「毎回失敗する」という報告の原因を実機で特定するため、
-      // 一時的に実際のエラー内容をチャット上に出す。原因判明後は
-      // t('scoppyChat.errorMessage') だけに戻すこと。
       console.error('[scoppy-chat] askScoppy failed:', e)
       // isError:true を付け、次回送信時にAIへの文脈からは除外されるようにする
       // (上のfilter参照。付けないと「answerできなかった」という発言が会話の一部として
       // 送られ続け、文脈を汚染するだけでなくメッセージ数上限にも余計に貢献してしまう)
       const historyWithError = await addScoppyChatMessage({
         role: 'assistant',
-        content: `${t('scoppyChat.errorMessage')}\n[debug] ${e?.message ?? String(e)}`,
+        content: t('scoppyChat.errorMessage'),
         isError: true,
       })
       setMessages(historyWithError)
@@ -139,6 +141,15 @@ export default function ScoppyChatScreen() {
       refreshCredits()
     }
   }, [input, language, t, refreshCredits])
+
+  // 2026-09-24:「練習メニューのよく分からない種目名について、具体的なやり方を教えて
+  // ほしい」との指示で追加。app/workout-menu.tsx(AIMenuResultCard)の各メニュー項目
+  // から「?q=...」付きでこの画面を開くと、その質問を自動送信する。
+  useEffect(() => {
+    if (loadingHistory || autoSentRef.current || !initialQuestion) return
+    autoSentRef.current = true
+    handleSend(initialQuestion)
+  }, [loadingHistory, initialQuestion, handleSend])
 
   const handleClear = () => {
     Alert.alert(t('scoppyChat.clearTitle'), t('scoppyChat.clearMessage'), [

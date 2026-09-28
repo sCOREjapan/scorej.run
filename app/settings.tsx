@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { useRouter, useNavigation } from 'expo-router'
+import { useRouter, useNavigation, useFocusEffect } from 'expo-router'
 import * as FileSystem from 'expo-file-system/legacy'
 import * as Sharing from 'expo-sharing'
 
@@ -24,7 +24,6 @@ import AnimatedSection from '../components/AnimatedSection'
 import { requestPermission, getPermission, startAllSchedulers } from '../lib/notifications'
 import { checkAdGate, recordUsage } from '../lib/adGate'
 import { getTicketBalance, grantProfileCompleteBonusIfNeeded } from '../lib/ticketWallet'
-import { getMyRankingSettings, setMyRankingSettings } from '../lib/rankingOptIn'
 import Toast from 'react-native-toast-message'
 import { Sounds, isSoundEnabled, isHapticsEnabled, setSoundEnabled, setHapticsEnabled, loadSoundPrefs } from '../lib/sounds'
 import AdGateModal from '../components/AdGateModal'
@@ -228,53 +227,30 @@ export default function SettingsScreen() {
 
   // チームロール
   const [teamRole, setTeamRole] = useState<string | null>(null)
-  useEffect(() => {
+  // 2026-09-25:「設定画面からもコーチ⇔選手を切り替えられるように」との指示で追加。
+  // 既存のコーチ/選手データ(SETUP_KEY/JOINED_KEY)は消さず、ROLE_KEYだけを付け替える
+  // 非破壊の切り替え。両方のデータが揃っている場合のみボタンを表示する
+  // (片方しか無い場合は下の「役割を切り替える」(データ初期化)で新規に始めるのが筋)。
+  //
+  // 2026-09-25バグ修正: teamRoleを元々マウント時1回だけのuseEffectで読んでいたが、
+  // この画面はスタック(router.push)で常駐するため、チームタブ側でロールを切り替えてから
+  // 戻ってきてもteamRoleが古いままになり、switchToOtherRole()が誤った方向(実質no-op)に
+  // 計算されるバグがあった。hasCoachSetup/hasPlayerJoinと同じuseFocusEffectに統合し、
+  // 画面に戻るたびに再読み込みする。
+  const [hasCoachSetup, setHasCoachSetup] = useState(false)
+  const [hasPlayerJoin, setHasPlayerJoin] = useState(false)
+  useFocusEffect(useCallback(() => {
     AsyncStorage.getItem(TEAM_ROLE_KEY).then(v => setTeamRole(v)).catch(() => {})
-  }, [])
-
-  // 2026-09-11: 全国ランキング参加設定（参加は任意・表示名は自分で決める）
-  const [rankingOptIn, setRankingOptIn] = useState(false)
-  const [rankingName,  setRankingName]  = useState('')
-  const [rankingSaving, setRankingSaving] = useState(false)
-  useEffect(() => {
-    if (isGuest || !user?.id) return
-    getMyRankingSettings(user.id).then(s => { setRankingOptIn(s.optIn); setRankingName(s.displayName) })
-  }, [user?.id, isGuest])
-
-  const handleRankingOptInChange = async (next: boolean) => {
-    if (!user?.id) return
-    // オンにする時、表示名が空ならこの場では保存しない(名前を入力してもらってから
-    // 下の保存ボタンで確定する)。オフにする時は即座に保存して参加を取りやめる。
-    setRankingOptIn(next)
-    if (!next) {
-      setRankingSaving(true)
-      const { ok, debugMessage } = await setMyRankingSettings(user.id, { optIn: false, displayName: rankingName })
-      setRankingSaving(false)
-      // 2026-09-13(暫定・削除予定): 「ランキング参加できない」の原因特定のため、
-      // 失敗時だけ実際のエラーをトーストに付記する。原因判明後は通常文言に戻すこと。
-      Toast.show({
-        type: ok ? 'success' : 'error',
-        text1: ok ? t('settings.ranking.leftToast') : t('settings.ranking.saveFailedToast'),
-        text2: ok ? undefined : debugMessage,
-      })
-    }
-  }
-
-  const saveRankingSettings = async () => {
-    if (!user?.id) return
-    if (rankingOptIn && !rankingName.trim()) {
-      Toast.show({ type: 'error', text1: t('settings.ranking.nameRequiredToast') })
-      return
-    }
-    setRankingSaving(true)
-    const { ok, debugMessage } = await setMyRankingSettings(user.id, { optIn: rankingOptIn, displayName: rankingName })
-    setRankingSaving(false)
-    Toast.show({
-      type: ok ? 'success' : 'error',
-      text1: ok ? t('settings.ranking.savedToast') : t('settings.ranking.saveFailedToast'),
-      text2: ok ? undefined : debugMessage,
-    })
-  }
+    AsyncStorage.getItem(TEAM_SETUP_KEY).then(v => setHasCoachSetup(!!v)).catch(() => {})
+    AsyncStorage.getItem(TEAM_JOINED_KEY).then(v => setHasPlayerJoin(!!v)).catch(() => {})
+  }, []))
+  const switchToOtherRole = useCallback(async () => {
+    const target = teamRole === 'coach' ? 'player' : 'coach'
+    await AsyncStorage.setItem(TEAM_ROLE_KEY, target).catch(() => {})
+    await setCoachMode(target === 'coach')
+    setTeamRole(target)
+    router.push('/(tabs)/team')
+  }, [teamRole, setCoachMode, router])
 
   // 通知
   const [notifSettings, setNotifSettings] = useState<NotifSettings>({
@@ -449,10 +425,7 @@ export default function SettingsScreen() {
                         // ここで打ち切ってサインアウトもしない（黙って「削除できたことにする」と
                         // 同じ不具合を繰り返すため）。ユーザーには失敗を明示し再試行を促す。
                         console.error('[delete-account] no access token:', tokenReason)
-                        // 2026-09-13(暫定・削除予定): サーバーログに一切痕跡が残らない不具合が
-                        // 続いているため、実機テスト中だけ実際の原因をアラートに出す。
-                        // 本番リリース前に元の t('settings.account.deleteFailedMessage') のみに戻すこと。
-                        Alert.alert(t('settings.account.deleteFailedTitle'), `${t('settings.account.deleteFailedMessage')}\n\n[debug] ${tokenReason}`)
+                        Alert.alert(t('settings.account.deleteFailedTitle'), t('settings.account.deleteFailedMessage'))
                         return
                       }
                       Toast.show({ type: 'info', text1: t('settings.account.deleting') })
@@ -471,8 +444,7 @@ export default function SettingsScreen() {
                         // 開発時にログへ出す(ユーザー向け文言は変えない)。
                         const bodyText = await res.text().catch(() => '')
                         console.error('[delete-account] failed:', res.status, bodyText)
-                        // 2026-09-13(暫定・削除予定): 上と同様、実機テスト中だけ詳細を表示。
-                        Alert.alert(t('settings.account.deleteFailedTitle'), `${t('settings.account.deleteFailedMessage')}\n\n[debug] HTTP ${res.status}: ${bodyText.slice(0, 200)}`)
+                        Alert.alert(t('settings.account.deleteFailedTitle'), t('settings.account.deleteFailedMessage'))
                         return
                       }
                       // サーバー側の削除に成功した時だけローカルクリア＋サインアウトする
@@ -480,8 +452,7 @@ export default function SettingsScreen() {
                       await signOut().catch(() => {})
                     } catch (e: any) {
                       console.error('[delete-account] client exception:', e)
-                      // 2026-09-13(暫定・削除予定): 上と同様、実機テスト中だけ詳細を表示。
-                      Alert.alert(t('settings.account.deleteFailedTitle'), `${t('settings.account.deleteFailedMessage')}\n\n[debug] ${e?.message ?? String(e)}`)
+                      Alert.alert(t('settings.account.deleteFailedTitle'), t('settings.account.deleteFailedMessage'))
                     }
                   },
                 },
@@ -919,49 +890,6 @@ export default function SettingsScreen() {
             </SectionCard>
           </AnimatedSection>
 
-          {/* ── 全国ランキング参加設定 ─────────────────────────────
-              2026-09-11: 「参加は任意で、名前はつけれるように」との指示で追加。
-              これまではログインしているだけで自己ベストがランキング取得対象に
-              なっていた(本名の頭文字が無断表示)。参加を明示オプトインにし、
-              表示名も本名ではなく自分で決めた名前に変更した
-              (詳細はsupabase/ranking_opt_in_migration.sql・lib/rankingOptIn.ts参照)。 */}
-          {!isGuest && (
-            <AnimatedSection delay={100}>
-              <SectionCard title={t('settings.ranking.title')}>
-                <View style={styles.switchRow}>
-                  <View style={{ flex: 1, marginRight: 12 }}>
-                    <Text style={styles.switchLabel}>{t('settings.ranking.optInSwitch')}</Text>
-                    <Text style={{ color: colors.textHint, fontSize: 11, marginTop: 3, lineHeight: 15 }}>
-                      {t('settings.ranking.optInHint')}
-                    </Text>
-                  </View>
-                  <Switch
-                    value={rankingOptIn}
-                    onValueChange={handleRankingOptInChange}
-                    trackColor={{ false: colors.switchTrack, true: BRAND }}
-                    thumbColor="#fff"
-                    ios_backgroundColor={colors.switchTrack}
-                    disabled={rankingSaving}
-                  />
-                </View>
-                {rankingOptIn && (
-                  <>
-                    <View style={styles.divider} />
-                    <LabeledInput
-                      label={t('settings.ranking.nameLabel')}
-                      value={rankingName}
-                      onChangeText={setRankingName}
-                      placeholder={t('settings.ranking.namePlaceholder')}
-                    />
-                    <TouchableOpacity style={styles.saveBtn} onPress={saveRankingSettings} activeOpacity={0.85} disabled={rankingSaving}>
-                      <Text style={styles.saveBtnText}>{rankingSaving ? t('settings.ranking.saving') : t('settings.ranking.save')}</Text>
-                    </TouchableOpacity>
-                  </>
-                )}
-              </SectionCard>
-            </AnimatedSection>
-          )}
-
           {/* ── チーム設定 ────────────────────────────────────── */}
           <AnimatedSection delay={120}>
             <SectionCard title={t('settings.team.title')}>
@@ -981,6 +909,22 @@ export default function SettingsScreen() {
                   {!teamRole && <Text style={styles.fieldValue}>{t('settings.team.notSet')}</Text>}
                 </View>
               </View>
+
+              {/* 2026-09-25: コーチ・選手どちらのデータも既にある場合のみ、データを消さずに
+                  表示だけをその場で入れ替える非破壊の切り替えボタンを出す。 */}
+              {hasCoachSetup && hasPlayerJoin && (
+                <>
+                  <View style={styles.divider} />
+                  <TouchableOpacity style={styles.actionRow} activeOpacity={0.75} onPress={switchToOtherRole}>
+                    <Ionicons name="swap-horizontal-outline" size={18} color={BRAND} />
+                    <Text style={[styles.actionText, { color: BRAND }]}>
+                      {teamRole === 'coach' ? t('settings.team.switchToPlayer') : t('settings.team.switchToCoach')}
+                    </Text>
+                    <Ionicons name="chevron-forward" size={16} color={colors.textHint} />
+                  </TouchableOpacity>
+                </>
+              )}
+
               <View style={styles.divider} />
               <TouchableOpacity
                 style={styles.actionRow}

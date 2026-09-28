@@ -4,26 +4,31 @@
 // フルスクリーンモーダルに変更(mitameでA/B/C案をプレビューし、Aで確定)。
 // あわせて、月額プラン(¥980〜)への導線を最上段の主CTAにし、広告視聴・単発購入は
 // その下のサブ導線に格下げ（APIコストが広告収益を上回っていたための収益改善施策）。
+// 2026-09-26:「デザインがダサい」との指摘で刷新。汎用のドル札アイコン→Scoppyマスコット
+// (チケットを掲げて喜ぶポーズ)に差し替え、単調な白背景→ブランドカラーの淡いグラデーション、
+// ボタンにHapticTouchのタップ演出を追加。ボタンの構成・優先順位（月額プラン主導線という
+// 収益改善施策）とロジックは一切変更していない。
 import React, { useEffect, useRef, useState } from 'react'
 import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import type { Feature } from '../lib/adGate'
 import { earnTicketFromAd, getAdTicketRemainingToday, getTicketBalance } from '../lib/ticketWallet'
 import { watchAdsForReward } from '../lib/rewardedAd'
 import { trackPaywallView, trackPaywallDismiss } from '../lib/analytics'
+import HapticTouch from './HapticTouch'
 import Toast from 'react-native-toast-message'
 import { useTranslation } from 'react-i18next'
 
 const BRAND = '#166534'
 const TIX   = '#f59e0b'
-// 2026-09-11: 素の絵文字🎫から、他画面と揃えて実チケット画像に統一した
+const MASCOT = require('../assets/illustrations/mascot/mascot_ticket_celebrate.png')
 const TICKET_ICON = require('../assets/icons/ticket.png')
 const TEXT_1 = '#111827'
 const TEXT_2 = '#6b7280'
 const TEXT_HINT = '#9ca3af'
-const BG    = '#f6f6f8'
 const BORDER = 'rgba(0,0,0,0.08)'
 
 interface Props {
@@ -93,32 +98,50 @@ export default function TicketGateModal({ visible, feature, ticketCost, ticketBa
 
   return (
     <Modal visible={visible} animationType="fade" onRequestClose={handleDismiss}>
+      <LinearGradient colors={['#eafaf0', '#fbfdfc', '#ffffff']} style={StyleSheet.absoluteFill} />
       <SafeAreaView style={st.safe} edges={['top', 'bottom']}>
         <TouchableOpacity style={st.closeBtn} onPress={handleDismiss} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
           <Ionicons name="close" size={22} color={TEXT_HINT} />
         </TouchableOpacity>
 
         <View style={st.body}>
-          <View style={st.iconWrap}>
-            <Image source={TICKET_ICON} style={{ width: 52, height: 52 }} resizeMode="contain" />
+          <View style={st.mascotWrap}>
+            <View style={st.mascotGlow} />
+            <Image source={MASCOT} style={st.mascotImg} resizeMode="contain" />
           </View>
+
           <Text style={st.title}>{t('ticketGateModal.title')}</Text>
           <Text style={st.sub}>
             {t('ticketGateModal.sub', { feature: featureName, cost: ticketCost, balance, shortage })}
           </Text>
 
+          <View style={st.statRow}>
+            <View style={st.statChip}>
+              <Image source={TICKET_ICON} style={{ width: 14, height: 14 }} resizeMode="contain" />
+              <Text style={st.statChipLabel}>{t('ticketGateModal.statBalance')}</Text>
+              <Text style={st.statChipValue}>{balance}</Text>
+            </View>
+            <Ionicons name="arrow-forward" size={14} color={TEXT_HINT} />
+            <View style={[st.statChip, st.statChipNeed]}>
+              <Text style={[st.statChipLabel, { color: TIX }]}>{t('ticketGateModal.statNeeded')}</Text>
+              <Text style={[st.statChipValue, { color: TIX }]}>{ticketCost}</Text>
+            </View>
+          </View>
+
           <View style={st.btns}>
             {/* 主CTA：月額プラン（¥980〜・毎月チケット100枚）。広告/単発購入より上に配置 */}
-            <TouchableOpacity
+            <HapticTouch
+              haptic="whoosh"
               style={st.primaryBtn}
               onPress={() => { onClose(); router.push('/paywall?plan=ticket_monthly') }}
-              activeOpacity={0.85}
+              activeOpacity={0.88}
             >
               <Ionicons name="refresh" size={18} color="#fff" />
               <Text style={st.primaryBtnTxt}>{t('ticketGateModal.monthlyPlan')}</Text>
-            </TouchableOpacity>
+            </HapticTouch>
 
-            <TouchableOpacity
+            <HapticTouch
+              haptic="tap"
               style={[st.secondaryBtn, (watchingAd || adTicketsLeft <= 0) && { opacity: 0.5 }]}
               onPress={handleWatchAd}
               activeOpacity={0.85}
@@ -134,16 +157,17 @@ export default function TicketGateModal({ visible, feature, ticketCost, ticketBa
                   : adTicketsLeft > 0 ? t('ticketGateModal.watchAdCta', { n: adTicketsLeft })
                   : t('ticketGateModal.watchAdCapReached')}
               </Text>
-            </TouchableOpacity>
+            </HapticTouch>
 
-            <TouchableOpacity
+            <HapticTouch
+              haptic="tap"
               style={st.secondaryBtn}
               onPress={() => { onClose(); router.push('/tickets') }}
               activeOpacity={0.85}
             >
               <Image source={TICKET_ICON} style={{ width: 17, height: 17 }} resizeMode="contain" />
               <Text style={st.secondaryBtnTxt}>{t('ticketGateModal.buyTickets')}</Text>
-            </TouchableOpacity>
+            </HapticTouch>
           </View>
 
           <TouchableOpacity style={st.cancelBtn} onPress={handleDismiss} activeOpacity={0.7}>
@@ -156,21 +180,35 @@ export default function TicketGateModal({ visible, feature, ticketCost, ticketBa
 }
 
 const st = StyleSheet.create({
-  safe:           { flex: 1, backgroundColor: BG },
+  safe:           { flex: 1, backgroundColor: 'transparent' },
   closeBtn:       { alignSelf: 'flex-end', padding: 16 },
   body:           { flex: 1, alignItems: 'center', paddingHorizontal: 24, paddingBottom: 24 },
-  iconWrap:       {
-    width: 76, height: 76, borderRadius: 22,
-    backgroundColor: 'rgba(245,158,11,0.14)',
+  mascotWrap:     {
+    width: 148, height: 148,
     alignItems: 'center', justifyContent: 'center',
-    marginTop: 12, marginBottom: 18,
+    marginTop: 4, marginBottom: 14,
   },
-  title:          { fontSize: 19, fontWeight: '800', color: TEXT_1, textAlign: 'center', marginBottom: 8 },
+  mascotGlow:     {
+    position: 'absolute', width: 148, height: 148, borderRadius: 74,
+    backgroundColor: 'rgba(22,101,52,0.10)',
+  },
+  mascotImg:      { width: 128, height: 128 },
+  title:          { fontSize: 21, fontWeight: '800', color: TEXT_1, textAlign: 'center', marginBottom: 8, letterSpacing: 0.2 },
   sub:            { fontSize: 13, color: TEXT_2, textAlign: 'center', lineHeight: 20, paddingHorizontal: 8 },
+  statRow:        { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 18 },
+  statChip:       {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: BORDER,
+    paddingHorizontal: 12, paddingVertical: 8,
+  },
+  statChipNeed:   { borderColor: 'rgba(245,158,11,0.35)', backgroundColor: 'rgba(245,158,11,0.06)' },
+  statChipLabel:  { fontSize: 11, fontWeight: '700', color: TEXT_2 },
+  statChipValue:  { fontSize: 14, fontWeight: '900', color: BRAND },
   btns:           { width: '100%', gap: 11, marginTop: 'auto', marginBottom: 10 },
   primaryBtn:     {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: BRAND, borderRadius: 14, paddingVertical: 15, width: '100%',
+    shadowColor: BRAND, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.22, shadowRadius: 14, elevation: 4,
   },
   primaryBtnTxt:  { fontSize: 14, fontWeight: '800', color: '#fff' },
   secondaryBtn:   {

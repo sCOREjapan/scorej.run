@@ -88,7 +88,14 @@ export default function PressableScale({
       accessibilityLabel={accessibilityLabel}
       accessibilityRole={accessibilityRole}
     >
-      <Animated.View style={{ flex: 1, transform: [{ scale }] }}>
+      {/* 2026-09-24実機バグ対応:「ボタンの文字が『スト…』のように途中で切れる」報告の原因。
+          flex:1(=flexBasis:0%+grow:1+shrink:1)は、外側Pressableの幅が明示指定されておらず
+          中身から逆算する(shrink-to-fit)ケースだと、内容サイズを無視して0から測り始めてしまい、
+          特に外側の兄弟要素がflex:1で幅を奪い合う行の中では中身より狭く確定することがあった
+          （例: app/(tabs)/index.tsxのstretchWarmupRow内のストレッチ開始ボタン）。
+          flexBasis:'auto'にすると「まず中身のサイズを基準にし、余白があれば伸びる」という
+          意図した挙動になり、幅が明示されている通常ケースの見た目は変えない。 */}
+      <Animated.View style={{ flexGrow: 1, flexShrink: 1, flexBasis: 'auto', alignSelf: 'stretch', transform: [{ scale }] }}>
         {children}
       </Animated.View>
     </Pressable>

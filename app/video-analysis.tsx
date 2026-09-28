@@ -1831,7 +1831,7 @@ dimensions:上記${dims.length}項目(${dimIdList})全て必須。focusは改善
                   {evidenceItems.map((it, i) => (
                     <View key={i} style={{ width: 120, gap: 6 }}>
                       <EvidenceThumb uri={frames[it.bbox.f]} bbox={it.bbox} w={120} h={90} color={it.color} />
-                      <Text style={{ color: '#4b5563', fontSize: 10.5, lineHeight: 14 }} numberOfLines={3}>{it.caption}</Text>
+                      <Text style={{ color: '#4b5563', fontSize: 10.5, lineHeight: 14 }} numberOfLines={4}>{it.caption}</Text>
                     </View>
                   ))}
                 </ScrollView>
@@ -2752,7 +2752,7 @@ ${summary}
                 style={{ width: 96, height: 54, borderRadius: 6, objectFit: 'cover', display: 'block' } as any}
                 alt="" />
               <Text style={s.thumbTime}>{formatTime(ann.timestamp)}</Text>
-              <Text style={s.thumbOverall} numberOfLines={2}>{ann.advice.overall}</Text>
+              <Text style={s.thumbOverall} numberOfLines={3}>{ann.advice.overall}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>

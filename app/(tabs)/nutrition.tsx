@@ -7,6 +7,7 @@ import { checkAdGate, recordUsage } from '../../lib/adGate'
 import { shouldShowInterstitial, showInterstitialAd } from '../../lib/admob'
 import { TICKET_COST } from '../../lib/ticketWallet'
 import { TICKET_MONTHLY_GRANT } from '../../lib/purchaseService'
+import { syncMealToTeam } from '../../lib/teamAutoSync'
 import AdGateModal from '../../components/AdGateModal'
 import TicketGateModal from '../../components/TicketGateModal'
 import NutritionShareCard, { type NutritionShareData } from '../../components/NutritionShareCard'
@@ -474,6 +475,9 @@ export default function NutritionScreen() {
   const [weights, setWeights] = useState<WeightRecord[]>([])
   const [statsViewCount, setStatsViewCount] = useState(0)
   const [recordDate, setRecordDate] = useState(todayLocalISO())
+  // 2026-09-25: 食事記録カード群(食事タイプ/写真/手動入力/分析結果)をデフォルト折りたたみにし、
+  // 展開ボタンで出し分けるための状態。タブを開いた直後は今日の合計等の統計だけが見える。
+  const [recordExpanded, setRecordExpanded] = useState(false)
   const today = todayLocalISO()
   const { user, isGuest } = useAuth()
   const { isNoad } = usePurchase()
@@ -735,8 +739,11 @@ export default function NutritionScreen() {
       }
       const updated = await mealsStore.update(current => [newRecord, ...current])
       setHistory(updated)
+      // 2026-09-26:「食事の時間と内容がコーチに分かるといい」対応。フル共有の選手のみ送信される。
+      syncMealToTeam(newRecord).catch(() => {})
       setResult(null)
       setImageUri(null)
+      setRecordExpanded(false)
       Sounds.save()
       Toast.show({ type: 'success', text1: t('nutrition.saveSuccess') })
       // このhandleSaveはAI写真分析(チケット消費済み)の確定保存。チケット代＋広告の
@@ -790,7 +797,10 @@ export default function NutritionScreen() {
       }
       const updated = await mealsStore.update(current => [newRecord, ...current])
       setHistory(updated)
+      // 2026-09-26:「食事の時間と内容がコーチに分かるといい」対応。フル共有の選手のみ送信される。
+      syncMealToTeam(newRecord).catch(() => {})
       setManualName(''); setManualCalories(''); setManualProtein(''); setManualCarb(''); setManualFat('')
+      setRecordExpanded(false)
       Sounds.save()
       Toast.show({ type: 'success', text1: t('nutrition.saveSuccess') })
       setTimeout(async () => {
@@ -813,10 +823,46 @@ export default function NutritionScreen() {
           <Text style={styles.date}>{today}</Text>
         </View>
 
-        {/* 2026-09-14バグ修正:「スクロールしないと撮影ボタンに辿り着けない」との実機報告で、
-            食事タイプ選択＋撮影/手動入力の2カードをヘッダー直下に移動(元は栄養プラン/今日の
-            合計/AI食事コーチ導線の3カード分下にあった)。「何の食事か選ぶ→撮る」が本来の
-            主動線なので、参照用の目安カード類より先に出す方が自然でもある。 */}
+        {/* 2026-09-25再構成:「タブを開くと入力ボタンばかりで見づらい、開いたらすぐ統計が
+            見たい」との指示で、今日の合計・栄養プランの目安(=統計)をヘッダー直下へ移動し、
+            記録用の入力カード群(食事タイプ・写真/手動入力・分析結果)はデフォルト折りたたみの
+            記録シート(recordExpanded)にまとめた。展開ボタンを押すまでボタン群が表示されない
+            ため、開いた瞬間は数値がすぐ目に入る構成になる。ロジック(handleAnalyze/handleSave等)
+            は一切変更せず、既存カードをそのまま移動・折りたたんだだけ。 */}
+
+        {/* 今日の合計 */}
+        <AnimatedSection delay={0} type="scale">
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t('nutrition.todayTotal')}</Text>
+          <MacroRow {...todayTotals} />
+        </View>
+        </AnimatedSection>
+
+        {/* 栄養プランの目安（体重ベース） */}
+        <AnimatedSection delay={20} type="scale">
+          <NutritionPlanCard stats={nutritionStats} onGoLogWeight={() => router.push('/(tabs)/records')} />
+        </AnimatedSection>
+
+        {/* 食事を記録する（展開トグル） */}
+        <AnimatedSection delay={40} type="fade-up">
+        <HapticTouch
+          haptic="toggleOn"
+          style={[styles.recordToggle, recordExpanded && styles.recordToggleActive]}
+          onPress={() => setRecordExpanded(v => !v)}
+          activeOpacity={0.85}
+        >
+          <View style={styles.recordToggleIcon}>
+            <Ionicons name={recordExpanded ? 'remove' : 'add'} size={20} color="#fff" />
+          </View>
+          <Text style={styles.recordToggleText}>
+            {recordExpanded ? t('nutrition.recordToggle.close') : t('nutrition.recordToggle.open')}
+          </Text>
+          <Ionicons name={recordExpanded ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textHint} />
+        </HapticTouch>
+        </AnimatedSection>
+
+        {recordExpanded && (
+        <>
         {/* 食事タイプ・タイミング */}
         <AnimatedSection delay={0} type="fade-up">
         <View style={styles.card}>
@@ -946,40 +992,6 @@ export default function NutritionScreen() {
         </View>
         </AnimatedSection>
 
-        {/* 栄養プランの目安（体重ベース） */}
-        <AnimatedSection delay={40} type="scale">
-          <NutritionPlanCard stats={nutritionStats} onGoLogWeight={() => router.push('/(tabs)/records')} />
-        </AnimatedSection>
-
-        {/* 今日の合計 */}
-        <AnimatedSection delay={20} type="scale">
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t('nutrition.todayTotal')}</Text>
-          <MacroRow {...todayTotals} />
-        </View>
-        </AnimatedSection>
-
-        {/* AI食事コーチ 導線 */}
-        <AnimatedSection delay={40} type="fade-up">
-        <TouchableOpacity
-          style={styles.coachEntryBtn}
-          onPress={() => router.push('/meal-coach')}
-          activeOpacity={0.85}
-        >
-          <View style={styles.coachEntryIcon}>
-            <Ionicons name="restaurant-outline" size={20} color={BRAND} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={styles.coachEntryTitle}>{t('nutrition.coach.title')}</Text>
-              <View style={styles.coachEntryBadge}><Text style={styles.coachEntryBadgeText}>PRO</Text></View>
-            </View>
-            <Text style={styles.coachEntrySub}>{t('nutrition.coach.sub')}</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.textHint} />
-        </TouchableOpacity>
-        </AnimatedSection>
-
         {/* スケルトン */}
         {analyzing && (
           <View style={[styles.card, { gap: 10 }]}>
@@ -1048,6 +1060,29 @@ export default function NutritionScreen() {
           </View>
           </AnimatedSection>
         )}
+        </>
+        )}
+
+        {/* AI食事コーチ 導線 */}
+        <AnimatedSection delay={40} type="fade-up">
+        <TouchableOpacity
+          style={styles.coachEntryBtn}
+          onPress={() => router.push('/meal-coach')}
+          activeOpacity={0.85}
+        >
+          <View style={styles.coachEntryIcon}>
+            <Ionicons name="restaurant-outline" size={20} color={BRAND} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={styles.coachEntryTitle}>{t('nutrition.coach.title')}</Text>
+              <View style={styles.coachEntryBadge}><Text style={styles.coachEntryBadgeText}>PRO</Text></View>
+            </View>
+            <Text style={styles.coachEntrySub}>{t('nutrition.coach.sub')}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.textHint} />
+        </TouchableOpacity>
+        </AnimatedSection>
 
         {/* 選択日の記録一覧 */}
         <AnimatedSection delay={240} type="fade-up">
@@ -1216,6 +1251,17 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   date: { color: colors.textSec, fontSize: 13 },
   card: { backgroundColor: colors.card, borderRadius: 21, borderWidth: 1, borderColor: colors.border, padding: 16, gap: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 2 },
   cardTitle: { color: colors.text, fontSize: 15, fontWeight: '700' },
+  recordToggle: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: colors.card, borderRadius: 18, borderWidth: 1, borderColor: colors.border,
+    paddingVertical: 13, paddingHorizontal: 16,
+  },
+  recordToggleActive: { borderColor: BRAND + '55', backgroundColor: 'rgba(22,101,52,0.05)' },
+  recordToggleIcon: {
+    width: 28, height: 28, borderRadius: 9, backgroundColor: BRAND,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  recordToggleText: { flex: 1, color: colors.text, fontSize: 14.5, fontWeight: '700' },
   coachEntryBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: 'rgba(22,101,52,0.06)', borderRadius: 21, borderWidth: 1, borderColor: 'rgba(22,101,52,0.25)',

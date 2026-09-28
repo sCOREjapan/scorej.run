@@ -39,6 +39,22 @@ export const TICKET_PACK_COUNTS: Record<string, number> = {
 // チケット月額プランで毎月付与されるチケット枚数
 export const TICKET_MONTHLY_GRANT = 100
 
+// 2026-09-25: app/paywall.tsxにあった無料体験日数の算出ロジックを、
+// app/mission-offer.tsxからも同じ基準で使えるよう共有化した。
+// StoreKit/Play Consoleの導入価格(Introductory Offer、price=0)から日数を読み取る。
+export function trialDaysFromPackage(pkg: any): number | null {
+  const intro = pkg?.product?.introPrice
+  if (!intro || intro.price !== 0) return null
+  const n = intro.periodNumberOfUnits ?? 1
+  switch (intro.periodUnit) {
+    case 'DAY':   return n
+    case 'WEEK':  return n * 7
+    case 'MONTH': return n * 30
+    case 'YEAR':  return n * 365
+    default:      return null
+  }
+}
+
 export type PlanTier = 'free' | 'noad' | 'coach'
 
 export type PremiumStatus = {

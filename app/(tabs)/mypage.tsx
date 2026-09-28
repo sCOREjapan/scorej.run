@@ -16,7 +16,12 @@ import { localDateStr } from '../../lib/dateLocal'
 import { useTranslation } from 'react-i18next'
 import { useLanguage } from '../../context/LanguageContext'
 import { getEventLabel } from '../../lib/eventLabels'
+import { collectPbMap, hurdleCategorySuffix } from '../../lib/hurdleHeights'
 import type { RaceRecord } from '../../types'
+import { Avatar, AvatarPickerModal } from '../../components/Avatar'
+import { PLAYER_AVATAR_KEY } from '../../lib/avatarAssets'
+import { ROLE_KEY, SETUP_KEY, JOINED_KEY, type TeamSetup, type JoinedTeam } from '../../lib/teamKeys'
+import { fetchTeamByCode, setCoachAvatar, fetchMembers, registerMember } from '../../lib/supabaseTeam'
 
 const PROFILE_KEY = 'trackmate_my_profile'
 const RECORDS_KEY = 'trackmate_race_records'
@@ -37,6 +42,15 @@ export default function MyPageScreen() {
   const [records, setRecords] = useState<RaceRecord[]>([])
   const fadeY = useRef(new Animated.Value(0)).current
 
+  // 2026-09-24: 「設定からもアバターを変えられるように」との指示で追加。
+  // コーチはteams.coach_avatar_key、選手は端末共通のPLAYER_AVATAR_KEY(未参加でも
+  // 保存でき、team.tsxで参加した瞬間に同じ値が使われる)と、選択元によって保存先が異なる。
+  const [avatarKey, setAvatarKey] = useState('')
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false)
+  const teamRoleRef = useRef<'coach' | 'player' | null>(null)
+  const teamSetupRef = useRef<TeamSetup | null>(null)
+  const teamJoinedRef = useRef<JoinedTeam | null>(null)
+
   useFocusEffect(useCallback(() => {
     fadeY.setValue(0)
     const anim = Animated.timing(fadeY, {
@@ -54,16 +68,59 @@ export default function MyPageScreen() {
     fetchSessions('')
   }, [fetchSessions]))
 
+  // アバターの現在値を読み込む。コーチはSupabase(teams.coach_avatar_key)が正、
+  // 選手(または未参加)は端末ローカルのPLAYER_AVATAR_KEYが正。
+  useFocusEffect(useCallback(() => {
+    let cancelled = false
+    ;(async () => {
+      const [roleRaw, setupRaw, joinedRaw, localAvatar] = await Promise.all([
+        AsyncStorage.getItem(ROLE_KEY),
+        AsyncStorage.getItem(SETUP_KEY),
+        AsyncStorage.getItem(JOINED_KEY),
+        AsyncStorage.getItem(PLAYER_AVATAR_KEY),
+      ])
+      if (cancelled) return
+      const role = roleRaw === 'coach' ? 'coach' : roleRaw === 'player' ? 'player' : null
+      teamRoleRef.current = role
+      try { teamSetupRef.current = setupRaw ? JSON.parse(setupRaw) : null } catch { teamSetupRef.current = null }
+      try { teamJoinedRef.current = joinedRaw ? JSON.parse(joinedRaw) : null } catch { teamJoinedRef.current = null }
+
+      if (role === 'coach' && teamSetupRef.current?.code) {
+        const team = await fetchTeamByCode(teamSetupRef.current.code).catch(() => null)
+        if (!cancelled) setAvatarKey(team?.coach_avatar_key || '')
+      } else {
+        setAvatarKey(localAvatar || '')
+      }
+    })()
+    return () => { cancelled = true }
+  }, []))
+
+  const saveAvatar = useCallback(async (key: string) => {
+    setAvatarKey(key)
+    setShowAvatarPicker(false)
+    const role = teamRoleRef.current
+    if (role === 'coach' && teamSetupRef.current?.code) {
+      await setCoachAvatar(teamSetupRef.current.code, key).catch(() => {})
+      return
+    }
+    try { await AsyncStorage.setItem(PLAYER_AVATAR_KEY, key) } catch {}
+    const joined = teamJoinedRef.current
+    if (joined?.code && joined?.playerName) {
+      // registerMember()はevent/iconを無条件で上書きするため、既存の登録内容を
+      // 引き継ぐ（team.tsx savePlayerAvatar()と同じ配慮）。
+      const members = await fetchMembers(joined.code).catch(() => [])
+      const mine = members.find(m => m.id === `${joined.code}_${joined.playerName}`)
+      await registerMember(joined.code, joined.playerName, mine?.event ?? '', mine?.icon ?? '', key).catch(() => {})
+    }
+  }, [])
+
   const displayName = profile.name || t('mypage.defaultName')
   const initials    = displayName.slice(0, 2)
   const levelInfo   = calcLevelInfo(sessions.length, language)
 
-  // 種目ごとの自己ベスト（記録タブのデータをそのまま使う。ここでは入力欄を増やさない）
-  const eventPBs = (() => {
-    const map = new Map<string, RaceRecord>()
-    records.filter(r => r.is_pb).forEach(r => { if (!map.has(r.event)) map.set(r.event, r) })
-    return Array.from(map.values())
-  })()
+  // 種目ごとの自己ベスト（記録タブのデータをそのまま使う。ここでは入力欄を増やさない。
+  // ハードルは高さ違いを別ベストとして扱う。lib/hurdleHeights.ts参照）
+  const eventPBs = Array.from(collectPbMap(records).values())
 
   return (
     <Animated.View style={{ flex: 1, backgroundColor: colors.bg, opacity: fadeY, transform: [{ translateY: fadeY.interpolate({ inputRange: [0,1], outputRange: [14,0] }) }] }}>
@@ -82,9 +139,21 @@ export default function MyPageScreen() {
 
           {/* ── アバター＋名前 ── */}
           <View style={s.avatarSection}>
-            <View style={s.avatar}>
-              <Text style={s.avatarText}>{initials}</Text>
-            </View>
+            <TouchableOpacity
+              onPress={() => { unlockAudio(); Sounds.pop(); setShowAvatarPicker(true) }}
+              activeOpacity={0.8}
+            >
+              {avatarKey ? (
+                <Avatar name={displayName} size={72} avatarKey={avatarKey} />
+              ) : (
+                <View style={s.avatar}>
+                  <Text style={s.avatarText}>{initials}</Text>
+                </View>
+              )}
+              <View style={[s.avatarEditBadge, { backgroundColor: BRAND, borderColor: colors.bg }]}>
+                <Ionicons name="pencil" size={11} color="#fff" />
+              </View>
+            </TouchableOpacity>
             <Text style={[s.name, { color: colors.text }]}>{displayName}</Text>
             {profile.primary_event ? (
               <View style={[s.eventBadge, { backgroundColor: colors.surface }]}>
@@ -131,7 +200,7 @@ export default function MyPageScreen() {
               <View style={s.pbGrid}>
                 {eventPBs.map(r => (
                   <View key={r.id} style={[s.pbItem, { backgroundColor: colors.surface2 }]}>
-                    <Text style={[s.pbEvent, { color: colors.textSec }]}>{getEventLabel(r.event, language)}</Text>
+                    <Text style={[s.pbEvent, { color: colors.textSec }]}>{getEventLabel(r.event, language)}{hurdleCategorySuffix(r.event, r.hurdle_height_cm)}</Text>
                     <Text style={[s.pbResult, { color: colors.text }]}>{r.result_display}</Text>
                   </View>
                 ))}
@@ -142,19 +211,6 @@ export default function MyPageScreen() {
               </Text>
             )}
           </View>
-
-          {/* ── 全国ランキング ── */}
-          {/* 2026-09-09: app/ranking.tsxも同様に遷移導線が無かった孤立画面バグ修正 */}
-          <HapticTouch
-            haptic="whoosh"
-            style={[s.settingsBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-            onPress={() => { unlockAudio(); router.push('/ranking') }}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="podium-outline" size={20} color={colors.textSec} />
-            <Text style={[s.settingsBtnText, { color: colors.text }]}>{t('mypage.ranking')}</Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.textHint} style={{ marginLeft: 'auto' as any }} />
-          </HapticTouch>
 
           {/* ── 統計 ── */}
           <View style={[s.statsRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -197,6 +253,13 @@ export default function MyPageScreen() {
           <Text style={[s.version, { color: colors.textHint }]}>sCORE v1.6.1</Text>
         </ScrollView>
       </SafeAreaView>
+
+      <AvatarPickerModal
+        visible={showAvatarPicker}
+        current={avatarKey}
+        onSelect={saveAvatar}
+        onClose={() => setShowAvatarPicker(false)}
+      />
     </Animated.View>
   )
 }
@@ -211,6 +274,7 @@ const s = StyleSheet.create({
   avatarSection: { alignItems: 'center', gap: 8, paddingVertical: 12 },
   avatar:      { width: 72, height: 72, borderRadius: 36, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center' },
   avatarText:  { color: '#fff', fontSize: 26, fontWeight: '900' },
+  avatarEditBadge: { position: 'absolute', right: -2, bottom: -2, width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 2 },
   name:        { fontSize: 22, fontWeight: '900' },
   eventBadge:  { borderRadius: 14, paddingHorizontal: 12, paddingVertical: 4 },
   eventText:   { fontSize: 13, fontWeight: '700' },

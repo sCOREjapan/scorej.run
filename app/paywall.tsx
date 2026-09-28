@@ -19,7 +19,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { usePurchase } from '../context/PurchaseContext'
-import { PRODUCT_IDS, TICKET_MONTHLY_GRANT } from '../lib/purchaseService'
+import { PRODUCT_IDS, TICKET_MONTHLY_GRANT, trialDaysFromPackage } from '../lib/purchaseService'
 import { trackPaywallView, trackTrialStarted, trackEvent } from '../lib/analytics'
 import { getMissionState } from '../lib/missionStore'
 import { fetchMembers } from '../lib/supabaseTeam'
@@ -34,6 +34,12 @@ const TIX    = '#f59e0b'
 const GOLD   = '#d97706'
 const BORDER = 'rgba(0,0,0,0.08)'
 const CARD   = '#ffffff'
+// 2026-09-24: 「コーチプランのカードは情報表示のみにして、外部ショップに繋げて」との
+// 指示で追加。コーチ/チームプランはApp内課金(IAP)から外部決済(Stripe/BASE)に切り替え
+// 済みで、案内・決済ページはapp/team-plan.tsxとして既に構築されている
+// （2026-09-14の方針転換。api/admin-generate-team-code.tsのコメントも参照）。
+// この画面のコーチプランカードは、その案内ページへの入口として使う。
+const TEAM_PLAN_URL = 'https://scorej-run.vercel.app/team-plan'
 const TICKET_ICON = require('../assets/icons/ticket.png')
 // 2026-09-11: 「チケット月額プランの横は、プレミアム(金×ホロ箔)チケットの方にしてほしい」との指示
 const PREMIUM_TICKET_ICON = require('../assets/icons/ticket_premium.png')
@@ -94,22 +100,8 @@ function buildPlans(t: (key: string, opts?: any) => string): PlanConfig[] {
   ]
 }
 
-// StoreKit/Play Console の Introductory Offer（price=0）から無料体験の日数を読み取る。
-// 「◯日間無料」を文言としてハードコードすると、ストア側の実際の設定とズレて事実と異なる
-// 表示になる危険があるため（noadプランの説明矛盾と同じ種類の事故）、必ず実際の商品情報から動的に出す。
-// トライアルが設定されていない商品では null（=表示しない）。
-function trialDaysFromPackage(pkg: any): number | null {
-  const intro = pkg?.product?.introPrice
-  if (!intro || intro.price !== 0) return null
-  const n = intro.periodNumberOfUnits ?? 1
-  switch (intro.periodUnit) {
-    case 'DAY':   return n
-    case 'WEEK':  return n * 7
-    case 'MONTH': return n * 30
-    case 'YEAR':  return n * 365
-    default:      return null
-  }
-}
+// trialDaysFromPackage()はlib/purchaseService.ts(native)へ切り出し済み
+// （app/mission-offer.tsxからも同じロジックで使うため）。
 
 // 月額（または年額の月換算）price文字列（例:"¥980"）から1日あたりの目安額を出す。
 // 「月額980円」より「1日あたり33円」の方が心理的な負担感が小さく見えるアンカリング表示。
@@ -278,6 +270,12 @@ export default function PaywallScreen() {
   const selectedTrialDays = trialDaysFor(selectedTerms.productId)
 
   const handlePurchase = useCallback(async () => {
+    // コーチプランはApp内課金ではなく外部の案内・決済ページ(app/team-plan.tsx)へ誘導する
+    // （上のTEAM_PLAN_URLのコメント参照）。ここでのpurchase()呼び出しは発生させない。
+    if (selected === 'coach') {
+      Linking.openURL(TEAM_PLAN_URL)
+      return
+    }
     if (purchaseLockRef.current) return
     if (!targetPkg) {
       // Toastは幅が狭く長い診断文字列が途中で切れて読めないため、
@@ -329,45 +327,53 @@ export default function PaywallScreen() {
         />
         <TouchableOpacity
           onPress={handlePurchase}
-          disabled={purchasing || !packagesReady}
+          disabled={selected !== 'coach' && (purchasing || !packagesReady)}
           activeOpacity={0.85}
-          style={[st.purchaseBtn, (purchasing || !packagesReady) && { opacity: 0.55 }]}
+          style={[st.purchaseBtn, selected !== 'coach' && (purchasing || !packagesReady) && { opacity: 0.55 }]}
         >
           {purchasing ? (
             <ActivityIndicator color={selectedPlan.color} />
           ) : (
             <Text style={[st.purchaseBtnText, { color: selectedPlan.color }]}>
-              {selectedTrialDays
+              {selected === 'coach'
+                ? t('paywall.coachShopCta')
+                : selectedTrialDays
                 ? t('paywall.startTrial', { days: selectedTrialDays })
                 : t('paywall.startPlan', { label: selectedPlan.label, price: selectedTerms.price, period: selectedTerms.period })}
             </Text>
           )}
         </TouchableOpacity>
       </View>
-      {selectedTrialDays ? (
+      {selected === 'coach' ? (
+        <Text style={st.trialSubtext}>{t('paywall.coachShopSubtext')}</Text>
+      ) : selectedTrialDays ? (
         <Text style={st.trialSubtext}>
           {t('paywall.trialSubtext', { price: selectedTerms.price, period: selectedTerms.period })}
         </Text>
       ) : null}
 
-      {/* ── 法的必須テキスト（Apple審査要件 3.1.2） ── */}
-      <View style={st.legalBox}>
-        <Text style={st.legalText}>
-          {selectedTrialDays ? `• ${t('paywall.legal.trialLine', { days: selectedTrialDays })}\n` : ''}
-          • {t('paywall.legal.autoRenew')}{'\n'}
-          • {t('paywall.legal.cancelNotice')}{'\n'}
-          • {t('paywall.legal.howToCancel')}{'\n'}
-          • {t('paywall.legal.refundPolicy')}
-        </Text>
-        <View style={{ flexDirection: 'row', gap: 16, marginTop: 10 }}>
-          <TouchableOpacity onPress={() => Linking.openURL('https://scorej-run.vercel.app/privacy')}>
-            <Text style={st.legalLink}>{t('paywall.privacyPolicy')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => Linking.openURL('https://scorej-run.vercel.app/terms')}>
-            <Text style={st.legalLink}>{t('paywall.terms')}</Text>
-          </TouchableOpacity>
+      {/* ── 法的必須テキスト（Apple審査要件 3.1.2） ──
+          コーチプランは外部決済ページ誘導のため、App内課金の自動更新・解約に関する
+          この定型文は対象外（team-plan.tsx側にStripeの決済条件が別途表示される）。 */}
+      {selected !== 'coach' && (
+        <View style={st.legalBox}>
+          <Text style={st.legalText}>
+            {selectedTrialDays ? `• ${t('paywall.legal.trialLine', { days: selectedTrialDays })}\n` : ''}
+            • {t('paywall.legal.autoRenew')}{'\n'}
+            • {t('paywall.legal.cancelNotice')}{'\n'}
+            • {t('paywall.legal.howToCancel')}{'\n'}
+            • {t('paywall.legal.refundPolicy')}
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 16, marginTop: 10 }}>
+            <TouchableOpacity onPress={() => Linking.openURL('https://scorej-run.vercel.app/privacy')}>
+              <Text style={st.legalLink}>{t('paywall.privacyPolicy')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => Linking.openURL('https://scorej-run.vercel.app/terms')}>
+              <Text style={st.legalLink}>{t('paywall.terms')}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      )}
 
       {/* ── 復元ボタン（Apple審査で必須） ── */}
       <TouchableOpacity onPress={handleRestore} disabled={restoring} style={st.restoreBtn}>
@@ -513,7 +519,10 @@ export default function PaywallScreen() {
           const isSelected = selected === plan.id
           const period = plan.yearly ? periods[plan.id] : 'monthly'
           const terms = period === 'yearly' && plan.yearly ? plan.yearly : plan.monthly
-          const trialDays = trialDaysFor(terms.productId)
+          // コーチプランはApp内課金を使わない(外部ショップ誘導)ため、StoreKit/Play Console側の
+          // 無料体験設定が残っていても「7日間無料」バッジは出さない（タップしても実際には
+          // トライアルが始まらず、案内ページに飛ぶだけになるため誤解を防ぐ）。
+          const trialDays = plan.id === 'coach' ? null : trialDaysFor(terms.productId)
           // セール対象はチケット月額プランのみ。App Store Connect/RevenueCat側で
           // 導入価格(価格>0のIntroductory Offer)が実際に設定されている時だけ、
           // 割引後の価格をそのまま表示する（設定が無ければ通常価格のまま＝誇大表示を避ける）

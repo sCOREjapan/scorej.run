@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { useRouter } from 'expo-router'
 import { BRAND } from '../lib/theme'
 import { useTheme, type ThemeColors } from '../context/ThemeContext'
 import { useTranslation } from 'react-i18next'
@@ -83,8 +84,18 @@ export default function AIMenuResultCard({
   text, loading, onRegenerate,
 }: { text: string; loading?: boolean; onRegenerate?: () => void }) {
   const { colors } = useTheme()
+  const { t } = useTranslation()
+  const router = useRouter()
   const r = useMemo(() => makeR(colors), [colors])
   const parsed = useMemo(() => parseMenuText(text), [text])
+
+  // 2026-09-24:「メニューによく分からない種目名が来た時、具体的なやり方を教えて
+  // ほしい」との指示で追加。各メニュー項目をタップすると、その項目名を質問として
+  // 自動送信した状態でスコッピー(AIチャット)を開く。
+  const askAboutItem = (itemText: string) => {
+    const clean = itemText.replace(/\*\*/g, '').trim()
+    router.push({ pathname: '/scoppy-chat', params: { q: t('aiMenuResultCard.askPrompt', { item: clean }) } } as any)
+  }
 
   // 想定フォーマット外（APIエラー文言等）はプレーン表示にフォールバック
   if (parsed.sections.length === 0) {
@@ -123,10 +134,16 @@ export default function AIMenuResultCard({
               const isLast = j === sec.lines.length - 1
               if (l.type === 'numbered') {
                 return (
-                  <View key={j} style={[r.numRow, !isLast && r.rowDivider]}>
+                  <TouchableOpacity
+                    key={j}
+                    activeOpacity={0.6}
+                    onPress={() => askAboutItem(l.text)}
+                    style={[r.numRow, !isLast && r.rowDivider]}
+                  >
                     <Text style={r.numText}>{l.num}</Text>
                     <InlineText text={l.text} style={r.bodyText} />
-                  </View>
+                    <Ionicons name="help-circle-outline" size={16} color={colors.textHint} />
+                  </TouchableOpacity>
                 )
               }
               if (l.type === 'arrow') {

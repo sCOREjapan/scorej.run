@@ -24,7 +24,7 @@ module.exports = {
       requiresFullScreen: true,
       bundleIdentifier: 'com.scorejapan.score',
       usesAppleSignIn: true,
-      buildNumber: '68',
+      buildNumber: '69',
       appleTeamId: '4B5NK8DR67',
       entitlements: {
         'com.apple.security.application-groups': ['group.com.scorejapan.score'],
@@ -50,7 +50,7 @@ module.exports = {
     android: {
       adaptiveIcon: { backgroundColor: '#0a0a0a' },
       package: 'com.scorejapan.score',
-      versionCode: 10,
+      versionCode: 11,
       googleServicesFile: './google-services.json',
     },
     plugins: [

@@ -6,6 +6,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useFocusEffect } from '@react-navigation/native'
+import { useLocalSearchParams } from 'expo-router'
 import { BRAND } from '../../lib/theme'
 import { useTheme, type ThemeColors } from '../../context/ThemeContext'
 import { Ionicons } from '@expo/vector-icons'
@@ -276,9 +277,15 @@ export default function CalendarScreen() {
   const { language } = useLanguage()
   const WEEKDAYS = language === 'en' ? WEEKDAYS_EN : WEEKDAYS_JA
   const today = new Date()
-  const [year,         setYear]         = useState(today.getFullYear())
-  const [month,        setMonth]        = useState(today.getMonth())
-  const [selectedDate, setSelectedDate] = useState(toYMD(today))
+  // 2026-09-24:「ホーム画面の日付をタップしたらカレンダーが出て、選んだ日付のメニューが
+  // 見れるように」との指示で追加。app/(tabs)/index.tsxの日付ストリップから
+  // router.push({pathname:'/(tabs)/calendar', params:{date:'YYYY-MM-DD'}})で渡された
+  // 日付があれば、その月・その日を初期表示にする（無ければ従来通り今日）。
+  const { date: dateParam } = useLocalSearchParams<{ date?: string }>()
+  const initialDate = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? new Date(dateParam + 'T00:00:00') : today
+  const [year,         setYear]         = useState(initialDate.getFullYear())
+  const [month,        setMonth]        = useState(initialDate.getMonth())
+  const [selectedDate, setSelectedDate] = useState(toYMD(initialDate))
   const [dayMap,       setDayMap]       = useState<Record<string, DotType[]>>({})
   const [recordMap,    setRecordMap]    = useState<Record<string, DayRecord[]>>({})
   const [colorMap,     setColorMap]     = useState<Record<string, string>>({})   // 日付 → 強度色

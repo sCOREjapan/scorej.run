@@ -42,6 +42,29 @@ export const HEPTATHLON_WOMEN: EventDef[] = [
   { key: '800m',   label: '800m',    unit: 'sec', A: 0.11193,  B: 254,  C: 1.88,  isTrack: true  },
 ]
 
+// ── 高校男子八種競技（8種目・記載順=競技順） ────────────────────────────
+// 種目構成は日本陸上競技連盟競技規則 第5部第200条(国内規定)で確認済み:
+// 「男子の八種競技は8種目からなり(中略)第1日 100m、走幅跳、砲丸投(6kg)、400m
+//   第2日 110mハードル、やり投、走高跳、1500m」「各種目の得点は混成競技採点表による」
+// 100m/走幅跳/400m/走高跳/やり投/1500mの6種目は一般・大学(十種競技)と同一規格のため
+// DECATHLON_MENの公式係数をそのまま使用。
+// ⚠️ 110mH(高校規格99.1cm)と砲丸投(6kg)の2種目は、一般規格(106.7cm/7.26kg)とは
+// 異なる規格のため係数が異なるはずだが、正式な公表係数を確認できなかった
+// （2026-09-24時点）。中学規格(91.4cm/4kg=TETRATHLON_JHS_MEN)と一般規格の間の値から
+// 推定した暫定値を使用している。正式な得点表が入手できたら必ず差し替えること。
+export const OCTATHLON_HS_MEN: EventDef[] = [
+  { key: '100m',   label: '100m',         unit: 'sec', A: 25.4347,  B: 18,   C: 1.81, isTrack: true  },
+  { key: 'lj',     label: '走幅跳',        unit: 'cm',  A: 0.14354,  B: 220,  C: 1.4,  isTrack: false },
+  // ⚠️推定値: 砲丸投6kg。4kg(中学)〜7.26kg(一般)の係数がほぼ同一だったため一般規格の係数を暫定流用
+  { key: 'sp6kg',  label: '砲丸投(6kg)',  unit: 'm',   A: 51.39,    B: 1.5,  C: 1.05, isTrack: false },
+  { key: '400m',   label: '400m',         unit: 'sec', A: 1.53775,  B: 82,   C: 1.81, isTrack: true  },
+  // ⚠️推定値: 110mH高校規格(99.1cm)。中学規格(91.4cm)と一般規格(106.7cm)の間で線形補間
+  { key: '110mh',  label: '110mH',        unit: 'sec', A: 5.7174,   B: 28.5, C: 1.9216,isTrack: true  },
+  { key: 'jt',     label: 'やり投',        unit: 'm',   A: 10.14,    B: 7,    C: 1.08, isTrack: false },
+  { key: 'hj',     label: '走高跳',        unit: 'cm',  A: 0.8465,   B: 75,   C: 1.42, isTrack: false },
+  { key: '1500m',  label: '1500m',        unit: 'sec', A: 0.03768,  B: 480,  C: 1.85, isTrack: true  },
+]
+
 // ── 中学男子四種競技（4種目・記載順=競技順） ──────────────────────────
 // 係数は公式のIAAF/JAAF公表値ではなく、NPO法人高知陸上競技協会が公開する
 // 「中学男子四種競技得点表（電気計時）」(http://npo-kochi.sports.coocan.jp/iinkai/joho_i/4shu_table_m.pdf)

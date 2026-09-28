@@ -3,8 +3,9 @@
 // 2026-09-09: 「gemini-3-flash-previewが2026-07-15に廃止されて以降ずっと404を
 // 返し続け、約1ヶ月間AI機能が実質全滅していたことに誰も気づかなかった」事故
 // （api/analyze.ts冒頭コメント参照）の再発防止。
-// Gemini本番/軽量モデルとAnthropicフォールバックへ固定の軽量プロンプトを送り、
-// 結果をai_health_checksテーブルに記録する。1つでも失敗すればHTTP 500を返す
+// Gemini本番/軽量モデルへ固定の軽量プロンプトを送り、結果をai_health_checksテーブルに
+// 記録する（2026-09-24: Anthropicフォールバック撤去に伴いAnthropicチェックも削除。
+// api/analyze.ts冒頭コメント参照）。1つでも失敗すればHTTP 500を返す
 // ——Vercelのcronダッシュボードで失敗として記録され、Vercelプランによっては
 // メール通知の対象になる。専用のWebhook/メール送信サービスは未導入のため、
 // 「開発者に能動的にプッシュ通知する」までは実装していない
@@ -60,35 +61,6 @@ async function checkGemini(model: string, apiKey: string): Promise<{ ok: boolean
   }
 }
 
-async function checkAnthropic(apiKey: string): Promise<{ ok: boolean; error: string | null; latencyMs: number }> {
-  const started = Date.now()
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001', max_tokens: 50,
-        messages: [{ role: 'user', content: TEST_PROMPT }],
-      }),
-    })
-    const latencyMs = Date.now() - started
-    if (!res.ok) {
-      const errText = await res.text().catch(() => '')
-      return { ok: false, error: `HTTP ${res.status}: ${errText.slice(0, 300)}`, latencyMs }
-    }
-    const data = await res.json()
-    const text = data?.content?.[0]?.text ?? ''
-    if (!text.trim()) return { ok: false, error: 'empty response', latencyMs }
-    return { ok: true, error: null, latencyMs }
-  } catch (e: any) {
-    return { ok: false, error: e?.message ?? String(e), latencyMs: Date.now() - started }
-  }
-}
-
 export default async function handler(req: any, res: any) {
   const cronSecret = process.env.CRON_SECRET
   if (cronSecret) {
@@ -100,16 +72,12 @@ export default async function handler(req: any, res: any) {
   }
 
   const geminiKey = process.env.GEMINI_API_KEY
-  const anthropicKey = process.env.ANTHROPIC_API_KEY ?? process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY
 
   const checks: Record<string, { ok: boolean; error: string | null; latencyMs: number }> = {}
 
   if (geminiKey) {
     checks.gemini_main = await checkGemini(GEMINI_MODEL, geminiKey)
     checks.gemini_lite = await checkGemini(GEMINI_MODEL_LITE, geminiKey)
-  }
-  if (anthropicKey) {
-    checks.anthropic_fallback = await checkAnthropic(anthropicKey)
   }
 
   await Promise.all(

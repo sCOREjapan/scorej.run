@@ -1,9 +1,9 @@
 // lib/teamAutoSync.ts — 練習記録をチームへ自動同期
 // セッションが保存されるたびに呼ぶ。チームに未参加なら何もしない。
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { syncTeamSessions, upsertPlayerStats, fetchPlayerStats, clearPlayerPrivateData } from './supabaseTeam'
+import { syncTeamSessions, upsertPlayerStats, fetchPlayerStats, clearPlayerPrivateData, syncTeamMeal, syncTeamWarmupCompletion } from './supabaseTeam'
 import { calcLevelInfo } from './gamification'
-import type { TrainingSession } from '../types'
+import type { TrainingSession, MealRecord } from '../types'
 import { localDateStr, todayLocalISO } from './dateLocal'
 
 const JOINED_KEY      = 'trackmate_team_joined'
@@ -103,6 +103,62 @@ export async function autoSyncTeam(
       mine?.goal   ?? '',
       streak,
     )
+  } catch {
+    // 同期エラーはサイレントに無視（ローカル記録を妨げない）
+  }
+}
+
+/**
+ * 2026-09-26:「アップ(ウォームアップ)の時間がコーチに分かるといい」との指示で追加。
+ * app/warmup.tsxの完了ボタンから呼ぶ。内容は記録せず完了時刻のみの最小実装。
+ * 食事・メモより機微度が低いため、非公開(shareLv===0)以外は同期する。
+ */
+export async function syncWarmupToTeam(): Promise<void> {
+  try {
+    const raw = await AsyncStorage.getItem(JOINED_KEY)
+    if (!raw) return
+    const joined: JoinedTeam = JSON.parse(raw)
+    if (!joined?.code || !joined?.playerName) return
+
+    const shareLvRaw = await AsyncStorage.getItem(SHARE_LEVEL_KEY)
+    const shareLv = (shareLvRaw ? Number(shareLvRaw) : 2) as 0 | 1 | 2
+    if (shareLv < 1) return
+
+    await syncTeamWarmupCompletion(joined.code, joined.playerName, todayLocalISO(), new Date().toISOString())
+  } catch {
+    // 同期エラーはサイレントに無視（ローカル記録を妨げない）
+  }
+}
+
+/**
+ * 2026-09-26:「食事の時間と内容がコーチに分かるといい」との指示で追加。
+ * 食事保存の直後(app/(tabs)/nutrition.tsxのhandleSave/handleManualSave)に呼ぶ。
+ * team_sessions.notesと同じ方針で、共有レベルが「フル共有」(shareLv>=2)の選手のみ
+ * 同期する（部分共有・非公開の選手は食事内容を一切送らない）。
+ */
+export async function syncMealToTeam(meal: MealRecord): Promise<void> {
+  try {
+    const raw = await AsyncStorage.getItem(JOINED_KEY)
+    if (!raw) return
+    const joined: JoinedTeam = JSON.parse(raw)
+    if (!joined?.code || !joined?.playerName) return
+
+    const shareLvRaw = await AsyncStorage.getItem(SHARE_LEVEL_KEY)
+    const shareLv = (shareLvRaw ? Number(shareLvRaw) : 2) as 0 | 1 | 2
+    if (shareLv < 2) return
+
+    await syncTeamMeal(joined.code, joined.playerName, {
+      id: meal.id,
+      meal_date: meal.meal_date,
+      meal_type: meal.meal_type,
+      foods: meal.foods,
+      total_calories: meal.total_calories,
+      total_protein: meal.total_protein,
+      total_carb: meal.total_carb,
+      total_fat: meal.total_fat,
+      training_timing: meal.training_timing,
+      created_at: meal.created_at,
+    })
   } catch {
     // 同期エラーはサイレントに無視（ローカル記録を妨げない）
   }

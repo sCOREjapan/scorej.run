@@ -1,0 +1,666 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found]){display:none!important}</style></head><body>
+<title>sCORE 3週間アップデート</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap">
+<style>
+/* ============ page chrome tokens (theme aware) ============ */
+:root{
+  --k:.34;
+  --chrome-bg:#eef1ee;
+  --chrome-surface:#ffffff;
+  --chrome-text:#14241a;
+  --chrome-text2:#5d6f63;
+  --chrome-line:#d3dbd5;
+  --chrome-accent:#166534;
+  --chrome-accent-ink:#ffffff;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --chrome-bg:#0b1410;
+    --chrome-surface:#121e18;
+    --chrome-text:#e6eee9;
+    --chrome-text2:#93a89b;
+    --chrome-line:#24352b;
+    --chrome-accent:#2EE07A;
+    --chrome-accent-ink:#07160D;
+  }
+}
+:root[data-theme="dark"]{
+  --chrome-bg:#0b1410;
+  --chrome-surface:#121e18;
+  --chrome-text:#e6eee9;
+  --chrome-text2:#93a89b;
+  --chrome-line:#24352b;
+  --chrome-accent:#2EE07A;
+  --chrome-accent-ink:#07160D;
+}
+
+/* ============ frame palette (fixed artwork, not theme aware) ============ */
+:root{
+  --ink:#07160D;
+  --turf:#0F4A26;
+  --score:#166534;
+  --mint:#DCEEE1;
+  --glow:#2EE07A;
+  --alert:#E53935;
+  --paper:#F6F6F8;
+  --surface:#FFFFFF;
+  --tx:#111827;
+  --tx2:#6B7280;
+  --tx3:#9CA3AF;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--chrome-bg);
+  color:var(--chrome-text);
+  font-family:"Noto Sans JP","Hiragino Kaku Gothic ProN",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+
+.page{max-width:1120px;margin:0 auto;padding:40px 24px 96px;display:flex;flex-direction:column;gap:40px}
+
+header.top{display:flex;flex-direction:column;gap:18px;padding-bottom:28px;border-bottom:1px solid var(--chrome-line)}
+.top .mark{display:flex;align-items:center;gap:12px}
+.top .sbadge{width:34px;height:34px;border-radius:9px;background:#166534;display:grid;place-items:center;
+  font-family:"Zen Kaku Gothic New",sans-serif;font-weight:900;color:#fff;font-size:21px;line-height:1}
+.top .hand{font-size:13px;letter-spacing:.14em;font-weight:700;color:var(--chrome-text2)}
+h1.title{margin:0;font-family:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN",sans-serif;font-weight:900;
+  font-size:clamp(28px,5vw,42px);line-height:1.22;letter-spacing:-.02em;text-wrap:balance}
+p.deck{margin:0;max-width:60ch;font-size:15px;line-height:1.85;color:var(--chrome-text2)}
+
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:4px}
+.controls button{
+  font:inherit;font-size:13px;font-weight:700;padding:9px 16px;border-radius:999px;cursor:pointer;
+  border:1px solid var(--chrome-line);background:var(--chrome-surface);color:var(--chrome-text);
+  transition:background .15s ease,border-color .15s ease;
+}
+.controls button:hover{border-color:var(--chrome-accent)}
+.controls button[aria-pressed="true"]{background:var(--chrome-accent);border-color:var(--chrome-accent);color:var(--chrome-accent-ink)}
+.controls button:focus-visible{outline:2px solid var(--chrome-accent);outline-offset:2px}
+.controls .hint{font-size:12.5px;color:var(--chrome-text2);line-height:1.6;flex:1 1 280px;min-width:240px}
+
+.deck-list{display:flex;flex-direction:column;gap:56px;align-items:flex-start}
+.slot{display:flex;flex-direction:column;gap:12px;max-width:100%}
+.slot .cap{display:flex;align-items:baseline;gap:12px;font-size:12.5px;color:var(--chrome-text2)}
+.slot .cap b{font-family:"Zen Kaku Gothic New",sans-serif;font-weight:900;font-size:15px;color:var(--chrome-text);
+  font-variant-numeric:tabular-nums}
+.slot .cap span{font-weight:500}
+.stage{
+  width:calc(1080px * var(--k));height:calc(1920px * var(--k));
+  position:relative;overflow:hidden;box-shadow:0 0 0 1px var(--chrome-line),0 18px 40px -28px rgba(0,0,0,.55);
+}
+.frame{width:1080px;height:1920px;position:absolute;top:0;left:0;transform:scale(var(--k));transform-origin:0 0;overflow:hidden}
+
+footer.foot{border-top:1px solid var(--chrome-line);padding-top:24px;font-size:12.5px;line-height:1.9;color:var(--chrome-text2)}
+
+/* ============================================================
+   FRAME SYSTEM — design px (1080 × 1920)
+   safe area: top 208 / bottom 260 clears the Stories UI
+   ============================================================ */
+.frame{font-family:"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;color:var(--tx)}
+.frame .lanes{position:absolute;inset:0;pointer-events:none}
+.ink{background:var(--ink);color:var(--mint)}
+.ink .lanes{background:
+  radial-gradient(110% 52% at 50% -6%, rgba(46,224,122,.17), rgba(46,224,122,0) 62%),
+  repeating-linear-gradient(to right, rgba(220,238,225,0) 0 134px, rgba(220,238,225,.065) 134px 135px);}
+.paper{background:var(--paper);color:var(--tx)}
+.paper .lanes{background:repeating-linear-gradient(to right, rgba(22,101,52,0) 0 134px, rgba(22,101,52,.085) 134px 135px);}
+
+.pad{position:absolute;left:96px;right:96px;top:208px;bottom:260px;display:flex;flex-direction:column}
+
+.brow{display:flex;align-items:center;gap:22px;flex:none}
+.sq{width:76px;height:76px;border-radius:23px;background:var(--score);display:grid;place-items:center;flex:none;
+  font-family:"Zen Kaku Gothic New",sans-serif;font-weight:900;color:#fff;font-size:47px;line-height:1}
+.ink .sq{box-shadow:0 0 0 2px rgba(220,238,225,.22)}
+.tag{font-size:22px;font-weight:700;letter-spacing:.26em;text-transform:uppercase;line-height:1.3}
+.ink .tag{color:var(--glow)}
+.paper .tag{color:var(--score)}
+.tag em{font-style:normal;letter-spacing:.06em;display:block;font-size:25px;margin-top:5px}
+.ink .tag em{color:var(--mint)}
+.paper .tag em{color:var(--tx)}
+
+h2.h{font-family:"Zen Kaku Gothic New",sans-serif;font-weight:900;margin:0;letter-spacing:-.045em;line-height:1.16}
+.s-xl{font-size:130px}
+.s-l{font-size:96px}
+.s-m{font-size:88px}
+.ink h2.h{color:#fff}
+.lead{margin:0;font-size:31px;line-height:1.7;font-weight:500}
+.ink .lead{color:rgba(220,238,225,.84)}
+.paper .lead{color:var(--tx2)}
+.note{margin:0;font-size:24px;line-height:1.6;font-weight:500}
+.ink .note{color:rgba(220,238,225,.62)}
+.paper .note{color:var(--tx2)}
+.mini{font-size:21px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;line-height:1.5}
+.ink .mini{color:rgba(46,224,122,.82)}
+.paper .mini{color:var(--tx3)}
+.spacer{flex:1 1 auto;min-height:20px}
+
+/* bottom lane rail — the recurring mark, doubling as the position indicator */
+.rail{position:absolute;left:96px;right:96px;bottom:168px;display:flex;align-items:center;gap:24px}
+.rail .lab{font-size:20px;font-weight:700;letter-spacing:.22em;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ink .rail .lab{color:rgba(220,238,225,.55)}
+.paper .rail .lab{color:var(--tx3)}
+.segs{display:flex;gap:11px;flex:1}
+.segs i{flex:1;height:9px;border-radius:5px;display:block}
+.ink .segs i{background:rgba(220,238,225,.16)}
+.ink .segs i.on{background:var(--glow);box-shadow:0 0 18px rgba(46,224,122,.55)}
+.paper .segs i{background:rgba(22,101,52,.17)}
+.paper .segs i.on{background:var(--score)}
+
+/* ---------- 01 : readout board ---------- */
+.readout{display:flex;flex-direction:column;gap:26px;flex:none}
+.readout .date{font-size:25px;font-weight:700;letter-spacing:.2em;color:rgba(220,238,225,.55);font-variant-numeric:tabular-nums}
+.figs{display:flex;gap:64px}
+.fig{display:flex;flex-direction:column;gap:6px}
+.fig b{font-family:"Zen Kaku Gothic New",sans-serif;font-weight:900;font-size:178px;line-height:.92;
+  letter-spacing:-.05em;color:var(--glow);text-shadow:0 0 42px rgba(46,224,122,.45);font-variant-numeric:tabular-nums}
+.fig span{font-size:28px;font-weight:700;color:rgba(220,238,225,.78);letter-spacing:.04em}
+.hr{height:1px;background:rgba(220,238,225,.2);flex:none}
+
+/* ---------- 02 : coach rows ---------- */
+.rows{display:flex;flex-direction:column;flex:none}
+.rows .r{display:flex;gap:30px;padding:20px 0;border-top:1px solid rgba(220,238,225,.17)}
+.rows .r:last-child{border-bottom:1px solid rgba(220,238,225,.17)}
+.rows .rl{width:198px;flex:none;font-size:21px;font-weight:700;letter-spacing:.06em;color:var(--glow);padding-top:8px}
+.rows .rt{flex:1}
+.rows .rt b{display:block;font-family:"Zen Kaku Gothic New",sans-serif;font-weight:700;font-size:38px;line-height:1.3;color:#fff}
+.rows .rt p{margin:6px 0 0;font-size:24px;line-height:1.6;color:rgba(220,238,225,.7)}
+.chips{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px}
+.chip{display:inline-flex;align-items:center;gap:10px;padding:9px 20px;border-radius:999px;
+  background:rgba(220,238,225,.1);font-size:22px;font-weight:700;color:var(--mint)}
+.chip .dot{width:12px;height:12px;border-radius:50%;background:var(--glow);flex:none}
+.chip.alert{background:rgba(229,57,53,.18);color:#FFB3B1}
+.chip.alert .dot{background:var(--alert)}
+
+/* ---------- 03 : race-day schedule ---------- */
+.sched{display:flex;flex-direction:column;flex:none;background:var(--surface);
+  box-shadow:0 22px 48px -34px rgba(17,24,39,.5)}
+.sched .shead{display:flex;justify-content:space-between;align-items:baseline;padding:20px 32px;background:var(--score)}
+.sched .shead b{font-family:"Zen Kaku Gothic New",sans-serif;font-weight:700;font-size:31px;color:#fff;letter-spacing:.02em}
+.sched .shead span{font-size:20px;font-weight:700;letter-spacing:.2em;color:rgba(255,255,255,.75)}
+.sched .ln{display:flex;gap:28px;align-items:baseline;padding:14px 32px;border-top:1px solid #EDF1EE}
+.sched .tm{width:122px;flex:none;font-family:"Zen Kaku Gothic New",sans-serif;font-weight:900;font-size:33px;
+  color:var(--turf);font-variant-numeric:tabular-nums;letter-spacing:-.02em;line-height:1.2}
+.sched .ev{font-size:27px;font-weight:500;color:var(--tx);line-height:1.4}
+.sched .ln.key{background:#F2F8F4}
+.sched .ln.key .ev{font-weight:700}
+.sched .goal{display:flex;gap:56px;padding:20px 32px;background:#F2F8F4;border-top:2px solid var(--score)}
+.sched .goal div{display:flex;flex-direction:column;gap:4px}
+.sched .goal small{font-size:20px;font-weight:700;letter-spacing:.12em;color:var(--tx2)}
+.sched .goal strong{font-family:"Zen Kaku Gothic New",sans-serif;font-weight:900;font-size:38px;color:var(--turf);
+  font-variant-numeric:tabular-nums;letter-spacing:-.02em;line-height:1.2}
+.sched .goal em{font-style:normal;font-size:27px;font-weight:700;color:var(--tx);line-height:1.45}
+
+/* ---------- 04 : ask bubbles ---------- */
+.asks{display:flex;flex-direction:column;gap:18px;flex:none}
+.ask{padding:24px 32px;border-radius:32px 32px 32px 10px;background:rgba(220,238,225,.11);
+  font-size:30px;line-height:1.5;font-weight:500;color:#fff;max-width:610px}
+.mascot-wave{position:absolute;right:36px;bottom:296px;width:320px;height:auto;display:block}
+.w600{max-width:600px}
+
+/* ---------- 05 : avatar grid ---------- */
+.grid20{display:grid;grid-template-columns:repeat(5,150px);gap:20px;flex:none;justify-content:center}
+.grid20 img{width:150px;height:150px;display:block;border-radius:21px;background:#fff;object-fit:cover}
+.bignum{display:flex;align-items:baseline;gap:18px;flex:none}
+.bignum b{font-family:"Zen Kaku Gothic New",sans-serif;font-weight:900;font-size:110px;line-height:.9;
+  letter-spacing:-.05em;color:var(--score);font-variant-numeric:tabular-nums}
+.bignum span{font-size:31px;font-weight:700;color:var(--tx)}
+
+/* ---------- 06 : the light / dark split ---------- */
+.split{position:absolute;inset:0}
+.split .lite{position:absolute;top:0;left:0;right:0;height:1108px;background:var(--paper)}
+.split .lite::after{content:"";position:absolute;inset:0;
+  background:repeating-linear-gradient(to right, transparent 0 134px, rgba(22,101,52,.085) 134px 135px)}
+.split .drk{position:absolute;top:1108px;left:0;right:0;bottom:0;
+  background:repeating-linear-gradient(to right, transparent 0 134px, rgba(220,238,225,.07) 134px 135px)}
+.zone{position:absolute;left:96px;right:96px;display:flex;flex-direction:column}
+.frame .zone-lite h2.h{color:var(--tx)}
+.frame .zone-lite .tag{color:var(--score)}
+.frame .zone-lite .tag em{color:var(--tx)}
+.frame .zone-lite .sq{box-shadow:none}
+.screens{display:flex;flex-direction:column;flex:none}
+.screens .s{display:flex;align-items:baseline;gap:24px;padding:20px 0;border-top:1px solid rgba(17,24,39,.12)}
+.screens .s:last-child{border-bottom:1px solid rgba(17,24,39,.12)}
+.screens .s b{font-family:"Zen Kaku Gothic New",sans-serif;font-weight:700;font-size:40px;color:var(--tx);white-space:nowrap;line-height:1.25}
+.screens .s span{font-size:25px;color:var(--tx2);line-height:1.5}
+.darkchips{display:flex;flex-wrap:wrap;gap:13px}
+.darkchip{padding:12px 24px;border-radius:999px;border:1px solid rgba(220,238,225,.3);
+  font-size:26px;font-weight:700;color:var(--mint)}
+
+/* ---------- 07 : widgets (dedicated) ---------- */
+.wgrid{display:grid;grid-template-columns:1fr 1fr;gap:20px;flex:none}
+.w{border-radius:32px;padding:24px 28px;display:flex;flex-direction:column;justify-content:space-between;height:224px;
+  background:linear-gradient(150deg,#1E7A41 0%,#0F4A26 100%);color:#fff;box-shadow:0 20px 36px -28px rgba(0,0,0,.8)}
+.w.wide{grid-column:1 / -1;height:184px}
+.w .wl{font-size:22px;font-weight:700;letter-spacing:.13em;color:rgba(220,238,225,.74)}
+.w .wv{font-family:"Zen Kaku Gothic New",sans-serif;font-weight:900;font-size:52px;line-height:1.05;letter-spacing:-.03em;
+  font-variant-numeric:tabular-nums}
+.w .wv small{font-size:26px;font-weight:700;letter-spacing:0;margin-left:6px}
+.w .wd{font-size:19px;font-weight:500;line-height:1.5;color:rgba(220,238,225,.68);margin-top:6px}
+.meter{display:flex;gap:8px;margin-top:12px}
+.meter i{height:11px;flex:1;border-radius:6px;background:rgba(220,238,225,.22)}
+.meter i.on{background:var(--glow)}
+.w.wide .trio{display:flex;gap:44px}
+.w.wide .trio div{display:flex;flex-direction:column;gap:3px}
+.w.wide .trio small{font-size:20px;font-weight:700;color:rgba(220,238,225,.72)}
+.w.wide .trio b{font-family:"Zen Kaku Gothic New",sans-serif;font-weight:900;font-size:38px;font-variant-numeric:tabular-nums;line-height:1.1}
+.widget-points{display:flex;flex-direction:column;flex:none}
+.widget-points .p{display:flex;gap:20px;padding:16px 0;border-top:1px solid rgba(220,238,225,.15);font-size:25px;line-height:1.55;
+  color:rgba(220,238,225,.86);font-weight:500}
+.widget-points .p:last-child{border-bottom:1px solid rgba(220,238,225,.15)}
+.widget-points .p i{font-style:normal;color:var(--glow);flex:none;font-weight:700}
+
+/* ---------- 08 : そのほか ---------- */
+.more{display:flex;flex-direction:column;flex:none}
+.more .m{display:flex;gap:20px;padding:20px 0;border-top:1px solid rgba(220,238,225,.15);font-size:28px;line-height:1.6;
+  color:rgba(220,238,225,.9);font-weight:500}
+.more .m:last-child{border-bottom:1px solid rgba(220,238,225,.15)}
+.more .m i{font-style:normal;color:var(--glow);flex:none;font-weight:700}
+
+/* ---------- 09 : close ---------- */
+.mascot-ready{display:block;margin:0 auto;width:330px;height:auto;flex:none}
+.close-cta{display:flex;flex-direction:column;gap:16px;flex:none}
+.cta-btn{align-self:flex-start;padding:22px 44px;border-radius:999px;background:var(--glow);color:var(--ink);
+  font-family:"Zen Kaku Gothic New",sans-serif;font-weight:900;font-size:38px;letter-spacing:-.01em;line-height:1.2}
+.plat{display:flex;gap:14px;flex-wrap:wrap}
+.plat span{padding:10px 24px;border:1px solid rgba(220,238,225,.3);border-radius:999px;font-size:24px;font-weight:700;
+  color:var(--mint)}
+</style>
+
+<div class="page">
+  <header class="top">
+    <div class="mark">
+      <div class="sbadge">S</div>
+      <div class="hand">SCORE JAPAN&nbsp;&nbsp;/&nbsp;&nbsp;@SCORE.JAPAN</div>
+    </div>
+    <h1 class="title">sCORE 3週間アップデート — ストーリーズ9枚</h1>
+    <p class="deck">2026年9月3日〜9月23日にsCOREへ入った変更を、Instagramストーリーズ用に9枚へ編集しました。各スライドは1080×1920px。上208px・下260pxは進捗バーと返信欄を避けた安全域として空けてあるので、1枚ずつスクリーンショットしてそのまま投稿できます。</p>
+    <div class="controls">
+      <button type="button" id="fitBtn" aria-pressed="true">画面にフィット</button>
+      <button type="button" id="actualBtn" aria-pressed="false">実寸 1080 × 1920</button>
+      <span class="hint">投稿用の画像が必要なときは「実寸」に切り替えて、スライドごとにスクリーンショットしてください。</span>
+    </div>
+  </header>
+
+  <div class="deck-list">
+
+    <!-- ============ 01 ============ -->
+    <div class="slot">
+      <div class="cap"><b>01</b><span>フック / 3週間の総量</span></div>
+      <div class="stage"><div class="frame ink">
+        <div class="lanes"></div>
+        <div class="pad">
+          <div class="brow">
+            <div class="sq">S</div>
+            <div class="tag">Update Log<em>sCORE</em></div>
+          </div>
+          <div class="spacer"></div>
+          <h2 class="h s-xl">3週間で、<br>アプリが<br>別物になった。</h2>
+          <div class="spacer"></div>
+          <div class="readout">
+            <div class="hr"></div>
+            <div class="date">2026.09.03 — 09.23</div>
+            <div class="figs">
+              <div class="fig"><b>21</b><span>新機能</span></div>
+              <div class="fig"><b>29</b><span>改善・修正</span></div>
+            </div>
+            <p class="note">陸上競技のチーム管理アプリ sCORE の、この3週間。</p>
+          </div>
+        </div>
+        <div class="rail"><span class="lab">LANE 1 / 9</span>
+          <div class="segs"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <span class="lab">@score.japan</span>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- ============ 02 ============ -->
+    <div class="slot">
+      <div class="cap"><b>02</b><span>コーチ機能の大幅拡充</span></div>
+      <div class="stage"><div class="frame ink">
+        <div class="lanes"></div>
+        <div class="pad">
+          <div class="brow">
+            <div class="sq">S</div>
+            <div class="tag">For Coaches<em>指導者の画面</em></div>
+          </div>
+          <div class="spacer"></div>
+          <h2 class="h s-l">コーチ側が、<br>いちばん変わった。</h2>
+          <p class="lead" style="margin-top:22px">この3週間でいちばん手を入れたのは、<br>選手ではなく指導者の画面でした。</p>
+          <div class="spacer"></div>
+          <div class="rows">
+            <div class="r">
+              <div class="rl">ホーム</div>
+              <div class="rt"><b>コーチ専用ホームに切り替え</b>
+                <p>選手用と指導者用、必要なほうを開ける。</p></div>
+            </div>
+            <div class="r">
+              <div class="rl">今日のチーム状況</div>
+              <div class="rt"><b>朝ひらいた瞬間に、見るべき選手が並ぶ</b>
+                <div class="chips">
+                  <span class="chip"><i class="dot"></i>要注意</span>
+                  <span class="chip alert"><i class="dot"></i>未確認の痛み報告</span>
+                  <span class="chip"><i class="dot"></i>今日まだ未記録</span>
+                </div></div>
+            </div>
+            <div class="r">
+              <div class="rl">選手カルテ</div>
+              <div class="rt"><b>練習履歴・自己ベスト・連続記録・目標を1枚で</b>
+                <p>名前をタップすれば、その選手の今がそろう。</p></div>
+            </div>
+            <div class="r">
+              <div class="rl">フィード</div>
+              <div class="rt"><b>チーム内の自己ベスト更新が流れてくる</b>
+                <p>誰かが記録を更新した日は、チーム全員に伝わる。</p></div>
+            </div>
+          </div>
+          <p class="note" style="margin-top:18px">チームプランは3段階に。ご利用証明書も発行できるようになりました。</p>
+        </div>
+        <div class="rail"><span class="lab">LANE 2 / 9</span>
+          <div class="segs"><i></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <span class="lab">@score.japan</span>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- ============ 03 ============ -->
+    <div class="slot">
+      <div class="cap"><b>03</b><span>レース行動予定（新機能）</span></div>
+      <div class="stage"><div class="frame paper">
+        <div class="lanes"></div>
+        <div class="pad">
+          <div class="brow">
+            <div class="sq">S</div>
+            <div class="tag">New<em>レース行動予定</em></div>
+          </div>
+          <div class="spacer"></div>
+          <h2 class="h s-l">試合当日の動きを、<br>1枚でコーチへ。</h2>
+          <p class="lead" style="margin-top:22px">起床から招集、レース開始まで。<br>自分で積み上げた当日の予定を、そのまま提出できます。</p>
+          <div class="spacer"></div>
+          <div class="sched">
+            <div class="shead"><b>レース行動予定</b><span>記入例</span></div>
+            <div class="ln"><div class="tm">06:30</div><div class="ev">起床・体重測定</div></div>
+            <div class="ln"><div class="tm">08:40</div><div class="ev">会場着 / 招集時刻の確認</div></div>
+            <div class="ln"><div class="tm">09:50</div><div class="ev">ジョグ20分 + ドリル</div></div>
+            <div class="ln"><div class="tm">10:30</div><div class="ev">スパイク着用・流し3本</div></div>
+            <div class="ln"><div class="tm">11:10</div><div class="ev">招集所へ</div></div>
+            <div class="ln key"><div class="tm">11:35</div><div class="ev">100m 予選</div></div>
+            <div class="goal">
+              <div><small>目標タイム</small><strong>11.24</strong></div>
+              <div><small>ラップ</small><em>前半60mまで我慢</em></div>
+            </div>
+          </div>
+          <div class="spacer"></div>
+          <p class="lead">ワンタップで提出。コーチは選手別・大会別に確認できます。</p>
+          <p class="note" style="margin-top:14px">現場のコーチへのヒアリングから生まれた機能です。</p>
+        </div>
+        <div class="rail"><span class="lab">LANE 3 / 9</span>
+          <div class="segs"><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <span class="lab">@score.japan</span>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- ============ 04 ============ -->
+    <div class="slot">
+      <div class="cap"><b>04</b><span>スコッピーAIチャット</span></div>
+      <div class="stage"><div class="frame ink">
+        <div class="lanes"></div>
+        <img class="mascot-wave" src="img/mascot-wave.png" alt="sCOREのマスコットキャラクター、スコッピー">
+        <div class="pad">
+          <div class="brow">
+            <div class="sq">S</div>
+            <div class="tag">AI Chat<em>スコッピー</em></div>
+          </div>
+          <div class="spacer"></div>
+          <h2 class="h s-l">聞ける相手が、<br>アプリの中に。</h2>
+          <p class="lead" style="margin-top:22px">陸上の知識も、ちょっとした相談も。<br>スコッピーに話しかけられるようになりました。</p>
+          <div class="spacer"></div>
+          <p class="mini" style="margin:0 0 18px">こんなことが聞ける</p>
+          <div class="asks">
+            <div class="ask">ハードルの3歩が詰まるのはなぜ？</div>
+            <div class="ask">レース前日は何を食べたらいい？</div>
+            <div class="ask">ふくらはぎが張ってる日も走っていい？</div>
+          </div>
+          <div class="spacer"></div>
+          <p class="note w600">AIの練習メニュー・大会プランも、練習環境／使える器具／技術スタイルまで指定できるようになりました。</p>
+        </div>
+        <div class="rail"><span class="lab">LANE 4 / 9</span>
+          <div class="segs"><i></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i></div>
+          <span class="lab">@score.japan</span>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- ============ 05 ============ -->
+    <div class="slot">
+      <div class="cap"><b>05</b><span>プロフィールアバター20種</span></div>
+      <div class="stage"><div class="frame paper">
+        <div class="lanes"></div>
+        <div class="pad">
+          <div class="brow">
+            <div class="sq">S</div>
+            <div class="tag">Avatar<em>プロフィール</em></div>
+          </div>
+          <div class="spacer"></div>
+          <h2 class="h s-m">顔写真じゃなくて、<br>いい。</h2>
+          <p class="lead" style="margin-top:22px">選手もコーチも、オリジナルキャラクターから<br>プロフィール画像を選べるようになりました。</p>
+          <div class="spacer"></div>
+          <div class="bignum"><b>20</b><span>種類、全部描き下ろし。</span></div>
+          <div class="spacer" style="min-height:26px"></div>
+          <div class="grid20">
+            <img src="img/av01.jpg" alt=""><img src="img/av02.jpg" alt=""><img src="img/av03.jpg" alt=""><img src="img/av04.jpg" alt=""><img src="img/av05.jpg" alt="">
+            <img src="img/av06.jpg" alt=""><img src="img/av07.jpg" alt=""><img src="img/av08.jpg" alt=""><img src="img/av09.jpg" alt=""><img src="img/av10.jpg" alt="">
+            <img src="img/av11.jpg" alt=""><img src="img/av12.jpg" alt=""><img src="img/av13.jpg" alt=""><img src="img/av14.jpg" alt=""><img src="img/av15.jpg" alt="">
+            <img src="img/av16.jpg" alt=""><img src="img/av17.jpg" alt=""><img src="img/av18.jpg" alt=""><img src="img/av19.jpg" alt=""><img src="img/av20.jpg" alt="">
+          </div>
+          <div class="spacer"></div>
+          <p class="note">写真を上げたくない選手も、チームの一覧にちゃんと並びます。</p>
+        </div>
+        <div class="rail"><span class="lab">LANE 5 / 9</span>
+          <div class="segs"><i></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i></i></div>
+          <span class="lab">@score.japan</span>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- ============ 06 ============ -->
+    <div class="slot">
+      <div class="cap"><b>06</b><span>計測まわりの全面刷新 + ダークモード</span></div>
+      <div class="stage"><div class="frame ink">
+        <div class="split"><div class="lite"></div><div class="drk"></div></div>
+        <div class="zone zone-lite" style="top:208px">
+          <div class="brow">
+            <div class="sq">S</div>
+            <div class="tag">Rebuilt<em>計測まわり</em></div>
+          </div>
+          <h2 class="h s-m" style="margin-top:52px">触る画面は、<br>ぜんぶ作り直した。</h2>
+          <div class="screens" style="margin-top:46px">
+            <div class="s"><b>タイム計測</b><span>配色もレイアウトも一新</span></div>
+            <div class="s"><b>トレーニングタイマー</b><span>白基調に、開始はカードごとタップ</span></div>
+            <div class="s"><b>ストレッチタイマー</b><span>進捗バー・残り時間・次の動作</span></div>
+            <div class="s"><b>スタート反応練習</b><span>画面を再設計</span></div>
+          </div>
+        </div>
+        <div class="zone" style="top:1198px;bottom:260px">
+          <p class="mini" style="margin:0 0 20px">And</p>
+          <h2 class="h s-m">そして、<br>ダークモードへ。</h2>
+          <p class="lead" style="margin-top:22px">一部だけではなく、アプリ全体で対応しました。</p>
+          <div class="darkchips" style="margin-top:28px">
+            <span class="darkchip">ホーム</span><span class="darkchip">記録</span><span class="darkchip">タイマー</span>
+            <span class="darkchip">チーム</span><span class="darkchip">設定</span>
+          </div>
+        </div>
+        <div class="rail"><span class="lab">LANE 6 / 9</span>
+          <div class="segs"><i></i><i></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i></div>
+          <span class="lab">@score.japan</span>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- ============ 07 (dedicated widgets) ============ -->
+    <div class="slot">
+      <div class="cap"><b>07</b><span>iOSホーム画面ウィジェット（新機能）</span></div>
+      <div class="stage"><div class="frame ink">
+        <div class="lanes"></div>
+        <div class="pad">
+          <div class="brow">
+            <div class="sq">S</div>
+            <div class="tag">Widget<em>iOS ホーム画面</em></div>
+          </div>
+          <div class="spacer"></div>
+          <h2 class="h s-l">ホーム画面にも、<br>sCOREを置ける。</h2>
+          <p class="lead" style="margin-top:22px">アプリを開かなくても、今日の状態がひと目でわかる。<br>ホーム画面やロック画面に置くだけです。</p>
+          <div class="spacer"></div>
+          <div class="wgrid">
+            <div class="w">
+              <div class="wl">怪我リスク</div>
+              <div>
+                <div class="wv">低</div>
+                <div class="meter"><i class="on"></i><i></i><i></i><i></i><i></i></div>
+                <div class="wd">今日の負荷・体調から自動算出</div>
+              </div>
+            </div>
+            <div class="w">
+              <div class="wl">次の大会まで</div>
+              <div>
+                <div class="wv">12<small>日</small></div>
+                <div class="wd">登録した大会日程から逆算</div>
+              </div>
+            </div>
+            <div class="w">
+              <div class="wl">連続記録</div>
+              <div>
+                <div class="wv">24<small>日連続</small></div>
+                <div class="wd">記録した日数が積み上がる</div>
+              </div>
+            </div>
+            <div class="w">
+              <div class="wl">復帰プラン進捗</div>
+              <div>
+                <div class="wv">フェーズ 2<small>/ 4</small></div>
+                <div class="meter"><i class="on"></i><i class="on"></i><i></i><i></i></div>
+              </div>
+            </div>
+            <div class="w wide">
+              <div class="wl">統合ウィジェット</div>
+              <div class="trio">
+                <div><small>リスク</small><b>低</b></div>
+                <div><small>大会</small><b>12日</b></div>
+                <div><small>連続</small><b>24日</b></div>
+              </div>
+            </div>
+          </div>
+          <div class="spacer" style="min-height:14px"></div>
+          <p class="mini" style="margin:0 0 6px">全5種、ダーク/ライト両対応</p>
+          <div class="widget-points">
+            <div class="p"><i>—</i><span>グラデーション・SF Symbolsで、iOSホーム画面になじむ見た目に刷新。</span></div>
+            <div class="p"><i>—</i><span>タップでアプリの該当画面へ直接ジャンプ。</span></div>
+            <div class="p"><i>—</i><span>怪我リスク・大会カウントダウン・連続記録・復帰プラン進捗を単体で、または1つにまとめて配置できます。</span></div>
+          </div>
+          <p class="note" style="margin-top:10px">数値は表示イメージです。</p>
+        </div>
+        <div class="rail"><span class="lab">LANE 7 / 9</span>
+          <div class="segs"><i></i><i></i><i></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i></div>
+          <span class="lab">@score.japan</span>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- ============ 08 (そのほか) ============ -->
+    <div class="slot">
+      <div class="cap"><b>08</b><span>そのほかの更新</span></div>
+      <div class="stage"><div class="frame paper">
+        <div class="lanes"></div>
+        <div class="pad">
+          <div class="brow">
+            <div class="sq">S</div>
+            <div class="tag">Also<em>ほかにも</em></div>
+          </div>
+          <div class="spacer"></div>
+          <h2 class="h s-m">細かいところも、<br>直しています。</h2>
+          <p class="lead" style="margin-top:20px">大きな機能の裏で、これだけ動きました。</p>
+          <div class="spacer"></div>
+          <div class="more">
+            <div class="m"><i>—</i><span>はじめの3日間ミッション。Day1→Day3で、使うほど手応えが積み上がる仕組みに。</span></div>
+            <div class="m"><i>—</i><span>混成競技ツールに、中学男子四種競技を追加。</span></div>
+            <div class="m"><i>—</i><span>全国ランキングは「参加する人だけ」に変更。表示名も自分で決められます。</span></div>
+            <div class="m"><i>—</i><span>実機で届いたバグ報告を、順番に直しました（タップ無反応・ログイン表示 ほか）。</span></div>
+          </div>
+        </div>
+        <div class="rail"><span class="lab">LANE 8 / 9</span>
+          <div class="segs"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="on"></i><i></i></div>
+          <span class="lab">@score.japan</span>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- ============ 09 (close) ============ -->
+    <div class="slot">
+      <div class="cap"><b>09</b><span>クロージング / CTA</span></div>
+      <div class="stage"><div class="frame ink">
+        <div class="lanes"></div>
+        <div class="pad">
+          <div class="brow">
+            <div class="sq">S</div>
+            <div class="tag">Next<em>まだ続きます</em></div>
+          </div>
+          <div class="spacer"></div>
+          <h2 class="h s-xl">まだ、<br>止まらない。</h2>
+          <p class="lead" style="margin-top:24px;max-width:640px">次の3週間も、届いた声から作ります。<br>要望はDMでどうぞ。</p>
+          <div class="spacer"></div>
+          <img class="mascot-ready" src="img/mascot-ready.png" alt="sCOREのマスコットキャラクター、スコッピー">
+          <div class="spacer"></div>
+          <div class="close-cta">
+            <div class="hr"></div>
+            <p class="mini" style="margin:4px 0 0">陸上競技のチーム管理アプリ</p>
+            <div class="cta-btn">App Store で「sCORE」</div>
+            <div class="plat"><span>iOS</span><span>Android</span><span>Web</span></div>
+            <p class="note" style="margin-top:2px">scorej-run.vercel.app</p>
+          </div>
+        </div>
+        <div class="rail"><span class="lab">LANE 9 / 9</span>
+          <div class="segs"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="on"></i></div>
+          <span class="lab">@score.japan</span>
+        </div>
+      </div></div>
+    </div>
+
+  </div>
+
+  <footer class="foot">
+    数字（新機能21／改善・修正29）は2026年9月3日〜9月23日の開発記録にもとづくものです。ウィジェットの値と「レース行動予定」の時刻・目標タイムは表示イメージ／記入例で、実在の選手の記録ではありません。<br>
+    書き出し目安：1080 × 1920 px（9:16）。上208px・下260pxはストーリーズのUIを避けた安全域です。
+  </footer>
+</div>
+
+<script>
+(function(){
+  var root=document.documentElement;
+  var fitBtn=document.getElementById('fitBtn');
+  var actualBtn=document.getElementById('actualBtn');
+  var actual=false;
+  function apply(){
+    if(actual){root.style.setProperty('--k','1');return;}
+    var w=Math.min(window.innerWidth-56,560);
+    var h=window.innerHeight-200;
+    var k=Math.min(w/1080,h/1920);
+    root.style.setProperty('--k',String(Math.max(.16,Math.min(k,.56))));
+  }
+  function setMode(v){
+    actual=v;
+    fitBtn.setAttribute('aria-pressed',String(!v));
+    actualBtn.setAttribute('aria-pressed',String(v));
+    apply();
+  }
+  fitBtn.addEventListener('click',function(){setMode(false);});
+  actualBtn.addEventListener('click',function(){setMode(true);});
+  window.addEventListener('resize',apply);
+  apply();
+})();
+</script>
+
+</body></html>

@@ -30,6 +30,22 @@ export const TICKET_PACK_COUNTS: Record<string, number> = {
 // チケット月額プランで毎月付与されるチケット枚数
 export const TICKET_MONTHLY_GRANT = 100
 
+// 2026-09-25: app/paywall.tsxにあった無料体験日数の算出ロジックを、
+// app/mission-offer.tsxからも同じ基準で使えるよう共有化した。
+// StoreKit/Play Consoleの導入価格(Introductory Offer、price=0)から日数を読み取る。
+export function trialDaysFromPackage(pkg: any): number | null {
+  const intro = pkg?.product?.introPrice
+  if (!intro || intro.price !== 0) return null
+  const n = intro.periodNumberOfUnits ?? 1
+  switch (intro.periodUnit) {
+    case 'DAY':   return n
+    case 'WEEK':  return n * 7
+    case 'MONTH': return n * 30
+    case 'YEAR':  return n * 365
+    default:      return null
+  }
+}
+
 export type PlanTier = 'free' | 'noad' | 'coach'
 
 export type PremiumStatus = {
@@ -45,8 +61,26 @@ export type PurchaseResult = { tier: PlanTier; hasTicketMonthly: boolean } | fal
 
 export async function initPurchases(_userId?: string): Promise<void> {}
 
+// 2026-09-21: Web版にはRevenueCat SDKの実体が無いため常にtier:'free'固定だったが、
+// これによりapi/redeem-team-code.tsで実際にコーチ権限を付与しても、Web版だけは
+// 反映されず永久にコーチ設定画面へ弾き返されるバグがあった(実ユーザーで再現確認済み)。
+// api/check-coach-status.tsでサーバー側からRevenueCatの実権限を確認する
+// (Secret keyはクライアントに出せないため必ずサーバー経由)。
 export async function getPremiumStatus(): Promise<PremiumStatus> {
-  return { tier: 'free', hasTicketMonthly: false }
+  const FREE: PremiumStatus = { tier: 'free', hasTicketMonthly: false }
+  try {
+    const { getAiAuthHeader } = await import('./supabase')
+    const authHeader = await getAiAuthHeader()
+    if (!authHeader.Authorization) return FREE // ゲストは問い合わせ不要
+    const API_BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
+    const res = await fetch(`${API_BASE_URL}/api/check-coach-status`, { headers: authHeader })
+    if (!res.ok) return FREE
+    const json = await res.json()
+    if (!json?.isCoach) return FREE
+    return { tier: 'coach', hasTicketMonthly: false, expiresAt: json?.expiresAt }
+  } catch {
+    return FREE
+  }
 }
 
 export async function getPackages(): Promise<any[]> {

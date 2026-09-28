@@ -13,7 +13,6 @@ import { useLanguage } from '../../context/LanguageContext'
 import { narrativeLanguageInstruction } from '../../lib/aiLanguage'
 import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
-import Svg, { Circle } from 'react-native-svg'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import Toast from 'react-native-toast-message'
 import { BRAND } from '../../lib/theme'
@@ -36,10 +35,16 @@ import {
   fetchPlayerStats, upsertPlayerStats, recordPbUpdate,
   syncTeamSessions, fetchTeamSessions, clearPlayerPrivateData,
   fetchTeamEvents, addTeamEvent, deleteTeamEvent,
-  createTeam, fetchTeamByCode, deleteTeam,
-  sendCoachNotification,
-  type TeamMessageRow, type TeamVideoRow, type BodyReportRow, type TeamMemberRow, type PlayerStatsRow, type TeamSessionRow, type TeamEventRow, type TeamEventType,
+  createTeam, fetchTeamByCode, deleteTeam, setCoachAvatar,
+  sendCoachNotification, fetchRacePlans, fetchRacePlansByEvent,
+  fetchTeamMeals, fetchTeamWarmups,
+  type TeamMessageRow, type TeamVideoRow, type BodyReportRow, type TeamMemberRow, type PlayerStatsRow, type TeamSessionRow, type TeamEventRow, type TeamEventType, type TeamRacePlanRow, type TeamMealRow, type TeamWarmupRow,
 } from '../../lib/supabaseTeam'
+import { RacePlanDetailContent } from '../../components/RacePlanDetail'
+import ConfirmSheet from '../../components/ConfirmSheet'
+import { Avatar, RingAvatar, AvatarPickerModal, avatarColor } from '../../components/Avatar'
+import { PLAYER_AVATAR_KEY } from '../../lib/avatarAssets'
+import { ROLE_KEY, SETUP_KEY, JOINED_KEY, type TeamSetup, type JoinedTeam } from '../../lib/teamKeys'
 import { useTheme, type ThemeColors } from '../../context/ThemeContext'
 import { usePurchase } from '../../context/PurchaseContext'
 import { useAuth } from '../../context/AuthContext'
@@ -55,6 +60,12 @@ import { sessionTypeInfo } from '../../lib/sessionTypeLabels'
 import { checkAdGate, recordUsage } from '../../lib/adGate'
 import { TICKET_COST } from '../../lib/ticketWallet'
 import TicketGateModal from '../../components/TicketGateModal'
+
+// TEMP(実機テスト用): 無料体験の「期限切れ」状態をSQL手動編集無しで再現するための
+// [TEMP]ボタンの表示切り替え。app/(tabs)/index.tsxのSHOW_TEMP_MISSION_DEV_BUTTONと同じ
+// 意図で__DEV__ではなくこの定数を使う(Release/TestFlightの実機ビルドでも表示するため)。
+// 動作確認が終わったら削除すること。
+const SHOW_TEMP_TRIAL_EXPIRE_DEV_BUTTON = true
 
 // ── 練習メニュー（自由文＋よく使うフレーズ） 型定義 ──────
 // 2026-08: 旧「ライブラリ(カテゴリ8種×強度3種×フォルダ)+プランビルダー」構成は、
@@ -88,10 +99,8 @@ function buildAiMenuIntensityCfg(t: (key: string) => string) {
 type AiMenuIntensityKey = 'light' | 'normal' | 'hard'
 
 // ── ストレージキー（ローカル設定のみ） ────────────────────
-const ROLE_KEY            = 'trackmate_team_role'
+// ROLE_KEY/SETUP_KEY/JOINED_KEYは設定(マイページ)画面でも参照するためlib/teamKeys.tsへ切り出し済み
 const SESSIONS_KEY        = 'trackmate_sessions'
-const SETUP_KEY           = 'trackmate_team_setup'
-const JOINED_KEY          = 'trackmate_team_joined'
 const MENU_PHRASES_KEY    = 'trackmate_coach_menu_phrases'
 const MENU_DRAFT_KEY      = 'trackmate_coach_menu_draft'
 const SLEEP_KEY           = 'trackmate_sleep'
@@ -107,8 +116,7 @@ type ShareLevel = 0 | 1 | 2
 type Role = 'coach' | 'player'
 
 // ── 型定義 ────────────────────────────────────────────────
-interface TeamSetup  { teamName: string; coachName: string; code: string; createdAt: string }
-interface JoinedTeam { code: string; teamName: string; coachName: string; playerName: string; joinedAt: string }
+// TeamSetup/JoinedTeamはlib/teamKeys.tsへ切り出し済み（importで取得）
 type TeamMessage = TeamMessageRow
 type VideoEntry  = TeamVideoRow
 
@@ -132,7 +140,7 @@ function buildBodyParts(t: (key: string) => string) {
 }
 
 // ── デモメンバー（Supabaseにデータがない時のフォールバック）─
-type Member = { id: string; name: string; event: string; icon?: string; sessions: TrainingSession[]; lastActive: string; painParts?: string[]; painDetail?: string; ackedByCoach?: boolean }
+type Member = { id: string; name: string; event: string; icon?: string; avatarKey?: string; sessions: TrainingSession[]; lastActive: string; painParts?: string[]; painDetail?: string; ackedByCoach?: boolean }
 function buildDemoMembers(t: (key: string) => string): Member[] {
   return [
     {
@@ -286,86 +294,12 @@ function fatigueInfo(v: number, t: (key: string) => string) {
 }
 
 // ── 共通コンポーネント ────────────────────────────────────
-function Avatar({ name, size=40, color=BRAND, emoji }: { name:string; size?:number; color?:string; emoji?:string }) {
-  return (
-    <View style={{width:size,height:size,borderRadius:size/2,backgroundColor:color+'22',borderWidth:1.5,borderColor:color+'44',alignItems:'center',justifyContent:'center'}}>
-      {emoji
-        ? <Text style={{fontSize:size*.52,lineHeight:size*.68}}>{emoji}</Text>
-        : <Text style={{color,fontSize:size*.38,fontWeight:'800'}}>{name.charAt(0)}</Text>
-      }
-    </View>
-  )
-}
-const AVATAR_COLORS = ['#FF3B30','#FF9500','#34C759','#007AFF','#AF52DE']
-function avatarColor(name: string) { return AVATAR_COLORS[name.charCodeAt(0)%AVATAR_COLORS.length] }
+// 2026-09-24: 設定(マイページ)画面からも同じアバターを変更できるようにするため、
+// Avatar/RingAvatar/AvatarPickerModalはcomponents/Avatar.tsxへ切り出した。
 
-// リスクスコアを、アバターを囲む細いリングの塗り具合で表す（行全体を着色しない代わりの表現）
-function RingAvatar({ name, size=44, color, ringPct }: { name:string; size?:number; color:string; ringPct:number }) {
-  const { colors } = useTheme()
-  const stroke = 2.5
-  const r = (size - stroke) / 2
-  const c = 2 * Math.PI * r
-  const filled = Math.max(0, Math.min(100, ringPct)) / 100
-  const innerInset = stroke + 2
-  const innerSize = size - innerInset * 2
-  return (
-    <View style={{ width: size, height: size }}>
-      <Svg width={size} height={size} style={{ position: 'absolute' }}>
-        <Circle cx={size/2} cy={size/2} r={r} stroke={colors.border} strokeWidth={stroke} fill="none" />
-        <Circle
-          cx={size/2} cy={size/2} r={r} stroke={color} strokeWidth={stroke} fill="none"
-          strokeDasharray={`${c} ${c}`}
-          strokeDashoffset={c * (1 - filled)}
-          strokeLinecap="round"
-          transform={`rotate(-90 ${size/2} ${size/2})`}
-        />
-      </Svg>
-      <View style={{
-        position: 'absolute', top: innerInset, left: innerInset, width: innerSize, height: innerSize,
-        borderRadius: innerSize / 2, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center',
-      }}>
-        <Text style={{ color: colors.textSec, fontSize: innerSize * .38, fontWeight: '800' }}>{name.charAt(0)}</Text>
-      </View>
-    </View>
-  )
-}
-
-const PLAYER_ICONS = ['🏃','🔥','⚡','🌟','🦁','🐯','🎯','💪','🏆','🥇','🎽','🦅','🌊','🐺','💎','🌙','☀️','🎪','🦊','🐉']
-
-function PlayerIconPicker({ visible, current, onSelect, onClose }: {
-  visible: boolean; current: string; onSelect: (emoji: string) => void; onClose: () => void
-}) {
-  const { t } = useTranslation()
-  const { colors } = useTheme()
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.5)',justifyContent:'flex-end'}}>
-        <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose}/>
-        <View style={{backgroundColor:colors.card,borderTopLeftRadius:24,borderTopRightRadius:24,padding:20,paddingBottom:44,gap:0}}>
-          <View style={{width:36,height:4,borderRadius:2,backgroundColor:colors.border,alignSelf:'center',marginBottom:16}}/>
-          <Text style={{fontSize:16,fontWeight:'800',color:colors.text,marginBottom:16}}>{t('team.playerIconPicker.title')}</Text>
-          <View style={{flexDirection:'row',flexWrap:'wrap',gap:10}}>
-            {PLAYER_ICONS.map(icon => (
-              <TouchableOpacity
-                key={icon}
-                style={{width:52,height:52,borderRadius:14,backgroundColor:current===icon?'rgba(52,199,89,0.15)':colors.surface2,alignItems:'center',justifyContent:'center',borderWidth:current===icon?2:0,borderColor:'#34C759'}}
-                onPress={() => onSelect(icon)}
-                activeOpacity={0.75}
-              >
-                <Text style={{fontSize:26}}>{icon}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          {current !== '' && (
-            <TouchableOpacity style={{marginTop:16,alignItems:'center'}} onPress={() => onSelect('')}>
-              <Text style={{color:colors.textHint,fontSize:13}}>{t('team.playerIconPicker.reset')}</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-    </Modal>
-  )
-}
+// 2026-09-21: 絵文字ピッカーはAVATAR_KEYSのキャラクター選択に置き換えたため撤去。
+// 既存ユーザーが過去に選んだ絵文字(icon列)は引き続きAvatar/RingAvatarのフォール
+// バック表示として尊重する（データもロード処理も残したまま、選択UIのみ廃止）。
 
 // ─────────────────────────────────────────────────────────
 // BodyPartSelector — 痛い箇所セレクター
@@ -420,49 +354,6 @@ function PainBadges({ parts }: { parts: string[] }) {
 // ─────────────────────────────────────────────────────────
 // ConfirmSheet — 全プラットフォーム対応の確認モーダル
 // ─────────────────────────────────────────────────────────
-function ConfirmSheet({ visible, title, message, confirmLabel, dangerous, onConfirm, onCancel }: {
-  visible: boolean
-  title: string
-  message: string
-  confirmLabel: string
-  dangerous?: boolean
-  onConfirm: () => void
-  onCancel: () => void
-}) {
-  const { t } = useTranslation()
-  const { colors } = useTheme()
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.55)',justifyContent:'center',paddingHorizontal:28}}>
-        <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onCancel}/>
-        <View style={{backgroundColor:colors.card,borderRadius:20,padding:24,gap:16,shadowColor:'#000',shadowOffset:{width:0,height:8},shadowOpacity:0.18,shadowRadius:24,elevation:16}}>
-          <View style={{alignItems:'center',gap:8}}>
-            <View style={{width:48,height:48,borderRadius:14,backgroundColor:dangerous?'rgba(239,68,68,0.1)':'rgba(22,101,52,0.1)',alignItems:'center',justifyContent:'center'}}>
-              <Ionicons name={dangerous?'warning-outline':'help-circle-outline'} size={26} color={dangerous?'#ef4444':BRAND}/>
-            </View>
-            <Text style={{color:colors.text,fontSize:17,fontWeight:'800',textAlign:'center'}}>{title}</Text>
-            <Text style={{color:colors.textSec,fontSize:13,lineHeight:20,textAlign:'center'}}>{message}</Text>
-          </View>
-          <View style={{flexDirection:'row',gap:10}}>
-            <TouchableOpacity
-              style={{flex:1,paddingVertical:13,borderRadius:12,borderWidth:1,borderColor:colors.border,alignItems:'center'}}
-              onPress={onCancel} activeOpacity={0.7}
-            >
-              <Text style={{color:colors.textSec,fontSize:14,fontWeight:'700'}}>{t('team.confirm.cancel')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={{flex:1,paddingVertical:13,borderRadius:12,backgroundColor:dangerous?'#ef4444':BRAND,alignItems:'center'}}
-              onPress={() => { onConfirm(); onCancel() }} activeOpacity={0.85}
-            >
-              <Text style={{color:'#fff',fontSize:14,fontWeight:'800'}}>{confirmLabel}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  )
-}
-
 // ─────────────────────────────────────────────────────────
 // VideoSubmitModal — 動画URL送信（選手用・Google Drive対応）
 // ─────────────────────────────────────────────────────────
@@ -985,8 +876,8 @@ function MiniCalendar({ value, onChange }: { value: string; onChange: (d: string
 // ─────────────────────────────────────────────────────────
 // CoachDashboard — シンプル3セクション
 // ─────────────────────────────────────────────────────────
-function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchRole }: {
-  setup: TeamSetup; isCoach: boolean; onSwitchRole: () => void; onDeleteTeam: () => void; canSwitchRole?: boolean
+function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchRole, onDevExpireTrial }: {
+  setup: TeamSetup; isCoach: boolean; onSwitchRole: () => void; onDeleteTeam: () => void; canSwitchRole?: boolean; onDevExpireTrial?: () => void
 }) {
   const { t } = useTranslation()
   const { language } = useLanguage()
@@ -1006,6 +897,10 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
   const [bodyReports,     setBodyReports]     = useState<BodyReportRow[]>([])
   const [coachPlayerStats, setCoachPlayerStats] = useState<PlayerStatsRow[]>([])
   const [teamSessionsMap, setTeamSessionsMap] = useState<Record<string, TrainingSession[]>>({})
+  // 2026-09-26:「食事の時間と内容がコーチに分かるといい」対応。
+  const [teamMealsMap, setTeamMealsMap] = useState<Record<string, TeamMealRow[]>>({})
+  // 2026-09-26:「アップの時間がコーチに分かるといい」対応。
+  const [teamWarmupsMap, setTeamWarmupsMap] = useState<Record<string, TeamWarmupRow>>({})
   const [teamEvents,    setTeamEvents]    = useState<TeamEventRow[]>([])
   const [msgText,       setMsgText]       = useState('')
   const [msgSending,    setMsgSending]    = useState(false)
@@ -1015,6 +910,23 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
   // 2026-09-16(P0): コーチ用詳細シートに自己ベスト・練習履歴を出すため、
   // 選手プロフィール(PlayerStatsRow)も一緒に保持する
   const [detailStats,   setDetailStats]   = useState<PlayerStatsRow|null>(null)
+  // 2026-09-21: 「登録した大会にも選手のカードが紐づくように」対応。大会ごとに
+  // 選手が提出したレース行動予定をまとめて見られるビュー用の状態。
+  const [viewingEvent,  setViewingEvent]  = useState<TeamEventRow|null>(null)
+  const [eventPlans,    setEventPlans]    = useState<TeamRacePlanRow[]>([])
+  const [viewingEventPlan, setViewingEventPlan] = useState<TeamRacePlanRow|null>(null)
+  // 2026-09-21: コーチ自身のプロフィールアバター（プリセットキャラクター）
+  const [coachAvatarKey, setCoachAvatarKey] = useState('')
+  const [showCoachAvatarPicker, setShowCoachAvatarPicker] = useState(false)
+  const saveCoachAvatar = useCallback(async (key: string) => {
+    setCoachAvatarKey(key)
+    setShowCoachAvatarPicker(false)
+    try { await setCoachAvatar(setup.code, key) } catch {}
+  }, [setup.code])
+  const openEventPlans = useCallback(async (ev: TeamEventRow) => {
+    setViewingEvent(ev)
+    setEventPlans(await fetchRacePlansByEvent(setup.code, ev.id).catch(() => []))
+  }, [setup.code])
   // 2026-09-16(P1): ホーム画面の「今日のチーム状況」カードから絞り込み済みで
   // ここへ飛べるよう、?filter=クエリがあれば初期値として使う
   const { filter: filterParam } = useLocalSearchParams<{ filter?: string }>()
@@ -1059,7 +971,7 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
       // チームを teams テーブルに再登録（GRANT前に作成して未登録のチームを自己修復）
       // これがないと予定追加・アナウンスが外部キー制約違反で失敗する
       createTeam(setup.code, setup.teamName, setup.coachName).catch(() => {})
-      const [msgs, vids, mems, rpts, teamSessions, evts, pStats] = await Promise.all([
+      const [msgs, vids, mems, rpts, teamSessions, evts, pStats, teamMeals, teamWarmups] = await Promise.all([
         fetchMessages(setup.code),
         fetchVideos(setup.code),
         fetchMembers(setup.code),
@@ -1067,6 +979,8 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
         fetchTeamSessions(setup.code),
         fetchTeamEvents(setup.code),
         fetchPlayerStats(setup.code),
+        fetchTeamMeals(setup.code),
+        fetchTeamWarmups(setup.code),
       ])
       if (!mountedRef.current) return
       setMessages(msgs)
@@ -1088,12 +1002,27 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
           distance_m: ts.distance_m ?? undefined,
           reps: ts.reps ?? undefined,
           sets: ts.sets ?? undefined,
+          notes: ts.notes ?? undefined,
           created_at: ts.synced_at,
         }
         if (!map[ts.player_name]) map[ts.player_name] = []
         map[ts.player_name].push(s)
       }
       setTeamSessionsMap(map)
+      // 2026-09-26:「食事の時間と内容がコーチに分かるといい」対応。食事もプレイヤー名でマップ化
+      const mealsMap: Record<string, TeamMealRow[]> = {}
+      for (const tm of teamMeals) {
+        if (!mealsMap[tm.player_name]) mealsMap[tm.player_name] = []
+        mealsMap[tm.player_name].push(tm)
+      }
+      setTeamMealsMap(mealsMap)
+      // 2026-09-26:「アップの時間がコーチに分かるといい」対応。プレイヤー名→最新1件のマップ
+      // (completed_at降順で取得済みのため、先勝ちで最新のものだけ残す)
+      const warmupsMap: Record<string, TeamWarmupRow> = {}
+      for (const w of teamWarmups) {
+        if (!warmupsMap[w.player_name]) warmupsMap[w.player_name] = w
+      }
+      setTeamWarmupsMap(warmupsMap)
     } catch (e) {
       if (__DEV__) console.warn('[CoachDashboard] load error:', e)
     } finally {
@@ -1108,6 +1037,16 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
     const t = setInterval(() => { load() }, 3 * 60 * 1000)
     return () => clearInterval(t)
   }, [load])
+
+  // 2026-09-21: コーチのアバターkeyは一度選んだらほぼ変わらない値のため、6テーブル分の
+  // Realtime更新のたびに走るload()（数秒〜数分に何度も発火し得る）で毎回teamsテーブル
+  // 全体を再取得するのは無駄なコスト。初回マウント時に1回だけ取得すれば、変更時は
+  // saveCoachAvatar()がその場でローカルstateを更新するので十分。
+  useEffect(() => {
+    fetchTeamByCode(setup.code).then(row => {
+      if (mountedRef.current) setCoachAvatarKey(row?.coach_avatar_key || '')
+    }).catch(() => {})
+  }, [setup.code])
 
   // Supabase Realtime — チームデータをリアルタイム同期（デバウンス2秒で過剰ロード防止）
   useEffect(() => {
@@ -1224,14 +1163,14 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
 
   async function ackPain(playerName: string) {
     try {
-      const { data, error } = await supabase.from('team_body_reports')
-        .update({ acked_by_coach: true })
-        .eq('team_code', setup.code)
-        .eq('player_name', playerName)
-        .select()  // 更新された行を返す（0件 = RLSブロック or 行なし）
-      if (error) throw new Error(error.message)
-      if (!data || data.length === 0) {
-        // RLSサイレントブロック or 行が存在しない
+      // 2026-09-26実機バグ報告「痛み報告の確認ボタンでエラーが発生する」に対応。
+      // 原因: ここが素のsupabaseクライアント(X-Team-Codeヘッダー無し)を直接使っていたため、
+      // team_body_reportsのRLSポリシー(team_code = _request_team_code())に一致せず、
+      // 更新が常に0件でブロックされていた。既にlib/supabaseTeam.tsに存在した
+      // (ただし未使用だった)teamScopedClient経由のackBodyReport()を使うよう修正。
+      const updated = await ackBodyReport(setup.code, playerName)
+      if (!updated) {
+        // RLSブロック or 行が存在しない
         Toast.show({ type: 'error', text1: t('team.coachDashboard.ackFailedTitle'), text2: t('team.coachDashboard.ackFailedMessage'), visibilityTime: 4000 })
         return
       }
@@ -1454,6 +1393,7 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
           name: m.player_name,
           event: m.event || '',
           icon: m.icon || undefined,
+          avatarKey: m.avatar_key || undefined,
           lastActive: m.joined_at,
           painParts: rpt?.parts ?? [],
           painDetail: rpt?.detail ?? '',
@@ -1533,13 +1473,21 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
 
         {/* ─ ヘッダー ─ */}
         <View style={co.header}>
-          <View>
-            <Text style={co.title}>{setup.teamName}</Text>
-            <View style={{flexDirection:'row',alignItems:'center',gap:6,marginTop:2}}>
-              <View style={{backgroundColor:BRAND+'20',borderRadius:6,paddingHorizontal:7,paddingVertical:2}}>
-                <Text style={{color:BRAND,fontSize:11,fontWeight:'700'}}>{t('team.coachDashboard.role')}</Text>
+          <View style={{flexDirection:'row',alignItems:'center',gap:10}}>
+            <TouchableOpacity onPress={() => setShowCoachAvatarPicker(true)} activeOpacity={0.8} style={{position:'relative'}} accessibilityLabel={t('team.playerDashboard.changeIcon')}>
+              <Avatar name={setup.coachName} size={40} color={BRAND} avatarKey={coachAvatarKey||undefined}/>
+              <View style={{position:'absolute',bottom:0,right:0,backgroundColor:'#34C759',borderRadius:5,width:13,height:13,alignItems:'center',justifyContent:'center'}}>
+                <Ionicons name="pencil" size={7} color="#fff"/>
               </View>
-              <Text style={{color:colors.textSec,fontSize:11}}>{setup.coachName}</Text>
+            </TouchableOpacity>
+            <View>
+              <Text style={co.title}>{setup.teamName}</Text>
+              <View style={{flexDirection:'row',alignItems:'center',gap:6,marginTop:2}}>
+                <View style={{backgroundColor:BRAND+'20',borderRadius:6,paddingHorizontal:7,paddingVertical:2}}>
+                  <Text style={{color:BRAND,fontSize:11,fontWeight:'700'}}>{t('team.coachDashboard.role')}</Text>
+                </View>
+                <Text style={{color:colors.textSec,fontSize:11}}>{setup.coachName}</Text>
+              </View>
             </View>
           </View>
           <View style={{flexDirection:'row',gap:8,alignItems:'center'}}>
@@ -1555,6 +1503,38 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* ─ 無料体験バナー（2026-09-25追加。setup.trialExpiresAtが未来日時の場合のみ表示。
+             実際の課金(isCoach)に転換済みなら消える） ─ */}
+        {!!setup.trialExpiresAt && !isCoach && (() => {
+          const daysLeft = Math.max(0, Math.ceil((new Date(setup.trialExpiresAt).getTime() - Date.now()) / 86400000))
+          return (
+            <TouchableOpacity
+              onPress={() => Linking.openURL('https://scorejapan.official.ec')}
+              activeOpacity={0.8}
+              style={{marginHorizontal:16,marginTop:12,backgroundColor:BRAND+'12',borderLeftWidth:4,borderLeftColor:BRAND,borderRadius:12,borderWidth:1,borderColor:BRAND+'33',padding:12,flexDirection:'row',alignItems:'center',gap:10}}
+            >
+              <Ionicons name="gift-outline" size={18} color={BRAND} />
+              <View style={{flex:1}}>
+                <Text style={{color:BRAND,fontSize:12,fontWeight:'800'}}>{t('team.coachDashboard.trialBannerTitle', { n: daysLeft })}</Text>
+                <Text style={{color:colors.textSec,fontSize:11,marginTop:2}}>{t('team.coachDashboard.trialBannerBody')}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={colors.textSec} />
+            </TouchableOpacity>
+          )
+        })()}
+
+        {/* TEMP(実機テスト用): 上のSHOW_TEMP_TRIAL_EXPIRE_DEV_BUTTON参照 */}
+        {SHOW_TEMP_TRIAL_EXPIRE_DEV_BUTTON && !!setup.trialExpiresAt && !isCoach && (
+          <View style={{alignItems:'center',marginTop:8}}>
+            <TouchableOpacity
+              style={{paddingHorizontal:12,paddingVertical:6,borderRadius:12,backgroundColor:'#7c2d1214'}}
+              onPress={onDevExpireTrial}
+            >
+              <Text style={{fontSize:11,fontWeight:'700',color:'#7c2d12'}}>[TEMP]無料体験を期限切れにする（実機テスト用）</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* ─ コンテンツエリア（flex:1 で常に残りスペースを確保） ─ */}
         <View style={{flex:1}}>
@@ -1671,8 +1651,8 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
                     >
                       <View style={{flexDirection:'row',alignItems:'center',gap:12}}>
                         {hasData
-                          ? <RingAvatar name={m.name} size={40} color={ringColor} ringPct={m.risk.riskScore} />
-                          : <Avatar name={m.name} size={40} color={avatarColor(m.name)} emoji={m.icon}/>
+                          ? <RingAvatar name={m.name} size={40} color={ringColor} ringPct={m.risk.riskScore} avatarKey={m.avatarKey}/>
+                          : <Avatar name={m.name} size={40} color={avatarColor(m.name)} emoji={m.icon} avatarKey={m.avatarKey}/>
                         }
 
                         <View style={{flex:1,gap:1}}>
@@ -1907,6 +1887,13 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
                             {!!ev.description && (
                               <Text style={{color:colors.textSec,fontSize:13,lineHeight:20,marginTop:4}}>{ev.description}</Text>
                             )}
+                            {ev.event_type === 'race' && (
+                              <TouchableOpacity onPress={() => openEventPlans(ev)} style={{flexDirection:'row',alignItems:'center',gap:6,marginTop:6}} hitSlop={{top:4,bottom:4,left:4,right:4}}>
+                                <Ionicons name="documents-outline" size={13} color={BRAND}/>
+                                <Text style={{color:BRAND,fontSize:11.5,fontWeight:'700'}}>{t('team.coachDashboard.viewRacePlans')}</Text>
+                                <Ionicons name="chevron-forward" size={12} color={BRAND}/>
+                              </TouchableOpacity>
+                            )}
                           </View>
                           <TouchableOpacity onPress={() => removeEvent(ev.id)} hitSlop={{top:10,bottom:10,left:10,right:10}} accessibilityLabel={t('team.coachDashboard.deleteEvent')}>
                             <Ionicons name="trash-outline" size={18} color="#ef4444"/>
@@ -2128,6 +2115,9 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
           member={detailMember}
           preCalcRisk={detailRisk}
           stats={detailStats}
+          teamCode={setup.code}
+          meals={teamMealsMap[detailMember.name] ?? []}
+          warmup={teamWarmupsMap[detailMember.name] ?? null}
           onClose={() => { setDetailMember(null); setDetailRisk(null); setDetailStats(null) }}
           onAck={detailMember.ackedByCoach ? undefined : () => ackPain(detailMember.name)}
         />
@@ -2149,6 +2139,68 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
         onConfirm={execDelete}
         onCancel={() => setPendingDelete(null)}
       />
+      <AvatarPickerModal
+        visible={showCoachAvatarPicker}
+        current={coachAvatarKey}
+        onSelect={saveCoachAvatar}
+        onClose={() => setShowCoachAvatarPicker(false)}
+      />
+
+      {/* ── 大会ごとのレース行動予定 提出状況 ── */}
+      {viewingEvent && (
+        <View style={[StyleSheet.absoluteFill,{backgroundColor:'rgba(0,0,0,0.85)',justifyContent:'flex-end'}]}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => { setViewingEvent(null); setEventPlans([]) }}/>
+          <View style={{backgroundColor:colors.card,borderTopLeftRadius:24,borderTopRightRadius:24,paddingBottom:44,borderTopWidth:1,borderColor:colors.border,overflow:'hidden',maxHeight:SCREEN_H*0.85}}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={{padding:20}}>
+                <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:16}}/>
+                <View style={{flexDirection:'row',alignItems:'center',marginBottom:4}}>
+                  <Text style={{color:colors.text,fontSize:17,fontWeight:'800',flex:1}} numberOfLines={1}>{viewingEvent.title}</Text>
+                  <TouchableOpacity onPress={() => { setViewingEvent(null); setEventPlans([]) }} hitSlop={{top:10,bottom:10,left:10,right:10}}>
+                    <Ionicons name="close" size={22} color={colors.textSec}/>
+                  </TouchableOpacity>
+                </View>
+                <Text style={{color:colors.textHint,fontSize:12,marginBottom:16}}>{fmtEventDate(viewingEvent.event_date, t, DAY_NAMES)}</Text>
+                {eventPlans.length === 0 ? (
+                  <View style={{alignItems:'center',gap:8,paddingVertical:24}}>
+                    <Ionicons name="document-text-outline" size={28} color={colors.textHint}/>
+                    <Text style={{color:colors.textHint,fontSize:12.5}}>{t('team.coachDashboard.noRacePlansYet')}</Text>
+                  </View>
+                ) : (
+                  <View style={{gap:8}}>
+                    {eventPlans.map(p => (
+                      <TouchableOpacity key={p.id} onPress={() => setViewingEventPlan(p)} activeOpacity={0.7} style={{flexDirection:'row',alignItems:'center',gap:10,backgroundColor:colors.surface2,borderRadius:10,paddingVertical:10,paddingHorizontal:12}}>
+                        <Avatar name={p.player_name} size={34} color={avatarColor(p.player_name)}/>
+                        <Text style={{color:colors.text,fontSize:13.5,fontWeight:'700',flex:1}}>{p.player_name}</Text>
+                        <Ionicons name="chevron-forward" size={14} color={colors.textHint}/>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      )}
+      {viewingEventPlan && (
+        <View style={[StyleSheet.absoluteFill,{backgroundColor:'rgba(0,0,0,0.85)',justifyContent:'flex-end'}]}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setViewingEventPlan(null)}/>
+          <View style={{backgroundColor:colors.card,borderTopLeftRadius:24,borderTopRightRadius:24,paddingBottom:44,borderTopWidth:1,borderColor:colors.border,overflow:'hidden',maxHeight:SCREEN_H*0.88}}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={{padding:20}}>
+                <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:16}}/>
+                <View style={{flexDirection:'row',alignItems:'center',marginBottom:8}}>
+                  <Text style={{color:colors.text,fontSize:17,fontWeight:'800',flex:1}} numberOfLines={1}>{viewingEventPlan.player_name}</Text>
+                  <TouchableOpacity onPress={() => setViewingEventPlan(null)} hitSlop={{top:10,bottom:10,left:10,right:10}}>
+                    <Ionicons name="close" size={22} color={colors.textSec}/>
+                  </TouchableOpacity>
+                </View>
+                <RacePlanDetailContent plan={viewingEventPlan} colors={colors}/>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      )}
 
       {/* ── よく使うフレーズ 保存モーダル ── */}
       <Modal visible={showPhraseForm} transparent animationType="slide" onRequestClose={() => setShowPhraseForm(false)}>
@@ -2282,10 +2334,13 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
 // ─────────────────────────────────────────────────────────
 // MemberDetailSheet — コーチ用詳細シート
 // ─────────────────────────────────────────────────────────
-function MemberDetailSheet({ member, preCalcRisk, stats, onClose, onAck }: {
+function MemberDetailSheet({ member, preCalcRisk, stats, teamCode, meals, warmup, onClose, onAck }: {
   member: Member
   preCalcRisk?: InjuryRiskResult | null
   stats?: PlayerStatsRow | null
+  teamCode: string
+  meals?: TeamMealRow[]
+  warmup?: TeamWarmupRow | null
   onClose: () => void
   onAck?: () => void
 }) {
@@ -2293,6 +2348,14 @@ function MemberDetailSheet({ member, preCalcRisk, stats, onClose, onAck }: {
   const { language } = useLanguage()
   const { colors } = useTheme()
   const RISK_CFG = buildRiskCfg(t)
+  // 2026-09-20: 選手が提出した「レース行動予定」をコーチ側からも1枚のデータとして閲覧できるように。
+  const [racePlans,   setRacePlans]   = useState<TeamRacePlanRow[]>([])
+  const [viewingPlan, setViewingPlan] = useState<TeamRacePlanRow | null>(null)
+  useEffect(() => {
+    let alive = true
+    fetchRacePlans(teamCode, member.name).then(rows => { if (alive) setRacePlans(rows) }).catch(() => {})
+    return () => { alive = false }
+  }, [teamCode, member.name])
   const LOAD_CFG = buildLoadCfg(t)
   // リスト画面と同じ計算式で算出済みのリスクを優先使用
   const risk        = preCalcRisk ?? calcInjuryRisk(member.sessions, [], member.sessions[0]?.condition_level ?? 6)
@@ -2310,6 +2373,15 @@ function MemberDetailSheet({ member, preCalcRisk, stats, onClose, onAck }: {
   const goal        = stats?.goal || ''
   const streak      = calcStreak(member.sessions)
   const recentSessions = member.sessions.slice(0, 5)
+  // 2026-09-26:「選手からノートを集める機能」対応。共有レベルが「フル共有」の選手が
+  // notebook.tsxで書いた自由記述メモ(TrainingSession.notes)をコーチが読めるようにする。
+  // 部分共有・非公開の選手はそもそもnotesがstrip/skipされてteam_sessionsに届かないため、
+  // ここで追加のフィルタは不要（届いているもの＝共有に同意されているもの）。
+  const recentNotes = member.sessions.filter(s => !!s.notes?.trim()).slice(0, 5)
+  // 2026-09-26:「食事の時間と内容がコーチに分かるといい」対応。直近の食事記録(最大5件)。
+  const recentMeals = (meals ?? []).slice(0, 5)
+  // 2026-09-26:「アップの時間がコーチに分かるといい」対応。今日分のみ表示（過去日は意味が薄いため）。
+  const todayWarmup = warmup && warmup.warmup_date === todayLocalISO() ? warmup : null
 
   return (
     <View style={[StyleSheet.absoluteFill,{backgroundColor:'rgba(0,0,0,0.85)',justifyContent:'flex-end'}]}>
@@ -2321,7 +2393,7 @@ function MemberDetailSheet({ member, preCalcRisk, stats, onClose, onAck }: {
 
           {/* ヘッダー */}
           <View style={{flexDirection:'row',alignItems:'center',gap:12,marginBottom:16}}>
-            <Avatar name={member.name} size={50} color={avatarColor(member.name)}/>
+            <Avatar name={member.name} size={50} color={avatarColor(member.name)} avatarKey={member.avatarKey}/>
             <View style={{flex:1,gap:4}}>
               <Text style={{color:colors.text,fontSize:19,fontWeight:'800'}}>{member.name}</Text>
               <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
@@ -2394,6 +2466,14 @@ function MemberDetailSheet({ member, preCalcRisk, stats, onClose, onAck }: {
                 </View>
               </View>
 
+              {/* 2026-09-26:「選手側は10なのにコーチ側は22」との実機報告に対応。
+                  選手のホーム画面はストレッチ・水分補給の当日限定ボーナスでリスクが一時的に
+                  下がって見えるが、これはローカル端末のみの演出でコーチ側には同期されない。
+                  この差分が「バグでは？」と誤解されないよう注記を出す。 */}
+              <Text style={{color:colors.textHint,fontSize:10.5,lineHeight:15,marginBottom:10}}>
+                {t('team.memberDetail.riskNote')}
+              </Text>
+
               {/* 負荷 */}
               <View style={{flexDirection:'row',alignItems:'center',gap:8,backgroundColor:colors.surface2,borderRadius:10,padding:10,marginBottom:10}}>
                 <View style={{width:8,height:8,borderRadius:4,backgroundColor:lCfg.color}}/>
@@ -2440,6 +2520,16 @@ function MemberDetailSheet({ member, preCalcRisk, stats, onClose, onAck }: {
             </View>
           )}
 
+          {/* ─ 本日のアップ完了状況（内容は記録せず完了時刻のみの最小実装） ─ */}
+          {!!todayWarmup && (
+            <View style={{flexDirection:'row',alignItems:'center',gap:8,backgroundColor:'rgba(52,199,89,0.08)',borderRadius:10,padding:10,marginBottom:10}}>
+              <Ionicons name="checkmark-circle" size={16} color="#34C759"/>
+              <Text style={{color:colors.text,fontSize:12.5,fontWeight:'700'}}>
+                {t('team.memberDetail.warmupDoneAt', { time: new Date(todayWarmup.completed_at).toLocaleTimeString(language === 'en' ? 'en-US' : 'ja-JP', { hour: '2-digit', minute: '2-digit' }) })}
+              </Text>
+            </View>
+          )}
+
           {/* ─ 最近の練習ログ（P0: これまでコーチは現在値のスナップショットしか見られなかった） ─ */}
           {recentSessions.length > 0 && (
             <View style={{marginBottom:10}}>
@@ -2463,12 +2553,95 @@ function MemberDetailSheet({ member, preCalcRisk, stats, onClose, onAck }: {
             </View>
           )}
 
+          {/* ─ 選手のノート（notebook.tsxの自由記述メモ。フル共有の選手のみ届く） ─ */}
+          {recentNotes.length > 0 && (
+            <View style={{marginBottom:10}}>
+              <Text style={{color:colors.textSec,fontSize:12,fontWeight:'700',marginBottom:8}}>{t('team.memberDetail.playerNotes')}</Text>
+              <View style={{gap:8}}>
+                {recentNotes.map(s => (
+                  <View key={s.id} style={{backgroundColor:colors.surface2,borderRadius:10,padding:12,gap:4}}>
+                    <Text style={{color:colors.textHint,fontSize:11}}>{s.session_date.slice(5).replace('-','/')}</Text>
+                    <Text style={{color:colors.text,fontSize:12.5,lineHeight:18}}>📝 {s.notes}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* ─ 食事記録（フル共有の選手のみ届く） ─ */}
+          {recentMeals.length > 0 && (
+            <View style={{marginBottom:10}}>
+              <Text style={{color:colors.textSec,fontSize:12,fontWeight:'700',marginBottom:8}}>{t('team.memberDetail.playerMeals')}</Text>
+              <View style={{gap:6}}>
+                {recentMeals.map(m => {
+                  const time = new Date(m.meal_created_at).toLocaleTimeString(language === 'en' ? 'en-US' : 'ja-JP', { hour: '2-digit', minute: '2-digit' })
+                  const foodNames = (m.foods ?? []).map(f => f.name).join('・')
+                  return (
+                    <View key={m.id} style={{backgroundColor:colors.surface2,borderRadius:10,padding:12,gap:4}}>
+                      <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
+                        <Text style={{color:colors.textHint,fontSize:11}}>{m.meal_date.slice(5).replace('-','/')} {time}</Text>
+                        <Text style={{color:BRAND,fontSize:11,fontWeight:'700'}}>{t(`nutrition.mealTypes.${m.meal_type}`)}</Text>
+                        <Text style={{color:colors.textHint,fontSize:11,marginLeft:'auto'}}>{Math.round(m.total_calories)}kcal</Text>
+                      </View>
+                      {!!foodNames && <Text style={{color:colors.text,fontSize:12.5,lineHeight:18}}>{foodNames}</Text>}
+                    </View>
+                  )
+                })}
+              </View>
+            </View>
+          )}
+
+          {/* ─ レース行動予定（選手が提出した1枚のデータ） ─ */}
+          {racePlans.length > 0 && (
+            <View style={{marginBottom:10}}>
+              <Text style={{color:colors.textSec,fontSize:12,fontWeight:'700',marginBottom:8}}>{t('racePlan.historyTitle')}</Text>
+              <View style={{gap:6}}>
+                {racePlans.map(p => (
+                  <TouchableOpacity
+                    key={p.id}
+                    onPress={() => setViewingPlan(p)}
+                    activeOpacity={0.7}
+                    style={{flexDirection:'row',alignItems:'center',gap:10,backgroundColor:colors.surface2,borderRadius:10,paddingVertical:10,paddingHorizontal:12}}
+                  >
+                    <Ionicons name="document-text-outline" size={16} color={BRAND}/>
+                    <View style={{flex:1}}>
+                      <Text style={{color:colors.text,fontSize:13,fontWeight:'700'}}>{p.title || t('racePlan.title')}</Text>
+                      <Text style={{color:colors.textHint,fontSize:11}}>{p.race_date || '—'}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={14} color={colors.textHint}/>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+
           <Text style={{color:colors.textHint,fontSize:11,textAlign:'center',marginTop:4}}>
             {t('team.memberDetail.joinedDate', { date: daysSince(member.lastActive, t) })}
           </Text>
         </View>
         </ScrollView>
       </View>
+
+      {/* レース行動予定の閲覧モーダル */}
+      {viewingPlan && (
+        <View style={[StyleSheet.absoluteFill,{backgroundColor:'rgba(0,0,0,0.85)',justifyContent:'flex-end'}]}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setViewingPlan(null)}/>
+          <View style={{backgroundColor:colors.card,borderTopLeftRadius:24,borderTopRightRadius:24,paddingBottom:44,borderTopWidth:1,borderColor:colors.border,overflow:'hidden',maxHeight:SCREEN_H*0.88}}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={{padding:20}}>
+                <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:16}}/>
+                <View style={{flexDirection:'row',alignItems:'center',marginBottom:8}}>
+                  <Text style={{color:colors.text,fontSize:17,fontWeight:'800',flex:1}} numberOfLines={1}>{viewingPlan.title || t('racePlan.title')}</Text>
+                  <TouchableOpacity onPress={() => setViewingPlan(null)} hitSlop={{top:10,bottom:10,left:10,right:10}}>
+                    <Ionicons name="close" size={22} color={colors.textSec}/>
+                  </TouchableOpacity>
+                </View>
+                <RacePlanDetailContent plan={viewingPlan} colors={colors}/>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      )}
     </View>
   )
 }
@@ -2500,7 +2673,7 @@ function TeammateProfileSheet({ member, stats, sessions, onClose }: {
 
         {/* ─ プロフィールヘッダー ─ */}
         <View style={{alignItems:'center',gap:10,marginBottom:24}}>
-          <Avatar name={member.player_name} size={72} color={avatarColor(member.player_name)}/>
+          <Avatar name={member.player_name} size={72} color={avatarColor(member.player_name)} avatarKey={member.avatar_key}/>
           <Text style={{color:colors.text,fontSize:22,fontWeight:'800'}}>{member.player_name}</Text>
           {event ? <Text style={{color:colors.textSec,fontSize:14}}>{getEventLabel(event, language)}</Text> : null}
         </View>
@@ -2598,7 +2771,8 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
   const [stretchReduction,  setStretchReduction]  = useState(0)
   const [plTab,             setPlTab]             = useState<'home'|'members'>('home')
   const [playerIcon,        setPlayerIcon]        = useState('')
-  const [showIconPicker,    setShowIconPicker]    = useState(false)
+  const [playerAvatarKey,   setPlayerAvatarKey]   = useState('')
+  const [showAvatarPicker,  setShowAvatarPicker]  = useState(false)
   const [shareLevel,        setShareLevel]        = useState<ShareLevel>(2)
   const [showShareLevel,    setShowShareLevel]    = useState(false)
   // ── 欠席報告 ────────────────────────────────────────────
@@ -2614,7 +2788,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
 
   const load = useCallback(async () => {
     try {
-    const [sr, sleepRaw, condRaw, recovRaw, stretchRaw, msgs, mems, rpts, stats, teamSessions, evts, confirmedRaw, iconRaw, shareLvRaw] = await Promise.all([
+    const [sr, sleepRaw, condRaw, recovRaw, stretchRaw, msgs, mems, rpts, stats, teamSessions, evts, confirmedRaw, iconRaw, avatarKeyRaw, shareLvRaw] = await Promise.all([
       AsyncStorage.getItem(SESSIONS_KEY),
       AsyncStorage.getItem(SLEEP_KEY),
       AsyncStorage.getItem(CONDITION_MAP_KEY),
@@ -2628,6 +2802,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
       fetchTeamEvents(joined.code),
       AsyncStorage.getItem(EVENT_CONFIRMED_KEY),
       AsyncStorage.getItem(PLAYER_ICON_KEY),
+      AsyncStorage.getItem(PLAYER_AVATAR_KEY),
       AsyncStorage.getItem(SHARE_LEVEL_KEY),
     ])
     if (!plMountedRef.current) return
@@ -2638,6 +2813,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
     try { setConfirmedEventIds(new Set(confirmedRaw ? JSON.parse(confirmedRaw) : [])) } catch { setConfirmedEventIds(new Set()) }
     try { setConditionMap(condRaw ? JSON.parse(condRaw) : {}) } catch { setConditionMap({}) }
     setPlayerIcon(iconRaw ?? '')
+    setPlayerAvatarKey(avatarKeyRaw ?? '')
     try { setShareLevel((shareLvRaw ? Number(shareLvRaw) : 2) as ShareLevel) } catch { setShareLevel(2) }
     // ホーム画面と完全一致の hasSymptom 計算：回復記録のみ（痛み報告は含めない）
     try {
@@ -2669,6 +2845,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
         fatigue_level: ts.fatigue_level, condition_level: ts.condition_level,
         distance_m: ts.distance_m ?? undefined,
         reps: ts.reps ?? undefined, sets: ts.sets ?? undefined,
+        notes: ts.notes ?? undefined,
         created_at: ts.synced_at,
       }
       if (!map[ts.player_name]) map[ts.player_name] = []
@@ -2681,7 +2858,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
     const myStat = stats.find(s => s.player_name === joined.playerName)
     // 自分を team_members に再登録（参加時に登録失敗していてもコーチ一覧に出るよう自己修復）
     const myMember = mems.find(m => m.player_name === joined.playerName)
-    registerMember(joined.code, joined.playerName, myMember?.event ?? '', iconRaw ?? '').catch(() => {})
+    registerMember(joined.code, joined.playerName, myMember?.event ?? '', iconRaw ?? '', avatarKeyRaw ?? '').catch(() => {})
     // 自分のセッションをチームに同期（共有レベルによってデータ量を制限）
     const shareLv = (shareLvRaw ? Number(shareLvRaw) : 2) as ShareLevel
     if (shareLv >= 2) {
@@ -2741,15 +2918,15 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
     }
   }, [shareLevel])
 
-  async function savePlayerIcon(emoji: string) {
-    setPlayerIcon(emoji)
-    setShowIconPicker(false)
-    try { await AsyncStorage.setItem(PLAYER_ICON_KEY, emoji) } catch {}
-    // event フィールドを上書きしないよう icon カラムだけ update する
+  async function savePlayerAvatar(key: string) {
+    setPlayerAvatarKey(key)
+    setShowAvatarPicker(false)
+    try { await AsyncStorage.setItem(PLAYER_AVATAR_KEY, key) } catch {}
+    // registerMember()はeventを無条件で送るため、既存のevent値を消さないよう
+    // 自分のPlayerStatsRowから種目を引いて渡す（load()内のmyStat取得と同じ発想）。
+    const myEvent = playerStats.find(s => s.player_name === joined.playerName)?.event ?? ''
     try {
-      await supabase.from('team_members')
-        .update({ icon: emoji })
-        .eq('id', `${joined.code}_${joined.playerName}`)
+      await registerMember(joined.code, joined.playerName, myEvent, playerIcon, key)
     } catch {}
   }
 
@@ -2907,9 +3084,9 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
             <View style={{paddingHorizontal:16,paddingTop:12,paddingBottom:10,backgroundColor:colors.bg}}>
               <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
                 <View style={{flexDirection:'row',alignItems:'center',gap:10,flex:1}}>
-                  {/* タップでアイコン変更 */}
-                  <TouchableOpacity onPress={() => setShowIconPicker(true)} activeOpacity={0.8} style={{position:'relative'}} accessibilityLabel={t('team.playerDashboard.changeIcon')}>
-                    <Avatar name={joined.playerName} size={44} color={BRAND} emoji={playerIcon||undefined}/>
+                  {/* タップでアバター変更 */}
+                  <TouchableOpacity onPress={() => setShowAvatarPicker(true)} activeOpacity={0.8} style={{position:'relative'}} accessibilityLabel={t('team.playerDashboard.changeIcon')}>
+                    <Avatar name={joined.playerName} size={44} color={BRAND} emoji={playerIcon||undefined} avatarKey={playerAvatarKey||undefined}/>
                     <View style={{position:'absolute',bottom:0,right:0,backgroundColor:'#34C759',borderRadius:5,width:14,height:14,alignItems:'center',justifyContent:'center'}}>
                       <Ionicons name="pencil" size={8} color="#fff"/>
                     </View>
@@ -3202,6 +3379,18 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                                   </TouchableOpacity>
                                 )}
                               </View>
+                              {/* レースの予定には行動予定シートへの導線を出す */}
+                              {ev.event_type === 'race' && !past && (
+                                <TouchableOpacity
+                                  onPress={() => router.push({ pathname: '/race-plan', params: { title: ev.title, date: ev.event_date, eventId: ev.id } } as any)}
+                                  style={{flexDirection:'row',alignItems:'center',gap:6,paddingHorizontal:14,paddingBottom:12,paddingTop:2}}
+                                  hitSlop={{top:4,bottom:4,left:4,right:4}}
+                                >
+                                  <Ionicons name="document-text-outline" size={13} color={BRAND}/>
+                                  <Text style={{color:BRAND,fontSize:11.5,fontWeight:'700'}}>{t('team.playerDashboard.racePlanLink')}</Text>
+                                  <Ionicons name="chevron-forward" size={12} color={BRAND}/>
+                                </TouchableOpacity>
+                              )}
                             </View>
                           )
                         })}
@@ -3354,7 +3543,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                           {/* 上段: アバター(Lv角バッジ) + 名前+ランク + 連続日数 */}
                           <View style={{flexDirection:'row',alignItems:'center',gap:10,marginBottom:8}}>
                             <View style={{position:'relative'}}>
-                              <Avatar name={m.player_name} size={44} color={avatarColor(m.player_name)}/>
+                              <Avatar name={m.player_name} size={44} color={avatarColor(m.player_name)} avatarKey={m.avatar_key}/>
                               <View style={{position:'absolute',bottom:-4,right:-4,backgroundColor:lvTier.color,borderRadius:8,paddingHorizontal:4,paddingVertical:1,borderWidth:1.5,borderColor:'#fff'}}>
                                 <Text style={{color:'#fff',fontSize:9,fontWeight:'900'}}>Lv{lvInfo.level}</Text>
                               </View>
@@ -3530,11 +3719,11 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
         onClose={() => setShowShareLevel(false)}
       />
 
-      <PlayerIconPicker
-        visible={showIconPicker}
-        current={playerIcon}
-        onSelect={savePlayerIcon}
-        onClose={() => setShowIconPicker(false)}
+      <AvatarPickerModal
+        visible={showAvatarPicker}
+        current={playerAvatarKey}
+        onSelect={savePlayerAvatar}
+        onClose={() => setShowAvatarPicker(false)}
       />
 
       {/* チームメイト詳細シート */}
@@ -3755,28 +3944,77 @@ function TeamMenuSheet({ visible, role, canSwitch, onSwitchRole, onDangerAction,
   )
 }
 
+// 2026-09-23: Android版のチーム機能停止中プレースホルダー
+function TeamAndroidComingSoon() {
+  const { t } = useTranslation()
+  const { colors } = useTheme()
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 }}>
+        <Ionicons name="people-outline" size={40} color={colors.textHint} />
+        <Text style={{ color: colors.text, fontSize: 16, fontWeight: '800', textAlign: 'center' }}>{t('team.androidComingSoon.title')}</Text>
+        <Text style={{ color: colors.textSec, fontSize: 13, lineHeight: 20, textAlign: 'center' }}>{t('team.androidComingSoon.body')}</Text>
+      </SafeAreaView>
+    </View>
+  )
+}
+
 // ─────────────────────────────────────────────────────────
 // TeamScreen（エントリーポイント）
 // ─────────────────────────────────────────────────────────
 export default function TeamScreen() {
+  // 2026-09-23: 「Android版は一旦チーム機能を使えないように」との指示。タブバー側
+  // (app/(tabs)/_layout.tsx)でアイコン自体は隠しているが、直接 /team に来た場合の
+  // 保険としてここでも塞ぐ。Platform.OSはビルド中に変わらない定数のため、後続の
+  // hooksを常に同じ順序で呼ばない問題にはならない。
+  if (Platform.OS === 'android') return <TeamAndroidComingSoon />
+
   type State = 'loading'|'select-role'|'coach-setup'|'coach'|'player-join'|'player'
   const [state,  setState]  = useState<State>('loading')
   const [setup,  setSetup]  = useState<TeamSetup|null>(null)
   const [joined, setJoined] = useState<JoinedTeam|null>(null)
   const fadeY = useRef(new Animated.Value(0)).current
+  const router = useRouter()
   const { isCoach } = usePurchase()
   const { isCoachMode, setCoachMode } = useAuth()
+
+  // 2026-09-25:「15日間無料体験」機能で追加。lib/coachTrial.ts経由で作成されたチームは
+  // setup.trialExpiresAtを持つ。期限が過ぎても実際の課金(isCoach)に転換していなければ
+  // coach-onboarding(既存の「コードを持っている／外部ショップへ」選択画面)へ誘導する。
+  // コードを引き換えてisCoachがtrueになれば、このガードは外れ同じチームのまま使い続けられる
+  // （チームの作り直しは一切不要 — api/redeem-team-code.ts側の変更も無し）。
+  const trialExpired = !!(setup?.trialExpiresAt && new Date(setup.trialExpiresAt).getTime() < Date.now())
+  useEffect(() => {
+    if (state === 'coach' && setup && trialExpired && !isCoach) {
+      router.replace('/coach-onboarding?trialExpired=1' as any)
+    }
+  }, [state, setup, trialExpired, isCoach])
 
   // 2026-09-14: コーチ専用UI(ホーム画面等)への切り替えフラグ同期。
   // オンボーディングで「チーム」を選んだ人はapp/onboarding.tsxで既にisCoachMode=trueに
   // なっているが、①既存ユーザーがteam.tsx経由で後からコーチプランに加入した場合、
   // ②別端末等でisCoachだけ復元されisCoachModeがまだfalseな場合、を拾えないため、
-  // 「実際にコーチダッシュボードが表示される(=isCoach確定)」タイミングで安全網として
-  // 同期する。これによりホーム画面のisCoachMode分岐(app/(tabs)/index.tsx)も
-  // 正しくコーチ専用UIに切り替わる。
+  // 「実際にコーチダッシュボードが表示される」タイミングで安全網として同期する。
+  // これによりホーム画面のisCoachMode分岐(app/(tabs)/index.tsx)も正しく切り替わる。
+  //
+  // 2026-09-25実機バグ報告「選手として使っていたアカウントからコーチ作成した時に、
+  // コーチ用画面に切り替わってない」に対応。従来はisCoach(RevenueCatの実課金)を
+  // 条件にしていたが、無料体験(coach_trials経由)はRevenueCatを一切経由しないため
+  // isCoachが常にfalseのまま→この同期が永久に発火しない不具合だった。
+  // 実際にどちらの画面が表示されているか(=team.tsxが確定させたstate)を正とし、
+  // coach⇄playerの両方向で同期するように変更。これにより「..」メニューの
+  // 「役割を切り替える」でコーチ⇔選手を行き来した時もホーム画面が正しく追従する
+  // (=実質的にコーチ画面/選手画面への切り替えボタンとして機能する)。
+  //
+  // 2026-09-25バグ修正: 上の期限切れリダイレクトuseEffectと同じrenderでこちらも走るため、
+  // trialExpired&&!isCoachの場合はstate==='coach'のままでもisCoachMode=trueにしてはいけない
+  // (放置するとホームタブだけコーチ専用UIに残り続け、coach-onboardingへ追い出されたのに
+  // ホームだけコーチのまま、という状態不一致になる)。
   useEffect(() => {
-    if (isCoach && !isCoachMode) setCoachMode(true)
-  }, [isCoach, isCoachMode, setCoachMode])
+    const activelyCoach = state === 'coach' && !(trialExpired && !isCoach)
+    if (activelyCoach && !isCoachMode) setCoachMode(true)
+    else if (state === 'player' && isCoachMode) setCoachMode(false)
+  }, [state, trialExpired, isCoach, isCoachMode, setCoachMode])
 
   useFocusEffect(useCallback(() => {
     fadeY.setValue(0)
@@ -3870,6 +4108,16 @@ export default function TeamScreen() {
     setState('select-role')
   }
 
+  // TEMP(実機テスト用): 無料体験を「期限切れ」状態にする。SQLでcoach_trials.expires_atを
+  // 手動で書き換える代わりに、ローカルのSETUP_KEYのtrialExpiresAtを過去日時にするだけで
+  // 同じ体験ができる(上のtrialExpired判定・リダイレクトはこの値だけを見ているため)。
+  async function handleDevExpireTrial() {
+    if (!setup?.trialExpiresAt) return
+    const expired: TeamSetup = { ...setup, trialExpiresAt: new Date(Date.now() - 86400000).toISOString() }
+    await AsyncStorage.setItem(SETUP_KEY, JSON.stringify(expired)).catch(() => {})
+    setSetup(expired)
+  }
+
   // チーム脱退（選手）
   async function handleLeaveTeam() {
     if (joined) {
@@ -3888,7 +4136,8 @@ export default function TeamScreen() {
   // coach 状態で setup が無い（壊れたデータ）→ セットアップ画面へフォールバック
   if (state==='coach-setup' || (state==='coach' && !setup))
                                   return <Animated.View style={fadeStyle}><CoachSetupScreen onCreated={handleCoachCreated} onBack={() => setState('select-role')}/></Animated.View>
-  if (state==='coach' && setup)   return <Animated.View style={fadeStyle}><CoachDashboard  setup={setup!}  isCoach={isCoach} onSwitchRole={handleSwitchRole} onDeleteTeam={handleDeleteTeam}  canSwitchRole={true}/></Animated.View>
+  if (state==='coach' && setup && trialExpired && !isCoach) return null
+  if (state==='coach' && setup)   return <Animated.View style={fadeStyle}><CoachDashboard  setup={setup!}  isCoach={isCoach} onSwitchRole={handleSwitchRole} onDeleteTeam={handleDeleteTeam}  canSwitchRole={true} onDevExpireTrial={handleDevExpireTrial}/></Animated.View>
   // player 状態で joined が無い（壊れたデータ）→ 参加画面へフォールバック
   if (state==='player-join' || (state==='player' && !joined))
                                   return <Animated.View style={fadeStyle}><PlayerJoinScreen onJoined={handlePlayerJoined} onBack={() => setState('select-role')}/></Animated.View>

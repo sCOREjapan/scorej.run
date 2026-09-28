@@ -169,10 +169,15 @@ type TabItem = {
   action?: 'home-scroll' | 'quick-log'
 }
 
+// 2026-09-23: Android版は「一旦チーム機能を使えないように」との指示で、製品版リリース
+// 直前にチームタブを非表示にする。iOS/Webは従来通り表示する（app/(tabs)/team.tsx側にも
+// 同様のガードを入れており、タブ以外の経路からteamルートに来た場合もそちらで防ぐ）。
 const TAB_ITEMS: TabItem[] = [
   { route: '/(tabs)/',        labelKey: 'tabBar.home',    icon: 'home-outline',        iconFocused: 'home',        action: 'home-scroll' },
   { route: '/(tabs)/records', labelKey: 'tabBar.records', icon: 'stats-chart-outline', iconFocused: 'stats-chart' },
-  { route: '/(tabs)/team',    labelKey: 'tabBar.team',    icon: 'people-outline',      iconFocused: 'people'      },
+  ...(Platform.OS === 'android' ? [] : [
+    { route: '/(tabs)/team',    labelKey: 'tabBar.team',    icon: 'people-outline' as const,      iconFocused: 'people' as const      },
+  ]),
   { route: '/(tabs)/mypage',  labelKey: 'tabBar.settings',icon: 'person-outline',      iconFocused: 'person'      },
 ]
 

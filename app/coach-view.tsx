@@ -29,6 +29,7 @@ import { localDateStr } from '../lib/dateLocal'
 import { getSessionTypeLabel } from '../lib/sessionTypeLabels'
 import { getCoachVideoRequests, updateCoachVideoRequests, type CoachVideoRequest } from '../lib/coachReqStore'
 import { getEventLabel } from '../lib/eventLabels'
+import { collectPbMap, hurdleCategorySuffix } from '../lib/hurdleHeights'
 import { useTranslation } from 'react-i18next'
 import { useLanguage } from '../context/LanguageContext'
 
@@ -190,7 +191,7 @@ export default function CoachViewScreen() {
 
   // データ
   const [recentSessions, setRecentSessions] = useState<TrainingSession[]>([])
-  const [pbList, setPbList] = useState<{ event: string; display: string }[]>([])
+  const [pbList, setPbList] = useState<{ event: string; display: string; hurdleHeightCm?: number }[]>([])
   const [sleepData, setSleepData] = useState<{ date: string; score: number }[]>([])
   const [coachNotes, setCoachNotes] = useState<CoachNote[]>([])
   const [videoRequests, setVideoRequests] = useState<CoachVideoRequest[]>([])
@@ -285,14 +286,15 @@ export default function CoachViewScreen() {
       } catch {}
 
       // ── PB一覧 ──────────────────────────────────────────────────
+      // 2026-09-24: ハードルは高さ違いを別ベストとして扱う（lib/hurdleHeights.ts参照）。
+      // 種目コードだけのMapだと、同じ「110mH」でも高さが違う記録が上書きされ消えていた。
       try {
         if (rawRecords) {
           const all: RaceRecord[] = JSON.parse(rawRecords)
-          const pbMap: Record<string, string> = {}
-          all.filter(r => r.is_pb).forEach(r => {
-            pbMap[r.event] = r.result_display
-          })
-          setPbList(Object.entries(pbMap).map(([event, display]) => ({ event, display })))
+          const pbMap = collectPbMap(all)
+          setPbList(Array.from(pbMap.values()).map(r => ({
+            event: r.event, display: r.result_display, hurdleHeightCm: r.hurdle_height_cm,
+          })))
         }
       } catch {}
 
@@ -485,7 +487,11 @@ export default function CoachViewScreen() {
               ) : (
                 <View style={styles.pbGrid}>
                   {pbList.map(pb => (
-                    <PbItem key={pb.event} event={getEventLabel(pb.event, language)} display={pb.display} />
+                    <PbItem
+                      key={`${pb.event}_${pb.hurdleHeightCm ?? ''}`}
+                      event={getEventLabel(pb.event, language) + hurdleCategorySuffix(pb.event as any, pb.hurdleHeightCm)}
+                      display={pb.display}
+                    />
                   ))}
                 </View>
               )}
@@ -590,7 +596,7 @@ export default function CoachViewScreen() {
                               </View>
                             )}
                           </View>
-                          <Text style={styles.videoMessage} numberOfLines={2}>
+                          <Text style={styles.videoMessage} numberOfLines={3}>
                             {req.message || t('coachView.videos.noMessage')}
                           </Text>
                           <Text style={styles.videoDate}>

@@ -28,6 +28,11 @@ export const config = { runtime: 'nodejs' }
 
 const VALID_TIERS = new Set(['coach_monthly', 'coach_monthly_30', 'coach_monthly_unlimited'])
 const COACH_ENTITLEMENT_ID = 'coach' // RevenueCatダッシュボードで設定済みのentitlement識別子と一致させること
+// 2026-09-25:「実際に私が何回も使えるチームコードも作っておいて」との指示で追加。
+// このコードだけは使用後も status='redeemed' にせず、何度でも引き換え直せる
+// (開発者本人が複数アカウント・複数端末で繰り返しテストする用途)。
+// 発行はsupabase/generate_bulk_team_codes.sql参照。
+const UNLIMITED_TEST_CODE = 'FNDR-TEST-0001'
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -80,7 +85,7 @@ export default async function handler(req: any, res: any) {
     const rows = await lookupRes.json()
     const row = Array.isArray(rows) ? rows[0] : null
     if (!row) { res.status(404).json({ error: 'そのコードは見つかりませんでした' }); return }
-    if (row.status === 'redeemed') { res.status(409).json({ error: 'このコードは既に使用されています' }); return }
+    if (row.status === 'redeemed' && code !== UNLIMITED_TEST_CODE) { res.status(409).json({ error: 'このコードは既に使用されています' }); return }
     if (!VALID_TIERS.has(row.tier)) { res.status(400).json({ error: '不正なプランです' }); return }
     // 2026-09-14: 「コードに有効期限を発行」との指示で追加。expires_atがNULL
     // (このカラム追加前に発行された古いコード)は無期限として扱い、判定をスキップする。
@@ -90,6 +95,23 @@ export default async function handler(req: any, res: any) {
     }
 
     // ── RevenueCatへpromotional entitlementを付与 ──
+    // 2026-09-21実バグ: promotional entitlement付与APIは、そのapp_user_idがRevenueCat側に
+    // 一度も存在しない(=ネイティブアプリでPurchases.configure()+logIn()が一度も走っていない)
+    // 場合、サブスクライバーを自動作成せず404 "The subscriber was not found."を返す
+    // (実際にWeb版からコード引き換えを試した実ユーザーで確認・再現)。
+    // GET /v1/subscribers/{id} はSDKの初回起動と同じ動作でサブスクライバーを自動作成する
+    // ため、付与の直前に必ず一度呼んでおく。
+    const ensureRes = await fetch(
+      `https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(userId)}`,
+      { headers: { Authorization: `Bearer ${revenueCatSecret}` } },
+    )
+    if (!ensureRes.ok) {
+      const errText = await ensureRes.text().catch(() => '')
+      console.error('[redeem-team-code] RevenueCat subscriber ensure failed', { status: ensureRes.status, userId, errText })
+      res.status(502).json({ error: `権限の付与に失敗しました。時間をおいて再度お試しください: ${errText}` })
+      return
+    }
+
     const grantRes = await fetch(
       `https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(userId)}/entitlements/${COACH_ENTITLEMENT_ID}/promotional`,
       {
@@ -100,16 +122,20 @@ export default async function handler(req: any, res: any) {
     )
     if (!grantRes.ok) {
       const errText = await grantRes.text().catch(() => '')
+      console.error('[redeem-team-code] RevenueCat grant failed', { status: grantRes.status, userId, errText })
       res.status(502).json({ error: `権限の付与に失敗しました。時間をおいて再度お試しください: ${errText}` })
       return
     }
 
     // ── コードを使用済みにする(付与成功後にだけ確定させる) ──
-    await fetch(`${supabaseUrl}/rest/v1/team_plan_codes?code=eq.${encodeURIComponent(code)}`, {
-      method: 'PATCH',
-      headers: svcHeaders,
-      body: JSON.stringify({ status: 'redeemed', redeemed_by: userId, redeemed_at: new Date().toISOString() }),
-    })
+    // UNLIMITED_TEST_CODEだけは使用済みにせず、何度でも引き換え直せる状態のまま残す。
+    if (code !== UNLIMITED_TEST_CODE) {
+      await fetch(`${supabaseUrl}/rest/v1/team_plan_codes?code=eq.${encodeURIComponent(code)}`, {
+        method: 'PATCH',
+        headers: svcHeaders,
+        body: JSON.stringify({ status: 'redeemed', redeemed_by: userId, redeemed_at: new Date().toISOString() }),
+      })
+    }
 
     res.status(200).json({ status: 'ok', tier: row.tier })
   } catch (e: any) {

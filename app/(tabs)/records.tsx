@@ -37,7 +37,7 @@ import { pbCelebration } from '../../lib/haptics'
 import PracticeShareCard, { PracticeShareData } from '../../components/PracticeShareCard'
 import { calcLevelInfo } from '../../lib/gamification'
 import TutorialSpot from '../../components/TutorialSpot'
-import { STANDARD_HURDLE_HEIGHTS, isHurdleEvent } from '../../lib/hurdleHeights'
+import { STANDARD_HURDLE_HEIGHTS, isHurdleEvent, collectPbMap, hurdleCategorySuffix } from '../../lib/hurdleHeights'
 import { usePurchase } from '../../context/PurchaseContext'
 import { getSessions, updateSessions } from '../../lib/sessionsStore'
 import { getWeights, updateWeights, type WeightRecord } from '../../lib/weightStore'
@@ -264,12 +264,8 @@ function PBSummary({ records }: { records: RaceRecord[] }) {
   const { language } = useLanguage()
   const { colors } = useTheme()
   const styles = useMemo(() => makeStyles(colors), [colors])
-  // 種目ごとのPBを取得
-  const pbMap = new Map<string, RaceRecord>()
-  records.filter(r => r.is_pb).forEach(r => {
-    if (!pbMap.has(r.event)) pbMap.set(r.event, r)
-  })
-  const pbs = Array.from(pbMap.values())
+  // 種目ごとのPBを取得（ハードルは高さ違いを別ベストとして扱う。lib/hurdleHeights.ts参照）
+  const pbs = Array.from(collectPbMap(records).values())
   if (pbs.length === 0) return null
 
   return (
@@ -281,7 +277,7 @@ function PBSummary({ records }: { records: RaceRecord[] }) {
       <View style={styles.pbGrid}>
         {pbs.map(r => (
           <View key={r.id} style={styles.pbItem}>
-            <Text style={styles.pbEvent}>{getEventLabel(r.event, language)}</Text>
+            <Text style={styles.pbEvent}>{getEventLabel(r.event, language)}{hurdleCategorySuffix(r.event, r.hurdle_height_cm)}</Text>
             <Text style={styles.pbResult}>{r.result_display}</Text>
             <Text style={styles.pbDate}>{r.race_date}</Text>
           </View>

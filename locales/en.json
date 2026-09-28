@@ -689,6 +689,8 @@
       "coach": "Coach",
       "player": "Athlete",
       "notSet": "Not set",
+      "switchToPlayer": "Switch to athlete view",
+      "switchToCoach": "Switch to coach view",
       "switchRole": "Switch coach ↔ athlete",
       "switchConfirmWeb": "This will reset your team role. You can set it up again from the Team tab.",
       "switchTitle": "Switch role",
@@ -863,6 +865,9 @@
       "title": "Choose an icon",
       "reset": "Reset icon (show initial instead)"
     },
+    "avatarPicker": {
+      "title": "Choose an avatar"
+    },
     "confirm": {
       "cancel": "Cancel"
     },
@@ -947,6 +952,8 @@
       "loading": "Loading data...",
       "syncBannerTitle": "Athletes need to open the app for scores to appear",
       "syncBannerBody": "When each athlete opens the app and views the Team tab, their practice data syncs automatically and scores appear. Tap ↻ at the top right to refetch.",
+      "trialBannerTitle": "{{n}} days left in free trial",
+      "trialBannerBody": "Tap to open the team plan purchase page (your team carries over)",
       "needsAttention": "Needs attention",
       "needsAttentionCount": "{{n}}",
       "teamLoad": "Team load",
@@ -980,6 +987,8 @@
       "addEventHint": "Add one with the button below",
       "ended": "Ended",
       "deleteEvent": "Delete event",
+      "viewRacePlans": "View athlete submissions",
+      "noRacePlansYet": "No race plans submitted yet",
       "writeMenuLabel": "Write today's practice",
       "aiMenuButton": "Stuck on a menu?",
       "menuPlaceholder": "e.g.\nWarm-up jog 10 min\nStrides 100m×6\n300m×6 (90s rest)\nCool-down 10 min",
@@ -1012,7 +1021,7 @@
       "removedToast": "Removed {{name}}",
       "deleteFailed": "Failed to delete",
       "ackFailedTitle": "Couldn't confirm",
-      "ackFailedMessage": "Please log in and try again",
+      "ackFailedMessage": "Couldn't update. Please try again later",
       "ackedToast": "Marked as confirmed ✓",
       "ackFailedGeneric": "Failed to confirm",
       "savePhraseTitle": "Save a Quick Phrase",
@@ -1056,6 +1065,10 @@
       "absenceNotifTitle": "🙏 Absence report",
       "importantNoticeTitle": "📌 Important notice"
     },
+    "androidComingSoon": {
+      "title": "Team features are coming soon",
+      "body": "Team features aren't available on Android yet. We're working on it — please check back soon."
+    },
     "memberDetail": {
       "close": "Close",
       "painUnacked": "Pain/discomfort reported (unconfirmed)",
@@ -1072,6 +1085,10 @@
       "joinedDate": "Joined: {{date}}",
       "streakLabel": "Streak",
       "recentSessions": "Recent sessions",
+      "playerNotes": "Player notes",
+      "playerMeals": "Meal log",
+      "warmupDoneAt": "Warm-up completed today at {{time}}",
+      "riskNote": "Note: the athlete's own screen may show a temporarily lower number today from stretch/hydration bonuses",
       "conditionShort": "Cond {{level}}"
     },
     "teammateProfile": {
@@ -1113,6 +1130,7 @@
       "newEventBadge": "A new event was added",
       "confirmed": "Confirmed",
       "confirm": "Confirm",
+      "racePlanLink": "Create race day plan",
       "todayAbsence": "Today's Absence Report",
       "absencePlaceholder": "Reason / notes (optional)",
       "sending": "Sending...",
@@ -1164,11 +1182,11 @@
       "savedToast": "Sharing settings saved",
       "full": {
         "title": "Share Everything (Recommended)",
-        "desc": "Share practice volume, event, distance, and more with your coach for the most accurate support"
+        "desc": "Share practice volume, event, distance, notes, meal content, and warm-up completion time with your coach for the most accurate support"
       },
       "partial": {
         "title": "Condition Only",
-        "desc": "Only share fatigue and condition scores. Practice menu details stay private"
+        "desc": "Only share fatigue/condition scores and warm-up completion time. Practice menu details, notes, and meal content stay private"
       },
       "private": {
         "title": "Private",
@@ -1479,6 +1497,8 @@
     "startTrial": "Start {{days}}-day free trial",
     "startPlan": "Start {{label}}  {{price}}{{period}}",
     "trialSubtext": "After the trial ends, this automatically switches to {{price}}{{period}}",
+    "coachShopCta": "Go to sign-up page",
+    "coachShopSubtext": "You'll be taken to an external sign-up & payment page",
     "restoreButton": "Restore purchases",
     "privacyPolicy": "Privacy Policy",
     "terms": "Terms of Service",
@@ -1828,6 +1848,11 @@
       "recoveredConfirmMessage": "Have you fully recovered?",
       "recoveredConfirmYes": "Recovered!",
       "recoveredButton": "✓ Recovered",
+      "deleteLabel": "Delete this record",
+      "deleteConfirmTitle": "Delete Record",
+      "deleteConfirmMessage": "Delete this injury recovery plan? This can't be undone.",
+      "deleteConfirmYes": "Delete",
+      "deletedToast": "Deleted",
       "todayPlanTitle": "Today's Plan — Day {{day}} · {{phase}}",
       "avoidSuffix": " is strictly off-limits",
       "treatmentLogTitle": "Treatment Log ({{n}})",
@@ -1941,6 +1966,7 @@
       "dailyLimitReached": "Daily limit reached",
       "ticketUsed": "🎫 Used {{n}} ticket(s)",
       "planCreated": "Race plan created",
+      "registeredNoPlan": "Competition registered (AI training plan generation failed — please try again later)",
       "planFailed": "Failed to generate plan",
       "compDeleted": "Race plan deleted",
       "entryStatusChanged": "Entry status changed to \"{{status}}\"",
@@ -2330,7 +2356,24 @@
       "high": "High fatigue/risk today. Jogging and stretching alone is enough."
     },
     "doneBtnActive": "Warm-up complete! Head to practice",
-    "doneBtnIdle": "Ready? Head to practice →"
+    "doneBtnIdle": "Ready? Head to practice →",
+    "tabPreset": "Suggested",
+    "tabCustom": "My routine",
+    "editBtn": "Edit",
+    "customEmptyTitle": "Build your own warm-up",
+    "customEmptyBody": "Add your own exercises and details, and use your usual routine every time.",
+    "customEmptyCreateBtn": "Create",
+    "editRoutineTitle": "Edit my routine",
+    "itemNamePlaceholder": "Exercise name (e.g. Hip circles)",
+    "itemDetailPlaceholder": "Details / reps (optional)",
+    "addItemBtn": "+ Add item",
+    "saveRoutineBtn": "Save",
+    "deleteItemConfirmTitle": "Delete this item?",
+    "deleteItemConfirmBody": "This can't be undone.",
+    "deleteItemConfirmYes": "Delete",
+    "cancel": "Cancel",
+    "savedToast": "Your routine has been saved",
+    "nameRequiredToast": "Please enter an exercise name"
   },
   "levelRoadmap": {
     "backLabel": "Back",
@@ -2382,6 +2425,7 @@
     "menCategory": "Decathlon (Men's)",
     "womenCategory": "Heptathlon (Women's)",
     "tetrathlonJhsMenCategory": "Tetrathlon (JHS Boys)",
+    "octathlonHsMenCategory": "Octathlon (HS Boys)",
     "tabCalc": "Score Calc",
     "tabMatch": "Competitions",
     "tabPb": "PB & Goals",
@@ -3269,6 +3313,42 @@
       "easy": "Easy jog"
     }
   },
+  "racePlan": {
+    "title": "Race Day Plan",
+    "back": "Back",
+    "titlePlaceholder": "Race name (e.g. Regional meet)",
+    "dateLabel": "Race date",
+    "timelineSectionTitle": "Day-of schedule",
+    "timelineEmpty": "Add times and activities — wake-up, check-in, warm-up, and more",
+    "addBlockBtn": "+ Add a block",
+    "addBlockModalTitle": "Add a block",
+    "timeInputLabel": "Time",
+    "timePlaceholder": "8:00",
+    "contentInputLabel": "Activity",
+    "contentPlaceholder": "e.g. Warm-up: 2000m jog, drills, strides x3",
+    "addConfirm": "Add",
+    "cancel": "Cancel",
+    "deleteBlockConfirmTitle": "Delete this block?",
+    "deleteBlockConfirm": "Delete",
+    "targetSectionTitle": "Target time & splits",
+    "targetTimePlaceholder": "e.g. 11.50",
+    "splitsPlaceholder": "e.g. 5.6 first half, 5.9 second half",
+    "goalSectionTitle": "Goal & motivation",
+    "goalPlaceholder": "Write down how you feel about this race",
+    "submitBtn": "Submit to coach",
+    "submitConfirmTitle": "Submit this plan to your coach?",
+    "submitConfirmMessage": "You can still view it here after submitting",
+    "submitConfirmOk": "Submit",
+    "submitSuccess": "Race plan submitted to your coach ✓",
+    "submitFailed": "Failed to submit. Please try again",
+    "needAtLeastOneBlock": "Add at least one block first",
+    "notJoinedError": "You haven't joined a team, so this can't be submitted. Join a team from the Team tab first",
+    "historyTitle": "Submission history",
+    "historyEmpty": "No race plans submitted yet",
+    "viewOnly": "Submitted (view only)",
+    "pushTitle": "🏁 Race day plan",
+    "pushBody": "{{name}} submitted a race day plan for \"{{title}}\""
+  },
   "calendar": {
     "headerTitle": "Calendar",
     "prevMonth": "Previous month",
@@ -3460,6 +3540,10 @@
       "insightNoData": "Log a photo to see how close you are to your targets"
     },
     "todayTotal": "Today's Total",
+    "recordToggle": {
+      "open": "Log a meal",
+      "close": "Close"
+    },
     "coach": {
       "title": "AI Meal Coach",
       "sub": "Get meal tips ahead of your competition"
@@ -4040,6 +4124,8 @@
   "ticketGateModal": {
     "title": "Not Enough Tickets",
     "sub": "{{feature}} requires {{cost}} ticket(s) (you have {{balance}}, need {{shortage}} more)",
+    "statBalance": "You have",
+    "statNeeded": "Needed",
     "watchAdLoading": "Loading ad...",
     "watchAdCta": "Watch an ad for +1 ticket ({{n}} left today)",
     "watchAdCapReached": "You've reached today's earning limit",
@@ -4111,7 +4197,8 @@
   },
   "aiMenuResultCard": {
     "regenerating": "Regenerating...",
-    "regenerate": "Regenerate"
+    "regenerate": "Regenerate",
+    "askPrompt": "My training menu includes an exercise called \"{{item}}\". Can you explain exactly how to do it, including form and things to watch out for?"
   },
   "nutritionShareCard": {
     "transparentHint": "Transparent PNG — overlay it on a photo to share",
@@ -4341,6 +4428,17 @@
     "redeemButton": "Redeem code",
     "redeemSuccess": "Coach plan activated",
     "redeemFailed": "Redemption failed",
-    "back": "Back to selection"
+    "back": "Back to selection",
+    "trialTitle": "Try free for 15 days",
+    "trialDesc": "No credit card required. Create your team right away",
+    "trialExpiredSubtitle": "Your free trial has ended. To keep using the coach plan, enter a code or purchase the team plan.",
+    "trialTeamNameLabel": "Team name",
+    "trialTeamNamePlaceholder": "e.g. Central High Track Club",
+    "trialCoachNameLabel": "Coach name",
+    "trialCoachNamePlaceholder": "e.g. Taro Yamada",
+    "trialStartButton": "Start free trial",
+    "trialStarted": "Started your 15-day free trial",
+    "trialAlreadyUsed": "You've already used the free trial",
+    "trialFailed": "Failed to start the free trial"
   }
 }

@@ -31,7 +31,7 @@ import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import Toast from 'react-native-toast-message'
 import { usePurchase } from '../context/PurchaseContext'
-import { PRODUCT_IDS, TICKET_MONTHLY_GRANT } from '../lib/purchaseService'
+import { PRODUCT_IDS, TICKET_MONTHLY_GRANT, trialDaysFromPackage } from '../lib/purchaseService'
 import { trackPaywallView, trackTrialStarted } from '../lib/analytics'
 import { startSaleWindowIfNeeded } from '../lib/missionStore'
 
@@ -148,6 +148,12 @@ export default function MissionOfferScreen() {
   const showingDiscount = saleActive
   const displayPrice = saleActive ? (salePkg?.product?.priceString ?? SALE_PRICE_FALLBACK) : regularPrice
   const purchaseTargetPkg = saleActive && salePkg ? salePkg : regularPkg
+  // 2026-09-25:「980プランと同じように3日間無料体験をつけて表示」との指示で追加。
+  // ¥980プラン(app/paywall.tsx)と同じくStoreKit/Play Console側の導入価格(Introductory
+  // Offer)設定から動的に読み取る（ハードコードすると実際の設定とズレる事故になるため）。
+  // ストア側でticket_monthly_sale商品にまだ無料体験を設定していない間はnullのままなので、
+  // このコード自体は導入価格の有無に関わらず安全に動く。
+  const trialDays = trialDaysFromPackage(purchaseTargetPkg)
   const discountPct = (() => {
     if (!showingDiscount) return null
     const a = priceToNumber(regularPrice)
@@ -227,6 +233,11 @@ export default function MissionOfferScreen() {
               {showingDiscount && (
                 <Text style={s.urgencyLine}>{t('missionOffer.urgencyLine')}</Text>
               )}
+              {!!trialDays && (
+                <View style={s.trialBadge}>
+                  <Text style={s.trialBadgeText}>{t('paywall.trialBadge', { days: trialDays })}</Text>
+                </View>
+              )}
               <View style={s.priceRow}>
                 {showingDiscount && (
                   <Text style={s.priceStrike}>{regularPrice}</Text>
@@ -268,11 +279,18 @@ export default function MissionOfferScreen() {
                       ? <ActivityIndicator color="#fff" />
                       : <>
                           <Image source={TICKET_ICON} style={{ width: 20, height: 20 }} resizeMode="contain" />
-                          <Text style={s.purchaseBtnText}>{t('missionOffer.ctaButton')}</Text>
+                          <Text style={s.purchaseBtnText}>
+                            {trialDays ? t('paywall.startTrial', { days: trialDays }) : t('missionOffer.ctaButton')}
+                          </Text>
                         </>}
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
+              {!!trialDays && (
+                <Text style={s.trialSubtext}>
+                  {t('paywall.trialSubtext', { price: displayPrice, period: t('paywall.perMonth') })}
+                </Text>
+              )}
 
               <TouchableOpacity onPress={() => router.back()} style={s.skipBtn} activeOpacity={0.7}>
                 <Text style={s.skipText}>{t('missionOffer.skipButton')}</Text>
@@ -287,6 +305,7 @@ export default function MissionOfferScreen() {
                   : <Text style={s.restoreText}>{t('paywall.restoreButton')}</Text>}
               </TouchableOpacity>
               <Text style={s.legalText}>
+                {trialDays ? `${t('paywall.legal.trialLine', { days: trialDays })} ` : ''}
                 {t('paywall.legal.autoRenew')} {t('paywall.legal.cancelNotice')} {t('paywall.legal.howToCancel')}
               </Text>
               <View style={{ flexDirection: 'row', gap: 16, justifyContent: 'center', marginTop: 6 }}>
@@ -344,6 +363,9 @@ const s = StyleSheet.create({
     marginBottom: 24, textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
   },
   urgencyLine: { color: GOLD2, fontSize: 13.5, fontWeight: '800', marginBottom: 4 },
+  trialBadge: { backgroundColor: GOLD, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 5, marginBottom: 10 },
+  trialBadgeText: { color: '#241300', fontSize: 13, fontWeight: '900' },
+  trialSubtext: { color: 'rgba(255,255,255,0.75)', fontSize: 11.5, textAlign: 'center', marginTop: 8 },
   priceRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
   priceStrike: { color: 'rgba(255,255,255,0.6)', fontSize: 17, fontWeight: '700', textDecorationLine: 'line-through', marginBottom: 6 },
   priceMain: { color: '#fff', fontSize: 40, fontWeight: '900' },

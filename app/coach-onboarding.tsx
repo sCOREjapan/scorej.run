@@ -14,13 +14,17 @@ import React, { useEffect, useState } from 'react'
 import { View, Text, Image, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Linking } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { useRouter } from 'expo-router'
+import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import Toast from 'react-native-toast-message'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTheme } from '../context/ThemeContext'
 import { usePurchase } from '../context/PurchaseContext'
+import { useAuth } from '../context/AuthContext'
 import { getAiAuthHeader } from '../lib/supabase'
 import { BRAND } from '../lib/theme'
+import { SETUP_KEY, ROLE_KEY } from '../lib/teamKeys'
+import { startCoachTrial, CoachTrialAlreadyUsedError } from '../lib/coachTrial'
 
 const MASCOT = require('../assets/illustrations/mascot/mascot_onboarding_ready.png')
 
@@ -28,21 +32,58 @@ const API_BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-ru
 // 2026-09-14: 「BASEショップで作る」方針。実際のBASEショップURLが発行され次第、
 // ここを差し替えるだけでよい(コード発行・引き換え側のロジックには一切影響しない。
 // api/admin-generate-team-code.tsx参照)。それまではStripe決済ページ(自作)を暫定で使う。
-const TEAM_PLAN_EXTERNAL_URL = `${API_BASE_URL}/team-plan` // ← BASEショップ開設後にURLを差し替える
+// 2026-09-21: BASEショップ開設に伴いここを実URLに差し替え。
+const TEAM_PLAN_EXTERNAL_URL = 'https://scorejapan.official.ec'
 
 export default function CoachOnboardingScreen() {
   const { colors } = useTheme()
   const { t } = useTranslation()
   const router = useRouter()
+  const rawParams = useLocalSearchParams<{ trialExpired?: string }>()
+  // 2026-09-25バグ巡り指摘: expo-routerはクエリパラメータをstring[]で返すことがあるため、
+  // 単純な===比較だと配列の場合に常にfalseになりうる。念のため先頭要素に正規化しておく。
+  const trialExpiredParam = Array.isArray(rawParams.trialExpired) ? rawParams.trialExpired[0] : rawParams.trialExpired
+  const params = { trialExpired: trialExpiredParam }
   const { isCoach, refreshStatus } = usePurchase()
-  const [mode, setMode] = useState<'choose' | 'redeem'>('choose')
+  const { isGuest } = useAuth()
+  const [mode, setMode] = useState<'choose' | 'redeem' | 'trial'>('choose')
   const [code, setCode] = useState('')
   const [redeeming, setRedeeming] = useState(false)
+  // 2026-09-25:「15日間無料体験」機能で追加。lib/coachTrial.ts参照。
+  const [trialTeamName, setTrialTeamName] = useState('')
+  const [trialCoachName, setTrialCoachName] = useState('')
+  const [startingTrial, setStartingTrial] = useState(false)
 
   // 既にコーチプランが有効な場合(以前コードを引き換え済み等)はゲート不要なので素通りさせる
   useEffect(() => {
     if (isCoach) router.replace('/(tabs)/team' as any)
   }, [isCoach])
+
+  const handleStartTrial = async () => {
+    if (isGuest) { router.push('/auth' as any); return }
+    if (!trialTeamName.trim() || !trialCoachName.trim()) return
+    setStartingTrial(true)
+    try {
+      const result = await startCoachTrial(trialTeamName.trim(), trialCoachName.trim())
+      const setup = {
+        teamName: result.teamName, coachName: result.coachName, code: result.code,
+        createdAt: new Date().toISOString(), trialExpiresAt: result.trialExpiresAt,
+      }
+      await AsyncStorage.setItem(SETUP_KEY, JSON.stringify(setup))
+      await AsyncStorage.setItem(ROLE_KEY, 'coach')
+      Toast.show({ type: 'success', text1: t('coachOnboarding.trialStarted') })
+      router.replace('/(tabs)/team' as any)
+    } catch (e: any) {
+      if (e instanceof CoachTrialAlreadyUsedError) {
+        Toast.show({ type: 'info', text1: t('coachOnboarding.trialAlreadyUsed') })
+        setMode('choose')
+      } else {
+        Toast.show({ type: 'error', text1: t('coachOnboarding.trialFailed'), text2: e?.message })
+      }
+    } finally {
+      setStartingTrial(false)
+    }
+  }
 
   const handleRedeem = async () => {
     // 2026-09-17実機バグ報告「コードを入力しても見つからない」に対応。
@@ -60,6 +101,27 @@ export default function CoachOnboardingScreen() {
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json?.error ?? 'コードの引き換えに失敗しました')
+
+      // 2026-09-26実機バグ報告「コーチプランが有効になるだけで、チームは作成されず
+      // また、コーチとして始める画面が出てきた」に対応。
+      // 原因: 無料体験からのコード引き換え直後、refreshStatus()を呼んでもRevenueCat側の
+      // isCoach反映に若干のタイムラグがあり、その間にteam.tsxが読むタイミングだと
+      // isCoachがまだfalseのまま。team.tsx側の体験期限切れ判定(trialExpired && !isCoach)は
+      // ローカルのSETUP_KEY.trialExpiresAtだけを見て即座に評価されるため、isCoachの反映が
+      // 間に合わずレースコンディションでcoach-onboardingへ引き戻されてしまっていた。
+      // 引き換え成功が確定したこの時点でtrialExpiresAtをローカルから確実に消しておけば、
+      // isCoachの反映タイミングに関係なくtrialExpired判定は恒久的にfalseになる。
+      try {
+        const setupRaw = await AsyncStorage.getItem(SETUP_KEY)
+        if (setupRaw) {
+          const setup = JSON.parse(setupRaw)
+          if (setup?.trialExpiresAt) {
+            delete setup.trialExpiresAt
+            await AsyncStorage.setItem(SETUP_KEY, JSON.stringify(setup))
+          }
+        }
+      } catch {}
+
       await refreshStatus()
       Toast.show({ type: 'success', text1: t('coachOnboarding.redeemSuccess') })
       router.replace('/(tabs)/team' as any)
@@ -93,10 +155,27 @@ export default function CoachOnboardingScreen() {
         <View style={s.body}>
           <Image source={MASCOT} style={s.mascot} resizeMode="contain" />
           <Text style={[s.title, { color: colors.text }]}>{t('coachOnboarding.title')}</Text>
-          <Text style={[s.subtitle, { color: colors.textSec }]}>{t('coachOnboarding.subtitle')}</Text>
+          <Text style={[s.subtitle, { color: colors.textSec }]}>
+            {params.trialExpired === '1' ? t('coachOnboarding.trialExpiredSubtitle') : t('coachOnboarding.subtitle')}
+          </Text>
 
           {mode === 'choose' ? (
             <View style={{ width: '100%', gap: 12, marginTop: 32 }}>
+              {/* 2026-09-25:「15日間無料体験」追加。体験終了後にこの画面へ戻ってきた場合
+                  (params.trialExpired==='1')は既に使い切っているため表示しない。 */}
+              {params.trialExpired !== '1' && (
+                <TouchableOpacity style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => setMode('trial')} activeOpacity={0.85}>
+                  <View style={[s.cardIcon, { backgroundColor: '#16653418' }]}>
+                    <Ionicons name="gift-outline" size={24} color={BRAND} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.cardTitle, { color: colors.text }]}>{t('coachOnboarding.trialTitle')}</Text>
+                    <Text style={[s.cardDesc, { color: colors.textSec }]}>{t('coachOnboarding.trialDesc')}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.textHint} />
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => setMode('redeem')} activeOpacity={0.85}>
                 <View style={[s.cardIcon, { backgroundColor: BRAND + '18' }]}>
                   <Ionicons name="key-outline" size={24} color={BRAND} />
@@ -119,7 +198,7 @@ export default function CoachOnboardingScreen() {
                 <Ionicons name="open-outline" size={18} color={colors.textHint} />
               </TouchableOpacity>
             </View>
-          ) : (
+          ) : mode === 'redeem' ? (
             <View style={{ width: '100%', marginTop: 32, gap: 12 }}>
               <Text style={[s.label, { color: colors.textHint }]}>{t('coachOnboarding.codeLabel')}</Text>
               <TextInput
@@ -138,6 +217,36 @@ export default function CoachOnboardingScreen() {
                 activeOpacity={0.85}
               >
                 {redeeming ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnText}>{t('coachOnboarding.redeemButton')}</Text>}
+              </TouchableOpacity>
+              <TouchableOpacity style={{ alignItems: 'center', paddingVertical: 8 }} onPress={() => setMode('choose')}>
+                <Text style={{ color: colors.textSec, fontSize: 13 }}>{t('coachOnboarding.back')}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={{ width: '100%', marginTop: 32, gap: 12 }}>
+              <Text style={[s.label, { color: colors.textHint }]}>{t('coachOnboarding.trialTeamNameLabel')}</Text>
+              <TextInput
+                style={[s.input, { backgroundColor: colors.surface2, borderColor: colors.border, color: colors.text, textTransform: 'none' }]}
+                value={trialTeamName}
+                onChangeText={setTrialTeamName}
+                placeholder={t('coachOnboarding.trialTeamNamePlaceholder')}
+                placeholderTextColor={colors.textHint}
+              />
+              <Text style={[s.label, { color: colors.textHint }]}>{t('coachOnboarding.trialCoachNameLabel')}</Text>
+              <TextInput
+                style={[s.input, { backgroundColor: colors.surface2, borderColor: colors.border, color: colors.text, textTransform: 'none' }]}
+                value={trialCoachName}
+                onChangeText={setTrialCoachName}
+                placeholder={t('coachOnboarding.trialCoachNamePlaceholder')}
+                placeholderTextColor={colors.textHint}
+              />
+              <TouchableOpacity
+                style={[s.primaryBtn, (startingTrial || !trialTeamName.trim() || !trialCoachName.trim()) && { opacity: 0.5 }]}
+                onPress={handleStartTrial}
+                disabled={startingTrial || !trialTeamName.trim() || !trialCoachName.trim()}
+                activeOpacity={0.85}
+              >
+                {startingTrial ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnText}>{t('coachOnboarding.trialStartButton')}</Text>}
               </TouchableOpacity>
               <TouchableOpacity style={{ alignItems: 'center', paddingVertical: 8 }} onPress={() => setMode('choose')}>
                 <Text style={{ color: colors.textSec, fontSize: 13 }}>{t('coachOnboarding.back')}</Text>

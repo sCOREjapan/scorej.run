@@ -180,7 +180,7 @@ export default function LevelRoadmapScreen() {
                     Lv.{tier.min}〜{tier.max === 9999 ? '' : tier.max - 1}
                     {tier.min > 0 ? t('levelRoadmap.lvRangeFrom', { count: tier.sessionsRequired }) : `　${t('levelRoadmap.lvRangeStart')}`}
                   </Text>
-                  <Text style={[st.tierDesc, { color: isLocked ? colors.textHint : colors.textSec }]} numberOfLines={2}>
+                  <Text style={[st.tierDesc, { color: isLocked ? colors.textHint : colors.textSec }]} numberOfLines={3}>
                     {isLocked ? t('levelRoadmap.locked') : getTierDescription(tier.description, language)}
                   </Text>
                 </View>

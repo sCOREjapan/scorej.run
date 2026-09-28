@@ -3,7 +3,7 @@
 // ダーク基調デザインに刷新（配色・レイアウトを一新、機能・ロジックは不変）
 import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import * as Crypto from 'expo-crypto'
@@ -43,6 +43,15 @@ function formatTime(sec: number): string {
 
 export default function TrainingTimerScreen() {
   const router = useRouter()
+  // 2026-09-24実機バグ対応:「戻るボタンが上すぎて押せない」「秒数編集(編集ボタン)が
+  // 押せない」の原因。このスクリーンはpresentation:'fullScreenModal'(app/_layout.tsx)で
+  // 開かれるが、react-native-safe-area-contextのSafeAreaView/useSafeAreaInsetsが
+  // fullScreenModalの新しいUIViewController側で正しいinsetsを受け取れず、top insetが
+  // 0のまま返ってくることがある実機で確認済み。edges={['top',...]}に頼らず、insets.topに
+  // 最低保証値(ノッチ付きiPhoneの実測値を下回らない50pt)を敷いてヘッダーを確実に
+  // ステータスバーの下まで押し下げる。
+  const insets = useSafeAreaInsets()
+  const safeTop = Math.max(insets.top, 50)
   const { t } = useTranslation()
   const [settings, setSettings] = useState<TrainingTimerSettings>(TIMER_DEFAULTS)
   const [loaded, setLoaded] = useState(false)
@@ -173,8 +182,8 @@ export default function TrainingTimerScreen() {
   ]
 
   return (
-    <SafeAreaView style={tt.safe} edges={['top', 'bottom']}>
-      <View style={tt.header}>
+    <SafeAreaView style={tt.safe} edges={['bottom']}>
+      <View style={[tt.header, { paddingTop: safeTop }]}>
         <TouchableOpacity onPress={() => router.back()} style={tt.iconBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel={t('trainingTimer.backLabel')}>
           <Ionicons name="chevron-back" size={26} color={TEXT_PRIMARY} />
         </TouchableOpacity>

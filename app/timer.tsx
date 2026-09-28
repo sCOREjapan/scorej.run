@@ -214,10 +214,13 @@ export default function TimerScreen() {
       <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} />
 
       {/* ヘッダー */}
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+      {/* 2026-09-24: training-timer.tsxと同じ実機バグ(fullScreenModal提示時にinsets.topが
+          0で返ることがある)への対応。最低保証値でステータスバー下まで確実に押し下げる。 */}
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 50) + 8 }]}>
         <TouchableOpacity
           style={styles.headerBack}
           accessibilityLabel={t('timer.closeLabel')}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           onPress={() => {
             if (timerState !== 'idle') {
               Alert.alert(t('timer.runningConfirmTitle'), t('timer.runningConfirmBody'), [

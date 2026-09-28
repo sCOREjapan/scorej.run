@@ -1,0 +1,247 @@
+<title>武田哲星 名刺</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root {
+    --green: #166534;
+    --green-deep: #0F4A26;
+    --mint: #DCEEE1;
+    --ink: #16211C;
+    --sub: #5B6B62;
+    --border: #E1E8E3;
+    --bg: #EEF2EF;
+    --card-bg: #FFFFFF;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121815;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121815;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    font-family: "Noto Sans JP", -apple-system, sans-serif;
+    margin: 0;
+    padding: 40px 20px 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+  .hint {
+    font-size: 12.5px;
+    color: var(--sub);
+    text-align: center;
+    max-width: 400px;
+    line-height: 1.7;
+  }
+  .hint b { color: var(--ink); }
+
+  /* ── 名刺本体：91mm × 55mm（標準サイズ）を実寸で表示 ── */
+  .card {
+    width: 91mm;
+    height: 55mm;
+    background: var(--card-bg);
+    border-radius: 3mm;
+    box-shadow: 0 10px 30px -8px rgba(0,0,0,0.35), 0 0 0 1px var(--border);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    padding: 6mm 6mm 5mm 6.5mm;
+    gap: 5mm;
+  }
+  /* 左端のブランドバー */
+  .card::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 2.6mm;
+    background: linear-gradient(180deg, var(--green), var(--green-deep));
+  }
+
+  .left {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-width: 0;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 2mm;
+  }
+  .mark {
+    width: 6mm; height: 6mm;
+    border-radius: 1.6mm;
+    background: var(--green);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .mark span {
+    color: #fff;
+    font-family: "Zen Kaku Gothic New", sans-serif;
+    font-weight: 900;
+    font-size: 3.6mm;
+  }
+  .wordmark {
+    font-family: "Zen Kaku Gothic New", sans-serif;
+    font-weight: 700;
+    font-size: 3.1mm;
+    letter-spacing: 0.02em;
+    color: var(--green-deep);
+  }
+  .wordmark .lower { text-transform: lowercase; }
+
+  .identity { margin-top: 3mm; }
+  .name {
+    font-family: "Zen Kaku Gothic New", sans-serif;
+    font-weight: 900;
+    font-size: 6.4mm;
+    color: var(--ink);
+    line-height: 1.15;
+    letter-spacing: 0.02em;
+  }
+  .title-line {
+    margin-top: 1.6mm;
+    font-size: 3mm;
+    font-weight: 700;
+    color: var(--green);
+  }
+  .affils {
+    margin-top: 2mm;
+    font-size: 2.35mm;
+    color: var(--sub);
+    line-height: 1.65;
+  }
+
+  .contact {
+    display: flex;
+    align-items: center;
+    gap: 1.6mm;
+    font-size: 2.5mm;
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .contact svg { width: 3mm; height: 3mm; flex-shrink: 0; }
+
+  .right {
+    flex-shrink: 0;
+    width: 24mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    gap: 3mm;
+  }
+  .qr-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1mm;
+  }
+  .qr-box {
+    width: 16mm;
+    height: 16mm;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 1.2mm;
+    padding: 0.8mm;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .qr-box img { width: 100%; height: 100%; image-rendering: pixelated; }
+  .qr-label {
+    font-size: 2.1mm;
+    font-weight: 700;
+    color: var(--sub);
+    letter-spacing: 0.02em;
+  }
+
+  .print-btn {
+    appearance: none;
+    border: none;
+    background: var(--green);
+    color: #fff;
+    font-family: "Noto Sans JP", sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 11px 28px;
+    border-radius: 999px;
+    cursor: pointer;
+    box-shadow: 0 6px 16px -4px rgba(22,101,52,0.5);
+  }
+
+  @media print {
+    body { padding: 0; background: #fff; }
+    .hint, .print-btn { display: none; }
+    .card { box-shadow: none; }
+  }
+</style>
+
+<div class="hint">
+  実寸(91mm×55mm)で表示しています。印刷する場合は下のボタンから、余白・拡大縮小を「なし／100%」にして出力してください。
+</div>
+
+<div class="card" id="card">
+  <div class="left">
+    <div>
+      <div class="brand">
+        <div class="mark"><span>S</span></div>
+        <div class="wordmark">s<span class="lower">CORE</span></div>
+      </div>
+      <div class="identity">
+        <div class="name">武田哲星</div>
+        <div class="title-line">score japan 代表</div>
+        <div class="affils">
+          合同会社Universal Design アドバイザー<br>
+          日本鍼灸理療専門学校 在籍
+        </div>
+      </div>
+    </div>
+    <div class="contact">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6l9 6 9-6M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/></svg>
+      team.deepwork2026@gmail.com
+    </div>
+  </div>
+  <div class="right">
+    <div class="qr-block">
+      <div class="qr-box" id="qr-ig"></div>
+      <div class="qr-label">Instagram</div>
+    </div>
+    <div class="qr-block">
+      <div class="qr-box" id="qr-app"></div>
+      <div class="qr-label">アプリDL</div>
+    </div>
+  </div>
+</div>
+
+<button class="print-btn" onclick="window.print()">この名刺を印刷する</button>
+
+<script>
+  function renderQR(elId, text) {
+    const holder = document.getElementById(elId);
+    // qrcodejs はCSSピクセル基準で生成するため、mm実寸に対して十分な解像度(300px)で
+    // 作ってからCSSでqr-boxいっぱいに縮小表示する（印刷時のにじみ防止）。
+    const tmp = document.createElement('div');
+    new QRCode(tmp, { text, width: 300, height: 300, correctLevel: QRCode.CorrectLevel.M });
+    setTimeout(() => {
+      const img = tmp.querySelector('img') || tmp.querySelector('canvas');
+      if (img.tagName === 'CANVAS') {
+        const image = document.createElement('img');
+        image.src = img.toDataURL('image/png');
+        holder.appendChild(image);
+      } else {
+        holder.appendChild(img);
+      }
+    }, 60);
+  }
+  renderQR('qr-ig', 'https://www.instagram.com/score.japan/');
+  renderQR('qr-app', 'https://apps.apple.com/jp/app/score/id6766394981');
+</script>

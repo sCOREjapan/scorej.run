@@ -19,6 +19,8 @@ import { ThemeProvider, useTheme } from '../context/ThemeContext'
 import { PurchaseProvider } from '../context/PurchaseContext'
 import { LanguageProvider, useLanguage } from '../context/LanguageContext'
 import LanguagePickerModal from '../components/LanguagePickerModal'
+import UpdateRequiredModal from '../components/UpdateRequiredModal'
+import { checkForceUpdate } from '../lib/appVersionGate'
 import SplashAnimation from '../components/SplashAnimation'
 import { TutorialProvider, isTutorialDone } from '../lib/tutorialContext'
 import TutorialSlides from '../components/TutorialSlides'
@@ -464,6 +466,15 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       .catch(() => setConsentAccepted(false))
   }, [])
 
+  // 強制アップデート判定（Supabase app_config.min_version_ios/android を参照）。
+  // 起動を遅延させたくないのでバックグラウンドでチェックし、対象なら後から全画面表示する。
+  const [updateRequired, setUpdateRequired] = useState<{ message: string } | null>(null)
+  useEffect(() => {
+    checkForceUpdate().then(r => {
+      if (r.required) setUpdateRequired({ message: r.message })
+    }).catch(() => {})
+  }, [])
+
   // ── アプデ後告知バナー（LINEコミュニティ・コーチプラン値下げ） ──────────
   // 「アプデ後に一度だけ・新規ユーザーのオンボーディングとは絶対に被らない」ため、
   // コールドスタート時点で isOnboarded が true だったユーザー（＝既存ユーザー）
@@ -656,6 +667,10 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   return (
     <>
       {children}
+      {/* 強制アップデート画面 — 対象バージョンなら他の全モーダルより優先して表示し続ける */}
+      {updateRequired && segments[0] !== 'admin' && (
+        <UpdateRequiredModal message={updateRequired.message} />
+      )}
       {/* 言語選択モーダル — 同意モーダルより先に、初回のみ表示（admin は除く） */}
       {!hasSelectedLanguage && segments[0] !== 'admin' && (
         <LanguagePickerModal />
@@ -796,6 +811,7 @@ function RootLayoutNav() {
             }}
           />
           <Stack.Screen name="warmup" options={{ title: 'ウォームアップ', headerShown: true }} />
+          <Stack.Screen name="warmup-routine-edit" options={{ headerShown: false, presentation: 'card' }} />
           {/* 2026-09-13: 「AIスコッピーと会話できる機能」。画面自身が独自のトップバー
               (マスコット+タイトル+履歴クリア)を持つためheaderShown:false */}
           <Stack.Screen name="scoppy-chat" options={{ headerShown: false, presentation: 'card' }} />
@@ -822,10 +838,6 @@ function RootLayoutNav() {
           <Stack.Screen
             name="share-card"
             options={{ title: '記録シェア', headerShown: false, presentation: 'card' }}
-          />
-          <Stack.Screen
-            name="ranking"
-            options={{ title: '全国ランキング', headerStyle: { backgroundColor: '#000000' }, headerTintColor: '#FFFFFF' }}
           />
           <Stack.Screen
             name="settings"

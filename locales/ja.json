@@ -689,6 +689,8 @@
       "coach": "コーチ・監督",
       "player": "選手",
       "notSet": "未設定",
+      "switchToPlayer": "選手画面に切り替える",
+      "switchToCoach": "コーチ画面に切り替える",
       "switchRole": "コーチ ↔ 選手を切り替え",
       "switchConfirmWeb": "チームのロール設定をリセットします。チームタブで再設定できます。",
       "switchTitle": "ロールを切り替え",
@@ -863,6 +865,9 @@
       "title": "アイコンを選ぶ",
       "reset": "アイコンをリセット（イニシャル表示に戻す）"
     },
+    "avatarPicker": {
+      "title": "アバターを選ぶ"
+    },
     "confirm": {
       "cancel": "キャンセル"
     },
@@ -947,6 +952,8 @@
       "loading": "データを読み込み中...",
       "syncBannerTitle": "スコアを反映するには選手の操作が必要です",
       "syncBannerBody": "各選手がアプリを開いてチームタブを表示すると、練習データが自動で同期されスコアが表示されます。右上の ↻ ボタンで再取得できます。",
+      "trialBannerTitle": "無料体験 残り{{n}}日",
+      "trialBannerBody": "タップしてチームプランのご購入ページへ（引き続き同じチームを使えます）",
       "needsAttention": "要対応",
       "needsAttentionCount": "{{n}}人",
       "teamLoad": "チーム負荷",
@@ -980,6 +987,8 @@
       "addEventHint": "下のボタンから追加してください",
       "ended": "終了",
       "deleteEvent": "予定を削除",
+      "viewRacePlans": "選手の提出状況を見る",
+      "noRacePlansYet": "まだ提出したレース行動予定はありません",
       "writeMenuLabel": "今日の練習を書く",
       "aiMenuButton": "メニューに困ったら？",
       "menuPlaceholder": "例:\nアップジョグ 10分\n流し 100m×6\n300m×6本（レスト90秒）\nクールダウン 10分",
@@ -1012,7 +1021,7 @@
       "removedToast": "{{name}} を削除しました",
       "deleteFailed": "削除に失敗しました",
       "ackFailedTitle": "確認できませんでした",
-      "ackFailedMessage": "ログインしてから再試行してください",
+      "ackFailedMessage": "更新できませんでした。時間をおいて再度お試しください",
       "ackedToast": "確認済みにしました ✓",
       "ackFailedGeneric": "確認に失敗しました",
       "savePhraseTitle": "よく使うフレーズを保存",
@@ -1056,6 +1065,10 @@
       "absenceNotifTitle": "🙏 欠席報告",
       "importantNoticeTitle": "📌 重要なお知らせ"
     },
+    "androidComingSoon": {
+      "title": "チーム機能は近日公開予定です",
+      "body": "Android版では現在チーム機能をご利用いただけません。近日中に対応予定ですので、しばらくお待ちください。"
+    },
     "memberDetail": {
       "close": "閉じる",
       "painUnacked": "痛み・違和感の報告あり（未確認）",
@@ -1072,6 +1085,10 @@
       "joinedDate": "参加日: {{date}}",
       "streakLabel": "連続記録",
       "recentSessions": "最近の練習",
+      "playerNotes": "選手のノート",
+      "playerMeals": "食事記録",
+      "warmupDoneAt": "本日のアップ完了: {{time}}",
+      "riskNote": "※選手本人の画面では、当日のストレッチ・水分補給実施により一時的に低く表示される場合があります",
       "conditionShort": "体調{{level}}"
     },
     "teammateProfile": {
@@ -1113,6 +1130,7 @@
       "newEventBadge": "新しい予定が追加されました",
       "confirmed": "確認済",
       "confirm": "確認",
+      "racePlanLink": "レース行動予定を作成",
       "todayAbsence": "今日の欠席報告",
       "absencePlaceholder": "理由・メモを入力（任意）",
       "sending": "送信中...",
@@ -1164,11 +1182,11 @@
       "savedToast": "共有設定を保存しました",
       "full": {
         "title": "全データ公開（推奨）",
-        "desc": "練習量・種目・距離など詳細をコーチと共有。最も正確なサポートを受けられます"
+        "desc": "練習量・種目・距離・メモ、食事内容、アップ実施時刻など詳細をコーチと共有。最も正確なサポートを受けられます"
       },
       "partial": {
         "title": "コンディションのみ",
-        "desc": "疲労度・体調スコアだけを共有。練習メニューの詳細は非公開"
+        "desc": "疲労度・体調スコアとアップ実施時刻のみを共有。練習メニューの詳細・メモ・食事内容は非公開"
       },
       "private": {
         "title": "非公開",
@@ -1479,6 +1497,8 @@
     "startTrial": "{{days}}日間無料で始める",
     "startPlan": "{{label}} を始める  {{price}}{{period}}",
     "trialSubtext": "無料期間終了後、自動的に{{price}}{{period}}に切り替わります",
+    "coachShopCta": "お申し込みページへ",
+    "coachShopSubtext": "外部の案内・お支払いページに移動します",
     "restoreButton": "購入を復元する",
     "privacyPolicy": "プライバシーポリシー",
     "terms": "利用規約",
@@ -1828,6 +1848,11 @@
       "recoveredConfirmMessage": "回復が完了しましたか？",
       "recoveredConfirmYes": "完治した！",
       "recoveredButton": "✓ 回復した",
+      "deleteLabel": "この記録を削除",
+      "deleteConfirmTitle": "記録の削除",
+      "deleteConfirmMessage": "この怪我復帰プランを削除しますか？元に戻せません。",
+      "deleteConfirmYes": "削除する",
+      "deletedToast": "削除しました",
       "todayPlanTitle": "今日のプラン — Day {{day}} · {{phase}}",
       "avoidSuffix": " は絶対NG",
       "treatmentLogTitle": "治療の記録（{{n}}回）",
@@ -1941,6 +1966,7 @@
       "dailyLimitReached": "本日の上限に達しました",
       "ticketUsed": "🎫 チケットを{{n}}枚使用しました",
       "planCreated": "試合計画を作成しました",
+      "registeredNoPlan": "試合は登録しました（AIの練習計画作成には失敗しました。後でもう一度お試しください）",
       "planFailed": "計画生成に失敗しました",
       "compDeleted": "試合計画を削除しました",
       "entryStatusChanged": "エントリー状態を「{{status}}」に変更しました",
@@ -2330,7 +2356,24 @@
       "high": "疲労・リスクが高い日。ジョグとストレッチだけで十分です。"
     },
     "doneBtnActive": "ウォームアップ完了！練習へ",
-    "doneBtnIdle": "準備OKなら練習へ →"
+    "doneBtnIdle": "準備OKなら練習へ →",
+    "tabPreset": "おすすめ",
+    "tabCustom": "マイルーティン",
+    "editBtn": "編集",
+    "customEmptyTitle": "自分のウォームアップを作ろう",
+    "customEmptyBody": "種目名と内容を自由に登録して、いつものルーティンをそのまま使えます。",
+    "customEmptyCreateBtn": "作成する",
+    "editRoutineTitle": "マイルーティンを編集",
+    "itemNamePlaceholder": "種目名（例：股関節回旋）",
+    "itemDetailPlaceholder": "内容・回数（任意）",
+    "addItemBtn": "＋ 項目を追加",
+    "saveRoutineBtn": "保存",
+    "deleteItemConfirmTitle": "この項目を削除しますか？",
+    "deleteItemConfirmBody": "元に戻せません。",
+    "deleteItemConfirmYes": "削除する",
+    "cancel": "キャンセル",
+    "savedToast": "マイルーティンを保存しました",
+    "nameRequiredToast": "種目名を入力してください"
   },
   "levelRoadmap": {
     "backLabel": "戻る",
@@ -2382,6 +2425,7 @@
     "menCategory": "十種競技（男子）",
     "womenCategory": "七種競技（女子）",
     "tetrathlonJhsMenCategory": "四種競技（中学男子）",
+    "octathlonHsMenCategory": "八種競技（高校男子）",
     "tabCalc": "得点計算",
     "tabMatch": "試合",
     "tabPb": "PB・目標",
@@ -3269,6 +3313,42 @@
       "easy": "ジョグ"
     }
   },
+  "racePlan": {
+    "title": "レース行動予定",
+    "back": "戻る",
+    "titlePlaceholder": "大会名（例：地区記録会）",
+    "dateLabel": "レース日",
+    "timelineSectionTitle": "当日のスケジュール",
+    "timelineEmpty": "起床・集合・アップなど、時刻と内容を追加していきましょう",
+    "addBlockBtn": "＋ 予定を追加",
+    "addBlockModalTitle": "予定を追加",
+    "timeInputLabel": "時刻",
+    "timePlaceholder": "8:00",
+    "contentInputLabel": "内容",
+    "contentPlaceholder": "例：朝アップ 2000jog 体操 流し120×3",
+    "addConfirm": "追加する",
+    "cancel": "キャンセル",
+    "deleteBlockConfirmTitle": "この予定を削除しますか？",
+    "deleteBlockConfirm": "削除",
+    "targetSectionTitle": "目標タイム・ラップ",
+    "targetTimePlaceholder": "例：11秒50",
+    "splitsPlaceholder": "例：前半5.6 後半5.9",
+    "goalSectionTitle": "目標・意気込み",
+    "goalPlaceholder": "この試合にかける想いを書いてみましょう",
+    "submitBtn": "コーチに提出する",
+    "submitConfirmTitle": "この内容でコーチに提出しますか？",
+    "submitConfirmMessage": "提出後もこの画面で内容を確認できます",
+    "submitConfirmOk": "提出する",
+    "submitSuccess": "レース行動予定をコーチに提出しました ✓",
+    "submitFailed": "提出に失敗しました。もう一度お試しください",
+    "needAtLeastOneBlock": "予定を1つ以上追加してください",
+    "notJoinedError": "チームに参加していないため提出できません。先にチームタブから参加してください",
+    "historyTitle": "提出履歴",
+    "historyEmpty": "まだ提出したレース行動予定はありません",
+    "viewOnly": "提出済み（閲覧のみ）",
+    "pushTitle": "🏁 レース行動予定",
+    "pushBody": "{{name}}選手が「{{title}}」の行動予定を提出しました"
+  },
   "calendar": {
     "headerTitle": "カレンダー",
     "prevMonth": "前の月",
@@ -3460,6 +3540,10 @@
       "insightNoData": "写真ログを記録すると、目安に対する充足度が表示されます"
     },
     "todayTotal": "今日の合計",
+    "recordToggle": {
+      "open": "食事を記録する",
+      "close": "閉じる"
+    },
     "coach": {
       "title": "AI食事コーチ",
       "sub": "大会に向けた食事のポイントを提案"
@@ -4040,6 +4124,8 @@
   "ticketGateModal": {
     "title": "チケットが足りません",
     "sub": "{{feature}}には{{cost}}枚必要です（現在{{balance}}枚・あと{{shortage}}枚）",
+    "statBalance": "現在",
+    "statNeeded": "必要枚数",
     "watchAdLoading": "広告を読み込み中...",
     "watchAdCta": "広告を見てチケット+1（本日あと{{n}}回）",
     "watchAdCapReached": "本日の獲得上限に達しました",
@@ -4111,7 +4197,8 @@
   },
   "aiMenuResultCard": {
     "regenerating": "再生成中...",
-    "regenerate": "再生成"
+    "regenerate": "再生成",
+    "askPrompt": "陸上競技の練習メニューで「{{item}}」という種目が出てきたのですが、具体的にどうやるのか、フォームや注意点も含めてわかりやすく教えてください。"
   },
   "nutritionShareCard": {
     "transparentHint": "背景透過PNG — 写真の上に貼ってシェアできます",
@@ -4341,6 +4428,17 @@
     "redeemButton": "コードを引き換える",
     "redeemSuccess": "コーチプランを有効化しました",
     "redeemFailed": "引き換えに失敗しました",
-    "back": "選択画面に戻る"
+    "back": "選択画面に戻る",
+    "trialTitle": "15日間無料で試す",
+    "trialDesc": "クレジットカード登録不要。すぐにチームを作成できます",
+    "trialExpiredSubtitle": "無料体験期間が終了しました。引き続きご利用にはコードの入力、またはチームプランのご購入が必要です。",
+    "trialTeamNameLabel": "チーム名",
+    "trialTeamNamePlaceholder": "例）〇〇高校陸上部",
+    "trialCoachNameLabel": "コーチ名",
+    "trialCoachNamePlaceholder": "例）山田太郎",
+    "trialStartButton": "無料体験を始める",
+    "trialStarted": "15日間の無料体験を開始しました",
+    "trialAlreadyUsed": "無料体験は既に利用済みです",
+    "trialFailed": "無料体験の開始に失敗しました"
   }
 }

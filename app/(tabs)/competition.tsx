@@ -312,7 +312,7 @@ function WeekCard({ week }: { week: WeekPlan }) {
             <View key={i} style={styles.sessionRow}>
               <View style={[styles.intensityDot, { backgroundColor: INTENSITY_COLORS[s.intensity] ?? '#888' }]} />
               <Text style={styles.sessionDay}>{getDowLabel(s.day, t)}</Text>
-              <Text style={styles.sessionDetail} numberOfLines={2}>{s.detail}</Text>
+              <Text style={styles.sessionDetail} numberOfLines={3}>{s.detail}</Text>
               <Text style={styles.sessionDuration}>{s.duration_min}{t('competition.minutesUnit')}</Text>
             </View>
           ))}
@@ -601,7 +601,21 @@ export default function CompetitionScreen() {
         created_at: new Date().toISOString(),
       }
 
-      const planData = await generateCompetitionPlan(dateObj, compName, profile, compEvent, language, compEnvironment.trim())
+      // 2026-09-26実機バグ報告「AIが練習計画を作成しますと出たがエラーになって試合が
+      // 登録できない」に対応。原因: 複数週にまたがる大会は3週間ごとに分割してAIを複数回
+      // 呼ぶが、応答が長くmax_tokens上限で途中で切れるとJSON解析に失敗し(safeParseJSON)、
+      // 例外がそのままhandleGenerate全体を止めて大会登録自体が丸ごと失われていた。
+      // サーバー(api/analyze.ts)は200を返しており、失敗はクライアント側の解析エラー。
+      // 既存の怪我プラン機能と同じ方針(AI失敗時はテンプレート/空プランで代替し、
+      // 記録自体は失わせない。チケットも消費しない)に合わせる。
+      let planData: { phases: WeekPlan[]; peak_week?: number; taper_start_week?: number; key_advice?: string }
+      let aiPlanFailed = false
+      try {
+        planData = await generateCompetitionPlan(dateObj, compName, profile, compEvent, language, compEnvironment.trim())
+      } catch {
+        aiPlanFailed = true
+        planData = { phases: [], peak_week: 3, taper_start_week: 1, key_advice: '' }
+      }
 
       const daysUntil = Math.ceil((dateObj.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
 
@@ -634,18 +648,22 @@ export default function CompetitionScreen() {
       setSelectedComp(newPlan)
 
       // 計画生成・保存に成功した場合のみ利用回数・チケットを消費する（失敗時に課金しないため）
-      await recordUsage('competition_plan')
-      trackCompetitionPlan(daysUntil)
-      if (gate.needsTicket) Toast.show({ type: 'info', text1: t('competition.toast.ticketUsed', { n: gate.ticketCost }), visibilityTime: 1800 })
+      if (!aiPlanFailed) {
+        await recordUsage('competition_plan')
+        trackCompetitionPlan(daysUntil)
+        if (gate.needsTicket) Toast.show({ type: 'info', text1: t('competition.toast.ticketUsed', { n: gate.ticketCost }), visibilityTime: 1800 })
+      }
 
       // 通知がONなら大会リマインダー + 計画作成通知
       if (notifGranted) {
         scheduleCompetitionReminder([newPlan])
-        sendCompetitionPlanCreatedNotification(compName, daysUntil)
+        if (!aiPlanFailed) sendCompetitionPlanCreatedNotification(compName, daysUntil)
       }
 
       Sounds.save()
-      Toast.show({ type: 'success', text1: t('competition.toast.planCreated') })
+      Toast.show(aiPlanFailed
+        ? { type: 'info', text1: t('competition.toast.registeredNoPlan'), visibilityTime: 3500 }
+        : { type: 'success', text1: t('competition.toast.planCreated') })
 
       setCompName('')
       setCompDate('')
@@ -798,6 +816,19 @@ export default function CompetitionScreen() {
     // 完治時は通知をキャンセル
     cancelInjuryNotifications(id).catch(() => {})
     Toast.show({ type: 'success', text1: t('competition.injury.recoveredToast') })
+  }
+
+  // 2026-09-24: レビューで指摘された「怪我復帰プランを編集・削除できるようにしてほしい」
+  // への対応。AI生成の日別プラン自体を編集する機能ではなく、記録を丸ごと削除できるように
+  // する（誤って作成した・もう不要になった記録を消す用途を想定。完治扱いにする
+  // handleCompleteInjuryとは別に、履歴からも消したいケースに対応）。
+  async function handleDeleteInjury(id: string) {
+    const next = injuries.filter(r => r.id !== id)
+    setInjuries(next)
+    await AsyncStorage.setItem(INJURY_KEY, JSON.stringify(next))
+    setInjViewDetail(null)
+    cancelInjuryNotifications(id).catch(() => {})
+    Toast.show({ type: 'success', text1: t('competition.injury.deletedToast') })
   }
 
   async function handleExtendInjury(id: string) {
@@ -1107,6 +1138,17 @@ export default function CompetitionScreen() {
                           <Text style={{ fontSize: 12, color: '#FF6B6B', fontWeight: '700' }}>{getSideLabel(activeInjury.side, t)}{activeInjury.parts.map(p => getBodyPartLabel(p, t)).join('・')} {getInjuryTypeLabel(activeInjury.injuryType, t)}</Text>
                         </View>
                         <Text style={{ fontSize: 12, color: colors.textSec }}>{t('competition.injury.painLabel', { n: activeInjury.painLevel })}</Text>
+                        <TouchableOpacity
+                          style={{ marginLeft: 'auto' as any }}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                          accessibilityLabel={t('competition.injury.deleteLabel')}
+                          onPress={() => Alert.alert(t('competition.injury.deleteConfirmTitle'), t('competition.injury.deleteConfirmMessage'), [
+                            { text: t('common.cancel'), style: 'cancel' },
+                            { text: t('competition.injury.deleteConfirmYes'), style: 'destructive', onPress: () => handleDeleteInjury(activeInjury.id) },
+                          ])}
+                        >
+                          <Ionicons name="trash-outline" size={18} color={colors.textHint} />
+                        </TouchableOpacity>
                       </View>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                         <View>

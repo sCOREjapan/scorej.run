@@ -10,7 +10,7 @@ import {
   StatusBar,
   Platform,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import * as Location from 'expo-location'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -74,6 +74,11 @@ interface Coord {
 // ─── メイン ─────────────────────────────────────────────────────────────
 export default function GpsRunScreen() {
   const router = useRouter()
+  // 2026-09-24: training-timer.tsx/timer.tsxと同じ実機バグ(fullScreenModal提示時に
+  // insets.topが0で返ることがある)への予防的対応。同じedges={['top','bottom']}構成の
+  // ヘッダーのため、同一の原因で戻るボタンが押せなくなり得る。
+  const insets = useSafeAreaInsets()
+  const safeTop = Math.max(insets.top, 50)
   const { t } = useTranslation()
   const { colors } = useTheme()
   const styles = useMemo(() => makeStyles(colors), [colors])
@@ -288,11 +293,11 @@ export default function GpsRunScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
       <StatusBar barStyle="light-content" backgroundColor="#000000" />
 
       {/* ヘッダー */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: safeTop }]}>
         <TouchableOpacity onPress={() => {
           if (runState !== 'idle') {
             Alert.alert(t('gpsRun.runningConfirmTitle'), t('gpsRun.runningConfirmBody'), [

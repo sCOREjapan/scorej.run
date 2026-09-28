@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
 } from 'react-native'
@@ -10,6 +10,9 @@ import { useTheme, type ThemeColors } from '../context/ThemeContext'
 import { Sounds, unlockAudio } from '../lib/sounds'
 import { useTranslation } from 'react-i18next'
 import { useLanguage } from '../context/LanguageContext'
+import { useFocusEffect } from '@react-navigation/native'
+import { loadCustomRoutine, type CustomWarmupItem } from '../lib/warmupRoutine'
+import { syncWarmupToTeam } from '../lib/teamAutoSync'
 
 type Category = 'jog' | 'mobility' | 'drill' | 'sprint'
 type RiskLevel = 'low' | 'moderate' | 'high'
@@ -53,10 +56,23 @@ export default function WarmupScreen() {
   const params = useLocalSearchParams<{ risk?: string }>()
   const risk = (params.risk ?? 'low') as RiskLevel
 
-  const items = useMemo(() =>
+  const presetItems = useMemo(() =>
     ITEMS.filter(it => it.levels.includes(risk)),
     [risk]
   )
+
+  // 2026-09-24: 「ウォームアップを自由に変更・登録できるように」との指示で追加。
+  // プリセット(risk別・多言語)とは別に、ユーザーが自由入力した「マイルーティン」を
+  // タブ切り替えで使えるようにする（lib/warmupRoutine.ts参照）。
+  const [tab, setTab] = useState<'preset' | 'custom'>('preset')
+  const [customItems, setCustomItems] = useState<CustomWarmupItem[]>([])
+  useFocusEffect(useCallback(() => {
+    loadCustomRoutine().then(setCustomItems)
+  }, []))
+
+  const items = tab === 'custom'
+    ? customItems.map(c => ({ id: c.id, name: c.name, detail: c.detail }))
+    : presetItems.map(it => ({ id: it.id, name: t(`warmup.items.${it.id}.name`), detail: t(`warmup.items.${it.id}.detail`), icon: it.icon, category: it.category }))
 
   const [checked, setChecked] = useState<Set<string>>(new Set())
 
@@ -82,79 +98,129 @@ export default function WarmupScreen() {
           {/* ── ヘッダー ── */}
           <View style={st.header}>
             <Text style={st.title}>{t('warmup.title')}</Text>
-            <View style={[st.riskBadge, { borderColor: risk === 'high' ? '#FF3B30' : risk === 'moderate' ? '#FF9500' : '#34C759' }]}>
-              <Text style={{ color: risk === 'high' ? '#FF3B30' : risk === 'moderate' ? '#FF9500' : '#34C759', fontSize: 12, fontWeight: '700' }}>
-                {t(`warmup.riskLabel.${risk}`)}
-              </Text>
-            </View>
-          </View>
-
-          {/* ── 今日のアドバイス ── */}
-          <View style={st.noteCard}>
-            <Text style={st.noteText}>{t(`warmup.riskNote.${risk}`)}</Text>
-          </View>
-
-          {/* ── プログレスバー ── */}
-          <View style={st.progressWrap}>
-            <View style={st.progressBg}>
-              <View style={[st.progressFill, {
-                width: `${Math.round(progress * 100)}%` as any,
-                backgroundColor: done ? NEON.green : BRAND,
-              }]} />
-            </View>
-            <Text style={st.progressLabel}>{checked.size} / {items.length}</Text>
-          </View>
-
-          {/* ── チェックリスト ── */}
-          <View style={st.list}>
-            {items.map((item, i) => {
-              const isChecked = checked.has(item.id)
-              const catColor = CATEGORY_COLORS[item.category]
-              return (
-                <TouchableOpacity
-                  key={item.id}
-                  activeOpacity={0.7}
-                  onPress={() => toggle(item.id)}
-                  style={[st.item, i < items.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }, isChecked && st.itemChecked]}
-                >
-                  <View style={[st.iconChip, { backgroundColor: catColor + '18' }]}>
-                    <Ionicons name={item.icon} size={19} color={catColor} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[st.itemName, isChecked && { color: colors.textHint, textDecorationLine: 'line-through' }]}>
-                      {t(`warmup.items.${item.id}.name`)}
-                    </Text>
-                    <Text style={st.itemDetail}>{t(`warmup.items.${item.id}.detail`)}</Text>
-                  </View>
-                  <View style={[st.checkbox, isChecked && st.checkboxDone]}>
-                    {isChecked && <Ionicons name="checkmark" size={16} color="#000" />}
-                  </View>
-                </TouchableOpacity>
-              )
-            })}
-          </View>
-
-          {/* ── カテゴリ凡例 ── */}
-          <View style={st.legend}>
-            {(Object.keys(CATEGORY_COLORS) as Category[]).map(cat => (
-              <View key={cat} style={st.legendItem}>
-                <View style={[st.legendDot, { backgroundColor: CATEGORY_COLORS[cat] }]} />
-                <Text style={st.legendText}>{t(`warmup.categories.${cat}`)}</Text>
+            {tab === 'preset' && (
+              <View style={[st.riskBadge, { borderColor: risk === 'high' ? '#FF3B30' : risk === 'moderate' ? '#FF9500' : '#34C759' }]}>
+                <Text style={{ color: risk === 'high' ? '#FF3B30' : risk === 'moderate' ? '#FF9500' : '#34C759', fontSize: 12, fontWeight: '700' }}>
+                  {t(`warmup.riskLabel.${risk}`)}
+                </Text>
               </View>
+            )}
+            {tab === 'custom' && customItems.length > 0 && (
+              <TouchableOpacity onPress={() => { unlockAudio(); router.push('/warmup-routine-edit') }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Text style={{ color: BRAND, fontSize: 13, fontWeight: '700' }}>{t('warmup.editBtn')}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* ── タブ切り替え(おすすめ / マイルーティン) ── */}
+          <View style={[st.tabRow, { backgroundColor: colors.surface2 }]}>
+            {(['preset', 'custom'] as const).map(tb => (
+              <TouchableOpacity
+                key={tb}
+                style={[st.tabBtn, tab === tb && { backgroundColor: colors.card }]}
+                onPress={() => { unlockAudio(); Sounds.pop(); setTab(tb) }}
+                activeOpacity={0.8}
+              >
+                <Text style={[st.tabBtnText, { color: tab === tb ? colors.text : colors.textHint }]}>
+                  {t(tb === 'preset' ? 'warmup.tabPreset' : 'warmup.tabCustom')}
+                </Text>
+              </TouchableOpacity>
             ))}
           </View>
 
+          {tab === 'preset' && (
+            <View style={st.noteCard}>
+              <Text style={st.noteText}>{t(`warmup.riskNote.${risk}`)}</Text>
+            </View>
+          )}
+
+          {tab === 'custom' && customItems.length === 0 ? (
+            <View style={st.emptyCard}>
+              <Ionicons name="add-circle-outline" size={32} color={colors.textHint} />
+              <Text style={st.emptyTitle}>{t('warmup.customEmptyTitle')}</Text>
+              <Text style={st.emptyBody}>{t('warmup.customEmptyBody')}</Text>
+              <TouchableOpacity
+                style={st.emptyCreateBtn}
+                onPress={() => { unlockAudio(); router.push('/warmup-routine-edit') }}
+                activeOpacity={0.85}
+              >
+                <Text style={st.emptyCreateBtnText}>{t('warmup.customEmptyCreateBtn')}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <>
+              {/* ── プログレスバー ── */}
+              <View style={st.progressWrap}>
+                <View style={st.progressBg}>
+                  <View style={[st.progressFill, {
+                    width: `${Math.round(progress * 100)}%` as any,
+                    backgroundColor: done ? NEON.green : BRAND,
+                  }]} />
+                </View>
+                <Text style={st.progressLabel}>{checked.size} / {items.length}</Text>
+              </View>
+
+              {/* ── チェックリスト ── */}
+              <View style={st.list}>
+                {items.map((item, i) => {
+                  const isChecked = checked.has(item.id)
+                  const catColor = tab === 'preset' ? CATEGORY_COLORS[(item as any).category as Category] : colors.textHint
+                  return (
+                    <TouchableOpacity
+                      key={item.id}
+                      activeOpacity={0.7}
+                      onPress={() => toggle(item.id)}
+                      style={[st.item, i < items.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }, isChecked && st.itemChecked]}
+                    >
+                      <View style={[st.iconChip, { backgroundColor: catColor + '18' }]}>
+                        <Ionicons name={tab === 'preset' ? (item as any).icon : 'fitness-outline'} size={19} color={catColor} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[st.itemName, isChecked && { color: colors.textHint, textDecorationLine: 'line-through' }]}>
+                          {item.name}
+                        </Text>
+                        {!!item.detail && <Text style={st.itemDetail}>{item.detail}</Text>}
+                      </View>
+                      <View style={[st.checkbox, isChecked && st.checkboxDone]}>
+                        {isChecked && <Ionicons name="checkmark" size={16} color="#000" />}
+                      </View>
+                    </TouchableOpacity>
+                  )
+                })}
+              </View>
+            </>
+          )}
+
+          {/* ── カテゴリ凡例 ── */}
+          {tab === 'preset' && (
+            <View style={st.legend}>
+              {(Object.keys(CATEGORY_COLORS) as Category[]).map(cat => (
+                <View key={cat} style={st.legendItem}>
+                  <View style={[st.legendDot, { backgroundColor: CATEGORY_COLORS[cat] }]} />
+                  <Text style={st.legendText}>{t(`warmup.categories.${cat}`)}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
           {/* ── 完了ボタン ── */}
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={() => { unlockAudio(); Sounds.save(); router.back() }}
-            style={[st.doneBtn, done && st.doneBtnActive]}
-          >
-            <Ionicons name={done ? 'checkmark-circle' : 'play'} size={20} color="#fff" />
-            <Text style={st.doneBtnText}>
-              {done ? t('warmup.doneBtnActive') : t('warmup.doneBtnIdle')}
-            </Text>
-          </TouchableOpacity>
+          {!(tab === 'custom' && customItems.length === 0) && (
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => {
+                unlockAudio(); Sounds.save()
+                // 2026-09-26:「アップの時間がコーチに分かるといい」対応。完了時刻のみ同期。
+                syncWarmupToTeam().catch(() => {})
+                router.back()
+              }}
+              style={[st.doneBtn, done && st.doneBtnActive]}
+            >
+              <Ionicons name={done ? 'checkmark-circle' : 'play'} size={20} color="#fff" />
+              <Text style={st.doneBtnText}>
+                {done ? t('warmup.doneBtnActive') : t('warmup.doneBtnIdle')}
+              </Text>
+            </TouchableOpacity>
+          )}
 
         </ScrollView>
       </SafeAreaView>
@@ -167,6 +233,14 @@ const makeSt = (colors: ThemeColors) => StyleSheet.create({
   header:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
   title:         { color: colors.text, fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
   riskBadge:     { borderWidth: 1, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
+  tabRow:        { flexDirection: 'row', borderRadius: 12, padding: 3, gap: 3 },
+  tabBtn:        { flex: 1, borderRadius: 10, paddingVertical: 9, alignItems: 'center' },
+  tabBtnText:    { fontSize: 13, fontWeight: '700' },
+  emptyCard:     { backgroundColor: colors.card, borderRadius: 16, padding: 24, alignItems: 'center', gap: 8 },
+  emptyTitle:    { color: colors.text, fontSize: 16, fontWeight: '800', marginTop: 4 },
+  emptyBody:     { color: colors.textSec, fontSize: 13, lineHeight: 19, textAlign: 'center' },
+  emptyCreateBtn: { backgroundColor: BRAND, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 11, marginTop: 8 },
+  emptyCreateBtnText: { color: '#fff', fontSize: 14, fontWeight: '800' },
   noteCard:      { backgroundColor: colors.card, borderRadius: 12, padding: 14 },
   noteText:      { color: colors.textSec, fontSize: 13, lineHeight: 20 },
   progressWrap:  { flexDirection: 'row', alignItems: 'center', gap: 10 },

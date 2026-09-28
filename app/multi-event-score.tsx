@@ -11,7 +11,7 @@ import Toast from 'react-native-toast-message'
 import { unlockAudio, Sounds } from '../lib/sounds'
 import { todayLocalISO } from '../lib/dateLocal'
 import {
-  DECATHLON_MEN, HEPTATHLON_WOMEN, TETRATHLON_JHS_MEN, calcEventScore, calcTotalScore, unitLabel, type EventDef,
+  DECATHLON_MEN, HEPTATHLON_WOMEN, TETRATHLON_JHS_MEN, OCTATHLON_HS_MEN, calcEventScore, calcTotalScore, unitLabel, type EventDef,
 } from '../lib/decathlonScoring'
 import {
   getCompetitions, saveCompetition, deleteCompetition, getPersonalBests, getGoals, setGoal,
@@ -36,6 +36,7 @@ type SubTab = 'calc' | 'match' | 'pb'
 function eventsForCategory(cat: CombinedCategory): EventDef[] {
   if (cat === 'men') return DECATHLON_MEN
   if (cat === 'women') return HEPTATHLON_WOMEN
+  if (cat === 'octathlon_hs_men') return OCTATHLON_HS_MEN
   return TETRATHLON_JHS_MEN
 }
 
@@ -135,6 +136,7 @@ export default function CombinedEventsScreen() {
           {([
             { key: 'men' as const,   label: t('combinedEvents.menCategory') },
             { key: 'women' as const, label: t('combinedEvents.womenCategory') },
+            { key: 'octathlon_hs_men' as const, label: t('combinedEvents.octathlonHsMenCategory') },
             { key: 'tetrathlon_jhs_men' as const, label: t('combinedEvents.tetrathlonJhsMenCategory') },
           ]).map(o => (
             <TouchableOpacity
@@ -283,7 +285,10 @@ const ce = StyleSheet.create({
   iconBtn:     { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 17, fontWeight: '700', color: TEXT_PRIMARY },
 
-  controlRow:     { flexDirection: 'row', justifyContent: 'center', marginTop: 10, marginBottom: 14 },
+  // 2026-09-24実機バグ対応:「文字が潰れて読めない」の原因。種別ピル行とサブナビ行を
+  // 縦に積むつもりが flexDirection:'row' のままで、2つの横スクロール行が左右に押し合って
+  // 表示され、文字が重なって潰れて見えていた。'column'にして縦積みに修正。
+  controlRow:     { flexDirection: 'column', marginTop: 10, marginBottom: 14 },
   categoryPills:  { flexDirection: 'row', gap: 8 },
   categoryPill:   { paddingHorizontal: 20, paddingVertical: 9, borderRadius: 20, backgroundColor: BRAND_SOFT, borderWidth: 1.5, borderColor: 'transparent' },
   categoryPillActive: { backgroundColor: BRAND + '18', borderColor: BRAND },

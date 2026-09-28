@@ -206,13 +206,13 @@ function WeekDateBar({
   conditionMap?: Record<string, number>
 }) {
   const { t } = useTranslation()
-  const { colors, scheme } = useTheme()
-  const shadowColor = scheme === 'dark' ? 'transparent' : 'rgba(255,255,255,0.9)'
+  const { colors } = useTheme()
+  const router = useRouter()
   const todayISO = getTodayISO()  // レンダー時に毎回生成（日付またぎ対応）
   // 過去10日〜未来3日まで表示（左にスクロールすると過去の日付も見える）
   const PAST_DAYS = 10
   const FUTURE_DAYS = 3
-  const CELL_W = 56  // paddingHorizontal(10*2) + numCircle(32) + gap(4) の概算
+  const CELL_W = 58  // カード幅(54) + gap(4)の概算
   const days = Array.from({ length: PAST_DAYS + FUTURE_DAYS + 1 }, (_, i) => {
     const d = new Date()
     d.setDate(d.getDate() - PAST_DAYS + i)
@@ -249,24 +249,46 @@ function WeekDateBar({
         return (
           <TouchableOpacity
             key={iso}
-            onPress={() => { Sounds.tap(); onChange(iso) }}
-            style={wb.cell}
+            onPress={() => {
+              Sounds.tap()
+              // 2026-09-24:「緑になっている(選択中の)日付をタップしたら、カレンダーが出て
+              // 選んだ日付のメニューが見れるように」との指示で追加。既に選択中の日をもう一度
+              // タップした場合はonChangeが何もしない(同じ値)ため、代わりにカレンダータブへ
+              // その日付を渡して遷移する。
+              if (iso === selected) {
+                router.push({ pathname: '/(tabs)/calendar', params: { date: iso } } as any)
+              } else {
+                onChange(iso)
+              }
+            }}
             activeOpacity={0.8}
           >
-            <Text style={[wb.dayName, { color: colors.textSec, textShadowColor: shadowColor }, isToday && { color: AMBER }]}>{dayName}</Text>
+            {/* 2026-09-24: 「四角いカード型に、選択日は緑に、Apple UIに寄せて」との指示で
+                再調整。Appleのカレンダー/フィットネス系アプリの日付選択チップと同じ言語
+                （選択=アクセントカラーの単色塗り・影なし、非選択=薄いフラットな背景、
+                「今日」は文字色のみで区別）に合わせる。角丸もiOSのチップに近いタイトな値。 */}
             <View style={[
-              wb.numCircle,
+              wb.cell,
+              { backgroundColor: colors.surface2 },
               isSel && { backgroundColor: BRAND },
-              isToday && !isSel && { borderWidth: 1.5, borderColor: AMBER },
             ]}>
-              <Text style={[wb.numText, { color: colors.text, textShadowColor: shadowColor }, isSel && { color: '#fff', fontWeight: '900' }]}>{dayNum}</Text>
+              <Text style={[
+                wb.numText,
+                { color: isToday && !isSel ? BRAND : colors.text },
+                isSel && { color: '#fff' },
+              ]}>{dayNum}</Text>
+              <Text style={[
+                wb.dayName,
+                { color: isToday && !isSel ? BRAND : colors.textHint },
+                isSel && { color: 'rgba(255,255,255,0.85)' },
+              ]}>{dayName}</Text>
+              {/* 体調入力済みインジケーター */}
+              {cond != null ? (
+                <View style={[wb.dot, { backgroundColor: isSel ? '#fff' : conditionColor(cond) }]} />
+              ) : (
+                <View style={wb.dotEmpty} />
+              )}
             </View>
-            {/* 体調入力済みインジケーター */}
-            {cond != null ? (
-              <View style={[wb.dot, { backgroundColor: conditionColor(cond) }]} />
-            ) : (
-              <View style={wb.dotEmpty} />
-            )}
           </TouchableOpacity>
         )
       })}
@@ -275,19 +297,14 @@ function WeekDateBar({
 }
 
 const wb = StyleSheet.create({
-  cell:      { alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, gap: 3 },
-  // イラスト背景の上でも読めるよう、白のテキストシャドウでコントラストを補強
-  dayName:   {
-    color: '#4b5563', fontSize: 11, fontWeight: '700',
-    textShadowColor: 'rgba(255,255,255,0.9)', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 4,
+  cell: {
+    width: 52, alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 9, borderRadius: 12, gap: 4,
   },
-  numCircle: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  numText:   {
-    color: '#111827', fontSize: 14, fontWeight: '800',
-    textShadowColor: 'rgba(255,255,255,0.9)', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 4,
-  },
-  dot:       { width: 5, height: 5, borderRadius: 3 },
-  dotEmpty:  { width: 5, height: 5 },
+  numText:  { fontSize: 17, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  dayName:  { fontSize: 11, fontWeight: '600' },
+  dot:      { width: 5, height: 5, borderRadius: 3, marginTop: 1 },
+  dotEmpty: { width: 5, height: 5, marginTop: 1 },
 })
 
 // ────────────────────────────────────────────────────────
@@ -505,9 +522,14 @@ function ScoreOverviewCard({
             {/* 2026-09-09: 実機で吹き出しの文字が「低リスク 今...」のように途中で切れる不具合を確認。
                 マスコットが128pxと大きく、吹き出しに残る横幅が狭かったのが原因。マスコットを
                 100pxへ縮小して幅を確保しつつ、文中は元々あったが未使用だったcfg.phrase（noteより
-                短い一言フレーズ）に差し替えて根本的に文字数も減らした。 */}
+                短い一言フレーズ）に差し替えて根本的に文字数も減らした。
+                2026-09-24: それでもiPhone 12 mini等の幅が狭い実機では「低リスク／全力で／
+                追い…」のように3行目の途中で切れる報告を確認。バッジ+フレーズの合計文字数
+                次第では3行に収まらない端末があるため、numberOfLinesを4に増やして余裕を持たせる
+                （riskMainRowはalignItems:'center'で高さ固定していないため、4行になっても
+                レイアウトが崩れず単純にカードが少し高くなるだけ）。 */}
             <View style={[so.speechBubble, { flex: 1, backgroundColor: cfg.color + '20', borderColor: cfg.color + '70' }]}>
-              <Text style={so.riskMessage} numberOfLines={3}>
+              <Text style={so.riskMessage} numberOfLines={4}>
                 <Text style={[so.riskBadgeText, { color: cfg.color }]}>{cfg.label}　</Text>
                 {cfg.phrase}
               </Text>
@@ -574,21 +596,10 @@ function ScoreOverviewCard({
               （旧warmupLinkで一度踏んで直したのと同じ罠——マージ時に書き直して再発させた）。
               so.swLeft/so.swBtnのflexDirection:'row'は外側のPressableにしか効かないため、
               children側は必ずflexDirection:'row'のViewを1枚挟んで明示する。 */}
-          <PressableScale
-            onPress={() => router.push({ pathname: '/warmup', params: { risk: warmupRisk } } as any)}
-            haptic="light"
-            sound="tap"
-            scaleAmount={0.97}
-            style={so.swLeft}
-          >
-            <View style={so.swLeftRow}>
-              <Ionicons name="flame-outline" size={17} color={colors.textSec} />
-              <Text style={[so.swLeftText, { color: colors.text }]} numberOfLines={1}>{t('home.warmupLink.short')}</Text>
-            </View>
-          </PressableScale>
-
-          <View style={[so.swDivider, { backgroundColor: colors.border }]} />
-
+          {/* 2026-09-24: 「ストレッチ開始ボタンと練習前ウォームアップの位置を逆に」との
+              指示で左右を入れ替え。swLeft/swRightという名前は元の位置に由来する名残で、
+              実際の見た目上の左右とは逆になっている点に注意（styleの中身自体は変えず、
+              並び順とテキストの寄せだけ入れ替えている）。 */}
           <View style={so.swRight}>
             <Text style={[so.swGain, { color: BRAND }]} numberOfLines={1}>{t('home.stretchBanner.gain')}</Text>
             <PressableScale
@@ -605,6 +616,20 @@ function ScoreOverviewCard({
               </View>
             </PressableScale>
           </View>
+
+          <View style={[so.swDivider, { backgroundColor: colors.border }]} />
+
+          <PressableScale
+            onPress={() => router.push({ pathname: '/warmup', params: { risk: warmupRisk } } as any)}
+            haptic="light"
+            sound="tap"
+            scaleAmount={0.97}
+            style={so.swLeft}
+          >
+            <View style={[so.swLeftRow, { justifyContent: 'flex-start' }]}>
+              <Text style={[so.swLeftText, { color: colors.text, marginTop: 3 }]} numberOfLines={1}>{t('home.warmupLink.short')}</Text>
+            </View>
+          </PressableScale>
         </View>
         </TutorialSpot>
       )}
@@ -736,7 +761,11 @@ const makeSoStyles = (colors: ThemeColors) => StyleSheet.create({
   // カード全体の高さ(paddingVertical:12ぶん)のうち実際にタップ判定があるのは中央の
   // 薄い帯だけになっていた。alignSelf:'stretch'で親の高さいっぱいまで広げ、
   // paddingVerticalで見た目のタップ領域も合わせる。
-  swLeft:      { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, minWidth: 0, alignSelf: 'stretch', paddingVertical: 10 },
+  // 2026-09-24:「ストレッチ開始の緑ボタンと横並びになっていない」との指示で調整。
+  // 右側(swRight)は「怪我リスク-12%」ラベル+ボタンの縦積みで背が高く、swLeftはその
+  // 全高の中でalignItems:'center'だと中央(=ラベルとボタンの間)に来てボタンと揃わない
+  // ため、flex-endでボタンの高さに合わせて下寄せする。
+  swLeft:      { flex: 1, flexDirection: 'row', alignItems: 'flex-end', gap: 8, minWidth: 0, alignSelf: 'stretch', paddingVertical: 10 },
   // PressableScaleのchildrenは内側Animated.Viewが受け取る(デフォルトcolumn)ため、
   // 見た目上の行方向レイアウトはこの内側Viewで明示的に組む(swLeft/swBtn自体のflexDirection
   // は外側Pressableの箱の向きにしか効かない。上のJSX側コメント参照)。
