@@ -43,6 +43,8 @@ import {
 import { RacePlanDetailContent } from '../../components/RacePlanDetail'
 import ConfirmSheet from '../../components/ConfirmSheet'
 import { Avatar, RingAvatar, AvatarPickerModal, avatarColor } from '../../components/Avatar'
+import RankBadge from '../../components/RankBadge'
+import { LinearGradient } from 'expo-linear-gradient'
 import { PLAYER_AVATAR_KEY } from '../../lib/avatarAssets'
 import { ROLE_KEY, SETUP_KEY, JOINED_KEY, type TeamSetup, type JoinedTeam } from '../../lib/teamKeys'
 import { useTheme, type ThemeColors } from '../../context/ThemeContext'
@@ -2393,15 +2395,14 @@ function MemberDetailSheet({ member, preCalcRisk, stats, teamCode, meals, warmup
 
           {/* ヘッダー */}
           <View style={{flexDirection:'row',alignItems:'center',gap:12,marginBottom:16}}>
-            <Avatar name={member.name} size={50} color={avatarColor(member.name)} avatarKey={member.avatarKey}/>
+            <View style={{padding:2,borderRadius:29,borderWidth:2,borderColor:lvTier.color}}>
+              <Avatar name={member.name} size={50} color={avatarColor(member.name)} avatarKey={member.avatarKey}/>
+            </View>
             <View style={{flex:1,gap:4}}>
               <Text style={{color:colors.text,fontSize:19,fontWeight:'800'}}>{member.name}</Text>
               <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
                 {member.event ? <Text style={{color:colors.textSec,fontSize:12}}>{member.event}</Text> : null}
-                <View style={{flexDirection:'row',alignItems:'center',gap:3,backgroundColor:lvTier.color+'20',borderRadius:7,paddingHorizontal:6,paddingVertical:2}}>
-                  <Text style={{fontSize:10}}>{lvTier.emoji}</Text>
-                  <Text style={{color:lvTier.color,fontSize:10,fontWeight:'800'}}>Lv.{lvInfo.level}</Text>
-                </View>
+                <RankBadge tier={lvTier} level={lvInfo.level} title="" size="sm"/>
               </View>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={{top:10,bottom:10,left:10,right:10}} accessibilityLabel={t('team.memberDetail.close')}>
@@ -2668,40 +2669,50 @@ function TeammateProfileSheet({ member, stats, sessions, onClose }: {
   return (
     <View style={[StyleSheet.absoluteFill,{backgroundColor:'rgba(0,0,0,0.85)',justifyContent:'flex-end'}]}>
       <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose}/>
-      <View style={{backgroundColor:colors.card,borderTopLeftRadius:24,borderTopRightRadius:24,padding:24,paddingBottom:48,borderTopWidth:1,borderColor:colors.border}}>
-        <View style={{width:36,height:4,borderRadius:2,backgroundColor:colors.border,alignSelf:'center',marginBottom:20}}/>
+      <View style={{backgroundColor:colors.card,borderTopLeftRadius:24,borderTopRightRadius:24,paddingBottom:48,borderTopWidth:1,borderColor:colors.border,overflow:'hidden'}}>
+        {/* ─ ヘッダー帯: ランクカラーの薄いグラデーションでトレーディングカードらしい奥行きを出す ─ */}
+        <LinearGradient
+          colors={[lvTier.color+'26', lvTier.color+'00']}
+          start={{x:0.5,y:0}} end={{x:0.5,y:1}}
+          style={{paddingTop:24,paddingHorizontal:24,paddingBottom:4}}
+        >
+          <View style={{width:36,height:4,borderRadius:2,backgroundColor:colors.border,alignSelf:'center',marginBottom:20}}/>
+          <View style={{alignItems:'center',gap:10,marginBottom:20}}>
+            <View style={{padding:3,borderRadius:42,borderWidth:2.5,borderColor:lvTier.color}}>
+              <Avatar name={member.player_name} size={72} color={avatarColor(member.player_name)} avatarKey={member.avatar_key}/>
+            </View>
+            <Text style={{color:colors.text,fontSize:22,fontWeight:'800'}}>{member.player_name}</Text>
+            {event ? <Text style={{color:colors.textSec,fontSize:14}}>{getEventLabel(event, language)}</Text> : null}
+          </View>
+        </LinearGradient>
 
-        {/* ─ プロフィールヘッダー ─ */}
-        <View style={{alignItems:'center',gap:10,marginBottom:24}}>
-          <Avatar name={member.player_name} size={72} color={avatarColor(member.player_name)} avatarKey={member.avatar_key}/>
-          <Text style={{color:colors.text,fontSize:22,fontWeight:'800'}}>{member.player_name}</Text>
-          {event ? <Text style={{color:colors.textSec,fontSize:14}}>{getEventLabel(event, language)}</Text> : null}
-        </View>
-
+        <View style={{paddingHorizontal:24}}>
         {/* ─ ランク・PBカード ─ */}
         <View style={{flexDirection:'row',gap:12,marginBottom:20}}>
           {/* ランク */}
-          <View style={{flex:1,alignItems:'center',backgroundColor:lvTier.color+'12',borderRadius:16,borderWidth:1.5,borderColor:lvTier.color+'40',paddingVertical:20,gap:6}}>
-            <Text style={{fontSize:32}}>{lvTier.emoji}</Text>
-            <Text style={{color:lvTier.color,fontSize:24,fontWeight:'900'}}>Lv.{lvInfo.level}</Text>
-            <Text style={{color:lvTier.color,fontSize:12,fontWeight:'700'}}>{getTierTitle(lvTier.title, language)}</Text>
-            <Text style={{color:colors.textSec,fontSize:10}}>{t('team.teammateProfile.level')}</Text>
+          <View style={{flex:1,alignItems:'center',backgroundColor:colors.surface2,borderRadius:16,borderWidth:1.5,borderColor:lvTier.color+'40',paddingVertical:18,gap:2}}>
+            <RankBadge tier={lvTier} level={lvInfo.level} title={getTierTitle(lvTier.title, language)} size="lg"/>
+            <Text style={{color:colors.textSec,fontSize:10,marginTop:6}}>{t('team.teammateProfile.level')}</Text>
           </View>
           {/* 自己ベスト */}
-          <View style={{flex:1,alignItems:'center',backgroundColor:'rgba(255,149,0,0.08)',borderRadius:16,borderWidth:1.5,borderColor:'rgba(239,68,68,0.25)',paddingVertical:20,gap:6}}>
-            <Ionicons name="trophy" size={28} color="#FF9500"/>
+          <LinearGradient
+            colors={['#FFB74D','#FF9500']}
+            start={{x:0,y:0}} end={{x:1,y:1}}
+            style={{flex:1,alignItems:'center',borderRadius:16,paddingVertical:20,gap:6,shadowColor:'#FF9500',shadowOffset:{width:0,height:4},shadowOpacity:0.3,shadowRadius:8,elevation:4}}
+          >
+            <Ionicons name="trophy" size={28} color="#fff"/>
             {pb ? (
               <>
-                <Text style={{color:'#FF9500',fontSize:22,fontWeight:'900'}}>{pb}</Text>
-                <Text style={{color:colors.textSec,fontSize:10}}>{t('team.teammateProfile.personalBest')}</Text>
+                <Text style={{color:'#fff',fontSize:22,fontWeight:'900'}}>{pb}</Text>
+                <Text style={{color:'rgba(255,255,255,0.85)',fontSize:10,fontWeight:'700'}}>{t('team.teammateProfile.personalBest')}</Text>
               </>
             ) : (
               <>
-                <Text style={{color:colors.textHint,fontSize:16,fontWeight:'700'}}>{t('team.teammateProfile.notEntered')}</Text>
-                <Text style={{color:colors.textHint,fontSize:10}}>{t('team.teammateProfile.personalBest')}</Text>
+                <Text style={{color:'rgba(255,255,255,0.85)',fontSize:16,fontWeight:'700'}}>{t('team.teammateProfile.notEntered')}</Text>
+                <Text style={{color:'rgba(255,255,255,0.7)',fontSize:10}}>{t('team.teammateProfile.personalBest')}</Text>
               </>
             )}
-          </View>
+          </LinearGradient>
         </View>
 
         {/* ストリーク */}
@@ -2725,6 +2736,7 @@ function TeammateProfileSheet({ member, stats, sessions, onClose }: {
         <Text style={{color:colors.textHint,fontSize:11,textAlign:'center'}}>
           {t('team.teammateProfile.joinedDate', { date: daysSince(member.joined_at, t) })}
         </Text>
+        </View>
       </View>
     </View>
   )

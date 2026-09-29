@@ -7,7 +7,8 @@ import { useFocusEffect } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTrainingSessions } from '../../hooks/useTrainingSessions'
-import { calcLevelInfo } from '../../lib/gamification'
+import { calcLevelInfo, RANK_TIERS } from '../../lib/gamification'
+import RankBadge from '../../components/RankBadge'
 import { BRAND } from '../../lib/theme'
 import { useTheme } from '../../context/ThemeContext'
 import { Sounds, unlockAudio } from '../../lib/sounds'
@@ -117,6 +118,7 @@ export default function MyPageScreen() {
   const displayName = profile.name || t('mypage.defaultName')
   const initials    = displayName.slice(0, 2)
   const levelInfo   = calcLevelInfo(sessions.length, language)
+  const levelTier   = RANK_TIERS.find(rt => levelInfo.level >= rt.min && levelInfo.level < rt.max) ?? RANK_TIERS[0]
 
   // 種目ごとの自己ベスト（記録タブのデータをそのまま使う。ここでは入力欄を増やさない。
   // ハードルは高さ違いを別ベストとして扱う。lib/hurdleHeights.ts参照）
@@ -174,14 +176,14 @@ export default function MyPageScreen() {
             onPress={() => router.push('/level-roadmap')}
             activeOpacity={0.75}
           >
-            <Text style={s.levelEmoji}>{levelInfo.emoji}</Text>
+            <RankBadge tier={levelTier} level={levelInfo.level} title="" size="md"/>
             <View style={{ flex: 1, gap: 6 }}>
               <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
                 <Text style={[s.levelNum, { color: colors.text }]}>Lv.{levelInfo.level}</Text>
-                <Text style={[s.levelTitle, { color: BRAND }]}>{levelInfo.title}</Text>
+                <Text style={[s.levelTitle, { color: levelTier.color }]}>{levelInfo.title}</Text>
               </View>
               <View style={[s.barBg, { backgroundColor: colors.surface2 }]}>
-                <View style={[s.barFill, { width: `${Math.round(levelInfo.progress * 100)}%` as any }]} />
+                <View style={[s.barFill, { width: `${Math.round(levelInfo.progress * 100)}%` as any, backgroundColor: levelTier.color }]} />
               </View>
               <Text style={[s.levelSub, { color: colors.textHint }]}>
                 {t('mypage.levelSub', { count: sessions.length, toNext: Math.ceil(levelInfo.xpToNext / 100) })}
@@ -281,7 +283,6 @@ const s = StyleSheet.create({
   grade:       { fontSize: 13 },
 
   levelCard:   { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 21, borderWidth: 1, padding: 16 },
-  levelEmoji:  { fontSize: 32 },
   levelNum:    { fontSize: 22, fontWeight: '900', fontVariant: ['tabular-nums'] },
   levelTitle:  { fontSize: 14, fontWeight: '700' },
   barBg:       { height: 6, borderRadius: 3, overflow: 'hidden' },
