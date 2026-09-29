@@ -176,7 +176,7 @@ export default function MyPageScreen() {
             onPress={() => router.push('/level-roadmap')}
             activeOpacity={0.75}
           >
-            <RankBadge tier={levelTier} level={levelInfo.level} title="" size="md"/>
+            <RankBadge tier={levelTier} level={levelInfo.level} size="md" iconOnly/>
             <View style={{ flex: 1, gap: 6 }}>
               <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
                 <Text style={[s.levelNum, { color: colors.text }]}>Lv.{levelInfo.level}</Text>
