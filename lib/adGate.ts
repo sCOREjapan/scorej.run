@@ -24,6 +24,10 @@
 //（グランドファザリング。詳細は isLegacyUnlimitedNoad を参照）。
 // 広告なしプラン（新規）・チケット月額プランはチケットの要不要に影響しない
 // （広告なしプラン＝広告のみ非表示。チケット月額プラン＝チケット残高への定期補充）。
+// 2026-09-29: コーチ無料体験(lib/coachTrial.ts)はRevenueCatを経由しないため上記の
+// 「コーチプラン無制限」の対象外だが、体験の魅力付けのため本契約のおよそ1/4の
+// 回数だけチケット不要のボーナス枠を付与する（TRIAL_HARD_DAILY_CAP参照。
+// 超過分は通常のチケット消費にフォールスルーする）。
 
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { readCachedTier } from './subscriptionCache'
@@ -31,6 +35,21 @@ import { todayLocalISO } from './dateLocal'
 import { getTicketBalance, spendTicketsForFeature, TICKET_COST, type TicketFeature } from './ticketWallet'
 import type { PlanTier } from './purchaseService'
 import { supabase } from './supabase'
+import { SETUP_KEY, type TeamSetup } from './teamKeys'
+
+// コーチ無料体験(lib/coachTrial.ts)はRevenueCatを経由しない(実課金が発生しないため)ので、
+// tier(readCachedTier)には現れない。体験中かどうかはローカルのTeamSetup.trialExpiresAtを
+// 直接見るしかない。
+async function isActiveCoachTrial(): Promise<boolean> {
+  try {
+    const raw = await AsyncStorage.getItem(SETUP_KEY)
+    if (!raw) return false
+    const setup: TeamSetup = JSON.parse(raw)
+    return !!setup.trialExpiresAt && new Date(setup.trialExpiresAt).getTime() > Date.now()
+  } catch {
+    return false
+  }
+}
 
 // ── ログイン状態の判定（lib/ticketWallet.ts と同じ作法。ローカルキャッシュのセッションを
 //    見るだけなのでネットワーク待ちは発生しない） ─────────────────────────
@@ -115,6 +134,14 @@ const HARD_DAILY_CAP: Partial<Record<Feature, number>> = {
   scoppy_chat: 20,
 }
 const HARD_DAILY_KEY = 'score_feature_hard_daily_usage'
+
+// 2026-09-29:「コーチ体験中はチケット無しで少し試せた方がいい、ただし本契約より
+// 控えめに」との指示で追加。本契約コーチ(HARD_DAILY_CAPが唯一の歯止め)のおよそ1/4。
+// 怪我系(recovery/injury_recovery)は元々tier無関係で無料開放済みのため対象外。
+const TRIAL_HARD_DAILY_CAP: Partial<Record<Feature, number>> = {
+  video: 1, meal: 2, ai_analysis: 1, workout: 1,
+  meal_coach: 1, daily_insight: 1, notebook_ai: 2, competition_plan: 1, scoppy_chat: 5,
+}
 
 async function getHardDailyUsage(): Promise<{ date: string; counts: Partial<Record<Feature, number>> }> {
   try {
@@ -211,11 +238,12 @@ export async function checkAdGate(feature: Feature): Promise<{
   // ログイン中はサーバー側カウントを見る（再インストールで回避できないようにするため）
   const userId = await getCurrentUserId()
   const cap = HARD_DAILY_CAP[feature]
+  let dailyCount = 0
   if (cap !== undefined) {
-    const count = userId
+    dailyCount = userId
       ? await getServerUsageCount(userId, feature, todayStr())
       : (await getHardDailyUsage()).counts[feature] ?? 0
-    if (count >= cap) {
+    if (dailyCount >= cap) {
       return { allowed: false, remaining: 0, needsAd: false, needsTicket: false, ticketCost: 0, ticketBalance: 0, hardLimited: true, limitType: 'daily' }
     }
   }
@@ -231,6 +259,13 @@ export async function checkAdGate(feature: Feature): Promise<{
 
   const tier = await getTier()
   if (await isUnlimitedBypass(feature, tier)) {
+    return { allowed: true, remaining: 999, needsAd: false, needsTicket: false, ticketCost: 0, ticketBalance: 0, hardLimited: false, limitType: 'none' }
+  }
+
+  // ── コーチ無料体験ボーナス枠：本契約より控えめな回数までチケット不要（超えたら
+  //    下の通常のチケット判定にフォールスルーする） ──
+  const trialCap = TRIAL_HARD_DAILY_CAP[feature]
+  if (trialCap !== undefined && dailyCount < trialCap && await isActiveCoachTrial()) {
     return { allowed: true, remaining: 999, needsAd: false, needsTicket: false, ticketCost: 0, ticketBalance: 0, hardLimited: false, limitType: 'none' }
   }
 
@@ -267,8 +302,13 @@ export async function checkAdGate(feature: Feature): Promise<{
 export async function recordUsage(feature: Feature): Promise<void> {
   return serialize(async () => {
     // 絶対上限カウント（tier・経路に関わらず必ず加算）。
-    // ログイン中はサーバー側でカウントする（checkAdGateと同じ判定基準に揃える）
+    // ログイン中はサーバー側でカウントする（checkAdGateと同じ判定基準に揃える）。
+    // 体験ボーナス枠の判定にはインクリメント前の回数が要るため先に読んでおく
+    // （checkAdGateのdailyCountと同じ基準に揃える）。
     const userId = await getCurrentUserId()
+    const dailyCountBefore = HARD_DAILY_CAP[feature] !== undefined
+      ? (userId ? await getServerUsageCount(userId, feature, todayStr()) : (await getHardDailyUsage()).counts[feature] ?? 0)
+      : 0
     if (HARD_DAILY_CAP[feature] !== undefined) {
       if (userId) {
         await incrementServerUsageCount(feature, todayStr())
@@ -290,6 +330,11 @@ export async function recordUsage(feature: Feature): Promise<void> {
 
     const tier = await getTier()
     if (await isUnlimitedBypass(feature, tier)) return   // 無制限プラン/グランドファザリング対象は記録不要
+
+    // コーチ無料体験ボーナス枠内の利用ならチケット消費なし(checkAdGateと同じ判定)
+    const trialCap = TRIAL_HARD_DAILY_CAP[feature]
+    if (trialCap !== undefined && dailyCountBefore < trialCap && await isActiveCoachTrial()) return
+
     if (isFreeInjuryFeature(feature)) return              // 怪我系は無料開放のためチケット消費なし
 
     if (isTicketFeature(feature)) {
