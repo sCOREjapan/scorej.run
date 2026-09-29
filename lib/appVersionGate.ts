@@ -14,6 +14,12 @@ export interface UpdateGateResult {
 const DEFAULT_MESSAGE = '新しいバージョンが利用可能です。最新の機能・修正をご利用いただくため、アップデートをお願いします。'
 
 export async function checkForceUpdate(): Promise<UpdateGateResult> {
+  // Web版はストアバージョンの概念が無く(リロードで常に最新)、UpdateRequiredModalの
+  // ボタンもストアURLしか開けず脱出手段が無いため、対象外にする
+  // (2026-09-29コードレビューで、Android基準に巻き込まれて閉じられないモーダルに
+  // ロックされるバグが発覚)。
+  if (Platform.OS === 'web') return { required: false, message: '' }
+
   try {
     const { data, error } = await supabase
       .from('app_config')
