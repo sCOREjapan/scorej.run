@@ -62,10 +62,10 @@ import { TICKET_COST } from '../../lib/ticketWallet'
 import TicketGateModal from '../../components/TicketGateModal'
 
 // TEMP(実機テスト用): 無料体験の「期限切れ」状態をSQL手動編集無しで再現するための
-// [TEMP]ボタンの表示切り替え。app/(tabs)/index.tsxのSHOW_TEMP_MISSION_DEV_BUTTONと同じ
-// 意図で__DEV__ではなくこの定数を使う(Release/TestFlightの実機ビルドでも表示するため)。
-// 動作確認が終わったら削除すること。
-const SHOW_TEMP_TRIAL_EXPIRE_DEV_BUTTON = true
+// [TEMP]ボタンの表示切り替え。動作確認が終わったのでfalseに戻した
+// (trueのままだと本番/TestFlightで実コーチにボタンが見えてしまい、誤タップで
+// 本物の無料体験が即終了するため。2026-09-29コードレビューで発覚)。
+const SHOW_TEMP_TRIAL_EXPIRE_DEV_BUTTON = false
 
 // ── 練習メニュー（自由文＋よく使うフレーズ） 型定義 ──────
 // 2026-08: 旧「ライブラリ(カテゴリ8種×強度3種×フォルダ)+プランビルダー」構成は、
