@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   TextInput, KeyboardAvoidingView, Platform, Modal, Linking, Dimensions,
-  Animated, Easing, ActivityIndicator, Alert, RefreshControl, Image,
+  Animated, Easing, ActivityIndicator, Alert, RefreshControl, Image, Keyboard,
 } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
 const SCREEN_H = Dimensions.get('window').height
@@ -2775,6 +2775,7 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
   const [showAvatarPicker,  setShowAvatarPicker]  = useState(false)
   const [shareLevel,        setShareLevel]        = useState<ShareLevel>(2)
   const [showShareLevel,    setShowShareLevel]    = useState(false)
+  const [showActionMenu,    setShowActionMenu]    = useState(false)
   // ── 欠席報告 ────────────────────────────────────────────
   const [absenceNote,       setAbsenceNote]       = useState('')
   const [absenceSaving,     setAbsenceSaving]     = useState(false)
@@ -3110,67 +3111,28 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                   </TouchableOpacity>
                 </View>
               </View>
-              {/* アクションボタン 2×2グリッド */}
+              {/* アクションメニュー: 元は2×2グリッドで4枚常時表示だったが画面を圧迫していたため、
+                  1つのコンパクトなボタンに畳み、タップでシートを開いて4項目を出す形にした
+                  (2026-09-29ユーザー指摘で変更)。 */}
               {(() => {
                 const shareLvColor = shareLevel === 0 ? '#9ca3af' : shareLevel === 1 ? '#FF9500' : '#34C759'
                 const shareLvIcon  = shareLevel === 0 ? 'lock-closed' : shareLevel === 1 ? 'eye-off' : 'eye'
-                const shareLvLabel = shareLevel === 0 ? t('team.playerDashboard.shareLevelPrivate') : shareLevel === 1 ? t('team.playerDashboard.shareLevelPartial') : t('team.playerDashboard.shareLevelFull')
                 return (
-                  <View style={{gap:8}}>
-                    <View style={{flexDirection:'row',gap:8}}>
-                      <HapticTouch haptic="whoosh" style={pl.actionBtn} onPress={() => { setEditBody([...bodyParts]); setEditBodyDetail(bodyDetail); setShowBody(true) }} activeOpacity={0.85}>
-                        <View style={{width:34,height:34,borderRadius:10,backgroundColor:'rgba(255,149,0,0.12)',alignItems:'center',justifyContent:'center'}}>
-                          <Ionicons name="body-outline" size={18} color="#FF9500"/>
-                        </View>
-                        <View style={{flex:1}}>
-                          <Text style={{color:colors.text,fontSize:12,fontWeight:'800'}}>{t('team.playerDashboard.reportPain')}</Text>
-                          <Text style={{color:colors.textHint,fontSize:10,marginTop:1}}>{bodyParts.length > 0 ? t('team.playerDashboard.painCountReporting', { n: bodyParts.length }) : t('team.playerDashboard.noPainReport')}</Text>
-                        </View>
-                        {bodyParts.length > 0 && <View style={{backgroundColor:'#FF9500',borderRadius:10,width:20,height:20,alignItems:'center',justifyContent:'center'}}><Text style={{color:'#fff',fontSize:10,fontWeight:'800'}}>{bodyParts.length}</Text></View>}
-                      </HapticTouch>
-                      <HapticTouch haptic="whoosh" style={pl.actionBtn} onPress={() => setShowVideoModal(true)} activeOpacity={0.85}>
-                        <View style={{width:34,height:34,borderRadius:10,backgroundColor:BRAND+'18',alignItems:'center',justifyContent:'center'}}>
-                          <Ionicons name="videocam-outline" size={18} color={BRAND}/>
-                        </View>
-                        <View style={{flex:1}}>
-                          <Text style={{color:colors.text,fontSize:12,fontWeight:'800'}}>{t('team.playerDashboard.sendVideo')}</Text>
-                          <Text style={{color:colors.textHint,fontSize:10,marginTop:1}}>{t('team.playerDashboard.sendToCoach')}</Text>
-                        </View>
-                      </HapticTouch>
+                  <HapticTouch haptic="whoosh" style={pl.actionMenuBtn} onPress={() => setShowActionMenu(true)} activeOpacity={0.85}>
+                    <View style={{flexDirection:'row',alignItems:'center'}}>
+                      <View style={[pl.actionMiniIcon,{backgroundColor:'rgba(255,149,0,0.12)'}]}><Ionicons name="body-outline" size={14} color="#FF9500"/></View>
+                      <View style={[pl.actionMiniIcon,{backgroundColor:BRAND+'18',marginLeft:-8}]}><Ionicons name="videocam-outline" size={14} color={BRAND}/></View>
+                      <View style={[pl.actionMiniIcon,{backgroundColor:'rgba(175,82,222,0.12)',marginLeft:-8}]}><Ionicons name="person-circle-outline" size={14} color="#AF52DE"/></View>
+                      <View style={[pl.actionMiniIcon,{backgroundColor:shareLvColor+'20',marginLeft:-8}]}><Ionicons name={shareLvIcon as any} size={14} color={shareLvColor}/></View>
                     </View>
-                    <View style={{flexDirection:'row',gap:8}}>
-                      <HapticTouch
-                        haptic="whoosh"
-                        style={pl.actionBtn}
-                        onPress={() => {
-                          const ms = playerStats.find(s => s.player_name === joined.playerName)
-                          setEditEvent(ms?.event ?? '')
-                          setEditPb(ms?.pb_display ?? '')
-                          setEditGoal(ms?.goal ?? '')
-                          setShowStatsEdit(true)
-                        }}
-                        activeOpacity={0.85}
-                      >
-                        <View style={{width:34,height:34,borderRadius:10,backgroundColor:'rgba(175,82,222,0.12)',alignItems:'center',justifyContent:'center'}}>
-                          <Ionicons name="person-circle-outline" size={18} color="#AF52DE"/>
-                        </View>
-                        <View style={{flex:1}}>
-                          <Text style={{color:colors.text,fontSize:12,fontWeight:'800'}}>{t('team.playerDashboard.profile')}</Text>
-                          <Text style={{color:colors.textHint,fontSize:10,marginTop:1}}>{t('team.playerDashboard.eventAndPb')}</Text>
-                        </View>
-                      </HapticTouch>
-                      <HapticTouch haptic="whoosh" style={[pl.actionBtn,{borderColor: shareLvColor+'40', backgroundColor: shareLvColor+'08'}]} onPress={() => setShowShareLevel(true)} activeOpacity={0.85}>
-                        <View style={{width:34,height:34,borderRadius:10,backgroundColor: shareLvColor+'20',alignItems:'center',justifyContent:'center'}}>
-                          <Ionicons name={shareLvIcon as any} size={18} color={shareLvColor}/>
-                        </View>
-                        <View style={{flex:1}}>
-                          <Text style={{color:colors.text,fontSize:12,fontWeight:'800'}}>{t('team.playerDashboard.shareSettings')}</Text>
-                          <Text style={{color: shareLvColor,fontSize:10,fontWeight:'700',marginTop:1}}>{shareLvLabel}</Text>
-                        </View>
-                        <Ionicons name="chevron-forward" size={14} color={colors.textHint}/>
-                      </HapticTouch>
-                    </View>
-                  </View>
+                    <Text style={{color:colors.text,fontSize:13,fontWeight:'800',flex:1,marginLeft:8}}>{t('team.playerDashboard.quickActions')}</Text>
+                    {bodyParts.length > 0 && (
+                      <View style={{backgroundColor:'#FF9500',borderRadius:9,minWidth:18,height:18,alignItems:'center',justifyContent:'center',paddingHorizontal:4,marginRight:6}}>
+                        <Text style={{color:'#fff',fontSize:10,fontWeight:'800'}}>{bodyParts.length}</Text>
+                      </View>
+                    )}
+                    <Ionicons name="chevron-forward" size={16} color={colors.textHint}/>
+                  </HapticTouch>
                 )
               })()}
               {/* 2026-09-09: app/coach-view.tsxへの遷移導線が無く「孤立画面」になっていたバグ修正。
@@ -3595,43 +3557,119 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
         )}
       </SafeAreaView>
 
-      {/* 痛み報告モーダル */}
-      <Modal visible={showBody} transparent animationType="slide" onRequestClose={() => setShowBody(false)}>
+      {/* アクションメニューシート(4ボタンを1つに畳んだもの) */}
+      <Modal visible={showActionMenu} transparent animationType="slide" onRequestClose={() => setShowActionMenu(false)}>
         <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.8)',justifyContent:'flex-end'}}>
-          <View style={{backgroundColor:colors.card,borderTopLeftRadius:24,borderTopRightRadius:24,padding:20,paddingBottom:44,borderTopWidth:1,borderColor:colors.border}}>
-            <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:16}}/>
-            <View style={{flexDirection:'row',alignItems:'center',marginBottom:16}}>
-              <Text style={{color:colors.text,fontSize:17,fontWeight:'800',flex:1}}>{t('team.playerDashboard.painModalTitle')}</Text>
-              <TouchableOpacity onPress={() => setShowBody(false)} hitSlop={{top:10,bottom:10,left:10,right:10}} accessibilityLabel={t('team.memberDetail.close')}>
-                <Ionicons name="close" size={22} color={colors.textSec}/>
-              </TouchableOpacity>
-            </View>
-            <Text style={{color:colors.textSec,fontSize:12,marginBottom:14}}>
-              {t('team.playerDashboard.painModalDesc')}
-            </Text>
-            <BodyPartSelector selected={editBody} onChange={setEditBody}/>
-            <Text style={{color:colors.textHint,fontSize:11,fontWeight:'700',letterSpacing:0.8,marginTop:16,marginBottom:6}}>{t('team.playerDashboard.detailNoteLabel')}</Text>
-            <TextInput
-              style={{backgroundColor:colors.surface2,borderRadius:10,borderWidth:1,borderColor:colors.border,color:colors.text,fontSize:14,paddingHorizontal:14,paddingVertical:10,minHeight:60,textAlignVertical:'top'}}
-              value={editBodyDetail}
-              onChangeText={setEditBodyDetail}
-              placeholder={t('team.playerDashboard.detailNotePlaceholder')}
-              placeholderTextColor={colors.textHint}
-              multiline
-              maxLength={120}
-            />
-            {editBody.length > 0 ? (
-              <HapticTouch haptic="save" style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:BRAND,borderRadius:14,paddingVertical:14,marginTop:14}} onPress={saveBodyReport} activeOpacity={0.85}>
-                <Ionicons name="send" size={18} color="#fff"/>
-                <Text style={{color:'#fff',fontSize:15,fontWeight:'800'}}>{t('team.playerDashboard.reportToCoach')}</Text>
-              </HapticTouch>
-            ) : (
-              <HapticTouch haptic="save" style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:colors.surface2,borderRadius:14,paddingVertical:14,marginTop:14,borderWidth:1,borderColor:colors.border}} onPress={saveBodyReport} activeOpacity={0.85}>
-                <Text style={{color:colors.textSec,fontSize:15,fontWeight:'700'}}>{t('team.playerDashboard.noPainClear')}</Text>
-              </HapticTouch>
-            )}
+          <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setShowActionMenu(false)} activeOpacity={1}/>
+          <View style={{backgroundColor:colors.card,borderTopLeftRadius:24,borderTopRightRadius:24,padding:20,paddingBottom:36,borderTopWidth:1,borderColor:colors.border,gap:8}}>
+            <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:8}}/>
+            <Text style={{color:colors.text,fontSize:16,fontWeight:'800',marginBottom:4}}>{t('team.playerDashboard.quickActions')}</Text>
+            <HapticTouch haptic="whoosh" style={[pl.actionBtn,{flex:undefined}]} onPress={() => { setShowActionMenu(false); setEditBody([...bodyParts]); setEditBodyDetail(bodyDetail); setShowBody(true) }} activeOpacity={0.85}>
+              <View style={{width:34,height:34,borderRadius:10,backgroundColor:'rgba(255,149,0,0.12)',alignItems:'center',justifyContent:'center'}}>
+                <Ionicons name="body-outline" size={18} color="#FF9500"/>
+              </View>
+              <View style={{flex:1}}>
+                <Text style={{color:colors.text,fontSize:13,fontWeight:'800'}}>{t('team.playerDashboard.reportPain')}</Text>
+                <Text style={{color:colors.textHint,fontSize:11,marginTop:1}}>{bodyParts.length > 0 ? t('team.playerDashboard.painCountReporting', { n: bodyParts.length }) : t('team.playerDashboard.noPainReport')}</Text>
+              </View>
+              {bodyParts.length > 0 && <View style={{backgroundColor:'#FF9500',borderRadius:10,width:20,height:20,alignItems:'center',justifyContent:'center'}}><Text style={{color:'#fff',fontSize:10,fontWeight:'800'}}>{bodyParts.length}</Text></View>}
+            </HapticTouch>
+            <HapticTouch haptic="whoosh" style={[pl.actionBtn,{flex:undefined}]} onPress={() => { setShowActionMenu(false); setShowVideoModal(true) }} activeOpacity={0.85}>
+              <View style={{width:34,height:34,borderRadius:10,backgroundColor:BRAND+'18',alignItems:'center',justifyContent:'center'}}>
+                <Ionicons name="videocam-outline" size={18} color={BRAND}/>
+              </View>
+              <View style={{flex:1}}>
+                <Text style={{color:colors.text,fontSize:13,fontWeight:'800'}}>{t('team.playerDashboard.sendVideo')}</Text>
+                <Text style={{color:colors.textHint,fontSize:11,marginTop:1}}>{t('team.playerDashboard.sendToCoach')}</Text>
+              </View>
+            </HapticTouch>
+            <HapticTouch
+              haptic="whoosh"
+              style={[pl.actionBtn,{flex:undefined}]}
+              onPress={() => {
+                setShowActionMenu(false)
+                const ms = playerStats.find(s => s.player_name === joined.playerName)
+                setEditEvent(ms?.event ?? '')
+                setEditPb(ms?.pb_display ?? '')
+                setEditGoal(ms?.goal ?? '')
+                setShowStatsEdit(true)
+              }}
+              activeOpacity={0.85}
+            >
+              <View style={{width:34,height:34,borderRadius:10,backgroundColor:'rgba(175,82,222,0.12)',alignItems:'center',justifyContent:'center'}}>
+                <Ionicons name="person-circle-outline" size={18} color="#AF52DE"/>
+              </View>
+              <View style={{flex:1}}>
+                <Text style={{color:colors.text,fontSize:13,fontWeight:'800'}}>{t('team.playerDashboard.profile')}</Text>
+                <Text style={{color:colors.textHint,fontSize:11,marginTop:1}}>{t('team.playerDashboard.eventAndPb')}</Text>
+              </View>
+            </HapticTouch>
+            {(() => {
+              const shareLvColor = shareLevel === 0 ? '#9ca3af' : shareLevel === 1 ? '#FF9500' : '#34C759'
+              const shareLvIcon  = shareLevel === 0 ? 'lock-closed' : shareLevel === 1 ? 'eye-off' : 'eye'
+              const shareLvLabel = shareLevel === 0 ? t('team.playerDashboard.shareLevelPrivate') : shareLevel === 1 ? t('team.playerDashboard.shareLevelPartial') : t('team.playerDashboard.shareLevelFull')
+              return (
+                <HapticTouch haptic="whoosh" style={[pl.actionBtn,{flex:undefined,borderColor: shareLvColor+'40', backgroundColor: shareLvColor+'08'}]} onPress={() => { setShowActionMenu(false); setShowShareLevel(true) }} activeOpacity={0.85}>
+                  <View style={{width:34,height:34,borderRadius:10,backgroundColor: shareLvColor+'20',alignItems:'center',justifyContent:'center'}}>
+                    <Ionicons name={shareLvIcon as any} size={18} color={shareLvColor}/>
+                  </View>
+                  <View style={{flex:1}}>
+                    <Text style={{color:colors.text,fontSize:13,fontWeight:'800'}}>{t('team.playerDashboard.shareSettings')}</Text>
+                    <Text style={{color: shareLvColor,fontSize:11,fontWeight:'700',marginTop:1}}>{shareLvLabel}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={14} color={colors.textHint}/>
+                </HapticTouch>
+              )
+            })()}
           </View>
         </View>
+      </Modal>
+
+      {/* 痛み報告モーダル */}
+      {/* 2026-09-29: KeyboardAvoidingView が無く、詳細メモ欄にフォーカスすると
+          キーボードがシートを覆ったまま閉じる手段が無かった不具合を修正。
+          背景タップでキーボードだけ閉じる(モーダル自体は閉じない=選択済み部位を保持) */}
+      <Modal visible={showBody} transparent animationType="slide" onRequestClose={() => setShowBody(false)}>
+        <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined}>
+          <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.8)',justifyContent:'flex-end'}}>
+            <TouchableOpacity style={StyleSheet.absoluteFill} onPress={Keyboard.dismiss} activeOpacity={1}/>
+            <View style={{backgroundColor:colors.card,borderTopLeftRadius:24,borderTopRightRadius:24,padding:20,paddingBottom:44,borderTopWidth:1,borderColor:colors.border}}>
+              <View style={{width:36,height:4,borderRadius:2,backgroundColor:'rgba(0,0,0,0.12)',alignSelf:'center',marginBottom:16}}/>
+              <View style={{flexDirection:'row',alignItems:'center',marginBottom:16}}>
+                <Text style={{color:colors.text,fontSize:17,fontWeight:'800',flex:1}}>{t('team.playerDashboard.painModalTitle')}</Text>
+                <TouchableOpacity onPress={() => setShowBody(false)} hitSlop={{top:10,bottom:10,left:10,right:10}} accessibilityLabel={t('team.memberDetail.close')}>
+                  <Ionicons name="close" size={22} color={colors.textSec}/>
+                </TouchableOpacity>
+              </View>
+              <Text style={{color:colors.textSec,fontSize:12,marginBottom:14}}>
+                {t('team.playerDashboard.painModalDesc')}
+              </Text>
+              <BodyPartSelector selected={editBody} onChange={setEditBody}/>
+              <Text style={{color:colors.textHint,fontSize:11,fontWeight:'700',letterSpacing:0.8,marginTop:16,marginBottom:6}}>{t('team.playerDashboard.detailNoteLabel')}</Text>
+              <TextInput
+                style={{backgroundColor:colors.surface2,borderRadius:10,borderWidth:1,borderColor:colors.border,color:colors.text,fontSize:14,paddingHorizontal:14,paddingVertical:10,minHeight:60,textAlignVertical:'top'}}
+                value={editBodyDetail}
+                onChangeText={setEditBodyDetail}
+                placeholder={t('team.playerDashboard.detailNotePlaceholder')}
+                placeholderTextColor={colors.textHint}
+                multiline
+                maxLength={120}
+                blurOnSubmit
+                returnKeyType="done"
+              />
+              {editBody.length > 0 ? (
+                <HapticTouch haptic="save" style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:BRAND,borderRadius:14,paddingVertical:14,marginTop:14}} onPress={() => { Keyboard.dismiss(); saveBodyReport() }} activeOpacity={0.85}>
+                  <Ionicons name="send" size={18} color="#fff"/>
+                  <Text style={{color:'#fff',fontSize:15,fontWeight:'800'}}>{t('team.playerDashboard.reportToCoach')}</Text>
+                </HapticTouch>
+              ) : (
+                <HapticTouch haptic="save" style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,backgroundColor:colors.surface2,borderRadius:14,paddingVertical:14,marginTop:14,borderWidth:1,borderColor:colors.border}} onPress={() => { Keyboard.dismiss(); saveBodyReport() }} activeOpacity={0.85}>
+                  <Text style={{color:colors.textSec,fontSize:15,fontWeight:'700'}}>{t('team.playerDashboard.noPainClear')}</Text>
+                </HapticTouch>
+              )}
+            </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* PB・プロフィール編集モーダル */}
@@ -3755,6 +3793,8 @@ const makeCoStyles = (colors: ThemeColors) => StyleSheet.create({
 const makePlStyles = (colors: ThemeColors) => StyleSheet.create({
   sectionTitle: { color:colors.textHint, fontSize:11, fontWeight:'700', letterSpacing:1, marginTop:4 },
   actionBtn:    { flex:1, flexDirection:'row', alignItems:'center', gap:10, backgroundColor:colors.surface2, borderRadius:18, borderWidth:1, borderColor:colors.border, paddingVertical:12, paddingHorizontal:12 },
+  actionMenuBtn:  { flexDirection:'row', alignItems:'center', backgroundColor:colors.surface2, borderRadius:16, borderWidth:1, borderColor:colors.border, paddingVertical:10, paddingHorizontal:10 },
+  actionMiniIcon: { width:28, height:28, borderRadius:9, alignItems:'center', justifyContent:'center', borderWidth:2, borderColor:colors.card },
 })
 
 // ─────────────────────────────────────────────────────────

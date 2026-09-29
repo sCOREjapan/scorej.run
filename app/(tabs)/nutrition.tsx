@@ -690,6 +690,10 @@ export default function NutritionScreen() {
       }
       const res = await analyzeMeal(base64, profile, mealType, timing, language)
       if (!res || !Array.isArray(res.foods)) throw new Error('応答形式が不正です')
+      // 2026-09-29:「食事記録が無限に伸びる」報告に対応。AIが食品を1つも検出できなかった
+      // (foods=[])場合もこれまでは「成功」扱いで通過し、ユーザーが気づかず保存を繰り返すと
+      // 0kcalの空レコードが際限なく積み上がっていた。ここでエラー扱いにして保存自体を防ぐ。
+      if (res.foods.length === 0) throw new Error(t('nutrition.noFoodDetected'))
       mealCacheRef.current.set(cacheKey, res)
       setResult(res)
       // 分析に成功した場合のみ利用回数・チケットを消費する（失敗時に課金しないため）

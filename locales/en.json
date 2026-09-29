@@ -1106,6 +1106,7 @@
       "menu": "Menu",
       "loading": "Loading data...",
       "changeIcon": "Change icon",
+      "quickActions": "Quick actions",
       "reportPain": "Report pain",
       "painCountReporting": "Reporting {{n}} area(s)",
       "noPainReport": "No report",
@@ -3566,6 +3567,7 @@
     },
     "ticketUsed": "🎫 Used {{n}} ticket(s)",
     "analyzeError": "AI analysis failed",
+    "noFoodDetected": "Could not detect any food. Please retake the photo and try again",
     "manual": {
       "namePlaceholder": "What you ate (e.g. Chicken breast salad)",
       "caloriesPlaceholder": "Calories (kcal)",
