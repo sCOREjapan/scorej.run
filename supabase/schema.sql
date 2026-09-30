@@ -228,19 +228,69 @@ create index if not exists idx_body_reports_code
 -- RLS（チームテーブルは認証なしでも読み書き可）
 -- ※ コードを知っている人だけが参加できるため、
 --   テーブルレベルのセキュリティは参加コードで担保する
+--
+-- 2026-09-30セキュリティ修正: 以前はここで using(true)(誰でも無条件に読み書き削除可能)
+-- の"_public"ポリシーを作成しており、それを閉じる別ファイル(fix_team_tables_rls*.sql)が
+-- 後から追加されていたが、この初期セットアップ用スクリプト自体を将来もう一度実行すると
+-- (新環境構築・復旧作業等)、"_public"ポリシーが復活してしまう(RLSはOR条件のため、緩い方の
+-- ポリシーが残っていると制限が無意味になる)。このファイル単体で常に安全になるよう、
+-- 参加コード(X-Team-Codeヘッダー)で絞り込む正しいポリシーを直接定義する。
 -- ─────────────────────────────────────────
+create or replace function _request_team_code() returns text
+language sql stable
+as $$
+  select nullif(current_setting('request.headers', true)::json ->> 'x-team-code', '')
+$$;
+
+-- チーム削除(コーチ端末だけが持つ秘密値。lib/teamKeys.tsのgetOrCreateCoachSecret参照)
+create or replace function _request_coach_secret() returns text
+language sql stable
+as $$
+  select nullif(current_setting('request.headers', true)::json ->> 'x-coach-secret', '')
+$$;
+
 alter table teams             enable row level security;
 alter table team_members      enable row level security;
 alter table team_messages     enable row level security;
 alter table team_videos       enable row level security;
 alter table team_body_reports enable row level security;
 
--- 全員が読み書き可（コード知っている前提）
-create policy "teams_public"        on teams             for all using (true) with check (true);
-create policy "members_public"      on team_members      for all using (true) with check (true);
-create policy "messages_public"     on team_messages     for all using (true) with check (true);
-create policy "videos_public"       on team_videos       for all using (true) with check (true);
-create policy "body_reports_public" on team_body_reports for all using (true) with check (true);
+alter table teams add column if not exists coach_secret text;
+
+drop policy if exists "teams_public" on teams;
+drop policy if exists "teams_by_code" on teams;
+drop policy if exists "teams_select_by_code" on teams;
+create policy "teams_select_by_code" on teams for select using (code = _request_team_code());
+drop policy if exists "teams_insert_by_code" on teams;
+create policy "teams_insert_by_code" on teams for insert with check (code = _request_team_code());
+drop policy if exists "teams_update_by_code" on teams;
+create policy "teams_update_by_code" on teams for update
+  using (code = _request_team_code()) with check (code = _request_team_code());
+drop policy if exists "teams_delete_by_code_and_secret" on teams;
+create policy "teams_delete_by_code_and_secret" on teams for delete using (
+  code = _request_team_code()
+  and (coach_secret is null or coach_secret = _request_coach_secret())
+);
+
+drop policy if exists "members_public" on team_members;
+drop policy if exists "team_members_by_code" on team_members;
+create policy "team_members_by_code" on team_members
+  for all using (team_code = _request_team_code()) with check (team_code = _request_team_code());
+
+drop policy if exists "messages_public" on team_messages;
+drop policy if exists "team_messages_by_code" on team_messages;
+create policy "team_messages_by_code" on team_messages
+  for all using (team_code = _request_team_code()) with check (team_code = _request_team_code());
+
+drop policy if exists "videos_public" on team_videos;
+drop policy if exists "team_videos_by_code" on team_videos;
+create policy "team_videos_by_code" on team_videos
+  for all using (team_code = _request_team_code()) with check (team_code = _request_team_code());
+
+drop policy if exists "body_reports_public" on team_body_reports;
+drop policy if exists "team_body_reports_by_code" on team_body_reports;
+create policy "team_body_reports_by_code" on team_body_reports
+  for all using (team_code = _request_team_code()) with check (team_code = _request_team_code());
 
 -- 選手プロフィール（自己ベスト・レベル）
 create table if not exists team_player_stats (
@@ -262,7 +312,10 @@ create table if not exists team_player_stats (
 create index if not exists idx_player_stats_code on team_player_stats(team_code);
 
 alter table team_player_stats enable row level security;
-create policy "player_stats_public" on team_player_stats for all using (true) with check (true);
+drop policy if exists "player_stats_public" on team_player_stats;
+drop policy if exists "team_player_stats_by_code" on team_player_stats;
+create policy "team_player_stats_by_code" on team_player_stats
+  for all using (team_code = _request_team_code()) with check (team_code = _request_team_code());
 
 -- ─────────────────────────────────────────
 -- 選手セッション共有（コーチが記録を確認）
@@ -284,7 +337,10 @@ create table if not exists team_sessions (
 create index if not exists idx_team_sessions_code on team_sessions(team_code, player_name);
 
 alter table team_sessions enable row level security;
-create policy "team_sessions_public" on team_sessions for all using (true) with check (true);
+drop policy if exists "team_sessions_public" on team_sessions;
+drop policy if exists "team_sessions_by_code" on team_sessions;
+create policy "team_sessions_by_code" on team_sessions
+  for all using (team_code = _request_team_code()) with check (team_code = _request_team_code());
 
 -- 後方互換用（既存DBにカラムがない場合の追加）
 alter table team_body_reports add column if not exists detail text not null default '';
@@ -309,7 +365,10 @@ create table if not exists team_events (
 
 create index if not exists idx_team_events_code on team_events(team_code, event_date asc);
 alter table team_events enable row level security;
-create policy "team_events_public" on team_events for all using (true) with check (true);
+drop policy if exists "team_events_public" on team_events;
+drop policy if exists "team_events_by_code" on team_events;
+create policy "team_events_by_code" on team_events
+  for all using (team_code = _request_team_code()) with check (team_code = _request_team_code());
 
 -- 後方互換用（既存DBにカラムがない場合の追加）
 alter table team_player_stats add column if not exists last_condition integer not null default 7;
