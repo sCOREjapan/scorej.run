@@ -48,6 +48,32 @@ export default async function handler(req: any, res: any) {
     return
   }
 
+  // 2026-09-30セキュリティ修正: 選手→コーチ(target='coaches')は選手が自分のチームに
+  // 対して行う正当な日常操作(動画送信・痛み報告等)のためteam_codeのみで許可するが、
+  // コーチ→選手(target='players')は1回の呼び出しでチーム全員の端末に配信される
+  // 影響範囲の大きい操作のため、参加コードとは別のコーチ端末だけが持つ秘密値
+  // (X-Coach-Secret。lib/teamKeys.tsのgetOrCreateCoachSecret、teams.coach_secretと
+  // 対応)の一致を追加で要求する。coach_secretがまだ無い(この修正より前に作られた)
+  // レガシーチームは、現状からの後退にならないよう従来通り通す。
+  if (target === 'players') {
+    try {
+      const teamRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/teams?select=coach_secret&code=eq.${encodeURIComponent(teamCode)}`,
+        { headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` } },
+      )
+      const teamRows = await teamRes.json().catch(() => []) as { coach_secret: string | null }[]
+      const coachSecret = teamRows?.[0]?.coach_secret ?? null
+      const incomingCoachSecret = req.headers?.['x-coach-secret'] ?? ''
+      if (coachSecret && incomingCoachSecret !== coachSecret) {
+        res.status(401).json({ error: 'Unauthorized' })
+        return
+      }
+    } catch (e: any) {
+      res.status(500).json({ error: `coach secret verification failed: ${e?.message ?? e}` })
+      return
+    }
+  }
+
   // team_push_tokensから対象トークンを取得（service_roleでRLSをバイパスして直接読む）
   const roleFilter = target === 'players' ? '&role=eq.player' : target === 'coaches' ? '&role=eq.coach' : ''
   const url = `${SUPABASE_URL}/rest/v1/team_push_tokens?select=push_token&team_code=eq.${encodeURIComponent(teamCode)}${roleFilter}`

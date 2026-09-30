@@ -1117,7 +1117,7 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
     setMsgText('')   // 先にクリアして2重送信を視覚的にも防ぐ
     try {
       await postMessage(setup.code, content, setup.coachName)
-      await sendPush(`📣 ${setup.teamName}`, content, 'players', setup.code)
+      await sendPush(`📣 ${setup.teamName}`, content, 'players', setup.code, await getOrCreateCoachSecret())
       await load()
       Toast.show({type:'success',text1:t('team.coachDashboard.sentToast'),visibilityTime:1400})
     } catch (e: any) {
@@ -1136,7 +1136,7 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
     setMessages(prev => prev.map(m => m.id===id ? {...m, is_pinned:!current} : m))
     if (!current) {
       const msg = messages.find(m => m.id===id)
-      if (msg) await sendPush(t('team.coachDashboard.importantNoticeTitle'), msg.content, 'players', setup.code)
+      if (msg) await sendPush(t('team.coachDashboard.importantNoticeTitle'), msg.content, 'players', setup.code, await getOrCreateCoachSecret())
     }
   }
 
@@ -1213,7 +1213,9 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
       Toast.show({ type: 'success', text1: t('team.coachDashboard.eventAddedToast'), visibilityTime: 1800 })
       // バックグラウンドでリロード & 通知（失敗してもUIに影響しない）
       load().catch(() => {})
-      sendPush(t('team.coachDashboard.newEventPushTitle', { teamName: setup.teamName }), t('team.coachDashboard.newEventPushBody', { title, date }), 'players', setup.code)
+      getOrCreateCoachSecret().then(secret =>
+        sendPush(t('team.coachDashboard.newEventPushTitle', { teamName: setup.teamName }), t('team.coachDashboard.newEventPushBody', { title, date }), 'players', setup.code, secret)
+      )
     } catch (e: any) {
       if (__DEV__) console.warn('[addEvent]', e)  // warnにして赤画面を防ぐ
       const msg = e?.message ?? String(e)
@@ -1314,7 +1316,7 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
     const message = `📋 ${t('team.coachDashboard.menuAnnouncePushBody', { date: dateLabel })}\n\n${planText.trim()}\n\n#sCORE`
     try {
       await postMessage(setup.code, message, setup.coachName)
-      await sendPush(t('team.coachDashboard.menuAnnouncePushTitle', { teamName: setup.teamName }), t('team.coachDashboard.menuAnnouncePushBody', { date: dateLabel }), 'players', setup.code)
+      await sendPush(t('team.coachDashboard.menuAnnouncePushTitle', { teamName: setup.teamName }), t('team.coachDashboard.menuAnnouncePushBody', { date: dateLabel }), 'players', setup.code, await getOrCreateCoachSecret())
       await AsyncStorage.removeItem(MENU_DRAFT_KEY).catch(() => {})
       setPlanText('')
       Toast.show({ type: 'success', text1: t('team.coachDashboard.aiMenuSharedToast'), visibilityTime: 2000 })

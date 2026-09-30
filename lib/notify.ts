@@ -89,6 +89,7 @@ export async function sendPush(
   message: string,
   target: 'players' | 'coaches' | 'all',
   teamCode: string,
+  coachSecret?: string,
 ): Promise<void> {
   try {
     const _apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
@@ -98,6 +99,9 @@ export async function sendPush(
       headers: {
         'Content-Type': 'application/json',
         ...(appSecret ? { 'X-App-Secret': appSecret } : {}),
+        // target='players'(コーチ→選手全員への一斉配信)のときサーバー側で検証される。
+        // target='coaches'(選手が自分のチームに送る日常操作)では不要。
+        ...(coachSecret ? { 'X-Coach-Secret': coachSecret } : {}),
       },
       body: JSON.stringify({ title, message, target, teamCode }),
     })
