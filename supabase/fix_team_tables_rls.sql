@@ -36,9 +36,17 @@ begin
   end loop;
 end $$;
 
--- teamsテーブルのみ code列自体がJOIN対象になるため、行自体のcodeで判定する
-create policy "teams_by_code" on teams
-  for all using (code = _request_team_code()) with check (code = _request_team_code());
+-- 2026-09-30追記【重要・このファイルを再実行する場合の注意】:
+--   teams テーブルの "teams_by_code"(FOR ALL、コード一致のみ)は
+--   supabase/fix_team_delete_requires_coach_secret.sql で、DELETEだけ
+--   coach_secretの一致も要求するより厳しいポリシー群に置き換え済み。
+--   RLSポリシーはOR条件で評価されるため、このファイルを後から再実行して
+--   "teams_by_code" を作り直すと、coach_secretの検証をバイパスして
+--   参加コードだけでチーム削除ができる状態に逆戻りしてしまう
+--   (2026-09-30の追加監査で実際に指摘された)。
+--   そのため teams テーブルに対してはここでは何も作成しない。
+--   （team_members以下、teams以外の7テーブルへの適用は従来通り安全なため継続する）
+drop policy if exists "teams_by_code" on teams;
 
 create policy "team_members_by_code" on team_members
   for all using (team_code = _request_team_code()) with check (team_code = _request_team_code());

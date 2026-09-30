@@ -405,8 +405,28 @@ export default async function handler(req: any, res: any) {
     }
     // Gemini呼び出しが最終的に失敗(非200 or 空/非JSON応答)に終わった場合、事前に消費した
     // チケットを払い戻す。元々「失敗時は課金しない」挙動だったため、これで維持する。
+    // 2026-09-30セキュリティ修正: isIpRateLimited/isDuplicateRequestが無効化されている
+    // 現状、意図的に非JSON応答を誘発するプロンプトを送れば「1回のチケット消費で
+    // Geminiに2回無料アクセス(1回目+ソフト失敗リトライ)」を無制限に繰り返せる状態
+    // だった。1日あたりの払い戻し回数に上限を設け、悪用を有限に抑える
+    // (通常のGemini一時的な不調による正規の払い戻しは1日数回程度に収まる想定のため、
+    // 上限3回は正規利用にはほぼ影響しない)。
     if (spentTicketClient && (result.status !== 200 || check.empty || check.nonJson)) {
-      await spentTicketClient.rpc('ticket_wallet_grant', { p_amount: spentTicketAmount }).catch(() => {})
+      const refundPeriodKey = `refund:${new Date().toISOString().slice(0, 10)}`
+      let refundCount = 0
+      try {
+        const { data: refundRow } = await spentTicketClient
+          .from('feature_usage_counts').select('count')
+          .eq('feature', 'analyze_refund').eq('period_key', refundPeriodKey).maybeSingle()
+        refundCount = refundRow?.count ?? 0
+      } catch {}
+      const REFUND_DAILY_CAP = 3
+      if (refundCount < REFUND_DAILY_CAP) {
+        await spentTicketClient.rpc('ticket_wallet_grant', { p_amount: spentTicketAmount }).catch(() => {})
+        await spentTicketClient.rpc('increment_feature_usage', { p_feature: 'analyze_refund', p_period_key: refundPeriodKey }).catch(() => {})
+      } else {
+        console.warn('[analyze] refund daily cap reached, not refunding:', spentTicketAmount)
+      }
     }
     res.status(result.status).json(result.body)
   } catch (e: any) {

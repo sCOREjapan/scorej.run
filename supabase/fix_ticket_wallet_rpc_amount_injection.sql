@@ -33,6 +33,13 @@ DECLARE
   v_exists  boolean;
   v_amount  int;
 BEGIN
+  -- 2026-09-30追記: SELECT EXISTSとその後のINSERTの間にロックが無く、同じユーザーが
+  -- 同時に複数回呼ぶ(例: 署名直後にPromise.allで並行実行)と、両方がv_exists=falseを
+  -- 観測してしまい「初回だけ上限1000枚」のはずが呼んだ回数分だけ1000枚ずつ加算されて
+  -- しまう競合状態があった。トランザクション単位のアドバイザリロックで同一ユーザーからの
+  -- 呼び出しを直列化する(トランザクション終了時に自動解放される)。
+  PERFORM pg_advisory_xact_lock(hashtext(auth.uid()::text));
+
   SELECT EXISTS(SELECT 1 FROM ticket_wallets WHERE user_id = auth.uid()) INTO v_exists;
 
   v_amount := GREATEST(p_amount, 0);

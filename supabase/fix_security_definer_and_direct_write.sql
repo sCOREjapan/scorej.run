@@ -33,80 +33,13 @@ CREATE POLICY "ticket_wallets_select_own" ON ticket_wallets
 REVOKE INSERT, UPDATE, DELETE ON ticket_wallets FROM authenticated;
 GRANT SELECT ON ticket_wallets TO authenticated;
 
-CREATE OR REPLACE FUNCTION ticket_wallet_grant(p_amount int)
-RETURNS int
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_tickets int;
-BEGIN
-  INSERT INTO ticket_wallets (user_id, tickets)
-  VALUES (auth.uid(), GREATEST(p_amount, 0))
-  ON CONFLICT (user_id) DO UPDATE
-    SET tickets = ticket_wallets.tickets + p_amount,
-        updated_at = now()
-  RETURNING tickets INTO v_tickets;
-  RETURN v_tickets;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION ticket_wallet_grant_once(p_amount int, p_marker_name text, p_marker_value text)
-RETURNS boolean
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_current text;
-BEGIN
-  INSERT INTO ticket_wallets (user_id) VALUES (auth.uid())
-  ON CONFLICT (user_id) DO NOTHING;
-
-  SELECT dedup_markers ->> p_marker_name INTO v_current
-  FROM ticket_wallets
-  WHERE user_id = auth.uid()
-  FOR UPDATE;
-
-  IF v_current IS NOT DISTINCT FROM p_marker_value THEN
-    RETURN false;
-  END IF;
-
-  UPDATE ticket_wallets
-  SET tickets = tickets + p_amount,
-      dedup_markers = jsonb_set(dedup_markers, ARRAY[p_marker_name], to_jsonb(p_marker_value)),
-      updated_at = now()
-  WHERE user_id = auth.uid();
-
-  RETURN true;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION ticket_wallet_spend(p_amount int)
-RETURNS boolean
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_tickets int;
-BEGIN
-  INSERT INTO ticket_wallets (user_id) VALUES (auth.uid())
-  ON CONFLICT (user_id) DO NOTHING;
-
-  SELECT tickets INTO v_tickets FROM ticket_wallets WHERE user_id = auth.uid() FOR UPDATE;
-
-  IF v_tickets < p_amount THEN
-    RETURN false;
-  END IF;
-
-  UPDATE ticket_wallets SET tickets = tickets - p_amount, updated_at = now()
-  WHERE user_id = auth.uid();
-
-  RETURN true;
-END;
-$$;
+-- 2026-09-30追記【重要・このファイルを再実行しないこと】:
+--   ticket_wallet_grant/grant_once/spend の3関数は、ここにあった実装(金額p_amountを
+--   無条件にそのまま反映する版)に金額injectionの脆弱性が見つかったため、
+--   supabase/fix_ticket_wallet_rpc_amount_injection.sql の実装で置き換え済み。
+--   このファイルを(claim_referral_rewardsの修正目的で)再実行すると、CREATE OR REPLACE
+--   により3関数が脆弱な版に巻き戻ってしまうため、ここでは定義しない。
+--   3関数の現行の正しい定義は必ず fix_ticket_wallet_rpc_amount_injection.sql を参照。
 
 GRANT EXECUTE ON FUNCTION ticket_wallet_grant(int) TO authenticated;
 GRANT EXECUTE ON FUNCTION ticket_wallet_grant_once(int, text, text) TO authenticated;

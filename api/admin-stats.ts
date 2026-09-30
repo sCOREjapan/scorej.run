@@ -9,42 +9,46 @@
 // api/admin-churned-users.ts と同じ ADMIN_EXPORT_SECRET（Vercelのサーバー専用環境変数）
 // でしか通さないようにし、RPC自体もSERVICE_ROLE_KEY経由でのみ呼ぶ
 // （supabase/fix_admin_rpc_revoke_anon.sql でanon/authenticatedへのGRANTを撤回済み）。
-export const config = { runtime: 'edge' }
+//
+// 2026-09-30追記: 初版はruntime:'edge'で書いたが、このプロジェクトでは
+// EXPO_PUBLIC_SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEYがedge runtimeから読めず
+// 本番で無言のまま機能停止する不具合が過去に2回実際に発生している
+// (api/notify.ts、api/daily-reminder.tsのコメント参照)。同じ地雷を踏むため
+// 他の全エンドポイントに合わせてnodejs runtimeに変更する。
+export const config = { runtime: 'nodejs' }
 
-export default async function handler(request: Request): Promise<Response> {
-  if (request.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 })
+export default async function handler(req: any, res: any) {
+  if (req.method !== 'POST') {
+    res.status(405).send('Method not allowed')
+    return
   }
 
   const exportSecret = process.env.ADMIN_EXPORT_SECRET
   if (!exportSecret) {
-    return new Response(JSON.stringify({ error: 'ADMIN_EXPORT_SECRET未設定' }), {
-      status: 500, headers: { 'Content-Type': 'application/json' },
-    })
+    res.status(500).json({ error: 'ADMIN_EXPORT_SECRET未設定' })
+    return
   }
-  const incoming = request.headers.get('X-Admin-Export-Secret') ?? ''
+  const incoming = req.headers?.['x-admin-export-secret'] ?? ''
   if (incoming !== exportSecret) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401, headers: { 'Content-Type': 'application/json' },
-    })
+    res.status(401).json({ error: 'Unauthorized' })
+    return
   }
 
   const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL
   const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!supabaseUrl || !serviceKey) {
-    return new Response(JSON.stringify({ error: 'Supabase service role未設定' }), {
-      status: 500, headers: { 'Content-Type': 'application/json' },
-    })
+    res.status(500).json({ error: 'Supabase service role未設定' })
+    return
   }
 
   let rpcName: 'get_admin_stats' | 'get_retention_cohorts' = 'get_admin_stats'
   try {
-    const body = await request.json().catch(() => ({})) as { rpc?: string }
-    if (body.rpc === 'get_retention_cohorts') rpcName = 'get_retention_cohorts'
+    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body
+    if (body?.rpc === 'get_retention_cohorts') rpcName = 'get_retention_cohorts'
   } catch {}
 
   try {
-    const res = await fetch(`${supabaseUrl}/rest/v1/rpc/${rpcName}`, {
+    const rpcRes = await fetch(`${supabaseUrl}/rest/v1/rpc/${rpcName}`, {
       method: 'POST',
       headers: {
         'Content-Type':  'application/json',
@@ -53,19 +57,14 @@ export default async function handler(request: Request): Promise<Response> {
       },
       body: JSON.stringify({}),
     })
-    if (!res.ok) {
-      const errText = await res.text()
-      return new Response(JSON.stringify({ error: `Supabase RPC失敗: ${errText}` }), {
-        status: 502, headers: { 'Content-Type': 'application/json' },
-      })
+    if (!rpcRes.ok) {
+      const errText = await rpcRes.text()
+      res.status(502).json({ error: `Supabase RPC失敗: ${errText}` })
+      return
     }
-    const data = await res.json()
-    return new Response(JSON.stringify(data), {
-      headers: { 'Content-Type': 'application/json' },
-    })
+    const data = await rpcRes.json()
+    res.status(200).json(data)
   } catch (e: any) {
-    return new Response(JSON.stringify({ error: e?.message ?? 'リクエスト失敗' }), {
-      status: 500, headers: { 'Content-Type': 'application/json' },
-    })
+    res.status(500).json({ error: e?.message ?? 'リクエスト失敗' })
   }
 }

@@ -272,6 +272,27 @@ create policy "teams_delete_by_code_and_secret" on teams for delete using (
   and (coach_secret is null or coach_secret = _request_coach_secret())
 );
 
+-- 2026-09-30: teams_update_by_codeは列を区別しないため、上のDELETEガードだけでは
+-- 「参加コードだけでcoach_secretをNULLに戻してから削除する」ことを防げない
+-- (supabase/fix_coach_secret_immutable.sql参照)。一度設定されたcoach_secretは
+-- 同じ値でのUPDATEしか通さないトリガーで保護する。
+create or replace function _protect_coach_secret() returns trigger
+language plpgsql
+as $$
+begin
+  if old.coach_secret is not null and new.coach_secret is distinct from old.coach_secret then
+    new.coach_secret := old.coach_secret;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists protect_coach_secret on teams;
+create trigger protect_coach_secret
+  before update on teams
+  for each row
+  execute function _protect_coach_secret();
+
 drop policy if exists "members_public" on team_members;
 drop policy if exists "team_members_by_code" on team_members;
 create policy "team_members_by_code" on team_members
