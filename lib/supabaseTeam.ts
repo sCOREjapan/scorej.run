@@ -14,9 +14,12 @@ const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? ''
 
 const isConfigured = !!(supabaseUrl && supabaseUrl !== 'placeholder')
 
-function teamScopedClient(teamCode: string) {
+function teamScopedClient(teamCode: string, coachSecret?: string) {
   return createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { 'X-Team-Code': teamCode } },
+    global: { headers: {
+      'X-Team-Code': teamCode,
+      ...(coachSecret ? { 'X-Coach-Secret': coachSecret } : {}),
+    } },
     auth: { persistSession: false, autoRefreshToken: false },
   })
 }
@@ -30,10 +33,13 @@ export interface TeamRow {
   created_at: string
 }
 
-export async function createTeam(code: string, teamName: string, coachName: string): Promise<void> {
+// 2026-09-30: coachSecretを渡すと teams.coach_secret に書き込む。この値が設定されている
+// チームは、以後deleteTeam()に同じ秘密を渡さないと削除できなくなる(参加コードだけを
+// 知っている選手には削除させないため。supabase/fix_team_delete_requires_coach_secret.sql参照)。
+export async function createTeam(code: string, teamName: string, coachName: string, coachSecret?: string): Promise<void> {
   if (!isConfigured) return
   const { error } = await teamScopedClient(code).from('teams').upsert(
-    { code, team_name: teamName, coach_name: coachName },
+    { code, team_name: teamName, coach_name: coachName, ...(coachSecret ? { coach_secret: coachSecret } : {}) },
     { onConflict: 'code' },
   )
   if (error) throw new Error(error.message)
@@ -66,9 +72,9 @@ export async function fetchTeamByCode(code: string): Promise<TeamRow | null> {
 // あった。teamsテーブルの行を削除すればon delete cascadeで関連7テーブル
 // (team_members/team_messages/team_videos/team_body_reports/team_player_stats/
 // team_sessions/team_events)も自動的に連鎖削除される（supabase/schema.sql参照）。
-export async function deleteTeam(code: string): Promise<void> {
+export async function deleteTeam(code: string, coachSecret?: string): Promise<void> {
   if (!isConfigured) return
-  const { error } = await teamScopedClient(code).from('teams').delete().eq('code', code)
+  const { error } = await teamScopedClient(code, coachSecret).from('teams').delete().eq('code', code)
   if (error) throw new Error(error.message)
 }
 

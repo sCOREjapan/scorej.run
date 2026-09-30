@@ -45,7 +45,7 @@ import ConfirmSheet from '../../components/ConfirmSheet'
 import { Avatar, RingAvatar, AvatarPickerModal, avatarColor } from '../../components/Avatar'
 import RankBadge from '../../components/RankBadge'
 import { PLAYER_AVATAR_KEY } from '../../lib/avatarAssets'
-import { ROLE_KEY, SETUP_KEY, JOINED_KEY, type TeamSetup, type JoinedTeam } from '../../lib/teamKeys'
+import { ROLE_KEY, SETUP_KEY, JOINED_KEY, getOrCreateCoachSecret, type TeamSetup, type JoinedTeam } from '../../lib/teamKeys'
 import { useTheme, type ThemeColors } from '../../context/ThemeContext'
 import { usePurchase } from '../../context/PurchaseContext'
 import { useAuth } from '../../context/AuthContext'
@@ -630,7 +630,8 @@ function CoachSetupScreen({ onCreated, onBack }: { onCreated:(s:TeamSetup)=>void
       await AsyncStorage.setItem(SETUP_KEY, JSON.stringify(s))
       // Supabase にチームを登録（失敗してもローカル作成は進める。
       // ダッシュボードの load() で再登録され自己修復するため）
-      await createTeam(s.code, s.teamName, s.coachName).catch(() => {})
+      const coachSecret = await getOrCreateCoachSecret()
+      await createTeam(s.code, s.teamName, s.coachName, coachSecret).catch(() => {})
       trackTeamCreated()
       onCreated(s)
     } catch {
@@ -970,8 +971,12 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
   const load = useCallback(async () => {
     try {
       // チームを teams テーブルに再登録（GRANT前に作成して未登録のチームを自己修復）
-      // これがないと予定追加・アナウンスが外部キー制約違反で失敗する
-      createTeam(setup.code, setup.teamName, setup.coachName).catch(() => {})
+      // これがないと予定追加・アナウンスが外部キー制約違反で失敗する。
+      // coach_secretも毎回渡すことで、この修正より前に作られた既存チームにも
+      // 次回ダッシュボード表示時に自動でバックフィルされる。
+      getOrCreateCoachSecret().then(secret => {
+        createTeam(setup.code, setup.teamName, setup.coachName, secret).catch(() => {})
+      })
       const [msgs, vids, mems, rpts, teamSessions, evts, pStats, teamMeals, teamWarmups] = await Promise.all([
         fetchMessages(setup.code),
         fetchVideos(setup.code),
@@ -1197,7 +1202,7 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
     const type     = evType
     try {
       // チームが teams テーブルに存在することを保証（外部キー制約違反を防ぐ）
-      await createTeam(setup.code, setup.teamName, setup.coachName)
+      await createTeam(setup.code, setup.teamName, setup.coachName, await getOrCreateCoachSecret())
       const result = await addTeamEvent(setup.code, title, date, time, location, desc, type, setup.coachName)
       if (!result) throw new Error('イベントデータが取得できませんでした')
       // モーダルを先に閉じてからフォームをリセット
@@ -4137,7 +4142,7 @@ export default function TeamScreen() {
   // 失われます」という文言と実際の挙動が一致していなかった）。deleteTeam()で
   // Supabase側も削除してから、ローカルをクリアする。
   async function handleDeleteTeam() {
-    if (setup?.code) await deleteTeam(setup.code).catch(() => {})
+    if (setup?.code) await deleteTeam(setup.code, await getOrCreateCoachSecret()).catch(() => {})
     await AsyncStorage.multiRemove([ROLE_KEY, SETUP_KEY]).catch(() => {})
     setSetup(null)
     setState('select-role')
