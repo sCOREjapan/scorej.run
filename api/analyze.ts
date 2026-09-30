@@ -280,6 +280,11 @@ export default async function handler(req: any, res: any) {
     // 走らせていたが、isPaidTierをモデル選択（下のuseLiteModel算出）にも使うため、feature名さえ
     // 分かれば（無料機能のrecovery/injury_recoveryも含めて）常にtierを引くように広げた。
     let isPaidTier = false
+    // 2026-09-30セキュリティ修正: サーバー自身がticketを消費する唯一の主体になったため、
+    // Gemini呼び出しが失敗した場合に払い戻せるよう、消費に使ったクライアント/金額を
+    // 外側のスコープで保持しておく。
+    let spentTicketClient: any = null
+    let spentTicketAmount = 0
     if (authHeader.startsWith('Bearer ') && typeof feature === 'string') {
       const token = authHeader.slice('Bearer '.length)
       const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL
@@ -306,28 +311,34 @@ export default async function handler(req: any, res: any) {
             const { data: statusRow } = await userClient
               .from('subscription_status').select('tier, original_purchase_date')
               .eq('user_id', userId).maybeSingle()
-            if (statusRow) {
-              const isLegacyNoad = statusRow.tier === 'noad'
-                && !!statusRow.original_purchase_date
-                && new Date(statusRow.original_purchase_date) < TICKET_SYSTEM_CUTOVER
-              isPaidTier = statusRow.tier === 'coach' || isLegacyNoad
-              if (!isPaidTier && TICKET_COST_SERVER[feature]) {
-                // 消費はクライアント側(recordUsage)が成功後に行う既存フローと二重消費に
-                // ならないよう、ここでは残高の読み取り確認のみ行う(消費はしない)。
-                // tier詐称があっても、残高不足なら高コストなAI呼び出し自体をここで止められる。
-                const { data: wallet } = await userClient
-                  .from('ticket_wallets').select('tickets').eq('user_id', userId).maybeSingle()
-                const balance = wallet?.tickets ?? 0
-                if (balance < TICKET_COST_SERVER[feature]) {
-                  res.status(402).json({ error: 'チケットが不足しています' })
-                  return
-                }
+            // 2026-09-30セキュリティ修正: 以前は statusRow が無い(webhookが一度も届いていない=
+            // IAPに一度も触れていない大半の無料ユーザーが該当)場合、チケット判定ブロック自体を
+            // 丸ごとスキップしており、それらのユーザーは無制限にAI機能を叩けてしまっていた。
+            // 「行が無い」を「free扱い」として明示的に判定するよう変更(fail openを廃止)。
+            const isLegacyNoad = !!statusRow
+              && statusRow.tier === 'noad'
+              && !!statusRow.original_purchase_date
+              && new Date(statusRow.original_purchase_date) < TICKET_SYSTEM_CUTOVER
+            isPaidTier = statusRow?.tier === 'coach' || isLegacyNoad
+            if (!isPaidTier && TICKET_COST_SERVER[feature]) {
+              // 2026-09-30セキュリティ修正: 以前はここで残高の読み取り確認のみ行い、実際の
+              // 消費はクライアント側(recordUsage、成功後に別途呼ばれる)に委ねていた。
+              // アプリを経由せずこのAPIを直接叩く経路では、その後続のrecordUsage呼び出しが
+              // 一切発生しないため、チケットが一切減らないまま何度でも無料で呼べてしまっていた。
+              // ここでサーバー自身が唯一の消費者となるよう、実際にRPCで消費まで行う
+              // (client側のrecordUsageはticket機能について消費処理をスキップするよう変更済み。
+              // lib/adGate.ts参照。二重消費にはならない)。
+              const { data: spent, error: spendErr } = await userClient
+                .rpc('ticket_wallet_spend', { p_amount: TICKET_COST_SERVER[feature] })
+              if (spendErr || !spent) {
+                res.status(402).json({ error: 'チケットが不足しています' })
+                return
               }
+              // Gemini呼び出しが失敗した場合はここで払い戻す（元々「失敗時は課金しない」
+              // 挙動だったため、成功時のみ課金される状態を維持する）
+              spentTicketClient = userClient
+              spentTicketAmount = TICKET_COST_SERVER[feature]
             }
-            // statusRow が無い(webhook未同期)場合は何もしない＝クライアントの自己申告を信用する
-            // （isPaidTierはfalseのままなのでliteモデルに倒れるが、これは「有料と証明できない
-            // 場合は安全側(lite)に倒す」という意図であり、既存ユーザーを誤ブロックするチケット消費
-            // 判定とは性質が違うため許容する）
           }
         } catch (e) {
           console.warn('[analyze] tier verification failed, falling back to client-trust:', e)
@@ -391,6 +402,11 @@ export default async function handler(req: any, res: any) {
       if (check.empty || check.nonJson) {
         console.warn('[analyze] Gemini soft-failure again after retry:', result.status, check.nonJson ? check.text?.slice(0, 200) : '(empty)')
       }
+    }
+    // Gemini呼び出しが最終的に失敗(非200 or 空/非JSON応答)に終わった場合、事前に消費した
+    // チケットを払い戻す。元々「失敗時は課金しない」挙動だったため、これで維持する。
+    if (spentTicketClient && (result.status !== 200 || check.empty || check.nonJson)) {
+      await spentTicketClient.rpc('ticket_wallet_grant', { p_amount: spentTicketAmount }).catch(() => {})
     }
     res.status(result.status).json(result.body)
   } catch (e: any) {

@@ -338,7 +338,14 @@ export async function recordUsage(feature: Feature): Promise<void> {
     if (isFreeInjuryFeature(feature)) return              // 怪我系は無料開放のためチケット消費なし
 
     if (isTicketFeature(feature)) {
-      await spendTicketsForFeature(feature)
+      // 2026-09-30セキュリティ修正: api/analyze.tsがticket_wallet_spendで消費まで行う
+      // 唯一の主体になったため(APIを直接叩く経路でも必ず課金されるようにするため)、
+      // ログイン中はここでの消費を行わない(二重消費防止)。ゲストはサーバー側の
+      // ウォレットを持たない(ローカル残高のみ)ため、引き続きここで消費する。
+      const userId = await getCurrentUserId()
+      if (!userId) {
+        await spendTicketsForFeature(feature)
+      }
       return
     }
 
