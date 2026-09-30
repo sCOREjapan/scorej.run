@@ -657,14 +657,16 @@ export default function CompetitionScreen() {
       setSelectedComp(newPlan)
 
       // 計画生成・保存に成功した場合のみ利用回数・チケットを消費する（失敗時に課金しないため）
-      if (!aiPlanFailed) {
+      // 録画用デモモードでは、他画面(video-analysis.tsx等)と同様に利用回数計上・通知予約も
+      // 含めて一切の副作用をスキップする(本番の使用回数集計やローカル通知に触れないため)
+      if (!RECORDING_DEMO && !aiPlanFailed) {
         await recordUsage('competition_plan')
         trackCompetitionPlan(daysUntil)
         if (gate?.needsTicket) Toast.show({ type: 'info', text1: t('competition.toast.ticketUsed', { n: gate.ticketCost }), visibilityTime: 1800 })
       }
 
       // 通知がONなら大会リマインダー + 計画作成通知
-      if (notifGranted) {
+      if (!RECORDING_DEMO && notifGranted) {
         scheduleCompetitionReminder([newPlan])
         if (!aiPlanFailed) sendCompetitionPlanCreatedNotification(compName, daysUntil)
       }

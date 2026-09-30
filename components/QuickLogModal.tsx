@@ -116,6 +116,9 @@ function fallbackParse(text: string, today: string): Record<string, any> {
     fatigue_level = 6
   } else if (/軽め|楽勝|余裕|軽かった/.test(t)) {
     fatigue_level = 4
+  } else if (/(元気|絶好調|好調)(じゃな|ではな|でな)|全然(元気|絶好調|好調)/.test(t)) {
+    // 「全然元気じゃなかった」等の否定形。元気系キーワードだけ見て絶好調(2)と誤判定しないようにする
+    fatigue_level = 8
   } else if (/元気|絶好調|好調|疲れなかった|疲れてない/.test(t)) {
     fatigue_level = 2
   } else {

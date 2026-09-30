@@ -34,9 +34,11 @@ import { devCompleteDayTasks, devCompleteAllMissions } from '../../lib/missionSt
 
 // TEMP(実機テスト用): __DEV__はRelease/TestFlightビルドではfalseになるため、他の[DEV]系
 // ボタン（__DEV__ゲート）は実機の配布ビルドでは表示されない。このフラグはそれとは独立に
-// 「ミッション全達成」ボタンだけを配布ビルドでも出すための一時スイッチ。
-// 実機での動作確認が終わったら必ずfalseに戻す（または本ボタンごと削除する）こと。
-const SHOW_TEMP_MISSION_DEV_BUTTON = true
+// 「ミッション全達成」ボタンだけを配布ビルドでも出すための一時スイッチだったが、
+// 2026-09-30のセキュリティ監査で「本番ビルドでも誰でもタップでき、ミッション報酬の
+// チケットを無条件・無期限に入手できてしまう」重大な穴だったと判明したためfalseに戻す。
+// (app/(tabs)/team.tsxのSHOW_TEMP_TRIAL_EXPIRE_DEV_BUTTONは既にfalseに戻し済みだった)
+const SHOW_TEMP_MISSION_DEV_BUTTON = false
 import {
   shouldShowDay3Offer, shouldShowDay5Offer, markDay3OfferShown, markDay5OfferShown,
   markFirstScoreViewed,

@@ -512,6 +512,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSession(null)
     setIsGuest(false)
     // オンボーディングフラグはリセットしない（再ログインで再度やらせない）
+    // 2026-09-30追記【重大バグ修正】: continueAsGuest()は前ユーザーの課金状態を
+    // 引き継がせないためtrackmate_subscriptionをクリアしていたが、通常のsignOut()側は
+    // クリアしていなかった。同じ端末で(コーチ/プレミアム等の)アカウントからログアウトし、
+    // 別の新規アカウントでログインすると、PurchaseContextがRevenueCatから最新状態を
+    // 取得し直すまでの間、前アカウントのtier（例: coach=チケット不要で無制限）が
+    // ローカルキャッシュに残ったままadGate.tsに読まれ、チケットを一切消費せずに
+    // AI機能が使い放題になってしまっていた。continueAsGuest()と同じ対策をここにも適用する。
+    AsyncStorage.multiRemove(['trackmate_subscription']).catch(() => {})
   }, [])
 
   // ── ゲスト ────────────────────────────────────────────────

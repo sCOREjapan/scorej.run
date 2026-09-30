@@ -63,10 +63,13 @@ module.exports = {
         androidAppId: 'ca-app-pub-6225795381877305~6309498919',
       }],
       ['expo-location', {
-        locationAlwaysAndWhenInUsePermission: '天気情報と怪我リスク計算のために現在地を使用します',
+        // 2026-09-30: 実装はrequestForegroundPermissionsAsync()のみを使用し、
+        // バックグラウンド位置情報(requestBackgroundPermissionsAsync)は一切呼んでいない
+        // （プライバシーポリシー第9条2項もその旨を明記）。実際には機能しない「常に許可」を
+        // Info.plistに含めると不要な誤解を招くため、使用中のみの許可だけを設定する。
         locationWhenInUsePermission: '天気情報と怪我リスク計算のために現在地を使用します',
       }],
-      ['expo-camera', { cameraPermission: 'フォーム分析のためカメラを使用します' }],
+      ['expo-camera', { cameraPermission: 'フォーム分析・食事記録の写真撮影のためカメラを使用します' }],
       ['expo-image-picker', { photosPermission: '食事・動画を記録するために写真ライブラリを使用します' }],
       ['expo-notifications', {
         icon: './assets/icon.png',

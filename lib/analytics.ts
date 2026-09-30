@@ -20,6 +20,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { supabase } from './supabase'
+import { RECORDING_DEMO } from './recordingDemo'
 
 const ANON_ID_KEY = 'score_anon_id'
 
@@ -59,6 +60,9 @@ export async function trackEvent(
     appVersion?: string
   },
 ): Promise<void> {
+  // 録画用デモモード(marketing/recording/)実行中は、匿名化済みとはいえ
+  // 本番analytics_eventsテーブルへ合成イベントを書き込まないようにする
+  if (RECORDING_DEMO) return
   try {
     const [anonId, tier] = await Promise.all([getAnonId(), getCachedTier()])
 

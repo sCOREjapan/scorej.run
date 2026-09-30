@@ -8,6 +8,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { supabase } from './supabase'
 import { getConditionMap, updateConditionMap } from './conditionStore'
+import { getSessions, updateSessions } from './sessionsStore'
+import { getSleepRecords, updateSleepRecords } from './sleepStore'
+import { getWeights, updateWeights } from './weightStore'
+import { createStorageQueue } from './storageQueue'
 
 // ── ストレージキー ↔ Supabase テーブル のマッピング ─────────────────────────
 // 注意: race_records / calendar_events / workout_menus は supabase/schema.sql に
@@ -27,6 +31,27 @@ const SYNC_MAP = [
 ] as const
 
 type SyncTable = typeof SYNC_MAP[number]['table']
+
+// 2026-09-30追記【重大バグ修正】: syncTable()は元々ここで生のAsyncStorage.getItem/
+// setItemを直接使っていたが、lib/sessionsStore.ts・lib/sleepStore.ts・lib/weightStore.ts
+// が読み書きを直列化キューで保護しているのと同じキーに対して、このsyncTable()だけが
+// キューの外から読み書きしていた。syncAll()はログイン直後にawaitされずに(fire-and-forget)
+// 呼ばれるため、その最中にユーザーが練習記録等を保存すると、syncTable()が保存前に
+// 読み込んだ古いスナップショットで上書き保存してしまい、保存したはずの記録が消える
+// (lost update)。専用ストアがあるキーはそちら経由にし、無いキーもcloudSync内での
+// 同時実行(例: syncAllの多重呼び出し)に備えてキュー化する。
+const QUEUED_KEYS: Partial<Record<string, { get: () => Promise<any[]>; update: (fn: (cur: any[]) => any[]) => Promise<any[]> }>> = {
+  trackmate_sessions: { get: getSessions, update: updateSessions },
+  trackmate_sleep:    { get: getSleepRecords, update: updateSleepRecords },
+  trackmate_weight:   { get: getWeights, update: updateWeights },
+}
+const fallbackQueues = new Map<string, ReturnType<typeof createStorageQueue<any[]>>>()
+function storeFor(key: string) {
+  const dedicated = QUEUED_KEYS[key]
+  if (dedicated) return dedicated
+  if (!fallbackQueues.has(key)) fallbackQueues.set(key, createStorageQueue<any[]>(key, []))
+  return fallbackQueues.get(key)!
+}
 
 // sleep_records.duration_min は sleep_start/sleep_end からDB側で自動計算される
 // 生成列のため、クイック記録（duration_minのみで作られたローカル記録）を
@@ -132,35 +157,36 @@ async function syncTable(
 
     const cloudData: any[] = cloudRows ?? []
 
-    // ② ローカルから取得
-    const raw = await AsyncStorage.getItem(storageKey)
-    let localData: any[] = []
-    try { localData = raw ? JSON.parse(raw) : [] } catch { localData = [] }
+    // ②③④ ローカルの読み込み・マージ・書き込みを1つの直列化されたupdate()内で行う。
+    // update()のupdater関数は実行時点(=キューが実際にこの処理の番を迎えた時点)の
+    // 最新ローカルデータをcurrentLocalとして受け取るため、この処理を待っている間に
+    // 他の保存処理(sessionsStore.updateSessions等、同じキューを共有するもの)が
+    // 割り込んでいても、その内容を取りこぼさずマージできる。
+    let localOnly: any[] = []
+    await storeFor(storageKey).update((currentLocal) => {
+      const cloudIds = new Set(cloudData.map((r) => r.id))
+      localOnly = currentLocal.filter((r) => !cloudIds.has(r.id))
+      let m = [...cloudData, ...localOnly]
 
-    // ③ マージ
-    const cloudIds  = new Set(cloudData.map((r) => r.id))
-    const localOnly = localData.filter((r) => !cloudIds.has(r.id))
-    let merged      = [...cloudData, ...localOnly]
-
-    // sleep_records は1日1件の想定だが、保存のたびに新しいidを発行しているため
-    // 同じ sleep_date のレコードがクラウド版・ローカル版で別idとして両方残り、
-    // 表示時にどちらが選ばれるか不定になる（=数値が勝手に変わって見える）。
-    // 同じ sleep_date が複数あれば created_at が最新のものだけ残す。
-    if (table === 'sleep_records') {
-      const latestByDate = new Map<string, any>()
-      for (const r of merged) {
-        const existing = latestByDate.get(r.sleep_date)
-        if (!existing || (r.created_at ?? '') > (existing.created_at ?? '')) {
-          latestByDate.set(r.sleep_date, r)
+      // sleep_records は1日1件の想定だが、保存のたびに新しいidを発行しているため
+      // 同じ sleep_date のレコードがクラウド版・ローカル版で別idとして両方残り、
+      // 表示時にどちらが選ばれるか不定になる（=数値が勝手に変わって見える）。
+      // 同じ sleep_date が複数あれば created_at が最新のものだけ残す。
+      if (table === 'sleep_records') {
+        const latestByDate = new Map<string, any>()
+        for (const r of m) {
+          const existing = latestByDate.get(r.sleep_date)
+          if (!existing || (r.created_at ?? '') > (existing.created_at ?? '')) {
+            latestByDate.set(r.sleep_date, r)
+          }
         }
+        m = Array.from(latestByDate.values())
       }
-      merged = Array.from(latestByDate.values())
-    }
 
-    // ④ マージ結果をローカルに保存
-    if (merged.length > 0) {
-      await AsyncStorage.setItem(storageKey, JSON.stringify(merged))
-    }
+      // 元の実装は「マージ結果が空なら書き込まない」挙動だったため、
+      // 空になるケースは現在の状態をそのまま返して無用な書き込みを避ける
+      return m.length > 0 ? m : currentLocal
+    })
 
     // ⑤ ローカルにしかなかったアイテムをクラウドに追加
     if (localOnly.length > 0) {
