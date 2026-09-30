@@ -321,8 +321,10 @@ function JapanMap({ data }: { data: { prefecture: string; count: number }[] }) {
 }
 
 // ── パスワード画面 ────────────────────────────────────────────
-function PasswordScreen({ pass, setPass, onLogin, error }: {
-  pass: string; setPass: (s: string) => void; onLogin: () => void; error: string
+function PasswordScreen({ pass, setPass, secret, setSecret, onLogin, error }: {
+  pass: string; setPass: (s: string) => void
+  secret: string; setSecret: (s: string) => void
+  onLogin: () => void; error: string
 }) {
   return (
     <View style={{ flex: 1, backgroundColor: '#0a0a1a', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
@@ -332,7 +334,7 @@ function PasswordScreen({ pass, setPass, onLogin, error }: {
             <Ionicons name="lock-closed" size={28} color="#16a34a" />
           </View>
           <Text style={{ color: '#fff', fontSize: 20, fontWeight: '900' }}>sCORE 管理画面</Text>
-          <Text style={{ color: '#6b7280', fontSize: 13 }}>管理者パスワードを入力してください</Text>
+          <Text style={{ color: '#6b7280', fontSize: 13 }}>管理者パスワードとシークレットを入力してください</Text>
         </View>
         <TextInput
           style={{ backgroundColor: '#0a0a1a', color: '#fff', borderRadius: 10, padding: 14, fontSize: 16, borderWidth: 1, borderColor: '#2a2a3e' }}
@@ -341,8 +343,16 @@ function PasswordScreen({ pass, setPass, onLogin, error }: {
           value={pass}
           onChangeText={setPass}
           secureTextEntry
-          onSubmitEditing={onLogin}
           autoFocus
+        />
+        <TextInput
+          style={{ backgroundColor: '#0a0a1a', color: '#fff', borderRadius: 10, padding: 14, fontSize: 16, borderWidth: 1, borderColor: '#2a2a3e' }}
+          placeholder="シークレット(Vercel ADMIN_EXPORT_SECRET)"
+          placeholderTextColor="#374151"
+          value={secret}
+          onChangeText={setSecret}
+          secureTextEntry
+          onSubmitEditing={onLogin}
         />
         {error ? <Text style={{ color: '#ef4444', fontSize: 13, textAlign: 'center' }}>{error}</Text> : null}
         <TouchableOpacity
@@ -374,12 +384,20 @@ export default function AdminScreen() {
   const [exporting,     setExporting]     = useState(false)
   const [exportError,   setExportError]   = useState('')
 
-  const loadStats = useCallback(async () => {
+  // 2026-09-30セキュリティ修正: 以前はsupabase.rpc()を匿名キーで直接叩いており、
+  // RPC自体がanonにGRANTされ認可チェックも無かったため、パスワード無しで経営指標を
+  // 誰でも取得できた。api/admin-stats.ts経由(ADMIN_EXPORT_SECRETで保護)に変更する。
+  const loadStats = useCallback(async (secret: string) => {
     setLoading(true)
     setError('')
     try {
-      const { data, error: rpcErr } = await supabase.rpc('get_admin_stats')
-      if (rpcErr) throw rpcErr
+      const res = await fetch('/api/admin-stats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Export-Secret': secret },
+        body: JSON.stringify({ rpc: 'get_admin_stats' }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`)
       setStats(data as AdminStats)
     } catch (e: any) {
       setError(e?.message ?? 'データ取得に失敗しました')
@@ -391,15 +409,20 @@ export default function AdminScreen() {
   const loadCohorts = useCallback(async () => {
     setCohortsLoading(true)
     try {
-      const { data, error: rpcErr } = await supabase.rpc('get_retention_cohorts')
-      if (rpcErr) throw rpcErr
+      const res = await fetch('/api/admin-stats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Export-Secret': exportSecret },
+        body: JSON.stringify({ rpc: 'get_retention_cohorts' }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`)
       setCohorts((data as RetentionCohort[]) ?? [])
     } catch {
       setCohorts([])
     } finally {
       setCohortsLoading(false)
     }
-  }, [])
+  }, [exportSecret])
 
   const handleExport = useCallback(async () => {
     if (!exportSecret) { setExportError('CSV出力用のシークレットを入力してください'); return }
@@ -435,18 +458,26 @@ export default function AdminScreen() {
   }, [exportSecret])
 
   const handleLogin = () => {
-    if (pass === ADMIN_PASS) {
-      setAuthed(true)
-      loadStats()
-    } else {
+    if (pass !== ADMIN_PASS) {
       setError('パスワードが違います')
+      return
     }
+    if (!exportSecret) {
+      setError('シークレットを入力してください')
+      return
+    }
+    setAuthed(true)
+    loadStats(exportSecret)
   }
 
   if (!authed) {
     return (
       <View style={{ flex: 1, backgroundColor: '#0a0a1a' }}>
-        <PasswordScreen pass={pass} setPass={setPass} onLogin={handleLogin} error={error} />
+        <PasswordScreen
+          pass={pass} setPass={setPass}
+          secret={exportSecret} setSecret={setExportSecret}
+          onLogin={handleLogin} error={error}
+        />
       </View>
     )
   }
@@ -469,7 +500,7 @@ export default function AdminScreen() {
             <Text style={s.headerTitle}>📊 sCORE ダッシュボード</Text>
             <Text style={s.headerSub}>管理者専用 · リアルタイム統計</Text>
           </View>
-          <TouchableOpacity onPress={loadStats} style={s.refreshBtn}>
+          <TouchableOpacity onPress={() => loadStats(exportSecret)} style={s.refreshBtn}>
             {loading
               ? <ActivityIndicator size="small" color="#16a34a" />
               : <Ionicons name="refresh" size={20} color="#16a34a" />
