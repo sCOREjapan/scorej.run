@@ -127,16 +127,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         if (url.includes('code=')) {
           await exchangeCodeOnce(url)   // 重複排除付き（二重交換を防ぐ）
-        } else if (url.includes('access_token=')) {
-          // implicit flow（旧 Supabase）
-          const hash = url.split('#')[1] ?? ''
-          const params = new URLSearchParams(hash)
-          const accessToken = params.get('access_token')
-          const refreshToken = params.get('refresh_token')
-          if (accessToken && refreshToken) {
-            await (supabase.auth as any).setSession({ access_token: accessToken, refresh_token: refreshToken })
-          }
         }
+        // 2026-09-30セキュリティ修正: 以前はここに implicit flow（旧Supabase）向けの
+        // access_token=/refresh_token= をURLから取り出してそのままsetSession()する分岐が
+        // あったが、そのトークンがこのデバイスで開始した認証フローの成果物である保証が
+        // 一切なかった（state/nonce等の検証なし）。攻撃者が自分の有効なトークンを
+        // score://...#access_token=...形式のリンクに仕込んで被害者に開かせるだけで、
+        // 被害者のアプリが攻撃者のアカウントとしてログインしてしまうアカウント乗っ取りが
+        // 可能だった。lib/supabase.tsはflowType:'pkce'を明示設定しており、このアプリが
+        // 実際に生成するリンクはcode=形式のみのため、access_token=分岐は安全なPKCE検証
+        // (exchangeCodeOnce、ローカルのcode_verifierと照合される)を回避するための入力しか
+        // 受け付けない状態だった。使われていない上に危険なため削除する。
       } catch (e) {
         console.warn('[DeepLink] handleDeepLink error:', e)
       }
@@ -156,7 +157,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!mounted) return
 
         // アプリがメール確認リンクから起動した場合はコードを交換
-        if (initialUrl && (initialUrl.includes('code=') || initialUrl.includes('access_token='))) {
+        if (initialUrl && initialUrl.includes('code=')) {
           await handleDeepLink(initialUrl)
         }
 
@@ -193,7 +194,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (Platform.OS !== 'web') {
       linkingSub = Linking.addEventListener('url', ({ url }) => {
         if (!mounted) return
-        if (url && (url.includes('code=') || url.includes('access_token='))) {
+        if (url && url.includes('code=')) {
           handleDeepLink(url)
         }
       })
