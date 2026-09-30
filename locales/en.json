@@ -17,6 +17,7 @@
     "privacy": "Privacy Policy",
     "agreeToTerms": "I agree to the Terms of Service",
     "agreeToPrivacy": "I agree to the Privacy Policy",
+    "agreeToAge": "I am 13 or older, or a parent/guardian has consented on my behalf",
     "agreeAndReturn": "Agree to {{doc}} and return",
     "startApp": "Agree and start the app",
     "footer": "© 2026 trackmate. All rights reserved."

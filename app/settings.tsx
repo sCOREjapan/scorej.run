@@ -430,9 +430,22 @@ export default function SettingsScreen() {
                       }
                       Toast.show({ type: 'info', text1: t('settings.account.deleting') })
                       const apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
+                      // 2026-09-30プライバシー対応: team_*テーブルはteam_code+player_name
+                      // (自由入力文字列)でしか紐付いておらずauth_idとの関連が無いため、
+                      // サーバー側だけでは「このアカウントの」チーム内データ(怪我報告・
+                      // 食事記録・練習ノート等)を特定できない。この端末が知っている
+                      // 直近の参加チーム情報をここで渡し、api/delete-account.ts側で
+                      // 該当分を削除する(過去に参加して既に退出したチームの分までは
+                      // 追跡できない既知の制約)。
+                      let joinedTeam: { code?: string; playerName?: string } = {}
+                      try {
+                        const raw = await AsyncStorage.getItem(TEAM_JOINED_KEY)
+                        if (raw) joinedTeam = JSON.parse(raw)
+                      } catch {}
                       const res = await fetch(`${apiBase}/api/delete-account`, {
                         method: 'POST',
-                        headers: { Authorization: `Bearer ${accessToken}` },
+                        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ teamCode: joinedTeam.code, playerName: joinedTeam.playerName }),
                       })
                       if (!res.ok) {
                         // サーバー側の削除が失敗した状態でサインアウトすると、次回同じ

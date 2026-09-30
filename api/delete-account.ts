@@ -25,13 +25,24 @@
 // 【意図的にここで削除しないもの】
 //   - analytics_events: user_id_hash は端末生成の匿名ハッシュ(lib/analytics.ts の
 //     getAnonId())で、サーバー側からこのユーザーのものだと特定する手段が無いため対象外。
-//   - team_* テーブル群（teams/team_members/team_messages/team_videos/
-//     team_body_reports/team_player_stats/team_sessions/team_events）: team_code + 選手名で
-//     管理されるチーム共有データで、コーチや他メンバーのデータと不可分のため、
-//     個人アカウント削除の一部として自動削除するのは危険（要・別途プロダクト判断）。
+//   - team_* テーブル群のうちteams/team_members/team_messages/team_videos/team_events:
+//     team_code + 選手名で管理されるチーム共有データで、コーチや他メンバーのデータと
+//     不可分のため、個人アカウント削除の一部として自動削除するのは危険（要・別途
+//     プロダクト判断）。ただし怪我報告・食事記録・練習ノート等の個人性が強いデータは
+//     下記の通り別途対応する。
 //   - videos / meal-photos ストレージバケット: lib/storage.ts の uploadVideo/uploadMealPhoto
 //     はコードベースのどこからも呼ばれていない（未使用）ことを確認済みのため、
 //     削除すべき実ファイルは基本的に存在しない。
+//
+// 【2026-09-30プライバシー対応で追加】
+//   team_body_reports(怪我・痛みの報告)/team_meals(食事記録)/team_sessions.notes等の
+//   練習ノートは、退会後も選手名付きで残り続け削除する手段が無い状態だった
+//   (team_*テーブルはauth_idとの紐付けが無く、サーバー単独では「どれがこのアカウントの
+//   ものか」を特定できないため)。クライアントが自分の端末が知っている直近の
+//   {teamCode, playerName}(未参加ならundefined)をリクエストボディで渡し、
+//   一致する行だけをここで削除する。過去に参加して既に退出したチームの分までは
+//   追跡できないため、これは部分的な緩和策であることに留意(app/privacy.tsxにも
+//   この制約を明記すること)。
 //
 // 【設定が必要】(他のapi/*.tsと共通のVercel環境変数。未設定なら500を返す)
 //   EXPO_PUBLIC_SUPABASE_URL, EXPO_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
@@ -131,6 +142,33 @@ export default async function handler(req: any, res: any) {
       await del('referral_redemptions', 'referrer_user_id', appUserId)
       await del('referral_redemptions', 'redeemer_user_id', appUserId)
       await del('users', 'id', appUserId)
+    }
+
+    // ── グループC: team_*テーブルのうち選手個人のデータ性が強いもの(team_code+player_nameで
+    //    一致する行のみ削除。この端末が知っている直近の参加チームの分に限られる) ──
+    try {
+      const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body
+      const teamCode:   string | undefined = body?.teamCode
+      const playerName: string | undefined = body?.playerName
+      if (teamCode && playerName) {
+        const delTeamScoped = async (table: string) => {
+          const { error } = await admin.from(table)
+            .delete().eq('team_code', teamCode).eq('player_name', playerName)
+          if (error) failed.push({ table, error: error.message })
+          else deleted.push(table)
+        }
+        await delTeamScoped('team_body_reports')
+        await delTeamScoped('team_meals')
+        await delTeamScoped('team_sessions')
+        await delTeamScoped('team_warmups')
+        await delTeamScoped('team_pb_events')
+        await delTeamScoped('team_race_plans')
+        await delTeamScoped('team_player_stats')
+        await delTeamScoped('team_videos')
+        await del('team_members', 'id', `${teamCode}_${playerName}`)
+      }
+    } catch (e) {
+      console.warn('[delete-account] team-scoped cleanup skipped:', e)
     }
 
     // ④ 最後にAuthユーザー本体を削除する。これが無いと、同じGoogle/Appleアカウントで

@@ -106,9 +106,14 @@ function ConsentModal({ onAccept }: { onAccept: () => void }) {
   const { t } = useTranslation()
   const [termsChecked,   setTermsChecked]   = useState(false)
   const [privacyChecked, setPrivacyChecked] = useState(false)
+  // 2026-09-30: プライバシーポリシー第13条(未成年者の個人情報)は「13歳未満は保護者の
+  // 同意が必要」と定めているが、これまで同意画面には年齢に関する確認が一切無く、
+  // 誰でも無条件に先へ進めてしまっていた。年齢の暗号学的な検証はできないため、
+  // 多くのサービスと同様に自己申告のチェックボックスで運用する。
+  const [ageChecked,     setAgeChecked]     = useState(false)
   // null=同意画面, 'terms'=利用規約全文, 'privacy'=プライバシーポリシー全文
   const [innerDoc, setInnerDoc] = useState<null | 'terms' | 'privacy'>(null)
-  const allChecked = termsChecked && privacyChecked
+  const allChecked = termsChecked && privacyChecked && ageChecked
 
   // 2026-09-11: 同意直後にこのModalが親側(AuthGate)の条件アンマウントで閉じられ、
   // 直後に走るオンボーディング/タブへの画面遷移とiOSのoverFullScreen presentation
@@ -236,6 +241,17 @@ function ConsentModal({ onAccept }: { onAccept: () => void }) {
                   {privacyChecked && <Ionicons name="checkmark" size={14} color="#fff" />}
                 </View>
                 <Text style={cs.checkLabel}>{t('consent.agreeToPrivacy')}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={cs.checkRow}
+                onPress={() => setAgeChecked(v => !v)}
+                activeOpacity={0.75}
+              >
+                <View style={[cs.checkbox, ageChecked && cs.checkboxActive]}>
+                  {ageChecked && <Ionicons name="checkmark" size={14} color="#fff" />}
+                </View>
+                <Text style={cs.checkLabel}>{t('consent.agreeToAge')}</Text>
               </TouchableOpacity>
             </View>
 
