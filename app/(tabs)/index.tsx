@@ -15,6 +15,7 @@ import { useLanguage } from '../../context/LanguageContext'
 import { narrativeLanguageInstruction } from '../../lib/aiLanguage'
 import { useTrainingSessions } from '../../hooks/useTrainingSessions'
 import { calcInjuryRisk } from '../../lib/injuryRisk'
+import { RECORDING_DEMO } from '../../lib/recordingDemo'
 import { calcLevelInfo } from '../../lib/gamification'
 import { checkInStreak, TICKET_COST, grantFirstGoalBonusIfNeeded } from '../../lib/ticketWallet'
 import { getAiAuthHeader } from '../../lib/supabase'
@@ -510,8 +511,12 @@ function ScoreOverviewCard({
             <View>
               <View style={so.riskScoreWrap}>
                 <View style={[so.riskDot, { backgroundColor: cfg.color }]} />
-                <Text style={so.riskScoreNum}>{riskScore}</Text>
-                <Text style={so.riskScoreMax}>/100</Text>
+                {!RECORDING_DEMO && (
+                  <>
+                    <Text style={so.riskScoreNum}>{riskScore}</Text>
+                    <Text style={so.riskScoreMax}>/100</Text>
+                  </>
+                )}
               </View>
               {!!weatherBonus && (
                 <Text style={so.weatherPt}>{t('home.risk.weather')} {weatherBonus > 0 ? '+' : ''}{weatherBonus}</Text>
@@ -601,7 +606,9 @@ function ScoreOverviewCard({
               実際の見た目上の左右とは逆になっている点に注意（styleの中身自体は変えず、
               並び順とテキストの寄せだけ入れ替えている）。 */}
           <View style={so.swRight}>
-            <Text style={[so.swGain, { color: BRAND }]} numberOfLines={1}>{t('home.stretchBanner.gain')}</Text>
+            {!RECORDING_DEMO && (
+              <Text style={[so.swGain, { color: BRAND }]} numberOfLines={1}>{t('home.stretchBanner.gain')}</Text>
+            )}
             <PressableScale
               onPress={onStretchStart}
               haptic="medium"
@@ -2512,7 +2519,7 @@ ${sleepText || 'データなし'}
           {/* TEMP(実機テスト用): 3日間ミッションを1タップで全て達成扱いにする（報酬受け取り込み）。
               __DEV__ではなくSHOW_TEMP_MISSION_DEV_BUTTONで出し分けているため、Release/TestFlight
               の実機ビルドでも表示される。動作確認が終わったら削除すること。 */}
-          {SHOW_TEMP_MISSION_DEV_BUTTON && (
+          {SHOW_TEMP_MISSION_DEV_BUTTON && !RECORDING_DEMO && (
             <View style={{ alignItems: 'center', marginBottom: 8 }}>
               <TouchableOpacity
                 style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, backgroundColor: '#7c2d1214' }}

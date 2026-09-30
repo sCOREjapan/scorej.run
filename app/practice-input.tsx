@@ -182,8 +182,25 @@ function fallbackParse(text: string, today: string): Record<string, any> {
 
   const { distance_m, reps } = parseDistanceAndReps(t)
 
+  // 2026-09-30追記: components/QuickLogModal.tsxのfallbackParseと同じ修正
+  // （数字を明示しないと常に既定値5に固定される不具合。判定基準を統一するため必ず両方に適用する）
   const fatMatch = t.match(/疲労\s*[：:=]?\s*(\d+)|疲[れ労]\s*(\d+)|fatigue\s*[：:=]?\s*(\d+)/i)
-  const fatigue_level = fatMatch ? parseInt(fatMatch[1] ?? fatMatch[2] ?? fatMatch[3]) : 5
+  let fatigue_level: number
+  if (fatMatch) {
+    fatigue_level = parseInt(fatMatch[1] ?? fatMatch[2] ?? fatMatch[3])
+  } else if (/限界|もう無理|へとへと|ぐったり|動けない|死にそう/.test(t)) {
+    fatigue_level = 10
+  } else if (/きつ|キツ|しんど|つら|バテ|疲れた|疲労困憊/.test(t)) {
+    fatigue_level = 8
+  } else if (/普通|まあまあ|そこそこ/.test(t)) {
+    fatigue_level = 6
+  } else if (/軽め|楽勝|余裕|軽かった/.test(t)) {
+    fatigue_level = 4
+  } else if (/元気|絶好調|好調|疲れなかった|疲れてない/.test(t)) {
+    fatigue_level = 2
+  } else {
+    fatigue_level = 5
+  }
 
   const condMatch = t.match(/体調\s*[：:=]?\s*(\d+)|condition\s*[：:=]?\s*(\d+)/i)
   const condition_level = condMatch ? parseInt(condMatch[1] ?? condMatch[2]) : 6

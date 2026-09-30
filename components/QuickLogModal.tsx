@@ -100,8 +100,27 @@ function fallbackParse(text: string, today: string): Record<string, any> {
   const { distance_m, reps } = parseDistanceAndReps(t)
 
   // 疲労度
+  // 2026-09-30追記: 「疲労8」のように数字を明示しないと常に既定値5に固定され、
+  // 「きつかった」等の定性的な表現が一切反映されない不具合の修正。manualLog.fatigueLevels
+  // (2=完全元気/4=軽め/6=普通/8=キツい/10=限界)のラベルに合わせてキーワードを数値化する。
+  // 数字の明示があればそちらを最優先し、無ければキーワード一致、どちらも無ければ5。
   const fatMatch = t.match(/疲労\s*[：:=]?\s*(\d+)|疲[れ労]\s*(\d+)|fatigue\s*[：:=]?\s*(\d+)/i)
-  const fatigue_level = fatMatch ? parseInt(fatMatch[1] ?? fatMatch[2] ?? fatMatch[3]) : 5
+  let fatigue_level: number
+  if (fatMatch) {
+    fatigue_level = parseInt(fatMatch[1] ?? fatMatch[2] ?? fatMatch[3])
+  } else if (/限界|もう無理|へとへと|ぐったり|動けない|死にそう/.test(t)) {
+    fatigue_level = 10
+  } else if (/きつ|キツ|しんど|つら|バテ|疲れた|疲労困憊/.test(t)) {
+    fatigue_level = 8
+  } else if (/普通|まあまあ|そこそこ/.test(t)) {
+    fatigue_level = 6
+  } else if (/軽め|楽勝|余裕|軽かった/.test(t)) {
+    fatigue_level = 4
+  } else if (/元気|絶好調|好調|疲れなかった|疲れてない/.test(t)) {
+    fatigue_level = 2
+  } else {
+    fatigue_level = 5
+  }
 
   // 体調
   const condMatch = t.match(/体調\s*[：:=]?\s*(\d+)|condition\s*[：:=]?\s*(\d+)/i)

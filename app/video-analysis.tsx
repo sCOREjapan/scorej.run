@@ -38,6 +38,9 @@ import {
   type VideoAnalysisHistoryEntry,
 } from '../lib/videoAnalysisHistoryStore'
 
+// SNS素材録画用のデモモード（marketing/recording/ のPlaywrightスクリプト専用。詳細はlib/recordingDemo.ts参照）
+import { RECORDING_DEMO } from '../lib/recordingDemo'
+
 const JOINED_KEY_VA = 'trackmate_team_joined'
 
 /* ─── 型定義 ─────────────────────────────────── */
@@ -1082,6 +1085,28 @@ function NativeVideoAnalysis() {
   async function analyze(skipGate = false, forceRefresh = false) {
     if (analyzingRef.current) return   // 二重タップ防止
     if (!videoUri) { Alert.alert(t('videoAnalysis.native.selectVideoAlert')); return }
+    if (RECORDING_DEMO) {
+      // 録画用（iOSシミュレーター+Maestro等のフォールバック録画時）: 実AI呼び出し・ゲート判定を
+      // 一切せず固定のダミー結果を即表示する。marketing/recording/ のスクリプト専用、本番では無効。
+      setResult({
+        score: 78,
+        headline: '接地のタイミングを整えると、もっと伸びます',
+        dimensions: [
+          { id: 'posture',   label: '姿勢',     score: 82, confidence: 'high',   reason: '上体の軸が安定しています' },
+          { id: 'armSwing',  label: '腕振り',   score: 76, confidence: 'medium', reason: '肘の角度は良好、リズムを一定に' },
+          { id: 'legDrive',  label: '脚の引き上げ', score: 74, confidence: 'medium', reason: '後半でやや下がる傾向' },
+          { id: 'footStrike',label: '接地',     score: 71, confidence: 'medium', reason: '接地位置がやや体より前' },
+          { id: 'rhythm',    label: 'リズム',   score: 79, confidence: 'high',   reason: '終盤まで一定のリズムを維持' },
+        ],
+        confidenceOverall: 'medium',
+        strength: { title: '今日の強み', text: '上体の軸が安定しており、ブレの少ないフォームです' },
+        focus: { title: '今日のテーマ', text: '接地位置を体の真下に近づける' },
+        nextStep: { title: '次の一歩', text: 'もも上げドリルで接地感覚を意識してみましょう' },
+        practice: { theme: '接地強化', drill: 'もも上げドリル', drillDetail: '20m×5本' },
+      })
+      setPhase('result')
+      return
+    }
     // ゲストはログイン必須
     if (isGuest) { setAdGateRemaining(0); setAdGateHardLimited(false); setAdGateVisible(true); return }
     // 広告視聴済みクレジットがあればゲートをスキップ（分析失敗時のリトライも許可）
@@ -2437,6 +2462,41 @@ ${summary}
     if (!vid?.src) { Alert.alert(t('videoAnalysis.web.selectVideoAlert')); return }
     startingRef.current = true
     try {
+      if (RECORDING_DEMO) {
+        // 録画用: 実AI呼び出し・ゲート判定を一切行わず、ローカルでサムネイルだけ抽出して
+        // 固定のダミー advice を付ける（ネットワーク非依存・本番AI/DBに触れない）
+        if (!vid.duration) await new Promise<void>(r => vid.addEventListener('loadedmetadata', () => r(), { once: true }))
+        const dur = vid.duration || 6
+        const demoTimes = [dur * 0.3, dur * 0.6, dur * 0.85]
+        const demoAdvice: FrameAdvice[] = [
+          { overall: '接地はやや安定', positives: ['上体のブレが少ない'], improvements: ['接地時間をもう少し短く'] },
+          { overall: '腕振りが力強い', positives: ['肘の角度が良い'], improvements: ['骨盤の回旋を意識'] },
+          { overall: '後半も姿勢を維持', positives: ['最後まで前傾を維持'], improvements: ['接地位置を体の真下に'] },
+        ]
+        const results: Annotation[] = []
+        for (let i = 0; i < demoTimes.length; i++) {
+          try {
+            const thumb = await extractFrame(vid, demoTimes[i])
+            results.push({ id: String(i), timestamp: demoTimes[i], thumbUrl: thumb, advice: demoAdvice[i] })
+          } catch {}
+        }
+        setAnnotations(results)
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(results)).catch(() => {})
+        vid.currentTime = 0
+        setPhase('player')
+        setComprehensive({
+          summary: 'フォーム全体は安定しています。接地のタイミングと骨盤の使い方を意識すると、さらに効率よく進めそうです。',
+          keyFindings: ['上体の軸が安定', '腕振りにリズムがある', '後半も姿勢を維持できている'],
+          injuryWarnings: [],
+          trainingMenu: [
+            { name: 'もも上げドリル', detail: '20m×5本' },
+            { name: 'スキップ走', detail: '30m×3本' },
+          ],
+          nextSteps: ['接地を体の真下に', '骨盤の回旋を意識'],
+        })
+        startingRef.current = false
+        return
+      }
       const gate = await checkAdGate('video')
       if (!gate.allowed) {
         if (gate.needsTicket) {
@@ -2551,9 +2611,11 @@ ${summary}
 
           {videoName ? (
             <>
-              <View style={s.ticketBadge}>
-                <Text style={s.ticketBadgeText}>{t('videoAnalysis.web.ticketBadge', { n: TICKET_COST.video })}</Text>
-              </View>
+              {!RECORDING_DEMO && (
+                <View style={s.ticketBadge}>
+                  <Text style={s.ticketBadgeText}>{t('videoAnalysis.web.ticketBadge', { n: TICKET_COST.video })}</Text>
+                </View>
+              )}
               <TouchableOpacity style={s.analyzeBtn} onPress={startAnalysis}>
                 <Ionicons name="sparkles-outline" size={22} color="#fff" />
                 <Text style={s.analyzeBtnText}>{t('videoAnalysis.web.startAnalysis')}</Text>
@@ -2561,7 +2623,8 @@ ${summary}
             </>
           ) : null}
 
-          {/* ── AIモデル表示 ── */}
+          {/* ── AIモデル表示（録画時は価格/プラン訴求に見えるため非表示） ── */}
+          {!RECORDING_DEMO && (
           <View style={isPremiumUser ? s.planBannerPro : s.planBannerFree}>
             {isPremiumUser ? (
               <>
@@ -2584,6 +2647,7 @@ ${summary}
               </>
             )}
           </View>
+          )}
 
           <Text style={s.privacyNote}>
             {t('videoAnalysis.web.privacyNote')}

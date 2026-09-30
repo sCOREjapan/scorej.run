@@ -1,0 +1,12 @@
+{
+  "name": "score-sns-recording",
+  "private": true,
+  "type": "module",
+  "description": "sCORE SNS用素材のスクリーン録画スクリプト（Expo Web + Playwright）。使い方はREADME.md参照。",
+  "scripts": {
+    "record": "node record.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.63.0"
+  }
+}

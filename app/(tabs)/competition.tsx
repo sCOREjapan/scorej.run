@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useLanguage } from '../../context/LanguageContext'
 import { getEventLabel } from '../../lib/eventLabels'
 import i18n from '../../lib/i18n'
+import { RECORDING_DEMO } from '../../lib/recordingDemo'
 import {
   View,
   Text,
@@ -570,13 +571,16 @@ export default function CompetitionScreen() {
       return
     }
 
-    const gate = await checkAdGate('competition_plan')
-    if (!gate.allowed) {
-      generatingRef.current = false
-      setGenerating(false)
-      if (gate.needsTicket) { setTicketGateFeature('competition_plan'); setTicketGateCost(gate.ticketCost); setTicketGateBalance(gate.ticketBalance); setTicketGateVisible(true) }
-      else { Toast.show({ type: 'error', text1: t('competition.toast.dailyLimitReached') }) }
-      return
+    let gate: Awaited<ReturnType<typeof checkAdGate>> | null = null
+    if (!RECORDING_DEMO) {
+      gate = await checkAdGate('competition_plan')
+      if (!gate.allowed) {
+        generatingRef.current = false
+        setGenerating(false)
+        if (gate.needsTicket) { setTicketGateFeature('competition_plan'); setTicketGateCost(gate.ticketCost); setTicketGateBalance(gate.ticketBalance); setTicketGateVisible(true) }
+        else { Toast.show({ type: 'error', text1: t('competition.toast.dailyLimitReached') }) }
+        return
+      }
     }
 
     setModalVisible(false)
@@ -610,11 +614,16 @@ export default function CompetitionScreen() {
       // 記録自体は失わせない。チケットも消費しない)に合わせる。
       let planData: { phases: WeekPlan[]; peak_week?: number; taper_start_week?: number; key_advice?: string }
       let aiPlanFailed = false
-      try {
-        planData = await generateCompetitionPlan(dateObj, compName, profile, compEvent, language, compEnvironment.trim())
-      } catch {
-        aiPlanFailed = true
+      if (RECORDING_DEMO) {
+        // 録画用: 実AI呼び出しをせず、大会登録＋カウントダウン表示だけを即時に成立させる
         planData = { phases: [], peak_week: 3, taper_start_week: 1, key_advice: '' }
+      } else {
+        try {
+          planData = await generateCompetitionPlan(dateObj, compName, profile, compEvent, language, compEnvironment.trim())
+        } catch {
+          aiPlanFailed = true
+          planData = { phases: [], peak_week: 3, taper_start_week: 1, key_advice: '' }
+        }
       }
 
       const daysUntil = Math.ceil((dateObj.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
@@ -651,7 +660,7 @@ export default function CompetitionScreen() {
       if (!aiPlanFailed) {
         await recordUsage('competition_plan')
         trackCompetitionPlan(daysUntil)
-        if (gate.needsTicket) Toast.show({ type: 'info', text1: t('competition.toast.ticketUsed', { n: gate.ticketCost }), visibilityTime: 1800 })
+        if (gate?.needsTicket) Toast.show({ type: 'info', text1: t('competition.toast.ticketUsed', { n: gate.ticketCost }), visibilityTime: 1800 })
       }
 
       // 通知がONなら大会リマインダー + 計画作成通知
@@ -1733,9 +1742,11 @@ export default function CompetitionScreen() {
                 multiline
               />
 
-              <View style={[styles.ticketCostBadge, { backgroundColor: BRAND + '22', borderColor: BRAND }]}>
-                <Text style={[styles.ticketCostBadgeText, { color: BRAND }]}>{t('competition.compModal.ticketCost', { n: TICKET_COST.competition_plan })}</Text>
-              </View>
+              {!RECORDING_DEMO && (
+                <View style={[styles.ticketCostBadge, { backgroundColor: BRAND + '22', borderColor: BRAND }]}>
+                  <Text style={[styles.ticketCostBadgeText, { color: BRAND }]}>{t('competition.compModal.ticketCost', { n: TICKET_COST.competition_plan })}</Text>
+                </View>
+              )}
               <HapticTouch
                 haptic="save"
                 style={[styles.generateBtn, generating && { opacity: 0.6 }]}
