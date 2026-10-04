@@ -391,7 +391,7 @@ export default function AdminScreen() {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch('/api/admin-stats', {
+      const res = await fetch('/api/admin-tools?tool=stats', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Admin-Export-Secret': secret },
         body: JSON.stringify({ rpc: 'get_admin_stats' }),
@@ -409,7 +409,7 @@ export default function AdminScreen() {
   const loadCohorts = useCallback(async () => {
     setCohortsLoading(true)
     try {
-      const res = await fetch('/api/admin-stats', {
+      const res = await fetch('/api/admin-tools?tool=stats', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Admin-Export-Secret': exportSecret },
         body: JSON.stringify({ rpc: 'get_retention_cohorts' }),
@@ -429,7 +429,7 @@ export default function AdminScreen() {
     setExporting(true)
     setExportError('')
     try {
-      const res = await fetch('/api/admin-churned-users', {
+      const res = await fetch('/api/admin-tools?tool=churned', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Admin-Export-Secret': exportSecret },
         body: JSON.stringify({ minSessions: 3, inactiveDays: 21 }),

@@ -30,7 +30,7 @@ export default function AdminGenerateCodeScreen() {
   const generate = async () => {
     setBusy(true); setError(''); setCode('')
     try {
-      const res = await fetch(`${API_BASE}/api/admin-generate-team-code`, {
+      const res = await fetch(`${API_BASE}/api/admin-tools?tool=team-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ passcode, tier, note }),
