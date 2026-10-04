@@ -93,7 +93,56 @@ interface ProxyResult {
 // Anthropic Messages形式 → Gemini generateContent形式に変換
 // 2026-09-09: liteモデルは thinkingConfig を渡すと400 INVALID_ARGUMENTになるため
 // （thinking機能自体を持たないモデルのため）、useLite時は省略する。
-function toGeminiRequest(body: AnthropicRequestBody, useLite: boolean) {
+//
+// 2026-10-05: 動画分析(feature=video)で「AIの応答を解析できませんでした」が頻発していた件。
+// 実写真で8回再現テストしたところ約3回に1回、Geminiがstrength/focus/nextStepを
+// 「オブジェクト」ではなく配列要素のように
+//   "strength":{...},{"id":"focus",...}
+// と書いてJSONが壊れていた(プロンプトだけではスキーマ遵守が安定しない)。
+// 動画分析だけGeminiの構造化出力(responseMimeType+responseSchema)を使い、形式を保証する。
+// dimensionsのidは種目で変わるため、スキーマ上はidを自由な文字列にしてある。
+const _bbox = {
+  type: 'OBJECT',
+  properties: { f: { type: 'NUMBER' }, x: { type: 'NUMBER' }, y: { type: 'NUMBER' }, w: { type: 'NUMBER' }, h: { type: 'NUMBER' } },
+  required: ['f', 'x', 'y', 'w', 'h'],
+}
+const _confidence = { type: 'STRING', enum: ['low', 'medium', 'high'] }
+const _card = (withBbox: boolean) => ({
+  type: 'OBJECT',
+  properties: { title: { type: 'STRING' }, text: { type: 'STRING' }, ...(withBbox ? { bbox: _bbox } : {}) },
+  required: ['title', 'text'],
+})
+const VIDEO_RESPONSE_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    score: { type: 'NUMBER' },
+    headline: { type: 'STRING' },
+    confidenceOverall: _confidence,
+    dimensions: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: { id: { type: 'STRING' }, score: { type: 'NUMBER' }, confidence: _confidence, reason: { type: 'STRING' }, bbox: _bbox },
+        required: ['id', 'score', 'confidence', 'reason'],
+      },
+    },
+    strength: _card(true),
+    focus: _card(true),
+    nextStep: _card(false),
+    practice: {
+      type: 'OBJECT',
+      properties: { theme: { type: 'STRING' }, drill: { type: 'STRING' }, drillDetail: { type: 'STRING' } },
+      required: ['theme', 'drill', 'drillDetail'],
+    },
+    frameNotes: {
+      type: 'ARRAY',
+      items: { type: 'OBJECT', properties: { f: { type: 'NUMBER' }, note: { type: 'STRING' } }, required: ['f', 'note'] },
+    },
+  },
+  required: ['score', 'headline', 'confidenceOverall', 'dimensions', 'strength', 'focus', 'nextStep', 'practice'],
+}
+
+function toGeminiRequest(body: AnthropicRequestBody, useLite: boolean, responseSchema?: object) {
   const contents = (body.messages ?? []).map(msg => ({
     role: msg.role === 'assistant' ? 'model' : 'user',
     parts: typeof msg.content === 'string'
@@ -113,6 +162,7 @@ function toGeminiRequest(body: AnthropicRequestBody, useLite: boolean) {
       // JSON抽出タスクに思考は不要。無効化しないとthinkingトークンが非表示のまま出力課金され、
       // 想定コスト削減効果が崩れるため明示的にオフにする（liteモデルはパラメータ自体非対応）。
       ...(useLite ? {} : { thinkingConfig: { thinkingBudget: 0 } }),
+      ...(responseSchema ? { responseMimeType: 'application/json', responseSchema } : {}),
     },
   }
 }
@@ -129,9 +179,9 @@ function fromGeminiResponse(data: any): { content: Array<{ type: 'text'; text: s
   return { content: [{ type: 'text', text }], stop_reason: finishReason === 'MAX_TOKENS' ? 'max_tokens' : 'end_turn' }
 }
 
-async function callGemini(body: AnthropicRequestBody, apiKey: string, useLite: boolean): Promise<ProxyResult> {
+async function callGemini(body: AnthropicRequestBody, apiKey: string, useLite: boolean, responseSchema?: object): Promise<ProxyResult> {
   const model = useLite ? GEMINI_MODEL_LITE : GEMINI_MODEL
-  const geminiBody = toGeminiRequest(body, useLite)
+  const geminiBody = toGeminiRequest(body, useLite, responseSchema)
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
     {
@@ -379,12 +429,40 @@ export default async function handler(req: any, res: any) {
       res.status(500).json({ error: 'GEMINI_API_KEY not configured' })
       return
     }
-    let result = await callGemini(body, geminiKey, useLiteModel)
+    // 2026-10-05: 「JSONが無い応答は失敗」という判定は、応答が元々JSONの機能にだけ適用する。
+    // 以前は scoppy_chat 以外の全機能に適用していたため、文章(散文)で返すのが正しい
+    // ai_analysis(今週の総評)・workout・meal_coach・daily_insightが毎回「失敗」と誤判定され、
+    // ①Geminiを毎回2回呼んでコストが倍に、②使ったチケットが払い戻される(1日3回まで)、
+    // という不具合になっていた。
+    const JSON_RESPONSE_FEATURES = new Set([
+      'video', 'meal', 'competition_plan', 'recovery', 'injury_recovery', 'mission_summary', 'notebook_ai',
+    ])
+    const expectsJson = typeof feature === 'string' && JSON_RESPONSE_FEATURES.has(feature)
+    // 動画分析は構造化出力を指定する(上のVIDEO_RESPONSE_SCHEMA参照)。
+    const responseSchema = feature === 'video' ? VIDEO_RESPONSE_SCHEMA : undefined
+    let result = await callGemini(body, geminiKey, useLiteModel, responseSchema)
+    // 構造化出力のスキーマ自体をGeminiが400で拒否した場合に備えた安全装置:
+    // 従来方式(スキーマ無し)に自動で切り替えて続行する（動画分析が全滅しないように）。
+    let activeSchema = responseSchema
+    if (activeSchema && result.status === 400) {
+      console.warn('[analyze] structured output rejected, falling back to plain generation:', JSON.stringify(result.body).slice(0, 300))
+      activeSchema = undefined
+      result = await callGemini(body, geminiKey, useLiteModel, activeSchema)
+    }
     const checkSoftFailure = (r: typeof result) => {
       const text = (r.body as any)?.content?.[0]?.text
       const empty = r.status === 200 && (!text || !String(text).trim())
       const hasJson = typeof text === 'string' && /\{[\s\S]*\}/.test(text)
-      const nonJson = feature !== 'scoppy_chat' && r.status === 200 && !empty && !hasJson
+      let nonJson = expectsJson && r.status === 200 && !empty && !hasJson
+      // 動画分析はクライアント(app/video-analysis.tsx)が厳密にパースするため、
+      // 「波括弧はあるがJSONとして壊れている/scoreが無い」応答もここで失敗扱いにして
+      // サーバー側で1回だけ再試行する(それでもダメならチケットを払い戻す)。
+      if (feature === 'video' && r.status === 200 && !empty && hasJson) {
+        try {
+          const p = JSON.parse(String(text).match(/\{[\s\S]*\}/)![0])
+          if (typeof p?.score !== 'number') nonJson = true
+        } catch { nonJson = true }
+      }
       return { text, empty, nonJson }
     }
     let check = checkSoftFailure(result)
@@ -397,7 +475,7 @@ export default async function handler(req: any, res: any) {
     // 増えるが小さく、ユーザー体験としては「たまに遅い」で済み、「反応しない」よりずっと良い）。
     if (check.empty || check.nonJson) {
       console.warn('[analyze] Gemini soft-failure, retrying once:', result.status, check.nonJson ? check.text?.slice(0, 200) : '(empty)')
-      result = await callGemini(body, geminiKey, useLiteModel)
+      result = await callGemini(body, geminiKey, useLiteModel, activeSchema)
       check = checkSoftFailure(result)
       if (check.empty || check.nonJson) {
         console.warn('[analyze] Gemini soft-failure again after retry:', result.status, check.nonJson ? check.text?.slice(0, 200) : '(empty)')
