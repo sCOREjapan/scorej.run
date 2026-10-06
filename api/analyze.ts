@@ -84,6 +84,15 @@ const TICKET_COST_SERVER: Record<string, number> = {
 }
 // lib/adGate.ts の TICKET_SYSTEM_CUTOVER と一致させる
 const TICKET_SYSTEM_CUTOVER = new Date('2026-08-06T00:00:00.000Z')
+// 2026-10-05: コーチ無料体験中の「チケット不要ボーナス枠」(lib/adGate.ts の TRIAL_HARD_DAILY_CAP と
+// 同値に保つこと)。この枠は元々クライアント(AsyncStorageのtrialExpiresAt)だけで判定していたが、
+// 9/30のサーバー側チケット消費強制が初めて本番に出た結果、サーバーは体験中ユーザーを
+// 無料ユーザーとして扱い、枠内の利用でもチケットを引く/残高0なら402で拒否していた。
+// サーバーも coach_trials(体験期限)と feature_usage_counts(当日の利用回数)を見て同じ判定をする。
+const TRIAL_BONUS_DAILY_CAP_SERVER: Record<string, number> = {
+  video: 1, meal: 2, ai_analysis: 1, workout: 1,
+  meal_coach: 1, daily_insight: 1, notebook_ai: 2, competition_plan: 1, scoppy_chat: 5,
+}
 
 interface ProxyResult {
   status: number
@@ -370,7 +379,25 @@ export default async function handler(req: any, res: any) {
               && !!statusRow.original_purchase_date
               && new Date(statusRow.original_purchase_date) < TICKET_SYSTEM_CUTOVER
             isPaidTier = statusRow?.tier === 'coach' || isLegacyNoad
-            if (!isPaidTier && TICKET_COST_SERVER[feature]) {
+            // コーチ無料体験中かつ当日のボーナス枠内なら、チケットを引かない(クライアントと同じ判定)。
+            // 利用回数はクライアントが成功後に feature_usage_counts へ加算する(period_key=端末ローカル日付)ので、
+            // ここでは日本時間(JST)の今日を見る。読み取りに失敗した場合は無料扱いにせず通常課金に倒す。
+            let trialBonusFree = false
+            const trialCap = TRIAL_BONUS_DAILY_CAP_SERVER[feature]
+            if (!isPaidTier && trialCap !== undefined) {
+              try {
+                const { data: trialRow } = await userClient
+                  .from('coach_trials').select('expires_at').eq('user_id', userId).maybeSingle()
+                if (trialRow?.expires_at && new Date(trialRow.expires_at).getTime() > Date.now()) {
+                  const jstToday = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10)
+                  const { data: usageRow } = await userClient
+                    .from('feature_usage_counts').select('count')
+                    .eq('user_id', userId).eq('feature', feature).eq('period_key', jstToday).maybeSingle()
+                  trialBonusFree = (usageRow?.count ?? 0) < trialCap
+                }
+              } catch {}
+            }
+            if (!isPaidTier && !trialBonusFree && TICKET_COST_SERVER[feature]) {
               // 2026-09-30セキュリティ修正: 以前はここで残高の読み取り確認のみ行い、実際の
               // 消費はクライアント側(recordUsage、成功後に別途呼ばれる)に委ねていた。
               // アプリを経由せずこのAPIを直接叩く経路では、その後続のrecordUsage呼び出しが
