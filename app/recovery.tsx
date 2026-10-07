@@ -5,6 +5,7 @@ import {
 } from 'react-native'
 import { checkAdGate, recordUsage } from '../lib/adGate'
 import { trackFeatureUse } from '../lib/analytics'
+import { getAiProxyHeaders } from '../lib/supabase'
 import AdGateModal from '../components/AdGateModal'
 import TicketGateModal from '../components/TicketGateModal'
 import Toast from 'react-native-toast-message'
@@ -37,6 +38,36 @@ type RecoveryResult = {
   }
   exercises: string[]; see_doctor_if: string[]
   training_modification: string; medical_basis: string
+}
+// 2026-10-07: AIの返答(JSON)は項目が欠けたり型が違うことがある。以前は検証せずそのまま画面と履歴・
+// キャッシュに保存していたため、rice_protocol 等が無い返答で結果画面が落ち、しかも履歴に保存されて
+// 開くたびに落ちていた。表示に使う項目は必ず既定値で埋めた形にそろえる(履歴・キャッシュの旧データにも適用)。
+function normalizeRecoveryResult(p: any): RecoveryResult | null {
+  if (!p || typeof p !== 'object') return null
+  const str = (v: any): string => (typeof v === 'string' ? v : '')
+  const list = (v: any): string[] => (Array.isArray(v) ? v.filter((x: any): x is string => typeof x === 'string') : [])
+  const phase = (v: any) => ({ period: str(v?.period), description: str(v?.description) })
+  const severity: Severity = p.severity === 'mild' || p.severity === 'moderate' || p.severity === 'severe' ? p.severity : 'moderate'
+  const out: RecoveryResult = {
+    suspected_condition: str(p.suspected_condition),
+    severity,
+    immediate_actions: list(p.immediate_actions),
+    rice_protocol: {
+      rest: str(p.rice_protocol?.rest), ice: str(p.rice_protocol?.ice),
+      compression: str(p.rice_protocol?.compression), elevation: str(p.rice_protocol?.elevation),
+    },
+    taping: { purpose: str(p.taping?.purpose), method: str(p.taping?.method), tape_type: str(p.taping?.tape_type) },
+    recovery_timeline: {
+      phase1: phase(p.recovery_timeline?.phase1), phase2: phase(p.recovery_timeline?.phase2), phase3: phase(p.recovery_timeline?.phase3),
+    },
+    exercises: list(p.exercises),
+    see_doctor_if: list(p.see_doctor_if),
+    training_modification: str(p.training_modification),
+    medical_basis: str(p.medical_basis),
+  }
+  // 何も中身が無い応答は結果として扱わない
+  if (!out.suspected_condition && out.immediate_actions.length === 0 && out.exercises.length === 0) return null
+  return out
 }
 type SavedRecord = { id: string; date: string; bodyParts: string[]; painLevel: number; result: RecoveryResult }
 
@@ -199,8 +230,9 @@ export default function RecoveryScreen() {
       if (_raw) {
         const _cache: Array<{ sig: string; result: RecoveryResult }> = JSON.parse(_raw)
         const _hit = _cache.find(c => c.sig === _cacheSig)
-        if (_hit) {
-          setResult(_hit.result)
+        const _hitResult = _hit ? normalizeRecoveryResult(_hit.result) : null
+        if (_hitResult) {
+          setResult(_hitResult)
           setTab('result'); fadeIn()
           setLoading(false)
           return
@@ -211,9 +243,11 @@ export default function RecoveryScreen() {
     try {
       const res = await fetchWithTimeout(_endpoint, {
         method:'POST',
-        headers:{ 'content-type':'application/json' },
+        // 2026-10-07: feature とログイン情報を送っていなかったため、サーバーが空/非JSON応答の
+        // 自動再試行・軽量モデルへの切替・契約状態の確認を一切行えなかった(他のAI機能と揃える)。
+        headers:{ 'content-type':'application/json', ...(await getAiProxyHeaders()) },
         body: JSON.stringify({
-          model:'claude-haiku-4-5-20251001', max_tokens:2500,
+          model:'claude-haiku-4-5-20251001', max_tokens:2500, feature:'recovery',
           messages:[{ role:'user', content:
 `あなたは陸上競技に詳しいスポーツトレーナーです。選手の症状をもとに、ケアと回復のアドバイスをしてください。医療診断ではなく、参考情報として提供してください。
 
@@ -225,7 +259,7 @@ ${envLines.length > 0 ? '\n' + t('recovery.envPromptInstruction') : ''}
 {"suspected_condition":"考えられる負担の種類（断定せず一般的な傾向として。例:『ふくらはぎの張りによる負担』）","severity":"mild|moderate|severe","immediate_actions":["今すぐすること1","2","3"],"rice_protocol":{"rest":"安静方法","ice":"アイシング方法と時間","compression":"圧迫方法","elevation":"挙上方法"},"taping":{"purpose":"目的","method":"ステップバイステップの貼り方（テープの向き・角度・長さを具体的に）","tape_type":"推奨テープ種類"},"recovery_timeline":{"phase1":{"period":"0〜3日","description":"急性期の対応"},"phase2":{"period":"4〜14日","description":"回復期のリハビリ"},"phase3":{"period":"2〜8週","description":"競技復帰プロセス"}},"exercises":["エクササイズ1（回数・方法）","2","3"],"see_doctor_if":["病院受診サイン1","2","3"],"training_modification":"代替練習と注意点","medical_basis":"このアドバイスの一般的な理由（医学的診断ではなく、あくまで参考情報としての説明）"}${promptLanguageLine ? '\n' + promptLanguageLine : ''}`
           }]
         }),
-      }, 35000)
+      }, 58000)  // サーバー(api/analyze.ts)の上限55秒より長くする
       if (!res.ok) {
         // 変数名'errText': useTranslation()のt関数をシャドウイングしないよう明示的に改名
         // (以前ここは const t = await res.text() だった。他の同種ファイルで実際にクラッシュを
@@ -237,12 +271,14 @@ ${envLines.length > 0 ? '\n' + t('recovery.envPromptInstruction') : ''}
       const text  = data.content?.[0]?.text ?? ''
       const match = text.match(/\{[\s\S]*\}/)
       if (!match) throw new Error(`JSONなし: ${text.slice(0,80)}`)
-      let parsed: RecoveryResult
+      let parsedRaw: unknown
       try {
-        parsed = JSON.parse(match[0])
+        parsedRaw = JSON.parse(match[0])
       } catch {
         throw new Error(`JSON解析失敗（レスポンスが不完全です）: ${text.slice(0, 60)}`)
       }
+      const parsed = normalizeRecoveryResult(parsedRaw)
+      if (!parsed) throw new Error(`JSON解析失敗（内容が不完全です）: ${text.slice(0, 60)}`)
       setResult(parsed)
       const rec: SavedRecord = {
         id:Date.now().toString(), date:new Date().toLocaleDateString(language === 'en' ? 'en-US' : 'ja-JP'),
@@ -291,6 +327,7 @@ ${envLines.length > 0 ? '\n' + t('recovery.envPromptInstruction') : ''}
     askingRef.current = true
     try {
       const gate = await checkAdGate('recovery')
+      if (gate.consentDenied) return
       if (!gate.allowed) {
         if (gate.needsTicket) { setTicketGateCost(gate.ticketCost); setTicketGateBalance(gate.ticketBalance); setTicketGateVisible(true) }
         else {
@@ -518,7 +555,7 @@ ${envLines.length > 0 ? '\n' + t('recovery.envPromptInstruction') : ''}
               ? <View style={s.empty}><Ionicons name="time-outline" size={48} color="#9ca3af"/><Text style={s.emptyTxt}>{t('recovery.emptyHistory')}</Text></View>
               : history.map(rec=>(
                 <TouchableOpacity key={rec.id} style={s.histCard}
-                  onPress={()=>{setResult(rec.result);setTab('result');fadeIn()}}>
+                  onPress={()=>{const r=normalizeRecoveryResult(rec.result);if(!r)return;setResult(r);setTab('result');fadeIn()}}>
                   <View style={{flexDirection:'row',justifyContent:'space-between',marginBottom:4}}>
                     <Text style={s.histDate}>{rec.date}</Text>
                     <View style={{flexDirection:'row',alignItems:'center',gap:10}}>

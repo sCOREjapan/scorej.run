@@ -26,7 +26,7 @@ import { getCachedWeather } from '../../lib/weather'
 import { calcWeatherRiskBonus } from '../../lib/weatherRisk'
 import { trackFeatureUse, trackTeamCreated, trackTeamJoin, trackTeamDashboardViewed } from '../../lib/analytics'
 import type { TrainingSession, SleepRecord } from '../../types'
-import { supabase, getAiAuthHeader } from '../../lib/supabase'
+import { supabase, getAiProxyHeaders } from '../../lib/supabase'
 import {
   fetchMessages, postMessage, setPinMessage, deleteMessage,
   fetchVideos, submitVideo, markVideoWatched,
@@ -59,8 +59,9 @@ import PulseView from '../../components/PulseView'
 import { localDateStr, todayLocalISO } from '../../lib/dateLocal'
 import { sessionTypeInfo } from '../../lib/sessionTypeLabels'
 import { checkAdGate, recordUsage } from '../../lib/adGate'
-import { TICKET_COST } from '../../lib/ticketWallet'
+import { TICKET_COST, getTicketBalance } from '../../lib/ticketWallet'
 import TicketGateModal from '../../components/TicketGateModal'
+import * as Crypto from 'expo-crypto'
 
 // TEMP(実機テスト用): 無料体験の「期限切れ」状態をSQL手動編集無しで再現するための
 // [TEMP]ボタンの表示切り替え。動作確認が終わったのでfalseに戻した
@@ -180,8 +181,20 @@ function buildDemoMembers(t: (key: string) => string): Member[] {
 }
 
 // ── ユーティリティ ────────────────────────────────────────
-function generateCode() { return Math.random().toString(36).toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6).padEnd(6,'0') }
-function formatCode(c: string) { const s = c.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6); return s.length > 3 ? `${s.slice(0,3)}-${s.slice(3)}` : s }
+// 2026-10-07: 参加コードはチームに入るための「唯一の鍵」なのに、Math.random() 由来で先頭が常に '0'、
+// 実質約26ビットしかなく、総当たりで当てられる強度だった。暗号論的な乱数で、紛らわしい文字(0/O,1/I)を
+// 除いた32文字から8文字(40ビット)を作る。既存の6文字のコードもそのまま使える(入力・表示は6〜8文字に対応)。
+const TEAM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+export const TEAM_CODE_LENGTH = 8
+function generateCode() {
+  const bytes = Crypto.getRandomValues(new Uint8Array(TEAM_CODE_LENGTH))
+  return Array.from(bytes, b => TEAM_CODE_ALPHABET[b % TEAM_CODE_ALPHABET.length]).join('')
+}
+function formatCode(c: string) {
+  const s = c.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,TEAM_CODE_LENGTH)
+  if (s.length > 6) return `${s.slice(0,4)}-${s.slice(4)}`
+  return s.length > 3 ? `${s.slice(0,3)}-${s.slice(3)}` : s
+}
 function daysSince(d: string, t: (key: string, opts?: any) => string) { const n = Math.floor((Date.now()-new Date(d).getTime())/86400000); return n===0?t('team.date.today'):n===1?t('team.date.yesterday'):t('team.date.daysAgo', { n }) }
 function timeAgo(iso: string, t: (key: string, opts?: any) => string) { const m = Math.floor((Date.now()-new Date(iso).getTime())/60000); return m<1?t('team.date.justNow'):m<60?t('team.date.minutesAgo', { n: m }):m<1440?t('team.date.hoursAgo', { n: Math.floor(m/60) }):daysSince(iso, t) }
 function daysLeft(iso: string) { return Math.max(0, 7 - Math.floor((Date.now()-new Date(iso).getTime())/86400000)) }
@@ -762,7 +775,7 @@ function PlayerJoinScreen({ onJoined, onBack }: { onJoined:(j:JoinedTeam)=>void;
               <TextInput
                 style={[su.input,{fontSize:24,fontWeight:'900',textAlign:'center',letterSpacing:8,paddingVertical:18}]}
                 value={code.toUpperCase()}
-                onChangeText={v => setCode(v.replace(/[^A-Za-z0-9]/g,'').slice(0,6).toUpperCase())}
+                onChangeText={v => setCode(v.replace(/[^A-Za-z0-9]/g,'').slice(0,TEAM_CODE_LENGTH).toUpperCase())}
                 placeholder="ABCDEF"
                 placeholderTextColor={colors.textHint}
                 autoCapitalize="none"
@@ -774,7 +787,7 @@ function PlayerJoinScreen({ onJoined, onBack }: { onJoined:(j:JoinedTeam)=>void;
                 // 不具合があった。'visible-password'はAndroidでも確実に半角英数キーボードを強制する
                 // 定番の代替値なので、iOS以外はこちらを使う
                 keyboardType={Platform.OS === 'ios' ? 'ascii-capable' : 'visible-password'}
-                maxLength={6}
+                maxLength={TEAM_CODE_LENGTH}
               />
             </View>
             <View style={{gap:6}}>
@@ -1343,10 +1356,10 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
       const focusLabels = AI_MENU_FOCUS_TAGS.filter(t => aiFocusTags.has(t.key)).map(t => t.label)
       const _apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 45000)
+      const timeoutId = setTimeout(() => controller.abort(), 58000)
       const res = await fetch(`${_apiBase}/api/analyze`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', ...(await getAiAuthHeader()) },
+        headers: { 'content-type': 'application/json', ...(await getAiProxyHeaders()) },
         signal: controller.signal,
         body: JSON.stringify({
           model: 'claude-haiku-4-5-20251001',
@@ -1360,6 +1373,10 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
         }),
       })
       clearTimeout(timeoutId)
+      if (res.status === 402) {
+        setMenuTicketGate({ visible: true, cost: TICKET_COST.workout, balance: await getTicketBalance().catch(() => 0) })
+        return
+      }
       if (!res.ok) throw new Error('生成に失敗しました')
       const data = await res.json()
       const text = (data.content?.[0]?.text ?? '').trim()
@@ -1379,6 +1396,7 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
 
   async function handlePressAiMenu() {
     const gate = await checkAdGate('workout')
+    if (gate.consentDenied) return
     if (!gate.allowed) {
       if (gate.needsTicket) {
         setMenuTicketGate({ visible: true, cost: gate.ticketCost, balance: gate.ticketBalance })
@@ -1820,7 +1838,12 @@ function CoachDashboard({ setup, isCoach, onSwitchRole, onDeleteTeam, canSwitchR
                       {v.url ? (
                         <TouchableOpacity
                           style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6,backgroundColor:BRAND+'18',borderRadius:10,paddingVertical:10,marginTop:10,borderWidth:1,borderColor:BRAND+'30'}}
-                          onPress={() => { markWatched(v.id); Linking.openURL(v.url) }}
+                          onPress={() => {
+                            markWatched(v.id)
+                            // 2026-10-07: 選手が登録した任意の文字列を、コーチの端末でそのまま開いていた
+                            // (tel:/sms:/他アプリのスキーム等で意図しない操作を起こせる)。https/http だけ開く。
+                            if (/^https?:\/\//i.test(v.url.trim())) Linking.openURL(v.url.trim()).catch(() => {})
+                          }}
                           activeOpacity={0.8}
                         >
                           <Ionicons name="open-outline" size={15} color={BRAND}/>
@@ -2665,7 +2688,11 @@ function TeammateProfileSheet({ member, stats, sessions, onClose }: {
   const { t } = useTranslation()
   const { language } = useLanguage()
   const { colors } = useTheme()
-  const lvInfo = calcLevelInfo(stats?.level ?? 1, language)
+  // 2026-10-01修正: stats.levelは既にcalcLevelInfo(セッション数)で計算済みの最終レベル値
+  // （lib/teamAutoSync.ts参照）であり、それをもう一度calcLevelInfo()に通すと
+  // 「レベル値をセッション数として」二重変換してしまい、実際より大幅に低いランクが
+  // 表示される不具合があった。実セッション数(sessions.length)を渡すのが正しい
+  const lvInfo = calcLevelInfo(sessions.length, language)
   const lvTier = RANK_TIERS.find(t => lvInfo.level >= t.min && lvInfo.level < t.max) ?? RANK_TIERS[0]
   const event  = stats?.event || member.event || ''
   const pb     = stats?.pb_display || ''
@@ -3483,9 +3510,12 @@ function PlayerDashboard({ joined, onSwitchRole, onLeaveTeam, canSwitchRole }: {
                   <View style={{backgroundColor:colors.card,borderRadius:14,borderWidth:1,borderColor:colors.border,overflow:'hidden'}}>
                     {teammates.map((m, i) => {
                       const stat      = playerStats.find(s => s.player_name === m.player_name)
-                      const lvInfo    = calcLevelInfo(stat?.level ?? 1, language)
-                      const lvTier    = RANK_TIERS.find(t => lvInfo.level >= t.min && lvInfo.level < t.max) ?? RANK_TIERS[0]
                       const tmSessions = teamSessionsMap[m.player_name] ?? []
+                      // 2026-10-01修正: stat.levelは既に計算済みの最終レベル値のため、
+                      // それを再度calcLevelInfo()に通す二重変換で実際より大幅に低い
+                      // ランクが表示されていた。実セッション数を渡す
+                      const lvInfo    = calcLevelInfo(tmSessions.length, language)
+                      const lvTier    = RANK_TIERS.find(t => lvInfo.level >= t.min && lvInfo.level < t.max) ?? RANK_TIERS[0]
                       // stat.streak が保存済みであればそちらを優先（より正確・リアルタイム）
                       const streak    = stat?.streak ?? calcStreak(tmSessions)
                       const hasPain   = (allBodyReports.find(r => r.player_name === m.player_name)?.parts?.length ?? 0) > 0
@@ -4052,10 +4082,34 @@ export default function TeamScreen() {
   // trialExpired&&!isCoachの場合はstate==='coach'のままでもisCoachMode=trueにしてはいけない
   // (放置するとホームタブだけコーチ専用UIに残り続け、coach-onboardingへ追い出されたのに
   // ホームだけコーチのまま、という状態不一致になる)。
+  //
+  // 2026-10-06 致命バグ修正「選手として使っていた人が急にコーチ専用画面になり、切り替えボタンを
+  // 押しても何も起きない」への対応(3点):
+  //  ①設定画面の「役割を切り替える」はROLE_KEY等を消してisCoachMode=falseにするが、常駐している
+  //    この画面のstateはまだ古い'coach'のため、ここがすぐisCoachMode=trueへ戻してしまい
+  //    「押しても何も起きない」状態になっていた。コーチ化を主張する前に保存済みROLE_KEYを
+  //    読み直し、実際に'coach'の時だけ反映する(古いstateでは打ち消さない)。
+  //  ②選手側は'player'(参加済み)しか見ておらず、チーム未参加の'player-join'ではコーチUIから
+  //    戻れなかった。'player-join'でもfalseに戻す。
+  //  ③無料体験が切れて(trialExpired&&!isCoach)コーチ画面から追い出された人は、ホームも選手UIに
+  //    戻す(以前はtrueのまま放置されコーチ専用ホームに閉じ込められていた)。
   useEffect(() => {
-    const activelyCoach = state === 'coach' && !(trialExpired && !isCoach)
-    if (activelyCoach && !isCoachMode) setCoachMode(true)
-    else if (state === 'player' && isCoachMode) setCoachMode(false)
+    let cancelled = false
+    ;(async () => {
+      if (state === 'coach' && trialExpired && !isCoach) {
+        if (isCoachMode) await setCoachMode(false)
+        return
+      }
+      if (state === 'coach') {
+        if (!isCoachMode) {
+          const role = await AsyncStorage.getItem(ROLE_KEY).catch(() => null)
+          if (!cancelled && role === 'coach') await setCoachMode(true)
+        }
+      } else if ((state === 'player' || state === 'player-join') && isCoachMode) {
+        await setCoachMode(false)
+      }
+    })()
+    return () => { cancelled = true }
   }, [state, trialExpired, isCoach, isCoachMode, setCoachMode])
 
   useFocusEffect(useCallback(() => {
@@ -4073,6 +4127,9 @@ export default function TeamScreen() {
   // ROLE_KEY等を直接クリアしてteamタブへpushしても、既にマウント済みのこの画面は
   // 再読込されずstateが古いまま(=見た目上何も変わらない)だった。
   // マウント時に加えてタブがフォーカスされる度にも再読込するようにして解消する。
+  // 2026-10-06: loadRoleStateは依存配列[]のため、最新のisCoachは参照(ref)経由で読む。
+  const isCoachRef = useRef(isCoach)
+  isCoachRef.current = isCoach
   const loadRoleState = useCallback(async () => {
     try {
       const [roleRaw, setupRaw, joinedRaw] = await Promise.all([
@@ -4092,6 +4149,15 @@ export default function TeamScreen() {
       setJoined(parsedJoined)
 
       if (!role) { setState('select-role'); return }
+      // 2026-10-06 致命バグ修正: コーチ権限もチームも無いのに保存ロールだけ'coach'の人
+      // (旧版でうっかり「コーチ」を押した等)は、毎回coach-onboardingへ自動で飛ばされ
+      // 選手に戻れず閉じ込められていた。その場で保存ロールを破棄し役割選択へ戻す。
+      if (role === 'coach' && !parsedSetup && !isCoachRef.current) {
+        await AsyncStorage.removeItem(ROLE_KEY).catch(() => {})
+        await setCoachMode(false)
+        setState('select-role')
+        return
+      }
       if (role === 'coach') {
         // サブスク有効確認は PurchaseContext が非同期で完了するため
         // ここでは保存ロールを信頼して遷移し、CoachDashboard 側で isCoach を再確認
@@ -4102,7 +4168,7 @@ export default function TeamScreen() {
     } catch {
       setState('select-role')
     }
-  }, [])
+  }, [setCoachMode])
 
   useEffect(() => {
     initOneSignal()
@@ -4120,6 +4186,14 @@ export default function TeamScreen() {
 
   async function handleSelectRole(role: Role) {
     if (role === 'coach') {
+      // 2026-10-06 致命バグ修正: コーチ権限もチームも無い人が「コーチ」を押した時点で
+      // ROLE_KEY='coach'を保存してしまい、以後チームタブを開くたびに自動でcoach-onboarding
+      // へ飛ばされて選手に戻れなくなっていた。権限が無い場合は保存せず案内画面へ進めるだけにする
+      // (体験開始・コード引き換えの成功時に、そちらで保存する)。
+      if (!setup && !isCoach) {
+        router.push('/coach-onboarding' as any)
+        return
+      }
       await AsyncStorage.setItem(ROLE_KEY, role).catch(() => {})
       setState(setup ? 'coach' : 'coach-setup')
     } else {
@@ -4134,6 +4208,9 @@ export default function TeamScreen() {
   // ロール切り替え — データは消さない
   async function handleSwitchRole() {
     await AsyncStorage.removeItem(ROLE_KEY).catch(() => {})
+    // 2026-10-06: コーチから役割選択へ戻る時にホームもコーチ専用UIのまま残らないようにする
+    // (改めて「コーチ」を選べば、上の同期useEffectがtrueへ戻す)。
+    if (state === 'coach') await setCoachMode(false)
     setState('select-role')
   }
 
@@ -4146,6 +4223,7 @@ export default function TeamScreen() {
   async function handleDeleteTeam() {
     if (setup?.code) await deleteTeam(setup.code, await getOrCreateCoachSecret()).catch(() => {})
     await AsyncStorage.multiRemove([ROLE_KEY, SETUP_KEY]).catch(() => {})
+    await setCoachMode(false)
     setSetup(null)
     setState('select-role')
   }

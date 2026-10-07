@@ -574,6 +574,7 @@ export default function CompetitionScreen() {
     let gate: Awaited<ReturnType<typeof checkAdGate>> | null = null
     if (!RECORDING_DEMO) {
       gate = await checkAdGate('competition_plan')
+      if (gate.consentDenied) return
       if (!gate.allowed) {
         generatingRef.current = false
         setGenerating(false)
@@ -599,7 +600,9 @@ export default function CompetitionScreen() {
         primary_event: isFieldEvent ? '100m' : (compEvent as TrackEvent),
         secondary_events: userProfile?.secondary_events ?? [],
         event_category: ['100m','200m','300m','400m','110mH','100mH','300mH','400mH'].includes(compEvent) ? 'sprint' : 'middle',
-        personal_best_ms: userProfile?.personal_best_ms,
+        // 2026-10-07: 自己ベストは主種目のものなのに、別の種目の大会でも渡していた（5000mの計画に
+        // 「PB:11.2秒」と書かれる等）。大会の種目が主種目と一致する時だけ渡す。
+        personal_best_ms: compEvent === userProfile?.primary_event ? userProfile?.personal_best_ms : undefined,
         target_time_ms,
         experience_years: userProfile?.experience_years,
         created_at: new Date().toISOString(),
@@ -620,7 +623,10 @@ export default function CompetitionScreen() {
       } else {
         try {
           planData = await generateCompetitionPlan(dateObj, compName, profile, compEvent, language, compEnvironment.trim())
-        } catch {
+          // 計画(phases)が空の応答は成功ではない（「作成しました」と表示され、中身が空のまま課金されていた）
+          if (!Array.isArray(planData?.phases) || planData.phases.length === 0) throw new Error('empty competition plan')
+        } catch (e) {
+          console.warn('[competition] AI plan failed:', e)
           aiPlanFailed = true
           planData = { phases: [], peak_week: 3, taper_start_week: 1, key_advice: '' }
         }
@@ -766,15 +772,25 @@ export default function CompetitionScreen() {
             description: injDesc, painLevel: injPain,
             hasSwelling: injSwelling, totalDays, language,
           })
+          // 2026-10-07: AIが配列以外/空を返しても、そのまま保存して日次通知が壊れていた。
+          // 配列で1日以上あることを確認し、日番号は並べ直す。
+          if (!Array.isArray(plans) || plans.length === 0) throw new Error('empty injury plan')
+          plans = plans.map((p, i) => ({ ...p, day: i + 1 }))
           shouldConsumeTicket = true
-        } catch {
+        } catch (e) {
           // AI失敗時はテンプレートプランを使用（チケットは消費しない）
+          // 2026-10-07: 以前は何も知らせずテンプレートに差し替え、AIの個別プランだと誤解されていた
+          console.warn('[injury-plan] AI failed, using template:', e)
+          Toast.show({ type: 'info', text1: t('competition.toast.templatePlanAiFailed'), visibilityTime: 2800 })
           plans = buildTemplatePlan(totalDays, injParts, injType, injPain)
         }
       } else {
         // チケット不足時はAI呼び出しをスキップし、テンプレートプランで復帰記録自体は継続する
         if (injGate.needsTicket) {
           Toast.show({ type: 'info', text1: t('competition.toast.templatePlanCreated'), text2: t('competition.toast.templatePlanSub'), visibilityTime: 2400 })
+        } else if (!injGate.consentDenied) {
+          // 1日の利用上限に達した場合など。理由を伝えずにテンプレートへ切り替えない
+          Toast.show({ type: 'info', text1: t('competition.toast.templatePlanCreated'), text2: t('competition.toast.dailyLimitReached'), visibilityTime: 2400 })
         }
         plans = buildTemplatePlan(totalDays, injParts, injType, injPain)
       }
@@ -812,7 +828,11 @@ export default function CompetitionScreen() {
           trackEvent('use_feature', { feature: 'injury_recovery', metadata: { total_days: totalDays } })
           if (injGate.needsTicket) Toast.show({ type: 'info', text1: t('competition.toast.ticketUsed', { n: injGate.ticketCost }), visibilityTime: 1800 })
         }
-      } catch {}
+      } catch (e) {
+        // 以前は保存の失敗を握りつぶし、作成できていないのに画面だけ閉じていた
+        console.warn('[injury-plan] save failed:', e)
+        Toast.show({ type: 'error', text1: t('competition.toast.injurySaveFailed') })
+      }
       setTimeout(() => { if (mountedRef.current) { setInjuryGenerating(false); setInjGenProgress(0) } }, 700)
     } finally {
       clearInterval(timer)

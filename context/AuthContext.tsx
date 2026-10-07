@@ -16,6 +16,8 @@ import * as Crypto from 'expo-crypto'
 import { GoogleSignin, statusCodes as GoogleStatusCodes } from '@react-native-google-signin/google-signin'
 import { useTranslation } from 'react-i18next'
 import { trackOnboardingStep } from '../lib/analytics'
+import { ROLE_KEY } from '../lib/teamKeys'
+import { onAccountSignedIn, onAccountSignedOut, onGuestStarted } from '../lib/aiLocalData'
 
 // expo-web-browser の結果を Supabase が処理できるよう登録
 // iOS 26 で稀に throw するため try-catch で保護
@@ -169,6 +171,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // 起動時: 既存セッションがあればuserIdをキャッシュ + クラウド同期
         if (s?.user?.id) {
           AsyncStorage.setItem('userId', s.user.id).catch(() => {})
+          await onAccountSignedIn(s.user.id).catch(() => {})
           syncAll(s.user.id).catch(() => {})
           syncProfileToCloud(s.user.id).catch(() => {})
           // 2026-09-09: 通知許可のダイアログが起動直後に出て体験を損なわないよう、
@@ -221,6 +224,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (newSession?.user?.id) {
               // userId をローカルにキャッシュ（各画面の user_id フィールド設定で使用）
               AsyncStorage.setItem('userId', newSession.user.id).catch(() => {})
+              // 前回と別のアカウントなら、前の人のAI履歴と記録をこの端末から消す。同期の「前」に完了させる
+              // （消す前に同期されると、前の人のデータが新しいアカウントのクラウドへ上がってしまう）
+              await onAccountSignedIn(newSession.user.id).catch(() => {})
               syncAll(newSession.user.id).catch(() => {})
               syncProfileToCloud(newSession.user.id).catch(() => {})
               setTimeout(() => {
@@ -506,7 +512,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ── ログアウト ────────────────────────────────────────────
   const signOut = useCallback(async () => {
     // Supabaseセッション終了（エラーは無視）
-    try { await (supabase.auth as any).signOut() } catch (_) {}
+    // 2026-10-07: 通信に失敗するとサーバー側の失効に失敗し、端末にはセッションが残ったまま、画面だけ
+    // ログアウト表示になっていた(次の起動で別人がログイン済みとして使える)。失敗しても、端末のセッションは
+    // 必ず消す(scope:'local' は通信なしで端末の保存セッションだけを削除する)。
+    try {
+      const { error } = await (supabase.auth as any).signOut()
+      if (error) throw error
+    } catch (_) {
+      try { await (supabase.auth as any).signOut({ scope: 'local' }) } catch (_2) {}
+    }
     // ローカル状態をリセット → AuthGate が /auth へリダイレクト
     setUser(null)
     setSession(null)
@@ -520,6 +534,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // ローカルキャッシュに残ったままadGate.tsに読まれ、チケットを一切消費せずに
     // AI機能が使い放題になってしまっていた。continueAsGuest()と同じ対策をここにも適用する。
     AsyncStorage.multiRemove(['trackmate_subscription']).catch(() => {})
+    // AIの結果キャッシュと分析用の動画コピーを消す(次に使う人に、前の人の結果が見えたり課金なしで再利用されない)
+    onAccountSignedOut().catch(() => {})
+    // 2026-10-06 致命バグ修正: コーチ専用UIのフラグ(tm_coach_mode)と保存ロール'coach'は端末単位の
+    // ため、コーチ(体験)アカウントでログアウト→別アカウント(選手)でログインしても残り、
+    // 選手として使い始めた人が急にコーチ専用画面になっていた。ここでコーチ状態を解除する
+    // (チーム本体のデータSETUP_KEYは消さない。選手ロールは触らない)。
+    setIsCoachMode(false)
+    AsyncStorage.removeItem(COACH_MODE_KEY).catch(() => {})
+    AsyncStorage.getItem(ROLE_KEY).then(v => (v === 'coach' ? AsyncStorage.removeItem(ROLE_KEY) : undefined)).catch(() => {})
   }, [])
 
   // ── ゲスト ────────────────────────────────────────────────
@@ -531,6 +554,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.setItem('userId', guestId).catch(() => {})
     // アクセスコード・サブスクキャッシュをクリア（前ユーザーの課金状態を引き継がせない）
     AsyncStorage.multiRemove(['trackmate_subscription']).catch(() => {})
+    // 前のアカウントのAI履歴・キャッシュをゲストに引き継がせない
+    onGuestStarted().catch(() => {})
+    // 2026-10-06: signOut()と同じ理由でコーチ専用UI状態を引き継がせない
+    setIsCoachMode(false)
+    AsyncStorage.removeItem(COACH_MODE_KEY).catch(() => {})
+    AsyncStorage.getItem(ROLE_KEY).then(v => (v === 'coach' ? AsyncStorage.removeItem(ROLE_KEY) : undefined)).catch(() => {})
   }, [])
 
   // ── ゲスト解除（設定画面の「ログイン」ボタン用） ─────────

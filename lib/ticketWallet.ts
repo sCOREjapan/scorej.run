@@ -97,16 +97,75 @@ async function saveWallet(w: Wallet) {
 // 倍々に増えていく重大な不具合になっていた（2026-08-27に実機で発生・数値が天文学的になった）。
 const MIGRATED_KEY = 'score_ticket_server_migrated'
 
+// ── 付与の保留キュー ────────────────────────────────────────
+// 2026-10-07: ログイン中にサーバーへの付与(ticket_wallet_grant)が失敗した時、以前は端末ローカルの
+// 残高に足していた。しかしログイン中のユーザーはサーバー残高しか参照しないため、そのチケットは
+// 二度と表示も消費もされず消えていた(課金した購入分・広告報酬・払い戻し・紹介報酬すべて)。
+// 失敗した付与は「保留」として端末に記録し、次にサーバーへ到達できた時に必ず送り直す。
+// 別アカウントに誤って付与されないよう、保留はユーザーIDごとに持つ。
+const PENDING_GRANTS_KEY = 'score_ticket_pending_grants'
+type PendingGrant = { userId: string; amount: number }
+let _pendingQueue: Promise<unknown> = Promise.resolve()
+function serializePending<T>(fn: () => Promise<T>): Promise<T> {
+  const run = _pendingQueue.then(fn, fn)
+  _pendingQueue = run.then(() => undefined, () => undefined)
+  return run
+}
+async function readPendingGrants(): Promise<PendingGrant[]> {
+  try {
+    const raw = await AsyncStorage.getItem(PENDING_GRANTS_KEY)
+    if (raw) {
+      const arr = JSON.parse(raw)
+      if (Array.isArray(arr)) {
+        return arr.filter((g: any) => g && typeof g.userId === 'string' && typeof g.amount === 'number' && g.amount > 0)
+      }
+    }
+  } catch {}
+  return []
+}
+async function writePendingGrants(list: PendingGrant[]) {
+  await AsyncStorage.setItem(PENDING_GRANTS_KEY, JSON.stringify(list)).catch(() => {})
+}
+function enqueuePendingGrant(userId: string, amount: number): Promise<void> {
+  return serializePending(async () => {
+    const list = await readPendingGrants()
+    list.push({ userId, amount })
+    await writePendingGrants(list)
+  })
+}
+/** 保留中の付与をサーバーへ送り直す。残高を読む前に呼ぶ（失敗したら次回に持ち越し） */
+export async function flushPendingGrants(): Promise<void> {
+  const userId = await getCurrentUserId()
+  if (!userId) return
+  await serializePending(async () => {
+    const list = await readPendingGrants()
+    if (!list.some(g => g.userId === userId)) return
+    const remaining: PendingGrant[] = []
+    let blocked = false
+    for (const g of list) {
+      if (g.userId !== userId || blocked) { remaining.push(g); continue }
+      const { data, error } = await supabase.rpc('ticket_wallet_grant', { p_amount: g.amount })
+      if (error || typeof data !== 'number') { blocked = true; remaining.push(g) }
+    }
+    await writePendingGrants(remaining)
+  })
+}
+async function getPendingTotal(userId: string): Promise<number> {
+  return (await readPendingGrants()).filter(g => g.userId === userId).reduce((a, g) => a + g.amount, 0)
+}
+
 export async function getWalletSnapshot(): Promise<Wallet> {
   const userId = await getCurrentUserId()
   if (userId) {
+    await flushPendingGrants().catch(() => {})
     const { data, error } = await supabase.from('ticket_wallets').select('tickets').eq('user_id', userId).maybeSingle()
     if (error) {
       // サーバーに到達できない時は、残高を勝手に増減させず直近のローカルキャッシュ値を
       // そのまま返すだけにする（ここで何かを足す処理は絶対に入れない）
       return getWallet()
     }
-    if (data) return { tickets: data.tickets }
+    // まだ送れていない保留分は、実際にはもう持っているものとして表示に含める
+    if (data) return { tickets: data.tickets + await getPendingTotal(userId) }
 
     // サーバー側にまだ行が無い＝このアカウントでまだ一度もサーバー同期していない端末。
     // 端末ローカルの残高を「1回だけ」引き継ぐ（フラグで二重引き継ぎを防止し、
@@ -115,17 +174,22 @@ export async function getWalletSnapshot(): Promise<Wallet> {
     // 移行処理が二重に走らないようにする（フラグの読み書き自体に競合の隙間があるため）
     return serialize(async () => {
       const alreadyMigrated = await AsyncStorage.getItem(MIGRATED_KEY)
-      if (alreadyMigrated) return { tickets: 0 }
-      await AsyncStorage.setItem(MIGRATED_KEY, '1').catch(() => {})
+      if (alreadyMigrated) return { tickets: await getPendingTotal(userId) }
       const local = await getWallet()
       // 過去の不具合で端末側の残高が異常な値まで壊れているケースに備え、
       // 現実的にあり得る上限を超える値はサーバーに引き継がず破棄する（安全弁）
       const LOCAL_SANITY_CAP = 100000
       if (local.tickets > 0 && local.tickets <= LOCAL_SANITY_CAP) {
         const { data: granted, error: grantErr } = await supabase.rpc('ticket_wallet_grant', { p_amount: local.tickets })
-        if (!grantErr && typeof granted === 'number') return { tickets: granted }
+        // 2026-10-07: 以前は引き継ぎの「前」に完了フラグを立てていたため、通信失敗で引き継ぎに
+        // 失敗するとフラグだけ残り、端末のチケットが二度と引き継がれず消えていた。
+        // 成功した時だけフラグを立てる（失敗時は次回また試す）。
+        if (grantErr || typeof granted !== 'number') return { tickets: await getPendingTotal(userId) }
+        await AsyncStorage.setItem(MIGRATED_KEY, '1').catch(() => {})
+        return { tickets: granted + await getPendingTotal(userId) }
       }
-      return { tickets: 0 }
+      await AsyncStorage.setItem(MIGRATED_KEY, '1').catch(() => {})
+      return { tickets: await getPendingTotal(userId) }
     })
   }
   return getWallet()
@@ -134,20 +198,32 @@ export async function getTicketBalance(): Promise<number> {
   return (await getWalletSnapshot()).tickets
 }
 
-/** チケットを付与する（IAP購入・ストリークボーナス・広告視聴共通） */
-export async function grantTickets(count: number): Promise<number> {
+// 2026-10-07: serialize() は入れ子で呼ぶとデッドロックする（内側が外側の完了を待ち、外側は内側を待つ）。
+// 以前は earnTicketFromAd / checkInStreak が serialize の中から grantTickets() を呼び、ゲスト
+// (または付与RPC失敗時)に広告報酬・ストリークボーナスの付与が永久に終わらず、以降のローカル
+// チケット処理もすべて止まっていた。既に serialize の中にいる呼び出し元は locked=true で呼ぶ。
+async function grantTicketsImpl(count: number, locked: boolean): Promise<number> {
   const userId = await getCurrentUserId()
   if (userId) {
     const { data, error } = await supabase.rpc('ticket_wallet_grant', { p_amount: count })
     if (!error && typeof data === 'number') return data
-    // サーバー呼び出しに失敗した場合のみローカルにフォールバック（オフライン等）
+    // サーバーに付与できなかった: ローカルへは足さず（ログイン中は参照されない）、保留として必ず送り直す
+    await enqueuePendingGrant(userId, count)
+    const w = await getWallet()
+    return w.tickets + await getPendingTotal(userId)
   }
-  return serialize(async () => {
+  const addLocal = async () => {
     const w = await getWallet()
     w.tickets += count
     await saveWallet(w)
     return w.tickets
-  })
+  }
+  return locked ? addLocal() : serialize(addLocal)
+}
+
+/** チケットを付与する（IAP購入・ストリークボーナス・広告視聴共通） */
+export async function grantTickets(count: number): Promise<number> {
+  return grantTicketsImpl(count, false)
 }
 
 /** キー付き重複防止の付与。ログイン中はサーバーの ticket_wallet_grant_once で判定する */
@@ -163,6 +239,9 @@ async function grantOnceGeneric(
       p_amount: amount, p_marker_name: markerName, p_marker_value: markerValue,
     })
     if (!error) return !!data
+    // 2026-10-07: ログイン中にサーバー判定が失敗した時、ローカルへ付与すると（ログイン中は参照されないため）
+    // チケットが消える上に「付与済み」の印だけ残る。付与せず false を返し、次の機会に再判定させる。
+    return false
   }
   return serialize(async () => {
     const last = await AsyncStorage.getItem(localKey).catch(() => null)
@@ -272,17 +351,17 @@ export async function getAdTicketRemainingToday(): Promise<number> {
 
 /** 広告視聴でチケットを1枚獲得（1日上限あり） */
 export async function earnTicketFromAd(): Promise<{ granted: boolean; atCap: boolean; tickets: number }> {
-  return serialize(async () => {
+  // 上限カウントの更新と付与だけを直列化し、残高の読み取り(内部でもserializeを使う)は外で行う
+  const { granted, atCap } = await serialize(async () => {
     const daily = await getAdTicketDaily()
-    if (daily.count >= AD_TICKET_DAILY_CAP) {
-      const tickets = await getTicketBalance()
-      return { granted: false, atCap: true, tickets }
-    }
+    if (daily.count >= AD_TICKET_DAILY_CAP) return { granted: false, atCap: true }
     daily.count += 1
     await saveAdTicketDaily(daily)
-    const tickets = await grantTickets(1)
-    return { granted: true, atCap: false, tickets }
+    await grantTicketsImpl(1, true)
+    return { granted: true, atCap: false }
   })
+  const tickets = await getTicketBalance()
+  return { granted, atCap, tickets }
 }
 
 // ── チケット月額プラン：更新のたびに100枚を自動付与 ───────────────
@@ -358,7 +437,7 @@ export async function checkInStreak(): Promise<{ streak: number; bonus: StreakBo
     let bonus: StreakBonus | null = null
     if (streak !== s.lastBonusStreak && (streak === 3 || streak === 7 || streak === 30)) {
       const amount = streak === 30 ? 5 : streak === 7 ? 2 : 1
-      await grantTickets(amount)
+      await grantTicketsImpl(amount, true)
       bonus = { amount }
       s.lastBonusStreak = streak
     }

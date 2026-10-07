@@ -8,7 +8,7 @@ import Svg, { Polygon, Line, Circle } from 'react-native-svg'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { BRAND, TEXT } from '../lib/theme'
 import { checkAdGate, recordUsage, getTier, checkAndConsumeDailyAllowance } from '../lib/adGate'
-import { TICKET_COST, grantTickets } from '../lib/ticketWallet'
+import { TICKET_COST, grantTickets, getTicketBalance } from '../lib/ticketWallet'
 import { TICKET_MONTHLY_GRANT } from '../lib/purchaseService'
 import AdGateModal from '../components/AdGateModal'
 import TicketGateModal from '../components/TicketGateModal'
@@ -24,7 +24,8 @@ import * as VideoThumbnails from 'expo-video-thumbnails'
 import * as ImageManipulator from 'expo-image-manipulator'
 import * as FileSystem from 'expo-file-system/legacy'
 import { sendCoachNotification, submitVideo } from '../lib/supabaseTeam'
-import { getAiAuthHeader } from '../lib/supabase'
+import { getAiProxyHeaders } from '../lib/supabase'
+import { AiRequestError, isTicketShortageError } from '../lib/claude'
 import { useTranslation } from 'react-i18next'
 import { useLanguage } from '../context/LanguageContext'
 import { narrativeLanguageInstruction } from '../lib/aiLanguage'
@@ -40,6 +41,7 @@ import {
 
 // SNS素材録画用のデモモード（marketing/recording/ のPlaywrightスクリプト専用。詳細はlib/recordingDemo.ts参照）
 import { RECORDING_DEMO } from '../lib/recordingDemo'
+import { requestPickerLibraryPermission } from '../lib/mediaPermissions'
 
 const JOINED_KEY_VA = 'trackmate_team_joined'
 
@@ -141,10 +143,10 @@ const IDEAL_TARGET: Record<string, number> = {
 function inferEventCategory(event: string): EventCategory {
   const e = event.trim()
   if (/^(100m|200m|400m|110mH|100mH|300mH|400mH)$/.test(e)) return 'sprint'
-  if (/^(800m|1500m|3000m|5000m|10000m)$/.test(e)) return 'middle_long'
+  if (/^(800m|1000m|1500m|3000m|5000m|10000m)$/.test(e)) return 'middle_long'
   if (/(跳)/.test(e)) return 'jump'
   if (/(投)/.test(e)) return 'throw'
-  if (/(800|1500|3000|5000|10000|marathon|マラソン|駅伝|長距離|中距離)/.test(e)) return 'middle_long'
+  if (/(800|1000|1500|3000|5000|10000|marathon|マラソン|駅伝|長距離|中距離)/.test(e)) return 'middle_long'
   if (/(幅跳|三段跳|高跳|棒高)/.test(e)) return 'jump'
   return 'sprint'
 }
@@ -208,7 +210,7 @@ function computeFrameTimestamps(durationMs: number | null): number[] {
 // ── 分析結果キャッシュ（同じ動画の再分析コストをゼロに） ────────────
 function _simpleHash(s: string): string {
   let h = 0
-  for (let i = 0; i < Math.min(s.length, 120); i++) { h = Math.imul(31, h) + s.charCodeAt(i) | 0 }
+  for (let i = 0; i < s.length; i++) { h = Math.imul(31, h) + s.charCodeAt(i) | 0 }
   return Math.abs(h).toString(36)
 }
 const ANALYSIS_CACHE_PREFIX = 'score_va_cache_v3_'  // v3: レーダーチャート方式へスキーマ変更のため旧キャッシュを無効化
@@ -506,19 +508,39 @@ function ConfidenceDots({ level }: { level: Confidence }) {
 }
 
 // フレーム画像＋根拠位置（bbox）のハイライト表示
+// 抽出フレームの実寸(幅,高さ)。サムネイルは resizeMode="cover" で切り抜いて表示するため、
+// bbox(画像全体に対する0〜1の座標)を表示枠にそのまま掛けると、縦長動画などで根拠の位置がずれる。
+const frameSizeRegistry = new Map<string, { w: number; h: number }>()
+
 function EvidenceThumb({ uri, bbox, w = 78, h = 56, color = BRAND }: {
   uri?: string; bbox?: FrameRef; w?: number; h?: number; color?: string
 }) {
   if (!uri) return null
   const ringSize = bbox ? Math.max(18, Math.min(bbox.w * w, bbox.h * h) * 1.6) : 0
+  // cover表示での画像の実表示サイズと左上オフセットを求め、枠内に収まる位置へ補正する
+  const size = frameSizeRegistry.get(uri)
+  let cx = 0, cy = 0
+  if (bbox) {
+    if (size && size.w > 0 && size.h > 0) {
+      const scale = Math.max(w / size.w, h / size.h)
+      const dw = size.w * scale, dh = size.h * scale
+      cx = (w - dw) / 2 + (bbox.x + bbox.w / 2) * dw
+      cy = (h - dh) / 2 + (bbox.y + bbox.h / 2) * dh
+    } else {
+      cx = (bbox.x + bbox.w / 2) * w
+      cy = (bbox.y + bbox.h / 2) * h
+    }
+    cx = Math.max(0, Math.min(w, cx))
+    cy = Math.max(0, Math.min(h, cy))
+  }
   return (
     <View style={{ width: w, height: h, borderRadius: 10, overflow: 'hidden', backgroundColor: '#e5e7eb', flexShrink: 0 }}>
       <Image source={{ uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
       {bbox && (
         <View style={{
           position: 'absolute',
-          left: (bbox.x + bbox.w / 2) * w - ringSize / 2,
-          top:  (bbox.y + bbox.h / 2) * h - ringSize / 2,
+          left: cx - ringSize / 2,
+          top:  cy - ringSize / 2,
           width: ringSize, height: ringSize, borderRadius: ringSize / 2,
           borderWidth: 2, borderColor: color,
         }} />
@@ -564,7 +586,7 @@ function CoachSendMode() {
 
   const pickFromLibrary = async () => {
     try {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      const perm = await requestPickerLibraryPermission()
       if (!perm.granted) { Alert.alert(t('videoAnalysis.coachSend.permissionRequired'), t('videoAnalysis.coachSend.photoLibraryPermission')); return }
       const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'videos' as any, allowsEditing: false, quality: 1 })
       if (!res.canceled && res.assets[0]) {
@@ -599,6 +621,9 @@ function CoachSendMode() {
         ...current,
       ].slice(0, 30))
       // コーチに通知 + Supabase team_videos にレコード作成（別デバイスのコーチが動画タブで確認できるように）
+      // 2026-10-07: 以前は、チームに未参加でも通信に失敗しても握りつぶして「送信しました」を出していた。
+      // 実際にコーチへ届いた時だけ成功扱いにし、届いていない場合は正直に伝える。
+      let delivered = false
       try {
         const joinedRaw = await AsyncStorage.getItem(JOINED_KEY_VA)
         if (joinedRaw) {
@@ -606,15 +631,20 @@ function CoachSendMode() {
           try { joined = JSON.parse(joinedRaw) } catch {}
           if (joined?.code && joined?.playerName) {
             const desc = [event, message].filter(Boolean).join(' / ') || t('videoAnalysis.coachSend.defaultSendDesc')
-            await Promise.all([
+            const results = await Promise.all([
               sendCoachNotification(joined.code, 'video', joined.playerName,
                 t('videoAnalysis.coachSend.coachNotifyBody', { name: joined.playerName }) + (event ? `（${event}）` : '')),
               // team_videos テーブルに登録 → コーチの「動画」タブに表示される
               submitVideo(joined.code, joined.playerName, '', desc),
             ])
+            delivered = results.every(Boolean)
           }
         }
-      } catch {}
+      } catch (e) { console.warn('[coach-send] delivery failed:', e) }
+      if (!delivered) {
+        Alert.alert(t('videoAnalysis.coachSend.notDeliveredTitle'), t('videoAnalysis.coachSend.notDeliveredBody'))
+        return
+      }
       setSent(true)
     } catch { Alert.alert(t('videoAnalysis.coachSend.errorTitle'), t('videoAnalysis.coachSend.sendFailed')) }
     finally { setSending(false) }
@@ -853,10 +883,13 @@ function NativeVideoAnalysisRoot() {
           <Text style={[cst.tabText, activeTab === 'coach' && { color: '#fff' }]}>{t('videoAnalysis.coachSend.tabCoach')}</Text>
         </TouchableOpacity>
       </View>
-      {activeTab === 'ai'
-        ? <NativeVideoAnalysis />
-        : <CoachSendMode />
-      }
+      {/* 2026-10-07: AI分析タブは常にマウントしたまま隠す。以前はコーチ送信タブへ切り替えると
+          NativeVideoAnalysis が破棄され、実行中のAI呼び出し(チケット消費済み)の結果が表示されず、
+          戻ると分析が最初から可能な状態になって二重に課金される恐れがあった。 */}
+      <View style={{ flex: 1, display: activeTab === 'ai' ? 'flex' : 'none' }}>
+        <NativeVideoAnalysis />
+      </View>
+      {activeTab === 'coach' && <CoachSendMode />}
     </View>
   )
 }
@@ -935,6 +968,11 @@ function NativeVideoAnalysis() {
   const [finishPosition,setFinishPosition]= useState('')
   // 複数人動画で別人が分析された場合の自己申告チケット返還（1結果につき1回まで）
   const [reportedWrongPerson, setReportedWrongPerson] = useState(false)
+  // 2026-10-07: 「別の人が分析された」返金は、この結果で実際にチケットが引かれ、かつ人物指定を使った
+  // 場合にだけ出す。以前は無料(コーチ/旧プラン/体験枠/キャッシュ)の結果でも申告でき、チケットを
+  // 無料で増やせた。また入力欄を後から埋めるだけでボタンが現れていた。
+  const [resultChargedTickets, setResultChargedTickets] = useState(false)
+  const [resultUsedPersonHint, setResultUsedPersonHint] = useState(false)
   const [refundingTicket,     setRefundingTicket]     = useState(false)
   const [result, setResult]           = useState<AnalysisResult | null>(null)
   const [prevScore, setPrevScore]     = useState<number | null>(null)
@@ -962,6 +1000,26 @@ function NativeVideoAnalysis() {
   const { language } = useLanguage()
   // 連続タップによる二重起動防止（AdGate async チェック中もガード）
   const analyzingRef = React.useRef(false)
+
+  // 2026-10-07: 分析中に画面を閉じる(戻る・スワイプ)と、AI呼び出しとチケット消費は続くのに、
+  // 結果の表示先が無くなり、画面に戻っても何も出なかった。分析中に離れようとした時は確認を出す。
+  // (離れても分析は裏で完了し、結果は「履歴」に保存される)
+  const leaveNavigation = useNavigation()
+  useEffect(() => {
+    const unsubscribe = (leaveNavigation as any).addListener('beforeRemove', (e: any) => {
+      if (!analyzingRef.current) return
+      e.preventDefault()
+      Alert.alert(
+        t('videoAnalysis.native.leaveWhileAnalyzingTitle'),
+        t('videoAnalysis.native.leaveWhileAnalyzingBody'),
+        [
+          { text: t('videoAnalysis.native.leaveStay'), style: 'cancel' },
+          { text: t('videoAnalysis.native.leaveConfirm'), style: 'destructive', onPress: () => (leaveNavigation as any).dispatch(e.data.action) },
+        ],
+      )
+    })
+    return unsubscribe
+  }, [leaveNavigation, t])
   // 広告視聴済みクレジット（分析失敗時のリトライも広告なしで通す）
   const adCreditRef = React.useRef(false)
 
@@ -987,8 +1045,9 @@ function NativeVideoAnalysis() {
   }, [historyList, historyFilter])
 
   async function pickVideo() {
+    if (analyzingRef.current) return   // 分析中に動画を差し替えると、結果が別の動画に紐づいてしまう
     try {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      const perm = await requestPickerLibraryPermission()
       if (!perm.granted) { Alert.alert(t('videoAnalysis.native.permissionRequired'), t('videoAnalysis.native.photoLibraryPermission')); return }
       const res = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: 'videos' as any,
@@ -1010,6 +1069,7 @@ function NativeVideoAnalysis() {
         setVideoDurationMs(typeof durMs === 'number' && durMs > 0 ? durMs : null)
         setLocalVideoUri(null)
         setResult(null); setRawText(''); setError(''); setFrames([]); setReportedWrongPerson(false)
+        setResultChargedTickets(false); setResultUsedPersonHint(false)
         setShotDate(todayLocalISO())
         setPhase('idle')
       }
@@ -1082,8 +1142,19 @@ function NativeVideoAnalysis() {
     )
   }
 
+  // 2026-10-07: 二重タップ防止のフラグは、最初のawait(チケット確認)より前に立てる。
+  // 以前はチケット確認の後だったため、確認中に2回タップすると分析が2本走り、チケットが二重に引かれていた。
   async function analyze(skipGate = false, forceRefresh = false) {
-    if (analyzingRef.current) return   // 二重タップ防止
+    if (analyzingRef.current) return
+    analyzingRef.current = true
+    try {
+      await analyzeImpl(skipGate, forceRefresh)
+    } finally {
+      analyzingRef.current = false
+    }
+  }
+
+  async function analyzeImpl(skipGate = false, forceRefresh = false) {
     if (!videoUri) { Alert.alert(t('videoAnalysis.native.selectVideoAlert')); return }
     if (RECORDING_DEMO) {
       // 録画用（iOSシミュレーター+Maestro等のフォールバック録画時）: 実AI呼び出し・ゲート判定を
@@ -1116,6 +1187,7 @@ function NativeVideoAnalysis() {
     let usesTicketThisRun = false
     if (!skipGate) {
       const gate = await checkAdGate('video')
+      if (gate.consentDenied) return
       if (!gate.allowed) {
         if (gate.needsTicket) { setTicketGateCost(gate.ticketCost); setTicketGateBalance(gate.ticketBalance); setTicketGateVisible(true) }
         else { setAdGateRemaining(gate.remaining); setAdGateHardLimited(gate.hardLimited); setAdGateLimitType(gate.limitType); setAdGateVisible(true) }
@@ -1123,16 +1195,16 @@ function NativeVideoAnalysis() {
       }
       usesTicketThisRun = gate.needsTicket
     }
-    analyzingRef.current = true
     trackFeatureUse('video')
     setError(''); setResult(null); setRawText(''); setReportedWrongPerson(false)
+    setResultChargedTickets(false); setResultUsedPersonHint(false)
 
     try {
       // ── キャッシュチェック（forceRefresh=true のときはスキップ） ──
       if (!forceRefresh) {
         const cached = await getAnalysisCache(videoUri, event)
         if (cached) {
-          setResult(cached); setPhase('result'); analyzingRef.current = false; return
+          setResult(cached); setPhase('result'); return
         }
       }
 
@@ -1158,7 +1230,9 @@ function NativeVideoAnalysis() {
 
       // 動画の実際の長さに応じてタイムスタンプを均等割り（取得できない場合は固定値にフォールバック）
       const timestampsForThisVideo = computeFrameTimestamps(videoDurationMs)
-      setFrameTimestampsUsed(timestampsForThisVideo)
+      // 抽出に成功したフレームの時刻だけを記録する(失敗したコマを飛ばすと、AIが返すフレーム番号と
+      // 時刻・サムネイルの対応がずれ、フレームメモや再生位置が別の場面を指していた)
+      const usedTimestamps: number[] = []
 
       // 320px / compress 0.45 → 画像トークン数を ~50% 削減
       for (const ts of timestampsForThisVideo) {
@@ -1171,6 +1245,8 @@ function NativeVideoAnalysis() {
           const b64 = await FileSystem.readAsStringAsync(resized.uri, { encoding: FileSystem.EncodingType.Base64 })
           base64Frames.push(b64)
           thumbUris.push(resized.uri)
+          usedTimestamps.push(ts)
+          if (resized.width && resized.height) frameSizeRegistry.set(resized.uri, { w: resized.width, h: resized.height })
         } catch { /* 動画長より後のタイムスタンプはスキップ */ }
       }
 
@@ -1183,10 +1259,13 @@ function NativeVideoAnalysis() {
         )
         const b64 = await FileSystem.readAsStringAsync(resized.uri, { encoding: 'base64' as any })
         base64Frames.push(b64); thumbUris.push(resized.uri)
+        usedTimestamps.push(0)
+        if (resized.width && resized.height) frameSizeRegistry.set(resized.uri, { w: resized.width, h: resized.height })
       }
 
       if (base64Frames.length === 0) throw new Error(t('videoAnalysis.native.frameFetchFailed'))
       setFrames(thumbUris)
+      setFrameTimestampsUsed(usedTimestamps.length > 0 ? usedTimestamps : [0])
 
       // ── Step 2: AI分析 ──
       setPhase('analyzing')
@@ -1249,9 +1328,17 @@ dimensions:上記${dims.length}項目(${dimIdList})全て必須。focusは改善
 
       const emptyCard = (): FeedbackCard => ({ title: '', text: '' })
       const isConfidence = (v: any): v is Confidence => v === 'low' || v === 'medium' || v === 'high'
-      const asBbox = (b: any): FrameRef | undefined =>
-        (b && typeof b.f === 'number' && typeof b.x === 'number' && typeof b.y === 'number'
-          && typeof b.w === 'number' && typeof b.h === 'number' && b.w > 0 && b.h > 0) ? b : undefined
+      // 2026-10-07: 以前は「数値であること」しか見ておらず、AIが0〜100や0〜1000の座標で返したり、
+      // 存在しないフレーム番号を指すと、根拠の丸印が枠外や別の場面に出ていた。
+      // フレーム番号は実在する整数、座標は0〜1の範囲に収まるものだけを採用する。
+      const asBbox = (b: any): FrameRef | undefined => {
+        if (!b || typeof b !== 'object') return undefined
+        const { f, x, y, w, h } = b
+        if (![f, x, y, w, h].every(v => typeof v === 'number' && Number.isFinite(v))) return undefined
+        if (!Number.isInteger(f) || f < 0 || f >= nF) return undefined
+        if (x < 0 || y < 0 || w <= 0 || h <= 0 || w > 1 || h > 1 || x + w > 1.05 || y + h > 1.05) return undefined
+        return { f, x, y, w, h }
+      }
       const asCard = (c: any): FeedbackCard =>
         c && typeof c.title === 'string' ? { title: c.title, text: c.text ?? '', bbox: asBbox(c.bbox) } : emptyCard()
 
@@ -1265,7 +1352,7 @@ dimensions:上記${dims.length}項目(${dimIdList})全て必須。focusは改善
       const callOnce = async (): Promise<{ parsed: AnalysisResult | null; text: string; truncated: boolean }> => {
         const res = await fetchWithTimeout(endpoint, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...(await getAiAuthHeader()) },
+          headers: { 'Content-Type': 'application/json', ...(await getAiProxyHeaders()) },
           body: JSON.stringify({
             // 2026-09-14: 「API費用をもっと抑えられないか」の再点検で発覚。api/analyze.tsは
             // GEMINI_API_KEY設定時、この model フィールドを無視して常にGemini側の定数
@@ -1284,6 +1371,7 @@ dimensions:上記${dims.length}項目(${dimIdList})全て必須。focusは改善
                    // Geminiの応答が46〜59秒かかったケースでサーバーは間に合っているのに
                    // クライアントが先にタイムアウトしてエラーになっていた
 
+        if (res.status === 402) throw new AiRequestError(402, 'ticket shortage')
         if (!res.ok) {
           const errBody = await res.text().catch(() => '')
           throw new Error(t('videoAnalysis.native.apiErrorMessage', { status: res.status, body: errBody.slice(0, 120) }))
@@ -1310,19 +1398,24 @@ dimensions:上記${dims.length}項目(${dimIdList})全て必須。focusは改善
             if (typeof p.score !== 'number') throw new Error('score missing')
             const { dims: expectedDims } = dimensionsForEventDisplay(event, t)
             const rawDims: any[] = Array.isArray(p.dimensions) ? p.dimensions : []
-            const dimensions: DimensionScore[] = expectedDims.map(d => {
+            // 2026-10-07: AIが項目のidを返さなかった/違うidで返した項目は、以前は「60点・理由なし」の
+            // 偽の値で埋めてレーダーチャートに出していた(全項目が60の平らなチャートが「成功」扱いに
+            // なり、チケットも消費されていた)。返ってきた項目だけを使い、3つ未満なら失敗として扱う。
+            const dimensions: DimensionScore[] = expectedDims.flatMap(d => {
               const found = rawDims.find(r => r?.id === d.id)
-              return {
+              if (typeof found?.score !== 'number' || !Number.isFinite(found.score)) return []
+              return [{
                 id: d.id,
                 label: d.label,
-                score: typeof found?.score === 'number' ? Math.max(0, Math.min(100, found.score)) : 60,
+                score: Math.round(Math.max(0, Math.min(100, found.score))),
                 confidence: isConfidence(found?.confidence) ? found.confidence : 'low',
                 reason: typeof found?.reason === 'string' ? found.reason : '',
                 bbox: asBbox(found?.bbox),
-              }
+              }]
             })
+            if (dimensions.length < 3) throw new Error('dimensions missing')
             parsedOnce = {
-              score: p.score,
+              score: Math.round(Math.max(0, Math.min(100, p.score))),
               headline: p.headline ?? t('videoAnalysis.native.defaultHeadline'),
               dimensions,
               confidenceOverall: isConfidence(p.confidenceOverall) ? p.confidenceOverall : 'low',
@@ -1334,7 +1427,9 @@ dimensions:上記${dims.length}項目(${dimIdList})全て必須。focusは改善
                 drill: p.practice?.drill ?? '',
                 drillDetail: p.practice?.drillDetail ?? '',
               },
-              frameNotes: Array.isArray(p.frameNotes) ? p.frameNotes : undefined,
+              frameNotes: Array.isArray(p.frameNotes)
+                ? p.frameNotes.filter((n: any) => n && Number.isInteger(n.f) && n.f >= 0 && n.f < nF && typeof n.note === 'string')
+                : undefined,
             }
           } catch { parsedOnce = null }
         }
@@ -1390,6 +1485,8 @@ dimensions:上記${dims.length}項目(${dimIdList})全て必須。focusは改善
         setHistoryList(nextHistory)
       } catch {
         // 履歴保存に失敗しても、AIの応答自体は無駄にせずユーザーに提示する
+        // （2026-10-07: 以前は何も知らせなかったため、課金された分析が履歴に残っていないことに気づけなかった）
+        Toast.show({ type: 'info', text1: t('videoAnalysis.native.historySaveFailed'), visibilityTime: 3500 })
       }
 
       setResult(parsed)
@@ -1399,6 +1496,8 @@ dimensions:上記${dims.length}項目(${dimIdList})全て必須。focusは改善
       setRecheckScheduled(false)
       if (prevEntry) trackEvent('video_comparison_viewed', { feature: 'video', metadata: { score_diff: parsed.score - prevEntry.score } })
       adCreditRef.current = false  // 分析成功でクレジット消費
+      setResultChargedTickets(usesTicketThisRun)
+      setResultUsedPersonHint(!!personHint)
       // 広告視聴後の分析が完了したら、広告なしプランへのアップセルを提示
       if (usedAdCredit) setUpsellVisible(true)
 
@@ -1410,6 +1509,12 @@ dimensions:上記${dims.length}項目(${dimIdList})全て必須。focusは改善
       // キャッシュに保存（同じ動画の再分析コストをゼロに）
       setAnalysisCache(videoUri, event, parsed).catch(() => {})
     } catch (e: any) {
+      if (isTicketShortageError(e)) {
+        // サーバーが「チケット不足」と判断（端末の残高表示と食い違い）。生のエラー文ではなく獲得案内を出す
+        setTicketGateCost(TICKET_COST.video); setTicketGateBalance(await getTicketBalance().catch(() => 0)); setTicketGateVisible(true)
+        setPhase('idle')
+        return
+      }
       setError(e?.message ?? t('videoAnalysis.native.analysisFailedError'))
       setPhase('idle')
       // 分析失敗時はクレジットを残す（リトライを広告なしで許可）
@@ -1469,7 +1574,7 @@ dimensions:上記${dims.length}項目(${dimIdList})全て必須。focusは改善
             {['', '100m','200m','300m','400m','800m','1000m','1500m','3000m','110mH','100mH','300mH','400mH','走幅跳','三段跳','走高跳','棒高跳','砲丸投','やり投','円盤投'].map(ev => (
               <TouchableOpacity
                 key={ev || '指定なし'}
-                onPress={() => setEvent(ev)}
+                onPress={() => { if (!analyzingRef.current) setEvent(ev) }}
                 style={{
                   paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12,
                   backgroundColor: event === ev ? BRAND : '#fff',
@@ -1725,7 +1830,7 @@ dimensions:上記${dims.length}項目(${dimIdList})全て必須。focusは改善
             </View>
 
             {/* 複数人動画で違う選手が分析された場合の申告リンク */}
-            {laneNumber || finishPosition || clothingColor || shoeColor ? (
+            {resultChargedTickets && resultUsedPersonHint ? (
               <TouchableOpacity
                 onPress={reportWrongPersonAnalyzed}
                 disabled={reportedWrongPerson || refundingTicket}
@@ -2333,6 +2438,11 @@ function WebPlayer({ isPremiumUser: isPremiumProp }: { isPremiumUser: boolean })
       vid.addEventListener('seeked', onSeeked)
     })
 
+  /* react-native-web の Alert.alert は何も表示しない(押しても無反応に見える)ため、Web版では window.alert を使う */
+  const webAlert = (title: string, message?: string) => {
+    try { window.alert(message ? `${title}\n${message}` : title) } catch { Alert.alert(title, message) }
+  }
+
   /* ── Claude Vision: フレーム分析 ── */
   const analyzeFrame = async (dataUrl: string, t: number): Promise<FrameAdvice> => {
     const apiBase2 = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
@@ -2340,32 +2450,37 @@ function WebPlayer({ isPremiumUser: isPremiumProp }: { isPremiumUser: boolean })
     const model = 'claude-haiku-4-5-20251001'
     const res = await fetchWithTimeout(endpoint2, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', ...(await getAiProxyHeaders()) },
       body: JSON.stringify({
-        model, max_tokens: 320,  // 512→320: フレーム分析出力削減
+        // 2026-10-07: Web版の動画分析はログイン情報も feature も送っておらず、サーバーが誰にも課金できなかった
+        // (ネイティブ版は2チケット)。1回の分析でフレームごとに複数回呼ぶため、フレーム分析は課金なしの
+        // 'video_frame'、最後の総合評価を課金対象の 'video_web'(2枚。失敗時は自動で返金)にして1回分だけ課金する。
+        model, feature: 'video_frame', max_tokens: 320,  // 512→320: フレーム分析出力削減
         messages: [{ role: 'user', content: [
           { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: dataUrl.split(',')[1] } },
           { type: 'text', text: `陸上${selectedEvent ? `(${selectedEvent})` : ''}${athleteColor ? ` 対象:${athleteColor}` : ''} ${formatTime(t)}地点。JSON形式のみ:
 {"overall":"評価20字","positives":["良い点(部位)","良い点2"],"improvements":["要約1","要約2"],"improvementDetails":[{"issue":"問題(部位)","reason":"原因(根拠)","fix":"改善方法"}],"injuryRisk":"リスク30字(低ければ「リスク低」)"}${narrativeLanguageInstruction(language)}` }
         ]}]
       }),
-    }, 30000)
+    }, 58000)  // サーバー(api/analyze.ts)の上限55秒より長くする
+    // 2026-10-07: HTTPエラーを確認していなかったため、4xx/5xxのエラー応答が「空のJSON {}」として
+    // 成功扱いになり、positives等が無い分析結果で画面が落ちたり、失敗なのに利用回数が加算されていた。
+    if (!res.ok) throw new Error(`analyze http ${res.status}`)
     const data = await res.json()
-    const text  = data.content?.find((b: any) => b.type === 'text')?.text ?? '{}'
+    const text  = data.content?.find((b: any) => b.type === 'text')?.text ?? ''
     const match = text.match(/\{[\s\S]*\}/)
-    try {
-      if (match) {
-        const p = JSON.parse(match[0])
-        return {
-          ...p,
-          improvementDetails: Array.isArray(p.improvementDetails)
-            ? p.improvementDetails.filter((d: any) => d?.issue && d?.reason && d?.fix)
-            : undefined,
-        }
-      }
-      return { overall: text.slice(0, 30), positives: [], improvements: [] }
+    if (!match) throw new Error('analyze: no JSON in response')
+    const p = JSON.parse(match[0])   // 壊れたJSONは例外→呼び出し側でそのフレームをスキップ
+    const strList = (v: any): string[] => Array.isArray(v) ? v.filter((x: any) => typeof x === 'string') : []
+    return {
+      overall: typeof p.overall === 'string' ? p.overall : '',
+      positives: strList(p.positives),
+      improvements: strList(p.improvements),
+      injuryRisk: typeof p.injuryRisk === 'string' ? p.injuryRisk : undefined,
+      improvementDetails: Array.isArray(p.improvementDetails)
+        ? p.improvementDetails.filter((d: any) => d?.issue && d?.reason && d?.fix)
+        : undefined,
     }
-    catch { return { overall: text.slice(0, 30), positives: [], improvements: [] } }
   }
 
   /* ── Claude: 総合評価 + メニュー作成 ── */
@@ -2380,9 +2495,9 @@ function WebPlayer({ isPremiumUser: isPremiumProp }: { isPremiumUser: boolean })
       const endpoint3 = `${apiBase3}/api/analyze`
       const res = await fetchWithTimeout(endpoint3, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...(await getAiProxyHeaders()) },
         body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001', max_tokens: 1024,
+          model: 'claude-haiku-4-5-20251001', feature: 'video_web', max_tokens: 1024,
           messages: [{ role: 'user', content: `陸上競技バイオメカニクスコーチとして、以下のフレーム分析結果を元に総合評価・トレーニングメニュー・怪我リスクの傾向に関する参考アドバイスを作成してください。断定的な予防・治療効果の表現は避け、あくまで参考情報として提示すること。${selectedEvent ? `\n種目: ${selectedEvent}に特化したアドバイスをしてください。` : ''}
 アドバイスは読みやすく簡潔に（1項目30字以内）、かつ部位・角度・回数・距離など具体的な数値を含めること。
 
@@ -2405,10 +2520,25 @@ ${summary}
         }),
       }, 65000)  // api/analyze.tsのmaxDuration=60秒に合わせて、45秒のクライアント側タイムアウトが
                  // サーバーより先に切れないようにする
+      if (!res.ok) throw new Error(`comprehensive http ${res.status}`)
       const data  = await res.json()
-      const text  = data.content?.find((b: any) => b.type === 'text')?.text ?? '{}'
+      const text  = data.content?.find((b: any) => b.type === 'text')?.text ?? ''
       const match = text.match(/\{[\s\S]*\}/)
-      if (match) { try { setComprehensive(JSON.parse(match[0])) } catch {} }
+      if (match) {
+        // 2026-10-07: 以前は {} など中身の欠けた応答もそのまま保存して、表示側が
+        // keyFindings.length 等で落ちていた。配列は必ず配列にそろえる。
+        const c = JSON.parse(match[0])
+        const strList = (v: any): string[] => Array.isArray(v) ? v.filter((x: any) => typeof x === 'string') : []
+        setComprehensive({
+          summary: typeof c.summary === 'string' ? c.summary : '',
+          keyFindings: strList(c.keyFindings),
+          injuryWarnings: strList(c.injuryWarnings),
+          trainingMenu: Array.isArray(c.trainingMenu)
+            ? c.trainingMenu.filter((m: any) => m && typeof m.name === 'string').map((m: any) => ({ name: m.name, detail: typeof m.detail === 'string' ? m.detail : '' }))
+            : [],
+          nextSteps: strList(c.nextSteps),
+        })
+      }
     } catch (e) { console.warn('comprehensive fail', e) }
     finally { setLoadingComp(false) }
   }
@@ -2417,12 +2547,19 @@ ${summary}
   /* 戻り値: 1フレーム以上の分析に成功したか（失敗時はチケットを消費させないための判定に使う） */
   const startAnalysisCore = async (): Promise<boolean> => {
     const vid = videoRef.current
-    if (!vid?.src) { Alert.alert(t('videoAnalysis.web.selectVideoAlert')); return false }
-    if (!vid.duration)
-      await new Promise<void>(r => vid.addEventListener('loadedmetadata', () => r(), { once: true }))
+    if (!vid?.src) { webAlert(t('videoAnalysis.web.selectVideoAlert')); return false }
+    if (!vid.duration) {
+      // 非対応のコーデック等で loadedmetadata が来ないと、ここで永久に待ち続けて以降の操作が
+      // 全て二重タップ扱いで無視されていた。10秒で諦める。
+      const loaded = await new Promise<boolean>(resolve => {
+        const timer = setTimeout(() => resolve(false), 10_000)
+        vid.addEventListener('loadedmetadata', () => { clearTimeout(timer); resolve(true) }, { once: true })
+      })
+      if (!loaded) { webAlert(t('videoAnalysis.web.analysisFailedTitle'), t('videoAnalysis.web.analysisFailedMessage')); return false }
+    }
     // 2026-09-10: 1分超はフレーム間隔が空きすぎてフォーム分析に使えないため受け付けない
     if (vid.duration > 60) {
-      Alert.alert(t('videoAnalysis.native.videoTooLongTitle'), t('videoAnalysis.native.videoTooLongBody'))
+      webAlert(t('videoAnalysis.native.videoTooLongTitle'), t('videoAnalysis.native.videoTooLongBody'))
       return false
     }
     setPhase('analyzing')
@@ -2444,7 +2581,7 @@ ${summary}
     }
     if (results.length === 0) {
       setPhase('player')
-      Alert.alert(t('videoAnalysis.web.analysisFailedTitle'), t('videoAnalysis.web.analysisFailedMessage'))
+      webAlert(t('videoAnalysis.web.analysisFailedTitle'), t('videoAnalysis.web.analysisFailedMessage'))
       return false
     }
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(results)).catch(() => {})
@@ -2459,7 +2596,7 @@ ${summary}
   const startAnalysis = async () => {
     if (startingRef.current) return  // 二重タップ防止
     const vid = videoRef.current
-    if (!vid?.src) { Alert.alert(t('videoAnalysis.web.selectVideoAlert')); return }
+    if (!vid?.src) { webAlert(t('videoAnalysis.web.selectVideoAlert')); return }
     startingRef.current = true
     try {
       if (RECORDING_DEMO) {
@@ -2498,6 +2635,7 @@ ${summary}
         return
       }
       const gate = await checkAdGate('video')
+      if (gate.consentDenied) return
       if (!gate.allowed) {
         if (gate.needsTicket) {
           setTicketGateCost(gate.ticketCost); setTicketGateBalance(gate.ticketBalance); setTicketGateVisible(true)

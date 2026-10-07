@@ -42,6 +42,16 @@ const KEEP_TYPES = new Set(['CANCELLATION', 'BILLING_ISSUE', 'SUBSCRIPTION_PAUSE
 // アクセス終了イベント種別
 const DEACTIVATE_TYPES = new Set(['EXPIRATION'])
 
+// 2026-10-07: チケットパック(消耗型)の購入をサーバー側で確定して付与する。
+// 以前はアプリ(クライアント)が購入成功後に ticket_wallet_grant(15|50) を自己申告で呼んでおり、
+// 有効なJWTがあれば購入していなくても何度でも +50枚 を呼べた(supabase/fix_ticket_grant_hardening.sql 参照)。
+// ⚠️ lib/purchaseService.ts の TICKET_PACK_COUNTS(商品ID→枚数)と必ず同じ内容にすること。
+const TICKET_PACKS: Record<string, number> = {
+  score_tickets_15_v1: 15,
+  score_tickets_50_v1: 50,
+}
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 // product_id から entitlement を推定（entitlement_ids が空のイベント対策）
 function inferEntitlementsFromProduct(productId: string | undefined): string[] {
   if (!productId) return []
@@ -90,6 +100,46 @@ export default async function handler(req: any, res: any) {
       Authorization: `Bearer ${serviceKey}`,
     }
 
+    // ── チケットパック購入(消耗型。entitlement を持たない) ──
+    // スイッチ server_flags.ticket_pack_client_grant:
+    //   'on'(初期値) = 従来どおりアプリが付与する。ここでは取引を「記録のみ」して二重付与を避ける
+    //   'off'        = アプリは付与しない。ここで取引ID(transaction_id)ごとに一度だけ付与する
+    const packCount = typeof event?.product_id === 'string' ? TICKET_PACKS[event.product_id] : undefined
+    if (type === 'NON_RENEWING_PURCHASE' && packCount) {
+      const ref = String(event?.transaction_id ?? event?.id ?? '')
+      if (!UUID_RE.test(appUserId) || !ref) {
+        res.status(200).json({ status: 'ignored', reason: 'ticket pack: no usable app_user_id/transaction id' })
+        return
+      }
+      // スイッチを読む。テーブルが無い(SQL未適用)なら従来どおり(アプリが付与)とみなす。
+      // 一時的な障害(5xx等)の場合は、付与漏れを避けるため 500 を返して RevenueCat に再送させる。
+      let clientGrant = true
+      const flagRes = await fetch(`${supabaseUrl}/rest/v1/server_flags?select=value&key=eq.ticket_pack_client_grant`, { headers: sbHeaders })
+      if (flagRes.ok) {
+        const rows = await flagRes.json().catch(() => null)
+        clientGrant = !(Array.isArray(rows) && rows[0]?.value === 'off')
+      } else if (flagRes.status !== 404 && flagRes.status !== 400) {
+        res.status(500).json({ error: `server_flags 取得失敗 (${flagRes.status})` })
+        return
+      }
+      const rpcRes = await fetch(`${supabaseUrl}/rest/v1/rpc/${clientGrant ? 'ticket_wallet_note_purchase' : 'ticket_wallet_credit'}`, {
+        method: 'POST', headers: sbHeaders,
+        body: JSON.stringify({ p_user: appUserId, p_amount: packCount, p_ref: ref }),
+      })
+      if (!rpcRes.ok) {
+        const errText = await rpcRes.text().catch(() => '')
+        if (clientGrant) {
+          // 記録だけの処理(SQL未適用など)。アプリ側が付与するので、失敗してもWebhookは成功扱いにして再送を止める
+          res.status(200).json({ status: 'ignored', reason: 'ticket pack note failed', detail: errText.slice(0, 200) })
+        } else {
+          res.status(500).json({ error: `チケット付与失敗: ${errText.slice(0, 200)}` })
+        }
+        return
+      }
+      res.status(200).json({ status: 'ok', action: clientGrant ? 'pack_noted' : 'pack_credited', user_id: appUserId, amount: packCount })
+      return
+    }
+
     // このイベントが関係する entitlement 群
     let entIds: string[] = Array.isArray(event?.entitlement_ids) ? event.entitlement_ids
       : (typeof event?.entitlement_id === 'string' ? [event.entitlement_id] : [])
@@ -109,7 +159,11 @@ export default async function handler(req: any, res: any) {
       }
       const clearPatch: Record<string, unknown> = { user_id: appUserId, updated_at: new Date().toISOString() }
       if (hasCoach || hasNoad) {
-        clearPatch.tier = null
+        // 2026-10-07: 以前は null を書いていたが、subscription_status.tier は NOT NULL
+        // (default 'free', check in free/noad/coach)のため、期限切れのたびに upsert が 23502 で失敗し
+        // 500 を返していた。結果、解約・失効後もtierが 'coach' のまま残り、api/analyze.ts が
+        // 「有料(無制限・上位モデル)」と判定し続けていた。期限切れは 'free' に戻す。
+        clearPatch.tier = 'free'
         clearPatch.expires_at = null
         clearPatch.original_purchase_date = null
       }
@@ -157,6 +211,8 @@ export default async function handler(req: any, res: any) {
     if (hasTicketMonthly) {
       patch.has_ticket_monthly = true
       patch.ticket_monthly_expires_at = expiresAt
+      // 無料トライアル中は本付与(100枚)ではなく1日5枚だけ付与する(サーバー側の判定に使う)
+      patch.ticket_monthly_is_trial = event?.period_type === 'TRIAL'
     }
 
     // coach/noad も ticket_monthly も無い（推定もできない）イベントは無視
@@ -166,11 +222,24 @@ export default async function handler(req: any, res: any) {
     }
 
     // upsert（merge-duplicates で既存行の他フィールドは保持）
-    const upsertRes = await fetch(`${supabaseUrl}/rest/v1/subscription_status`, {
+    let upsertRes = await fetch(`${supabaseUrl}/rest/v1/subscription_status`, {
       method: 'POST',
       headers: { ...sbHeaders, Prefer: 'resolution=merge-duplicates' },
       body: JSON.stringify(patch),
     })
+    // ticket_monthly_is_trial 列がまだ無いDB(supabase/fix_ticket_grant_hardening.sql 未適用)でも、
+    // 契約状態の同期そのものは止めない: その列を外して1回だけ再試行する。
+    if (!upsertRes.ok && 'ticket_monthly_is_trial' in patch) {
+      const firstErr = await upsertRes.clone().text().catch(() => '')
+      if (firstErr.includes('ticket_monthly_is_trial')) {
+        delete patch.ticket_monthly_is_trial
+        upsertRes = await fetch(`${supabaseUrl}/rest/v1/subscription_status`, {
+          method: 'POST',
+          headers: { ...sbHeaders, Prefer: 'resolution=merge-duplicates' },
+          body: JSON.stringify(patch),
+        })
+      }
+    }
     if (!upsertRes.ok) {
       const errText = await upsertRes.text().catch(() => '')
       res.status(500).json({ error: `Supabase upsert失敗: ${errText}` })

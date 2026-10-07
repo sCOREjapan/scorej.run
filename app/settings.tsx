@@ -29,6 +29,7 @@ import { Sounds, isSoundEnabled, isHapticsEnabled, setSoundEnabled, setHapticsEn
 import AdGateModal from '../components/AdGateModal'
 import { trackFeatureUse } from '../lib/analytics'
 import { todayLocalISO } from '../lib/dateLocal'
+import { purgeAiTempFiles } from '../lib/aiLocalData'
 
 // テーマに関わらず固定のブランド/セマンティックカラー
 const BRAND   = '#166534'  // アプリのブランドグリーン
@@ -462,6 +463,7 @@ export default function SettingsScreen() {
                       }
                       // サーバー側の削除に成功した時だけローカルクリア＋サインアウトする
                       await AsyncStorage.clear().catch(() => {})
+                      await purgeAiTempFiles().catch(() => {})   // 分析用に端末へコピーした動画・フレームも消す
                       await signOut().catch(() => {})
                     } catch (e: any) {
                       console.error('[delete-account] client exception:', e)

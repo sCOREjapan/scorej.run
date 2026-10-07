@@ -24,6 +24,7 @@ import { usePropOverlayDismiss } from '../lib/useOverlayDismiss'
 import { trackEvent } from '../lib/analytics'
 import { getMissionSummaryInsight, type MissionSummaryInsight } from '../lib/claude'
 import TypewriterText from './TypewriterText'
+import { hasAiConsent } from '../lib/aiConsent'
 import {
   ensureMissionStarted, getMissionDayProgress, currentMissionDay, claimDayReward,
   finishMission, startSaleWindowIfNeeded, getMissionStats,
@@ -511,8 +512,16 @@ function MissionReveal({ startDate, onContinue }: {
     ;(async () => {
       const st = await getMissionStats(startDate).catch(() => null)
       let ins: MissionSummaryInsight | null = null
-      if (st) {
-        try { ins = await getMissionSummaryInsight(st, language) } catch { /* フォールバック文言を使う */ }
+      // 同意前(AI機能をまだ使っていない)の人には、勝手にAIへデータを送らず用意済みの文言を出す(lib/aiConsent.ts)
+      if (st && await hasAiConsent()) {
+        // 2026-10-07: AIの応答を無制限に待っていたため、混雑時は白一色の画面のまま最大50秒以上
+        // 次へ進めなかった。6秒待っても返らなければ、用意済みのフォールバック文言で先へ進む。
+        try {
+          ins = await Promise.race([
+            getMissionSummaryInsight(st, language),
+            new Promise<null>(resolve => setTimeout(() => resolve(null), 6000)),
+          ])
+        } catch { /* フォールバック文言を使う */ }
       }
       if (cancelled) return
       setStats(st)

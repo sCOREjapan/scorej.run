@@ -10,8 +10,33 @@
 // api/delete-account.ts/api/revenuecat-webhook.tsに合わせ、nodejs runtimeに変更。
 export const config = { runtime: 'nodejs' }
 
+import { createHash, timingSafeEqual } from 'crypto'
+
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? ''
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
+
+// 2026-10-07: コーチ秘密値の照合。DB側(supabase/fix_coach_secret_hash.sql)で平文をSHA-256の
+// ハッシュに置き換えたチームは coach_secret_hash で、まだ移行前のチームは従来の coach_secret(平文)で
+// 照合する。どちらも無い(この機能より前に作られた)レガシーチームは従来通り通す。
+const hashCoachSecret = (s: string) =>
+  createHash('sha256').update(`coach_secret:v1:${s}`, 'utf8').digest('hex')
+const safeEqual = (a: string, b: string) => {
+  const x = Buffer.from(a, 'utf8'), y = Buffer.from(b, 'utf8')
+  return x.length === y.length && timingSafeEqual(x, y)
+}
+type TeamSecretRow = { coach_secret: string | null; coach_secret_hash?: string | null }
+/** teams からコーチ秘密値の情報を取得。coach_secret_hash 列がまだ無いDBでも動くよう、無ければ平文列だけで引き直す */
+async function fetchTeamSecretRow(teamCode: string): Promise<{ ok: true; row: TeamSecretRow | null } | { ok: false }> {
+  const headers = { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` }
+  for (const cols of ['coach_secret,coach_secret_hash', 'coach_secret']) {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/teams?select=${cols}&code=eq.${encodeURIComponent(teamCode)}`, { headers })
+    if (!r.ok) continue          // 列が無い(400)など → 次の候補で引き直す
+    const rows = await r.json().catch(() => null)
+    if (!Array.isArray(rows)) continue
+    return { ok: true, row: (rows[0] as TeamSecretRow | undefined) ?? null }
+  }
+  return { ok: false }
+}
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
@@ -48,6 +73,13 @@ export default async function handler(req: any, res: any) {
     return
   }
 
+  // 2026-10-07: target は 'players' | 'coaches' | 'all' のみ。以前は未知の値(や 'all')だと
+  // コーチ確認を丸ごと飛ばしたまま全端末宛に配信できた(roleFilter が空になり、チーム全員に届く)。
+  if (target !== 'players' && target !== 'coaches' && target !== 'all') {
+    res.status(400).json({ error: 'invalid target' })
+    return
+  }
+
   // 2026-09-30セキュリティ修正: 選手→コーチ(target='coaches')は選手が自分のチームに
   // 対して行う正当な日常操作(動画送信・痛み報告等)のためteam_codeのみで許可するが、
   // コーチ→選手(target='players')は1回の呼び出しでチーム全員の端末に配信される
@@ -55,16 +87,27 @@ export default async function handler(req: any, res: any) {
   // (X-Coach-Secret。lib/teamKeys.tsのgetOrCreateCoachSecret、teams.coach_secretと
   // 対応)の一致を追加で要求する。coach_secretがまだ無い(この修正より前に作られた)
   // レガシーチームは、現状からの後退にならないよう従来通り通す。
-  if (target === 'players') {
+  // 2026-10-07: ①選手全員に届く 'all' も同じ確認を通す ②秘密値の取得に失敗した時は通さず止める
+  // (以前は取得エラー=「秘密値なし」と解釈され、確認なしで通っていた)。
+  if (target !== 'coaches') {
     try {
-      const teamRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/teams?select=coach_secret&code=eq.${encodeURIComponent(teamCode)}`,
-        { headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` } },
-      )
-      const teamRows = await teamRes.json().catch(() => []) as { coach_secret: string | null }[]
-      const coachSecret = teamRows?.[0]?.coach_secret ?? null
-      const incomingCoachSecret = req.headers?.['x-coach-secret'] ?? ''
-      if (coachSecret && incomingCoachSecret !== coachSecret) {
+      const lookup = await fetchTeamSecretRow(teamCode)
+      if (!lookup.ok) {
+        res.status(500).json({ error: 'coach secret verification failed' })
+        return
+      }
+      if (!lookup.row) {
+        res.status(404).json({ error: 'team not found' })
+        return
+      }
+      const hdr = req.headers?.['x-coach-secret']
+      const incoming = typeof hdr === 'string' ? hdr : ''
+      const { coach_secret: plain, coach_secret_hash: hashed } = lookup.row
+      let allowed: boolean
+      if (hashed) allowed = !!incoming && safeEqual(hashCoachSecret(incoming), hashed)
+      else if (plain) allowed = !!incoming && safeEqual(incoming, plain)   // 移行前のチーム(平文)
+      else allowed = true                                                  // 秘密値が無いレガシーチーム
+      if (!allowed) {
         res.status(401).json({ error: 'Unauthorized' })
         return
       }

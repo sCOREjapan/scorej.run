@@ -1,4 +1,11 @@
 {
+  "aiConsent": {
+    "title": "AI機能のご利用について",
+    "body": "AI機能（動画分析・食事分析・AI診断・リカバリー相談・練習ノートの解析・スコッピーとの会話・今日のAIアドバイスなど）を使うと、入力した内容が分析のために、当社のサーバーを経由して Google LLC（米国）の Gemini API に送信されます。\n\n【送信されるもの】\n・入力したテキスト（練習メモ、痛み・体調、質問など）\n・食事の写真、動画から切り出した画像（顔が写ることがあります）\n・睡眠・体重・練習量などの記録の一部\n\n氏名・連絡先など、AIに送る必要のない個人情報は入力しないでください。送信した内容は分析結果を作るためにのみ使われます。詳しくはプライバシーポリシーをご確認ください。",
+    "agree": "同意して続ける",
+    "decline": "同意しない",
+    "viewPolicy": "プライバシーポリシーを見る"
+  },
   "common": {
     "cancel": "キャンセル",
     "save": "保存",
@@ -588,6 +595,8 @@
       "actionTeamSub": "メンバー・練習メニュー・連絡",
       "actionSettings": "設定",
       "actionSettingsSub": "アカウント・通知など",
+      "switchToAthlete": "選手として使う",
+      "switchToAthleteSub": "選手向けのホーム画面に戻します（チームのデータは消えません）",
       "statusTitle": "今日のチーム状況",
       "allClear": "全員、順調です",
       "statusHighRisk": "要注意",
@@ -1250,6 +1259,8 @@
       "pickFailed": "動画の選択に失敗しました",
       "recordFailed": "動画の撮影に失敗しました",
       "sendFailed": "送信に失敗しました",
+      "notDeliveredTitle": "コーチにはまだ届いていません",
+      "notDeliveredBody": "チームに参加していないか、通信に失敗したため、コーチへの通知は送られませんでした。動画はこの端末にだけ保存されています。チームに参加してから、もう一度送信してください。",
       "defaultSendDesc": "フォーム分析を送りました",
       "coachNotifyBody": "{{name}}がフォーム分析を送信しました",
       "sentTitle": "コーチに送りました！",
@@ -1282,6 +1293,11 @@
       "footerNote": "送信した動画は、コーチがアプリの「コーチビュー」から確認できます。"
     },
     "native": {
+      "historySaveFailed": "分析結果は表示できましたが、履歴への保存に失敗しました。この画面を閉じる前にスクリーンショットなどで控えてください",
+      "leaveWhileAnalyzingTitle": "分析中です",
+      "leaveWhileAnalyzingBody": "今画面を閉じても分析は続き、結果は「履歴」に保存されます。ただし、この画面には表示されません。閉じますか？",
+      "leaveStay": "このまま待つ",
+      "leaveConfirm": "閉じる",
       "title": "フォーム分析",
       "subtitle": "AIが{{n}}フレームを同時解析・最速診断",
       "history": "履歴",
@@ -1974,6 +1990,8 @@
       "entryStatusChanged": "エントリー状態を「{{status}}」に変更しました",
       "templatePlanCreated": "テンプレートプランで作成しました",
       "templatePlanSub": "AIによる個別プランにはチケットが必要です",
+      "templatePlanAiFailed": "AIの生成に失敗したため、テンプレートプランで作成しました",
+      "injurySaveFailed": "復帰プランを保存できませんでした。もう一度お試しください",
       "injuryFormIncompleteTitle": "入力不足",
       "injuryFormIncompleteMsg": "部位と種類を選択してください"
     },
@@ -2145,7 +2163,7 @@
     "historyCount": "直近{{count}}件",
     "ticketUsedToast": "🎫 チケットを{{n}}枚使用しました",
     "errorToastTitle": "AI接続エラー",
-    "errorToastBody": "フォールバックメッセージを表示しています",
+    "errorToastBody": "AIから診断を取得できませんでした。少し待ってからもう一度お試しください。失敗した分のチケットは自動で戻ります。",
     "fatigueLevels": {
       "low": "低",
       "medium": "中",
@@ -2196,6 +2214,7 @@
     "loadFailedTitle": "商品の読み込みに失敗しました",
     "loadFailedBody": "しばらく待ってから再試行してください",
     "purchaseAddedToast": "🎫 チケット{{n}}枚を追加しました",
+    "purchasePendingToast": "購入は完了しました。チケットの反映に少し時間がかかっています（自動で反映されます）",
     "purchaseErrorTitle": "購入エラー",
     "purchaseErrorFallback": "購入に失敗しました",
     "adLimitTitle": "本日の獲得上限に達しました",
@@ -4432,6 +4451,8 @@
     "redeemSuccess": "コーチプランを有効化しました",
     "redeemFailed": "引き換えに失敗しました",
     "back": "選択画面に戻る",
+    "useAsAthlete": "選手として使う",
+    "useAsAthleteSub": "コーチ機能はあとからいつでも始められます",
     "trialTitle": "15日間無料で試す",
     "trialDesc": "クレジットカード登録不要。すぐにチームを作成できます",
     "trialExpiredSubtitle": "無料体験期間が終了しました。引き続きご利用にはコードの入力、またはチームプランのご購入が必要です。",

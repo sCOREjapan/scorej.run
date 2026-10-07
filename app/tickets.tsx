@@ -83,11 +83,27 @@ export default function TicketsScreen() {
     purchaseLockRef.current = true
     setPurchasing(true)
     try {
+      // 購入前の残高を控える（サーバー付与に切り替わった後は、反映までの数秒を待つため）
+      const before = (await getWalletSnapshot().catch(() => ({ tickets: 0 }))).tickets
       const granted = await purchaseConsumable(targetPkg)
       if (granted) {
+        // 2026-10-07: チケットパックの付与は、サーバー側(RevenueCat Webhook)で確定する方式に移行した
+        // (supabase/fix_ticket_grant_hardening.sql / api/revenuecat-webhook.ts)。切り替え前は従来どおり
+        // ここで付与され、切り替え後はこの呼び出しは何も加算せず、Webhookの到着後に残高が増える。
         await grantTickets(granted)
+        let credited = false
+        for (let i = 0; i < 8; i++) {
+          const now = (await getWalletSnapshot().catch(() => ({ tickets: before }))).tickets
+          if (now >= before + granted) { credited = true; break }
+          await new Promise(r => setTimeout(r, 1500))
+        }
         await refresh()
-        Toast.show({ type: 'success', text1: t('tickets.purchaseAddedToast', { n: granted }) })
+        if (credited) {
+          Toast.show({ type: 'success', text1: t('tickets.purchaseAddedToast', { n: granted }) })
+        } else {
+          // 購入は完了している。反映が遅れているだけなので、エラーにせず案内する（残高は自動で増える）
+          Toast.show({ type: 'info', text1: t('tickets.purchasePendingToast'), visibilityTime: 5000 })
+        }
       }
     } catch (e: any) {
       Toast.show({ type: 'error', text1: t('tickets.purchaseErrorTitle'), text2: e?.message ?? t('tickets.purchaseErrorFallback') })

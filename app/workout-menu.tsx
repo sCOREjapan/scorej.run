@@ -11,9 +11,9 @@ import { useTheme, type ThemeColors } from '../context/ThemeContext'
 import { Ionicons } from '@expo/vector-icons'
 import Toast from 'react-native-toast-message'
 import { checkAdGate, recordUsage } from '../lib/adGate'
-import { TICKET_COST } from '../lib/ticketWallet'
+import { TICKET_COST, getTicketBalance } from '../lib/ticketWallet'
 import { shouldShowInterstitial, showInterstitialAd } from '../lib/admob'
-import { getAiAuthHeader } from '../lib/supabase'
+import { getAiProxyHeaders } from '../lib/supabase'
 import AdGateModal from '../components/AdGateModal'
 import TicketGateModal from '../components/TicketGateModal'
 import { useAuth } from '../context/AuthContext'
@@ -550,7 +550,7 @@ ${H1.coach}
       {
         const res = await fetchWithTimeout(_endpoint1, {
           method: 'POST',
-          headers: { 'content-type': 'application/json', ...(await getAiAuthHeader()) },
+          headers: { 'content-type': 'application/json', ...(await getAiProxyHeaders()) },
           body: JSON.stringify({
             model: 'claude-haiku-4-5-20251001',
             max_tokens: 1500,
@@ -558,7 +558,7 @@ ${H1.coach}
             system: systemPrompt1,
             messages: [{ role: 'user', content: prompt }],
           }),
-        }, 45000)
+        }, 58000)  // サーバー(api/analyze.ts)の上限55秒より長くする
         if (res.ok) {
           const data = await res.json()
           const text = data.content?.[0]?.text
@@ -579,14 +579,17 @@ ${H1.coach}
             await recordUsage('workout')
             if (needsTicket) Toast.show({ type: 'info', text1: t('workoutMenu.toast.ticketUsed', { n: ticketCost }), visibilityTime: 1800 })
           } else {
-            setPickResult(t('workoutMenu.toast.emptyResult'))
+            Toast.show({ type: 'error', text1: t('workoutMenu.toast.emptyResult') })
           }
+        } else if (res.status === 402) {
+          // サーバーが「チケット不足」と判断（端末の残高表示と食い違い）。エラー文を結果欄に出さず獲得案内を出す
+          setTicketGateCost(TICKET_COST.workout); setTicketGateBalance(await getTicketBalance().catch(() => 0)); setTicketGateVisible(true)
         } else {
-          setPickResult(t('workoutMenu.toast.apiError'))
+          Toast.show({ type: 'error', text1: t('workoutMenu.toast.apiError') })
         }
       }
     } catch {
-      setPickResult(t('workoutMenu.toast.genericFail'))
+      Toast.show({ type: 'error', text1: t('workoutMenu.toast.genericFail') })
     } finally {
       setPickLoading(false)
     }
@@ -600,6 +603,7 @@ ${H1.coach}
     pickCallRef.current = true
     try {
       const gate = await checkAdGate('workout')
+      if (gate.consentDenied) return
       if (!gate.allowed) {
         if (gate.needsTicket) { setTicketGateCost(gate.ticketCost); setTicketGateBalance(gate.ticketBalance); setTicketGateVisible(true) }
         else {
@@ -692,7 +696,7 @@ ${H2.coach}
       {
         const res = await fetchWithTimeout(_endpoint2, {
           method: 'POST',
-          headers: { 'content-type': 'application/json', ...(await getAiAuthHeader()) },
+          headers: { 'content-type': 'application/json', ...(await getAiProxyHeaders()) },
           body: JSON.stringify({
             model: 'claude-haiku-4-5-20251001',
             max_tokens: 1500,
@@ -700,7 +704,7 @@ ${H2.coach}
             system: systemPrompt2,
             messages: [{ role: 'user', content: prompt }],
           }),
-        }, 45000)
+        }, 58000)  // サーバー(api/analyze.ts)の上限55秒より長くする
         if (res.ok) {
           const data = await res.json()
           const text = data.content?.[0]?.text
@@ -719,14 +723,16 @@ ${H2.coach}
             await recordUsage('workout')
             if (needsTicket) Toast.show({ type: 'info', text1: t('workoutMenu.toast.ticketUsed', { n: ticketCost }), visibilityTime: 1800 })
           } else {
-            setAiResult(t('workoutMenu.toast.emptyResult'))
+            Toast.show({ type: 'error', text1: t('workoutMenu.toast.emptyResult') })
           }
+        } else if (res.status === 402) {
+          setTicketGateCost(TICKET_COST.workout); setTicketGateBalance(await getTicketBalance().catch(() => 0)); setTicketGateVisible(true)
         } else {
-          setAiResult(t('workoutMenu.toast.apiError'))
+          Toast.show({ type: 'error', text1: t('workoutMenu.toast.apiError') })
         }
       }
     } catch {
-      setAiResult(t('workoutMenu.toast.genericFail'))
+      Toast.show({ type: 'error', text1: t('workoutMenu.toast.genericFail') })
     } finally {
       setAiLoading(false)
     }
@@ -740,6 +746,7 @@ ${H2.coach}
     intentCallRef.current = true
     try {
       const gate = await checkAdGate('workout')
+      if (gate.consentDenied) return
       if (!gate.allowed) {
         if (gate.needsTicket) { setTicketGateCost(gate.ticketCost); setTicketGateBalance(gate.ticketBalance); setTicketGateVisible(true) }
         else {

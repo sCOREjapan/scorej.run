@@ -94,6 +94,42 @@ export default async function handler(req: any, res: any) {
       return
     }
 
+    // ── コードを「先に」確保する(同時に引き換えても1人だけが通る) ──
+    // 2026-10-07: 以前は「確認 → 付与 → 使用済みにする」の順で、確認と使用済み化の間に隙間があり、
+    // 同じコードを同時に2回引き換えると両方に権限が付与された(1つのコードで複数のアカウントがコーチ権限を得られた)。
+    // 「status が redeemed でない行だけを redeemed に更新する」条件付き更新を最初に行い、更新できた1件だけが
+    // 先へ進める。付与に失敗した時は、確保を元に戻して再度使えるようにする。
+    let claimed = false
+    const prevStatus: string = row.status ?? 'unused'
+    if (code !== UNLIMITED_TEST_CODE) {
+      const claimRes = await fetch(
+        `${supabaseUrl}/rest/v1/team_plan_codes?code=eq.${encodeURIComponent(code)}&status=neq.redeemed`,
+        {
+          method: 'PATCH',
+          headers: { ...svcHeaders, Prefer: 'return=representation' },
+          body: JSON.stringify({ status: 'redeemed', redeemed_by: userId, redeemed_at: new Date().toISOString() }),
+        },
+      )
+      if (!claimRes.ok) {
+        res.status(500).json({ error: 'コードの確認に失敗しました。時間をおいて再度お試しください' }); return
+      }
+      const claimedRows = await claimRes.json().catch(() => [])
+      if (!Array.isArray(claimedRows) || claimedRows.length === 0) {
+        res.status(409).json({ error: 'このコードは既に使用されています' }); return
+      }
+      claimed = true
+    }
+    const releaseClaim = async () => {
+      if (!claimed) return
+      claimed = false
+      await fetch(`${supabaseUrl}/rest/v1/team_plan_codes?code=eq.${encodeURIComponent(code)}&redeemed_by=eq.${encodeURIComponent(userId)}`, {
+        method: 'PATCH',
+        headers: svcHeaders,
+        body: JSON.stringify({ status: prevStatus, redeemed_by: null, redeemed_at: null }),
+      }).catch(() => {})
+    }
+
+    try {
     // ── RevenueCatへpromotional entitlementを付与 ──
     // 2026-09-21実バグ: promotional entitlement付与APIは、そのapp_user_idがRevenueCat側に
     // 一度も存在しない(=ネイティブアプリでPurchases.configure()+logIn()が一度も走っていない)
@@ -108,6 +144,7 @@ export default async function handler(req: any, res: any) {
     if (!ensureRes.ok) {
       const errText = await ensureRes.text().catch(() => '')
       console.error('[redeem-team-code] RevenueCat subscriber ensure failed', { status: ensureRes.status, userId, errText })
+      await releaseClaim()
       res.status(502).json({ error: `権限の付与に失敗しました。時間をおいて再度お試しください: ${errText}` })
       return
     }
@@ -123,21 +160,17 @@ export default async function handler(req: any, res: any) {
     if (!grantRes.ok) {
       const errText = await grantRes.text().catch(() => '')
       console.error('[redeem-team-code] RevenueCat grant failed', { status: grantRes.status, userId, errText })
+      await releaseClaim()
       res.status(502).json({ error: `権限の付与に失敗しました。時間をおいて再度お試しください: ${errText}` })
       return
     }
-
-    // ── コードを使用済みにする(付与成功後にだけ確定させる) ──
-    // UNLIMITED_TEST_CODEだけは使用済みにせず、何度でも引き換え直せる状態のまま残す。
-    if (code !== UNLIMITED_TEST_CODE) {
-      await fetch(`${supabaseUrl}/rest/v1/team_plan_codes?code=eq.${encodeURIComponent(code)}`, {
-        method: 'PATCH',
-        headers: svcHeaders,
-        body: JSON.stringify({ status: 'redeemed', redeemed_by: userId, redeemed_at: new Date().toISOString() }),
-      })
-    }
-
+    // コードの使用済み化は上の「確保」で完了している。UNLIMITED_TEST_CODEだけは使用済みにせず、
+    // 何度でも引き換え直せる状態のまま残す。
     res.status(200).json({ status: 'ok', tier: row.tier })
+    } catch (inner) {
+      await releaseClaim()
+      throw inner
+    }
   } catch (e: any) {
     res.status(500).json({ error: e?.message ?? 'Unknown error' })
   }

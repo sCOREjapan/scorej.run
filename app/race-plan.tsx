@@ -303,6 +303,9 @@ export default function RacePlanScreen() {
 
       {/* 予定を追加モーダル */}
       <Modal visible={showAddModal} transparent animationType="fade" onRequestClose={() => setShowAddModal(false)}>
+        {/* 2026-10-01修正: KeyboardAvoidingViewが無く、autoFocusで開くキーボードが
+            入力欄・確定ボタンを覆っていた(team.tsxの痛み報告モーダルと同種の不具合) */}
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <TouchableOpacity style={s.modalBackdrop} activeOpacity={1} onPress={() => setShowAddModal(false)}>
           <TouchableOpacity activeOpacity={1} style={[s.addModalSheet, { backgroundColor: colors.surface }]}>
             <Text style={[s.modalTitle, { color: colors.text }]}>{t('racePlan.addBlockModalTitle')}</Text>
@@ -343,6 +346,7 @@ export default function RacePlanScreen() {
             </View>
           </TouchableOpacity>
         </TouchableOpacity>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* 提出済みプランの閲覧（1枚のデータとして表示） */}

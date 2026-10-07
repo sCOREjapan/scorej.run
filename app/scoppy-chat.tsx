@@ -20,10 +20,11 @@ import { useLanguage } from '../context/LanguageContext'
 import { useAuth } from '../context/AuthContext'
 import { checkAdGate, recordUsage } from '../lib/adGate'
 import { trackFeatureUse } from '../lib/analytics'
-import { askScoppy } from '../lib/claude'
+import { askScoppy, isTicketShortageError } from '../lib/claude'
+import { getTicketBalance } from '../lib/ticketWallet'
 import {
-  getScoppyChatHistory, addScoppyChatMessage, clearScoppyChatHistory,
-  getScoppyChatCredits, consumeScoppyChatCredit, rechargeScoppyChatCredits,
+  getScoppyChatHistory, addScoppyChatMessage, clearScoppyChatHistory, removeLastScoppyChatMessage,
+  getScoppyChatCredits, consumeScoppyChatCredit, rechargeScoppyChatCredits, consumeTrustedScoppyQuestion,
   type ScoppyChatEntry,
 } from '../lib/scoppyChatStore'
 import TicketGateModal from '../components/TicketGateModal'
@@ -75,66 +76,87 @@ export default function ScoppyChatScreen() {
   const handleSend = useCallback(async (textOverride?: string) => {
     const text = (textOverride ?? input).trim()
     if (!text || sendingRef.current) return
-
-    // 2026-09-13: 「チケット制の設定、1チケット5質問とか」との指示で、
-    // 通常のAI機能(1回=1チケット)とは別に、ここだけローカルの残数バンクを先にチェックする。
-    // 残数があればチケットには一切触れず、無くなった時だけ通常のチケット消費フローを
-    // 1回走らせて5回分をチャージし直す(lib/scoppyChatStore.ts参照)。
-    const creditsBefore = await getScoppyChatCredits()
-    const usingBankedCredit = creditsBefore > 0
-    if (!usingBankedCredit) {
-      // ゲストもローカルのチケット残高を持っているため利用可(lib/ticketWallet.ts参照)。
-      // notebook_ai等の既存の低コストAI機能と同じくゲストを一律ブロックしない方針
-      const gate = await checkAdGate('scoppy_chat')
-      if (!gate.allowed) {
-        if (gate.hardLimited) {
-          Alert.alert(t('scoppyChat.dailyLimitTitle'), t('scoppyChat.dailyLimitMessage'))
-        } else {
-          setTicketGateCost(gate.ticketCost)
-          setTicketGateBalance(gate.ticketBalance)
-          setTicketGateVisible(true)
-        }
-        return
-      }
-    }
-
+    // 2026-10-07: 二重送信ガードを最初のawaitより前に置く。以前はチケット確認のawaitの後だったため、
+    // 素早く2回タップすると2通とも送信され、チケットが二重に消費されていた。
+    // 以降の全経路(早期returnを含む)は下のfinallyで必ず解除する。
     sendingRef.current = true
     setSending(true)
-    setInput('')
-    const historyBeforeSend = await addScoppyChatMessage({ role: 'user', content: text })
-    setMessages(historyBeforeSend)
-
     try {
-      // 2026-09-13バグ修正: 「Too many messages」で毎回失敗する原因の1つが、過去の
-      // 失敗時に追加した「うまく答えられなかった」というassistant発言も含めて毎回
-      // APIに送っていたため、失敗するたびに履歴が積み上がっていたこと(api/analyze.ts側の
-      // メッセージ数上限にも影響)。isErrorが付いた行はAIへの文脈からは除外する
-      const reply = await askScoppy(
-        historyBeforeSend.filter(m => !m.isError).map(m => ({ role: m.role, content: m.content })),
-        language,
-      )
-      const historyAfterReply = await addScoppyChatMessage({ role: 'assistant', content: reply })
-      setMessages(historyAfterReply)
-      // 返答に成功した場合のみ消費を確定する(失敗時に損をさせないため。
-      // 他のAI機能(video-analysis.tsx等)と同じ方針)。
-      if (usingBankedCredit) {
-        await consumeScoppyChatCredit()
-      } else {
-        await recordUsage('scoppy_chat')
-        await rechargeScoppyChatCredits() // チケット1枚消費→今回分を引いた残り4回をチャージ
+      // 2026-09-13: 「チケット制の設定、1チケット5質問とか」との指示で、
+      // 通常のAI機能(1回=1チケット)とは別に、ここだけローカルの残数バンクを先にチェックする。
+      // 残数があればチケットには一切触れず、無くなった時だけ通常のチケット消費フローを
+      // 1回走らせて5回分をチャージし直す(lib/scoppyChatStore.ts参照)。
+      // 残数を使う送信は banked:true でサーバーに伝え、サーバー側でも課金されないようにする
+      // (以前は全メッセージが1枚ずつ課金され、実際の料金が5倍になっていた)。
+      const creditsBefore = await getScoppyChatCredits()
+      const usingBankedCredit = creditsBefore > 0
+      if (!usingBankedCredit) {
+        // ゲストもローカルのチケット残高を持っているため利用可(lib/ticketWallet.ts参照)。
+        // notebook_ai等の既存の低コストAI機能と同じくゲストを一律ブロックしない方針
+        const gate = await checkAdGate('scoppy_chat')
+        if (gate.consentDenied) return
+        if (!gate.allowed) {
+          if (gate.hardLimited) {
+            Alert.alert(t('scoppyChat.dailyLimitTitle'), t('scoppyChat.dailyLimitMessage'))
+          } else {
+            setTicketGateCost(gate.ticketCost)
+            setTicketGateBalance(gate.ticketBalance)
+            setTicketGateVisible(true)
+          }
+          return
+        }
       }
-      trackFeatureUse('scoppy_chat')
-    } catch (e: any) {
-      console.error('[scoppy-chat] askScoppy failed:', e)
-      // isError:true を付け、次回送信時にAIへの文脈からは除外されるようにする
-      // (上のfilter参照。付けないと「answerできなかった」という発言が会話の一部として
-      // 送られ続け、文脈を汚染するだけでなくメッセージ数上限にも余計に貢献してしまう)
-      const historyWithError = await addScoppyChatMessage({
-        role: 'assistant',
-        content: t('scoppyChat.errorMessage'),
-        isError: true,
-      })
-      setMessages(historyWithError)
+
+      setInput('')
+      const historyBeforeSend = await addScoppyChatMessage({ role: 'user', content: text })
+      setMessages(historyBeforeSend)
+
+      try {
+        // 2026-09-13バグ修正: 「Too many messages」で毎回失敗する原因の1つが、過去の
+        // 失敗時に追加した「うまく答えられなかった」というassistant発言も含めて毎回
+        // APIに送っていたため、失敗するたびに履歴が積み上がっていたこと(api/analyze.ts側の
+        // メッセージ数上限にも影響)。isErrorが付いた行はAIへの文脈からは除外する
+        const reply = await askScoppy(
+          historyBeforeSend.filter(m => !m.isError).map(m => ({ role: m.role, content: m.content })),
+          language,
+          { banked: usingBankedCredit },
+        )
+        const historyAfterReply = await addScoppyChatMessage({ role: 'assistant', content: reply })
+        setMessages(historyAfterReply)
+        // 返答に成功した場合のみ消費を確定する(失敗時に損をさせないため。
+        // 他のAI機能(video-analysis.tsx等)と同じ方針)。
+        if (usingBankedCredit) {
+          await consumeScoppyChatCredit()
+        } else {
+          await recordUsage('scoppy_chat')
+          await rechargeScoppyChatCredits() // チケット1枚消費→今回分を引いた残り4回をチャージ
+        }
+        trackFeatureUse('scoppy_chat')
+      } catch (e: any) {
+        console.error('[scoppy-chat] askScoppy failed:', e)
+        if (isTicketShortageError(e)) {
+          // サーバーが「チケット不足」と判断した（端末の表示と食い違った）。エラー吹き出しではなく
+          // チケット獲得の案内を出し、送った発言は取り消して入力欄に戻す。
+          setMessages(await removeLastScoppyChatMessage())
+          setInput(text)
+          setTicketGateCost(1)
+          setTicketGateBalance(await getTicketBalance().catch(() => 0))
+          setTicketGateVisible(true)
+          return
+        }
+        // isError:true を付け、次回送信時にAIへの文脈からは除外されるようにする
+        // (上のfilter参照。付けないと「answerできなかった」という発言が会話の一部として
+        // 送られ続け、文脈を汚染するだけでなくメッセージ数上限にも余計に貢献してしまう)
+        const historyWithError = await addScoppyChatMessage({
+          role: 'assistant',
+          content: t('scoppyChat.errorMessage'),
+          isError: true,
+        })
+        setMessages(historyWithError)
+      }
+    } catch (e) {
+      // 履歴の保存失敗など（ここに来ても入力欄が固まらないよう finally で必ず解除する）
+      console.error('[scoppy-chat] send failed:', e)
     } finally {
       setSending(false)
       sendingRef.current = false
@@ -148,7 +170,11 @@ export default function ScoppyChatScreen() {
   useEffect(() => {
     if (loadingHistory || autoSentRef.current || !initialQuestion) return
     autoSentRef.current = true
-    handleSend(initialQuestion)
+    const q = initialQuestion.slice(0, 300)  // 手入力と同じ300文字上限（URL経由で長文を送れないように）
+    // アプリ自身が作った質問(練習メニューの種目の説明)だけ自動送信する。外部リンク経由の質問は、
+    // 確認なしにチケットを消費させないよう、入力欄に入れるだけにして送信は本人に任せる。
+    if (consumeTrustedScoppyQuestion(initialQuestion)) handleSend(q)
+    else setInput(q)
   }, [loadingHistory, initialQuestion, handleSend])
 
   const handleClear = () => {

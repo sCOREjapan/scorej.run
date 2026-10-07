@@ -10,6 +10,7 @@ import ViewShot, { captureRef } from 'react-native-view-shot'
 import * as MediaLibrary from 'expo-media-library'
 import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
+import { ensureGalleryWritePermission, saveImageToGallery } from '../lib/mediaPermissions'
 
 const W = Math.min(Dimensions.get('window').width - 32, 360)
 const GREEN = '#166534'   // lib/theme.ts の BRAND と統一
@@ -69,10 +70,11 @@ export default function WorkoutMenuShareCard({ data, visible = true, onClose }: 
 
   const handleSave = async () => {
     try {
-      const { status } = await MediaLibrary.requestPermissionsAsync()
+      const status = (await ensureGalleryWritePermission()) ? 'granted' : 'denied'
       if (status !== 'granted') { Alert.alert(t('workoutMenuShareCard.permissionTitle'), t('workoutMenuShareCard.permissionBody')); return }
       const uri = await captureRef(cardRef, { format: 'png', quality: 1.0, transparent: true } as any)
-      await MediaLibrary.saveToLibraryAsync(uri)
+      // Android は共有シートで保存するため、保存完了の表示は出さない(lib/mediaPermissions.ts)
+      if ((await saveImageToGallery(uri)) === 'shared') return
       Alert.alert(t('workoutMenuShareCard.saveSuccessTitle'), t('workoutMenuShareCard.saveSuccessBody'))
     } catch { Alert.alert(t('workoutMenuShareCard.errorTitle'), t('workoutMenuShareCard.saveErrorBody')) }
   }

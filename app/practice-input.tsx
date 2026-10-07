@@ -205,8 +205,22 @@ function fallbackParse(text: string, today: string): Record<string, any> {
     fatigue_level = 5
   }
 
+  // 2026-10-01: components/QuickLogModal.tsxと同じ修正（体調もfatigue_levelと同様、
+  // 数字を明示しないと既定値6に固定される不具合があった）。判定基準を統一するため
+  // 必ず両方に適用する
   const condMatch = t.match(/体調\s*[：:=]?\s*(\d+)|condition\s*[：:=]?\s*(\d+)/i)
-  const condition_level = condMatch ? parseInt(condMatch[1] ?? condMatch[2]) : 6
+  let condition_level: number
+  if (condMatch) {
+    condition_level = parseInt(condMatch[1] ?? condMatch[2])
+  } else if (/絶好調|(体調|調子)(が)?(万全|バッチリ|とても?良|すごく?良)/.test(t)) {
+    condition_level = 9
+  } else if (/(体調|調子)(が)?良|好調/.test(t)) {
+    condition_level = 8
+  } else if (/(体調|調子)(が)?(悪|不調|イマイチ|微妙)/.test(t)) {
+    condition_level = 3
+  } else {
+    condition_level = 6
+  }
 
   return { session_date: today, session_type, event, time_ms, distance_m, reps, fatigue_level, condition_level }
 }

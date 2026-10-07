@@ -3,7 +3,7 @@
 //   - 大会日を軸に、確立された栄養知見を「目安・提案」として提示する（断定的な処方はしない）
 //   - 「食事を主に用意するのは誰か」で出力の宛先を分岐する（本人 / 保護者 / 寮 等）
 //   - 日次の具体的な献立処方（本命機能）は管理栄養士監修・フェーズ設計が整うまで保留
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   ActivityIndicator, Share,
@@ -20,8 +20,8 @@ import { usePurchase } from '../context/PurchaseContext'
 import { todayLocalISO } from '../lib/dateLocal'
 import { trackFeatureUse } from '../lib/analytics'
 import { checkAdGate, recordUsage } from '../lib/adGate'
-import { TICKET_COST } from '../lib/ticketWallet'
-import { getAiAuthHeader } from '../lib/supabase'
+import { TICKET_COST, getTicketBalance } from '../lib/ticketWallet'
+import { getAiProxyHeaders } from '../lib/supabase'
 import TicketGateModal from '../components/TicketGateModal'
 import { useAuth } from '../context/AuthContext'
 import { useTranslation } from 'react-i18next'
@@ -68,6 +68,9 @@ export default function MealCoachScreen() {
   const [ticketGateCost,    setTicketGateCost]    = useState(0)
   const [ticketGateBalance, setTicketGateBalance] = useState(0)
   const [generating, setGenerating]     = useState(false)
+  // 2026-10-07: setGenerating(true) はチケット確認のawaitの後だったため、確認中に2回タップすると
+  // 2本の生成が走り、チケットが二重に引かれていた。最初のawaitより前に立てるrefで防ぐ。
+  const generatingRef = useRef(false)
   const [message, setMessage]           = useState('')
 
   useEffect(() => {
@@ -115,15 +118,21 @@ export default function MealCoachScreen() {
   }, [])
 
   const generateMessage = useCallback(async () => {
-    if (!mealProvider) return
+    if (!mealProvider || generatingRef.current) return
     if (isGuest) { router.push('/auth'); return }
+    generatingRef.current = true
+    let started = false
+    try {
     const gate = await checkAdGate('meal_coach')
+    if (gate.consentDenied) return
     if (!gate.allowed) {
       if (gate.needsTicket) { setTicketGateCost(gate.ticketCost); setTicketGateBalance(gate.ticketBalance); setTicketGateVisible(true) }
       else { router.push('/paywall') }
       return
     }
-    setGenerating(true); setMessage('')
+    // 以前はここで message を空にしていたため、再生成に失敗すると前回の(チケットを使った)結果が
+    // 消えていた。新しい結果が得られるまで前回の結果は残す。
+    setGenerating(true); started = true
     try {
       const apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://scorej-run.vercel.app').replace(/\/$/, '')
       const endpoint = `${apiBase}/api/analyze`
@@ -168,7 +177,7 @@ ${headerNote}
 
       const res = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', ...(await getAiAuthHeader()) },
+        headers: { 'content-type': 'application/json', ...(await getAiProxyHeaders()) },
         body: JSON.stringify({
           model: 'claude-haiku-4-5-20251001',
           max_tokens: 800,
@@ -176,10 +185,19 @@ ${headerNote}
           system: systemPrompt,
           messages: [{ role: 'user', content: prompt }],
         }),
-      }, 45000)
+      }, 58000)  // サーバー(api/analyze.ts)の上限55秒より長くする
+      if (res.status === 402) {
+        // サーバーが「チケット不足」と判断（端末の残高表示と食い違い）。エラー表示ではなく獲得案内を出す
+        setTicketGateCost(TICKET_COST.meal_coach)
+        setTicketGateBalance(await getTicketBalance().catch(() => 0))
+        setTicketGateVisible(true)
+        return
+      }
       if (!res.ok) throw new Error(t('mealCoach.apiError', { status: res.status }))
       const data = await res.json()
-      const text = data.content?.[0]?.text ?? t('mealCoach.noContentFallback')
+      // サーバーは空応答を '' で返す。?? では空文字が結果になり、何も表示されないのに利用回数が加算されていた。
+      const text = typeof data.content?.[0]?.text === 'string' ? data.content[0].text : ''
+      if (!text.trim()) throw new Error(t('mealCoach.noContentFallback'))
       setMessage(text)
       trackFeatureUse('meal_coach')
 
@@ -190,6 +208,10 @@ ${headerNote}
       Toast.show({ type: 'error', text1: t('mealCoach.genericError'), text2: e instanceof Error ? e.message : '' })
     } finally {
       setGenerating(false)
+    }
+    } finally {
+      generatingRef.current = false
+      if (!started) setGenerating(false)
     }
   }, [mealProvider, eventCategory, competition, isGuest, router, t])
 

@@ -9,6 +9,7 @@ import ViewShot, { captureRef } from 'react-native-view-shot'
 import * as MediaLibrary from 'expo-media-library'
 import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
+import { ensureGalleryWritePermission, saveImageToGallery } from '../lib/mediaPermissions'
 
 const W = Math.min(Dimensions.get('window').width - 32, 360)
 const ORANGE = '#FF6B35'
@@ -67,10 +68,11 @@ export default function NutritionShareCard({ data, visible = true, onClose }: Pr
 
   const handleSave = async () => {
     try {
-      const { status } = await MediaLibrary.requestPermissionsAsync()
+      const status = (await ensureGalleryWritePermission()) ? 'granted' : 'denied'
       if (status !== 'granted') { Alert.alert(t('nutritionShareCard.permissionTitle'), t('nutritionShareCard.permissionBody')); return }
       const uri = await captureRef(cardRef, { format: 'png', quality: 1.0, transparent: true } as any)
-      await MediaLibrary.saveToLibraryAsync(uri)
+      // Android は共有シートで保存するため、保存完了の表示は出さない(lib/mediaPermissions.ts)
+      if ((await saveImageToGallery(uri)) === 'shared') return
       Alert.alert(t('nutritionShareCard.saveSuccessTitle'), t('nutritionShareCard.saveSuccessBody'))
     } catch { Alert.alert(t('nutritionShareCard.errorTitle'), t('nutritionShareCard.saveErrorBody')) }
   }

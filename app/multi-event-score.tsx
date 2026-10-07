@@ -1,5 +1,5 @@
 // app/multi-event-score.tsx — 混成競技ツール（男子十種競技／女子七種競技の得点計算・記録・PB管理）
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert,
 } from 'react-native'
@@ -82,22 +82,32 @@ export default function CombinedEventsScreen() {
     setMarks({})
   }
 
+  // 2026-10-01追記: 保存ボタンに連打防止が無く、素早く連打するとcombinedEventsStore.tsの
+  // 直列化前の実装でlost updateが起きていた（直列化自体は別途修正済みだが、連打で同じ
+  // 記録が複数件保存されてしまう問題は残るため、念のためガードを残す）
+  const savingRef = useRef(false)
   const handleSave = useCallback(async () => {
     if (filledCount === 0) {
       Toast.show({ type: 'info', text1: t('combinedEvents.saveNeedsOneEvent') })
       return
     }
-    unlockAudio(); Sounds.save()
-    const entry: SavedCompetition = {
-      id: Crypto.randomUUID(),
-      category,
-      date: todayLocalISO(),
-      marks: numericMarks,
-      totalScore,
+    if (savingRef.current) return
+    savingRef.current = true
+    try {
+      unlockAudio(); Sounds.save()
+      const entry: SavedCompetition = {
+        id: Crypto.randomUUID(),
+        category,
+        date: todayLocalISO(),
+        marks: numericMarks,
+        totalScore,
+      }
+      await saveCompetition(entry)
+      await refresh(category)
+      Toast.show({ type: 'success', text1: t('combinedEvents.saveSuccessToast', { score: totalScore }) })
+    } finally {
+      savingRef.current = false
     }
-    await saveCompetition(entry)
-    await refresh(category)
-    Toast.show({ type: 'success', text1: t('combinedEvents.saveSuccessToast', { score: totalScore }) })
   }, [category, numericMarks, totalScore, filledCount, refresh, t])
 
   const handleDeleteCompetition = useCallback((id: string) => {

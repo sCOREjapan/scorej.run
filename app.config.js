@@ -24,7 +24,7 @@ module.exports = {
       requiresFullScreen: true,
       bundleIdentifier: 'com.scorejapan.score',
       usesAppleSignIn: true,
-      buildNumber: '69',
+      buildNumber: '70',
       appleTeamId: '4B5NK8DR67',
       entitlements: {
         'com.apple.security.application-groups': ['group.com.scorejapan.score'],
@@ -50,8 +50,23 @@ module.exports = {
     android: {
       adaptiveIcon: { backgroundColor: '#0a0a0a' },
       package: 'com.scorejapan.score',
-      versionCode: 11,
+      // 2026-10-07: 11→12。Google Play の「写真と動画の権限に関するポリシー」違反の是正版
+      // (READ_MEDIA_IMAGES/READ_MEDIA_VIDEO を削除)を、製品版・テストの全トラックへ出し直すため。
+      versionCode: 12,
       googleServicesFile: './google-services.json',
+      // 写真・動画は Android のシステム写真選択ツール(権限不要)で選び、シェアカードは共有シートで
+      // 保存するため、これらの権限は不要。ライブラリ(expo-media-library 等)のマニフェストに
+      // 含まれていても最終的なマニフェストから確実に取り除く(lib/mediaPermissions.ts 参照)。
+      blockedPermissions: [
+        'android.permission.READ_MEDIA_IMAGES',
+        'android.permission.READ_MEDIA_VIDEO',
+        'android.permission.READ_MEDIA_AUDIO',
+        'android.permission.READ_MEDIA_VISUAL_USER_SELECTED',
+        // 広い保存領域の権限も不要（写真選択はシステムの選択ツール、保存は共有シート）。次の審査で
+        // 再指摘されないよう、あわせて外す。
+        'android.permission.READ_EXTERNAL_STORAGE',
+        'android.permission.WRITE_EXTERNAL_STORAGE',
+      ],
     },
     plugins: [
       'expo-router',

@@ -12,8 +12,8 @@ import Toast from 'react-native-toast-message'
 import { BG_GRADIENT, BRAND, TEXT, NEON } from '../lib/theme'
 import { Sounds } from '../lib/sounds'
 import { checkAdGate, recordUsage } from '../lib/adGate'
-import { TICKET_COST } from '../lib/ticketWallet'
-import { getAiAuthHeader } from '../lib/supabase'
+import { TICKET_COST, getTicketBalance } from '../lib/ticketWallet'
+import { getAiProxyHeaders } from '../lib/supabase'
 import AdGateModal from '../components/AdGateModal'
 import TicketGateModal from '../components/TicketGateModal'
 import { useAuth } from '../context/AuthContext'
@@ -110,7 +110,13 @@ function parseDiagnosisFromText(text: string, timestamp: string): DiagnosisResul
   // fatigueLevel自体の語彙(低/中/高/注意)はプロンプト側で維持を指示しているので、
   // 素直な日本語一致がまず効くはずだが、AIが従わなかった場合の保険として英語も見る）
   let fatigueLevel: FatigueLevel = '中'
-  if (/疲労.*注意|注意.*疲労|オーバートレーニング|限界に近|休養.*必要|overtrain|near.{0,20}limit|need.{0,10}rest|caution|警戒/i.test(text)) {
+  // 2026-10-07: まず「疲労レベル: 低」のような明示的な記述を見る。以前は文章中の「疲労…注意」
+  // のような語の並びだけで判定していたため、「疲労は低めです。…注意してください」が
+  // 「注意」と判定されるなど、レベルが取り違えられていた。
+  const explicit = text.match(/疲労(?:レベル|度)?[^\n低中高注意]{0,8}[:：]\s*[*＊\s「【(（]*(低|中|高|注意)/)
+  if (explicit) {
+    fatigueLevel = explicit[1] as FatigueLevel
+  } else if (/疲労.*注意|注意.*疲労|オーバートレーニング|限界に近|休養.*必要|overtrain|near.{0,20}limit|need.{0,10}rest|caution|警戒/i.test(text)) {
     fatigueLevel = '注意'
   } else if (/疲労.*高|高.*疲労|かなり疲れ|相当.*疲労|high fatigue|quite tired|significant(ly)? fatigue/i.test(text)) {
     fatigueLevel = '高'
@@ -119,25 +125,47 @@ function parseDiagnosisFromText(text: string, timestamp: string): DiagnosisResul
   }
 
   // コメントと推奨事項を簡易パース
-  const lines = text.split('\n').filter(l => l.trim())
+  // 2026-10-07: 「* 」の箇条書きを認識できず、「3. foo」から数字の1文字しか外せずに「. foo」と表示され、
+  // 「4. 来週の…」が提案の1つとして取り込まれて来週の強度欄が空になっていた。
+  const BULLET = /^([-*・•]|\d+[.)．])\s+/
+  const lines = text.split('\n').map(l => l.trim().replace(/^#+\s*/, '').replace(/\*\*/g, '')).filter(l => l)
   const recommendations: string[] = []
   let comment = ''
   let nextWeekIntensity = ''
   let inRec = false
 
-  for (const line of lines) {
-    const trimmed = line.trim()
-    if (/^[-・•]\s/.test(trimmed) || /^\d+\.\s/.test(trimmed)) {
-      recommendations.push(trimmed.replace(/^[-・•\d\.]\s*/, ''))
+  // 「来週の練習強度の推奨」の見出しだけの行は、次の行が本文。コロン付きは同じ行が本文。
+  const NW_HEADER_ONLY = /^(来週|次週|next week)(の)?(練習)?(強度)?(の推奨|の目安)?[:：]?$/i
+  const NW_WITH_COLON = /^(来週|次週|next week)[^:：]{0,14}[:：]\s*(.+)$/i
+  const NW_SENTENCE = /^(来週|次週|next week)/i
+  let awaitingNextWeek = false
+
+  for (const trimmed of lines) {
+    const isBullet = BULLET.test(trimmed)
+    const body = trimmed.replace(BULLET, '').trim()
+    if (awaitingNextWeek && !nextWeekIntensity) {
+      nextWeekIntensity = body
+      awaitingNextWeek = false
+      continue
+    }
+    if (!nextWeekIntensity) {
+      if (NW_HEADER_ONLY.test(body)) { awaitingNextWeek = true; continue }
+      const m = body.match(NW_WITH_COLON)
+      if (m) { nextWeekIntensity = m[2].trim(); continue }
+      // 箇条書きの提案が「来週は…」で始まる場合は提案として残す（強度欄に横取りさせない）
+      if (!isBullet && NW_SENTENCE.test(body)) { nextWeekIntensity = body; continue }
+    }
+    // 見出し行（「1. 現在の疲労レベル」「総合評価：」など）は提案にもコメントにも含めない
+    if (/^(\d+[.)．]\s*)?(現在の)?疲労(レベル|度)|^(\d+[.)．]\s*)?(今週の)?(練習に対する)?総合評価|^(\d+[.)．]\s*)?改善のための/.test(trimmed) && body.length <= 24) continue
+    if (isBullet) {
+      if (body) recommendations.push(body)
       inRec = true
-    } else if (/来週|次週|next week/i.test(trimmed) && !nextWeekIntensity) {
-      nextWeekIntensity = trimmed
     } else if (!inRec && !comment && trimmed.length > 10) {
       comment = trimmed
     }
   }
 
-  if (!comment && lines.length > 0) comment = lines[0]
+  if (!comment && lines.length > 0) comment = lines.find(l => !BULLET.test(l)) ?? lines[0]
 
   return {
     id: `diag_${Date.now()}`,
@@ -152,6 +180,8 @@ function parseDiagnosisFromText(text: string, timestamp: string): DiagnosisResul
 export default function AIDiagnosisScreen() {
   const [loading,          setLoading]          = useState(false)
   const [result,           setResult]           = useState<DiagnosisResult | null>(null)
+  // 失敗した時に「診断結果」のカードを作り出さず、失敗として表示するためのフラグ
+  const [diagFailed,       setDiagFailed]       = useState(false)
   const [history,          setHistory]          = useState<DiagnosisResult[]>([])
   const [adGateVisible,    setAdGateVisible]    = useState(false)
   const [adGateRemaining,  setAdGateRemaining]  = useState(0)
@@ -168,6 +198,9 @@ export default function AIDiagnosisScreen() {
   useEffect(() => { navigation.setOptions({ title: t('aiDiagnosis.title') }) }, [navigation, t, language])
   // AdGate async チェック中の二重タップ防止
   const diagnosingRef = React.useRef(false)
+  // handleDiagnose は [isGuest] でメモ化されるため、runDiagnose を直接呼ぶと古い言語設定のまま
+  // 実行される。常に最新の runDiagnose を参照する。
+  const runDiagnoseRef = React.useRef<(ticketCostUsed?: number) => Promise<void>>(async () => {})
 
   useEffect(() => {
     AsyncStorage.getItem(AI_DIAGNOSES_KEY).then(raw => {
@@ -190,6 +223,7 @@ export default function AIDiagnosisScreen() {
     try {
       // AdGateチェック
       const gate = await checkAdGate('ai_analysis')
+      if (gate.consentDenied) return
       if (!gate.allowed) {
         if (gate.needsTicket) { setTicketGateCost(gate.ticketCost); setTicketGateBalance(gate.ticketBalance); setTicketGateVisible(true) }
         else {
@@ -200,7 +234,7 @@ export default function AIDiagnosisScreen() {
         }
         return
       }
-      await runDiagnose(gate.needsTicket ? gate.ticketCost : 0)
+      await runDiagnoseRef.current(gate.needsTicket ? gate.ticketCost : 0)
     } finally {
       diagnosingRef.current = false
     }
@@ -211,6 +245,7 @@ export default function AIDiagnosisScreen() {
     Sounds.whoosh()
     setLoading(true)
     setResult(null)
+    setDiagFailed(false)
 
     try {
       // データ収集
@@ -227,7 +262,9 @@ export default function AIDiagnosisScreen() {
       const sessions = sessionsRaw ? (JSON.parse(sessionsRaw) as any[]).filter(s => s.session_date >= weekAgo) : []
       const records = recordsRaw ? (JSON.parse(recordsRaw) as any[]).slice(0, 5) : []
       const bodyRecords = bodyRaw ? (JSON.parse(bodyRaw) as any[]).filter(b => b.date >= weekAgo) : []
-      const sleepRecords = sleepRaw ? (JSON.parse(sleepRaw) as any[]).filter(s => s.date >= weekAgo) : []
+      // 2026-10-07: 睡眠記録の日付項目は sleep_date（date ではない）。以前は s.date で絞っていたため、
+      // 睡眠データが常に空になり、診断に睡眠が一切反映されていなかった。
+      const sleepRecords = sleepRaw ? (JSON.parse(sleepRaw) as any[]).filter(s => (s.sleep_date ?? s.date) >= weekAgo) : []
 
       const trainingData = {
         period: `${weekAgo} 〜 ${localDateStr(now)}`,
@@ -272,7 +309,7 @@ export default function AIDiagnosisScreen() {
 
       const response = await fetchWithTimeout(_endpoint, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', ...(await getAiAuthHeader()) },
+        headers: { 'content-type': 'application/json', ...(await getAiProxyHeaders()) },
         body: JSON.stringify({
           model: 'claude-haiku-4-5-20251001',
           max_tokens: 1024,
@@ -295,15 +332,23 @@ ${languageLine}${narrativeLanguageInstruction(language)}`,
             },
           ],
         }),
-      }, 35000)
+      }, 58000)  // サーバー(api/analyze.ts)の上限55秒より長くする。短いとクライアントだけ諦めて課金される
 
+      if (response.status === 402) {
+        // サーバーが「チケット不足」と判断（端末の残高表示と食い違い）。失敗扱いにせず獲得案内を出す
+        setTicketGateCost(TICKET_COST.ai_analysis); setTicketGateBalance(await getTicketBalance().catch(() => 0)); setTicketGateVisible(true)
+        return
+      }
       if (!response.ok) {
         const errText = await response.text()
         throw new Error(`API error ${response.status}: ${errText}`)
       }
 
       const data = await response.json()
-      const text = data.content?.[0]?.text ?? t('aiDiagnosis.noContentFallback')
+      // 2026-10-07: サーバーは空応答を '' で返すため、?? では空文字がそのまま「結果」になり、
+      // 中身の無い診断が履歴に保存されて利用回数も加算されていた。空は失敗として扱う。
+      const text = typeof data.content?.[0]?.text === 'string' ? data.content[0].text : ''
+      if (!text.trim()) throw new Error(t('aiDiagnosis.noContentFallback'))
       const timestamp = new Date().toISOString()
       const parsed = parseDiagnosisFromText(text, timestamp)
 
@@ -323,20 +368,11 @@ ${languageLine}${narrativeLanguageInstruction(language)}`,
       if (ticketCostUsed > 0) Toast.show({ type: 'info', text1: t('aiDiagnosis.ticketUsedToast', { n: ticketCostUsed }), visibilityTime: 1800 })
     } catch (err: any) {
       Sounds.error()
-      // フォールバック表示
-      const fallback: DiagnosisResult = {
-        id: `diag_fallback_${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        fatigueLevel: '中',
-        comment: t('aiDiagnosis.fallback.comment'),
-        recommendations: [
-          t('aiDiagnosis.fallback.rec1'),
-          t('aiDiagnosis.fallback.rec2'),
-          t('aiDiagnosis.fallback.rec3'),
-        ],
-        nextWeekIntensity: t('aiDiagnosis.fallback.nextWeek'),
-      }
-      setResult(fallback)
+      // 2026-10-07: 以前は失敗時に「疲労レベル:中」と汎用コメントの偽の診断カードを、成功と同じ
+      // チェックマーク付きの結果として表示していた。失敗は失敗として見せる（結果は作らない）。
+      console.warn('[ai-diagnosis] failed:', err?.message ?? err)
+      setResult(null)
+      setDiagFailed(true)
       Toast.show({ type: 'error', text1: t('aiDiagnosis.errorToastTitle'), text2: t('aiDiagnosis.errorToastBody') })
     } finally {
       setLoading(false)
@@ -344,6 +380,7 @@ ${languageLine}${narrativeLanguageInstruction(language)}`,
     // language/t は元は[]依存で固定されており、マウント後の言語切替が
     // プロンプト・フォールバック文言に反映されない不具合があったため追加
   }, [language, t])
+  runDiagnoseRef.current = runDiagnose
 
   return (
     <View style={{ flex: 1 }}>
@@ -383,6 +420,17 @@ ${languageLine}${narrativeLanguageInstruction(language)}`,
               )}
             </TouchableOpacity>
           </View>
+
+          {/* 失敗（偽の診断結果は表示しない） */}
+          {diagFailed && !result && (
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Ionicons name="alert-circle" size={18} color="#FF3B30" />
+                <Text style={styles.cardTitle}>{t('aiDiagnosis.errorToastTitle')}</Text>
+              </View>
+              <Text style={styles.commentText}>{t('aiDiagnosis.errorToastBody')}</Text>
+            </View>
+          )}
 
           {/* 最新結果 */}
           {result && (

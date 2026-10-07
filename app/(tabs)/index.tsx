@@ -17,8 +17,8 @@ import { useTrainingSessions } from '../../hooks/useTrainingSessions'
 import { calcInjuryRisk } from '../../lib/injuryRisk'
 import { RECORDING_DEMO } from '../../lib/recordingDemo'
 import { calcLevelInfo } from '../../lib/gamification'
-import { checkInStreak, TICKET_COST, grantFirstGoalBonusIfNeeded } from '../../lib/ticketWallet'
-import { getAiAuthHeader } from '../../lib/supabase'
+import { checkInStreak, TICKET_COST, grantFirstGoalBonusIfNeeded, getTicketBalance } from '../../lib/ticketWallet'
+import { getAiProxyHeaders } from '../../lib/supabase'
 import GlassCard from '../../components/GlassCard'
 import PressableScale from '../../components/PressableScale'
 import { BRAND, ALERT, NEON } from '../../lib/theme'
@@ -1915,6 +1915,7 @@ export default function DashboardScreen() {
       setInsightLoading(true)
       try {
         const gate = await checkAdGate('daily_insight')
+        if (gate.consentDenied) return
         if (!gate.allowed) {
           if (gate.needsTicket) { setTicketGateCost(gate.ticketCost); setTicketGateBalance(gate.ticketBalance); setTicketGateVisible(true) }
           else {
@@ -1922,7 +1923,9 @@ export default function DashboardScreen() {
           }
           return
         }
-        handleGetAIAdvice({ needsTicket: gate.needsTicket, ticketCost: gate.ticketCost })
+        // 2026-10-07: await しないと、生成中でも insightLoading/insightCallRef が即座に解除され、
+        // もう一度タップすると2本目の生成が走ってチケットが二重に引かれていた。
+        await handleGetAIAdvice({ needsTicket: gate.needsTicket, ticketCost: gate.ticketCost })
       } finally {
         setInsightLoading(false)
       }
@@ -1937,6 +1940,7 @@ export default function DashboardScreen() {
   // ticketInfo が渡された場合のみ（＝デイリーインサイトのゲートを通過した場合のみ）、
   // 新規生成に成功した時点でチケット/利用回数を消費する（失敗時に課金しないため）
   async function handleGetAIAdvice(ticketInfo?: { needsTicket: boolean; ticketCost: number }) {
+    if (loadingAI) return  // 生成中の再実行（二重課金）を防ぐ
     setLoadingAI(true)
     setShowAIAdvice(true)
     setAiAdvice('')
@@ -2032,7 +2036,7 @@ ${sleepText || 'データなし'}
         const endpoint = `${apiBase}/api/analyze`
         const res = await fetchWithTimeout(endpoint, {
           method: 'POST',
-          headers: { 'content-type': 'application/json', ...(await getAiAuthHeader()) },
+          headers: { 'content-type': 'application/json', ...(await getAiProxyHeaders()) },
           body: JSON.stringify({
             model: 'claude-haiku-4-5-20251001',
             max_tokens: 1400,
@@ -2040,7 +2044,16 @@ ${sleepText || 'データなし'}
             system: systemPrompt,
             messages: [{ role: 'user', content: prompt }],
           }),
-        }, 35000)
+        }, 58000)  // サーバー(api/analyze.ts)の上限55秒より長くする
+        if (res.status === 402) {
+          // サーバーが「チケット不足」と判断（端末の残高表示と食い違い）。エラー文ではなく獲得案内を出す
+          setShowAIAdvice(false)
+          setAiAdvice('')
+          setTicketGateCost(ticketInfo?.ticketCost ?? 2)
+          setTicketGateBalance(await getTicketBalance().catch(() => 0))
+          setTicketGateVisible(true)
+          return
+        }
         if (res.ok) {
           const data = await res.json()
           const txt = data.content?.[0]?.text
@@ -3073,7 +3086,9 @@ ${sleepText || 'データなし'}
             {!loadingAI && (
               <TouchableOpacity
                 style={[s.reloadBtn, { borderColor: 'rgba(59,130,246,0.3)' }]}
-                onPress={() => handleGetAIAdvice()}
+                // 再読み込み: まだ今日分を確定していない(=失敗した)場合は、ゲート・利用回数の記録を通る
+                // 通常ルートで生成する（直接呼ぶと、ゲートも利用回数も通らずサーバーだけが課金していた）
+                onPress={() => { if (insightClaimed) { handleGetAIAdvice() } else { handleDailyInsight() } }}
               >
                 <Ionicons name="refresh" size={15} color="#3b82f6" />
                 <Text style={{ color: '#3b82f6', fontSize: 13, fontWeight: '700' }}>{t('home.aiCoachModal.refetch')}</Text>

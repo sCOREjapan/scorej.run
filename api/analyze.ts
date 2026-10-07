@@ -32,7 +32,8 @@ const GEMINI_MODEL = 'gemini-3.5-flash'
 // （toGeminiRequest参照）。
 // 画像を送る機能(video/meal)は画像理解の品質差を未検証のため対象外とし、常にGEMINI_MODELを使う。
 const GEMINI_MODEL_LITE = 'gemini-3.5-flash-lite'
-const IMAGE_FEATURES = new Set(['video', 'meal'])
+// 'video_frame' = Web版動画分析のフレームごとの画像分析(課金なし。最後の 'video_web' で1回分だけ課金する)
+const IMAGE_FEATURES = new Set(['video', 'meal', 'video_frame'])
 
 type ContentBlock =
   | { type: 'text'; text: string }
@@ -51,6 +52,9 @@ interface AnthropicRequestBody {
   // 2026-09-01: サーバー側チケット消費強制のため追加。lib/ticketWallet.ts の
   // TicketFeature と合わせること。recovery/injury_recovery は無料開放機能のため含めない
   feature?: string
+  // スコッピー会話で「チケット1枚=5メッセージ」の残り回数(クライアントのローカルバンク)を使って送る
+  // メッセージかどうか。trueならサーバーは課金しない(最初の1通だけが課金対象)。
+  banked?: boolean
 }
 
 // lib/adGate.ts の HARD_DAILY_CAP/HARD_MONTHLY_CAP と同じ値に保つこと。
@@ -79,6 +83,8 @@ const TICKET_COST_SERVER: Record<string, number> = {
   video: 2, workout: 2, meal: 2,
   ai_analysis: 3, meal_coach: 3, daily_insight: 2,
   notebook_ai: 1, competition_plan: 3,
+  // 2026-10-07: Web版動画分析の総合評価(=1回の分析につき1回だけ送られる)。ネイティブ版 video と同額
+  video_web: 2,
   // 2026-09-13: スコッピーとの会話機能。lib/ticketWallet.ts の TICKET_COST と同値
   scoppy_chat: 1,
 }
@@ -91,7 +97,7 @@ const TICKET_SYSTEM_CUTOVER = new Date('2026-08-06T00:00:00.000Z')
 // サーバーも coach_trials(体験期限)と feature_usage_counts(当日の利用回数)を見て同じ判定をする。
 const TRIAL_BONUS_DAILY_CAP_SERVER: Record<string, number> = {
   video: 1, meal: 2, ai_analysis: 1, workout: 1,
-  meal_coach: 1, daily_insight: 1, notebook_ai: 2, competition_plan: 1, scoppy_chat: 5,
+  meal_coach: 1, daily_insight: 1, notebook_ai: 2, competition_plan: 1, scoppy_chat: 5, video_web: 1,
 }
 
 interface ProxyResult {
@@ -188,7 +194,14 @@ function fromGeminiResponse(data: any): { content: Array<{ type: 'text'; text: s
   return { content: [{ type: 'text', text }], stop_reason: finishReason === 'MAX_TOKENS' ? 'max_tokens' : 'end_turn' }
 }
 
-async function callGemini(body: AnthropicRequestBody, apiKey: string, useLite: boolean, responseSchema?: object): Promise<ProxyResult> {
+// 2026-10-07: Gemini呼び出しにタイムアウトが無く、応答が遅い時は関数全体(maxDuration=60s)が
+// 強制終了されてチケットの払い戻し処理まで到達できなかった（課金されたまま結果なし）。
+// 1回ごとにタイムアウトを設け、超過時は例外→呼び出し側でチケットを払い戻して504を返す。
+const FUNCTION_BUDGET_MS = 55_000 // maxDuration(60s)より少し手前で自分から諦める
+const GEMINI_CALL_TIMEOUT_MS = 40_000
+const MIN_RETRY_BUDGET_MS = 20_000 // 残り時間がこれ未満なら再試行しない
+
+async function callGemini(body: AnthropicRequestBody, apiKey: string, useLite: boolean, responseSchema?: object, timeoutMs: number = GEMINI_CALL_TIMEOUT_MS): Promise<ProxyResult> {
   const model = useLite ? GEMINI_MODEL_LITE : GEMINI_MODEL
   const geminiBody = toGeminiRequest(body, useLite, responseSchema)
   const res = await fetch(
@@ -197,6 +210,7 @@ async function callGemini(body: AnthropicRequestBody, apiKey: string, useLite: b
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(geminiBody),
+      signal: AbortSignal.timeout(Math.max(1_000, timeoutMs)),
     }
   )
 
@@ -239,6 +253,26 @@ function isDuplicateRequest(key: string): boolean {
   return typeof last === 'number' && now - last < DEDUP_WINDOW_MS
 }
 
+// 2026-10-07: 大会プランは長い期間を3週間ずつ複数回のリクエストに分けて生成する
+// (lib/claude.ts generateCompetitionPlan。遠い週→近い週の順で、依頼文に「のうち、week_number=8・7・6」の
+// ように週番号を列挙する)。以前は各リクエストが別々に3枚ずつ課金され、4〜8週間先の大会だと
+// 6〜9枚かかっていた(表示は3枚)。分割リクエストは「week_number=1(試合直前週)を含む最後の1回」だけを
+// 課金対象にする。途中のリクエストが失敗しても課金されず、古いバージョンのアプリにもサーバー側だけで効く。
+// ⚠️ 依頼文の書式(lib/claude.ts)を変える時は、ここの正規表現も合わせること。
+function isNonFinalCompetitionChunk(body: AnthropicRequestBody): boolean {
+  const msgs = body.messages ?? []
+  let last: AnthropicMessage | undefined
+  for (let i = msgs.length - 1; i >= 0; i--) { if (msgs[i].role === 'user') { last = msgs[i]; break } }
+  if (!last) return false
+  const text = typeof last.content === 'string'
+    ? last.content
+    : last.content.map(b => (b.type === 'text' ? b.text : '')).join('')
+  const found = [...text.matchAll(/のうち、week_number=([0-9・]+)/g)]
+  if (found.length === 0) return false
+  const weeks = found[found.length - 1][1].split('・').map(Number).filter(n => Number.isFinite(n))
+  return weeks.length > 0 && !weeks.includes(1)
+}
+
 export default async function handler(req: any, res: any) {
   // 2026-09-13: スコッピー会話機能のデバッグ中に発覚。このAPIはOPTIONSプリフライトに
   // 一切応答しておらず(即405)、かつCORSヘッダーも返していなかった。ネイティブアプリの
@@ -278,8 +312,70 @@ export default async function handler(req: any, res: any) {
     }
   }
 
+  const startedAt = Date.now()
+  const remainingMs = () => FUNCTION_BUDGET_MS - (Date.now() - startedAt)
+
+  // 2026-09-30セキュリティ修正: サーバー自身がticketを消費する唯一の主体になったため、
+  // Gemini呼び出しが失敗した場合に払い戻せるよう、消費に使ったクライアント/金額を
+  // 外側のスコープで保持しておく。
+  // 2026-10-07: 以前はここがtryの中にあり、①払い戻しの書き方が誤っていて(下記)一度も実行されず、
+  // ②Geminiの通信エラー/タイムアウトで例外になると外側のcatchまで払い戻しが届かなかった。
+  // 外側のスコープに出し、どの失敗経路(例外含む)からも refundTicket() を呼べるようにした。
+  let spentTicketClient: any = null
+  let spentTicketAmount = 0
+  // 払い戻し。supabase-jsのrpc()は PostgrestBuilder で、.then しか持たず .catch が無い。
+  // 以前の `rpc(...).catch(() => {})` は呼ぶ前にTypeErrorで落ち、払い戻しは一度も送信されず、
+  // 失敗した利用者に「...catch is not a function」の500が返っていた。必ず await して error を見る。
+  const refundTicket = async (bypassCap: boolean) => {
+    if (!spentTicketClient) return
+    const client = spentTicketClient
+    spentTicketClient = null // 二重払い戻し防止
+    // 2026-09-30セキュリティ修正: 意図的に非JSON応答を誘発して「1回の消費でGeminiに2回無料アクセス」を
+    // 繰り返す悪用を抑えるため、HTTP 200の応答不良(空/非JSON/途中切れ)による払い戻しは1日の上限を設ける。
+    // 2026-10-07: 上限はGemini側の障害(5xx/429/404)や通信エラー・タイムアウトには適用しない
+    // (利用者が起こせない失敗であり、生成コストも発生していないため)。
+    const refundPeriodKey = `refund:${new Date().toISOString().slice(0, 10)}`
+    const REFUND_DAILY_CAP = 5
+    try {
+      if (!bypassCap) {
+        let refundCount = 0
+        try {
+          const { data: refundRow } = await client
+            .from('feature_usage_counts').select('count')
+            .eq('feature', 'analyze_refund').eq('period_key', refundPeriodKey).maybeSingle()
+          refundCount = refundRow?.count ?? 0
+        } catch {}
+        if (refundCount >= REFUND_DAILY_CAP) {
+          console.warn('[analyze] refund daily cap reached, not refunding:', spentTicketAmount)
+          return
+        }
+      }
+      const { error: grantErr } = await client.rpc('ticket_wallet_grant', { p_amount: spentTicketAmount })
+      if (grantErr) { console.error('[analyze] refund grant failed:', grantErr.message ?? grantErr); return }
+      if (!bypassCap) {
+        const { error: incErr } = await client.rpc('increment_feature_usage', { p_feature: 'analyze_refund', p_period_key: refundPeriodKey })
+        if (incErr) console.warn('[analyze] refund counter increment failed:', incErr.message ?? incErr)
+      }
+    } catch (e) {
+      console.error('[analyze] refund threw:', e)
+    }
+  }
+
   try {
-    const body = (typeof req.body === 'string' ? JSON.parse(req.body) : req.body) as AnthropicRequestBody
+    let body: AnthropicRequestBody
+    try {
+      body = (typeof req.body === 'string' ? JSON.parse(req.body) : req.body) as AnthropicRequestBody
+    } catch {
+      res.status(400).json({ error: 'Invalid JSON' })
+      return
+    }
+    // 2026-10-07: チケットを消費する前に形式を検証する。以前は messages が配列でない/空/
+    // contentが不正な場合でも先にチケットを消費してから500で落ちていた。
+    if (!body || typeof body !== 'object' || !Array.isArray(body.messages) || body.messages.length === 0
+        || body.messages.some((m: any) => !m || (typeof m.content !== 'string' && !Array.isArray(m.content)))) {
+      res.status(400).json({ error: 'Invalid messages' })
+      return
+    }
 
     // ── ペイロード上限チェック（APP_SECRET未設定でも効く安全弁） ──
     // 2026-08-29に判明: このエンドポイントはAPP_SECRET未設定だと認証なしで誰でも叩ける状態
@@ -315,6 +411,26 @@ export default async function handler(req: any, res: any) {
       res.status(400).json({ error: 'Payload too large' })
       return
     }
+    // 2026-10-07: 画像は画像用の機能(video/meal/video_frame)でだけ受け付ける。`feature` はクライアントの
+    // 自己申告なので、以前は無料の機能名(recovery等)を名乗って画像を送れば、チケットを引かれずに
+    // 画像分析ができてしまった。
+    if (imageCount > 0 && !(typeof body.feature === 'string' && IMAGE_FEATURES.has(body.feature))) {
+      res.status(400).json({ error: 'Images are not allowed for this feature' })
+      return
+    }
+    // 2026-10-07: 画像以外の文章量にも上限を設ける。以前は画像だけが制限対象で、巨大なテキストを
+    // 1回のリクエストで送って1回分のチケットで高額なトークンを使わせられた。正規の最大(ノートや
+    // 動画分析のプロンプト)は数千文字なので、十分な余裕を持たせた上限にする。
+    const MAX_TEXT_CHARS = 60_000
+    let textTotal = typeof body.system === 'string' ? body.system.length : 0
+    for (const msg of messages) {
+      if (typeof msg.content === 'string') textTotal += msg.content.length
+      else for (const block of msg.content) if (block?.type === 'text') textTotal += (block.text ?? '').length
+    }
+    if (textTotal > MAX_TEXT_CHARS) {
+      res.status(400).json({ error: 'Payload too large' })
+      return
+    }
 
     // ── 短時間重複防止 ──
     // 2026-09-10: 当初、未ログイン(ゲスト)ユーザーはauthヘッダーが空のため dedupKey が
@@ -339,11 +455,19 @@ export default async function handler(req: any, res: any) {
     // 走らせていたが、isPaidTierをモデル選択（下のuseLiteModel算出）にも使うため、feature名さえ
     // 分かれば（無料機能のrecovery/injury_recoveryも含めて）常にtierを引くように広げた。
     let isPaidTier = false
-    // 2026-09-30セキュリティ修正: サーバー自身がticketを消費する唯一の主体になったため、
-    // Gemini呼び出しが失敗した場合に払い戻せるよう、消費に使ったクライアント/金額を
-    // 外側のスコープで保持しておく。
-    let spentTicketClient: any = null
-    let spentTicketAmount = 0
+    // ログイン(JWT)をサーバーが確認できたユーザーID。画像を使う高コストな機能は、確認できた場合だけ許可する
+    let verifiedUserId: string | null = null
+    // featureはクライアント申告の文字列。'constructor'/'__proto__' 等のプロトタイプ上のキーで
+    // テーブルを引いてしまわないよう、自前のプロパティだけを見る。
+    const own = (o: Record<string, number>, k: unknown): number | undefined =>
+      typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k) ? o[k] : undefined
+    // 2026-10-07: GEMINI_API_KEY未設定の検出は、チケットを消費する「前」に行う。
+    // 以前は消費の後で確認していたため、未設定時は払い戻しなしで利用者のチケットだけ減っていた。
+    const geminiKey = process.env.GEMINI_API_KEY
+    if (!geminiKey) {
+      res.status(500).json({ error: 'GEMINI_API_KEY not configured' })
+      return
+    }
     if (authHeader.startsWith('Bearer ') && typeof feature === 'string') {
       const token = authHeader.slice('Bearer '.length)
       const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL
@@ -357,6 +481,7 @@ export default async function handler(req: any, res: any) {
           const { data: userData } = await userClient.auth.getUser(token)
           const userId = userData?.user?.id
           if (userId) {
+            verifiedUserId = userId
             // 2026-09-10: ここに「サーバー側の絶対上限チェック」を追加していたが、以下の理由で撤去した。
             //  ① period_keyの日付をUTC(now.toISOString())で作っていたのに対し、クライアント側
             //     (lib/adGate.ts)はローカル日付(todayLocalISO / JST)で書き込んでおり、
@@ -367,23 +492,38 @@ export default async function handler(req: any, res: any) {
             //     ここでの追加チェックは「有効なJWTを盗んで生APIを叩く」ケースにしか効かない割に
             //     リスクが高い。悪用対策は下のチケット残高チェックに一本化する。
             void HARD_DAILY_CAP_SERVER; void HARD_MONTHLY_CAP_SERVER
-            const { data: statusRow } = await userClient
+            const { data: statusRow, error: statusErr } = await userClient
               .from('subscription_status').select('tier, original_purchase_date')
               .eq('user_id', userId).maybeSingle()
+            // 2026-10-07: 読み取りエラーを「行なし＝free」と同一視していたため、DBの一時的な不調で
+            // 有料(コーチ)ユーザーにチケットが課金されていた。課金対象の機能では誤課金も無料開放も
+            // 避けるため503で止める(クライアントは5xxを自動で再試行する)。無料機能はそのまま続行。
+            if (statusErr) {
+              console.warn('[analyze] subscription_status read failed:', statusErr.message)
+              if (own(TICKET_COST_SERVER, feature)) {
+                res.status(503).json({ error: '契約状態を確認できませんでした。少し時間をおいてもう一度お試しください' })
+                return
+              }
+            }
             // 2026-09-30セキュリティ修正: 以前は statusRow が無い(webhookが一度も届いていない=
             // IAPに一度も触れていない大半の無料ユーザーが該当)場合、チケット判定ブロック自体を
             // 丸ごとスキップしており、それらのユーザーは無制限にAI機能を叩けてしまっていた。
             // 「行が無い」を「free扱い」として明示的に判定するよう変更(fail openを廃止)。
+            // 2026-10-07: 購入日が取れない/不正な場合はクライアント(lib/adGate.ts isLegacyUnlimitedNoad)と
+            // 同じく旧仕様(無制限)側に倒す。サーバーだけ「通常課金」にすると、クライアントが無料と
+            // 判断した既存の広告なし課金者がチケット0で402になってしまう。
             const isLegacyNoad = !!statusRow
               && statusRow.tier === 'noad'
-              && !!statusRow.original_purchase_date
-              && new Date(statusRow.original_purchase_date) < TICKET_SYSTEM_CUTOVER
+              && (() => {
+                const d = statusRow.original_purchase_date ? new Date(statusRow.original_purchase_date) : null
+                return !d || isNaN(d.getTime()) || d < TICKET_SYSTEM_CUTOVER
+              })()
             isPaidTier = statusRow?.tier === 'coach' || isLegacyNoad
             // コーチ無料体験中かつ当日のボーナス枠内なら、チケットを引かない(クライアントと同じ判定)。
             // 利用回数はクライアントが成功後に feature_usage_counts へ加算する(period_key=端末ローカル日付)ので、
             // ここでは日本時間(JST)の今日を見る。読み取りに失敗した場合は無料扱いにせず通常課金に倒す。
             let trialBonusFree = false
-            const trialCap = TRIAL_BONUS_DAILY_CAP_SERVER[feature]
+            const trialCap = own(TRIAL_BONUS_DAILY_CAP_SERVER, feature)
             if (!isPaidTier && trialCap !== undefined) {
               try {
                 const { data: trialRow } = await userClient
@@ -397,7 +537,17 @@ export default async function handler(req: any, res: any) {
                 }
               } catch {}
             }
-            if (!isPaidTier && !trialBonusFree && TICKET_COST_SERVER[feature]) {
+            const ticketCost = (feature === 'competition_plan' && isNonFinalCompetitionChunk(body))
+              ? undefined
+              : own(TICKET_COST_SERVER, feature)
+            // 2026-10-07: スコッピーは「チケット1枚で5回質問できる」仕様(lib/scoppyChatStore.ts)だが、
+            // サーバーは全メッセージを1枚ずつ課金していたため、実際は5倍の料金になり、残り枚数が0になると
+            // 「残り4回」と表示されたまま送れなくなっていた。クライアントが残り回数を使う送信には
+            // banked:true を付け、サーバーはその送信を課金しない(課金されるのは5通に1通だけ)。
+            // クライアント申告を信用する点は他のfeature申告と同じ扱いで、悪用されても
+            // 最安のliteモデル・400トークンの会話に限られる。
+            const bankedFree = feature === 'scoppy_chat' && body.banked === true
+            if (!isPaidTier && !trialBonusFree && !bankedFree && ticketCost) {
               // 2026-09-30セキュリティ修正: 以前はここで残高の読み取り確認のみ行い、実際の
               // 消費はクライアント側(recordUsage、成功後に別途呼ばれる)に委ねていた。
               // アプリを経由せずこのAPIを直接叩く経路では、その後続のrecordUsage呼び出しが
@@ -406,21 +556,40 @@ export default async function handler(req: any, res: any) {
               // (client側のrecordUsageはticket機能について消費処理をスキップするよう変更済み。
               // lib/adGate.ts参照。二重消費にはならない)。
               const { data: spent, error: spendErr } = await userClient
-                .rpc('ticket_wallet_spend', { p_amount: TICKET_COST_SERVER[feature] })
-              if (spendErr || !spent) {
+                .rpc('ticket_wallet_spend', { p_amount: ticketCost })
+              // 2026-10-07: 以前はDB/通信エラーも「チケット不足」(402)として返していたため、
+              // 残高があるのに「チケットが足りません」と表示されていた。エラーは503で区別する。
+              if (spendErr) {
+                console.warn('[analyze] ticket_wallet_spend failed:', spendErr.message)
+                res.status(503).json({ error: 'チケットの処理に失敗しました。少し時間をおいてもう一度お試しください' })
+                return
+              }
+              if (!spent) {
                 res.status(402).json({ error: 'チケットが不足しています' })
                 return
               }
               // Gemini呼び出しが失敗した場合はここで払い戻す（元々「失敗時は課金しない」
               // 挙動だったため、成功時のみ課金される状態を維持する）
               spentTicketClient = userClient
-              spentTicketAmount = TICKET_COST_SERVER[feature]
+              spentTicketAmount = ticketCost
             }
           }
         } catch (e) {
           console.warn('[analyze] tier verification failed, falling back to client-trust:', e)
         }
       }
+    }
+
+    // 2026-10-07: 画像を使う機能(動画分析・食事分析・Web版フレーム分析)は最も高額で、アプリ側でも
+    // ログイン必須。Authorization なし(または確認できないトークン)でも通ってしまうと、誰でも・無料で・
+    // 無制限に画像分析を呼べる。サーバー側でも、ログインを確認できた場合だけ許可する。
+    if (typeof feature === 'string' && IMAGE_FEATURES.has(feature) && !verifiedUserId) {
+      res.status(authHeader.startsWith('Bearer ') ? 503 : 401).json({
+        error: authHeader.startsWith('Bearer ')
+          ? 'ログイン状態を確認できませんでした。少し待ってからもう一度お試しください'
+          : 'ログインが必要です',
+      })
+      return
     }
 
     // ── モデル選択（無料/チケット利用は軽量モデル、有料サブスクは現行モデル） ──
@@ -437,25 +606,23 @@ export default async function handler(req: any, res: any) {
     // (2026-09-02に実際に発生、全AI機能が停止した)。Gemini専用になった今もbodyに
     // 余計なフィールドを残さない習慣として維持する。
     delete (body as any).feature
+    delete (body as any).banked
 
     // max_tokens を 4096 に上限設定（意図しない高コスト呼び出しを防止／出力は入力の5倍高いため上限を絞る）。
     // 2026-08-29: 3000のままだと、動画分析のレーダーチャート方式スキーマ(7項目×詳細な理由文+
     // strength/focus/nextStep/practice)で、実際の走行フォーム画像(情報量が多い)を渡すと応答が
     // 途中で切れてJSONパース失敗になる不具合が発生。gemini-3.5-flashへの切替でモデルの応答の
     // 冗長さが変わったことも一因とみられる。4096に引き上げて余裕を持たせる。
-    if (body && typeof body.max_tokens === 'number' && body.max_tokens > 4096) {
-      body.max_tokens = 4096
+    // 2026-10-07: 数値以外("99999"等の文字列や0/負数/小数)は上限をすり抜けていたため、整数に正規化する。
+    {
+      const mt: any = typeof body.max_tokens === 'string' ? Number(body.max_tokens) : body.max_tokens
+      body.max_tokens = (typeof mt === 'number' && Number.isFinite(mt) && mt >= 1) ? Math.min(Math.floor(mt), 4096) : undefined
     }
 
     // 2026-09-24: 「Anthropicのクレジットはもう使わない、全部Geminiに繋がるように」との
     // 指示でAnthropicフォールバックを撤去。以前はGeminiが失敗/空/非JSON応答の時に
     // Anthropicへ自動フォールバックしていたが、今後は一切呼ばない。GEMINI_API_KEY未設定
-    // 時もエラーを返すのみ（Anthropicへの切替は行わない）。
-    const geminiKey = process.env.GEMINI_API_KEY
-    if (!geminiKey) {
-      res.status(500).json({ error: 'GEMINI_API_KEY not configured' })
-      return
-    }
+    // 時もエラーを返すのみ（Anthropicへの切替は行わない）。キーの確認はチケット消費の前に済ませてある。
     // 2026-10-05: 「JSONが無い応答は失敗」という判定は、応答が元々JSONの機能にだけ適用する。
     // 以前は scoppy_chat 以外の全機能に適用していたため、文章(散文)で返すのが正しい
     // ai_analysis(今週の総評)・workout・meal_coach・daily_insightが毎回「失敗」と誤判定され、
@@ -463,18 +630,20 @@ export default async function handler(req: any, res: any) {
     // という不具合になっていた。
     const JSON_RESPONSE_FEATURES = new Set([
       'video', 'meal', 'competition_plan', 'recovery', 'injury_recovery', 'mission_summary', 'notebook_ai',
+      'video_frame', 'video_web',
     ])
     const expectsJson = typeof feature === 'string' && JSON_RESPONSE_FEATURES.has(feature)
     // 動画分析は構造化出力を指定する(上のVIDEO_RESPONSE_SCHEMA参照)。
     const responseSchema = feature === 'video' ? VIDEO_RESPONSE_SCHEMA : undefined
-    let result = await callGemini(body, geminiKey, useLiteModel, responseSchema)
+    const callBudget = () => Math.min(GEMINI_CALL_TIMEOUT_MS, remainingMs() - 2_000)
+    let result = await callGemini(body, geminiKey, useLiteModel, responseSchema, callBudget())
     // 構造化出力のスキーマ自体をGeminiが400で拒否した場合に備えた安全装置:
     // 従来方式(スキーマ無し)に自動で切り替えて続行する（動画分析が全滅しないように）。
     let activeSchema = responseSchema
-    if (activeSchema && result.status === 400) {
+    if (activeSchema && result.status === 400 && remainingMs() > MIN_RETRY_BUDGET_MS) {
       console.warn('[analyze] structured output rejected, falling back to plain generation:', JSON.stringify(result.body).slice(0, 300))
       activeSchema = undefined
-      result = await callGemini(body, geminiKey, useLiteModel, activeSchema)
+      result = await callGemini(body, geminiKey, useLiteModel, activeSchema, callBudget())
     }
     const checkSoftFailure = (r: typeof result) => {
       const text = (r.body as any)?.content?.[0]?.text
@@ -482,15 +651,28 @@ export default async function handler(req: any, res: any) {
       const hasJson = typeof text === 'string' && /\{[\s\S]*\}/.test(text)
       let nonJson = expectsJson && r.status === 200 && !empty && !hasJson
       // 動画分析はクライアント(app/video-analysis.tsx)が厳密にパースするため、
-      // 「波括弧はあるがJSONとして壊れている/scoreが無い」応答もここで失敗扱いにして
+      // 「波括弧はあるがJSONとして壊れている/scoreが無い/項目が少なすぎる」応答もここで失敗扱いにして
       // サーバー側で1回だけ再試行する(それでもダメならチケットを払い戻す)。
       if (feature === 'video' && r.status === 200 && !empty && hasJson) {
         try {
           const p = JSON.parse(String(text).match(/\{[\s\S]*\}/)![0])
-          if (typeof p?.score !== 'number') nonJson = true
+          if (typeof p?.score !== 'number' || !Array.isArray(p?.dimensions) || p.dimensions.length < 3) nonJson = true
         } catch { nonJson = true }
       }
-      return { text, empty, nonJson }
+      // 大会プランは phases(週ごとの計画)が空だと使えない。「JSONだが計画が空」も失敗として扱い、
+      // 再試行→払い戻しの対象にする(以前は計画が空のまま「作成しました」と表示され課金されていた)。
+      if (feature === 'competition_plan' && r.status === 200 && !empty && hasJson && !nonJson) {
+        try {
+          const p = JSON.parse(String(text).match(/\{[\s\S]*\}/)![0])
+          if (!Array.isArray(p?.phases) || p.phases.length === 0) nonJson = true
+        } catch { nonJson = true }
+      }
+      // 2026-10-07: 出力上限で途中切れした応答は、中に '}' が残っているため「成功」扱いになり、
+      // クライアントのJSON解析で失敗してもチケットだけ引かれていた(食事・大会プラン等)。
+      // 再試行しても同じ長さで切れやすくコストが増えるだけなので、再試行はせず払い戻し対象にする。
+      const truncated = expectsJson && r.status === 200 && !empty && !nonJson
+        && (r.body as any)?.stop_reason === 'max_tokens'
+      return { text, empty, nonJson, truncated }
     }
     let check = checkSoftFailure(result)
     // 2026-09-25: 「食事分析がめっちゃ時間かかる/反応しない」の原因調査で判明。Anthropic
@@ -500,41 +682,33 @@ export default async function handler(req: any, res: any) {
     // クライアント側は一切リトライせず即座に失敗表示していた。Anthropicは使わない方針の
     // ため、代わりにGemini自身へその場でもう1回だけ投げ直す（同一プロバイダなのでコストは
     // 増えるが小さく、ユーザー体験としては「たまに遅い」で済み、「反応しない」よりずっと良い）。
-    if (check.empty || check.nonJson) {
-      console.warn('[analyze] Gemini soft-failure, retrying once:', result.status, check.nonJson ? check.text?.slice(0, 200) : '(empty)')
-      result = await callGemini(body, geminiKey, useLiteModel, activeSchema)
+    // 2026-10-07: 残り時間が少ない時は再試行しない(関数の強制終了で払い戻しが漏れるのを避ける)。
+    if ((check.empty || check.nonJson) && remainingMs() > MIN_RETRY_BUDGET_MS) {
+      // 2026-10-07: AIの回答本文(健康・練習の内容を含み得る)はログに残さない。長さだけ記録する
+      console.warn('[analyze] Gemini soft-failure, retrying once:', result.status, check.nonJson ? `(non-JSON, ${String(check.text ?? '').length} chars)` : '(empty)')
+      result = await callGemini(body, geminiKey, useLiteModel, activeSchema, callBudget())
       check = checkSoftFailure(result)
       if (check.empty || check.nonJson) {
-        console.warn('[analyze] Gemini soft-failure again after retry:', result.status, check.nonJson ? check.text?.slice(0, 200) : '(empty)')
+        console.warn('[analyze] Gemini soft-failure again after retry:', result.status, check.nonJson ? `(non-JSON, ${String(check.text ?? '').length} chars)` : '(empty)')
       }
     }
-    // Gemini呼び出しが最終的に失敗(非200 or 空/非JSON応答)に終わった場合、事前に消費した
+    // Gemini呼び出しが最終的に失敗(非200 or 空/非JSON/途中切れ応答)に終わった場合、事前に消費した
     // チケットを払い戻す。元々「失敗時は課金しない」挙動だったため、これで維持する。
-    // 2026-09-30セキュリティ修正: isIpRateLimited/isDuplicateRequestが無効化されている
-    // 現状、意図的に非JSON応答を誘発するプロンプトを送れば「1回のチケット消費で
-    // Geminiに2回無料アクセス(1回目+ソフト失敗リトライ)」を無制限に繰り返せる状態
-    // だった。1日あたりの払い戻し回数に上限を設け、悪用を有限に抑える
-    // (通常のGemini一時的な不調による正規の払い戻しは1日数回程度に収まる想定のため、
-    // 上限3回は正規利用にはほぼ影響しない)。
-    if (spentTicketClient && (result.status !== 200 || check.empty || check.nonJson)) {
-      const refundPeriodKey = `refund:${new Date().toISOString().slice(0, 10)}`
-      let refundCount = 0
-      try {
-        const { data: refundRow } = await spentTicketClient
-          .from('feature_usage_counts').select('count')
-          .eq('feature', 'analyze_refund').eq('period_key', refundPeriodKey).maybeSingle()
-        refundCount = refundRow?.count ?? 0
-      } catch {}
-      const REFUND_DAILY_CAP = 3
-      if (refundCount < REFUND_DAILY_CAP) {
-        await spentTicketClient.rpc('ticket_wallet_grant', { p_amount: spentTicketAmount }).catch(() => {})
-        await spentTicketClient.rpc('increment_feature_usage', { p_feature: 'analyze_refund', p_period_key: refundPeriodKey }).catch(() => {})
-      } else {
-        console.warn('[analyze] refund daily cap reached, not refunding:', spentTicketAmount)
-      }
+    // 上限(1日5回)が効くのは「HTTP 200なのに応答が不良」の場合だけ(refundTicket参照)。
+    // Gemini側のエラー(非200)はいつでも払い戻す。
+    if (result.status !== 200 || check.empty || check.nonJson || check.truncated) {
+      await refundTicket(result.status !== 200)
     }
     res.status(result.status).json(result.body)
   } catch (e: any) {
-    res.status(500).json({ error: e?.message ?? 'Unknown error' })
+    // 通信エラー/タイムアウト/想定外の例外: ここまでにチケットを消費していれば必ず返す。
+    await refundTicket(true)
+    const timedOut = e?.name === 'TimeoutError' || e?.name === 'AbortError'
+    console.error('[analyze] handler failed:', e?.name, e?.message)
+    if (timedOut) {
+      res.status(504).json({ error: 'AIの応答が時間内に返りませんでした。もう一度お試しください' })
+    } else {
+      res.status(500).json({ error: e?.message ?? 'Unknown error' })
+    }
   }
 }

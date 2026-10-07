@@ -27,6 +27,18 @@ export interface ScoppyChatEntry extends ScoppyChatMessage {
   isError?: boolean
 }
 
+// 2026-10-07: 「?q=」付きでスコッピーを開くと質問を自動送信する機能(練習メニューの種目の説明)が、
+// 外部のリンク(score://scoppy-chat?q=...)からも発動し、確認なしでチケットを消費させられた。
+// アプリ自身が画面遷移の直前に登録した質問だけを自動送信し、外部リンクの質問は入力欄に入れるだけにする。
+let _trustedAutoQuestion: string | null = null
+export function trustScoppyAutoQuestion(q: string) { _trustedAutoQuestion = q }
+/** 登録済みの質問と一致する時だけ true（一度使ったら無効） */
+export function consumeTrustedScoppyQuestion(q: string): boolean {
+  const ok = _trustedAutoQuestion !== null && _trustedAutoQuestion === q
+  _trustedAutoQuestion = null
+  return ok
+}
+
 export const SCOPPY_CHAT_KEY = 'trackmate_scoppy_chat_history'
 // 会話が伸び続けてAsyncStorageの書き込みが重くなるのを防ぐため、表示用の保存件数にも
 // 上限を設ける（APIに送る件数はlib/claude.ts側でさらに直近16件に絞っている）
@@ -48,6 +60,11 @@ export function addScoppyChatMessage(message: ScoppyChatMessage & { isError?: bo
     // 表示は時系列順(古い→新しい)で使うため末尾に追加。上限超過分は古い方から間引く
     return [...current, next].slice(-MAX_ENTRIES)
   })
+}
+
+/** 直前の1件を取り消す（サーバーに拒否された送信の発言を残さないため） */
+export function removeLastScoppyChatMessage(): Promise<ScoppyChatEntry[]> {
+  return store.update(current => current.slice(0, -1))
 }
 
 export function clearScoppyChatHistory(): Promise<ScoppyChatEntry[]> {

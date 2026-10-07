@@ -25,6 +25,7 @@ import { useTranslation } from 'react-i18next'
 import { useLanguage } from '../context/LanguageContext'
 import type { Language } from '../context/LanguageContext'
 import { getEventLabel } from '../lib/eventLabels'
+import { ensureGalleryWritePermission, saveImageToGallery } from '../lib/mediaPermissions'
 
 const RECORDS_KEY = 'trackmate_race_records'
 
@@ -806,7 +807,7 @@ export default function ShareCardScreen() {
     }
     setExporting(true)
     try {
-      const { status } = await MediaLibrary.requestPermissionsAsync()
+      const status = (await ensureGalleryWritePermission()) ? 'granted' : 'denied'
       if (status !== 'granted') {
         Toast.show({ type: 'error', text1: t('shareCard.toast.photoPermission') })
         return
@@ -818,7 +819,8 @@ export default function ShareCardScreen() {
         quality: 1,
         ...(isTransparentVariant ? { transparent: true } as any : {}),
       })
-      await MediaLibrary.saveToLibraryAsync(uri)
+      // Android は共有シートで保存するため、保存完了の表示は出さない(lib/mediaPermissions.ts)
+      if ((await saveImageToGallery(uri)) === 'shared') return
       const msg = isTransparentVariant
         ? t('shareCard.toast.transparentSaved')
         : t('shareCard.toast.cameraRollSaved')

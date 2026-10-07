@@ -1,4 +1,11 @@
 {
+  "aiConsent": {
+    "title": "About using AI features",
+    "body": "When you use AI features (video analysis, meal analysis, AI diagnosis, recovery advice, notebook parsing, chatting with Scoppy, the daily AI advice, etc.), what you enter is sent through our server to the Gemini API of Google LLC (United States) for analysis.\n\nWhat is sent:\n- Text you enter (training notes, pain/condition, questions, etc.)\n- Meal photos and images cut out of your video (faces may appear)\n- Some of your sleep, weight and training records\n\nPlease don't enter personal information that the AI doesn't need, such as your name or contact details. Sent content is used only to produce the analysis. See the Privacy Policy for details.",
+    "agree": "Agree and continue",
+    "decline": "Don't agree",
+    "viewPolicy": "View Privacy Policy"
+  },
   "common": {
     "cancel": "Cancel",
     "save": "Save",
@@ -588,6 +595,8 @@
       "actionTeamSub": "Members, menus & messages",
       "actionSettings": "Settings",
       "actionSettingsSub": "Account & notifications",
+      "switchToAthlete": "Use as an athlete",
+      "switchToAthleteSub": "Go back to the athlete home screen (your team data is kept)",
       "statusTitle": "Today's Team Status",
       "allClear": "Everyone looks good",
       "statusHighRisk": "High risk",
@@ -1250,6 +1259,8 @@
       "pickFailed": "Failed to select the video",
       "recordFailed": "Failed to record the video",
       "sendFailed": "Failed to send",
+      "notDeliveredTitle": "Not delivered to your coach yet",
+      "notDeliveredBody": "You haven't joined a team, or the connection failed, so your coach wasn't notified. The video is saved on this device only. Join a team and send it again.",
       "defaultSendDesc": "Sent a form analysis video",
       "coachNotifyBody": "{{name}} sent a form analysis video",
       "sentTitle": "Sent to your coach!",
@@ -1282,6 +1293,11 @@
       "footerNote": "Your coach can view the video you send from \"Coach View\" in the app."
     },
     "native": {
+      "historySaveFailed": "Your analysis is shown, but saving it to History failed. Take a screenshot before you leave this screen.",
+      "leaveWhileAnalyzingTitle": "Analysis in progress",
+      "leaveWhileAnalyzingBody": "If you leave now, the analysis will keep running and the result will be saved to History, but it won't be shown on this screen. Leave anyway?",
+      "leaveStay": "Keep waiting",
+      "leaveConfirm": "Leave",
       "title": "Form Analysis",
       "subtitle": "AI analyzes {{n}} frames at once for a fast diagnosis",
       "history": "History",
@@ -1974,6 +1990,8 @@
       "entryStatusChanged": "Entry status changed to \"{{status}}\"",
       "templatePlanCreated": "Created with a template plan",
       "templatePlanSub": "AI-personalized plans require tickets",
+      "templatePlanAiFailed": "AI generation failed, so a template plan was created instead",
+      "injurySaveFailed": "Couldn't save the recovery plan. Please try again.",
       "injuryFormIncompleteTitle": "Missing Info",
       "injuryFormIncompleteMsg": "Please select body part(s) and type"
     },
@@ -2145,7 +2163,7 @@
     "historyCount": "Last {{count}}",
     "ticketUsedToast": "🎫 Used {{n}} ticket(s)",
     "errorToastTitle": "AI connection error",
-    "errorToastBody": "Showing a fallback message",
+    "errorToastBody": "Couldn't get a diagnosis from the AI. Please wait a moment and try again. Tickets for failed requests are returned automatically.",
     "fatigueLevels": {
       "low": "Low",
       "medium": "Medium",
@@ -2196,6 +2214,7 @@
     "loadFailedTitle": "Failed to load products",
     "loadFailedBody": "Please wait a moment and try again",
     "purchaseAddedToast": "🎫 Added {{n}} ticket(s)",
+    "purchasePendingToast": "Purchase complete. Your tickets are taking a moment to appear (they will be added automatically).",
     "purchaseErrorTitle": "Purchase error",
     "purchaseErrorFallback": "The purchase failed",
     "adLimitTitle": "You've reached today's earning limit",
@@ -4432,6 +4451,8 @@
     "redeemSuccess": "Coach plan activated",
     "redeemFailed": "Redemption failed",
     "back": "Back to selection",
+    "useAsAthlete": "Use as an athlete",
+    "useAsAthleteSub": "You can start the coach features any time later",
     "trialTitle": "Try free for 15 days",
     "trialDesc": "No credit card required. Create your team right away",
     "trialExpiredSubtitle": "Your free trial has ended. To keep using the coach plan, enter a code or purchase the team plan.",

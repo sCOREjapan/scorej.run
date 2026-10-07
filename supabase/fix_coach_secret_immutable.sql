@@ -1,4 +1,6 @@
 -- supabase/fix_coach_secret_immutable.sql
+-- ⚠ 2026-10-07: fix_coach_secret_hash.sql を適用した後は、このファイルを再実行しないこと。
+--   (古い削除ポリシー/トリガーに戻り、coach_secret の平文が再び保存・露出してしまう)
 --
 -- 【発覚した問題】(2026-09-30 追加監査で発覚。fix_team_delete_requires_coach_secret.sqlの
 -- 直後に見つかった、その修正自体の欠陥)

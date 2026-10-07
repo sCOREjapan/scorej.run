@@ -133,7 +133,13 @@ async function handleChurned(req: any, res: any) {
     }>
 
     const header = 'email,name,primary_event,total_sessions,last_session'
-    const escape = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`
+    // 2026-10-07: 利用者が自由に設定できる氏名などが「=」「+」「-」「@」で始まると、表計算ソフトで開いた時に
+    // 数式として実行される(CSVインジェクション)。先頭にシングルクォートを付けて文字列として扱わせる。
+    const escape = (v: unknown) => {
+      let t = String(v ?? '')
+      if (/^[=+\-@\t\r]/.test(t)) t = "'" + t
+      return `"${t.replace(/"/g, '""')}"`
+    }
     const csvLines = rows.map(r =>
       [escape(r.email), escape(r.name), escape(r.primary_event), r.total_sessions, escape(r.last_session)].join(',')
     )

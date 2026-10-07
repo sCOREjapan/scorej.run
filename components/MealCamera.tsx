@@ -9,6 +9,7 @@ import {
   Platform,
 } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
+import { requestPickerLibraryPermission } from '../lib/mediaPermissions'
 
 interface Props {
   onAnalyze: (imageBase64: string) => void
@@ -64,7 +65,7 @@ const MealCamera: React.FC<Props> = ({ onAnalyze, isAnalyzing = false }) => {
   }
 
   const handleLibrary = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    const { status } = await requestPickerLibraryPermission()
     if (status !== 'granted') return
 
     const result = await ImagePicker.launchImageLibraryAsync({

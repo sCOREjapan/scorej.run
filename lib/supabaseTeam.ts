@@ -187,10 +187,13 @@ export async function fetchVideos(teamCode: string): Promise<TeamVideoRow[]> {
 
 export async function submitVideo(
   teamCode: string, playerName: string, url: string, description: string,
-): Promise<void> {
-  if (!isConfigured) return
-  await teamScopedClient(teamCode).from('team_videos')
+): Promise<boolean> {
+  // 戻り値: 実際にサーバーへ登録できたか。supabase-jsは通信/権限エラーでも例外を投げず
+  // {error} を返すだけなので、呼び出し側が成功を確かめられるよう結果を返す（既存の呼び出しは無視してよい）
+  if (!isConfigured) return false
+  const { error } = await teamScopedClient(teamCode).from('team_videos')
     .insert({ team_code: teamCode, player_name: playerName, url, description })
+  return !error
 }
 
 export async function markVideoWatched(teamCode: string, id: string): Promise<void> {
@@ -650,14 +653,16 @@ export async function sendCoachNotification(
   type: CoachNotifType,
   playerName: string,
   content: string,
-): Promise<void> {
-  if (!isConfigured) return
-  await teamScopedClient(teamCode).from('team_messages').insert({
+): Promise<boolean> {
+  // 戻り値: 実際にサーバーへ登録できたか（submitVideo と同じ理由。既存の呼び出しは無視してよい）
+  if (!isConfigured) return false
+  const { error } = await teamScopedClient(teamCode).from('team_messages').insert({
     team_code: teamCode,
     content: `[${type.toUpperCase()}] ${content}`,
     author_name: '__system__',
     is_pinned: false,
   })
+  return !error
 }
 
 export async function fetchCoachNotifications(teamCode: string): Promise<TeamMessageRow[]> {

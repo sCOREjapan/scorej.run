@@ -40,6 +40,7 @@ import { BlurView } from 'expo-blur'
 import { usePurchase } from '../../context/PurchaseContext'
 import { useTranslation } from 'react-i18next'
 import { useLanguage } from '../../context/LanguageContext'
+import { requestPickerLibraryPermission } from '../../lib/mediaPermissions'
 
 const STORAGE_KEY = 'trackmate_meals'
 const NUTRITION_STATS_VIEW_KEY = 'trackmate_nutrition_stats_views'
@@ -607,7 +608,7 @@ export default function NutritionScreen() {
         if (status !== 'granted') { Toast.show({ type: 'error', text1: t('nutrition.permission.camera') }); return }
         res = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.8 })
       } else {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+        const { status } = await requestPickerLibraryPermission()
         if (status !== 'granted') { Toast.show({ type: 'error', text1: t('nutrition.permission.library') }); return }
         res = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, quality: 0.8, mediaTypes: 'images' })
       }
@@ -665,6 +666,7 @@ export default function NutritionScreen() {
     let usesTicketThisRun = false
     if (!skipGate) {
       const gate = await checkAdGate('meal')
+      if (gate.consentDenied) return false
       if (!gate.allowed) {
         if (gate.needsTicket) { setTicketGateCost(gate.ticketCost); setTicketGateBalance(gate.ticketBalance); setTicketGateVisible(true) }
         else { setAdGateRemaining(gate.remaining); setAdGateHardLimited(gate.hardLimited); setAdGateLimitType(gate.limitType); setAdGateVisible(true) }

@@ -1,4 +1,6 @@
 -- supabase/fix_team_delete_requires_coach_secret.sql
+-- ⚠ 2026-10-07: fix_coach_secret_hash.sql を適用した後は、このファイルを再実行しないこと。
+--   (古い削除ポリシー/トリガーに戻り、coach_secret の平文が再び保存・露出してしまう)
 --
 -- 【発覚した問題】(2026-09-30 セキュリティ監査)
 --   teams(および関連7テーブル)は "teams_by_code" のような FOR ALL ポリシーで

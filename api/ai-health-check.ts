@@ -62,6 +62,10 @@ async function checkGemini(model: string, apiKey: string): Promise<{ ok: boolean
 }
 
 export default async function handler(req: any, res: any) {
+  // 2026-10-07: CRON_SECRET が本番に未設定のため、以前はこのURLを誰でも叩けた(全端末へ通知を送れる/
+  // Geminiを呼ばせられる)。CRON_SECRET を設定すれば Vercel の cron が自動で Authorization: Bearer を付けるので
+  // 完全に守られる。未設定の間は、少なくとも Vercel の cron 以外(User-Agent が vercel-cron/ でない呼び出し)は
+  // 拒否する(User-Agent は偽装できるため、これは暫定。`vercel env add CRON_SECRET production` を必ず設定すること)。
   const cronSecret = process.env.CRON_SECRET
   if (cronSecret) {
     const auth = req.headers?.['authorization'] ?? ''
@@ -69,6 +73,13 @@ export default async function handler(req: any, res: any) {
       res.status(401).json({ error: 'Unauthorized' })
       return
     }
+  } else {
+    const ua = String(req.headers?.['user-agent'] ?? '')
+    if (!ua.startsWith('vercel-cron/')) {
+      res.status(401).json({ error: 'Unauthorized' })
+      return
+    }
+    console.warn('[cron] CRON_SECRET is not set; accepting by user-agent only')
   }
 
   const geminiKey = process.env.GEMINI_API_KEY

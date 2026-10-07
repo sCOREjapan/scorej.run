@@ -45,7 +45,7 @@ export default function CoachOnboardingScreen() {
   const trialExpiredParam = Array.isArray(rawParams.trialExpired) ? rawParams.trialExpired[0] : rawParams.trialExpired
   const params = { trialExpired: trialExpiredParam }
   const { isCoach, refreshStatus } = usePurchase()
-  const { isGuest } = useAuth()
+  const { isGuest, setCoachMode } = useAuth()
   const [mode, setMode] = useState<'choose' | 'redeem' | 'trial'>('choose')
   const [code, setCode] = useState('')
   const [redeeming, setRedeeming] = useState(false)
@@ -58,6 +58,16 @@ export default function CoachOnboardingScreen() {
   useEffect(() => {
     if (isCoach) router.replace('/(tabs)/team' as any)
   }, [isCoach])
+
+  // 2026-10-06 致命バグ修正: 選手として使っていた人がここへ誘導された時に、選手へ戻る手段が
+  // 無かった(戻る矢印でチームタブへ戻ると、コーチ権限が無いため再びここへ飛ばされる無限ループ)。
+  // 役割を'player'にしてホームのコーチ専用UIも解除し、ホームへ確実に逃がす。チームのデータ
+  // (SETUP_KEY等)は消さないので、あとでコーチプランに加入すれば同じチームを使い続けられる。
+  const handleUseAsAthlete = async () => {
+    await AsyncStorage.setItem(ROLE_KEY, 'player').catch(() => {})
+    await setCoachMode(false)
+    router.replace('/(tabs)' as any)
+  }
 
   const handleStartTrial = async () => {
     if (isGuest) { router.push('/auth' as any); return }
@@ -196,6 +206,11 @@ export default function CoachOnboardingScreen() {
                   <Text style={[s.cardDesc, { color: colors.textSec }]}>{t('coachOnboarding.noCodeDesc')}</Text>
                 </View>
                 <Ionicons name="open-outline" size={18} color={colors.textHint} />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={{ alignItems: 'center', paddingVertical: 14 }} onPress={handleUseAsAthlete} activeOpacity={0.7} accessibilityRole="button">
+                <Text style={{ color: BRAND, fontSize: 14, fontWeight: '700' }}>{t('coachOnboarding.useAsAthlete')}</Text>
+                <Text style={{ color: colors.textSec, fontSize: 11, marginTop: 2 }}>{t('coachOnboarding.useAsAthleteSub')}</Text>
               </TouchableOpacity>
             </View>
           ) : mode === 'redeem' ? (

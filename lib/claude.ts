@@ -37,6 +37,8 @@ interface MessagesRequest {
   // 2026-09-01: サーバー側でのtier検証・残高確認のため追加。api/analyze.ts の
   // TICKET_COST_SERVER と一致するfeature名を渡す（対象外の機能は省略可）
   feature?: string
+  // スコッピー: ローカルの残り回数(1チケット=5メッセージ)で送る場合 true（サーバーは課金しない）
+  banked?: boolean
 }
 
 // ─────────────────────────────────────────
@@ -56,10 +58,41 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-// Vercel Edge Function のプラン上の実行時間上限（実測で25秒前後）や、Gemini側の
-// 一時的な高負荷（503）により生成が失敗することがある。同じリクエストを再送すると
-// 生成時間にばらつきがあり成功することが多いため、5xx系エラーは1回だけ自動リトライする。
-const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504])
+// Gemini側の一時的な高負荷（429/503）や、サーバー内部の一時的な失敗（500/502）は、
+// 同じリクエストを間隔を空けて再送すると成功することが多いため自動リトライする。
+// 2026-10-07: 504 は再試行しない。サーバーは Gemini が約40秒以内に返らない時に 504 を返すため
+// （api/analyze.ts）、もう一度投げても同じ結果になりやすく、体感の待ち時間が2分を超えてしまう。
+// なお失敗した呼び出しのチケットはサーバー側で払い戻される（api/analyze.ts の refundTicket）。
+const RETRYABLE_STATUS = new Set([429, 500, 502, 503])
+
+// 2026-10-07: AI呼び出しの失敗を HTTP ステータス付きで扱えるようにする。
+// 以前は「Anthropic API エラー (402): {json}」という生の文字列しか投げず、残高不足(402)でも
+// 画面側は「チケットが不足しています」を出せず、プロバイダ名も実際はGeminiなのにAnthropicと表示されていた。
+export class AiRequestError extends Error {
+  status: number
+  constructor(status: number, message: string) {
+    super(message)
+    this.name = 'AiRequestError'
+    this.status = status
+  }
+}
+/** チケット不足(サーバーが402を返した)かどうか。画面側でチケット獲得モーダルを出す判定に使う */
+export function isTicketShortageError(e: unknown): boolean {
+  return e instanceof AiRequestError && e.status === 402
+}
+/** サーバーのエラー応答({error:"..."})から利用者向けの文言を取り出す */
+export function describeAiHttpError(status: number, bodyText: string): string {
+  if (status === 402) return 'チケットが不足しています。チケットを獲得してからもう一度お試しください。'
+  let detail = ''
+  try { const j = JSON.parse(bodyText); detail = typeof j?.error === 'string' ? j.error : '' } catch { detail = bodyText.slice(0, 200) }
+  if (status === 504) return 'AIの応答に時間がかかりすぎました。少し待ってからもう一度お試しください。'
+  if (status === 429 || status === 503) return 'AIが混み合っています。少し待ってからもう一度お試しください。'
+  return `AIサーバーエラー (${status})${detail ? `: ${detail}` : ''}`
+}
+
+// クライアントの待ち時間はサーバーの上限(api/analyze.ts の FUNCTION_BUDGET_MS=55秒)より長くする。
+// 短いと「クライアントだけ諦めたのにサーバーは処理を続けて課金される」状態になる。
+export const AI_CLIENT_TIMEOUT_MS = 58_000
 
 async function callClaudeOnce(req: MessagesRequest): Promise<Response> {
   const body = JSON.stringify({
@@ -68,6 +101,7 @@ async function callClaudeOnce(req: MessagesRequest): Promise<Response> {
     ...(req.system ? { system: req.system } : {}),
     messages: req.messages,
     ...(req.feature ? { feature: req.feature } : {}),
+    ...(req.banked ? { banked: true } : {}),
   })
 
   const appSecret = process.env.EXPO_PUBLIC_APP_SECRET ?? ''
@@ -81,7 +115,7 @@ async function callClaudeOnce(req: MessagesRequest): Promise<Response> {
         ...authHeader,
       },
       body,
-    }, 50000) // 50秒タイムアウト（Vercel maxDuration=60に合わせて余裕を持たせる）
+    }, AI_CLIENT_TIMEOUT_MS)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     const isTimeout = msg.includes('abort') || msg.includes('timeout') || msg.includes('Abort')
@@ -92,7 +126,6 @@ async function callClaudeOnce(req: MessagesRequest): Promise<Response> {
 async function callClaude(req: MessagesRequest): Promise<string> {
   let res = await callClaudeOnce(req)
 
-  // Geminiの一時的な高負荷（503）やVercelの実行時間上限（504）は、
   // 間隔を空けて再送すると成功することが多いため最大2回リトライする（計3回試行）。
   for (let attempt = 0; !res.ok && RETRYABLE_STATUS.has(res.status) && attempt < 2; attempt++) {
     await sleep(1500 * (attempt + 1))
@@ -102,7 +135,7 @@ async function callClaude(req: MessagesRequest): Promise<string> {
   if (!res.ok) {
     const errText = await res.text().catch(() => '')
     if (req.feature) trackAiRequestFailed(req.feature, `http_${res.status}`)
-    throw new Error(`Anthropic API エラー (${res.status}): ${errText}`)
+    throw new AiRequestError(res.status, describeAiHttpError(res.status, errText))
   }
 
   const json = await res.json()
@@ -188,7 +221,26 @@ export async function analyzeMeal(
     ],
   })
 
-  return safeParseJSON<MealAnalysisResult>(text)
+  const raw = safeParseJSON<any>(text)
+  // 2026-10-07: 応答の型を検証していなかったため、total_calories 等が欠けたり文字列で返ると、
+  // 1日の合計が NaN になったり「120」+「80」のように文字列連結されて画面に出ていた。
+  // 数値項目は必ず数値にそろえ、合計が無い/不正なら食品ごとの値から計算し直す。
+  const num = (v: any): number => { const n = typeof v === 'number' ? v : parseFloat(String(v)); return Number.isFinite(n) && n >= 0 ? n : 0 }
+  const foods = Array.isArray(raw?.foods) ? raw.foods.filter((f: any) => f && typeof f === 'object') : []
+  const sum = (key: string) => foods.reduce((a: number, f: any) => a + num(f[key]), 0)
+  const total = (key: string, foodKey: string) => {
+    const t = num(raw?.[key])
+    return t > 0 ? t : sum(foodKey)
+  }
+  return {
+    ...raw,
+    foods,
+    total_calories: total('total_calories', 'calories'),
+    total_protein: total('total_protein', 'protein'),
+    total_carb: total('total_carb', 'carb'),
+    total_fat: total('total_fat', 'fat'),
+    advice: typeof raw?.advice === 'string' ? raw.advice : '',
+  } as MealAnalysisResult
 }
 
 // ─────────────────────────────────────────
@@ -381,7 +433,7 @@ const SCOPPY_SYSTEM_PROMPT = `あなたは陸上競技アプリ「sCORE」のマ
 
 回答の長さは3〜5文程度に収め、長文で説明しすぎない（チャット形式のため）。`
 
-export async function askScoppy(history: ScoppyChatMessage[], language: Language): Promise<string> {
+export async function askScoppy(history: ScoppyChatMessage[], language: Language, opts?: { banked?: boolean }): Promise<string> {
   // トークンコスト増大を防ぐため、直近の会話だけをAPIに送る（表示用の全履歴は
   // 呼び出し元(lib/scoppyChatStore.ts)がAsyncStorage側で別途保持する）。
   // 2026-09-14: 「API費用をもっと抑えられないか」との指示でAPIコストを再点検した際、
@@ -389,13 +441,23 @@ export async function askScoppy(history: ScoppyChatMessage[], language: Language
   // 1メッセージあたりのコストが線形に増える)だと判明。SCOPPY_SYSTEM_PROMPTで既に
   // 「陸上の一般知識のみ・個人データは使わない」と範囲を絞っているため、直近8件
   // (往復4ターン分)でも回答品質はほぼ変わらない想定で16→8に削減。
-  const recent = history.slice(-8)
+  // 2026-10-07: 直近8件で切ると先頭が assistant になることがあり、また失敗した送信の
+  // user 発言が残って user が連続することもある(Geminiが拒否/回答劣化する恐れ)ため、
+  // 先頭の assistant を落とし、同じ役割が連続する場合は1つにまとめる。
+  const normalized: Array<{ role: 'user' | 'assistant'; content: string }> = []
+  for (const m of history.slice(-8)) {
+    if (normalized.length === 0 && m.role !== 'user') continue
+    const last = normalized[normalized.length - 1]
+    if (last && last.role === m.role) last.content += `\n${m.content}`
+    else normalized.push({ role: m.role, content: m.content })
+  }
   const text = await callClaude({
     model: MODEL,
     max_tokens: 400,
     feature: 'scoppy_chat',
+    ...(opts?.banked ? { banked: true } : {}),
     system: SCOPPY_SYSTEM_PROMPT + narrativeLanguageInstruction(language),
-    messages: recent.map(m => ({ role: m.role, content: m.content })),
+    messages: normalized,
   })
   if (!text.trim()) throw new Error('スコッピーからの返答を取得できませんでした。もう一度お試しください。')
   return text.trim()

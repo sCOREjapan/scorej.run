@@ -883,6 +883,9 @@ export default function ManualLogScreen() {
 
       {/* ── テンプレート名入力モーダル（Alert.promptの代替・全プラットフォーム対応） ── */}
       <Modal visible={tplNameModal} transparent animationType="fade" onRequestClose={() => setTplNameModal(false)}>
+        {/* 2026-10-01修正: KeyboardAvoidingViewが無く、autoFocusで開くキーボードが
+            入力欄・確定ボタンを覆っていた(team.tsxの痛み報告モーダルと同種の不具合) */}
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <TouchableOpacity style={s.eventModalBackdrop} activeOpacity={1} onPress={() => setTplNameModal(false)}>
           <TouchableOpacity activeOpacity={1} style={[s.tplModalSheet, { backgroundColor: colors.surface }]}>
             <Text style={[s.eventModalTitle, { color: colors.text }]}>{t('manualLog.templateModal.title')}</Text>
@@ -909,6 +912,7 @@ export default function ManualLogScreen() {
             </View>
           </TouchableOpacity>
         </TouchableOpacity>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   )

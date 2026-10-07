@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router'
 import { BRAND } from '../lib/theme'
 import { useTheme, type ThemeColors } from '../context/ThemeContext'
 import { useTranslation } from 'react-i18next'
+import { trustScoppyAutoQuestion } from '../lib/scoppyChatStore'
 
 // AIコーチのメニュー生成プロンプト（workout-menu.tsx）が返す固定フォーマット
 // （📋 今日のメニュー／🔥 ウォームアップ／⚡ メイン練習／🌊 クールダウン／💬 コーチから）
@@ -94,7 +95,9 @@ export default function AIMenuResultCard({
   // 自動送信した状態でスコッピー(AIチャット)を開く。
   const askAboutItem = (itemText: string) => {
     const clean = itemText.replace(/\*\*/g, '').trim()
-    router.push({ pathname: '/scoppy-chat', params: { q: t('aiMenuResultCard.askPrompt', { item: clean }) } } as any)
+    const question = t('aiMenuResultCard.askPrompt', { item: clean })
+    trustScoppyAutoQuestion(question)   // アプリ自身が作った質問だけが自動送信される(lib/scoppyChatStore.ts)
+    router.push({ pathname: '/scoppy-chat', params: { q: question } } as any)
   }
 
   // 想定フォーマット外（APIエラー文言等）はプレーン表示にフォールバック

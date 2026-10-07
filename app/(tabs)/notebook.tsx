@@ -15,7 +15,7 @@ import HapticTouch from '../../components/HapticTouch'
 import { useRouter } from 'expo-router'
 import { checkAdGate, recordUsage } from '../../lib/adGate'
 import { TICKET_COST } from '../../lib/ticketWallet'
-import { getAiAuthHeader } from '../../lib/supabase'
+import { getAiProxyHeaders } from '../../lib/supabase'
 import { useFocusEffect } from '@react-navigation/native'
 import { parseDistanceAndReps } from '../../lib/parseWorkoutDistance'
 import type { TrainingSession } from '../../types'
@@ -360,18 +360,35 @@ export default function NotebookScreen() {
         const _nb_endpoint = `${_nb_apiBase}/api/analyze`
         const res = await fetchWithTimeout(_nb_endpoint, {
           method: 'POST',
-          headers: { 'content-type': 'application/json', ...(await getAiAuthHeader()) },
+          headers: { 'content-type': 'application/json', ...(await getAiProxyHeaders()) },
           body: JSON.stringify({
             model: 'claude-haiku-4-5-20251001', max_tokens: 500, feature: 'notebook_ai',
             messages: [{ role: 'user', content: `陸上競技の練習記録テキストを正確にJSONに変換してください。今日の日付は${today}です。\n\n入力テキスト:\n"${freeText}"\n\nルール:\n- session_type: interval(本数+レスト), tempo(ペース走), easy(ジョグ/LSD), long(長距離), sprint(全力短距離), drill(ドリル), strength(ウェイト/筋トレ), race(試合/大会), rest(休養)\n- time_ms: タイムをミリ秒整数に変換。「46秒80」→46800, 「1:28.50」→88500。なければnull\n- distance_m: 合計距離をメートル整数に変換。本数(reps)がある場合は「1本あたりの距離 × 本数」の合計値を入れること。例:「300m×6本」「300×6」→ distance_m=1800（300ではない）。「10km」→ distance_m=10000。なければnull\n- reps: 本数の整数。なければnull\n- fatigue_level: 疲労度1〜10の整数（明記なければ雰囲気から推定）\n- condition_level: 体調1〜10の整数（明記なければ6）\n- event: 100m/200m/300m/400m/800m/1000m/1500m/3000m/5000m/10000m/110mH/100mH/300mH/400mH/3000mSC/競歩/走幅跳/三段跳/走高跳/棒高跳/砲丸投/やり投/円盤投/ハンマー投 のいずれか、なければnull\n\nJSONのみ返答:\n{"session_date":"${today}","session_type":"...","event":"...orNull","time_ms":数値orNull,"distance_m":数値orNull,"reps":数値orNull,"fatigue_level":整数,"condition_level":整数}` }],
           }),
-        }, 30000)
+        }, 58000)  // サーバー(api/analyze.ts)の上限55秒より長くする。短いとクライアントだけ諦めて課金される
         if (res.ok) {
           const data = await res.json()
           const rawText = data.content?.[0]?.text ?? ''
           const jsonMatch = rawText.match(/\{[\s\S]*\}/)
           if (jsonMatch) {
-            const aiParsed = JSON.parse(jsonMatch[0])
+            const aiRaw = JSON.parse(jsonMatch[0])
+            // 2026-10-07: AIの出力を検証せずそのまま保存していたため、2099年の日付や疲労度999のような
+            // 値が練習記録に入り、怪我リスクの計算(日付範囲・疲労)を狂わせ、チームにも共有されていた。
+            // 日付は妥当な範囲(今日から過去60日)の形式だけ、種別は既知の値だけ、疲労・体調は1〜10に丸める。
+            const aiParsed: Record<string, any> = {}
+            const SESSION_TYPES = ['interval', 'tempo', 'easy', 'long', 'sprint', 'drill', 'strength', 'race', 'rest']
+            if (typeof aiRaw?.session_type === 'string' && SESSION_TYPES.includes(aiRaw.session_type)) aiParsed.session_type = aiRaw.session_type
+            if (typeof aiRaw?.session_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(aiRaw.session_date)) {
+              const diffDays = (new Date(today + 'T00:00:00').getTime() - new Date(aiRaw.session_date + 'T00:00:00').getTime()) / 86400000
+              if (diffDays >= 0 && diffDays <= 60) aiParsed.session_date = aiRaw.session_date
+            }
+            for (const k of ['fatigue_level', 'condition_level'] as const) {
+              const n = Number(aiRaw?.[k])
+              if (Number.isFinite(n) && n >= 1) aiParsed[k] = Math.min(10, Math.round(n))
+            }
+            for (const k of ['event', 'time_ms', 'distance_m', 'reps'] as const) {
+              if (aiRaw?.[k] !== undefined) aiParsed[k] = aiRaw[k]
+            }
             // 種目・タイム・距離・本数は本文から一意に読み取れる客観的な値のため、
             // 正規表現側が既に検出できていればそちらを優先する（AIの解釈揺れで
             // 「書いた内容と違う結果になる」のを防ぐ）。AIはそれらが未検出の項目の

@@ -10,6 +10,7 @@ import {
 } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
 import type { UserProfile, VideoAnalysisResult } from '../types'
+import { requestPickerLibraryPermission } from '../lib/mediaPermissions'
 
 interface Props {
   profile: UserProfile
@@ -70,7 +71,7 @@ const VideoAnalyzer: React.FC<Props> = ({
 
   const handlePickVideo = async () => {
     if (Platform.OS !== 'web') {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      const { status } = await requestPickerLibraryPermission()
       if (status !== 'granted') return
     }
 

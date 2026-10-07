@@ -36,6 +36,7 @@ import { getTicketBalance, spendTicketsForFeature, TICKET_COST, type TicketFeatu
 import type { PlanTier } from './purchaseService'
 import { supabase } from './supabase'
 import { SETUP_KEY, type TeamSetup } from './teamKeys'
+import { ensureAiConsent } from './aiConsent'
 
 // コーチ無料体験(lib/coachTrial.ts)はRevenueCatを経由しない(実課金が発生しないため)ので、
 // tier(readCachedTier)には現れない。体験中かどうかはローカルのTeamSetup.trialExpiresAtを
@@ -78,8 +79,13 @@ async function getServerUsageCount(userId: string, feature: string, periodKey: s
 }
 async function incrementServerUsageCount(feature: string, periodKey: string): Promise<void> {
   try {
-    await supabase.rpc('increment_feature_usage', { p_feature: feature, p_period_key: periodKey })
-  } catch {}
+    // 2026-10-07: supabase-js は失敗しても例外を投げず {error} を返すだけなので、以前の try/catch では
+    // 失敗が一切検知できず、利用回数が増えない(=上限が効かない)ことに気づけなかった。ログに残す。
+    const { error } = await supabase.rpc('increment_feature_usage', { p_feature: feature, p_period_key: periodKey })
+    if (error) console.warn('[adGate] usage increment failed:', feature, error.message)
+  } catch (e) {
+    console.warn('[adGate] usage increment threw:', feature, e)
+  }
 }
 
 /**
@@ -91,9 +97,9 @@ async function incrementServerUsageCount(feature: string, periodKey: string): Pr
 export async function checkAndConsumeDailyAllowance(key: string, dailyCap: number): Promise<boolean> {
   const userId = await getCurrentUserId()
   if (!userId) return false // ゲストはサーバー側での本人確認手段が無いため許可しない
-  const count = await getServerUsageCount(userId, key, todayStr())
+  const count = await getServerUsageCount(userId, key, serverDayStr())
   if (count >= dailyCap) return false
-  await incrementServerUsageCount(key, todayStr())
+  await incrementServerUsageCount(key, serverDayStr())
   return true
 }
 
@@ -181,6 +187,12 @@ async function saveHardMonthlyUsage(d: { month: string; counts: Partial<Record<F
 }
 
 const todayStr = () => todayLocalISO()
+// 2026-10-07: サーバー側のカウンタ(feature_usage_counts)の日付キーは日本時間(JST)の日付に統一する。
+// api/analyze.ts のコーチ体験ボーナス枠の判定は「日本時間の今日」の行を読むのに、以前はアプリが
+// 端末の現地日付で書き込んでいたため、日本時間と日付がずれる地域の端末では、サーバーが常に
+// 「今日は未使用」と読み、体験枠が何度でも無料になっていた。日本の端末では変化なし。
+// （端末内だけで数えるゲストの回数は従来どおり現地日付）
+const serverDayStr = () => new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10)
 
 // ── CSV専用：累計1回無料のシンプルなフラグ（AI機能のチケットプールとは無関係） ──
 const CSV_USED_KEY = 'score_csv_used_once'
@@ -233,7 +245,14 @@ export async function checkAdGate(feature: Feature): Promise<{
   ticketBalance: number
   hardLimited:   boolean
   limitType:     'none' | 'daily' | 'monthly' | 'total' | 'window'
+  // true = AIへのデータ送信に同意されなかった(lib/aiConsent.ts)。呼び出し側は広告/チケットの案内を
+  // 出さず、そのまま何もせず戻ること(チケットも消費しない)。
+  consentDenied?: boolean
 }> {
+  // AI機能は最初の1回だけ、データの送信先(Google Gemini)と内容を示して同意を得る。csv(AIを使わない)は対象外。
+  if (feature !== 'csv' && !(await ensureAiConsent())) {
+    return { allowed: false, remaining: 0, needsAd: false, needsTicket: false, ticketCost: 0, ticketBalance: 0, hardLimited: false, limitType: 'none', consentDenied: true }
+  }
   // tier・チケット残高に関わらず適用される1日の絶対上限（コスト超過防止）。
   // ログイン中はサーバー側カウントを見る（再インストールで回避できないようにするため）
   const userId = await getCurrentUserId()
@@ -241,7 +260,7 @@ export async function checkAdGate(feature: Feature): Promise<{
   let dailyCount = 0
   if (cap !== undefined) {
     dailyCount = userId
-      ? await getServerUsageCount(userId, feature, todayStr())
+      ? await getServerUsageCount(userId, feature, serverDayStr())
       : (await getHardDailyUsage()).counts[feature] ?? 0
     if (dailyCount >= cap) {
       return { allowed: false, remaining: 0, needsAd: false, needsTicket: false, ticketCost: 0, ticketBalance: 0, hardLimited: true, limitType: 'daily' }
@@ -307,11 +326,11 @@ export async function recordUsage(feature: Feature): Promise<void> {
     // （checkAdGateのdailyCountと同じ基準に揃える）。
     const userId = await getCurrentUserId()
     const dailyCountBefore = HARD_DAILY_CAP[feature] !== undefined
-      ? (userId ? await getServerUsageCount(userId, feature, todayStr()) : (await getHardDailyUsage()).counts[feature] ?? 0)
+      ? (userId ? await getServerUsageCount(userId, feature, serverDayStr()) : (await getHardDailyUsage()).counts[feature] ?? 0)
       : 0
     if (HARD_DAILY_CAP[feature] !== undefined) {
       if (userId) {
-        await incrementServerUsageCount(feature, todayStr())
+        await incrementServerUsageCount(feature, serverDayStr())
       } else {
         const hard = await getHardDailyUsage()
         hard.counts[feature] = (hard.counts[feature] ?? 0) + 1

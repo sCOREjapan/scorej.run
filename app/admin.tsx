@@ -13,7 +13,10 @@ import { supabase } from '../lib/supabase'
 import { Ionicons } from '@expo/vector-icons'
 import { todayLocalISO } from '../lib/dateLocal'
 
-const ADMIN_PASS = process.env.EXPO_PUBLIC_ADMIN_PASSWORD ?? 'score2026admin'
+// 2026-10-07: 固定の既定パスワード('score2026admin')がクライアントのバンドルに埋め込まれていた。
+// この画面のクライアント側パスワードは見た目だけの関門で、実際の保護はサーバー側の ADMIN_EXPORT_SECRET
+// (api/admin-tools.ts)。既定値は持たず、環境変数が設定されている時だけ追加の確認として使う。
+const ADMIN_PASS = process.env.EXPO_PUBLIC_ADMIN_PASSWORD ?? ''
 
 // ── 都道府県の地理的位置（SVG 260×270内の座標） ──────────────
 // lon range 129-146°E, lat range 31-46°N → 260×250px
@@ -458,7 +461,7 @@ export default function AdminScreen() {
   }, [exportSecret])
 
   const handleLogin = () => {
-    if (pass !== ADMIN_PASS) {
+    if (ADMIN_PASS && pass !== ADMIN_PASS) {
       setError('パスワードが違います')
       return
     }

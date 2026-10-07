@@ -125,9 +125,22 @@ function fallbackParse(text: string, today: string): Record<string, any> {
     fatigue_level = 5
   }
 
-  // 体調
+  // 体調（fatigue_levelと同じ「数字明示が無いと既定値固定」不具合が残っていたため、
+  // 2026-10-01にキーワード判定を追加。condition_levelは数値が大きいほど良い状態
+  // （lib/fatigue.tsのcalcConditionScoreがavg/10*100と直接比例、fatigue_levelとは逆方向）
   const condMatch = t.match(/体調\s*[：:=]?\s*(\d+)|condition\s*[：:=]?\s*(\d+)/i)
-  const condition_level = condMatch ? parseInt(condMatch[1] ?? condMatch[2]) : 6
+  let condition_level: number
+  if (condMatch) {
+    condition_level = parseInt(condMatch[1] ?? condMatch[2])
+  } else if (/絶好調|(体調|調子)(が)?(万全|バッチリ|とても?良|すごく?良)/.test(t)) {
+    condition_level = 9
+  } else if (/(体調|調子)(が)?良|好調/.test(t)) {
+    condition_level = 8
+  } else if (/(体調|調子)(が)?(悪|不調|イマイチ|微妙)/.test(t)) {
+    condition_level = 3
+  } else {
+    condition_level = 6
+  }
 
   return { session_date: today, session_type, event, time_ms, distance_m, reps, fatigue_level, condition_level }
 }

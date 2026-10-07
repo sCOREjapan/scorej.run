@@ -15,6 +15,8 @@ import { useFocusEffect } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import { useTheme, type ThemeColors } from '../context/ThemeContext'
+import { useAuth } from '../context/AuthContext'
+import { ROLE_KEY } from '../lib/teamKeys'
 import { useLanguage } from '../context/LanguageContext'
 import { BRAND } from '../lib/theme'
 import { getTeamRosterSummary, type TeamRosterSummary } from '../lib/teamRoster'
@@ -35,6 +37,7 @@ export default function CoachHomeScreen() {
   const { t } = useTranslation()
   const { language } = useLanguage()
   const router = useRouter()
+  const { setCoachMode } = useAuth()
   const s = makeStyles(colors)
   const [setup, setSetup] = useState<TeamSetup | null>(null)
   // 2026-09-16(P1/P3): 「今日のチーム状況」サマリーと自己ベスト更新フィード。
@@ -66,6 +69,16 @@ export default function CoachHomeScreen() {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  // 2026-10-06 致命バグ修正: 選手として使っていた人がコーチ専用ホームに入り込むと、ここには
+  // 選手へ戻る手段が一切無く(設定の切り替えは条件付き表示で、押しても古い状態に打ち消されて
+  // いた)閉じ込められていた。確実に戻れる専用ボタンを常に出す。チームのデータ(SETUP_KEY等)は
+  // 消さず、役割を'player'にしてホームのコーチ専用UIを解除するだけの非破壊の切り替え。
+  const switchToAthlete = useCallback(async () => {
+    await AsyncStorage.setItem(ROLE_KEY, 'player').catch(() => {})
+    await setCoachMode(false)
+  }, [setCoachMode])
+
   // チーム作成直後にteam.tsxから戻ってきた時も最新化されるよう、フォーカス時にも再読込
   useFocusEffect(useCallback(() => { load() }, [load]))
 
@@ -223,6 +236,16 @@ export default function CoachHomeScreen() {
             ))}
           </View>
 
+          {/* ── 選手として使う(コーチ専用ホームから確実に戻る逃げ道) ── */}
+          <TouchableOpacity style={s.switchCard} onPress={switchToAthlete} activeOpacity={0.8} accessibilityRole="button">
+            <Ionicons name="swap-horizontal-outline" size={20} color={BRAND} />
+            <View style={{ flex: 1 }}>
+              <Text style={s.switchLabel}>{t('home.coach.switchToAthlete')}</Text>
+              <Text style={s.switchSub}>{t('home.coach.switchToAthleteSub')}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textHint} />
+          </TouchableOpacity>
+
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -303,4 +326,7 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   actionLabel: { fontSize: 13.5, fontWeight: '800', color: colors.text, marginBottom: 3 },
   actionSub: { fontSize: 11, color: colors.textSec, lineHeight: 15 },
+  switchCard: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 20, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  switchLabel: { fontSize: 14, fontWeight: '700', color: colors.text },
+  switchSub: { fontSize: 11, color: colors.textSec, marginTop: 2, lineHeight: 15 },
 })

@@ -130,6 +130,14 @@ export async function getAiAuthHeader(): Promise<Record<string, string>> {
   }
 }
 
+// 2026-10-07: /api/analyze を直接呼ぶ画面が10か所あり、X-App-Secret を付けていたのは lib/claude.ts だけだった。
+// サーバー側で APP_SECRET を有効にした途端、それ以外の全画面(動画分析・AI診断・リカバリー等)が
+// 401 になる状態だったため、ヘッダーの組み立てをここに一本化する(秘密値 + ログイン情報)。
+export async function getAiProxyHeaders(): Promise<Record<string, string>> {
+  const appSecret = process.env.EXPO_PUBLIC_APP_SECRET ?? ''
+  return { ...(appSecret ? { 'X-App-Secret': appSecret } : {}), ...(await getAiAuthHeader()) }
+}
+
 export async function getRecentSleep(userId: string, days = 14) {
   if (IS_PLACEHOLDER) return []
   const since = new Date()
