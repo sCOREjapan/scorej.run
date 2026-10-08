@@ -3,6 +3,7 @@
 //   - 大会日を軸に、確立された栄養知見を「目安・提案」として提示する（断定的な処方はしない）
 //   - 「食事を主に用意するのは誰か」で出力の宛先を分岐する（本人 / 保護者 / 寮 等）
 //   - 日次の具体的な献立処方（本命機能）は管理栄養士監修・フェーズ設計が整うまで保留
+import BannerAdView from '../components/BannerAdView'
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
@@ -346,6 +347,7 @@ ${headerNote}
             </Text>
           </ScrollView>
         )}
+        <BannerAdView />
       </SafeAreaView>
 
       <TicketGateModal

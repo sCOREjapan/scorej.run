@@ -293,7 +293,7 @@ export default function PrivacyScreen() {
                 ['Supabase Inc.',   'クラウドデータ保存・ユーザー認証', 'アカウント情報・プロフィール・練習/タイム/レース記録・睡眠・食事記録・体重・体調データ', 'supabase.com/privacy'],
                 ['RevenueCat Inc.', 'サブスクリプション管理・課金検証', '購入レシート・課金状態・ユーザーID', 'revenuecat.com/privacy'],
                 ['Expo (650 Industries, Inc.)', 'プッシュ通知の配信', '端末トークン（匿名）', 'expo.dev/privacy'],
-                ['Google LLC（Google Mobile Ads/AdMob）', '広告の配信', '広告識別子・端末情報（非パーソナライズ配信）', 'policies.google.com/technologies/ads'],
+                ['Google LLC（Google Mobile Ads/AdMob）', '広告の配信', '広告識別子（iOSは許可した場合のみ）・端末情報・おおまかな地域・広告の表示状況', 'policies.google.com/technologies/ads'],
                 ['Apple Inc.',      'iOS App Store決済・SSO認証', '購入レシート・AppleユーザーID', 'apple.com/legal/privacy'],
                 ['Google LLC（Play Store・Googleログイン）', 'Android Play Store決済・SSO認証', '購入レシート・GoogleユーザーID', 'policies.google.com/privacy'],
               ].map(([svc, purpose, data, policy], i) => (
@@ -392,7 +392,7 @@ export default function PrivacyScreen() {
               ブラウザのローカルストレージに保存されたデータは、ブラウザの設定から「サイトデータの消去」等を実行することで削除できます。ただし、この操作により本サービスのローカルデータがすべて削除されますのでご注意ください。
             </Li>
             <Li n={6}>
-              モバイルアプリ版では、Google Mobile Ads（AdMob）SDKを使用して広告を配信しています。クッキーは使用しませんが、広告配信のために端末の広告識別子が利用される場合があります。iOSでは、App Tracking Transparency（ATT）の許可ダイアログでユーザーが同意した場合を除き、広告のパーソナライズは行わず、非パーソナライズ広告のみを配信します。詳細はGoogleの広告ポリシー（policies.google.com/technologies/ads）をご確認ください。
+              モバイルアプリ版では、Google Mobile Ads（AdMob）SDKを使用して広告を配信しています。クッキーは使用しませんが、広告配信のために端末の広告識別子が利用される場合があります。iOSでは、App Tracking Transparency（ATT）の許可ダイアログでユーザーが「許可」した場合にのみ広告識別子が広告配信に利用され、許可しない場合は広告識別子は利用されません（広告は表示されますが、関連性は低くなる場合があります）。許可の設定は、iOSの「設定」→「プライバシーとセキュリティ」→「トラッキング」からいつでも変更できます。欧州経済領域（EEA）・英国・スイスの地域では、同意の取得に対応するまでの間、パーソナライズされていない広告のみを配信します。それ以外の地域では、Googleの仕組みに基づき、利用状況に合わせた広告が配信される場合があります（Androidでは、Googleの設定の「広告」から、広告のカスタマイズをオフにできます）。詳細はGoogleの広告ポリシー（policies.google.com/technologies/ads）をご確認ください。
             </Li>
           </Section>
 

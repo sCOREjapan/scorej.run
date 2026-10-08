@@ -17,6 +17,8 @@ export async function initAdmob(): Promise<void> {}
 export async function showRewardedAd(): Promise<boolean> { return true }  // web開発時は成功扱い
 export async function showInterstitialAd(): Promise<boolean> { return false }
 export async function showAppOpenAd(): Promise<void> {}
+export function preloadInterstitialAd(): void {}
+export async function preloadInterstitialIfDue(_discard = false): Promise<void> {}
 export function getBannerUnitId(): string { return '' }
 
 export async function hasDailyInsightClaimed(): Promise<boolean> {

@@ -1,3 +1,4 @@
+import BannerAdView from '../components/BannerAdView'
 import React, { useState, useEffect, useCallback } from 'react'
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
@@ -483,6 +484,7 @@ ${languageLine}${narrativeLanguageInstruction(language)}`,
           )}
 
         </ScrollView>
+        <BannerAdView />
       </SafeAreaView>
 
       <AdGateModal

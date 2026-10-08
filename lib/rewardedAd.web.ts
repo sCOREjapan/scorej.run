@@ -10,6 +10,12 @@ export const AD_UNIT_IDS = {
 export const REWARDED_AD_UNIT_ID = ''
 export const BANNER_AD_UNIT_ID   = ''
 
+export type AdOutcome = 'earned' | 'no_ad' | 'dismissed'
+
+export function preloadRewardedAd(): void {}
+export function discardPreloadedRewardedAd(): void {}
+export async function watchOneRewardedAd(): Promise<AdOutcome> { return 'no_ad' }
+
 export function showOneRewardedAd(): Promise<boolean> {
   return Promise.resolve(false)
 }

@@ -1,3 +1,4 @@
+import BannerAdView from '../components/BannerAdView'
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
@@ -899,6 +900,7 @@ ${H2.coach}
           </ScrollView>
         )}
 
+        <BannerAdView />
       </SafeAreaView>
 
       {/* ── フォルダ作成/編集モーダル ── */}

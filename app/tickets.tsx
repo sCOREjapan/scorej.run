@@ -11,7 +11,7 @@ import { useRouter } from 'expo-router'
 import { usePurchase } from '../context/PurchaseContext'
 import { PRODUCT_IDS, purchaseConsumable, TICKET_MONTHLY_GRANT } from '../lib/purchaseService'
 import { getWalletSnapshot, grantTickets, earnTicketFromAd, getAdTicketRemainingToday } from '../lib/ticketWallet'
-import { watchAdsForReward } from '../lib/rewardedAd'
+import { watchOneRewardedAd, preloadRewardedAd } from '../lib/rewardedAd'
 import Toast from 'react-native-toast-message'
 import { useTranslation } from 'react-i18next'
 import { useTheme, type ThemeColors } from '../context/ThemeContext'
@@ -59,6 +59,7 @@ export default function TicketsScreen() {
   }, [])
 
   useEffect(() => { refresh() }, [refresh])
+  useEffect(() => { preloadRewardedAd() }, [])   // 広告ボタンを押した時にすぐ出るよう先読み
 
   const selectedPack = PACKS.find(p => p.id === selected)!
   const targetPkg = packages.find((pkg: any) => pkg.product?.identifier === selectedPack.productId)
@@ -128,8 +129,12 @@ export default function TicketsScreen() {
         return
       }
       setWatchingAd(true)
-      const ok = await watchAdsForReward(1)
-      if (!ok) return
+      const outcome = await watchOneRewardedAd()
+      if (outcome === 'no_ad') {
+        Toast.show({ type: 'info', text1: t('tickets.adUnavailable') })   // 何も起きないように見えないよう理由を伝える
+        return
+      }
+      if (outcome !== 'earned') return
       const r = await earnTicketFromAd()
       await refresh()
       if (r.granted) {

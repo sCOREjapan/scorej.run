@@ -954,7 +954,11 @@ export default function SettingsScreen() {
                     await setCoachMode(false)
                     router.push('/(tabs)/team')
                   }
-                  if (typeof window !== 'undefined') {
+                  // 2026-10-07 致命バグ修正: ここは `typeof window !== 'undefined'` で Web を判定していたが、
+                  // React Native(スマホ)でも window は定義されているため、スマホでも Web 側に入り、
+                  // 存在しない window.confirm を呼んで例外になり、ボタンを押しても何も起きなかった
+                  // (コーチ専用画面から選手に戻れない不具合の本当の原因)。Platform.OS で判定する。
+                  if (Platform.OS === 'web') {
                     if (window.confirm(t('settings.team.switchConfirmWeb'))) doSwitch()
                   } else {
                     Alert.alert(t('settings.team.switchTitle'), t('settings.team.switchMessage'), [
@@ -990,7 +994,7 @@ export default function SettingsScreen() {
                   const doReset = async () => {
                     await resetOnboarding()
                   }
-                  if (typeof window !== 'undefined') {
+                  if (Platform.OS === 'web') {
                     if (window.confirm(t('settings.team.redoOnboardingConfirm'))) doReset()
                   } else {
                     Alert.alert(t('settings.team.redoOnboardingTitle'), t('settings.team.redoOnboardingMessage'), [

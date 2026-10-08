@@ -4,6 +4,7 @@
 import React from 'react'
 import { Platform, View } from 'react-native'
 import { usePurchase } from '../context/PurchaseContext'
+import { adRequestOptions } from '../lib/adPersonalization'
 
 interface Props {
   onLoaded?:  () => void
@@ -38,7 +39,7 @@ export default function BannerAdView({ onLoaded, onFailed }: Props) {
       <BannerAd
         unitId={getBannerUnitId()}
         size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
-        requestOptions={{ requestNonPersonalizedAdsOnly: true }}
+        requestOptions={adRequestOptions()}
         onAdLoaded={(_dimensions: any) => onLoaded?.()}
         onAdFailedToLoad={(error: any) => {
           console.warn('[BannerAd] failed to load:', error)

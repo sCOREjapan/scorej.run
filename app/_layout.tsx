@@ -1,7 +1,7 @@
 import React, { Component, useEffect, useRef, useState } from 'react'
 import {
   Platform, View, ActivityIndicator, TouchableOpacity,
-  Text, Modal, ScrollView, Linking, StyleSheet,
+  Text, Modal, ScrollView, Linking, StyleSheet, AppState,
 } from 'react-native'
 import { Stack, useRouter, useSegments } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -26,7 +26,9 @@ import { TutorialProvider, isTutorialDone } from '../lib/tutorialContext'
 import TutorialSlides from '../components/TutorialSlides'
 import LineCommunityBanner from '../components/LineCommunityBanner'
 import CoachPlanBanner from '../components/CoachPlanBanner'
-import { initAdmob, showAppOpenAd } from '../lib/admob'
+import { initAdmob, showAppOpenAd, preloadInterstitialIfDue } from '../lib/admob'
+import { discardPreloadedRewardedAd } from '../lib/rewardedAd'
+import { maybeRequestTracking } from '../lib/attPrompt'
 import { isAnyAdShowing, setAnyAdShowing } from '../lib/adLock'
 import { useOverlayDismiss } from '../lib/useOverlayDismiss'
 // expo-tracking-transparency: 動的インポートでバージョン非互換クラッシュを防ぐ
@@ -720,23 +722,40 @@ function RootLayoutNav() {
   const segmentsRef = useRef(segments)
   segmentsRef.current = segments
 
-  // ATT (App Tracking Transparency) 許可 → AdMob SDK 初期化
-  // 動的インポートでバージョン非互換によるクラッシュを防ぐ
+  // ATT (App Tracking Transparency) 許可 → AdMob SDK 初期化 → App Open 広告
+  // 2026-10-07: ATT は起動3秒後に、説明なしでOSのダイアログを出していた。オンボーディング中でも出てしまい、
+  // 許可率が低く、離脱の原因にもなっていた。ホーム(タブ)に着いてチュートリアルも終わってから、
+  // 短い説明を1回挟んで出す(lib/attPrompt.ts)。許可されると広告識別子が使え、広告の単価が上がる。
+  // 動的インポートによるバージョン非互換クラッシュの回避は attPrompt 側で行う
   useEffect(() => {
-    const t = setTimeout(async () => {
-      if (Platform.OS === 'ios') {
-        try {
-          // 動的インポート: モジュールが存在しない/非互換でもクラッシュしない
-          const att = await import('expo-tracking-transparency').catch(() => null)
-          if (att) {
-            const { status } = await att.getTrackingPermissionsAsync().catch(() => ({ status: 'unavailable' }))
-            if (status === 'undetermined') {
-              await att.requestTrackingPermissionsAsync().catch(() => {})
-            }
-          }
-        } catch {}
-      }
+    let stopped = false
+    const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
+    // ATTを出してよい状態か: ホームにいて、チュートリアル・告知・他の全画面表示がなく、アプリが前面にある。
+    // true = 確認を終えた(これ以上試さない) / false = まだ出せる状態ではない
+    const tryAskTracking = async (): Promise<boolean> => {
+      if (segmentsRef.current[0] !== '(tabs)') return false
+      if (!(await isTutorialDone().catch(() => true))) return false
+      // 使い始めの日(起動1日目)は出さない。ホームに着いた直後は位置情報の許可ダイアログも出るため、
+      // 許可の確認が続けて3つ重なり離脱しやすい。広告(インタースティシャル/App Open)も初日は出さないので、
+      // 2日目以降に確認しても収益は変わらない。score_app_open_count は「起動した日」を数える(app/(tabs)/index.tsx)
+      const openDays = parseInt((await AsyncStorage.getItem('score_app_open_count').catch(() => null)) ?? '0', 10)
+      if (!(openDays >= 2)) return false
+      if (isAnyAdShowing() || AppState.currentState !== 'active') return false
+      await maybeRequestTracking(() => {
+        // 許可の結果が出たら、結果が出る前に読み込んだ広告(広告識別子なし)を捨てて読み込み直す
+        discardPreloadedRewardedAd()
+        preloadInterstitialIfDue(true).catch(() => {})
+      }).catch(() => {})
+      return true
+    }
+    ;(async () => {
+      await sleep(3000)
+      if (stopped) return
+      // 既存ユーザー(すでにホームにいる)は従来どおり起動直後に確認する。新規ユーザーはまだ出さない
+      let asked = await tryAskTracking()
+      if (stopped) return
       await initAdmob().catch(() => {})
+      if (stopped) return
       // 初期化完了後にApp Open広告（1日1回）。オンボーディング/ログイン中は離脱率が上がるため表示しない。
       // ホーム画面のチュートリアル演出や告知バナー（<Modal>）の最中も、ネイティブ広告の
       // presentationと重なって画面が反応しなくなる不具合があったため、
@@ -744,10 +763,16 @@ function RootLayoutNav() {
       const seg = segmentsRef.current[0]
       if (seg !== 'onboarding' && seg !== 'auth') {
         const tutorialDone = await isTutorialDone().catch(() => true)
-        if (tutorialDone && !isAnyAdShowing()) showAppOpenAd().catch(() => {})
+        if (tutorialDone && !isAnyAdShowing()) await showAppOpenAd().catch(() => {})
       }
-    }, 3000)
-    return () => clearTimeout(t)
+      preloadInterstitialIfDue().catch(() => {})
+      // オンボーディング中の新規ユーザー: ホームに着いてチュートリアルが終わるまで待ってから確認する(最大約40分)
+      for (let i = 0; !asked && !stopped && i < 600; i++) {
+        await sleep(4000)
+        asked = await tryAskTracking()
+      }
+    })()
+    return () => { stopped = true }
   }, [])
 
 

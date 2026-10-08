@@ -16,13 +16,14 @@ import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import type { Feature } from '../lib/adGate'
 import { earnTicketFromAd, getAdTicketRemainingToday, getTicketBalance } from '../lib/ticketWallet'
-import { watchAdsForReward } from '../lib/rewardedAd'
+import { watchOneRewardedAd, preloadRewardedAd } from '../lib/rewardedAd'
 import { trackPaywallView, trackPaywallDismiss } from '../lib/analytics'
 import HapticTouch from './HapticTouch'
 import Toast from 'react-native-toast-message'
 import { useTranslation } from 'react-i18next'
 
 const BRAND = '#166534'
+const BULK_MAX = 5   // 不足がこの枚数以下なら、まとめて視聴できる
 const TIX   = '#f59e0b'
 const MASCOT = require('../assets/illustrations/mascot/mascot_ticket_celebrate.png')
 const TICKET_ICON = require('../assets/icons/ticket.png')
@@ -48,13 +49,17 @@ export default function TicketGateModal({ visible, feature, ticketCost, ticketBa
   const [balance, setBalance] = useState(ticketBalance)
   const [watchingAd, setWatchingAd] = useState(false)
   const [adTicketsLeft, setAdTicketsLeft] = useState(0)
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
   const adLockRef = useRef(false)
   const shortage = Math.max(0, ticketCost - balance)
+  // 不足が2〜5枚で、今日の獲得枠が足りる時は、不足分をまとめて視聴できる（1本ずつ押し直す手間を減らす）
+  const bulkCount = shortage >= 2 && shortage <= BULK_MAX && adTicketsLeft >= shortage ? shortage : 1
 
   useEffect(() => {
     if (!visible) return
     setBalance(ticketBalance)
     getAdTicketRemainingToday().then(setAdTicketsLeft).catch(() => {})
+    preloadRewardedAd()   // 押した時にすぐ出るよう、モーダルを開いた時点で先読みする
   }, [visible, ticketBalance])
 
   // 表示イベントの計測は「開いた瞬間」だけに絞る（残高更新のたびに二重計測しない）
@@ -81,17 +86,35 @@ export default function TicketGateModal({ visible, feature, ticketCost, ticketBa
       const fresh = await getAdTicketRemainingToday()
       setAdTicketsLeft(fresh)
       if (fresh <= 0) return
+      // 不足分をまとめて視聴する時は、その本数を続けて流す（途中で閉じたら、そこまでに獲得した分は残る）
+      const total = shortage >= 2 && shortage <= BULK_MAX && fresh >= shortage ? shortage : 1
       setWatchingAd(true)
-      const ok = await watchAdsForReward(1)
-      if (!ok) return
-      const r = await earnTicketFromAd()
-      if (r.granted) {
+      setProgress({ done: 0, total })
+      let earned = 0
+      for (let i = 0; i < total; i++) {
+        const outcome = await watchOneRewardedAd()
+        if (outcome === 'no_ad') {
+          // 広告が出せない（在庫なし・通信不良）。何も起きないように見えないよう、理由を伝える
+          Toast.show({ type: 'info', text1: t('ticketGateModal.adUnavailable') })
+          break
+        }
+        if (outcome === 'dismissed') break
+        const r = await earnTicketFromAd()
+        if (!r.granted) break
+        earned++
+        setProgress({ done: earned, total })
         setBalance(await getTicketBalance())
+        if (i < total - 1) preloadRewardedAd()   // 次の1本を先読み
+      }
+      if (earned > 0) {
+        const bal = await getTicketBalance()
+        setBalance(bal)
         setAdTicketsLeft(await getAdTicketRemainingToday())
-        Toast.show({ type: 'success', text1: t('ticketGateModal.ticketEarned') })
+        Toast.show({ type: 'success', text1: bal >= ticketCost ? t('ticketGateModal.readyToast') : t('ticketGateModal.ticketEarned') })
       }
     } finally {
       setWatchingAd(false)
+      setProgress(null)
       adLockRef.current = false
     }
   }
@@ -110,9 +133,11 @@ export default function TicketGateModal({ visible, feature, ticketCost, ticketBa
             <Image source={MASCOT} style={st.mascotImg} resizeMode="contain" />
           </View>
 
-          <Text style={st.title}>{t('ticketGateModal.title')}</Text>
+          <Text style={st.title}>{shortage === 0 ? t('ticketGateModal.readyTitle') : t('ticketGateModal.title')}</Text>
           <Text style={st.sub}>
-            {t('ticketGateModal.sub', { feature: featureName, cost: ticketCost, balance, shortage })}
+            {shortage === 0
+              ? t('ticketGateModal.readySub', { feature: featureName })
+              : t('ticketGateModal.sub', { feature: featureName, cost: ticketCost, balance, shortage })}
           </Text>
 
           <View style={st.statRow}>
@@ -130,15 +155,23 @@ export default function TicketGateModal({ visible, feature, ticketCost, ticketBa
 
           <View style={st.btns}>
             {/* 主CTA：月額プラン（¥980〜・毎月チケット100枚）。広告/単発購入より上に配置 */}
-            <HapticTouch
-              haptic="whoosh"
-              style={st.primaryBtn}
-              onPress={() => { onClose(); router.push('/paywall?plan=ticket_monthly') }}
-              activeOpacity={0.88}
-            >
-              <Ionicons name="refresh" size={18} color="#fff" />
-              <Text style={st.primaryBtnTxt}>{t('ticketGateModal.monthlyPlan')}</Text>
-            </HapticTouch>
+            {shortage === 0 ? (
+              // 広告で足りた: 閉じて、元の操作をもう一度してもらう
+              <HapticTouch haptic="whoosh" style={st.primaryBtn} onPress={onClose} activeOpacity={0.88}>
+                <Ionicons name="checkmark-circle" size={18} color="#fff" />
+                <Text style={st.primaryBtnTxt}>{t('ticketGateModal.readyCta')}</Text>
+              </HapticTouch>
+            ) : (
+              <HapticTouch
+                haptic="whoosh"
+                style={st.primaryBtn}
+                onPress={() => { onClose(); router.push('/paywall?plan=ticket_monthly') }}
+                activeOpacity={0.88}
+              >
+                <Ionicons name="refresh" size={18} color="#fff" />
+                <Text style={st.primaryBtnTxt}>{t('ticketGateModal.monthlyPlan')}</Text>
+              </HapticTouch>
+            )}
 
             <HapticTouch
               haptic="tap"
@@ -153,9 +186,13 @@ export default function TicketGateModal({ visible, feature, ticketCost, ticketBa
                 <Ionicons name="play-circle-outline" size={17} color={TEXT_1} />
               )}
               <Text style={st.secondaryBtnTxt}>
-                {watchingAd ? t('ticketGateModal.watchAdLoading')
-                  : adTicketsLeft > 0 ? t('ticketGateModal.watchAdCta', { n: adTicketsLeft })
-                  : t('ticketGateModal.watchAdCapReached')}
+                {watchingAd
+                  ? (progress && progress.total > 1
+                      ? t('ticketGateModal.watchAdProgress', { done: progress.done, total: progress.total })
+                      : t('ticketGateModal.watchAdLoading'))
+                  : adTicketsLeft <= 0 ? t('ticketGateModal.watchAdCapReached')
+                  : bulkCount > 1 ? t('ticketGateModal.watchAdBulkCta', { k: bulkCount })
+                  : t('ticketGateModal.watchAdCta', { n: adTicketsLeft })}
               </Text>
             </HapticTouch>
 
