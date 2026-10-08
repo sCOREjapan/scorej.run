@@ -34,7 +34,7 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>73</string>
+	<string>74</string>
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-6225795381877305~3874907264</string>
 	<key>GADDelayAppMeasurementInit</key>
@@ -70,6 +70,8 @@
 	<array>
 		<string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>
 	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>パーソナライズされた広告を表示するために広告識別子を使用します。</string>
 	<key>RCTNewArchEnabled</key>

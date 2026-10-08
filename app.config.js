@@ -81,7 +81,7 @@ module.exports = {
       requiresFullScreen: true,
       bundleIdentifier: 'com.scorejapan.score',
       usesAppleSignIn: true,
-      buildNumber: '73',
+      buildNumber: '74',
       appleTeamId: '4B5NK8DR67',
       entitlements: {
         'com.apple.security.application-groups': ['group.com.scorejapan.score'],
@@ -94,6 +94,10 @@ module.exports = {
             ]
           }
         ],
+        // 2026-10-08: 輸出コンプライアンス。通信はHTTPS等のOS標準の暗号化のみで、独自の暗号化は使わない。
+        // これが無いと、ビルドを提出するたびにApp Store Connectで「コンプライアンスがありません」となり、
+        // 手動で回答するまでTestFlightに出ない(ビルド72がこの状態だった)。
+        ITSAppUsesNonExemptEncryption: false,
         // iOS 14+ でのパーソナライズ広告に必要（ATT: App Tracking Transparency）
         NSUserTrackingUsageDescription:
           'パーソナライズされた広告を表示するために広告識別子を使用します。',
