@@ -16,3 +16,12 @@ build/
 supabase/.temp/
 google-play-service-account.json
 .env*
+
+# 2026-10-10: 署名・配布用の鍵と成果物を、誤ってコミットしないように
+*.p8
+*.p12
+*.jks
+*.keystore
+*.pem
+*.aab
+*.apk
